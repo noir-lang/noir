@@ -794,8 +794,8 @@ impl Elaborator<'_> {
 
     /// Compiles the rows of a match expression, outputting a decision tree for the match.
     ///
-    /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
-    /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
+    /// This is an adaptation of <https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021>
+    /// which is an implementation of <https://julesjacobs.com/notes/patternmatching/patternmatching.pdf>
     pub(super) fn elaborate_match_rows(
         &mut self,
         rows: Vec<Row>,

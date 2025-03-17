@@ -184,7 +184,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 let struct_type = struct_type.borrow();
 
                 let current_module_data =
-                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+                    &self.def_maps[&self.module_id.krate][self.module_id.local_id];
 
                 // Check if the struct type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&struct_type.name);
@@ -219,7 +219,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 let type_alias = type_alias.borrow();
 
                 let current_module_data =
-                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+                    &self.def_maps[&self.module_id.krate][self.module_id.local_id];
 
                 // Check if the alias type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&type_alias.name);
@@ -257,7 +257,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 // Check if the trait type is already imported/visible in this module
                 let current_module_data =
-                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+                    &self.def_maps[&self.module_id.krate][self.module_id.local_id];
                 if current_module_data.find_trait_in_scope(*trait_id).is_some() {
                     self.string.push_str(trait_.name.as_str());
                     self.append_trait_generics(trait_generics);

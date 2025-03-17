@@ -180,6 +180,7 @@
         "pedersen",
         "peekable",
         "petgraph",
+        "PKCS",
         "plonkc",
         "PLONKish",
         "pprof",

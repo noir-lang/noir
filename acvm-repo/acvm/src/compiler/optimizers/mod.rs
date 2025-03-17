@@ -19,7 +19,7 @@ use self::unused_memory::UnusedMemoryOptimizer;
 
 use super::{AcirTransformationMap, transform_assert_messages};
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
+/// Applies backend independent optimizations to a [`Circuit`].
 pub fn optimize<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
@@ -34,7 +34,7 @@ pub fn optimize<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, AcirTransformati
     (acir, transformation_map)
 }
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
+/// Applies backend independent optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow optimizations to be applied in a loop.
 #[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir, acir_opcode_positions))]

@@ -81,7 +81,7 @@ pub(super) fn arb_value_from_abi_type(
     }
 }
 
-/// Given the [Abi] description of a [ProgramArtifact], generate random [InputValue]s for each circuit parameter.
+/// Given the [Abi] description of a [program artifact][noirc_artifacts::program::ProgramArtifact], generate random [InputValue]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
 pub(super) fn arb_input_map(

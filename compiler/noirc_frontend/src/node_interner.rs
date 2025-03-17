@@ -197,7 +197,7 @@ pub struct NodeInterner {
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
 
     /// A list of all type aliases that are referenced in the program.
-    /// Searched by LSP to resolve [Location]s of [TypeAliasType]s
+    /// Searched by LSP to resolve [Location]s of [TypeAlias]s
     pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 
     /// Stores the [Location] of a [Type] reference
@@ -223,6 +223,9 @@ pub struct NodeInterner {
 
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
+
+    /// Whether to avoid comptime println from producing output
+    pub(crate) disable_comptime_printing: bool,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -704,6 +707,7 @@ impl Default for NodeInterner {
             interned_unresolved_type_datas: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
+            disable_comptime_printing: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -822,7 +826,7 @@ impl NodeInterner {
         type_id
     }
 
-    /// Adds [TypeLiasId] and [Location] to the type_alias_ref vector
+    /// Adds [TypeAliasId] and [Location] to the type_alias_ref vector
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));

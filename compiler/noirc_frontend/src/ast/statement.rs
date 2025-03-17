@@ -104,14 +104,21 @@ impl StatementKind {
             ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, location);
 
         match self {
-            StatementKind::Let(_)
-            | StatementKind::Assign(_)
+            StatementKind::Let(_) => {
+                // To match rust, a let statement always requires a semicolon, even at the end of a block
+                if semi.is_none() {
+                    let reason = ParserErrorReason::MissingSemicolonAfterLet;
+                    emit_error(ParserError::with_reason(reason, location));
+                }
+                self
+            }
+            StatementKind::Assign(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
             | StatementKind::Continue
             | StatementKind::Error => {
-                // To match rust, statements always require a semicolon, even at the end of a block
-                if semi.is_none() {
+                // These statements can omit the semicolon if they are the last statement in a block
+                if !last_statement_in_block && semi.is_none() {
                     emit_error(missing_semicolon);
                 }
                 self
@@ -514,8 +521,10 @@ pub struct PathSegment {
 impl PathSegment {
     /// Returns the span where turbofish happen. For example:
     ///
+    /// ```noir
     ///    foo::<T>
     ///       ~^^^^
+    /// ```
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
@@ -789,6 +798,7 @@ impl ForRange {
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
+    /// ```text
     /// {
     ///     let fresh1 = array;
     ///     for fresh2 in 0 .. std::array::len(fresh1) {
@@ -796,6 +806,7 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
+    /// ````
     pub(crate) fn into_for(
         self,
         identifier: Ident,
