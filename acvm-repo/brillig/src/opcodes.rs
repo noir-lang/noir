@@ -12,6 +12,7 @@ pub enum MemoryAddress {
     /// Specifies an exact index in the VM's memory
     Direct(usize),
     /// Specifies an index relative to the stack pointer.
+    ///
     /// It is resolved as the current stack pointer plus the offset stored here.
     Relative(usize),
 }
