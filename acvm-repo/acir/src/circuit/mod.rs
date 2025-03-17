@@ -1,3 +1,5 @@
+//! The Abstract Circuit Intermediate Representation (ACIR)
+
 pub mod black_box_functions;
 pub mod brillig;
 pub mod opcodes;
@@ -39,7 +41,7 @@ pub enum ExpressionWidth {
     },
 }
 
-/// A program represented by multiple ACIR circuits. The execution trace of these
+/// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
@@ -48,13 +50,20 @@ pub struct Program<F: AcirField> {
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
+/// Representation of a single ACIR circuit. The execution trace of this structure
+/// is dictated by the construction of a [crate::native_types::WitnessMap]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Circuit<F: AcirField> {
-    // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
-    // will take on this value. (The value is cached here as an optimization.)
+    /// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
+    /// will take on this value. (The value is cached here as an optimization.)
     pub current_witness_index: u32,
+    /// The circuit opcodes representing the relationship between witness values.
+    ///
+    /// The opcodes should be further converted into a backend-specific circuit representation.
+    /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
     pub opcodes: Vec<Opcode<F>>,
+    /// Maximum width of the [expression][Expression]'s which will be constrained
     pub expression_width: ExpressionWidth,
 
     /// The set of private inputs to the circuit.
@@ -76,6 +85,7 @@ pub struct Circuit<F: AcirField> {
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
 }
 
+/// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ExpressionOrMemory<F> {
@@ -83,13 +93,24 @@ pub enum ExpressionOrMemory<F> {
     Memory(BlockId),
 }
 
+/// Payload tied to an assertion failure.
+/// This data allows users to specify feedback upon a constraint not being satisfied in the circuit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct AssertionPayload<F> {
+    /// Selector that maps a hash of either a constant string or an internal compiler error type
+    /// to an ABI type. The ABI type should then be used to appropriately resolve the payload data.
     pub error_selector: u64,
+    /// The dynamic payload data.
+    ///
+    /// Upon fetching the appropriate ABI type from the `error_selector`, the values
+    /// in this payload can be decoded into the given ABI type.
+    /// The payload is expected to be empty in the case of a constant string
+    /// as the string can be contained entirely within the error type and ABI type.
     pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
+/// Value for differentiating error types. Used internally by an [AssertionPayload].
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct ErrorSelector(u64);
 
@@ -123,12 +144,19 @@ impl<'de> Deserialize<'de> for ErrorSelector {
     }
 }
 
+/// A dynamic assertion payload whose data has been resolved.
+/// This is instantiated upon hitting an assertion failure.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct RawAssertionPayload<F> {
+    /// Selector to the respective ABI type the data in this payload represents
     pub selector: ErrorSelector,
+    /// Resolved data that represents some ABI type.
+    /// To be decoded in the final step of error resolution.
     pub data: Vec<F>,
 }
 
+/// Enumeration of allowed assertion payloads.
+/// These can either be static strings or dynamic payloads.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ResolvedAssertionPayload<F> {
     String(String),
@@ -156,6 +184,8 @@ pub enum OpcodeLocation {
     Brillig { acir_index: usize, brillig_index: usize },
 }
 
+/// Index of Brillig opcode within a list of Brillig opcodes.
+/// To be used by callers for resolving debug information.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct BrilligOpcodeLocation(pub usize);
 

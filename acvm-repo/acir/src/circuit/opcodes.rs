@@ -1,3 +1,6 @@
+//! ACIR opcodes
+//!
+//! This module defines the core set opcodes used in ACIR.
 use super::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 
 pub mod function_id;
@@ -29,6 +32,9 @@ impl BlockType {
     }
 }
 
+/// Defines an operation within an ACIR circuit
+///
+/// Expects a type parameter `F` which implements [AcirField].
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]

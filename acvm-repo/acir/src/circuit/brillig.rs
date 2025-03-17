@@ -1,3 +1,5 @@
+//! [Brillig][brillig] structures for integration within an ACIR circuit.
+
 use super::opcodes::BlockId;
 use crate::native_types::{Expression, Witness};
 use brillig::Opcode as BrilligOpcode;
