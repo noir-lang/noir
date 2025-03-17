@@ -1,13 +1,13 @@
 use std::{collections::HashSet, iter::zip};
 
 use acvm::{AcirField, FieldElement};
-use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap};
+use noirc_abi::{Abi, AbiType, InputMap, input_parser::InputValue};
 /// This file contains the collection of objects for providing program-specific values to the mutator
 
 /// A dictionary for integer values. Separated by width
 #[derive(Default)]
 pub struct IntDictionary {
-    width_dictionaries: [Vec<FieldElement>; 4],
+    width_dictionaries: [Vec<FieldElement>; 5],
 }
 
 pub type FieldDictionary = Vec<FieldElement>;
@@ -22,38 +22,41 @@ impl IntDictionary {
             16 => &self.width_dictionaries[1],
             32 => &self.width_dictionaries[2],
             64 => &self.width_dictionaries[3],
-            _ => panic!("Only widths 8, 16, 32, 64 are supported"),
+            128 => &self.width_dictionaries[4],
+            _ => panic!("Only widths 8, 16, 32, 64, 128 are supported"),
         }
     }
     /// Filter values in the original dictionary collected from the program into 4 categories, separated by width of integers into which those elements can fit
-    fn filter_dictionary_by_width(original_dictionary: &[FieldElement]) -> [Vec<FieldElement>; 4] {
+    fn filter_dictionary_by_width(original_dictionary: &[FieldElement]) -> [Vec<FieldElement>; 5] {
         let mut width8_dict = Vec::new();
         let mut width16_dict = Vec::new();
         let mut width32_dict = Vec::new();
         let mut width64_dict = Vec::new();
-        const MAX_U8: i128 = u8::MAX as i128;
-        const MAX_U16: i128 = u16::MAX as i128;
-        const MAX_U32: i128 = u32::MAX as i128;
-        const MAX_U64: i128 = u64::MAX as i128;
+        let mut width128_dict = Vec::new();
+        const MAX_U8: u128 = u8::MAX as u128;
+        const MAX_U16: u128 = u16::MAX as u128;
+        const MAX_U32: u128 = u32::MAX as u128;
+        const MAX_U64: u128 = u64::MAX as u128;
         for element in original_dictionary.iter().copied() {
-            let el_i128 = element.to_i128();
-            if el_i128 <= 0 {
-                continue;
+            let el_u128 = element.try_into_u128();
+            if let Some(el_u128) = el_u128 {
+                width128_dict.push(element);
+                if el_u128 < MAX_U64 {
+                    width64_dict.push(element);
+                }
+                if el_u128 < MAX_U32 {
+                    width32_dict.push(element);
+                }
+                if el_u128 < MAX_U16 {
+                    width16_dict.push(element);
+                }
+                if el_u128 < MAX_U8 {
+                    width8_dict.push(element);
+                }
             }
-            if el_i128 < MAX_U64 {
-                width64_dict.push(element);
-            }
-            if el_i128 < MAX_U32 {
-                width32_dict.push(element);
-            }
-            if el_i128 < MAX_U16 {
-                width16_dict.push(element);
-            }
-            if el_i128 < MAX_U8 {
-                width8_dict.push(element);
-            }
+            // TODO: Handle negative i128 values (these are represented as [p + i128::MIN, p) whilst positive integers are represented by the range [0, i128::MAX))
         }
-        [width8_dict, width16_dict, width32_dict, width64_dict]
+        [width8_dict, width16_dict, width32_dict, width64_dict, width128_dict]
     }
 }
 

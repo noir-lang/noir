@@ -486,6 +486,8 @@ impl AccumulatedFuzzerCoverage {
             add_to_leavers(cmp_approach.testcases_involved[i]);
         }
 
+        println!("least_different_bits: {}", least_different_bits);
+        println!("last_value: {}", last_value);
         // Register new metrics that have been reached
         cmp_approach.closest_bits = least_different_bits;
         cmp_approach.encountered_loop_maximum = last_value;
@@ -588,6 +590,7 @@ impl AccumulatedFuzzerCoverage {
                 }
             }
         }
+        
         // Go through comparison coverage and detect:
         // 1. If a particular comparison has achieved a difference between arguments whose log2 is smaller than previously observed
         // 2. If the smallest log2 previously observed has been detected more times in the same execution

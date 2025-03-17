@@ -358,9 +358,8 @@ impl<
             analyze_brillig_program_before_fuzzing(&acir_and_brillig_programs.brillig_program);
 
         // Create a dictionary from acir bytecode
-        // TODO: replace with building a dictionary from brillig. It makes much more sense
         let dictionary =
-            build_dictionary_from_program(&acir_and_brillig_programs.acir_program.bytecode);
+            build_dictionary_from_program(&acir_and_brillig_programs.brillig_program.bytecode);
 
         // Create a mutator for the following interface with the dictionary generated from acir bytecode
         let mutator = InputMutator::new(&acir_and_brillig_programs.acir_program.abi, &dictionary);
@@ -763,6 +762,7 @@ impl<
                     }
 
                     // Add values from the interesting testcase to the dictionary
+                    println!("New coverage discovered: {:?}", &case);
                     self.mutator.update_dictionary(&case);
 
                     //Insert the new testcase into the corpus
@@ -877,6 +877,7 @@ impl<
                 let (new_coverage_discovered, testcases_to_remove) =
                     accumulated_coverage.merge(&new_coverage);
                 if new_coverage_discovered {
+                    println!("New coverage discovered: {:?}", &case);
                     for &testcase_for_removal in testcases_to_remove.iter() {
                         self.metrics.increment_removed_testcase_count();
                         corpus.remove(testcase_for_removal);

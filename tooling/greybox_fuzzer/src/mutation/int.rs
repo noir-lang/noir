@@ -449,7 +449,8 @@ impl<'a> IntMutator<'a> {
     // Get one of the fixed values in place of the original value
     fn substitute_unsigned_int_with_fixed_value(&mut self, width: u32) -> InputValue {
         InputValue::Field(FieldElement::from(
-            FIXED_UNSIGNED_VALUES[self.prng.gen_range(0..(width * 4) as usize)],
+            FIXED_UNSIGNED_VALUES[self.prng.gen_range(0..(width * 4) as usize)]
+                & (u128::MAX >> (u128::BITS - width)),
         ))
     }
 
