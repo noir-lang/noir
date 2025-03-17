@@ -135,10 +135,10 @@ impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
-        let incremented_params = self.increment_parameter_rcs();
+        self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
-        self.end_scope(incremented_params, &results);
+        self.end_function(&results);
 
         self.builder.terminate_with_return(results);
         Ok(())
@@ -334,7 +334,7 @@ impl FunctionContext<'_> {
                 // which is important for Brillig's copy on write optimization. This has no
                 // effect in ACIR code.
                 if !is_array_constant {
-                    self.builder.increment_array_reference_count(element);
+                    self.increment_array_reference_count(element, false);
                 }
 
                 array.push_back(element);
@@ -346,9 +346,13 @@ impl FunctionContext<'_> {
 
     fn codegen_block(&mut self, block: &[Expression]) -> Result<Values, RuntimeError> {
         let mut result = Self::unit_value();
+        // Function bodies, `if`s, and `loop`s contain block expressions so
+        // this is the only case we need to handle for pushing/popping scopes.
+        self.enter_scope();
         for expr in block {
             result = self.codegen_expression(expr)?;
         }
+        self.end_scope();
         Ok(result)
     }
 
@@ -485,7 +489,7 @@ impl FunctionContext<'_> {
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
             let result = self.builder.insert_array_get(array, offset, typ);
-            self.builder.increment_array_reference_count(result);
+            self.increment_array_reference_count(result, false);
             result.into()
         }))
     }
@@ -1037,12 +1041,12 @@ impl FunctionContext<'_> {
             let value = value.eval(self);
 
             Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value, should_inc_rc)
+                self.new_mutable_variable(value, should_inc_rc, true)
             } else {
                 // `new_mutable_variable` increments rcs internally so we have to
                 // handle it separately for the immutable case
                 if should_inc_rc {
-                    self.builder.increment_array_reference_count(value);
+                    self.increment_array_reference_count(value, true);
                 }
                 value::Value::Normal(value)
             })
@@ -1108,7 +1112,7 @@ impl FunctionContext<'_> {
             let value = value.eval(self);
 
             if should_inc_rc {
-                self.builder.increment_array_reference_count(value);
+                self.increment_array_reference_count(value, false);
             }
         });
 

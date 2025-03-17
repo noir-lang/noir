@@ -897,9 +897,9 @@ mod test {
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(v1);
+        builder.insert_inc_rc(v1);
         builder.insert_store(v2, v1);
-        builder.increment_array_reference_count(v1);
+        builder.insert_inc_rc(v1);
 
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![]);

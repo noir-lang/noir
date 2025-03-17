@@ -491,62 +491,6 @@ impl FunctionBuilder {
         }
     }
 
-    /// Insert instructions to increment the reference count of any array(s) stored
-    /// within the given value. If the given value is not an array and does not contain
-    /// any arrays, this does nothing.
-    ///
-    /// Returns the ID of the array that was affected, if any.
-    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
-        self.update_array_reference_count(value, true)
-    }
-
-    /// Insert instructions to decrement the reference count of any array(s) stored
-    /// within the given value. If the given value is not an array and does not contain
-    /// any arrays, this does nothing.
-    ///
-    /// Returns the ID of the array that was affected, if any.
-    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
-        self.update_array_reference_count(value, false)
-    }
-
-    /// Increment or decrement the given value's reference count if it is an array.
-    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
-    /// are ignored outside of unconstrained code.
-    ///
-    /// If there is an `original` value it indicates that we're now decrementing it,
-    /// but that should only happen if it hasn't been changed by an `array_set` in
-    /// the meantime, which in itself would make sure its RC is decremented.
-    ///
-    /// Returns the ID of the array that was affected, if any.
-    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> Option<ValueId> {
-        if self.current_function.runtime().is_acir() {
-            return None;
-        }
-        match self.type_of_value(value) {
-            Type::Numeric(_) | Type::Function => None,
-            Type::Reference(element) => {
-                if element.contains_an_array() {
-                    let reference = value;
-                    let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, increment);
-                    Some(value)
-                } else {
-                    None
-                }
-            }
-            Type::Array(..) | Type::Slice(..) => {
-                // If there are nested arrays or slices, we wait until ArrayGet
-                // is issued to increment the count of that array.
-                if increment {
-                    self.insert_inc_rc(value);
-                } else {
-                    self.insert_dec_rc(value);
-                }
-                Some(value)
-            }
-        }
-    }
-
     pub(crate) fn record_error_type(&mut self, selector: ErrorSelector, typ: HirType) {
         self.error_types.insert(selector, typ);
     }

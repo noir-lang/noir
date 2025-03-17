@@ -269,7 +269,7 @@ impl Translator {
             }
             ParsedInstruction::DecrementRc { value } => {
                 let value = self.translate_value(value)?;
-                self.builder.decrement_array_reference_count(value);
+                self.builder.insert_dec_rc(value);
             }
             ParsedInstruction::EnableSideEffectsIf { condition } => {
                 let condition = self.translate_value(condition)?;
@@ -277,7 +277,7 @@ impl Translator {
             }
             ParsedInstruction::IncrementRc { value } => {
                 let value = self.translate_value(value)?;
-                self.builder.increment_array_reference_count(value);
+                self.builder.insert_inc_rc(value);
             }
             ParsedInstruction::MakeArray { target, elements, typ } => {
                 let elements = elements

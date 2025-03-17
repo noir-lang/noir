@@ -38,6 +38,11 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
 
+    /// This is a vector of scopes where each scope itself is a vector of
+    /// each value that we called IncrementRc on so that we can remember to
+    /// decrement the rc when the binding goes out of scope.
+    scopes: Vec<Vec<ValueId>>,
+
     pub(super) builder: FunctionBuilder,
     shared_context: &'a SharedContext,
 
@@ -124,7 +129,7 @@ impl<'a> FunctionContext<'a> {
         builder.set_runtime(runtime);
 
         let definitions = HashMap::default();
-        let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
+        let mut this = Self { definitions, builder, shared_context, loops: Vec::new(), scopes: Vec::new() };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -171,7 +176,7 @@ impl<'a> FunctionContext<'a> {
             let value = self.builder.add_parameter(typ);
             if mutable {
                 // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
-                self.new_mutable_variable(value, true)
+                self.new_mutable_variable(value, true, false)
             } else {
                 value.into()
             }
@@ -186,11 +191,12 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         value_to_store: ValueId,
         increment_array_rc: bool,
+        local: bool,
     ) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
 
         if increment_array_rc {
-            self.builder.increment_array_reference_count(value_to_store);
+            self.increment_array_reference_count(value_to_store, local);
         }
 
         let alloc = self.builder.insert_allocate(element_type);
@@ -962,11 +968,11 @@ impl<'a> FunctionContext<'a> {
     /// paired inc/dec instructions within brillig functions more easily.
     ///
     /// Returns the list of parameters incremented, together with the value ID of the arrays they refer to.
-    pub(crate) fn increment_parameter_rcs(&mut self) -> Vec<(ValueId, ValueId)> {
+    pub(crate) fn increment_parameter_rcs(&mut self) {
+        self.enter_scope();
         let entry = self.builder.current_function.entry_block();
         let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
 
-        let mut incremented = Vec::default();
         let mut seen_array_types = HashSet::default();
 
         for parameter in parameters {
@@ -980,35 +986,43 @@ impl<'a> FunctionContext<'a> {
                     if seen_array_types.insert(element.get_contained_array().clone()) {
                         continue;
                     }
-                    if let Some(id) = self.builder.increment_array_reference_count(parameter) {
-                        incremented.push((parameter, id));
-                    }
+                    self.increment_array_reference_count(parameter, true);
                 }
             }
         }
-
-        incremented
     }
 
     /// Ends a local scope of a function.
     /// This will issue DecrementRc instructions for any arrays in the given starting scope
     /// block's parameters. Arrays that are also used in terminator instructions for the scope are
     /// ignored.
-    pub(crate) fn end_scope(
+    pub(crate) fn end_function(
         &mut self,
-        mut incremented_params: Vec<(ValueId, ValueId)>,
         terminator_args: &[ValueId],
     ) {
-        // TODO: This check likely leads to unsoundness.
-        // It is here to avoid decrementing the RC of a parameter we're returning but we
-        // only check the exact ValueId which can be easily circumvented by storing to and
-        // loading from a temporary reference.
-        incremented_params.retain(|(parameter, _)| !terminator_args.contains(parameter));
+        // We unfortunately can't know if what we returned is the same as a parameter
+        // or something local in the general case so conservatively always increment
+        // its rc. Any remaining values in scope have their rcs decremented in the
+        for returned in terminator_args {
+            self.increment_array_reference_count(*returned, false);
+        }
 
-        for (parameter, original) in incremented_params {
-            if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.decrement_array_reference_count(original);
-            }
+        // This is done after incrementing rcs so the remove paired rc pass sees a
+        // `inc; dec` pair instead of a `dec; inc` pair.
+        self.end_scope();
+        assert!(self.scopes.is_empty(), "Unbalanced scopes for SSA function");
+    }
+
+    pub(crate) fn enter_scope(&mut self) {
+        self.scopes.push(Vec::new());
+        eprintln!("Pushing scope {}", self.scopes.len());
+    }
+
+    pub(crate) fn end_scope(&mut self) {
+        eprintln!("Popping scope {}", self.scopes.len());
+        let scope = self.scopes.pop().expect("end_scope expected a scope");
+        for value in scope {
+            self.decrement_array_reference_count(value);
         }
     }
 
@@ -1024,6 +1038,73 @@ impl<'a> FunctionContext<'a> {
         // The frontend should ensure break/continue are never used outside a loop
         *self.loops.last().expect("current_loop: not in a loop!")
     }
+
+    /// Insert instructions to increment the reference count of any array(s) stored
+    /// within the given value. If the given value is not an array and does not contain
+    /// any arrays, this does nothing.
+    ///
+    /// `local` should be set to true when the binding this reference count increase resulted
+    /// from is expected to go out of scope at the end of the current local scope. This is the
+    /// case for `let` bindings but not assignments (may be to a variable in a prior scope),
+    /// array literals or indexing operations whose scopes are unknown.
+    ///
+    /// Returns the ID of the array that was affected, if any.
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId, local: bool) -> Option<ValueId> {
+        self.update_array_reference_count(value, true, local)
+    }
+
+    /// Insert instructions to decrement the reference count of any array(s) stored
+    /// within the given value. If the given value is not an array and does not contain
+    /// any arrays, this does nothing.
+    ///
+    /// Returns the ID of the array that was affected, if any.
+    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
+        self.update_array_reference_count(value, false, false)
+    }
+
+    /// Increment or decrement the given value's reference count if it is an array.
+    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
+    /// are ignored outside of unconstrained code.
+    ///
+    /// If there is an `original` value it indicates that we're now decrementing it,
+    /// but that should only happen if it hasn't been changed by an `array_set` in
+    /// the meantime, which in itself would make sure its RC is decremented.
+    ///
+    /// Returns the ID of the array that was affected, if any.
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool, local: bool) -> Option<ValueId> {
+        if self.builder.current_function.runtime().is_acir() {
+            return None;
+        }
+        match self.builder.type_of_value(value) {
+            Type::Numeric(_) | Type::Function => None,
+            Type::Reference(element) => {
+                if element.contains_an_array() {
+                    let reference = value;
+                    let value = self.builder.insert_load(reference, element.as_ref().clone());
+                    self.update_array_reference_count(value, increment, local);
+                    Some(value)
+                } else {
+                    None
+                }
+            }
+            Type::Array(..) | Type::Slice(..) => {
+                // If there are nested arrays or slices, we wait until ArrayGet
+                // is issued to increment the count of that array.
+                if increment {
+                    if local {
+                        let scope = self.scopes.last_mut().expect("Expected a scope");
+                        scope.push(value);
+                    }
+
+                    self.builder.insert_inc_rc(value);
+                } else {
+                    self.builder.insert_dec_rc(value);
+                }
+                Some(value)
+            }
+        }
+    }
+
 }
 
 /// True if the given operator cannot be encoded directly and needs
