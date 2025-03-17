@@ -1,3 +1,9 @@
+//! C++ code generation for ACIR format, to be used by Barretenberg.
+//!
+//! To regenerate code run the following command:
+//! ```text
+//! NOIR_CODEGEN_OVERWRITE=1 cargo test -p acir cpp_codegen
+//! ```
 #![cfg_attr(not(test), forbid(unsafe_code))] // `std::env::set_var` is used in tests.
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -56,15 +62,6 @@ mod reflection {
 
     #[test]
     fn serde_acir_cpp_codegen() {
-        let path = PathBuf::from("./codegen/acir.cpp");
-
-        let old_hash = if path.is_file() {
-            let old_source = std::fs::read(&path).unwrap();
-            Some(fxhash::hash64(&old_source))
-        } else {
-            None
-        };
-
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<BlockType>().unwrap();
         tracer.trace_simple_type::<Program<FieldElement>>().unwrap();
@@ -90,59 +87,52 @@ mod reflection {
         tracer.trace_simple_type::<IntegerBitSize>().unwrap();
         tracer.trace_simple_type::<MemoryAddress>().unwrap();
 
-        let registry = tracer.registry().unwrap();
-
-        let module_name = "Program";
-        let msgpack_code = MsgPackCodeGenerator::generate(module_name, &registry);
-        // Create C++ class definitions.
-        let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new(module_name.to_string())
-            .with_encodings(vec![serde_generate::Encoding::Bincode])
-            .with_custom_code(msgpack_code);
-        let generator = serde_generate::cpp::CodeGenerator::new(&config);
-        generator.output(&mut source, &registry).unwrap();
-
-        let source = MsgPackCodeGenerator::add_preamble(source);
-
-        if !should_overwrite() {
-            if let Some(old_hash) = old_hash {
-                let new_hash = fxhash::hash64(&source);
-                assert_eq!(new_hash, old_hash, "Serialization format has changed");
-            }
-        }
-
-        write_to_file(&source, &path);
+        serde_cpp_codegen(
+            "Program",
+            PathBuf::from("./codegen/acir.cpp").as_path(),
+            &tracer.registry().unwrap(),
+        );
     }
 
     #[test]
     fn serde_witness_map_cpp_codegen() {
-        let path = PathBuf::from("./codegen/witness.cpp");
+        let mut tracer = Tracer::new(TracerConfig::default());
+        tracer.trace_simple_type::<Witness>().unwrap();
+        tracer.trace_simple_type::<WitnessMap<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
 
+        serde_cpp_codegen(
+            "WitnessStack",
+            PathBuf::from("./codegen/witness.cpp").as_path(),
+            &tracer.registry().unwrap(),
+        );
+    }
+
+    /// Regenerate C++ code for serializing our domain model based on serde,
+    /// intended to be used by Barretenberg.
+    ///
+    /// If `should_overwrite()` returns `false` then just check if the old file hash is the
+    /// same as the new one, to guard against unintended changes in the serialization format.
+    fn serde_cpp_codegen(name: &str, path: &Path, registry: &Registry) {
         let old_hash = if path.is_file() {
             let old_source = std::fs::read(&path).unwrap();
             Some(fxhash::hash64(&old_source))
         } else {
             None
         };
-
-        let mut tracer = Tracer::new(TracerConfig::default());
-        tracer.trace_simple_type::<Witness>().unwrap();
-        tracer.trace_simple_type::<WitnessMap<FieldElement>>().unwrap();
-        tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
-
-        let module_name = "WitnessStack";
-        let registry = tracer.registry().unwrap();
-        let msgpack_code = MsgPackCodeGenerator::generate(module_name, &registry);
+        let msgpack_code = MsgPackCodeGenerator::generate(name, &registry);
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new(module_name.to_string())
+        let config = serde_generate::CodeGeneratorConfig::new(name.to_string())
             .with_encodings(vec![serde_generate::Encoding::Bincode])
             .with_custom_code(msgpack_code);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
 
-        let source = MsgPackCodeGenerator::add_preamble(source);
+        // Further massaging of the generated code
+        let mut source = String::from_utf8(source).expect("not a UTF-8 string");
+        MsgPackCodeGenerator::add_preamble(&mut source);
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
@@ -151,7 +141,16 @@ mod reflection {
             }
         }
 
-        write_to_file(&source, &path);
+        write_to_file(source.as_bytes(), &path);
+    }
+
+    /// Check if it's okay for the generated source to be overwritten with a new version.
+    /// Otherwise any changes causes a test failure.
+    fn should_overwrite() -> bool {
+        std::env::var("NOIR_CODEGEN_OVERWRITE")
+            .ok()
+            .map(|v| v == "1" || v == "true")
+            .unwrap_or_default()
     }
 
     fn write_to_file(bytes: &[u8], path: &Path) -> String {
@@ -183,16 +182,10 @@ mod reflection {
 
     impl MsgPackCodeGenerator {
         /// Add the import of the Barretenberg C++ header for msgpack
-        fn add_preamble(source: Vec<u8>) -> Vec<u8> {
-            match String::from_utf8(source) {
-                Ok(mut source) => {
-                    let inc = r#"#include "serde.hpp""#;
-                    let pos = source.find(inc).expect("serde.hpp missing");
-                    source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
-                    source.as_bytes().to_vec()
-                }
-                Err(e) => e.into_bytes(),
-            }
+        fn add_preamble(source: &mut String) {
+            let inc = r#"#include "serde.hpp""#;
+            let pos = source.find(inc).expect("serde.hpp missing");
+            source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
         }
 
         fn generate(namespace: &str, registry: &Registry) -> CustomCode {
@@ -378,14 +371,5 @@ mod reflection {
                 format!("{header} {{\n{body}\n}}")
             }
         }
-    }
-
-    /// Check if it's okay for the generated source to be overwritten with a new version.
-    /// Otherwise any changes causes a test failure.
-    fn should_overwrite() -> bool {
-        std::env::var("NOIR_CODEGEN_OVERWRITE")
-            .ok()
-            .map(|v| v == "1" || v == "true")
-            .unwrap_or_default()
     }
 }
