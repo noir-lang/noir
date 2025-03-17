@@ -43,7 +43,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
         let linear_coefficients = expr.linear_combinations.iter().map(|(k, _)| *k);
         let coefficients = linear_coefficients.chain(quad_coefficients);
 
-        dictionary.extend(coefficients.clone());
+        dictionary.extend(coefficients);
         dictionary.insert(expr.q_c);
 
         // We divide the constant term by any coefficients in the expression to aid solving constraints such as `2 * x - 4 == 0`.
