@@ -65,7 +65,7 @@ pub enum BlackBoxOp {
     /// - `num_limbs` must be at least one if the value stored in `input` is not zero.
     /// - The value stored in `output_bits` must have a `bit_size` of one.
     ///   That value specifies whether we should decompose into bits. The value stored in
-    ///   the `radix` address is expected to be two if the value stored in `output_bits` is equal to one.
+    ///   the `radix` address must be two if the value stored in `output_bits` is equal to one.
     ///
     /// Native to the Brillig VM and not supported as an ACIR black box function.
     ToRadix {
