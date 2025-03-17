@@ -332,11 +332,11 @@ pub enum BrilligOpcode<F> {
     /// Native functions in the VM.
     /// These are equivalent to the black box functions in ACIR.
     BlackBox(BlackBoxOp),
-    /// Used to denote execution failure, halting the VM and returning data specified by a memory-sized vector.
+    /// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
     Trap {
         revert_data: HeapVector,
     },
-    /// Halts execution and returns data specified by a memory-sized vector.
+    /// Halts execution and returns data specified by a dynamically-sized vector.
     Stop {
         return_data: HeapVector,
     },
