@@ -1,10 +1,9 @@
 #![cfg(test)]
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
-use noirc_arena::Index;
 use noirc_errors::Location;
 
 use super::Interpreter;
@@ -13,7 +12,7 @@ use super::value::Value;
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
+use crate::hir::def_map::{CrateDefMap, ModuleData};
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
@@ -27,19 +26,15 @@ pub(crate) fn with_interpreter<T>(
 ) -> T {
     let file = FileId::default();
 
-    // Can't use Index::test_new here for some reason, even with #[cfg(test)].
-    let module_id = LocalModuleId(Index::unsafe_zeroed());
-    let mut modules = noirc_arena::Arena::default();
     let location = Location::new(Default::default(), file);
-    let root = LocalModuleId(modules.insert(ModuleData::new(
+    let root_module = ModuleData::new(
         None,
         location,
         Vec::new(),
         Vec::new(),
         false, // is contract
         false, // is struct
-    )));
-    assert_eq!(root, module_id);
+    );
 
     let file_manager = FileManager::new(&PathBuf::new());
     let parsed_files = ParsedFiles::new();
@@ -52,10 +47,11 @@ pub(crate) fn with_interpreter<T>(
     assert_eq!(errors.len(), 0);
     let ast = module.into_sorted();
 
-    let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
+    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");

@@ -100,7 +100,7 @@ impl DebugInstrumenter {
     }
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
-        let func_name = func.name.0.contents.clone();
+        let func_name = func.name.to_string();
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
         let fn_id = self.insert_function(func_name, func_args);
@@ -114,7 +114,7 @@ impl DebugInstrumenter {
                 pattern_vars(&param.pattern)
                     .iter()
                     .filter_map(|(id, _is_mut)| {
-                        let var_id = self.insert_var(&id.0.contents)?;
+                        let var_id = self.insert_var(id.as_str())?;
                         Some(build_assign_var_stmt(var_id, id_expr(id)))
                     })
                     .collect::<Vec<_>>()
@@ -242,7 +242,7 @@ impl DebugInstrumenter {
                 // We don't want to generate an expression to read from "_".
                 // And since this expression is going to be assigned to "_" so it doesn't matter
                 // what it is, we can use `()` for it.
-                if id.0.contents == "_" {
+                if id.as_str() == "_" {
                     ast::Expression {
                         kind: ast::ExpressionKind::Literal(ast::Literal::Unit),
                         location: id.location(),
@@ -256,7 +256,7 @@ impl DebugInstrumenter {
         let mut block_stmts =
             vec![ast::Statement { kind: ast::StatementKind::Let(let_stmt.clone()), location }];
         block_stmts.extend(vars.iter().filter_map(|(id, _)| {
-            let var_id = self.insert_var(&id.0.contents)?;
+            let var_id = self.insert_var(id.as_str())?;
             Some(build_assign_var_stmt(var_id, id_expr(id)))
         }));
         block_stmts.push(ast::Statement {
@@ -309,8 +309,8 @@ impl DebugInstrumenter {
         let new_assign_stmt = match &assign_stmt.lvalue {
             ast::LValue::Ident(id) => {
                 let var_id = self
-                    .lookup_var(&id.0.contents)
-                    .unwrap_or_else(|| panic!("var lookup failed for var_name={}", &id.0.contents));
+                    .lookup_var(id.as_str())
+                    .unwrap_or_else(|| panic!("var lookup failed for var_name={}", id.as_str()));
                 build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.location())))
             }
             ast::LValue::Dereference(_lv, location) => {
@@ -329,14 +329,14 @@ impl DebugInstrumenter {
                 loop {
                     match cursor {
                         ast::LValue::Ident(id) => {
-                            var_id = self.lookup_var(&id.0.contents).unwrap_or_else(|| {
-                                panic!("var lookup failed for var_name={}", &id.0.contents)
+                            var_id = self.lookup_var(id.as_str()).unwrap_or_else(|| {
+                                panic!("var lookup failed for var_name={}", id.as_str())
                             });
                             break;
                         }
                         ast::LValue::MemberAccess { object, field_name, location } => {
                             cursor = object;
-                            let field_name_id = self.insert_field_name(&field_name.0.contents);
+                            let field_name_id = self.insert_field_name(field_name.as_str());
                             indexes.push(sint_expr(-(field_name_id.0 as i128), *location));
                         }
                         ast::LValue::Index { index, array, location: _ } => {
@@ -445,7 +445,7 @@ impl DebugInstrumenter {
     }
 
     fn walk_for(&mut self, for_stmt: &mut ast::ForLoopStatement) {
-        let var_name = &for_stmt.identifier.0.contents;
+        let var_name = for_stmt.identifier.as_str();
         let var_id = self.insert_var(var_name);
 
         let set_and_drop_stmt = var_id.map(|var_id| {
@@ -731,7 +731,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
 
 fn pattern_to_string(pattern: &ast::Pattern) -> String {
     match pattern {
-        ast::Pattern::Identifier(id) => id.0.contents.clone(),
+        ast::Pattern::Identifier(id) => id.to_string(),
         ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
         ast::Pattern::Tuple(elements, _) => format!(
             "({})",
@@ -744,7 +744,7 @@ fn pattern_to_string(pattern: &ast::Pattern) -> String {
                 fields
                     .iter()
                     .map(|(field_ident, field_pattern)| {
-                        format!("{}: {}", &field_ident.0.contents, pattern_to_string(field_pattern))
+                        format!("{}: {}", field_ident, pattern_to_string(field_pattern))
                     })
                     .collect::<Vec<_>>()
                     .join(", "),

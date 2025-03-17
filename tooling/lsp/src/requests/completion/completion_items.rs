@@ -400,8 +400,7 @@ impl NodeFinder<'_> {
             trait_.name.clone()
         };
 
-        let module_data =
-            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
         if !module_data.scope().find_name(&trait_name).is_none() {
             return None;
         }

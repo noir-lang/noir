@@ -132,7 +132,7 @@ impl<'a> SignatureFinder<'a> {
 
         if let Some(enum_type_id) = enum_type_id {
             label.push_str("enum ");
-            label.push_str(&self.interner.get_type(enum_type_id).borrow().name.0.contents);
+            label.push_str(self.interner.get_type(enum_type_id).borrow().name.as_str());
             label.push_str("::");
         } else {
             label.push_str("fn ");

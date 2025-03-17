@@ -15,9 +15,14 @@ impl Formatter<'_> {
         if let Some((function_attribute, index)) = attributes.function {
             all_attributes.insert(index, Attribute::Function(function_attribute));
         }
+
+        // Attributes and doc comments can be mixed, so between each attribute
+        // we format potential doc comments
         for attribute in all_attributes {
+            self.format_outer_doc_comments();
             self.format_attribute(attribute);
         }
+        self.format_outer_doc_comments();
     }
 
     pub(super) fn format_secondary_attributes(&mut self, attributes: Vec<SecondaryAttribute>) {

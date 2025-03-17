@@ -207,12 +207,15 @@ fn compile_programs(
         )?;
 
         if compile_options.check_non_determinism {
+            // As we compile the program again, disable comptime printing so we don't get duplicate output
+            let compile_options =
+                CompileOptions { disable_comptime_printing: true, ..compile_options.clone() };
             let (program_two, _) = compile_program(
                 file_manager,
                 parsed_files,
                 workspace,
                 package,
-                compile_options,
+                &compile_options,
                 load_cached_program(package),
             )?;
             if fxhash::hash64(&program) != fxhash::hash64(&program_two) {

@@ -29,8 +29,7 @@ use crate::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirPrefixExpression,
         },
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
@@ -428,10 +427,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
-                            let field = fields.get(&field_name.0.contents).ok_or_else(|| {
+                            let field = fields.get(field_name.as_string()).ok_or_else(|| {
                                 InterpreterError::ExpectedStructToHaveField {
                                     typ: struct_type.clone(),
-                                    field_name: field_name.0.contents.clone(),
+                                    field_name: field_name.to_string(),
                                     location,
                                 }
                             })?;
@@ -528,7 +527,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
-            HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
@@ -536,7 +534,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
-            HirExpression::Comptime(block) => self.evaluate_block(block),
             HirExpression::Unsafe(block) => self.evaluate_block(block),
             HirExpression::EnumConstructor(constructor) => {
                 self.evaluate_enum_constructor(constructor, id)
@@ -1265,7 +1262,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .into_iter()
             .map(|(name, expr)| {
                 let field_value = self.evaluate(expr)?;
-                Ok((Rc::new(name.0.contents), field_value))
+                Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
 
@@ -1305,10 +1302,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
 
-        fields.get(&access.rhs.0.contents).cloned().ok_or_else(|| {
+        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
-            let field_name = access.rhs.0.contents;
+            let field_name = access.rhs.into_string();
             let typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
         })
@@ -1367,33 +1364,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 expr_location: location,
             }
         });
-    }
-
-    fn evaluate_method_call(
-        &mut self,
-        call: HirMethodCallExpression,
-        id: ExprId,
-    ) -> IResult<Value> {
-        let object = self.evaluate(call.object)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
-        })?;
-        let location = self.elaborator.interner.expr_location(&id);
-
-        let typ = object.get_type().follow_bindings();
-        let method_name = &call.method.0.contents;
-        let check_self_param = true;
-
-        let method = self
-            .elaborator
-            .lookup_method(&typ, method_name, location, check_self_param)
-            .and_then(|method| method.func_id(self.elaborator.interner));
-
-        if let Some(method) = method {
-            self.call_function(method, arguments, TypeBindings::new(), location)
-        } else {
-            Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
-        }
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
@@ -1642,7 +1612,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.0.contents), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), rhs);
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1697,7 +1667,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
-                    Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
+                    Value::Struct(fields, _) => Ok(fields[field_name.as_string()].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: *location,
@@ -1874,6 +1844,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
+
+        if self.elaborator.interner.disable_comptime_printing {
+            return Ok(Value::Unit);
+        }
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);

@@ -37,6 +37,9 @@ async function main() {
 
   console.log('Filtered down to stables: ', stables);
 
+  // Temporarily disable omission of patch versions, as it omits all 1.0.0-beta.n versions that are not the latest
+  // To restore when versioning scheme upgrades from 1.0.0-beta.n to 1.x.y
+  /*
   const onlyLatestPatches = [];
   const minorsSet = new Set(stables.map((el) => el.split('.')[1]));
   for (const minor of minorsSet) {
@@ -50,6 +53,10 @@ async function main() {
   console.log('Only latest patches: ', onlyLatestPatches);
 
   fs.writeFileSync(path.resolve(__dirname, '../versions.json'), JSON.stringify(onlyLatestPatches, null, 2));
+  */
+
+  // To delete when versioning scheme upgrades from 1.0.0-beta.n to 1.x.y
+  fs.writeFileSync(path.resolve(__dirname, '../versions.json'), JSON.stringify(stables, null, 2));
 }
 
 main();

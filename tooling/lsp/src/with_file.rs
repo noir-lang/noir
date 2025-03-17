@@ -563,7 +563,7 @@ fn generic_type_args_with_file(generics: GenericTypeArgs, file: FileId) -> Gener
 
 fn ident_with_file(ident: Ident, file: FileId) -> Ident {
     let location = location_with_file(ident.location(), file);
-    Ident::new(ident.0.contents, location)
+    Ident::new(ident.into_string(), location)
 }
 
 fn secondary_attributes_with_file(

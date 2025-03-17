@@ -31,7 +31,7 @@ export default function Landing() {
 
           <div className="homepage_cta_header_container">
             <div className="homepage_cta_container">
-              <Link to="/docs">
+              <Link to="/docs/">
                 <button className="cta-button button button--primary button--lg homepage_cta">Read the Docs</button>
               </Link>
             </div>
