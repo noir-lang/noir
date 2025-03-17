@@ -115,12 +115,12 @@ mod reflection {
     /// same as the new one, to guard against unintended changes in the serialization format.
     fn serde_cpp_codegen(name: &str, path: &Path, registry: &Registry) {
         let old_hash = if path.is_file() {
-            let old_source = std::fs::read(&path).unwrap();
+            let old_source = std::fs::read(path).expect("failed to read existing code");
             Some(fxhash::hash64(&old_source))
         } else {
             None
         };
-        let msgpack_code = MsgPackCodeGenerator::generate(name, &registry);
+        let msgpack_code = MsgPackCodeGenerator::generate(name, registry);
 
         // Create C++ class definitions.
         let mut source = Vec::new();
@@ -128,7 +128,7 @@ mod reflection {
             .with_encodings(vec![serde_generate::Encoding::Bincode])
             .with_custom_code(msgpack_code);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
-        generator.output(&mut source, &registry).unwrap();
+        generator.output(&mut source, registry).expect("failed to generate C++ code");
 
         // Further massaging of the generated code
         let mut source = String::from_utf8(source).expect("not a UTF-8 string");
@@ -142,7 +142,7 @@ mod reflection {
             }
         }
 
-        write_to_file(source.as_bytes(), &path);
+        write_to_file(source.as_bytes(), path);
     }
 
     /// Check if it's okay for the generated source to be overwritten with a new version.
