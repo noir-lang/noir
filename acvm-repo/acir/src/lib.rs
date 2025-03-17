@@ -133,6 +133,7 @@ mod reflection {
         // Further massaging of the generated code
         let mut source = String::from_utf8(source).expect("not a UTF-8 string");
         MsgPackCodeGenerator::add_preamble(&mut source);
+        replace_throw(&mut source);
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
@@ -170,6 +171,15 @@ mod reflection {
             Err(why) => panic!("couldn't write to {display}: {why}"),
             Ok(_) => display.to_string(),
         }
+    }
+
+    /// Replace all `throw serde::deserialization_error` with `throw_or_abort`.
+    ///
+    /// Since we're generating msgpack code that works specifically with the Barretenberg
+    /// codebase only (these are custom functions), we might as well do the other alterations
+    /// described in [the DSL](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg/cpp/src/barretenberg/dsl).
+    fn replace_throw(source: &mut String) {
+        *source = source.replace("throw serde::deserialization_error", "throw_or_abort");
     }
 
     /// Generate custom code for the msgpack machinery in Barretenberg.
