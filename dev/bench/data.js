@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742239303541,
+  "lastUpdate": 1742239591736,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,70 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a9de769f3743733ac754a5d6c4e147ba8283a336",
-          "message": "feat: add optional oracle resolver url in `acvm_cli` (#7630)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-03-07T18:07:03Z",
-          "tree_id": "217ff3dc264db21a04731cc1c5fd0ab21e3dbafc",
-          "url": "https://github.com/noir-lang/noir/commit/a9de769f3743733ac754a5d6c4e147ba8283a336"
-        },
-        "date": 1741372248023,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8e0e5abb66cb43ea2350047f539b914195c2324e",
           "message": "chore: remove unnecessary trait bounds (#7635)",
           "timestamp": "2025-03-07T21:51:43Z",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c757112adc707a65bddc54b71dbe4e11c477e2bf"
         },
         "date": 1742214530472,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.65,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 297.37,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1bfced827e878ca8e964258d3f8c93eb2bd8948d",
+          "message": "chore: add lambda calculus test (#7646)",
+          "timestamp": "2025-03-17T18:58:56Z",
+          "tree_id": "40a399411344b617f66b1cfef6c8f58e03c599aa",
+          "url": "https://github.com/noir-lang/noir/commit/1bfced827e878ca8e964258d3f8c93eb2bd8948d"
+        },
+        "date": 1742239588592,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
