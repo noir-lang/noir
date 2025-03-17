@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_bin_package_for_debugging","debug_program","debug_program_and_decode","instrument_package_files","run","run_async"],"struct":["DebugCommand"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_output_witness_string","read_witness_from_file"]};

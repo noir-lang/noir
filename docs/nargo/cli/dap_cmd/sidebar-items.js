@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["find_workspace","load_and_compile_project","loop_uninitialized_dap","parse_expression_width","run","run_preflight_check","workspace_not_found_error_msg"],"struct":["DapCommand"]};
