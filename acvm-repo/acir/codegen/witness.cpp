@@ -70,7 +70,7 @@ namespace WitnessStack {
         auto deserializer = serde::BincodeDeserializer(input);
         auto value = serde::Deserializable<StackItem>::deserialize(deserializer);
         if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
+            throw_or_abort("Some input bytes were not read");
         }
         return value;
     }
@@ -114,7 +114,7 @@ namespace WitnessStack {
         auto deserializer = serde::BincodeDeserializer(input);
         auto value = serde::Deserializable<Witness>::deserialize(deserializer);
         if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
+            throw_or_abort("Some input bytes were not read");
         }
         return value;
     }
@@ -156,7 +156,7 @@ namespace WitnessStack {
         auto deserializer = serde::BincodeDeserializer(input);
         auto value = serde::Deserializable<WitnessMap>::deserialize(deserializer);
         if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
+            throw_or_abort("Some input bytes were not read");
         }
         return value;
     }
@@ -198,7 +198,7 @@ namespace WitnessStack {
         auto deserializer = serde::BincodeDeserializer(input);
         auto value = serde::Deserializable<WitnessStack>::deserialize(deserializer);
         if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
+            throw_or_abort("Some input bytes were not read");
         }
         return value;
     }
