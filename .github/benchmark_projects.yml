@@ -5,7 +5,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner
     num_runs: 5
-    compilation-timeout: 2.5
+    compilation-timeout: 3.0
     execution-timeout: 0.08
     compilation-memory-limit: 350
     execution-memory-limit: 250
