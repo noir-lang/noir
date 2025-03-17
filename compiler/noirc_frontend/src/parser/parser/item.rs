@@ -1,8 +1,9 @@
 use iter_extended::vecmap;
+use noirc_errors::Location;
 
 use crate::{
     parser::{Item, ItemKind, ParserErrorReason, labels::ParsingRuleLabel},
-    token::{Keyword, Token},
+    token::{Attribute, Keyword, Token},
 };
 
 use super::{Parser, impls::Impl, parse_many::without_separator};
@@ -87,11 +88,24 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Item = OuterDocComments ItemKind
+    /// Item = ( Attribute | OuterDocComments )* ItemKind
     fn parse_item(&mut self) -> Vec<Item> {
         let start_location = self.current_token_location;
-        let doc_comments = self.parse_outer_doc_comments();
-        let kinds = self.parse_item_kind();
+
+        // Attributes and doc comments can come in any order, and can even be interspersed
+        let mut doc_comments = Vec::new();
+        let mut attributes = Vec::new();
+        loop {
+            if let Some(doc_comment) = self.parse_outer_doc_comment() {
+                doc_comments.push(doc_comment);
+            } else if let Some(attribute) = self.parse_attribute() {
+                attributes.push(attribute);
+            } else {
+                break;
+            }
+        }
+
+        let kinds = self.parse_item_kind(attributes);
         let location = self.location_since(start_location);
 
         if kinds.is_empty() && !doc_comments.is_empty() {
@@ -118,13 +132,12 @@ impl<'a> Parser<'a> {
     ///         | TypeAlias
     ///         | Function
     ///         )
-    fn parse_item_kind(&mut self) -> Vec<ItemKind> {
+    fn parse_item_kind(&mut self, attributes: Vec<(Attribute, Location)>) -> Vec<ItemKind> {
         if let Some(kind) = self.parse_inner_attribute() {
             return vec![ItemKind::InnerAttribute(kind)];
         }
 
         let start_location = self.current_token_location;
-        let attributes = self.parse_attributes();
 
         let modifiers = self.parse_modifiers(
             true, // allow mut
@@ -236,7 +249,10 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         parse_program_with_dummy_file,
-        parser::parser::tests::{get_single_error, get_source_with_error_span},
+        parser::{
+            ItemKind,
+            parser::tests::{get_single_error, get_source_with_error_span},
+        },
     };
 
     #[test]
@@ -277,5 +293,34 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("This doc comment doesn't document anything"));
+    }
+
+    #[test]
+    fn parse_item_with_mixed_attributes_and_doc_comments() {
+        let src = "
+        /// One
+        #[one]
+        /// Two
+        #[two]
+        /// Three
+        fn foo() {}
+        ";
+
+        let (module, errors) = parse_program_with_dummy_file(src);
+        assert!(errors.is_empty());
+
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        assert_eq!(
+            item.doc_comments,
+            vec![" One".to_string(), " Two".to_string(), " Three".to_string(),]
+        );
+        let ItemKind::Function(func) = &item.kind else {
+            panic!("Expected function");
+        };
+        let attributes = &func.attributes().secondary;
+        assert_eq!(attributes.len(), 2);
+        assert_eq!(attributes[0].to_string(), "#[one]");
+        assert_eq!(attributes[1].to_string(), "#[two]");
     }
 }

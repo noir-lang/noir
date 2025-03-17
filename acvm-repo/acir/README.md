@@ -211,27 +211,29 @@ The black box functions supported by ACIR are:
 **Sha256Compression**: SHA256 compression function
 
 **RecursiveAggregation**: verify a proof inside the circuit.
-**Warning: this opcode is subject to change.**
 
-This black box function does not fully verify a proof, what it does is verify
-that the provided `key_hash` is indeed a hash of `verification_key`, allowing
-the user to use the verification key as private inputs and only have the
-`key_hash` as public input, which is more performant.
+Computes a recursive aggregation object internally when verifying a proof inside
+another circuit.
+The outputted aggregation object will then be either checked in a
+top-level verifier or aggregated upon again.
+The aggregation object should be maintained by the backend implementer.
 
-Another thing that it does is preparing the verification of the proof. In order
-to fully verify a proof, some operations may still be required to be done by the
-final verifier. This is why this black box function does not say if verification
-is passing or not.
+This opcode prepares the verification of the final proof.
+In order to fully verify a recursive proof, some operations may still be required
+to be done by the final verifier (e.g. a pairing check).
+This is why this black box function does not say if verification is passing or not.
+It delays the expensive part of verification out of the SNARK
+and leaves it to the final verifier outside of the SNARK circuit.
 
-If you have several proofs to verify in one ACIR program, you would call
-`RecursiveAggregation()` multiple times while passing the
-`output_aggregation_object` as `input_aggregation_object` to the next
-`RecursiveAggregation()` call, except for the first call where you do not have
-any `input_aggregation_object`.
+This opcode also verifies that the key_hash is indeed a hash of verification_key,
+allowing the user to use the verification key as private inputs and only
+have the key_hash as public input, which is more performant.
 
-If one of the proof you verify with the black box function does not verify, then
-the verification of the proof of the main ACIR program will ultimately fail.
+**Warning: the key hash logic does not need to be part of the black box and subject to be removed.**
 
+If one of the recursive proofs you verify with the black box function fails to
+verify, then the verification of the final proof of the main ACIR program will
+ultimately fail.
 
 ### Brillig
 

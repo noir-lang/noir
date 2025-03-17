@@ -72,7 +72,7 @@ impl NoirFunction {
         }
     }
     pub fn name(&self) -> &str {
-        &self.name_ident().0.contents
+        self.name_ident().as_str()
     }
     pub fn name_ident(&self) -> &Ident {
         &self.def.name

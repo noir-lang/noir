@@ -39,6 +39,5 @@ proptest.workspace = true
 proptest-derive.workspace = true
 
 [features]
-experimental_parser = []
 bn254 = []
 bls12_381 = []
