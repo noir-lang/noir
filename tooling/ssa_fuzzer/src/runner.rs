@@ -9,7 +9,7 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::PrintOutput;
 use nargo::errors::NargoError;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
-use nargo::ops::execute::execute_program;
+use nargo::ops::execute_program;
 use thiserror::Error;
 
 /// Errors that can occur during execution of the program

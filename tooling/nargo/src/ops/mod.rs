@@ -11,7 +11,7 @@ pub use self::test::{TestStatus, run_test};
 
 mod check;
 mod compile;
-pub mod execute;
+mod execute;
 mod optimize;
 mod test;
 mod transform;
