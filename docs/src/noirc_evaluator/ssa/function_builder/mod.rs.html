@@ -614,15 +614,7 @@
 <a href="#613" id="613">613</a>
 <a href="#614" id="614">614</a>
 <a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a>
-<a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>data_bus;
+<a href="#616" id="616">616</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -1018,8 +1010,8 @@
 
     <span class="doccomment">/// Insert an instruction to decrement an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_dec_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, original: ValueId) {
-        <span class="self">self</span>.insert_instruction(Instruction::DecrementRc { value, original }, <span class="prelude-val">None</span>);
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_dec_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) {
+        <span class="self">self</span>.insert_instruction(Instruction::DecrementRc { value }, <span class="prelude-val">None</span>);
     }
 
     <span class="doccomment">/// Insert an enable_side_effects_if instruction. These are normally only automatically
@@ -1121,7 +1113,7 @@
     ///
     /// Returns the ID of the array that was affected, if any.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increment_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-        <span class="self">self</span>.update_array_reference_count(value, <span class="prelude-val">None</span>)
+        <span class="self">self</span>.update_array_reference_count(value, <span class="bool-val">true</span>)
     }
 
     <span class="doccomment">/// Insert instructions to decrement the reference count of any array(s) stored
@@ -1129,12 +1121,8 @@
     /// any arrays, this does nothing.
     ///
     /// Returns the ID of the array that was affected, if any.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decrement_array_reference_count(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        value: ValueId,
-        original: ValueId,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-        <span class="self">self</span>.update_array_reference_count(value, <span class="prelude-val">Some</span>(original))
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decrement_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+        <span class="self">self</span>.update_array_reference_count(value, <span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// Increment or decrement the given value's reference count if it is an array.
@@ -1146,11 +1134,7 @@
     /// the meantime, which in itself would make sure its RC is decremented.
     ///
     /// Returns the ID of the array that was affected, if any.
-    </span><span class="kw">fn </span>update_array_reference_count(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        value: ValueId,
-        original: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+    </span><span class="kw">fn </span>update_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, increment: bool) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
         <span class="kw">if </span><span class="self">self</span>.current_function.runtime().is_acir() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
@@ -1160,7 +1144,7 @@
                 <span class="kw">if </span>element.contains_an_array() {
                     <span class="kw">let </span>reference = value;
                     <span class="kw">let </span>value = <span class="self">self</span>.insert_load(reference, element.as_ref().clone());
-                    <span class="self">self</span>.update_array_reference_count(value, original);
+                    <span class="self">self</span>.update_array_reference_count(value, increment);
                     <span class="prelude-val">Some</span>(value)
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None
@@ -1169,10 +1153,10 @@
             Type::Array(..) | Type::Slice(..) =&gt; {
                 <span class="comment">// If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(original) = original {
-                    <span class="self">self</span>.insert_dec_rc(value, original);
-                } <span class="kw">else </span>{
+                </span><span class="kw">if </span>increment {
                     <span class="self">self</span>.insert_inc_rc(value);
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.insert_dec_rc(value);
                 }
                 <span class="prelude-val">Some</span>(value)
             }

@@ -2132,33 +2132,7 @@
 <a href="#2131" id="2131">2131</a>
 <a href="#2132" id="2132">2132</a>
 <a href="#2133" id="2133">2133</a>
-<a href="#2134" id="2134">2134</a>
-<a href="#2135" id="2135">2135</a>
-<a href="#2136" id="2136">2136</a>
-<a href="#2137" id="2137">2137</a>
-<a href="#2138" id="2138">2138</a>
-<a href="#2139" id="2139">2139</a>
-<a href="#2140" id="2140">2140</a>
-<a href="#2141" id="2141">2141</a>
-<a href="#2142" id="2142">2142</a>
-<a href="#2143" id="2143">2143</a>
-<a href="#2144" id="2144">2144</a>
-<a href="#2145" id="2145">2145</a>
-<a href="#2146" id="2146">2146</a>
-<a href="#2147" id="2147">2147</a>
-<a href="#2148" id="2148">2148</a>
-<a href="#2149" id="2149">2149</a>
-<a href="#2150" id="2150">2150</a>
-<a href="#2151" id="2151">2151</a>
-<a href="#2152" id="2152">2152</a>
-<a href="#2153" id="2153">2153</a>
-<a href="#2154" id="2154">2154</a>
-<a href="#2155" id="2155">2155</a>
-<a href="#2156" id="2156">2156</a>
-<a href="#2157" id="2157">2157</a>
-<a href="#2158" id="2158">2158</a>
-<a href="#2159" id="2159">2159</a>
-<a href="#2160" id="2160">2160</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2134" id="2134">2134</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -2180,7 +2154,6 @@
     value::{Value, ValueId},
 };
 <span class="kw">use </span>acvm::acir::brillig::{MemoryAddress, ValueOrArray};
-<span class="kw">use </span>acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3032,65 +3005,40 @@
                     .store_instruction(array_or_vector.extract_register(), rc_register);
                 <span class="self">self</span>.brillig_context.deallocate_register(rc_register);
             }
-            Instruction::DecrementRc { value, original } =&gt; {
+            Instruction::DecrementRc { value } =&gt; {
                 <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>value, dfg);
-                <span class="kw">let </span>orig_array_or_vector = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>original, dfg);
-
                 <span class="kw">let </span>array_register = array_or_vector.extract_register();
-                <span class="kw">let </span>orig_array_register = orig_array_or_vector.extract_register();
 
-                <span class="kw">let </span>codegen_dec_rc = |ctx: <span class="kw-2">&amp;mut </span>BrilligContext&lt;FieldElement, Registers&gt;| {
-                    <span class="kw">let </span>rc_register = ctx.allocate_register();
+                <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.allocate_register();
+                <span class="self">self</span>.brillig_context.load_instruction(rc_register, array_register);
 
-                    ctx.load_instruction(rc_register, array_register);
-
-                    ctx.codegen_usize_op_in_place(rc_register, BrilligBinaryOp::Sub, <span class="number">1</span>);
-
-                    <span class="comment">// Check that the refcount didn't go below 1. If we allow it to underflow
-                    // and become 0 or usize::MAX, and then return to 1, then it will indicate
-                    // an array as mutable when it probably shouldn't be.
-                    </span><span class="kw">if </span>ctx.enable_debug_assertions() {
-                        <span class="kw">let </span>min_addr = ReservedRegisters::usize_one();
-                        <span class="kw">let </span>condition = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
-                        ctx.memory_op_instruction(
-                            min_addr,
-                            rc_register,
-                            condition.address,
-                            BrilligBinaryOp::LessThanEquals,
-                        );
-                        ctx.codegen_constrain(
-                            condition,
-                            <span class="prelude-val">Some</span>(<span class="string">"array ref-count went to zero"</span>.to_owned()),
-                        );
-                        ctx.deallocate_single_addr(condition);
-                    }
-
-                    ctx.store_instruction(array_register, rc_register);
-                    ctx.deallocate_register(rc_register);
-                };
-
-                <span class="kw">if </span>array_register == orig_array_register {
-                    codegen_dec_rc(<span class="self">self</span>.brillig_context);
-                } <span class="kw">else </span>{
-                    <span class="comment">// Check if the current and original register point at the same memory.
-                    // If they don't, it means that an array-copy procedure has created a
-                    // new array, which includes decrementing the RC of the original,
-                    // which means we don't have to do the decrement here.
-                    </span><span class="kw">let </span>condition =
+                <span class="comment">// Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
+                // and become usize::MAX, and then return to 1, then it will indicate
+                // an array as mutable when it probably shouldn't be.
+                </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
+                    <span class="kw">let </span>min_addr = ReservedRegisters::usize_one();
+                    <span class="kw">let </span>condition =
                         SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
-                    <span class="comment">// We will use a binary op to interpret the pointer as a number.
-                    </span><span class="kw">let </span>bit_size: u32 = MEMORY_ADDRESSING_BIT_SIZE.into();
-                    <span class="kw">let </span>array_var = SingleAddrVariable::new(array_register, bit_size);
-                    <span class="kw">let </span>orig_array_var = SingleAddrVariable::new(orig_array_register, bit_size);
-                    <span class="self">self</span>.brillig_context.binary_instruction(
-                        array_var,
-                        orig_array_var,
-                        condition,
-                        BrilligBinaryOp::Equals,
+                    <span class="self">self</span>.brillig_context.memory_op_instruction(
+                        min_addr,
+                        rc_register,
+                        condition.address,
+                        BrilligBinaryOp::LessThan,
                     );
-                    <span class="self">self</span>.brillig_context.codegen_if(condition.address, codegen_dec_rc);
+                    <span class="self">self</span>.brillig_context.codegen_constrain(
+                        condition,
+                        <span class="prelude-val">Some</span>(<span class="string">"array ref-count underflow detected"</span>.to_owned()),
+                    );
                     <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
                 }
+
+                <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(
+                    rc_register,
+                    BrilligBinaryOp::Sub,
+                    <span class="number">1</span>,
+                );
+                <span class="self">self</span>.brillig_context.store_instruction(array_register, rc_register);
+                <span class="self">self</span>.brillig_context.deallocate_register(rc_register);
             }
             Instruction::EnableSideEffectsIf { .. } =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"enable_side_effects not supported by brillig"</span>)

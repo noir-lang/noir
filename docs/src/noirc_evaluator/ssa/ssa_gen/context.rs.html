@@ -1148,7 +1148,11 @@
 <a href="#1147" id="1147">1147</a>
 <a href="#1148" id="1148">1148</a>
 <a href="#1149" id="1149">1149</a>
-<a href="#1150" id="1150">1150</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1150" id="1150">1150</a>
+<a href="#1151" id="1151">1151</a>
+<a href="#1152" id="1152">1152</a>
+<a href="#1153" id="1153">1153</a>
+<a href="#1154" id="1154">1154</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -2151,11 +2155,15 @@
         <span class="kw-2">mut </span>incremented_params: Vec&lt;(ValueId, ValueId)&gt;,
         terminator_args: <span class="kw-2">&amp;</span>[ValueId],
     ) {
-        incremented_params.retain(|(parameter, <span class="kw">_</span>)| !terminator_args.contains(parameter));
+        <span class="comment">// TODO: This check likely leads to unsoundness.
+        // It is here to avoid decrementing the RC of a parameter we're returning but we
+        // only check the exact ValueId which can be easily circumvented by storing to and
+        // loading from a temporary reference.
+        </span>incremented_params.retain(|(parameter, <span class="kw">_</span>)| !terminator_args.contains(parameter));
 
         <span class="kw">for </span>(parameter, original) <span class="kw">in </span>incremented_params {
             <span class="kw">if </span><span class="self">self</span>.builder.current_function.dfg.value_is_reference(parameter) {
-                <span class="self">self</span>.builder.decrement_array_reference_count(parameter, original);
+                <span class="self">self</span>.builder.decrement_array_reference_count(original);
             }
         }
     }

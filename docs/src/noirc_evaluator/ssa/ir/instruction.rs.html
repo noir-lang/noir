@@ -1486,14 +1486,7 @@
 <a href="#1485" id="1485">1485</a>
 <a href="#1486" id="1486">1486</a>
 <a href="#1487" id="1487">1487</a>
-<a href="#1488" id="1488">1488</a>
-<a href="#1489" id="1489">1489</a>
-<a href="#1490" id="1490">1490</a>
-<a href="#1491" id="1491">1491</a>
-<a href="#1492" id="1492">1492</a>
-<a href="#1493" id="1493">1493</a>
-<a href="#1494" id="1494">1494</a>
-<a href="#1495" id="1495">1495</a></pre></div><pre class="rust"><code><span class="kw">use </span>binary::{truncate, truncate_field};
+<a href="#1488" id="1488">1488</a></pre></div><pre class="rust"><code><span class="kw">use </span>binary::{truncate, truncate_field};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
@@ -1820,9 +1813,7 @@
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    ///
-    /// The `original` contains the value of the array which was incremented by the pair of this decrement.
-    </span>DecrementRc { value: ValueId, original: ValueId },
+    </span>DecrementRc { value: ValueId },
 
     <span class="doccomment">/// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -2219,9 +2210,7 @@
                 mutable: <span class="kw-2">*</span>mutable,
             },
             Instruction::IncrementRc { value } =&gt; Instruction::IncrementRc { value: f(<span class="kw-2">*</span>value) },
-            Instruction::DecrementRc { value, original } =&gt; {
-                Instruction::DecrementRc { value: f(<span class="kw-2">*</span>value), original: f(<span class="kw-2">*</span>original) }
-            }
+            Instruction::DecrementRc { value } =&gt; Instruction::DecrementRc { value: f(<span class="kw-2">*</span>value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
                 Instruction::RangeCheck {
                     value: f(<span class="kw-2">*</span>value),
@@ -2292,9 +2281,8 @@
                 <span class="kw-2">*</span>value = f(<span class="kw-2">*</span>value);
             }
             Instruction::IncrementRc { value } =&gt; <span class="kw-2">*</span>value = f(<span class="kw-2">*</span>value),
-            Instruction::DecrementRc { value, original } =&gt; {
+            Instruction::DecrementRc { value } =&gt; {
                 <span class="kw-2">*</span>value = f(<span class="kw-2">*</span>value);
-                <span class="kw-2">*</span>original = f(<span class="kw-2">*</span>original);
             }
             Instruction::RangeCheck { value, max_bit_size: <span class="kw">_</span>, assert_message: <span class="kw">_ </span>} =&gt; {
                 <span class="kw-2">*</span>value = f(<span class="kw-2">*</span>value);
@@ -2361,12 +2349,10 @@
             Instruction::EnableSideEffectsIf { condition } =&gt; {
                 f(<span class="kw-2">*</span>condition);
             }
-            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } =&gt; {
+            Instruction::IncrementRc { value }
+            | Instruction::DecrementRc { value }
+            | Instruction::RangeCheck { value, .. } =&gt; {
                 f(<span class="kw-2">*</span>value);
-            }
-            Instruction::DecrementRc { value, original } =&gt; {
-                f(<span class="kw-2">*</span>value);
-                f(<span class="kw-2">*</span>original);
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; {
                 f(<span class="kw-2">*</span>then_condition);

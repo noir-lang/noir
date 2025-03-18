@@ -619,8 +619,8 @@
         Instruction::IncrementRc { value } =&gt; {
             <span class="macro">writeln!</span>(f, <span class="string">"inc_rc {}"</span>, show(<span class="kw-2">*</span>value))
         }
-        Instruction::DecrementRc { value, original } =&gt; {
-            <span class="macro">writeln!</span>(f, <span class="string">"dec_rc {} {}"</span>, show(<span class="kw-2">*</span>value), show(<span class="kw-2">*</span>original))
+        Instruction::DecrementRc { value } =&gt; {
+            <span class="macro">writeln!</span>(f, <span class="string">"dec_rc {}"</span>, show(<span class="kw-2">*</span>value))
         }
         Instruction::RangeCheck { value, max_bit_size, .. } =&gt; {
             <span class="macro">writeln!</span>(f, <span class="string">"range_check {} to {} bits"</span>, show(<span class="kw-2">*</span>value), <span class="kw-2">*</span>max_bit_size,)
