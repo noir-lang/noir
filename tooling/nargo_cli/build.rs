@@ -61,16 +61,16 @@ const IGNORED_BRILLIG_TESTS: [&str; 10] = [
 ];
 
 /// Tests which aren't expected to work with the default minimum inliner cases.
-const INLINER_MIN_OVERRIDES: [(&str, i64); 4] = [
+const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
     // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
     ("eddsa", 0),
-    ("reference_counts_inliner_0", 0),
-    ("reference_counts_inliner_min", i64::MIN),
-    ("reference_counts_inliner_max", i64::MAX),
 ];
 
 /// Tests which aren't expected to work with the default maximum inliner cases.
-const INLINER_MAX_OVERRIDES: [(&str, i64); 3] = [
+const INLINER_MAX_OVERRIDES: [(&str, i64); 0] = [];
+
+/// These tests should only be run on exactly 1 inliner setting (the one given here)
+const INLINER_OVERRIDES: [(&str, i64); 3] = [
     ("reference_counts_inliner_0", 0),
     ("reference_counts_inliner_min", i64::MIN),
     ("reference_counts_inliner_max", i64::MAX),
@@ -294,20 +294,30 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
-                min_inliner: INLINER_MIN_OVERRIDES
-                    .iter()
-                    .find(|(n, _)| *n == test_name.as_str())
-                    .map(|(_, i)| *i)
-                    .unwrap_or(i64::MIN),
-                max_inliner: INLINER_MAX_OVERRIDES
-                    .iter()
-                    .find(|(n, _)| *n == test_name.as_str())
-                    .map(|(_, i)| *i)
-                    .unwrap_or(i64::MAX),
+                min_inliner: min_inliner(&test_name),
+                max_inliner: max_inliner(&test_name),
             },
         );
     }
     writeln!(test_file, "}}").unwrap();
+}
+
+fn max_inliner(test_name: &str) -> i64 {
+    INLINER_MAX_OVERRIDES
+        .iter()
+        .chain(&INLINER_OVERRIDES)
+        .find(|(n, _)| *n == test_name)
+        .map(|(_, i)| *i)
+        .unwrap_or(i64::MAX)
+}
+
+fn min_inliner(test_name: &str) -> i64 {
+    INLINER_MIN_OVERRIDES
+        .iter()
+        .chain(&INLINER_OVERRIDES)
+        .find(|(n, _)| *n == test_name)
+        .map(|(_, i)| *i)
+        .unwrap_or(i64::MIN)
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
