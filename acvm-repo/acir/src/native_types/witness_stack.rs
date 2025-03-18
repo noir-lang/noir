@@ -70,13 +70,13 @@ impl<F> From<WitnessMap<F>> for WitnessStack<F> {
     }
 }
 
-impl<F: Serialize + AcirField> WitnessStack<F> {
+impl<F: Serialize> WitnessStack<F> {
     pub(crate) fn bincode_serialize(&self) -> Result<Vec<u8>, WitnessStackError> {
         bincode::serialize(self).map_err(|e| WitnessStackError(e.into()))
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> WitnessStack<F> {
+impl<F: for<'a> Deserialize<'a>> WitnessStack<F> {
     pub(crate) fn bincode_deserialize(buf: &[u8]) -> Result<Self, WitnessStackError> {
         bincode::deserialize(buf).map_err(|e| WitnessStackError(e.into()))
     }
@@ -114,7 +114,7 @@ impl<F: Serialize + AcirField> TryFrom<WitnessStack<F>> for Vec<u8> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessStack<F> {
+impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessStack<F> {
     type Error = WitnessStackError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {

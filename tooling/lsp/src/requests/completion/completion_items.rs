@@ -62,8 +62,8 @@ impl NodeFinder<'_> {
             if let RequestedItems::OnlyAttributeFunctions(target) = requested_items {
                 match target {
                     AttributeTarget::Module => Some(Type::Quoted(QuotedType::Module)),
-                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
-                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::EnumDefinition)),
+                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::TypeDefinition)),
+                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::TypeDefinition)),
                     AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
                     AttributeTarget::Let => {
@@ -400,8 +400,7 @@ impl NodeFinder<'_> {
             trait_.name.clone()
         };
 
-        let module_data =
-            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
         if !module_data.scope().find_name(&trait_name).is_none() {
             return None;
         }

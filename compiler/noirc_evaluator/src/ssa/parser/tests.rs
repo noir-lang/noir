@@ -142,6 +142,18 @@ fn test_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            return
+          b2():
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
             jmpif v0 then: b2, else: b1
           b1():
             return
@@ -149,6 +161,23 @@ fn test_jmpif() {
             return
         }
         ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_multiple_jmpif() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            return
+          b2():
+            jmpif v1 then: b3, else: b1
+          b3():
+            return
+        }
+    ";
     assert_ssa_roundtrip(src);
 }
 
@@ -544,5 +573,28 @@ fn parses_globals() {
             return g3
         }
         ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn parses_purity() {
+    let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            return
+        }
+        acir(inline) predicate_pure fn one f1 {
+          b0():
+            return
+        }
+        acir(inline) impure fn two f2 {
+          b0():
+            return
+        }
+        acir(inline) fn three f3 {
+          b0():
+            return
+        }
+    ";
     assert_ssa_roundtrip(src);
 }

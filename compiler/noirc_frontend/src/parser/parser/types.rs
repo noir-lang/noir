@@ -236,11 +236,14 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::TypedExpr) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
         }
+
+        let location = self.current_token_location;
         if self.eat_keyword(Keyword::StructDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
+            self.push_error(ParserErrorReason::StructDefinitionDeprecated, location);
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
-        if self.eat_keyword(Keyword::EnumDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::EnumDefinition));
+        if self.eat_keyword(Keyword::TypeDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
         if self.eat_keyword(Keyword::TraitConstraint) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));
@@ -311,7 +314,6 @@ impl Parser<'_> {
         let ret = if self.eat(Token::Arrow) {
             self.parse_type_or_error()
         } else {
-            self.expected_token(Token::Arrow);
             UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
@@ -700,6 +702,16 @@ mod tests {
             panic!("Expected a function type")
         };
         assert_eq!(ret.typ.to_string(), "Field");
+    }
+
+    #[test]
+    fn parses_function_type_without_return_type() {
+        let src = "fn()";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(ret.typ.to_string(), "()");
     }
 
     #[test]

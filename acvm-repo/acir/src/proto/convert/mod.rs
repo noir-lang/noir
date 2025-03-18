@@ -16,10 +16,7 @@ pub(crate) struct ProtoSchema<F> {
     field: PhantomData<F>,
 }
 
-impl<F> ProtoCodec<circuit::Program<F>, Program> for ProtoSchema<F>
-where
-    F: AcirField,
-{
+impl<F: AcirField> ProtoCodec<circuit::Program<F>, Program> for ProtoSchema<F> {
     fn encode(value: &circuit::Program<F>) -> Program {
         Program {
             functions: Self::encode_vec(&value.functions),

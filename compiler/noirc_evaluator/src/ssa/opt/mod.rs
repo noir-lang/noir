@@ -32,28 +32,49 @@ mod simplify_cfg;
 mod unrolling;
 
 /// Asserts that the given SSA, after normalizing its IDs and printing it,
-/// is equal to the expected strings. Normalization is done so the IDs don't
+/// is equal to the expected string. Normalization is done so the IDs don't
 /// shift depending on whether temporary intermediate values were created.
 #[cfg(test)]
 pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) {
+    use crate::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
+
+    // Clean up the expected SSA a bit
+    let expected = trim_leading_whitespace_from_lines(expected);
+    let expected = trim_comments_from_lines(&expected);
+
     // First check if `expected` is valid SSA by parsing it, otherwise
     // the comparison will always fail but it won't be clear that it's because
     // expected is not valid.
-    if let Err(err) = Ssa::from_str(expected) {
-        panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err);
-    }
+    let mut expected_ssa = match Ssa::from_str(&expected) {
+        Ok(ssa) => ssa,
+        Err(err) => {
+            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err)
+        }
+    };
 
-    use crate::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
+    // We won't exactly compare `expected` against `ssa`:
+    // we parse it, normalize it and turn it back into a string.
+    // This allows us to use any names and not just `b0`, `b1`, `v0`, `v1`, etc.
+    // which is what the SSA printer produces.
+    expected_ssa.normalize_ids();
 
     ssa.normalize_ids();
 
     let ssa = ssa.to_string();
-    let ssa = trim_leading_whitespace_from_lines(&ssa);
-    let expected = trim_leading_whitespace_from_lines(expected);
-    let expected = trim_comments_from_lines(&expected);
+    let ssa = ssa.trim_end();
 
-    if ssa != expected {
-        println!("Expected:\n~~~\n{expected}\n~~~\nGot:\n~~~\n{ssa}\n~~~");
-        similar_asserts::assert_eq!(expected, ssa);
+    let expected_ssa = expected_ssa.to_string();
+    let expected_ssa = expected_ssa.trim_end();
+
+    if ssa == expected_ssa {
+        return;
     }
+
+    if expected != expected_ssa {
+        println!("Expected (before ID normalization):\n~~~\n{expected}\n~~~\n");
+    }
+
+    println!("Expected (after ID normalization):\n~~~\n{expected_ssa}\n~~~\n");
+    println!("Got:\n~~~\n{ssa}\n~~~");
+    similar_asserts::assert_eq!(expected_ssa, ssa);
 }

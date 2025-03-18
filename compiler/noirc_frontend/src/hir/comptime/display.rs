@@ -285,7 +285,6 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::RawStr(..)
             | Token::FmtStr(..)
             | Token::Whitespace(_)
-            | Token::LineComment(..)
             | Token::BlockComment(..)
             | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
@@ -293,6 +292,10 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                     write!(f, " ")?;
                 }
                 write!(f, "{token}")
+            }
+            Token::LineComment(..) => {
+                writeln!(f, "{token}")?;
+                self.write_indent(f)
             }
             Token::EOF => Ok(()),
         }
@@ -417,7 +420,7 @@ impl Display for ValuePrinter<'_, '_> {
                 write!(f, "&[{}]", values.join(", "))
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
-            Value::StructDefinition(id) => {
+            Value::TypeDefinition(id) => {
                 let def = self.interner.get_type(*id);
                 let def = def.borrow();
                 write!(f, "{}", def.name)

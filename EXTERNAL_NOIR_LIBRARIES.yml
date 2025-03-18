@@ -1,4 +1,4 @@
-define: &AZ_COMMIT fd9f1458557f2d67bcf2d58ba4194e000f58600c
+define: &AZ_COMMIT 3a659706adeb82861853e8c9ad64b909d134c97c
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -38,7 +38,7 @@ libraries:
     timeout: 2
   noir_rsa:
     repo: noir-lang/noir_rsa
-    timeout: 2
+    timeout: 4
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 12
@@ -60,7 +60,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 80
+    timeout: 90
   blob:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT

@@ -533,7 +533,7 @@ impl<'context> Elaborator<'context> {
 
         for (struct_id, struct_def) in types {
             let attributes = &struct_def.struct_def.attributes;
-            let item = Value::StructDefinition(*struct_id);
+            let item = Value::TypeDefinition(*struct_id);
             let context = AttributeContext::new(struct_def.module_id);
             self.collect_comptime_attributes_on_item(
                 attributes,

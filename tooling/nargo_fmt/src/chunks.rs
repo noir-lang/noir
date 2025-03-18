@@ -3,7 +3,7 @@
 //!
 //! It's heavily inspired by this excellent blog post:
 //!
-//! https://yorickpeterse.com/articles/how-to-write-a-code-formatter/
+//! <https://yorickpeterse.com/articles/how-to-write-a-code-formatter/>
 //!
 //! However, some changes were introduces to handle comments and other particularities of Noir.
 use std::ops::Deref;

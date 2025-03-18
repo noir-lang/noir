@@ -207,12 +207,15 @@ fn compile_programs(
         )?;
 
         if compile_options.check_non_determinism {
+            // As we compile the program again, disable comptime printing so we don't get duplicate output
+            let compile_options =
+                CompileOptions { disable_comptime_printing: true, ..compile_options.clone() };
             let (program_two, _) = compile_program(
                 file_manager,
                 parsed_files,
                 workspace,
                 package,
-                compile_options,
+                &compile_options,
                 load_cached_program(package),
             )?;
             if fxhash::hash64(&program) != fxhash::hash64(&program_two) {
@@ -326,7 +329,6 @@ mod tests {
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
     use noirc_frontend::elaborator::UnstableFeature;
-    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
     use crate::cli::test_cmd::formatters::diagnostic_to_string;
     use crate::cli::{
@@ -399,7 +401,8 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        test_workspaces.par_iter().for_each(|workspace| {
+        // This could be `.par_iter()` but then error messages are no longer reported
+        test_workspaces.iter().for_each(|workspace| {
             let (file_manager, parsed_files) = parse_workspace(workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 

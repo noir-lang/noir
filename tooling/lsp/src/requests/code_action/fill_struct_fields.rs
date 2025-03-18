@@ -34,7 +34,7 @@ impl CodeActionFinder<'_> {
 
         // Remove the ones that already exists in the constructor
         for (constructor_field, _) in &constructor.fields {
-            fields.retain(|field| field.name.0.contents != constructor_field.0.contents);
+            fields.retain(|field| field.name.as_str() != constructor_field.as_str());
         }
 
         // Some fields are missing. Let's suggest a quick fix that adds them.
@@ -101,7 +101,7 @@ impl CodeActionFinder<'_> {
                     new_text.push(' ');
                 }
             }
-            new_text.push_str(&field.name.0.contents);
+            new_text.push_str(field.name.as_str());
             new_text.push_str(": ()");
         }
 
