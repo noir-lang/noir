@@ -32,7 +32,7 @@ pub enum BlockType {
     /// through multiple circuits (such as in a recursive proof scheme).
     /// Stores a constant identifier to distinguish between multiple calldata inputs.
     CallData(u32),
-    /// Similar to calldata except it states that this data is circuit output.
+    /// Similar to calldata except it states that this memory is returned in the circuit outputs.
     ReturnData,
 }
 
