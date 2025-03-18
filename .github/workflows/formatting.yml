@@ -65,6 +65,32 @@ jobs:
       - name: Run `cargo fmt`
         run: cargo fmt --all --check
 
+  rustdoc:
+    name: cargo doc
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      RUSTDOCFLAGS: -Dwarnings
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Run `cargo doc`
+        run: cargo doc --no-deps --document-private-items --workspace
+
   eslint:
     name: eslint
     runs-on: ubuntu-22.04
@@ -143,6 +169,7 @@ jobs:
     needs:
       - clippy
       - rustfmt
+      - rustdoc
       - eslint
       - nargo_fmt
 

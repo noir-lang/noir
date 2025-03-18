@@ -7,10 +7,8 @@ use getrandom as _;
 
 use acvm::{
     FieldElement,
-    acir::{
-        circuit::RawAssertionPayload,
-        native_types::{WitnessMap, WitnessStack},
-    },
+    acir::native_types::{WitnessMap, WitnessStack},
+    pwg::RawAssertionPayload,
 };
 use iter_extended::try_btree_map;
 use noirc_abi::{

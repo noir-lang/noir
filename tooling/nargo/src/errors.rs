@@ -4,20 +4,13 @@ use acvm::{
     AcirField, FieldElement,
     acir::circuit::{
         AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload, ResolvedOpcodeLocation,
         brillig::BrilligFunctionId,
     },
-    pwg::{ErrorLocation, OpcodeResolutionError},
+    pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
 use noirc_abi::{Abi, AbiErrorType, display_abi_error};
 use noirc_errors::{
-    CustomDiagnostic,
-    call_stack::CallStackId,
-    debug_info::DebugInfo,
-    reporter::ReportedErrors,
-    //   ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
-    //    FileDiagnostic,      ResolvedOpcodeLocation, brillig::BrilligFunctionId,
-    //pwg::{ErrorLocation, OpcodeResolutionError}
+    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
 };
 
 pub use noirc_errors::Location;
@@ -93,6 +86,16 @@ impl<F: AcirField> NargoError<F> {
             _ => None,
         }
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+/// The opcode location for a call to a separate ACIR circuit
+/// This includes the function index of the caller within a [program][acvm::acir::circuit::Program]
+/// and the index in the callers ACIR to the specific call opcode.
+/// This is only resolved and set during circuit execution.
+pub struct ResolvedOpcodeLocation {
+    pub acir_function_index: usize,
+    pub opcode_location: OpcodeLocation,
 }
 
 #[derive(Debug, Error)]
