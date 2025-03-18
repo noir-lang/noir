@@ -131,7 +131,7 @@ impl FuzzerBuilder {
 
     /// Inserts a cast to a larger bit size and back to original type
     pub fn insert_cast_bigger_and_back(&mut self, value: Id<Value>, size: u32) -> Id<Value> {
-        // in SSA it supported to cast to really big sizes, but program running for too long
+        // SSA supports casts to really big sizes, but the program runs for too long
         // it cannot be introduced with just nargo and noir compiler, so we just skip it
         if size > 127 {
             return value;
