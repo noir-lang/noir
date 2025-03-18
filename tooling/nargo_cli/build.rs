@@ -89,10 +89,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
 ];
 
 /// Tests for which we don't check that stdout matches the expected output.
-const TESTS_WITHOUT_STDOUT_CHECK: [&str; 1] = [
-    // The output changes depending on whether `--force-brillig` is passed or not
-    "reference_counts",
-];
+const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 
 fn read_test_cases(
     test_data_dir: &Path,
