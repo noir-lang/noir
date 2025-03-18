@@ -3745,8 +3745,7 @@
 <a href="#3744" id="3744">3744</a>
 <a href="#3745" id="3745">3745</a>
 <a href="#3746" id="3746">3746</a>
-<a href="#3747" id="3747">3747</a>
-<a href="#3748" id="3748">3748</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file holds the pass to convert from Noir's SSA IR to ACIR.
+<a href="#3747" id="3747">3747</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
 </span><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
@@ -5140,22 +5139,21 @@
         <span class="comment">// Get operations to call-data parameters are replaced by a get to the call-data-bus array
         </span><span class="kw">let </span>call_data =
             <span class="self">self</span>.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(<span class="kw-2">&amp;</span>array)).cloned();
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(call_data) = call_data {
+        <span class="kw">let </span><span class="kw-2">mut </span>value = <span class="kw">if let </span><span class="prelude-val">Some</span>(call_data) = call_data {
             <span class="kw">let </span>call_data_block = <span class="self">self</span>.ensure_array_is_initialized(call_data.array_id, dfg)<span class="question-mark">?</span>;
             <span class="kw">let </span>bus_index = <span class="self">self
                 </span>.acir_context
                 .add_constant(FieldElement::from(call_data.index_map[<span class="kw-2">&amp;</span>array] <span class="kw">as </span>i128));
             <span class="kw">let </span><span class="kw-2">mut </span>current_index = <span class="self">self</span>.acir_context.add_var(bus_index, var_index)<span class="question-mark">?</span>;
-            <span class="kw">let </span>result = <span class="self">self</span>.get_from_call_data(<span class="kw-2">&amp;mut </span>current_index, call_data_block, <span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?</span>;
-            <span class="self">self</span>.define_result(dfg, instruction, result.clone());
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(result);
-        }
-        <span class="comment">// Compiler sanity check
-        </span><span class="macro">assert!</span>(
-            !res_typ.contains_slice_element(),
-            <span class="string">"ICE: Nested slice result found during ACIR generation"
-        </span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>value = <span class="self">self</span>.array_get_value(<span class="kw-2">&amp;</span>res_typ, block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?</span>;
+            <span class="self">self</span>.get_from_call_data(<span class="kw-2">&amp;mut </span>current_index, call_data_block, <span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?
+        </span>} <span class="kw">else </span>{
+            <span class="comment">// Compiler sanity check
+            </span><span class="macro">assert!</span>(
+                !res_typ.contains_slice_element(),
+                <span class="string">"ICE: Nested slice result found during ACIR generation"
+            </span>);
+            <span class="self">self</span>.array_get_value(<span class="kw-2">&amp;</span>res_typ, block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?
+        </span>};
 
         <span class="kw">if let </span>AcirValue::Var(value_var, typ) = <span class="kw-2">&amp;</span>value {
             <span class="kw">let </span>array_typ = dfg.type_of_value(array);
