@@ -790,7 +790,19 @@
 <a href="#789" id="789">789</a>
 <a href="#790" id="790">790</a>
 <a href="#791" id="791">791</a>
-<a href="#792" id="792">792</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -799,7 +811,6 @@
     brillig::ForeignCallResult,
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{
             AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
@@ -826,6 +837,7 @@
 
 <span class="kw">pub use </span><span class="self">self</span>::brillig::{BrilligSolver, BrilligSolverStatus};
 <span class="kw">pub use </span>brillig::ForeignCallWaitInfo;
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="attr">#[derive(Debug, Clone, PartialEq)]
 </span><span class="kw">pub enum </span>ACVMStatus&lt;F&gt; {
@@ -907,6 +919,18 @@
             }
         }
     }
+}
+
+<span class="attr">#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>RawAssertionPayload&lt;F&gt; {
+    <span class="kw">pub </span>selector: ErrorSelector,
+    <span class="kw">pub </span>data: Vec&lt;F&gt;,
+}
+
+<span class="attr">#[derive(Clone, PartialEq, Eq, Debug)]
+</span><span class="kw">pub enum </span>ResolvedAssertionPayload&lt;F&gt; {
+    String(String),
+    Raw(RawAssertionPayload&lt;F&gt;),
 }
 
 <span class="attr">#[derive(Clone, PartialEq, Eq, Debug, Error)]

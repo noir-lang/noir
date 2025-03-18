@@ -642,29 +642,7 @@
 <a href="#641" id="641">641</a>
 <a href="#642" id="642">642</a>
 <a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a>
-<a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>black_box_functions;
+<a href="#644" id="644">644</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
 <span class="kw">pub mod </span>opcodes;
 
@@ -787,28 +765,6 @@
         <span class="kw">let </span>as_u64 = s.parse().map_err(serde::de::Error::custom)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(ErrorSelector(as_u64))
     }
-}
-
-<span class="attr">#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-</span><span class="kw">pub struct </span>RawAssertionPayload&lt;F&gt; {
-    <span class="kw">pub </span>selector: ErrorSelector,
-    <span class="kw">pub </span>data: Vec&lt;F&gt;,
-}
-
-<span class="attr">#[derive(Clone, PartialEq, Eq, Debug)]
-</span><span class="kw">pub enum </span>ResolvedAssertionPayload&lt;F&gt; {
-    String(String),
-    Raw(RawAssertionPayload&lt;F&gt;),
-}
-
-<span class="attr">#[derive(Debug, Copy, Clone)]
-</span><span class="doccomment">/// The opcode location for a call to a separate ACIR circuit
-/// This includes the function index of the caller within a [program][Program]
-/// and the index in the callers ACIR to the specific call opcode.
-/// This is only resolved and set during circuit execution.
-</span><span class="kw">pub struct </span>ResolvedOpcodeLocation {
-    <span class="kw">pub </span>acir_function_index: usize,
-    <span class="kw">pub </span>opcode_location: OpcodeLocation,
 }
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

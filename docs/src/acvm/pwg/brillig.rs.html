@@ -324,13 +324,16 @@
 <a href="#323" id="323">323</a>
 <a href="#324" id="324">324</a>
 <a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
     brillig::{ForeignCallParam, ForeignCallResult, Opcode <span class="kw">as </span>BrilligOpcode},
     circuit::{
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
     },
@@ -342,7 +345,10 @@
 
 <span class="kw">use crate</span>::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
 
-<span class="kw">use super</span>::{get_value, insert_value, memory_op::MemoryOpSolver};
+<span class="kw">use super</span>::{
+    ErrorSelector, RawAssertionPayload, ResolvedAssertionPayload, get_value, insert_value,
+    memory_op::MemoryOpSolver,
+};
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub enum </span>BrilligSolverStatus&lt;F&gt; {

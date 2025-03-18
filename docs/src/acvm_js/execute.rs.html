@@ -334,16 +334,14 @@
 <a href="#333" id="333">333</a>
 <a href="#334" id="334">334</a>
 <a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, pin::Pin};
+<a href="#336" id="336">336</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, pin::Pin};
 
-<span class="kw">use </span>acvm::acir::circuit::ResolvedAssertionPayload;
 <span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
 <span class="kw">use </span>acvm::{
     acir::circuit::{Circuit, Program},
     acir::native_types::{WitnessMap, WitnessStack},
-    pwg::{ACVM, ACVMStatus, ErrorLocation, OpcodeResolutionError},
+    pwg::{ACVM, ACVMStatus, ErrorLocation, OpcodeResolutionError, ResolvedAssertionPayload},
 };
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 

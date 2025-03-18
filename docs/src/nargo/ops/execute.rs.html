@@ -256,20 +256,18 @@
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
-<span class="kw">use </span>acvm::acir::circuit::{
-    OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
-};
+<a href="#258" id="258">258</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
+<span class="kw">use </span>acvm::acir::circuit::{OpcodeLocation, Program};
 <span class="kw">use </span>acvm::acir::native_types::WitnessStack;
 <span class="kw">use </span>acvm::pwg::{
     ACVM, ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples,
+    ResolvedAssertionPayload,
 };
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver};
 <span class="kw">use </span>acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 <span class="kw">use </span><span class="kw">crate</span>::NargoError;
-<span class="kw">use </span><span class="kw">crate</span>::errors::ExecutionError;
+<span class="kw">use </span><span class="kw">crate</span>::errors::{ExecutionError, ResolvedOpcodeLocation};
 <span class="kw">use </span><span class="kw">crate</span>::foreign_calls::ForeignCallExecutor;
 
 <span class="kw">struct </span>ProgramExecutor&lt;<span class="lifetime">'a</span>, F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt; {
