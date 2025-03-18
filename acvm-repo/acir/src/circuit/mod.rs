@@ -144,35 +144,6 @@ impl<'de> Deserialize<'de> for ErrorSelector {
     }
 }
 
-/// A dynamic assertion payload whose data has been resolved.
-/// This is instantiated upon hitting an assertion failure.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct RawAssertionPayload<F> {
-    /// Selector to the respective ABI type the data in this payload represents
-    pub selector: ErrorSelector,
-    /// Resolved data that represents some ABI type.
-    /// To be decoded in the final step of error resolution.
-    pub data: Vec<F>,
-}
-
-/// Enumeration of allowed assertion payloads.
-/// These can either be static strings or dynamic payloads.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ResolvedAssertionPayload<F> {
-    String(String),
-    Raw(RawAssertionPayload<F>),
-}
-
-#[derive(Debug, Copy, Clone)]
-/// The opcode location for a call to a separate ACIR circuit
-/// This includes the function index of the caller within a [program][Program]
-/// and the index in the callers ACIR to the specific call opcode.
-/// This is only resolved and set during circuit execution.
-pub struct ResolvedOpcodeLocation {
-    pub acir_function_index: usize,
-    pub opcode_location: OpcodeLocation,
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 /// Opcodes are locatable so that callers can
