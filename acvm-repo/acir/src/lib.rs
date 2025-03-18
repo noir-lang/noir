@@ -88,7 +88,7 @@ mod reflection {
         tracer.trace_simple_type::<MemoryAddress>().unwrap();
 
         serde_cpp_codegen(
-            "Program",
+            "Acir",
             PathBuf::from("./codegen/acir.cpp").as_path(),
             &tracer.registry().unwrap(),
         );
@@ -102,7 +102,7 @@ mod reflection {
         tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
 
         serde_cpp_codegen(
-            "WitnessStack",
+            "Witnesses",
             PathBuf::from("./codegen/witness.cpp").as_path(),
             &tracer.registry().unwrap(),
         );
