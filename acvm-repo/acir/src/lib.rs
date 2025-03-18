@@ -298,7 +298,11 @@ mod reflection {
         default:
             throw_or_abort("unknown '{name}' enum variant index: " + std::to_string(value.index()));
     }}
-    std::visit([&packer, tag](const auto& arg) {{ packer.pack(tag, arg); }}, value);"#
+    std::visit([&packer, tag](const auto& arg) {{ 
+        std::map<std::string, msgpack::object> data;
+        data[tag] = msgpack::object(arg);
+        packer.pack(data); 
+    }}, value);"#
                 )
             };
             self.msgpack_pack(name, &pack_body);
@@ -306,10 +310,10 @@ mod reflection {
             // Unpack the enum
             let unpack_body = {
                 let mut body = "
-    std::map<std::string, msgpack::type::variant> data = o.convert();
+    std::map<std::string, msgpack::object> data = o.convert();
     auto entry = data.begin();
     auto tag = entry->first;
-    auto o = entry->second;"
+    auto obj = entry->second;"
                     .to_string();
 
                 for (i, v) in variants.iter() {
@@ -318,7 +322,7 @@ mod reflection {
                         r#"
     {} (tag == "{name}") {{
         {name} v;
-        v.msgpack_unpack(o);
+        v.msgpack_unpack(obj);
         value = v;
     }}"#,
                         if *i == 0 { "if" } else { "else if" }
