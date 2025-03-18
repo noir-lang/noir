@@ -219,7 +219,7 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         let expected = "
-        acir(inline) fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u8):
             return v0
         }

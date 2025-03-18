@@ -1,5 +1,3 @@
-use noirc_errors::Located;
-
 use crate::ast::{ERROR_IDENT, Ident, Path};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
@@ -121,7 +119,7 @@ impl Elaborator<'_> {
             if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
                 let name = &definition_info.name;
                 if name != ERROR_IDENT && !definition_info.is_global() {
-                    let ident = Ident(Located::from(unused_var.location, name.to_owned()));
+                    let ident = Ident::new(name.to_owned(), unused_var.location);
                     self.push_err(ResolverError::UnusedVariable { ident });
                 }
             }

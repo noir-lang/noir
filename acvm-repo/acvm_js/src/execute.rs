@@ -1,13 +1,12 @@
 use std::{future::Future, pin::Pin};
 
-use acvm::acir::circuit::ResolvedAssertionPayload;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use acvm::{
     acir::circuit::{Circuit, Program},
     acir::native_types::{WitnessMap, WitnessStack},
-    pwg::{ACVM, ACVMStatus, ErrorLocation, OpcodeResolutionError},
+    pwg::{ACVM, ACVMStatus, ErrorLocation, OpcodeResolutionError, ResolvedAssertionPayload},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 

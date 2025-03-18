@@ -13,9 +13,8 @@
 //! without the need for multiple passes.
 //!
 //! Other passes perform a certain amount of constant folding automatically as they insert instructions
-//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value`] or
-//! [`DataFlowGraph::set_value_from_id`] are used on a value which enables instructions dependent on the value to
-//! now be simplified.
+//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value_from_id`]
+//! is used on a value which enables instructions dependent on the value to now be simplified.
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
@@ -1603,10 +1602,10 @@ mod test {
               b2():
                 jmp b5()
               b3():
-                v4 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
+                v5 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
                 jmp b5()
               b4():
-                v5 = sub v0, u32 1
+                v4 = sub v0, u32 1
                 jmp b5()
               b5():
                 return

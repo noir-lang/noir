@@ -1,7 +1,4 @@
-use noirc_errors::Located;
-
 use crate::{
-    ast::Ident,
     hir::{
         comptime::ComptimeError,
         def_collector::{
@@ -145,16 +142,16 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
         panic!("Expected a ComptimeError, got {:?}", errors[0]);
     };
 
-    assert!(matches!(
-        *error,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::Duplicate {
-                typ: DuplicateType::Function,
-                first_def: Ident(Located { contents, .. }),
-                ..
-            },
-        ) if contents == "foo"
-    ));
+    let CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
+        typ: DuplicateType::Function,
+        first_def,
+        ..
+    }) = *error
+    else {
+        panic!("Expected a duplicate error");
+    };
+
+    assert_eq!(first_def.as_str(), "foo");
 }
 
 #[test]

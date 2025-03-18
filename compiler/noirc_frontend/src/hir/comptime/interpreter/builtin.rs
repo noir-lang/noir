@@ -471,7 +471,7 @@ fn type_def_as_type(
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
-/// fn generics(self) -> [(Type, Option<Type>)]
+/// fn generics(self) -> [(Type, `Option<Type>`)]
 fn type_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1790,7 +1790,7 @@ fn expr_as_for(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Array(array) = for_statement.range {
-                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let array = Value::expression(array.kind);
@@ -1816,7 +1816,7 @@ fn expr_as_for_range(
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
                 let (from, to) = bounds.into_half_open();
-                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let from = Value::expression(from.kind);
@@ -3002,14 +3002,14 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location
     Value::Struct(fields, option_type)
 }
 
-/// Given a type, assert that it's an Option<T> and return the Type for T
+/// Given a type, assert that it's an `Option<T>` and return the Type for T
 pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     let Type::DataType(struct_type, mut generics) = typ else {
         panic!("Expected type to be a struct");
     };
 
     let struct_type = struct_type.borrow();
-    assert_eq!(struct_type.name.0.contents, "Option");
+    assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
 }

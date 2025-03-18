@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import type { Config } from '@docusaurus/types';
 
 const { themes } = require('prism-react-renderer');
@@ -16,6 +15,7 @@ export default {
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
+  trailingSlash: false,
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],

@@ -88,7 +88,7 @@ pub struct UnsupportedNumericGenericType {
 impl UnresolvedGeneric {
     pub fn location(&self) -> Location {
         match self {
-            UnresolvedGeneric::Variable(ident) => ident.0.location(),
+            UnresolvedGeneric::Variable(ident) => ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
             UnresolvedGeneric::Resolved(_, location) => *location,
         }

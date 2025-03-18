@@ -140,7 +140,7 @@ impl Parser<'_> {
             self.parse_meta_attribute(path, start_location)
         } else if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
-                if ident.0.contents == "test" {
+                if ident.as_str() == "test" {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
                     // (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_test_attribute(start_location)
@@ -175,7 +175,7 @@ impl Parser<'_> {
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
         self.skip_until_right_bracket();
-        match ident.0.contents.as_str() {
+        match ident.as_str() {
             "abi" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Abi(name))
             }),
@@ -274,7 +274,7 @@ impl Parser<'_> {
     fn parse_test_attribute(&mut self, start_location: Location) -> Attribute {
         let scope = if self.eat_left_paren() {
             let scope = if let Some(ident) = self.eat_ident() {
-                match ident.0.contents.as_str() {
+                match ident.as_str() {
                     "should_fail" => Some(TestScope::ShouldFailWith { reason: None }),
                     "should_fail_with" => {
                         self.eat_or_error(Token::Assign);
