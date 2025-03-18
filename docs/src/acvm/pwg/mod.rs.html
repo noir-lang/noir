@@ -802,7 +802,15 @@
 <a href="#801" id="801">801</a>
 <a href="#802" id="802">802</a>
 <a href="#803" id="803">803</a>
-<a href="#804" id="804">804</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -921,13 +929,21 @@
     }
 }
 
-<span class="attr">#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+<span class="doccomment">/// A dynamic assertion payload whose data has been resolved.
+/// This is instantiated upon hitting an assertion failure.
+</span><span class="attr">#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>RawAssertionPayload&lt;F&gt; {
-    <span class="kw">pub </span>selector: ErrorSelector,
-    <span class="kw">pub </span>data: Vec&lt;F&gt;,
+    <span class="doccomment">/// Selector to the respective ABI type the data in this payload represents
+    </span><span class="kw">pub </span>selector: ErrorSelector,
+    <span class="doccomment">/// Resolved data that represents some ABI type.
+    /// To be decoded in the final step of error resolution.
+    </span><span class="kw">pub </span>data: Vec&lt;F&gt;,
 }
 
-<span class="attr">#[derive(Clone, PartialEq, Eq, Debug)]
+<span class="doccomment">/// Enumeration of possible resolved assertion payloads.
+/// This is instantiated upon hitting an assertion failure,
+/// and can either be static strings or dynamic payloads.
+</span><span class="attr">#[derive(Clone, PartialEq, Eq, Debug)]
 </span><span class="kw">pub enum </span>ResolvedAssertionPayload&lt;F&gt; {
     String(String),
     Raw(RawAssertionPayload&lt;F&gt;),

@@ -642,7 +642,32 @@
 <a href="#641" id="641">641</a>
 <a href="#642" id="642">642</a>
 <a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>black_box_functions;
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
+
+</span><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
 <span class="kw">pub mod </span>opcodes;
 
@@ -683,7 +708,7 @@
     },
 }
 
-<span class="doccomment">/// A program represented by multiple ACIR circuits. The execution trace of these
+<span class="doccomment">/// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
 </span><span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
@@ -692,14 +717,21 @@
     <span class="kw">pub </span>unconstrained_functions: Vec&lt;BrilligBytecode&lt;F&gt;&gt;,
 }
 
-<span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+<span class="doccomment">/// Representation of a single ACIR circuit. The execution trace of this structure
+/// is dictated by the construction of a [crate::native_types::WitnessMap]
+</span><span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub struct </span>Circuit&lt;F: AcirField&gt; {
-    <span class="comment">// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
-    // will take on this value. (The value is cached here as an optimization.)
+    <span class="doccomment">/// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
+    /// will take on this value. (The value is cached here as an optimization.)
     </span><span class="kw">pub </span>current_witness_index: u32,
-    <span class="kw">pub </span>opcodes: Vec&lt;Opcode&lt;F&gt;&gt;,
-    <span class="kw">pub </span>expression_width: ExpressionWidth,
+    <span class="doccomment">/// The circuit opcodes representing the relationship between witness values.
+    ///
+    /// The opcodes should be further converted into a backend-specific circuit representation.
+    /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
+    </span><span class="kw">pub </span>opcodes: Vec&lt;Opcode&lt;F&gt;&gt;,
+    <span class="doccomment">/// Maximum width of the [expression][Expression]'s which will be constrained
+    </span><span class="kw">pub </span>expression_width: ExpressionWidth,
 
     <span class="doccomment">/// The set of private inputs to the circuit.
     </span><span class="kw">pub </span>private_parameters: BTreeSet&lt;Witness&gt;,
@@ -720,21 +752,33 @@
     </span><span class="kw">pub </span>assert_messages: Vec&lt;(OpcodeLocation, AssertionPayload&lt;F&gt;)&gt;,
 }
 
-<span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+<span class="doccomment">/// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>ExpressionOrMemory&lt;F&gt; {
     Expression(Expression&lt;F&gt;),
     Memory(BlockId),
 }
 
-<span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+<span class="doccomment">/// Payload tied to an assertion failure.
+/// This data allows users to specify feedback upon a constraint not being satisfied in the circuit.
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub struct </span>AssertionPayload&lt;F&gt; {
-    <span class="kw">pub </span>error_selector: u64,
-    <span class="kw">pub </span>payload: Vec&lt;ExpressionOrMemory&lt;F&gt;&gt;,
+    <span class="doccomment">/// Selector that maps a hash of either a constant string or an internal compiler error type
+    /// to an ABI type. The ABI type should then be used to appropriately resolve the payload data.
+    </span><span class="kw">pub </span>error_selector: u64,
+    <span class="doccomment">/// The dynamic payload data.
+    ///
+    /// Upon fetching the appropriate ABI type from the `error_selector`, the values
+    /// in this payload can be decoded into the given ABI type.
+    /// The payload is expected to be empty in the case of a constant string
+    /// as the string can be contained entirely within the error type and ABI type.
+    </span><span class="kw">pub </span>payload: Vec&lt;ExpressionOrMemory&lt;F&gt;&gt;,
 }
 
-<span class="attr">#[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+<span class="doccomment">/// Value for differentiating error types. Used internally by an [AssertionPayload].
+</span><span class="attr">#[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>ErrorSelector(u64);
 
 <span class="kw">impl </span>ErrorSelector {
@@ -778,7 +822,9 @@
     </span>Brillig { acir_index: usize, brillig_index: usize },
 }
 
-<span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+<span class="doccomment">/// Index of Brillig opcode within a list of Brillig opcodes.
+/// To be used by callers for resolving debug information.
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>BrilligOpcodeLocation(<span class="kw">pub </span>usize);
 
 <span class="kw">impl </span>OpcodeLocation {

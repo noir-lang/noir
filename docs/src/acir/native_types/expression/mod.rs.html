@@ -396,32 +396,64 @@
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::cmp::Ordering;
 <span class="kw">mod </span>operators;
 <span class="kw">mod </span>ordering;
 
-<span class="comment">// In the addition polynomial
-// We can have arbitrary fan-in/out, so we need more than wL,wR and wO
-// When looking at the assert-zero opcode for the quotient polynomial in standard plonk
-// You can think of it as fan-in 2 and fan out-1 , or you can think of it as fan-in 1 and fan-out 2
-//
-// In the multiplication polynomial
-// XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
+<span class="doccomment">/// An expression representing a quadratic polynomial.
+///
+/// This struct is primarily used to express arithmetic relations between variables.
+/// It includes multiplication terms, linear combinations, and a constant term.
+///
+/// # Addition polynomial
+/// - Unlike standard plonk constraints with fixed wire assignments (wL, wR, wO),
+///   we allow arbitrary fan-in and fan-out. This means we need a more flexible representation
+///   and we need more than wL, wR, and wO.
+/// - When looking at the quotient polynomial for the assert-zero opcode in standard plonk,
+///   you can interpret the structure in two ways:
+///   1. Fan-in 2 and fan-out 1
+///   2. Fan-in 1 and fan-out 2
+///
+/// # Multiplication polynomial
+/// - If we were allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values.
 </span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub struct </span>Expression&lt;F&gt; {
-    <span class="comment">// To avoid having to create intermediate variables pre-optimization
-    // We collect all of the multiplication terms in the assert-zero opcode
-    // A multiplication term if of the form q_M * wL * wR
-    // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
+    <span class="doccomment">/// Collection of multiplication terms.
+    ///
+    /// To avoid having to create intermediate variables pre-optimization
+    /// We collect all of the multiplication terms in the assert-zero opcode
+    /// A multiplication term is of the form q_M * wL * wR
+    /// Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
     </span><span class="kw">pub </span>mul_terms: Vec&lt;(F, Witness, Witness)&gt;,
 
-    <span class="kw">pub </span>linear_combinations: Vec&lt;(F, Witness)&gt;,
-    <span class="comment">// TODO: rename q_c to `constant` moreover q_X is not clear to those who
-    // TODO are not familiar with PLONK
+    <span class="doccomment">/// Collection of linear terms in the expression.
+    ///
+    /// Each term follows the form: `q_L * w`, where `q_L` is a coefficient
+    /// and `w` is a witness.
+    </span><span class="kw">pub </span>linear_combinations: Vec&lt;(F, Witness)&gt;,
+    <span class="doccomment">/// A constant term in the expression
+    </span><span class="comment">// TODO: rename q_c to `constant` moreover q_X is not clear to those who
+    // TODO: are not familiar with PLONK
     </span><span class="kw">pub </span>q_c: F,
 }
 

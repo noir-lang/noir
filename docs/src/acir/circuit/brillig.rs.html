@@ -50,7 +50,64 @@
 <a href="#49" id="49">49</a>
 <a href="#50" id="50">50</a>
 <a href="#51" id="51">51</a>
-<a href="#52" id="52">52</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::opcodes::BlockId;
+<a href="#52" id="52">52</a>
+<a href="#53" id="53">53</a>
+<a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a>
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains [Brillig][brillig] structures for integration within an ACIR circuit.
+//!
+//! [Brillig][brillig] is used in ACIR as a hint for the solver when executing the circuit.
+//! Executing Brillig does not generate any constraints and is the result of the compilation of an unconstrained function.
+//!
+//! Let's see an example with euclidean division.
+//! The normal way to compute `a/b`, where `a` and `b` are 8-bits integers, is to
+//! implement the Euclidean algorithm which computes in a loop (or recursively)
+//! modulus of the kind 'a mod b'. Doing this computation requires a lot of steps to
+//! be properly implemented in ACIR, especially the loop with a condition. However,
+//! euclidean division can be easily constrained with one assert-zero opcode:
+//! `a = bq+r`, assuming `q` is 8 bits and `r&lt;b`. Since these assumptions can easily
+//! written with a few range opcodes, euclidean division can in fact be implemented
+//! with a small number of opcodes.
+//!
+//! However, in order to write these opcodes we need the result of the division
+//! which are the witness `q` and `r`. But from the constraint `a=bq+r`, how can the
+//! solver figure out how to solve `q` and `r` with only one equation? This is where
+//! brillig/unconstrained function come into action. We simply define a function that
+//! performs the usual Euclidean algorithm to compute `q` and `r` from `a` and `b`.
+//! Since executing Brillig does not generate constraints, it is not meaningful to the
+//! proving system but simply used by the solver to compute the values of `q` and
+//! `r`. The output witnesses `q` and `r` are then expected to be used by the proving system.
+//!
+//! In summary, executing Brillig will perform the computation defined by its
+//! bytecode, on the provided inputs, and assign the result to the output witnesses,
+//! without adding any constraints.
+
+</span><span class="kw">use </span><span class="kw">super</span>::opcodes::BlockId;
 <span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness};
 <span class="kw">use </span>brillig::Opcode <span class="kw">as </span>BrilligOpcode;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -84,6 +141,7 @@
 }
 
 <span class="doccomment">/// Id for the function being called.
+/// Indexes into the table of Brillig function's specified in a [program][super::Program]
 </span><span class="attr">#[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default, PartialOrd, Ord,
 )]

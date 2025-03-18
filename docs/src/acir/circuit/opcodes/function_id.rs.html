@@ -16,9 +16,13 @@
 <a href="#15" id="15">15</a>
 <a href="#16" id="16">16</a>
 <a href="#17" id="17">17</a>
-<a href="#18" id="18">18</a></pre></div><pre class="rust"><code><span class="kw">use </span>serde::{Deserialize, Serialize};
+<a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a></pre></div><pre class="rust"><code><span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="attr">#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
+<span class="doccomment">/// Id for the function being called.
+/// Indexes into the table of ACIR function's specified in a [program][crate::circuit::Program]
+</span><span class="attr">#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
 </span><span class="kw">pub struct </span>AcirFunctionId(<span class="kw">pub </span>u32);

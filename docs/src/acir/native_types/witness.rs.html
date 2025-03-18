@@ -27,7 +27,7 @@
 <a href="#26" id="26">26</a>
 <a href="#27" id="27">27</a></pre></div><pre class="rust"><code><span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="comment">// Witness might be a misnomer. This is an index that represents the position a witness will take
+<span class="doccomment">/// An index that represents the position a witness value will take
 </span><span class="attr">#[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]

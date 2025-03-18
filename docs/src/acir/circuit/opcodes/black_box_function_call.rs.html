@@ -783,7 +783,27 @@
 <a href="#782" id="782">782</a>
 <a href="#783" id="783">783</a>
 <a href="#784" id="784">784</a>
-<a href="#785" id="785">785</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+//! support for specialized constraints.
+//! This makes certain zk-snark unfriendly computations cheaper than if they were
+//! implemented in more basic constraints.
+
+</span><span class="kw">use </span>std::collections::BTreeSet;
 
 <span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
 <span class="kw">use crate</span>::{AcirField, BlackBoxFunc};
@@ -791,21 +811,26 @@
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 <span class="kw">use </span>thiserror::Error;
 
-<span class="comment">// Note: Some functions will not use all of the witness
-// So we need to supply how many bits of the witness is needed
-
+<span class="doccomment">/// Enumeration for black box function inputs
 </span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>ConstantOrWitnessEnum&lt;F&gt; {
-    Constant(F),
-    Witness(Witness),
+    <span class="doccomment">/// A constant field element
+    </span>Constant(F),
+    <span class="doccomment">/// A witness element, representing dynamic inputs
+    </span>Witness(Witness),
 }
 
-<span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+<span class="doccomment">/// Input to a black box call
+</span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub struct </span>FunctionInput&lt;F&gt; {
-    input: ConstantOrWitnessEnum&lt;F&gt;,
-    num_bits: u32,
+    <span class="doccomment">/// The actual input value
+    </span>input: ConstantOrWitnessEnum&lt;F&gt;,
+    <span class="doccomment">/// A constant representing the bit size of the input value
+    /// Some functions will not use all of the witness
+    /// So we need to supply how many bits of the witness is needed
+    </span>num_bits: u32,
 }
 
 <span class="kw">impl</span>&lt;F&gt; FunctionInput&lt;F&gt; {
@@ -866,7 +891,12 @@
     }
 }
 
-<span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+<span class="doccomment">/// These opcodes represent a specialized computation.
+/// Even if any computation can be done using only assert-zero opcodes,
+/// it is not always efficient.
+/// Some proving systems, can implement several computations more efficiently using
+/// techniques such as custom gates and lookup tables.
+</span><span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 </span><span class="kw">pub enum </span>BlackBoxFuncCall&lt;F&gt; {
     <span class="doccomment">/// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
     /// padding the input using PKCS#7.

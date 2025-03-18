@@ -32,11 +32,13 @@
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
 <a href="#33" id="33">33</a>
-<a href="#34" id="34">34</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness};
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness};
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
+<span class="doccomment">/// Identifier for a block of memory
+</span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub struct </span>BlockId(<span class="kw">pub </span>u32);
 
