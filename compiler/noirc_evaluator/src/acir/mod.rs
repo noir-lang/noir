@@ -1392,22 +1392,21 @@ impl<'a> Context<'a> {
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         let call_data =
             self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
-        if let Some(call_data) = call_data {
+        let mut value = if let Some(call_data) = call_data {
             let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
                 .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            let result = self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
-            self.define_result(dfg, instruction, result.clone());
-            return Ok(result);
-        }
-        // Compiler sanity check
-        assert!(
-            !res_typ.contains_slice_element(),
-            "ICE: Nested slice result found during ACIR generation"
-        );
-        let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
+            self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?
+        } else {
+            // Compiler sanity check
+            assert!(
+                !res_typ.contains_slice_element(),
+                "ICE: Nested slice result found during ACIR generation"
+            );
+            self.array_get_value(&res_typ, block_id, &mut var_index)?
+        };
 
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
