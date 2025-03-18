@@ -207,9 +207,7 @@ mod test {
         let a = &[1, 2, 3];
         let mut b = &[];
         let b_ref = &mut b;
-        a.for_each(|a| {
-            *b_ref = b_ref.push_back(a * 2)
-        });
+        a.for_each(|a| { *b_ref = b_ref.push_back(a * 2); });
         assert_eq(b, &[2, 4, 6]);
     }
 
@@ -218,9 +216,7 @@ mod test {
         let a = &[1, 2, 3];
         let mut b = &[];
         let b_ref = &mut b;
-        a.for_eachi(|i, a| {
-            *b_ref = b_ref.push_back(i + a * 2)
-        });
+        a.for_eachi(|i, a| { *b_ref = b_ref.push_back(i + a * 2); });
         assert_eq(b, &[2, 5, 8]);
     }
 

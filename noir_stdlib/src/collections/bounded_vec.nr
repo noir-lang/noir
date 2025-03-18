@@ -727,7 +727,10 @@ mod bounded_vec_tests {
         use crate::collections::bounded_vec::BoundedVec;
 
         // map in terms of for_each
-        fn for_each_map<T, U, Env, let MaxLen: u32>(input: BoundedVec<T, MaxLen>, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen> {
+        fn for_each_map<T, U, Env, let MaxLen: u32>(
+            input: BoundedVec<T, MaxLen>,
+            f: fn[Env](T) -> U,
+        ) -> BoundedVec<U, MaxLen> {
             let mut output = BoundedVec::<U, MaxLen>::new();
             let output_ref = &mut output;
             input.for_each(|x| output_ref.push(f(x)));
@@ -735,11 +738,20 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        fn smoke_test() {
+            let mut acc = 0;
+            let acc_ref = &mut acc;
+            // docs:start:bounded-vec-for-each-example
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_each(|value| { *acc_ref += value; });
+            // docs:end:bounded-vec-for-each-example
+            assert_eq(acc, 6);
+        }
+
+        #[test]
         fn applies_function_correctly() {
-            // docs:start:bounded-vec-map-example
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
             let result = for_each_map(vec, |value| value * 2);
-            // docs:end:bounded-vec-map-example
             let expected = BoundedVec::from_array([2, 4, 6, 8]);
 
             assert_eq(result, expected);
@@ -769,7 +781,10 @@ mod bounded_vec_tests {
         use crate::collections::bounded_vec::BoundedVec;
 
         // mapi in terms of for_eachi
-        fn for_eachi_mapi<T, U, Env, let MaxLen: u32>(input: BoundedVec<T, MaxLen>, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
+        fn for_eachi_mapi<T, U, Env, let MaxLen: u32>(
+            input: BoundedVec<T, MaxLen>,
+            f: fn[Env](u32, T) -> U,
+        ) -> BoundedVec<U, MaxLen> {
             let mut output = BoundedVec::<U, MaxLen>::new();
             let output_ref = &mut output;
             input.for_eachi(|i, x| output_ref.push(f(i, x)));
@@ -777,11 +792,22 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        fn smoke_test() {
+            let mut acc = 0;
+            let acc_ref = &mut acc;
+            // docs:start:bounded-vec-for-eachi-example
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_eachi(|i, value| { *acc_ref += i * value; });
+            // docs:end:bounded-vec-for-eachi-example
+
+            // 0 * 1 + 1 * 2 + 2 * 3
+            assert_eq(acc, 8);
+        }
+
+        #[test]
         fn applies_function_correctly() {
-            // docs:start:bounded-vec-mapi-example
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
             let result = for_eachi_mapi(vec, |i, value| i + value * 2);
-            // docs:end:bounded-vec-mapi-example
             let expected = BoundedVec::from_array([2, 5, 8, 11]);
 
             assert_eq(result, expected);

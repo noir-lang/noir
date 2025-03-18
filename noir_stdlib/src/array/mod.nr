@@ -366,7 +366,7 @@ mod test {
         let a = [1, 2, 3];
         let mut b = [0, 0, 0];
         let b_ref = &mut b;
-        a.for_eachi(|i, a| { b_ref[i] = i + a * 2 });
+        a.for_eachi(|i, a| { b_ref[i] = i + a * 2; });
         assert_eq(b, [2, 5, 8]);
     }
 

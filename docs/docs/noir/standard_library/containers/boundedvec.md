@@ -294,10 +294,10 @@ Example:
 
 #include_code bounded-vec-map-example noir_stdlib/src/collections/bounded_vec.nr rust
 
-### imap
+### mapi
 
 ```rust
-pub fn imap<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen>
+pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen>
 ```
 
 Creates a new vector of equal size by calling a closure on each element in this
@@ -305,7 +305,31 @@ vector, along with its index in the vector.
 
 Example:
 
-#include_code bounded-vec-imap-example noir_stdlib/src/collections/bounded_vec.nr rust
+#include_code bounded-vec-mapi-example noir_stdlib/src/collections/bounded_vec.nr rust
+
+### `for_each`
+
+```rust
+pub fn for_each<Env>(self, f: fn[Env](T) -> ())
+```
+
+Calls a closure on each element in this vector.
+
+Example:
+
+#include_code bounded-vec-for-each-example noir_stdlib/src/collections/bounded_vec.nr rust
+
+### `for_eachi`
+
+```rust
+pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ())
+```
+
+Calls a closure on each element in this vector, along with its index in the vector.
+
+Example:
+
+#include_code bounded-vec-for-eachi-example noir_stdlib/src/collections/bounded_vec.nr rust
 
 ### any
 
