@@ -214,7 +214,7 @@ pub fn compile(
     let abi = generate_abi();
     let file_map = BTreeMap::new();
     Ok(CompiledProgram {
-        hash: 1, // const hash, doesnt matter in this case
+        hash: 1, // const hash, doesn't matter in this case
         program,
         debug,
         abi, 
