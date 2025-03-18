@@ -1650,22 +1650,23 @@ impl<'context> Elaborator<'context> {
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
 
-        let mut num_expr = None;
-
-        let typ = if let Some(num_type) = alias.type_alias_def.numeric_type {
+        let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type);
             let kind = Kind::numeric(num_type);
-            if let UnresolvedTypeData::Expression(expr) = alias.type_alias_def.typ.typ.clone() {
-                num_expr = Some(expr);
+            let num_expr = if let UnresolvedTypeData::Expression(expr) =
+                alias.type_alias_def.typ.typ.clone()
+            {
+                Some(expr);
             } else {
                 // We only support aliases to numeric generics expressions for now
                 self.errors.push(CompilationError::ResolverError(
                     ResolverError::RecursiveTypeAlias { location },
                 ));
-            }
+                None
+            };
             self.resolve_type_with_kind(alias.type_alias_def.typ, &kind)
         } else {
-            self.resolve_type(alias.type_alias_def.typ)
+            (self.resolve_type(alias.type_alias_def.typ), None)
         };
 
         if visibility != ItemVisibility::Private {
