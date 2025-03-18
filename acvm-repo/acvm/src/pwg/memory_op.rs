@@ -85,7 +85,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
         // Find the memory index associated with this memory operation.
         let index = get_value(&op.index, initial_witness)?;
-        let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
+        let memory_index = self.index_from_field(index)?;
 
         // Calculate the value associated with this memory operation.
         //
