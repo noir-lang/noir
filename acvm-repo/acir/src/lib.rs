@@ -256,8 +256,8 @@ mod reflection {
 
         /// Newtypes serialize as their underlying `value` that the C++ generator creates
         fn generate_newtype(&mut self, name: &str) {
-            self.msgpack_pack(name, "value.msgpack_pack(packer);");
-            self.msgpack_unpack(name, "value.msgpack_unpack(o);");
+            self.msgpack_pack(name, "packer.pack(value);");
+            self.msgpack_unpack(name, "o.convert(value);");
         }
 
         /// Tuples serialize as a vector of underlying data
@@ -322,7 +322,7 @@ mod reflection {
                         r#"
     {} (tag == "{name}") {{
         {name} v;
-        v.msgpack_unpack(obj);
+        obj.convert(v);
         value = v;
     }}"#,
                         if *i == 0 { "if" } else { "else if" }

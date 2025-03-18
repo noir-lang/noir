@@ -13,8 +13,8 @@ namespace WitnessStack {
         std::vector<uint8_t> bincodeSerialize() const;
         static Witness bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
-        void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
+        void msgpack_pack(auto& packer) const { packer.pack(value); }
+        void msgpack_unpack(auto const& o) { o.convert(value); }
     };
 
     struct WitnessMap {
@@ -24,8 +24,8 @@ namespace WitnessStack {
         std::vector<uint8_t> bincodeSerialize() const;
         static WitnessMap bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
-        void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
+        void msgpack_pack(auto& packer) const { packer.pack(value); }
+        void msgpack_unpack(auto const& o) { o.convert(value); }
     };
 
     struct StackItem {
