@@ -1656,7 +1656,7 @@ impl<'context> Elaborator<'context> {
             let num_expr = if let UnresolvedTypeData::Expression(expr) =
                 alias.type_alias_def.typ.typ.clone()
             {
-                Some(expr);
+                Some(expr)
             } else {
                 // We only support aliases to numeric generics expressions for now
                 self.errors.push(CompilationError::ResolverError(
@@ -1664,7 +1664,7 @@ impl<'context> Elaborator<'context> {
                 ));
                 None
             };
-            self.resolve_type_with_kind(alias.type_alias_def.typ, &kind)
+            (self.resolve_type_with_kind(alias.type_alias_def.typ, &kind), num_expr)
         } else {
             (self.resolve_type(alias.type_alias_def.typ), None)
         };
