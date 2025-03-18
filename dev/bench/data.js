@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742302354829,
+  "lastUpdate": 1742302356970,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ceb8b355fdcd0335b2d6dd7c340139bf404635f1",
-          "message": "fix(ssa): don't check Brillig calls for coverage if they don't return anything (e.g. println) (#7644)",
-          "timestamp": "2025-03-11T09:42:16Z",
-          "tree_id": "f5f5820f41cde018b4067ae33aa38fdd247adc28",
-          "url": "https://github.com/noir-lang/noir/commit/ceb8b355fdcd0335b2d6dd7c340139bf404635f1"
-        },
-        "date": 1741687348636,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.069,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.284,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.732,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.491,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11353,6 +11289,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.024,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3c76878a71cac970f9e18b0956eeb4f32ac85d51",
+          "message": "chore(refactor): Move resolved error structures out of acir crate (#7734)",
+          "timestamp": "2025-03-18T12:32:39Z",
+          "tree_id": "d0586c8d8cad8648f13a39a3bdf48efaad39a1f4",
+          "url": "https://github.com/noir-lang/noir/commit/3c76878a71cac970f9e18b0956eeb4f32ac85d51"
+        },
+        "date": 1742302352628,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.07,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.283,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.741,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.486,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
             "unit": "s"
           }
         ]
