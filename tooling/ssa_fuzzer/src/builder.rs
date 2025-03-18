@@ -73,20 +73,35 @@ impl FuzzerBuilder {
     }
 
     /// Inserts an add instruction between two values
-    pub fn insert_add_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+    pub fn insert_add_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let result = self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: false }, rhs);
         return result;
     }
 
+    pub fn insert_add_instruction_unchecked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+        let result = self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: true }, rhs);
+        return result;
+    }
+
     /// Inserts a subtract instruction between two values
-    pub fn insert_sub_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+    pub fn insert_sub_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let result = self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: false }, rhs);
         return result;
     }
 
+    pub fn insert_sub_instruction_unchecked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+        let result = self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs);
+        return result;
+    }
+
     /// Inserts a multiply instruction between two values
-    pub fn insert_mul_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+    pub fn insert_mul_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let result = self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: false }, rhs);
+        return result;
+    }
+
+    pub fn insert_mul_instruction_unchecked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+        let result = self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs);
         return result;
     }
 
