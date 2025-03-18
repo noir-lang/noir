@@ -4,7 +4,7 @@
 //!
 //! Main fuzz steps:
 //!    1. Generate random witness
-//!    2. Generate random sequence of instructions 
+//!    2. Generate random sequence of instructions
 //!    3. Insert instructions into ACIR and Brillig builders
 //!    4. Get programs, and compile them
 //!    5. Run and compare
