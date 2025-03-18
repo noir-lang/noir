@@ -7,7 +7,6 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{
             AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
@@ -34,6 +33,7 @@ mod memory_op;
 
 pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
 pub use brillig::ForeignCallWaitInfo;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ACVMStatus<F> {
@@ -115,6 +115,18 @@ impl std::fmt::Display for ErrorLocation {
             }
         }
     }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct RawAssertionPayload<F> {
+    pub selector: ErrorSelector,
+    pub data: Vec<F>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ResolvedAssertionPayload<F> {
+    String(String),
+    Raw(RawAssertionPayload<F>),
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
