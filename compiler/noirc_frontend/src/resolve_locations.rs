@@ -11,7 +11,7 @@ impl NodeInterner {
     ///
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
-    /// of each items [Span]
+    /// of each items [Location]
     pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
@@ -31,7 +31,7 @@ impl NodeInterner {
         location_candidate.map(|(index, _location)| *index)
     }
 
-    /// Returns the Type of the expression that exists at the given location.
+    /// Returns the [Type] of the expression that exists at the given location.
     pub fn type_at_location(&self, location: Location) -> Option<&Type> {
         // This is similar to `find_location_index` except that we skip indexes for which there is no type
         let mut location_candidate: Option<(&Index, &Location, &Type)> = None;
@@ -52,7 +52,7 @@ impl NodeInterner {
         location_candidate.map(|(_index, _location, typ)| typ)
     }
 
-    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
+    /// Returns the [Location] of the definition of the given Ident found at `location`.
     /// Returns [None] when definition is not found.
     pub fn get_definition_location_from(
         &self,
@@ -172,12 +172,12 @@ impl NodeInterner {
         let struct_type = lhs_self_struct.borrow();
         let field_names = struct_type.field_names()?;
 
-        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
-            Location::new(found_field_name.span(), struct_type.location.file)
-        })
+        field_names.iter().find(|field_name| field_name.as_str() == expr_rhs.as_str()).map(
+            |found_field_name| Location::new(found_field_name.span(), struct_type.location.file),
+        )
     }
 
-    /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
+    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait] based on [Location] of [TraitImpl][crate::hir_def::traits::TraitImpl]
     /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
     ///
     /// Example:
@@ -195,7 +195,7 @@ impl NodeInterner {
             })
     }
 
-    /// Attempts to resolve [Location] of [Trait]'s [TraitFunction] declaration based on [Location] of [TraitFunction] call.
+    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait]'s [TraitFunction][crate::hir_def::traits::TraitFunction] declaration based on the [Location] of a [TraitFunction][crate::hir_def::traits::TraitFunction] call.
     ///
     /// This is used by LSP to resolve the location.
     ///
@@ -221,7 +221,7 @@ impl NodeInterner {
 
                 let mut methods = self.traits.get(&trait_id)?.methods.iter();
                 let method =
-                    methods.find(|method| method.name.0.contents == self.function_name(func_id));
+                    methods.find(|method| method.name.as_str() == self.function_name(func_id));
                 method.map(|method| method.location)
             })
     }

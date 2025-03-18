@@ -383,7 +383,7 @@ impl ModCollector<'_> {
             context.def_interner.set_doc_comments(ReferenceId::Alias(type_alias_id), doc_comments);
 
             // Add the type alias to scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0].declare_type_alias(
+            let result = self.def_collector.def_map[self.module_id].declare_type_alias(
                 name.clone(),
                 visibility,
                 type_alias_id,
@@ -461,7 +461,7 @@ impl ModCollector<'_> {
 
             // Add the trait to scope so its path can be looked up later
             let visibility = trait_definition.visibility;
-            let result = self.def_collector.def_map.modules[self.module_id.0].declare_trait(
+            let result = self.def_collector.def_map[self.module_id].declare_trait(
                 name.clone(),
                 visibility,
                 trait_id,
@@ -509,7 +509,7 @@ impl ModCollector<'_> {
                         is_comptime,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
-                        if !method_ids.contains_key(&name.0.contents) {
+                        if !method_ids.contains_key(name.as_str()) {
                             method_ids.insert(name.to_string(), func_id);
                         }
 
@@ -542,9 +542,11 @@ impl ModCollector<'_> {
                             );
                         }
 
-                        match self.def_collector.def_map.modules[trait_id.0.local_id.0]
-                            .declare_function(name.clone(), ItemVisibility::Public, func_id)
-                        {
+                        match self.def_collector.def_map[trait_id.0.local_id].declare_function(
+                            name.clone(),
+                            ItemVisibility::Public,
+                            func_id,
+                        ) {
                             Ok(()) => {
                                 if let Some(body) = body {
                                     let impl_method =
@@ -585,8 +587,8 @@ impl ModCollector<'_> {
                             false,
                         );
 
-                        if let Err((first_def, second_def)) = self.def_collector.def_map.modules
-                            [trait_id.0.local_id.0]
+                        if let Err((first_def, second_def)) = self.def_collector.def_map
+                            [trait_id.0.local_id]
                             .declare_global(name.clone(), ItemVisibility::Public, global_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
@@ -610,9 +612,8 @@ impl ModCollector<'_> {
                         }
                     }
                     TraitItem::Type { name } => {
-                        if let Err((first_def, second_def)) = self.def_collector.def_map.modules
-                            [trait_id.0.local_id.0]
-                            .declare_type_alias(
+                        if let Err((first_def, second_def)) =
+                            self.def_collector.def_map[trait_id.0.local_id].declare_type_alias(
                                 name.clone(),
                                 ItemVisibility::Public,
                                 TypeAliasId::dummy_id(),
@@ -914,13 +915,14 @@ fn push_child_module(
         is_type,
     );
 
-    let module_id = def_map.modules.insert(new_module);
-    let modules = &mut def_map.modules;
+    let krate = def_map.krate();
+    let module_id = def_map.insert_module(new_module);
+    let parent_module = &mut def_map[parent];
 
     // Update the parent module to reference the child
-    modules[parent.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
+    parent_module.children.insert(mod_name.clone(), module_id);
 
-    let mod_id = ModuleId { krate: def_map.krate, local_id: LocalModuleId(module_id) };
+    let mod_id = ModuleId { krate, local_id: module_id };
 
     // Add this child module into the scope of the parent module as a module definition
     // module definitions are definitions which can only exist at the module level.
@@ -931,7 +933,7 @@ fn push_child_module(
     // the struct name.
     if add_to_parent_scope {
         if let Err((first_def, second_def)) =
-            modules[parent.0].declare_child_module(mod_name.to_owned(), visibility, mod_id)
+            parent_module.declare_child_module(mod_name.to_owned(), visibility, mod_id)
         {
             let err = DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::Module,
@@ -944,7 +946,7 @@ fn push_child_module(
         interner.add_module_attributes(
             mod_id,
             ModuleAttributes {
-                name: mod_name.0.contents.clone(),
+                name: mod_name.to_string(),
                 location: mod_location,
                 parent: Some(parent),
                 visibility,
@@ -952,12 +954,12 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            let parent_module_id = ModuleId { krate: def_map.krate, local_id: parent };
+            let parent_module_id = ModuleId { krate: def_map.krate(), local_id: parent };
             interner.register_module(
                 mod_id,
                 location,
                 visibility,
-                mod_name.0.contents.clone(),
+                mod_name.to_string(),
                 parent_module_id,
             );
         }
@@ -982,7 +984,7 @@ pub fn collect_function(
         }
     }
 
-    let module_data = &mut def_map.modules[module.local_id.0];
+    let module_data = &mut def_map[module.local_id];
 
     let is_test = function.def.attributes.is_test_function();
     let is_entry_point_function = if module_data.is_contract {
@@ -1009,7 +1011,7 @@ pub fn collect_function(
     interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
 
     // Add function to scope/ns of the module
-    let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
+    let result = module_data.declare_function(name, visibility, func_id);
     if let Err((first_def, second_def)) = result {
         let error = DefCollectorErrorKind::Duplicate {
             typ: DuplicateType::Function,
@@ -1083,7 +1085,7 @@ pub fn collect_struct(
 
     // Add the struct to scope so its path can be looked up later
     let visibility = unresolved.struct_def.visibility;
-    let result = def_map.modules[module_id.0].declare_type(name.clone(), visibility, id);
+    let result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
@@ -1174,7 +1176,7 @@ pub fn collect_enum(
 
     // Add the enum to scope so its path can be looked up later
     let visibility = unresolved.enum_def.visibility;
-    let result = def_map.modules[module_id.0].declare_type(name.clone(), visibility, id);
+    let result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
@@ -1258,7 +1260,7 @@ fn find_module(
 
     // Assuming anchor is called "anchor.nr" and we are looking up a module named "mod_name"...
     // This is "mod_name"
-    let mod_name_str = &mod_name.0.contents;
+    let mod_name_str = mod_name.as_str();
 
     // If we are in a special name like "main.nr", "lib.nr", "mod.nr" or "{mod_name}.nr",
     // the search starts at the same directory, otherwise it starts in a nested directory.
@@ -1400,7 +1402,7 @@ pub(crate) fn collect_global(
     );
 
     // Add the statement to the scope so its path can be looked up later
-    let result = def_map.modules[module_id.0].declare_global(name.clone(), visibility, global_id);
+    let result = def_map[module_id].declare_global(name.clone(), visibility, global_id);
 
     // Globals marked as ABI don't have to be used.
     if !is_abi {

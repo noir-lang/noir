@@ -137,12 +137,12 @@ fn format_struct(
     }
     string.push_str("    ");
     string.push_str("struct ");
-    string.push_str(&typ.name.0.contents);
+    string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
     for field in fields {
         string.push_str("        ");
-        string.push_str(&field.name.0.contents);
+        string.push_str(field.name.as_str());
         string.push_str(": ");
         string.push_str(&format!("{}", field.typ));
         string.push_str(",\n");
@@ -165,12 +165,12 @@ fn format_enum(
     }
     string.push_str("    ");
     string.push_str("enum ");
-    string.push_str(&typ.name.0.contents);
+    string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
     for field in variants {
         string.push_str("        ");
-        string.push_str(&field.name.0.contents);
+        string.push_str(field.name.as_str());
 
         if !field.params.is_empty() {
             let types = field.params.iter().map(ToString::to_string).collect::<Vec<_>>();
@@ -201,10 +201,10 @@ fn format_struct_member(
     if format_parent_module(ReferenceId::Type(id), args, &mut string) {
         string.push_str("::");
     }
-    string.push_str(&struct_type.name.0.contents);
+    string.push_str(struct_type.name.as_str());
     string.push('\n');
     string.push_str("    ");
-    string.push_str(&field.name.0.contents);
+    string.push_str(field.name.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", field.typ));
     string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
@@ -227,10 +227,10 @@ fn format_enum_variant(
     if format_parent_module(ReferenceId::Type(id), args, &mut string) {
         string.push_str("::");
     }
-    string.push_str(&enum_type.name.0.contents);
+    string.push_str(enum_type.name.as_str());
     string.push('\n');
     string.push_str("    ");
-    string.push_str(&variant.name.0.contents);
+    string.push_str(variant.name.as_str());
     if !variant.params.is_empty() {
         let types = variant.params.iter().map(ToString::to_string).collect::<Vec<_>>();
         string.push('(');
@@ -256,7 +256,7 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    ");
     string.push_str("trait ");
-    string.push_str(&a_trait.name.0.contents);
+    string.push_str(a_trait.name.as_str());
     format_generics(&a_trait.generics, &mut string);
 
     append_doc_comments(args.interner, ReferenceId::Trait(id), &mut string);
@@ -292,7 +292,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str("mut ");
     }
     string.push_str("global ");
-    string.push_str(&global_info.ident.0.contents);
+    string.push_str(global_info.ident.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
 
@@ -413,7 +413,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         }
 
         string.push(' ');
-        string.push_str(&trait_.name.0.contents);
+        string.push_str(trait_.name.as_str());
         if !trait_impl.trait_generics.is_empty() {
             string.push('<');
             for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
@@ -433,7 +433,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_ = args.interner.get_trait(trait_id);
         string.push('\n');
         string.push_str("    trait ");
-        string.push_str(&trait_.name.0.contents);
+        string.push_str(trait_.name.as_str());
         format_generics(&trait_.generics, &mut string);
 
         true
@@ -443,7 +443,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         if formatted_parent_module {
             string.push_str("::");
         }
-        string.push_str(&data_type.name.0.contents);
+        string.push_str(data_type.name.as_str());
         if enum_variant.is_none() {
             string.push('\n');
             string.push_str("    ");
@@ -458,7 +458,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             format_generics(&impl_generics, &mut string);
 
             string.push(' ');
-            string.push_str(&data_type.name.0.contents);
+            string.push_str(data_type.name.as_str());
             format_generic_names(&impl_generics, &mut string);
         }
 
@@ -593,7 +593,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push('\n');
     string.push_str("    ");
     string.push_str("type ");
-    string.push_str(&type_alias.name.0.contents);
+    string.push_str(type_alias.name.as_str());
     string.push_str(" = ");
     string.push_str(&format!("{}", &type_alias.typ));
 

@@ -197,7 +197,7 @@ impl PathResolutionTargetResolver<'_, '_> {
     }
 
     fn resolve_crate_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
-        let root_module = self.def_maps[&self.importing_module.krate].root;
+        let root_module = self.def_maps[&self.importing_module.krate].root();
         let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
         Ok((path, current_module))
     }
@@ -234,7 +234,7 @@ impl PathResolutionTargetResolver<'_, '_> {
         let crate_name = &path.segments.first().unwrap().ident;
         let dep_module = current_def_map
             .extern_prelude
-            .get(&crate_name.0.contents)
+            .get(crate_name.as_str())
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
         if let Some(references_tracker) = &mut self.references_tracker {
@@ -344,8 +344,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }
 
-            current_module =
-                &self.def_maps[&current_module_id.krate].modules[current_module_id.local_id.0];
+            current_module = &self.def_maps[&current_module_id.krate][current_module_id.local_id];
 
             // Check if namespace
             let found_ns = current_module.find_name(current_ident);
@@ -388,5 +387,5 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
 fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
     let message = "A crate should always be present for a given crate id";
-    &def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+    &def_maps.get(&module.krate).expect(message)[module.local_id]
 }

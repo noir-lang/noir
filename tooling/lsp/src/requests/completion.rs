@@ -144,7 +144,7 @@ impl<'a> NodeFinder<'a> {
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
+            LocalModuleId::new(module_index)
         } else {
             def_map.root()
         };
@@ -216,13 +216,13 @@ impl<'a> NodeFinder<'a> {
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
-            fields.retain(|(_, field)| field.name.0.contents != used_name.0.contents);
+            fields.retain(|(_, field)| field.name.as_str() != used_name.as_str());
         }
 
         let self_prefix = false;
         for (field_index, field) in &fields {
             self.completion_items.push(self.struct_field_completion_item(
-                &field.name.0.contents,
+                field.name.as_str(),
                 &field.typ,
                 data_type.id,
                 *field_index,
@@ -265,7 +265,7 @@ impl<'a> NodeFinder<'a> {
                 // If so, take the substring and push that as the list of idents
                 // we'll do autocompletion for
                 let offset = self.byte_index - ident.span().start() as usize;
-                let substring = ident.0.contents[0..offset].to_string();
+                let substring = ident.as_str()[0..offset].to_string();
                 let ident = Ident::new(
                     substring,
                     Location::new(
@@ -805,7 +805,7 @@ impl<'a> NodeFinder<'a> {
 
         for (index, variant) in variants.iter().enumerate() {
             // Variants with parameters are represented as functions and are suggested in `complete_type_methods`
-            if variant.is_function || !name_matches(&variant.name.0.contents, prefix) {
+            if variant.is_function || !name_matches(variant.name.as_str(), prefix) {
                 continue;
             }
 
@@ -864,14 +864,14 @@ impl<'a> NodeFinder<'a> {
         requested_items: RequestedItems,
     ) {
         let def_map = &self.def_maps[&module_id.krate];
-        let Some(mut module_data) = def_map.modules().get(module_id.local_id.0) else {
+        let Some(mut module_data) = def_map.get(module_id.local_id) else {
             return;
         };
 
         if at_root {
             match path_kind {
                 PathKind::Crate => {
-                    let Some(root_module_data) = def_map.modules().get(def_map.root().0) else {
+                    let Some(root_module_data) = def_map.get(def_map.root()) else {
                         return;
                     };
                     module_data = root_module_data;
@@ -880,7 +880,7 @@ impl<'a> NodeFinder<'a> {
                     let Some(parent) = module_data.parent else {
                         return;
                     };
-                    let Some(parent_module_data) = def_map.modules().get(parent.0) else {
+                    let Some(parent_module_data) = def_map.get(parent) else {
                         return;
                     };
                     module_data = parent_module_data;
@@ -893,7 +893,7 @@ impl<'a> NodeFinder<'a> {
         let function_kind = FunctionKind::Any;
 
         for ident in module_data.scope().names() {
-            let name = &ident.0.contents;
+            let name = ident.as_str();
 
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
@@ -906,7 +906,7 @@ impl<'a> NodeFinder<'a> {
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
-                            name.clone(),
+                            name.to_string(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
@@ -927,7 +927,7 @@ impl<'a> NodeFinder<'a> {
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
-                            name.clone(),
+                            name.to_string(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
@@ -1089,7 +1089,7 @@ impl<'a> NodeFinder<'a> {
     fn try_set_self_type(&mut self, pattern: &Pattern) {
         match pattern {
             Pattern::Identifier(ident) => {
-                if ident.0.contents == "self" {
+                if ident.as_str() == "self" {
                     let location = Location::new(ident.span(), self.file);
                     if let Some(ReferenceId::Local(definition_id)) =
                         self.interner.find_referenced(location)
@@ -1119,7 +1119,7 @@ impl<'a> NodeFinder<'a> {
             }
             LValue::MemberAccess { object, field_name, .. } => {
                 let typ = self.get_lvalue_type(object)?;
-                get_field_type(&typ, &field_name.0.contents)
+                get_field_type(&typ, field_name.as_str())
             }
             LValue::Index { array, .. } => {
                 let typ = self.get_lvalue_type(array)?;
@@ -1149,8 +1149,7 @@ impl<'a> NodeFinder<'a> {
         let paths = paths.ok()?;
 
         // See which modules are already defined via `mod ...;`
-        let module_data =
-            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
         let existing_children: HashSet<String> =
             module_data.children.keys().map(|ident| ident.to_string()).collect();
 
@@ -1230,7 +1229,7 @@ impl Visitor for NodeFinder<'_> {
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) else {
+        let Some(module_data) = def_map.get(self.module_id.local_id) else {
             return false;
         };
         if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
@@ -1580,7 +1579,7 @@ impl Visitor for NodeFinder<'_> {
         // then suggest methods of the resulting type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(object) {
-                if let Some(typ) = get_field_type(&typ, &field_name.0.contents) {
+                if let Some(typ) = get_field_type(&typ, field_name.as_str()) {
                     let prefix = "";
                     let self_prefix = false;
                     self.complete_type_fields_and_methods(
@@ -1822,7 +1821,7 @@ impl Visitor for NodeFinder<'_> {
         };
 
         if let Some(typ) = typ {
-            let prefix = &type_path.item.0.contents;
+            let prefix = type_path.item.as_str();
             self.complete_type_methods(
                 &typ,
                 prefix,

@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
-# These tests are incompatible with gas reporting
+# These tests are incompatible with execution trace reporting
 excluded_dirs=(
   "workspace"
   "workspace_default_member"
   "double_verify_nested_proof"
   "overlapping_dep_and_mod"
   "comptime_println"
-  #  bit sizes for bigint operation doesn't match up.
+  # bit sizes for bigint operation doesn't match up.
   "bigint"
-  #  Expected to fail as test asserts on which runtime it is in.
+  # Expected to fail as test asserts on which runtime it is in.
   "is_unconstrained"
+  # This test utilizes enums which are experimental
+  "regression_7323"
 )
 
 current_dir=$(pwd)

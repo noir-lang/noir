@@ -78,6 +78,12 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     "comptime_enums",
 ];
 
+/// Tests for which we don't check that stdout matches the expected output.
+const TESTS_WITHOUT_STDOUT_CHECK: [&str; 1] = [
+    // The output changes depending on whether `--force-brillig` is passed or not
+    "reference_counts",
+];
+
 fn read_test_cases(
     test_data_dir: &Path,
     test_sub_dir: &str,
@@ -190,7 +196,7 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
-    nargo.arg("--program-dir").arg(test_program_dir);
+    nargo.arg("--program-dir").arg(test_program_dir.clone());
     nargo.arg("{test_command}").arg("--force");
     nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
     // Check whether the test case is non-deterministic
@@ -224,20 +230,54 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         test_file,
         "mod {test_type} {{
         use super::*;
+
+        fn remove_noise_lines(string: String) -> String {{
+            string.lines().filter(|line| 
+                !line.contains(\"Witness saved to\") && 
+                    !line.contains(\"Circuit witness successfully solved\") &&
+                    !line.contains(\"Waiting for lock\")
+            ).collect::<Vec<&str>>().join(\"\n\")
+        }}
     "
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
+        let test_content = if TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str()) {
+            "nargo.assert().success();"
+        } else {
+            r#"
+            nargo.assert().success();
+
+            let output = nargo.output().unwrap();
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let stdout = remove_noise_lines(stdout);
+
+            let stdout_path = test_program_dir.join("stdout.txt");
+            let expected_stdout = if stdout_path.exists() {
+                String::from_utf8(fs::read(stdout_path).unwrap()).unwrap()
+            } else {
+                String::new()
+            };
+
+            // Remove any trailing newlines added by some editors
+            let stdout = stdout.trim();
+            let expected_stdout = expected_stdout.trim();
+
+            if stdout != expected_stdout {
+                println!("stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}");
+                assert_eq!(stdout, expected_stdout);
+            }
+            "#
+        };
+
         generate_test_cases(
             test_file,
             &test_name,
             &test_dir,
             "execute",
-            r#"
-                nargo.assert().success();
-            "#,
+            test_content,
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
