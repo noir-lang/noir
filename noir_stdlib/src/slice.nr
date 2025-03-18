@@ -178,14 +178,14 @@ mod test {
 
     #[test]
     fn for_each_empty() {
-        // TODO static_assert?
-        &[].for_each(|_x| super::static_assert(false));
+        let empty_slice: [Field] = &[];
+        empty_slice.for_each(|_x| assert(false));
     }
 
     #[test]
     fn for_eachi_empty() {
-        // TODO static_assert?
-        &[].for_eachi(|_i, _x| super::static_assert(false);
+        let empty_slice: [Field] = &[];
+        empty_slice.for_eachi(|_i, _x| assert(false));
     }
 
     #[test]
@@ -208,7 +208,7 @@ mod test {
         let mut b = &[];
         let b_ref = &mut b;
         a.for_each(|a| {
-            b_ref = b_ref.push_back(a * 2)
+            *b_ref = b_ref.push_back(a * 2)
         });
         assert_eq(b, &[2, 4, 6]);
     }
@@ -219,7 +219,7 @@ mod test {
         let mut b = &[];
         let b_ref = &mut b;
         a.for_eachi(|i, a| {
-            b_ref = b_ref.push_back(i + a * 2)
+            *b_ref = b_ref.push_back(i + a * 2)
         });
         assert_eq(b, &[2, 5, 8]);
     }

@@ -88,7 +88,7 @@ impl<T, let N: u32> [T; N] {
     /// });
     /// assert_eq(a, b);
     /// ```
-    pub fn for_each<U, Env>(self, f: fn[Env](T) -> ()) {
+    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
         for i in 0..self.len() {
             f(self[i]);
         }
@@ -322,12 +322,14 @@ mod test {
 
     #[test]
     fn for_each_empty() {
-        [].for_each(|_x| assert(false));
+        let empty_array: [Field; 0] = [];
+        empty_array.for_each(|_x| assert(false));
     }
 
     #[test]
     fn for_eachi_empty() {
-        [].for_eachi(|_i, _x| assert(false));
+        let empty_array: [Field; 0] = [];
+        empty_array.for_eachi(|_i, _x| assert(false));
     }
 
     #[test]
@@ -351,9 +353,9 @@ mod test {
         let b_ref = &mut b;
         let mut i = 0;
         let i_ref = &mut i;
-        a.for_each(|a| {
-            b_ref[i] = a * 2;
-            i_ref += 1;
+        a.for_each(|x| {
+            b_ref[*i_ref] = x * 2;
+            *i_ref += 1;
         });
         assert_eq(b, [2, 4, 6]);
         assert_eq(i, 3);
