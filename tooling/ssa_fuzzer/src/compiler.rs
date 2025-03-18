@@ -56,7 +56,7 @@ fn optimize_into_acir(
 /// its taken from noirc_evaluator::ssa::convert_generated_acir_into_circuit,
 /// but modified not to use signature 
 /// in initial function signature used to split public, private and return witnesses
-/// but now we dont need it, because we dont have any public inputs,
+/// but now we don't need it, because we don't have any public inputs,
 /// so we just use all witnesses as private inputs and return witnesses
 fn convert_generated_acir_into_circuit_without_signature(
     mut generated_acir: GeneratedAcir<FieldElement>,
