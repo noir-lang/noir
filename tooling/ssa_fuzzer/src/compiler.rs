@@ -54,7 +54,7 @@ fn optimize_into_acir(
 
 /// Converts the generated ACIR into a circuit artifact
 /// its taken from noirc_evaluator::ssa::convert_generated_acir_into_circuit,
-/// but modified not to use signature 
+/// but modified not to use signature
 /// in initial function signature used to split public, private and return witnesses
 /// but now we don't need it, because we don't have any public inputs,
 /// so we just use all witnesses as private inputs and return witnesses
@@ -217,7 +217,7 @@ pub fn compile(
         hash: 1, // const hash, doesn't matter in this case
         program,
         debug,
-        abi, 
+        abi,
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,

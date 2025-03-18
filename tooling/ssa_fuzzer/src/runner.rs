@@ -14,7 +14,7 @@ use nargo::ops::execute::execute_program;
 use thiserror::Error;
 
 /// Errors that can occur during execution of the program
-/// It can be NargoError or rust panic 
+/// It can be NargoError or rust panic
 #[derive(Debug, Error)]
 pub enum RunnerErrors {
     #[error("Nargo error: {0}")]
@@ -85,9 +85,8 @@ pub fn run_and_compare(
     })
     .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Brillig execution panicked"));
 
-
-    // we found bug in case of 
-    // 1) acir_result != brillig_result 
+    // we found bug in case of
+    // 1) acir_result != brillig_result
     // 2) acir execution failed, brillig execution succeeded
     // 3) acir execution succeeded, brillig execution failed
     // it has depth 2, because nargo can panic or return NargoError

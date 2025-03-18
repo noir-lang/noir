@@ -31,10 +31,3 @@ path = "fuzz_targets/field.rs"
 test = false
 doc = false
 bench = false
-
-[[bin]]
-name = "branching"
-path = "fuzz_targets/branching.rs"
-test = false
-doc = false
-bench = false

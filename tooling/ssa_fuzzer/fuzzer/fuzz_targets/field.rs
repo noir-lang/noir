@@ -1,7 +1,7 @@
 //! This module implements a fuzzer for testing and comparing ACIR and Brillig SSA implementations.
 //! It generates random sequences of arithmetic and logical operations and ensures both implementations
 //! produce identical results.
-//! Main fuzz steps: 
+//! Main fuzz steps:
 //! 0) Generate random witness
 //! 1) Generate random sequence of instructions
 //! 2) Insert instructions into ACIR and Brillig builders
@@ -11,11 +11,10 @@
 //! if one of the programs failed to compile, then we just execute the other one
 //! and if the other one executed successfully, it's a bug
 
-
 #![no_main]
 
-use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::FieldElement;
+use acvm::acir::native_types::{Witness, WitnessMap};
 use env_logger;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
@@ -36,36 +35,85 @@ use ssa_fuzzer::{
 #[derive(Arbitrary, Debug, Clone, Hash)]
 enum Instructions {
     /// Addition of two values
-    AddChecked { lhs: u32, rhs: u32 },
-    AddUnchecked { lhs: u32, rhs: u32 },
+    AddChecked {
+        lhs: u32,
+        rhs: u32,
+    },
+    AddUnchecked {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Subtraction of two values
-    SubChecked { lhs: u32, rhs: u32 },
-    SubUnchecked { lhs: u32, rhs: u32 },
+    SubChecked {
+        lhs: u32,
+        rhs: u32,
+    },
+    SubUnchecked {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Multiplication of two values
-    MulChecked { lhs: u32, rhs: u32 },
-    MulUnchecked { lhs: u32, rhs: u32 },
+    MulChecked {
+        lhs: u32,
+        rhs: u32,
+    },
+    MulUnchecked {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Division of two values
-    Div { lhs: u32, rhs: u32 },
+    Div {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Equality comparison
-    Eq { lhs: u32, rhs: u32 },
+    Eq {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Modulo operation
-    Mod { lhs: u32, rhs: u32 },
+    Mod {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Bitwise NOT
-    Not { lhs: u32 },
+    Not {
+        lhs: u32,
+    },
     /// Left shift
-    Shl { lhs: u32, rhs: u32 },
+    Shl {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Right shift
-    Shr { lhs: u32, rhs: u32 },
+    Shr {
+        lhs: u32,
+        rhs: u32,
+    },
     /// Simple type cast
-    SimpleCast { lhs: u32 },
+    SimpleCast {
+        lhs: u32,
+    },
     /// Cast to bigger type and back
-    BigCastAndBack { lhs: u32, size: u32 },
+    BigCastAndBack {
+        lhs: u32,
+        size: u32,
+    },
     /// Array element access
-    ArrayGet { array: u32, index: u32 },
+    ArrayGet {
+        array: u32,
+        index: u32,
+    },
     /// Array element assignment
-    ArraySet { array: u32, index: u32, value: u32 },
+    ArraySet {
+        array: u32,
+        index: u32,
+        value: u32,
+    },
     /// Array creation
-    MakeArray { elements: Vec<u32> },
+    MakeArray {
+        elements: Vec<u32>,
+    },
 }
 /// Represents an array in the SSA
 #[derive(Copy, Clone)]
@@ -148,7 +196,6 @@ impl FuzzerContext {
         let acir_array_id = acir_array.id;
         let brillig_array_id = brillig_array.id;
 
-
         let acir_id = self.acir_ids[(index % acir_array.length) as usize];
         let brillig_id = self.brillig_ids[(index % brillig_array.length) as usize];
         let acir_result = self.acir_builder.insert_array_get(acir_array_id, acir_id);
@@ -175,13 +222,10 @@ impl FuzzerContext {
         let brillig_id = self.brillig_ids[(index % brillig_array.length) as usize];
         let value = u32_to_id_value(value);
         let acir_result = self.acir_builder.insert_array_set(acir_array_id, acir_id, value);
-        let brillig_result = self.brillig_builder.insert_array_set(brillig_array_id, brillig_id, value);
-        self.acir_arrays
-            .push(Array { id: acir_result, length: acir_array.length });
-        self.brillig_arrays.push(Array {
-            id: brillig_result,
-            length: brillig_array.length,
-        });
+        let brillig_result =
+            self.brillig_builder.insert_array_set(brillig_array_id, brillig_id, value);
+        self.acir_arrays.push(Array { id: acir_result, length: acir_array.length });
+        self.brillig_arrays.push(Array { id: brillig_result, length: brillig_array.length });
     }
 
     /// Inserts an instruction that takes a single argument
@@ -282,7 +326,8 @@ impl FuzzerContext {
                 let acir_lhs = u32_to_id_value(self.acir_ids[(lhs % acir_len) as usize]);
                 let brillig_lhs = u32_to_id_value(self.brillig_ids[(lhs % brillig_len) as usize]);
                 let acir_result = self.acir_builder.insert_cast_bigger_and_back(acir_lhs, size);
-                let brillig_result = self.brillig_builder.insert_cast_bigger_and_back(brillig_lhs, size);
+                let brillig_result =
+                    self.brillig_builder.insert_cast_bigger_and_back(brillig_lhs, size);
                 self.acir_ids.push(id_to_int(acir_result));
                 self.brillig_ids.push(id_to_int(brillig_result));
             }
@@ -374,7 +419,10 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
             let acir_result = execute_single(&acir.program, initial_witness, acir_result_witness);
             match acir_result {
                 Ok(result) => {
-                    println!("ACIR compiled and successfully executed. Execution result of acir only {:?}", result);
+                    println!(
+                        "ACIR compiled and successfully executed. Execution result of acir only {:?}",
+                        result
+                    );
                     panic!(
                         "ACIR compiled and successfully executed, 
                     but brillig compilation failed. Execution result of 
@@ -393,7 +441,10 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                 execute_single(&brillig.program, initial_witness, brillig_result_witness);
             match brillig_result {
                 Ok(result) => {
-                    println!("Brillig compiled and successfully executed. Execution result of brillig only {:?}", result);
+                    println!(
+                        "Brillig compiled and successfully executed. Execution result of brillig only {:?}",
+                        result
+                    );
                     panic!(
                         "Brillig compiled and successfully executed, 
                     but acir compilation failed. Execution result of 

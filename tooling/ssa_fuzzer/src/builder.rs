@@ -22,7 +22,7 @@ pub struct FuzzerBuilder {
 }
 
 impl FuzzerBuilder {
-    /// Creates a new FuzzerBuilder in ACIR context 
+    /// Creates a new FuzzerBuilder in ACIR context
     pub fn new_acir() -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
@@ -78,7 +78,11 @@ impl FuzzerBuilder {
         return result;
     }
 
-    pub fn insert_add_instruction_unchecked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+    pub fn insert_add_instruction_unchecked(
+        &mut self,
+        lhs: Id<Value>,
+        rhs: Id<Value>,
+    ) -> Id<Value> {
         let result = self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: true }, rhs);
         return result;
     }
@@ -89,7 +93,11 @@ impl FuzzerBuilder {
         return result;
     }
 
-    pub fn insert_sub_instruction_unchecked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+    pub fn insert_sub_instruction_unchecked(
+        &mut self,
+        lhs: Id<Value>,
+        rhs: Id<Value>,
+    ) -> Id<Value> {
         let result = self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs);
         return result;
     }
@@ -100,7 +108,11 @@ impl FuzzerBuilder {
         return result;
     }
 
-    pub fn insert_mul_instruction_unchecked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+    pub fn insert_mul_instruction_unchecked(
+        &mut self,
+        lhs: Id<Value>,
+        rhs: Id<Value>,
+    ) -> Id<Value> {
         let result = self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs);
         return result;
     }
