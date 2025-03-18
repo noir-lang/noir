@@ -6,7 +6,6 @@ use acvm::{
     },
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use log;
 use nargo::PrintOutput;
 use nargo::errors::NargoError;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
@@ -116,7 +115,7 @@ pub fn run_and_compare(
                 }
                 (Err(_e), Err(_e2)) => {
                     // both failed, okay
-                    return (true, FieldElement::from(0_u32), FieldElement::from(0_u32));
+                    (true, FieldElement::from(0_u32), FieldElement::from(0_u32))
                 }
             }
         }
@@ -147,7 +146,7 @@ pub fn run_and_compare(
             log::debug!("Failed to execute acir program: {:?}", e);
             log::debug!("Failed to execute brillig program: {:?}", e2);
             // we dont care about the result, we have similar behavior in both cases
-            return (true, FieldElement::from(0_u32), FieldElement::from(0_u32));
+            (true, FieldElement::from(0_u32), FieldElement::from(0_u32))
         }
     }
 }

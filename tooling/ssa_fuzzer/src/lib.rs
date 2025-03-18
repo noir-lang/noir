@@ -112,7 +112,7 @@ mod tests {
             result_witness,
         );
         assert!(res);
-        return (acir_res, brillig_res);
+        (acir_res, brillig_res)
     }
 
     fn run_instruction_single_arg(
@@ -138,7 +138,7 @@ mod tests {
             result_witness,
         );
         assert!(res);
-        return (acir_res, brillig_res);
+        (acir_res, brillig_res)
     }
 
     #[test]
@@ -158,9 +158,7 @@ mod tests {
         let mut values = generate_values();
         // to prevent `attempt to subtract with overflow`
         if values[0] < values[1] {
-            let copy = values[0];
-            values[0] = values[1];
-            values[1] = copy;
+            values.swap(0, 1);
         }
         let (acir_res, brillig_res) = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,

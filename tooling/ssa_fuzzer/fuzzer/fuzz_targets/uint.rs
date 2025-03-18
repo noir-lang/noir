@@ -16,10 +16,8 @@
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
 use acvm::acir::native_types::WitnessMap;
-use env_logger;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use log;
 use noirc_driver::{CompileError, CompiledProgram};
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::Type;
@@ -331,7 +329,6 @@ impl FuzzerContext {
                 self.brillig_ids.push(id_to_int(brillig_result));
             }
             _ => {
-                return;
             }
         }
     }

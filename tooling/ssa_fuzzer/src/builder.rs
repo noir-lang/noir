@@ -27,11 +27,11 @@ impl FuzzerBuilder {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
-        return Self {
+        Self {
             builder,
             numeric_type: NumericType::NativeField,
             type_: Type::Numeric(NumericType::NativeField),
-        };
+        }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
@@ -39,11 +39,11 @@ impl FuzzerBuilder {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
-        return Self {
+        Self {
             builder,
             numeric_type: NumericType::NativeField,
             type_: Type::Numeric(NumericType::NativeField),
-        };
+        }
     }
 
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
@@ -74,8 +74,8 @@ impl FuzzerBuilder {
 
     /// Inserts an add instruction between two values
     pub fn insert_add_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: false }, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: false }, rhs)
     }
 
     pub fn insert_add_instruction_unchecked(
@@ -83,14 +83,14 @@ impl FuzzerBuilder {
         lhs: Id<Value>,
         rhs: Id<Value>,
     ) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: true }, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: true }, rhs)
     }
 
     /// Inserts a subtract instruction between two values
     pub fn insert_sub_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: false }, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: false }, rhs)
     }
 
     pub fn insert_sub_instruction_unchecked(
@@ -98,14 +98,14 @@ impl FuzzerBuilder {
         lhs: Id<Value>,
         rhs: Id<Value>,
     ) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs)
     }
 
     /// Inserts a multiply instruction between two values
     pub fn insert_mul_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: false }, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: false }, rhs)
     }
 
     pub fn insert_mul_instruction_unchecked(
@@ -113,32 +113,32 @@ impl FuzzerBuilder {
         lhs: Id<Value>,
         rhs: Id<Value>,
     ) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs)
     }
 
     /// Inserts a divide instruction between two values
     pub fn insert_div_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Div, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Div, rhs)
     }
 
     /// Inserts a modulo instruction between two values
     pub fn insert_mod_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Mod, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Mod, rhs)
     }
 
     /// Inserts a not instruction for the given value
     pub fn insert_not_instruction(&mut self, lhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_not(lhs);
-        return result;
+        
+        self.builder.insert_not(lhs)
     }
 
     /// Inserts a cast instruction to the current numeric type
     pub fn insert_simple_cast(&mut self, value: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_cast(value, self.numeric_type.clone());
-        return result;
+        
+        self.builder.insert_cast(value, self.numeric_type)
     }
 
     /// Inserts a cast to a larger bit size and back to original type
@@ -151,17 +151,17 @@ impl FuzzerBuilder {
         match self.numeric_type {
             NumericType::Signed { bit_size: _ } => {
                 let res1 = self.builder.insert_cast(value, NumericType::Signed { bit_size: size });
-                let result = self.insert_simple_cast(res1);
-                return result;
+                
+                self.insert_simple_cast(res1)
             }
             NumericType::Unsigned { bit_size: _ } => {
                 let res1 =
                     self.builder.insert_cast(value, NumericType::Unsigned { bit_size: size });
-                let result = self.insert_simple_cast(res1);
-                return result;
+                
+                self.insert_simple_cast(res1)
             }
             NumericType::NativeField => {
-                return value;
+                value
             }
         }
     }
@@ -169,33 +169,33 @@ impl FuzzerBuilder {
     /// Inserts an equals comparison instruction between two values
     pub fn insert_eq_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let res1 = self.builder.insert_binary(lhs, BinaryOp::Eq, rhs);
-        let result = self.insert_simple_cast(res1);
-        return result;
+        
+        self.insert_simple_cast(res1)
     }
 
     /// Inserts a less than comparison instruction between two values
     pub fn insert_lt_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let res1 = self.builder.insert_binary(lhs, BinaryOp::Lt, rhs);
-        let result = self.insert_simple_cast(res1);
-        return result;
+        
+        self.insert_simple_cast(res1)
     }
 
     /// Inserts a bitwise AND instruction between two values
     pub fn insert_and_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::And, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::And, rhs)
     }
 
     /// Inserts a bitwise OR instruction between two values
     pub fn insert_or_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Or, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Or, rhs)
     }
 
     /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let result = self.builder.insert_binary(lhs, BinaryOp::Xor, rhs);
-        return result;
+        
+        self.builder.insert_binary(lhs, BinaryOp::Xor, rhs)
     }
 
     /// Inserts a left shift instruction between two values
@@ -205,18 +205,18 @@ impl FuzzerBuilder {
         match self.numeric_type {
             NumericType::Signed { bit_size: _ } => {
                 let rhs_value = self.builder.insert_cast(rhs, NumericType::Signed { bit_size: 8 });
-                let result = self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value);
-                return result;
+                
+                self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value)
             }
             NumericType::Unsigned { bit_size: _ } => {
                 let rhs_value =
                     self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-                let result = self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value);
-                return result;
+                
+                self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value)
             }
             _ => {
                 // field case, doesnt support shift
-                return lhs;
+                lhs
             }
         }
     }
@@ -228,18 +228,18 @@ impl FuzzerBuilder {
             NumericType::Signed { bit_size: _ } => {
                 let rhs_value =
                     self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-                let result = self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value);
-                return result;
+                
+                self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value)
             }
             NumericType::Unsigned { bit_size: _ } => {
                 let rhs_value =
                     self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-                let result = self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value);
-                return result;
+                
+                self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value)
             }
             _ => {
                 // field case, doesnt support shift
-                return lhs;
+                lhs
             }
         }
     }
@@ -251,19 +251,19 @@ impl FuzzerBuilder {
             elems.push(helpers::u32_to_id_value(elem));
         }
         let types = vec![self.type_.clone(); elements.len()];
-        let result = self.builder.insert_make_array(
+        
+        self.builder.insert_make_array(
             im::Vector::from(elems),
             Type::Array(Arc::new(types), elements.len() as u32),
-        );
-        return result;
+        )
     }
 
     /// Gets an element from an array at the given index
     pub fn insert_array_get(&mut self, array: Id<Value>, index: u32) -> Id<Value> {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
-        let result = self.builder.insert_array_get(array, index_var, self.type_.clone());
-        return result;
+        
+        self.builder.insert_array_get(array, index_var, self.type_.clone())
     }
 
     /// Sets an element in an array at the given index
@@ -275,13 +275,13 @@ impl FuzzerBuilder {
     ) -> Id<Value> {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
-        let result = self.builder.insert_array_set(array, index_var, value);
-        return result;
+        
+        self.builder.insert_array_set(array, index_var, value)
     }
 
     /// Gets the index of the entry block
     pub fn get_entry_block_index(&mut self) -> u32 {
-        return helpers::id_to_int(self.builder.get_current_block_index());
+        helpers::id_to_int(self.builder.get_current_block_index())
     }
 
     /// Switches the current block to the given block
@@ -292,7 +292,7 @@ impl FuzzerBuilder {
     /// Inserts a new basic block and returns its index
     pub fn insert_block(&mut self) -> u32 {
         let id = self.builder.insert_block();
-        return helpers::id_to_int(id);
+        helpers::id_to_int(id)
     }
 
     /// Inserts a return instruction with the given value
@@ -318,6 +318,6 @@ impl FuzzerBuilder {
 
     /// Creates a numeric constant with the given value
     pub fn numeric_constant(&mut self, value: impl Into<FieldElement>) -> Id<Value> {
-        self.builder.numeric_constant(value.into(), self.numeric_type.clone())
+        self.builder.numeric_constant(value.into(), self.numeric_type)
     }
 }
