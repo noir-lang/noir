@@ -13,6 +13,11 @@ impl Formatter<'_> {
         self.write_space();
         self.write_identifier(type_alias.name);
         self.format_generics(type_alias.generics);
+        if let Some(num_type) = type_alias.numeric_type {
+            self.write_token(Token::Colon);
+            self.write_space();
+            self.format_type(num_type);
+        }
         self.write_space();
         self.write_token(Token::Assign);
         self.write_space();
