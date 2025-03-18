@@ -607,8 +607,8 @@ impl std::fmt::Display for Visibility {
         match self {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
-            Self::CallData(id) => write!(f, "calldata{id}"),
-            Self::ReturnData => write!(f, "returndata"),
+            Self::CallData(id) => write!(f, "call_data({id})"),
+            Self::ReturnData => write!(f, "return_data"),
         }
     }
 }

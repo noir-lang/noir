@@ -9,10 +9,9 @@ use noirc_frontend::{
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    modules::relative_module_id_path,
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
 };
-
-use crate::modules::relative_module_id_path;
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
     name: &'a str,

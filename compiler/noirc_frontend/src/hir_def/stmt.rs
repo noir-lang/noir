@@ -150,6 +150,7 @@ pub enum HirLValue {
     Dereference {
         lvalue: Box<HirLValue>,
         element_type: Type,
+        implicitly_added: bool,
         location: Location,
     },
 }
