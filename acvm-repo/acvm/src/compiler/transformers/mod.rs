@@ -25,7 +25,7 @@ use super::{
 /// The value was determined by running tests.
 const MAX_TRANSFORMER_PASSES: usize = 3;
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 pub fn transform<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
@@ -44,7 +44,7 @@ pub fn transform<F: AcirField>(
     (acir, transformation_map)
 }
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
@@ -87,7 +87,7 @@ pub(super) fn transform_internal<F: AcirField>(
     (acir, acir_opcode_positions)
 }
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///

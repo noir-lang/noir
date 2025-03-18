@@ -16,7 +16,7 @@ mod visibility;
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::Path;
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
@@ -31,14 +31,13 @@ use crate::hir::def_map::ModuleData;
 use crate::node_interner::{NodeInterner, StmtId};
 
 use crate::hir::def_collector::dc_crate::DefCollector;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId};
+use crate::hir::def_map::CrateDefMap;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
 use crate::{ParsedModule, parse_program};
 use fm::FileManager;
-use noirc_arena::Arena;
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
     errors.iter().any(|e| matches!(e, CompilationError::ParseError(_)))
@@ -101,24 +100,17 @@ pub(crate) fn get_program_with_options(
             })
             .collect();
 
-        // Allocate a default Module for the root, giving it a ModuleId
-        let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(
+        let root_module = ModuleData::new(
             None,
             location,
             Vec::new(),
             inner_attributes.clone(),
             false, // is contract
             false, // is struct
-        ));
+        );
 
-        let def_map = CrateDefMap {
-            root: LocalModuleId(root),
-            modules,
-            krate: root_crate_id,
-            extern_prelude: BTreeMap::new(),
-        };
+        let def_map = CrateDefMap::new(root_crate_id, root_module);
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -4170,6 +4162,23 @@ fn errors_on_invalid_integer_bit_size() {
         let _: u42 = 4;
                ^^^ Use of invalid bit size 42
                ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_array_element_as_func_arg() {
+    let src = r#"
+    fn foo(x: &mut u32) {
+        *x += 1;
+    }
+    fn main() {
+        let mut state: [u32; 4] = [1, 2, 3, 4];
+        foo(&mut state[0]);
+                 ^^^^^^^^ Mutable references to array elements are currently unsupported
+                 ~~~~~~~~ Try storing the element in a fresh variable first
+        assert_eq(state[0], 2); // expect:2 got:1
     }
     "#;
     check_errors(src);

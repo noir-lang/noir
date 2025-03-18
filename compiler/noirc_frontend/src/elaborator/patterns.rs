@@ -272,7 +272,7 @@ impl Elaborator<'_> {
 
         for (field, pattern) in fields {
             let (field_type, visibility) = expected_type
-                .get_field_type_and_visibility(&field.0.contents)
+                .get_field_type_and_visibility(field.as_str())
                 .unwrap_or((Type::Error, ItemVisibility::Public));
             let resolved = self.elaborate_pattern_mut(
                 pattern,
@@ -289,7 +289,7 @@ impl Elaborator<'_> {
 
                 self.check_struct_field_visibility(
                     &struct_type.borrow(),
-                    &field.0.contents,
+                    field.as_str(),
                     visibility,
                     field.location(),
                 );
@@ -331,7 +331,7 @@ impl Elaborator<'_> {
         }
 
         let location = name.location();
-        let name = name.0.contents;
+        let name = name.into_string();
         let comptime = self.in_comptime_context();
         let id =
             self.interner.push_definition(name.clone(), mutable, comptime, definition, location);
@@ -385,12 +385,12 @@ impl Elaborator<'_> {
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
 
-        let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        let old_global_value = scope.add_key_value(name.to_string(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
                 first_location: old_global_value.ident.location,
                 second_location: name.location(),
-                name: name.0.contents,
+                name: name.into_string(),
             });
         }
         ident
@@ -405,7 +405,7 @@ impl Elaborator<'_> {
     ) -> Result<(HirIdent, usize), ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
-        let variable = scope_tree.find(&name.0.contents);
+        let variable = scope_tree.find(name.as_str());
 
         let location = name.location();
         if let Some((variable_found, scope)) = variable {
@@ -414,8 +414,8 @@ impl Elaborator<'_> {
             Ok((HirIdent::non_trait_method(id, location), scope))
         } else {
             Err(ResolverError::VariableNotDeclared {
-                name: name.0.contents.clone(),
-                location: name.0.location(),
+                name: name.to_string(),
+                location: name.location(),
             })
         }
     }
@@ -454,7 +454,7 @@ impl Elaborator<'_> {
         let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
             "struct",
-            &struct_type.name.0.contents,
+            struct_type.name.as_str(),
             kinds,
             generics,
             unresolved_turbofish,
@@ -490,7 +490,7 @@ impl Elaborator<'_> {
         let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
             "alias",
-            &type_alias.name.0.contents,
+            type_alias.name.as_str(),
             kinds,
             generics,
             unresolved_turbofish,
@@ -599,9 +599,11 @@ impl Elaborator<'_> {
 
     /// Solve any generics that are part of the path before the function, for example:
     ///
+    /// ```rust
     /// foo::Bar::<i32>::baz
     ///           ^^^^^
     ///         solve these
+    /// ```
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
@@ -875,8 +877,7 @@ impl Elaborator<'_> {
         let typ = self.resolve_type(path.typ);
         let check_self_param = false;
 
-        let Some(method) =
-            self.lookup_method(&typ, &path.item.0.contents, location, check_self_param)
+        let Some(method) = self.lookup_method(&typ, path.item.as_str(), location, check_self_param)
         else {
             let error = Expression::new(ExpressionKind::Error, location);
             return self.elaborate_expression(error);

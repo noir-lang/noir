@@ -392,11 +392,10 @@ impl Elaborator<'_> {
         // Go through each argument to check if it is in our required_args list.
         // If it is remove it from the list, otherwise issue an error.
         for (name, typ) in args {
-            let index =
-                required_args.iter().position(|item| item.name.as_ref() == &name.0.contents);
+            let index = required_args.iter().position(|item| item.name.as_ref() == name.as_str());
 
             let Some(index) = index else {
-                if let Some(prev_location) = seen_args.get(&name.0.contents).copied() {
+                if let Some(prev_location) = seen_args.get(name.as_str()).copied() {
                     self.push_err(TypeCheckError::DuplicateNamedTypeArg { name, prev_location });
                 } else {
                     let item = item.item_name(self.interner);
@@ -407,7 +406,7 @@ impl Elaborator<'_> {
 
             // Remove the argument from the required list so we remember that we already have it
             let expected = required_args.remove(index);
-            seen_args.insert(name.0.contents.clone(), name.location());
+            seen_args.insert(name.to_string(), name.location());
 
             let typ = self.resolve_type_inner(typ, &expected.kind());
             resolved.push(NamedType { name, typ });
@@ -627,12 +626,12 @@ impl Elaborator<'_> {
         };
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let name = &path.segments[0].ident.0.contents;
+            let name = path.segments[0].ident.as_str();
             let method = &path.segments[1].ident;
 
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
-                let method = the_trait.find_method(method.0.contents.as_str())?;
+                let method = the_trait.find_method(method.as_str())?;
                 let constraint = the_trait.as_constraint(path.location);
                 return Some(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: true },
@@ -678,7 +677,7 @@ impl Elaborator<'_> {
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(_, name) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if path.segments[0].ident.0.contents != name.as_str() {
+                if path.segments[0].ident.as_str() != name.as_str() {
                     continue;
                 }
 
@@ -714,7 +713,7 @@ impl Elaborator<'_> {
         let datatype = self.get_type(type_id);
         let generics = datatype.borrow().instantiate(self.interner);
         let typ = Type::DataType(datatype, generics);
-        let method_name = &last_segment.ident.0.contents;
+        let method_name = last_segment.ident.as_str();
 
         // If we can find a method on the type, this is definitely not a trait method
         if self.interner.lookup_direct_method(&typ, method_name, false).is_some() {
@@ -1417,8 +1416,7 @@ impl Elaborator<'_> {
         // If this access is just a field offset, we want to avoid dereferencing
         let dereference_lhs = (!access.is_offset).then_some(dereference_lhs);
 
-        match self.check_field_access(&lhs_type, &access.rhs.0.contents, location, dereference_lhs)
-        {
+        match self.check_field_access(&lhs_type, access.rhs.as_str(), location, dereference_lhs) {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
                 // We must update `access` in case we added any dereferences to it
@@ -1513,7 +1511,7 @@ impl Elaborator<'_> {
             if let Some(fields) = datatype.fields_raw() {
                 has_field_with_function_type = fields
                     .iter()
-                    .any(|field| field.name.0.contents == method_name && field.typ.is_function());
+                    .any(|field| field.name.as_str() == method_name && field.typ.is_function());
             }
 
             if has_field_with_function_type {
@@ -2013,11 +2011,11 @@ impl Elaborator<'_> {
         location: Location,
         resolved_generic: &ResolvedGeneric,
     ) {
-        let name = &unresolved_generic.ident().0.contents;
+        let name = unresolved_generic.ident().as_str();
 
         if let Some(generic) = self.find_generic(name) {
             self.push_err(ResolverError::DuplicateDefinition {
-                name: name.clone(),
+                name: name.to_string(),
                 first_location: generic.location,
                 second_location: location,
             });
@@ -2119,7 +2117,7 @@ pub(crate) fn bind_named_generics(
     for arg in args {
         let i = params
             .iter()
-            .position(|typ| *typ.name == arg.name.0.contents)
+            .position(|typ| *typ.name == arg.name.as_str())
             .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
 
         let param = params.swap_remove(i);

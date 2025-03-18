@@ -116,7 +116,6 @@ pub(crate) enum ParsedInstruction {
     },
     DecrementRc {
         value: ParsedValue,
-        original: ParsedValue,
     },
     EnableSideEffectsIf {
         condition: ParsedValue,
