@@ -148,7 +148,6 @@ fn assert_no_errors(src: &str) {
 /// where:
 /// - lines with "^^^" are primary errors
 /// - lines with "~~~" are secondary errors
-/// - lines with "---" are custom errors
 ///
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
