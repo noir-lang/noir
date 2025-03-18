@@ -123,18 +123,6 @@ impl<'de> Deserialize<'de> for ErrorSelector {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct RawAssertionPayload<F> {
-    pub selector: ErrorSelector,
-    pub data: Vec<F>,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ResolvedAssertionPayload<F> {
-    String(String),
-    Raw(RawAssertionPayload<F>),
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 /// Opcodes are locatable so that callers can
