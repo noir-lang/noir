@@ -81,19 +81,27 @@
 //! values of all the partial witnesses and all the constraints in order to generate
 //! a proof.
 //!
-//! _Remark_: The value of a partial witness is unique and fixed throughout a program
+//! _Note_: The value of a partial witness is unique and fixed throughout a program
 //!     execution, although in some rare cases, multiple values are possible for a
 //!     same execution and witness (when there are several valid solutions to the
 //!     constraints). Having multiple possible values for a witness may indicate that
 //!     the circuit is not safe.
 //!
-//! _Remark_: Why do we use the term partial witnesses? It is because the proving
+//! _Note_: Why do we use the term partial witnesses? It is because the proving
 //!     system may create other constraints and witnesses (especially with
-//!     `BlackBoxFuncCall`, see below). A proof refers to a full witness assignments
-//!     and their constraints. ACIR opcodes and their partial witnesses are still an
+//!     `BlackBoxFuncCall`, see below). A proof refers to a full witness assignment
+//!     and its constraints. ACIR opcodes and their partial witnesses are still an
 //!     intermediate representation before getting the full list of constraints and
 //!     witnesses. For the sake of simplicity, we will refer to witness instead of
 //!     partial witness from now on.
+//!
+//! _Note_: Opcodes operate on witnesses, but we will see that some opcodes work on
+//!     expressions of witnesses. We call an expression a linear combination of
+//!     witnesses and/or products of two witnesses (also with a constant term). A
+//!     single witness is a (simple) expression, and conversely, an expression can
+//!     be turned into a single witness using an [assert-zero opcode][circuit::opcodes::Opcode::AssertZero].
+//!     So basically, using witnesses or expressions is equivalent,
+//!     but the latter can avoid the creation of witness in some cases.
 
 #![cfg_attr(not(test), forbid(unsafe_code))] // `std::env::set_var` is used in tests.
 #![warn(unreachable_pub)]

@@ -1,3 +1,8 @@
+//! Black box functions are ACIR opcodes which rely on backends implementing
+//! support for specialized constraints.
+//! This makes certain zk-snark unfriendly computations cheaper than if they were
+//! implemented in more basic constraints.
+
 use std::collections::BTreeSet;
 
 use crate::native_types::Witness;

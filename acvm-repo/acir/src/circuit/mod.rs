@@ -1,4 +1,4 @@
-//! The Abstract Circuit Intermediate Representation (ACIR)
+//! Native structures for representing ACIR
 
 pub mod black_box_functions;
 pub mod brillig;

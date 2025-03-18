@@ -34,6 +34,7 @@ pub struct BrilligBytecode<F> {
 }
 
 /// Id for the function being called.
+/// Indexes into the table of Brillig function's specified in a [program][super::Program]
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default, PartialOrd, Ord,
 )]
