@@ -39,6 +39,7 @@ smallvec = { version = "1.13.2", features = ["serde"] }
 vec-collections = "0.4.3"
 env_logger = "0.11.6"
 log = "0.4"
+rand = "0.8"
 
 [dev-dependencies]
 proptest.workspace = true
@@ -50,10 +51,6 @@ test-case.workspace = true
 [features]
 bn254 = ["noirc_frontend/bn254"]
 bls12_381 = []
-
-[[bin]]
-name = "optimization_bug_1"
-path = "src/optimization_bug_1.rs"
 
 [[bin]]
 name = "main"

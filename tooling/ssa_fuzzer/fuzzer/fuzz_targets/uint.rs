@@ -37,15 +37,15 @@ use ssa_fuzzer::{
 #[derive(Arbitrary, Debug, Clone, Hash)]
 enum Instructions {
     /// Addition of two values
-    Add { lhs: u32, rhs: u32 },
+    AddChecked { lhs: u32, rhs: u32 },
     /// Addition of two values (unchecked)
     AddUnchecked { lhs: u32, rhs: u32 },
     /// Subtraction of two values 
-    Sub { lhs: u32, rhs: u32 },
+    SubChecked { lhs: u32, rhs: u32 },
     /// Subtraction of two values (unchecked)
     SubUnchecked { lhs: u32, rhs: u32 },
     /// Multiplication of two values
-    Mul { lhs: u32, rhs: u32 },
+    MulChecked { lhs: u32, rhs: u32 },
     /// Multiplication of two values (unchecked)
     MulUnchecked { lhs: u32, rhs: u32 },
     /// Division of two values
@@ -230,7 +230,7 @@ impl FuzzerContext {
     /// Inserts a single instruction into both ACIR and Brillig builders
     fn insert_instruction(&mut self, instruction: Instructions) {
         match instruction {
-            Instructions::Add { lhs, rhs } => {
+            Instructions::AddChecked { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
                     builder.insert_add_instruction_checked(lhs, rhs)
                 });
@@ -240,7 +240,7 @@ impl FuzzerContext {
                     builder.insert_add_instruction_unchecked(lhs, rhs)
                 });
             }
-            Instructions::Sub { lhs, rhs } => {
+            Instructions::SubChecked { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
                     builder.insert_sub_instruction_checked(lhs, rhs)
                 });
@@ -250,7 +250,7 @@ impl FuzzerContext {
                     builder.insert_sub_instruction_unchecked(lhs, rhs)
                 });
             }
-            Instructions::Mul { lhs, rhs } => {
+            Instructions::MulChecked { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
                     builder.insert_mul_instruction_checked(lhs, rhs)
                 });
