@@ -5,6 +5,7 @@ use clap::Args;
 use nargo::package::{CrateName, PackageType};
 use std::path::PathBuf;
 
+#[allow(rustdoc::broken_intra_doc_links)]
 /// Create a Noir project in a new directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct NewCommand {

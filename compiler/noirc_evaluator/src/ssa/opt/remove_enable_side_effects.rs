@@ -2,12 +2,13 @@
 //! instructions such that they cover the minimum number of instructions possible.
 //!
 //! The pass works as follows:
-//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this [InstructionId].
+//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this [InstructionId][crate::ssa::ir::instruction::InstructionId].
 //! - Continue inserting instructions until either
-//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous [InstructionId] in favour
+//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous [InstructionId][crate::ssa::ir::instruction::InstructionId] in favour
 //!       of this one.
 //!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffectsIf]
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
+//!
 use std::collections::HashSet;
 
 use acvm::{FieldElement, acir::AcirField};

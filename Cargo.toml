@@ -40,6 +40,7 @@ members = [
 
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
+    "utils/protobuf",
 ]
 default-members = [
     "tooling/nargo_cli",
@@ -97,6 +98,7 @@ noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 noir_artifact_cli = { path = "tooling/artifact_cli" }
+noir_protobuf = { path = "utils/protobuf" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [
@@ -139,6 +141,11 @@ criterion = "0.5.0"
 # Note that using the "frame-pointer" feature breaks framegraphs on linux
 # https://github.com/tikv/pprof-rs/pull/172
 pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
+
+# Protobuf
+prost = "0.13"
+prost-build = "0.13"
+protoc-prebuilt = "0.3"
 
 cfg-if = "1.0.0"
 dirs = "4"

@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
-use crate::elaborator::Elaborator;
+use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
@@ -29,8 +29,7 @@ use crate::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirPrefixExpression,
         },
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
@@ -191,7 +190,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborate_in_function(None, |elaborator| {
+                    self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -207,10 +206,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_function<T>(
         &mut self,
         function: Option<FuncId>,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -218,10 +218,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_module<T>(
         &mut self,
         module: ModuleId,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -393,7 +394,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             HirPattern::Mutable(pattern, _) => {
                 // Create a mutable reference to store to
-                let argument = Value::Pointer(Shared::new(argument), true);
+                let argument = Value::Pointer(Shared::new(argument), true, true);
                 self.define_pattern(pattern, typ, argument, location)
             }
             HirPattern::Tuple(pattern_fields, _) => {
@@ -426,10 +427,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
-                            let field = fields.get(&field_name.0.contents).ok_or_else(|| {
+                            let field = fields.get(field_name.as_string()).ok_or_else(|| {
                                 InterpreterError::ExpectedStructToHaveField {
                                     typ: struct_type.clone(),
-                                    field_name: field_name.0.contents.clone(),
+                                    field_name: field_name.to_string(),
                                     location,
                                 }
                             })?;
@@ -471,7 +472,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
-                    Value::Pointer(reference, true) => {
+                    Value::Pointer(reference, true, _) => {
                         *reference.borrow_mut() = argument;
                     }
                     _ => {
@@ -507,7 +508,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.evaluate_no_dereference(id)? {
-            Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+            Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
             other => Ok(other),
         }
     }
@@ -526,7 +527,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
-            HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
@@ -534,7 +534,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
-            HirExpression::Comptime(block) => self.evaluate_block(block),
             HirExpression::Unsafe(block) => self.evaluate_block(block),
             HirExpression::EnumConstructor(constructor) => {
                 self.evaluate_enum_constructor(constructor, id)
@@ -848,7 +847,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = match prefix.operator {
-            UnaryOp::MutableReference => self.evaluate_no_dereference(prefix.rhs)?,
+            UnaryOp::Reference { .. } => self.evaluate_no_dereference(prefix.rhs)?,
             _ => self.evaluate(prefix.rhs)?,
         };
 
@@ -899,17 +898,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Err(InterpreterError::InvalidValueForUnary { typ, location, operator: "not" })
                 }
             },
-            UnaryOp::MutableReference => {
+            UnaryOp::Reference { mutable } => {
                 // If this is a mutable variable (auto_deref = true), turn this into an explicit
                 // mutable reference just by switching the value of `auto_deref`. Otherwise, wrap
                 // the value in a fresh reference.
                 match rhs {
-                    Value::Pointer(elem, true) => Ok(Value::Pointer(elem, false)),
-                    other => Ok(Value::Pointer(Shared::new(other), false)),
+                    Value::Pointer(elem, true, _) => Ok(Value::Pointer(elem, false, mutable)),
+                    other => Ok(Value::Pointer(Shared::new(other), false, mutable)),
                 }
             }
             UnaryOp::Dereference { implicitly_added: _ } => match rhs {
-                Value::Pointer(element, _) => Ok(element.borrow().clone()),
+                Value::Pointer(element, _, _) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.elaborator.interner.expr_location(&id);
                     let typ = value.get_type().into_owned();
@@ -1263,7 +1262,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .into_iter()
             .map(|(name, expr)| {
                 let field_value = self.evaluate(expr)?;
-                Ok((Rc::new(name.0.contents), field_value))
+                Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
 
@@ -1303,10 +1302,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
 
-        fields.get(&access.rhs.0.contents).cloned().ok_or_else(|| {
+        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
-            let field_name = access.rhs.0.contents;
+            let field_name = access.rhs.into_string();
             let typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
         })
@@ -1325,9 +1324,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator, location)?;
-                    let expr = self.elaborate_in_function(self.current_function, |elaborator| {
-                        elaborator.elaborate_expression(expr).0
-                    });
+                    let expr =
+                        self.elaborate_in_function(self.current_function, None, |elaborator| {
+                            elaborator.elaborate_expression(expr).0
+                        });
                     result = self.evaluate(expr)?;
 
                     // Macro calls are typed as type variables during type checking.
@@ -1364,33 +1364,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 expr_location: location,
             }
         });
-    }
-
-    fn evaluate_method_call(
-        &mut self,
-        call: HirMethodCallExpression,
-        id: ExprId,
-    ) -> IResult<Value> {
-        let object = self.evaluate(call.object)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
-        })?;
-        let location = self.elaborator.interner.expr_location(&id);
-
-        let typ = object.get_type().follow_bindings();
-        let method_name = &call.method.0.contents;
-        let check_self_param = true;
-
-        let method = self
-            .elaborator
-            .lookup_method(&typ, method_name, location, check_self_param)
-            .and_then(|method| method.func_id(self.elaborator.interner));
-
-        if let Some(method) = method {
-            self.call_function(method, arguments, TypeBindings::new(), location)
-        } else {
-            Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
-        }
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
@@ -1613,7 +1586,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
-                    Value::Pointer(value, _) => {
+                    Value::Pointer(value, _, _) => {
                         *value.borrow_mut() = rhs;
                         Ok(())
                     }
@@ -1639,7 +1612,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.0.contents), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), rhs);
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1669,12 +1642,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
         match lvalue {
             HirLValue::Ident(ident, _) => match self.lookup(ident)? {
-                Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+                Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
                 other => Ok(other),
             },
             HirLValue::Dereference { lvalue, element_type, location } => {
                 match self.evaluate_lvalue(lvalue)? {
-                    Value::Pointer(value, _) => Ok(value.borrow().clone()),
+                    Value::Pointer(value, _, _) => Ok(value.borrow().clone()),
                     value => {
                         let typ = value.get_type().into_owned();
                         Err(InterpreterError::NonPointerDereferenced { typ, location: *location })
@@ -1694,7 +1667,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
-                    Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
+                    Value::Struct(fields, _) => Ok(fields[field_name.as_string()].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: *location,
@@ -1871,6 +1844,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
+
+        if self.elaborator.interner.disable_comptime_printing {
+            return Ok(Value::Unit);
+        }
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);

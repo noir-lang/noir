@@ -16,12 +16,13 @@ mod visibility;
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
+use std::path::Path;
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
-use fm::FileId;
 
 use iter_extended::vecmap;
+use noirc_errors::reporter::report_all;
 use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use crate::hir::Context;
@@ -30,17 +31,13 @@ use crate::hir::def_map::ModuleData;
 use crate::node_interner::{NodeInterner, StmtId};
 
 use crate::hir::def_collector::dc_crate::DefCollector;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId};
+use crate::hir::def_map::CrateDefMap;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
-use crate::monomorphization::ast::Program;
-use crate::monomorphization::errors::MonomorphizationError;
-use crate::monomorphization::monomorphize;
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
 use crate::{ParsedModule, parse_program};
 use fm::FileManager;
-use noirc_arena::Arena;
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
     errors.iter().any(|e| matches!(e, CompilationError::ParseError(_)))
@@ -79,11 +76,11 @@ pub(crate) fn get_program_with_options(
     options: FrontendOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
     let root = std::path::Path::new("/");
-    let fm = FileManager::new(root);
-
+    let mut fm = FileManager::new(root);
+    let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
     let mut context = Context::new(fm, Default::default());
+
     context.def_interner.populate_dummy_operator_traits();
-    let root_file_id = FileId::dummy();
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
     let (program, parser_errors) = parse_program(src, root_file_id);
@@ -103,24 +100,17 @@ pub(crate) fn get_program_with_options(
             })
             .collect();
 
-        // Allocate a default Module for the root, giving it a ModuleId
-        let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(
+        let root_module = ModuleData::new(
             None,
             location,
             Vec::new(),
             inner_attributes.clone(),
             false, // is contract
             false, // is struct
-        ));
+        );
 
-        let def_map = CrateDefMap {
-            root: LocalModuleId(root),
-            modules,
-            krate: root_crate_id,
-            extern_prelude: BTreeMap::new(),
-        };
+        let def_map = CrateDefMap::new(root_crate_id, root_module);
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -139,9 +129,11 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
 }
 
 fn assert_no_errors(src: &str) {
-    let errors = get_program_errors(src);
+    let (_, context, errors) = get_program(src);
     if !errors.is_empty() {
-        panic!("Expected no errors, got: {:?}; src = {src}", errors);
+        let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        panic!("Expected no errors");
     }
 }
 
@@ -161,17 +153,45 @@ fn assert_no_errors(src: &str) {
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
     let allow_parser_errors = false;
-    check_errors_with_options(src, allow_parser_errors, FrontendOptions::test_default());
+    let monomorphize = false;
+    check_errors_with_options(
+        src,
+        allow_parser_errors,
+        monomorphize,
+        FrontendOptions::test_default(),
+    );
 }
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
-    let mut options = FrontendOptions::test_default();
-    options.enabled_unstable_features = features;
-    check_errors_with_options(src, allow_parser_errors, options);
+    let monomorphize = false;
+    let options =
+        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
+    check_errors_with_options(src, allow_parser_errors, monomorphize, options);
 }
 
-fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: FrontendOptions) {
+#[allow(unused)]
+pub(super) fn check_monomorphization_error(src: &str) {
+    check_monomorphization_error_using_features(src, &[]);
+}
+
+pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
+    let allow_parser_errors = false;
+    let monomorphize = true;
+    check_errors_with_options(
+        src,
+        allow_parser_errors,
+        monomorphize,
+        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
+    );
+}
+
+fn check_errors_with_options(
+    src: &str,
+    allow_parser_errors: bool,
+    monomorphize: bool,
+    options: FrontendOptions,
+) {
     let lines = src.lines().collect::<Vec<_>>();
 
     // Here we'll hold just the lines that are code
@@ -216,12 +236,32 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
         secondary_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
-    let (_, _, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+
+    if monomorphize {
+        if !errors.is_empty() {
+            report_all(context.file_manager.as_file_map(), &errors, false, false);
+            panic!("Expected no errors before monomorphization");
+        }
+
+        let main = context.get_main_function(context.root_crate_id()).unwrap_or_else(|| {
+            panic!("get_monomorphized: test program contains no 'main' function")
+        });
+
+        let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
+        match result {
+            Ok(_) => panic!("Expected a monomorphization error but got none"),
+            Err(error) => {
+                errors.push(error.into());
+            }
+        }
+    }
+
     if errors.is_empty() && !primary_spans_with_errors.is_empty() {
         panic!("Expected some errors but got none");
     }
 
-    let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
     for error in &errors {
         let secondary = error
             .secondaries
@@ -232,17 +272,25 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
 
         let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
             if let Some(message) = secondary_spans_with_errors.get(&span) {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
                     "Error at {span:?} with message {message:?} is annotated as secondary but should be primary"
                 );
             } else {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
                     "Couldn't find primary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
                 );
             }
         };
 
-        assert_eq!(message, &expected_message, "Primary error at {span:?} has unexpected message");
+        if message != &expected_message {
+            report_all(context.file_manager.as_file_map(), &errors, false, false);
+            assert_eq!(
+                message, &expected_message,
+                "Primary error at {span:?} has unexpected message"
+            );
+        }
 
         for secondary in &error.secondaries {
             let message = &secondary.message;
@@ -252,6 +300,7 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
 
             let span = secondary.location.span;
             let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
                 if let Some(message) = primary_spans_with_errors.get(&span) {
                     panic!(
                         "Error at {span:?} with message {message:?} is annotated as primary but should be secondary"
@@ -263,18 +312,23 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
                 };
             };
 
-            assert_eq!(
-                message, &expected_message,
-                "Secondary error at {span:?} has unexpected message"
-            );
+            if message != &expected_message {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
+                assert_eq!(
+                    message, &expected_message,
+                    "Secondary error at {span:?} has unexpected message"
+                );
+            }
         }
     }
 
     if !primary_spans_with_errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
         panic!("These primary errors didn't happen: {primary_spans_with_errors:?}");
     }
 
     if !secondary_spans_with_errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
         panic!("These secondary errors didn't happen: {secondary_spans_with_errors:?}");
     }
 }
@@ -362,12 +416,12 @@ fn check_trait_implementation_duplicate_method() {
     impl Default for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ^^^^^^^ Duplicate definitions of trait associated function with name default found
            ~~~~~~~ First trait associated function found here
             y + 2 * x
         }
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
+           ^^^^^^^ Duplicate definitions of trait associated function with name default found
            ~~~~~~~ Second trait associated function found here
             x + 2 * y
         }
@@ -381,7 +435,6 @@ fn check_trait_implementation_duplicate_method() {
 
 #[test]
 fn check_trait_wrong_method_return_type() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default() -> Self;
@@ -392,7 +445,7 @@ fn check_trait_wrong_method_return_type() {
 
     impl Default for Foo {
         fn default() -> Field {
-           ^^^^^^^ Expected type Foo, found type Field
+                        ^^^^^ Expected type Foo, found type Field
             0
         }
     }
@@ -406,7 +459,6 @@ fn check_trait_wrong_method_return_type() {
 
 #[test]
 fn check_trait_wrong_method_return_type2() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default(x: Field, y: Field) -> Self;
@@ -419,7 +471,7 @@ fn check_trait_wrong_method_return_type2() {
 
     impl Default for Foo {
         fn default(x: Field, _y: Field) -> Field {
-           ^^^^^^^ Expected type Foo, found type Field
+                                           ^^^^^ Expected type Foo, found type Field
             x
         }
     }
@@ -427,6 +479,31 @@ fn check_trait_wrong_method_return_type2() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_method_return_type3() {
+    let src = "
+    trait Default {
+        fn default(x: Field, y: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default for Foo {
+        fn default(_x: Field, _y: Field) {
+                                        ^ Expected type Foo, found type ()
+        }
+    }
+
+    fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
+    }
+    ";
     check_errors(src);
 }
 
@@ -506,7 +583,6 @@ fn check_trait_wrong_method_name() {
 
 #[test]
 fn check_trait_wrong_parameter() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default(x: Field) -> Self;
@@ -518,7 +594,7 @@ fn check_trait_wrong_parameter() {
 
     impl Default for Foo {
         fn default(x: u32) -> Self {
-                   ^ Parameter #1 of method `default` must be of type Field, not u32
+                      ^^^ Parameter #1 of method `default` must be of type Field, not u32
             Foo {bar: x}
         }
     }
@@ -543,7 +619,7 @@ fn check_trait_wrong_parameter2() {
 
     impl Default for Foo {
         fn default(x: Field, y: Foo) -> Self {
-                             ^ Parameter #2 of method `default` must be of type Field, not Foo
+                                ^^^ Parameter #2 of method `default` must be of type Field, not Foo
             Self { bar: x, array: [x, y.bar] }
         }
     }
@@ -644,7 +720,6 @@ fn check_impl_struct_not_trait() {
 fn check_trait_duplicate_declaration() {
     let src = "
     trait Default {
-          ^^^^^^^ Duplicate definitions of trait definition with name Default found
           ~~~~~~~ First trait definition found here
         fn default(x: Field, y: Field) -> Self;
     }
@@ -661,6 +736,7 @@ fn check_trait_duplicate_declaration() {
     }
 
     trait Default {
+          ^^^^^^^ Duplicate definitions of trait definition with name Default found
           ~~~~~~~ Second trait definition found here
         fn default(x: Field) -> Self;
     }
@@ -1102,52 +1178,6 @@ fn resolve_fmt_strings() {
     check_errors(src);
 }
 
-fn monomorphize_program(src: &str) -> Result<Program, MonomorphizationError> {
-    let (_program, mut context, _errors) = get_program(src);
-    let main_func_id = context.def_interner.find_function("main").unwrap();
-    monomorphize(main_func_id, &mut context.def_interner, false)
-}
-
-fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
-    monomorphize_program(src).err()
-}
-
-fn check_rewrite(src: &str, expected: &str) {
-    let program = monomorphize_program(src).unwrap();
-    assert!(format!("{}", program) == expected);
-}
-
-#[test]
-fn simple_closure_with_no_captured_variables() {
-    let src = r#"
-    fn main() -> pub Field {
-        let x = 1;
-        let closure = || x;
-        closure()
-    }
-    "#;
-
-    let expected_rewrite = r#"fn main$f0() -> Field {
-    let x$0 = 1;
-    let closure$3 = {
-        let closure_variable$2 = {
-            let env$1 = (x$l0);
-            (env$l1, lambda$f1)
-        };
-        closure_variable$l2
-    };
-    {
-        let tmp$4 = closure$l3;
-        tmp$l4.1(tmp$l4.0)
-    }
-}
-fn lambda$f1(mut env$l1: (Field)) -> Field {
-    env$l1.0
-}
-"#;
-    check_rewrite(src, expected_rewrite);
-}
-
 #[test]
 fn deny_cyclic_globals() {
     let src = r#"
@@ -1499,18 +1529,31 @@ fn numeric_generic_binary_operation_type_mismatch() {
 
 #[test]
 fn bool_generic_as_loop_bound() {
-    // TODO: improve the error location of the last error (should be just on N)
     let src = r#"
     pub fn read<let N: bool>() {
                     ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
                     ~ Unsupported numeric generic type
         let mut fields = [0; N];
-                             ^ Expected kind numeric u32, found kind numeric bool
+                             ^ The numeric generic is not of type `u32`
+                             ~ expected `u32`, found `bool`
         for i in 0..N { 
-                 ^^^^ Expected type Field, found type bool
+                    ^ Expected type Field, found type bool
             fields[i] = i + 1;
         }
         assert(fields[0] == 1);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn wrong_type_in_for_range() {
+    let src = r#"
+    pub fn foo() {
+        for _ in true..false { 
+                 ^^^^ The type bool cannot be used in a for loop
+                 
+        }
     }
     "#;
     check_errors(src);
@@ -1526,13 +1569,12 @@ fn numeric_generic_in_function_signature() {
 
 #[test]
 fn numeric_generic_as_struct_field_type_fails() {
-    // TODO: improve error message, in Rust it says "expected type, found const parameter `N`"
-    // which might be more understandable
     let src = r#"
     pub struct Foo<let N: u32> {
         a: Field,
         b: N,
-           ^ Expected kind normal, found kind numeric u32
+           ^ Expected type, found numeric generic
+           ~ not a type
     }
     "#;
     check_errors(src);
@@ -1545,7 +1587,8 @@ fn normal_generic_as_array_length() {
     pub struct Foo<N> {
         a: Field,
         b: [Field; N],
-           ^^^^^^^^^^ Expected kind numeric u32, found kind normal
+           ^^^^^^^^^^ Type provided when a numeric generic was expected
+           ~~~~~~~~~~ the numeric generic is not of type `u32`
     }
     "#;
     check_errors(src);
@@ -1553,13 +1596,17 @@ fn normal_generic_as_array_length() {
 
 #[test]
 fn numeric_generic_as_param_type() {
-    // TODO: improve the error message, see what Rust does
     let src = r#"
     pub fn foo<let I: u32>(x: I) -> I {
-                              ^ Expected kind normal, found kind numeric u32
-                                    ^ Expected kind normal, found kind numeric u32
+                                    ^ Expected type, found numeric generic
+                                    ~ not a type
+                              ^ Expected type, found numeric generic
+                              ~ not a type
+                                    
+
         let _q: I = 5;
-                ^ Expected kind normal, found kind numeric u32
+                ^ Expected type, found numeric generic
+                ~ not a type
         x
     }
     "#;
@@ -1568,23 +1615,23 @@ fn numeric_generic_as_param_type() {
 
 #[test]
 fn numeric_generic_as_unused_param_type() {
-    // TODO: improve the error message
     let src = r#"
     pub fn foo<let I: u32>(_x: I) { }
-                               ^ Expected kind normal, found kind numeric u32
+                               ^ Expected type, found numeric generic
+                               ~ not a type
     "#;
     check_errors(src);
 }
 
 #[test]
 fn numeric_generic_as_unused_trait_fn_param_type() {
-    // TODO: improve the error message
     let src = r#"
     trait Foo {
           ^^^ unused trait Foo
           ~~~ unused trait
         fn foo<let I: u32>(_x: I) { }
-                               ^ Expected kind normal, found kind numeric u32
+                               ^ Expected type, found numeric generic
+                               ~ not a type
     }
     "#;
     check_errors(src);
@@ -1592,7 +1639,6 @@ fn numeric_generic_as_unused_trait_fn_param_type() {
 
 #[test]
 fn numeric_generic_as_return_type() {
-    // TODO: improve the error message
     let src = r#"
     // std::mem::zeroed() without stdlib
     trait Zeroed {
@@ -1600,7 +1646,8 @@ fn numeric_generic_as_return_type() {
     }
 
     fn foo<T, let I: Field>(x: T) -> I where T: Zeroed {
-                                     ^ Expected kind normal, found kind numeric Field
+                                     ^ Expected type, found numeric generic
+                                     ~ not a type
        ^^^ unused function foo
        ~~~ unused function
         x.zeroed()
@@ -1613,7 +1660,6 @@ fn numeric_generic_as_return_type() {
 
 #[test]
 fn numeric_generic_used_in_nested_type_fails() {
-    // TODO: improve the error message
     let src = r#"
     pub struct Foo<let N: u32> {
         a: Field,
@@ -1621,7 +1667,8 @@ fn numeric_generic_used_in_nested_type_fails() {
     }
     pub struct Bar<let N: u32> {
         inner: N
-               ^ Expected kind normal, found kind numeric u32
+               ^ Expected type, found numeric generic
+               ~ not a type
     }
     "#;
     check_errors(src);
@@ -1629,12 +1676,12 @@ fn numeric_generic_used_in_nested_type_fails() {
 
 #[test]
 fn normal_generic_used_in_nested_array_length_fail() {
-    // TODO: improve the error message
     let src = r#"
     pub struct Foo<N> {
         a: Field,
         b: Bar<N>,
-               ^ Expected kind numeric u32, found kind normal
+               ^ Type provided when a numeric generic was expected
+               ~ the numeric generic is not of type `u32`
     }
     pub struct Bar<let N: u32> {
         inner: [Field; N]
@@ -1755,7 +1802,7 @@ fn numeric_generic_used_in_turbofish() {
 // allow u16 to be used as an array size
 #[test]
 fn numeric_generic_u16_array_size() {
-    // TODO: improve the error location (and maybe the message)
+    // TODO: improve the error location
     let src = r#"
     fn len<let N: u32>(_arr: [Field; N]) -> u32 {
         N
@@ -1763,8 +1810,10 @@ fn numeric_generic_u16_array_size() {
 
     pub fn foo<let N: u16>() -> u32 {
         let fields: [Field; N] = [0; N];
-                    ^^^^^^^^^^ Expected kind numeric u32, found kind numeric u16
-                                     ^ Expected kind numeric u32, found kind numeric u16
+                                     ^ The numeric generic is not of type `u32`
+                                     ~ expected `u32`, found `u16`
+                    ^^^^^^^^^^ The numeric generic is not of type `u32`
+                    ~~~~~~~~~~ expected `u32`, found `u16`
         len(fields)
     }
     "#;
@@ -1864,7 +1913,8 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
 
     pub fn read<T, N>() -> T where T: Deserialize<N> {
-                                                  ^ Expected kind numeric u32, found kind normal
+                                                  ^ Type provided when a numeric generic was expected
+                                                  ~ the numeric generic is not of type `u32`
         T::deserialize([0, 1])
     }
     "#;
@@ -1877,10 +1927,13 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
 
     pub fn read<T, N>() -> T where T: Deserialize<N> {
-                                                  ^ Expected kind numeric u32, found kind normal
+                                                  ^ Type provided when a numeric generic was expected
+                                                  ~ the numeric generic is not of type `u32`
         let mut fields: [Field; N] = [0; N];
-                                         ^ Expected kind numeric u32, found kind normal
-                        ^^^^^^^^^^ Expected kind numeric u32, found kind normal
+                                         ^ Type provided when a numeric generic was expected
+                                         ~ the numeric generic is not of type `u32`
+                        ^^^^^^^^^^ Type provided when a numeric generic was expected
+                        ~~~~~~~~~~ the numeric generic is not of type `u32`
         for i in 0..N {
                     ^ cannot find `N` in this scope
                     ~ not found in this scope
@@ -1903,7 +1956,8 @@ fn numeric_generics_type_kind_mismatch() {
 
     fn bar<let N: u16>() -> u16 {
         foo::<J>()
-              ^ Expected kind numeric u32, found kind numeric u16
+              ^ The numeric generic is not of type `u32` 
+              ~ expected `u32`, found `u16`
     }
 
     global M: u16 = 3;
@@ -2421,13 +2475,12 @@ fn bit_not_on_untyped_integer() {
 
 #[test]
 fn duplicate_struct_field() {
-    // TODO: the primary error location should be on the second field
     let src = r#"
     pub struct Foo {
         x: i32,
-        ^ Duplicate definitions of struct field with name x found
         ~ First struct field found here
         x: i32,
+        ^ Duplicate definitions of struct field with name x found
         ~ Second struct field found here
     }
 
@@ -2546,7 +2599,7 @@ fn uses_self_type_in_trait_where_clause() {
     }
 
     pub trait Foo where Self: Trait {
-                              ~~~~~ required by this bound in `Foo
+                              ~~~~~ required by this bound in `Foo`
         fn foo(self) -> bool {
             self.trait_func()
             ^^^^^^^^^^^^^^^^^ No method named 'trait_func' found for type 'Bar'
@@ -2557,7 +2610,7 @@ fn uses_self_type_in_trait_where_clause() {
 
     impl Foo for Bar {
                  ^^^ The trait bound `_: Trait` is not satisfied
-                 ~~~ The trait `Trait` is not implemented for `_
+                 ~~~ The trait `Trait` is not implemented for `_`
 
     }
 
@@ -2735,25 +2788,27 @@ fn as_trait_path_syntax_no_impl() {
 
 #[test]
 fn do_not_infer_globals_to_u32_from_type_use() {
-    // TODO: improve the error location (maybe it should be on the global name)
     let src = r#"
         global ARRAY_LEN = 3;
-                           ^ Globals must have a specified type
+               ^^^^^^^^^ Globals must have a specified type
                            ~ Inferred type is `Field`
         global STR_LEN: _ = 2;
-                            ^ Globals must have a specified type
+               ^^^^^^^ Globals must have a specified type
                             ~ Inferred type is `Field`
         global FMT_STR_LEN = 2;
-                             ^ Globals must have a specified type
+               ^^^^^^^^^^^ Globals must have a specified type
                              ~ Inferred type is `Field`
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                    ^^^^^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric Field
+                    ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
+                    ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                    ^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric Field
+                    ^^^^^^^^^^^^ The numeric generic is not of type `u32`
+                    ~~~~~~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                    ^^^^^^^^^^^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric Field
+                    ^^^^^^^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
+                    ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
     check_errors(src);
@@ -2763,25 +2818,25 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 fn do_not_infer_partial_global_types() {
     let src = r#"
         pub global ARRAY: [Field; _] = [0; 3];
-                                       ^^^^^^ Globals must have a specified type
+                   ^^^^^ Globals must have a specified type
                                        ~~~~~~ Inferred type is `[Field; 3]`
         pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
-                                                   ^^^^^^^ Globals must have a specified type
+                   ^^^^^^^^^^^^ Globals must have a specified type
                                                    ~~~~~~~ Inferred type is `[[Field; 0]; 3]`
         pub global STR: str<_> = "hi";
-                                 ^^^^ Globals must have a specified type
+                   ^^^ Globals must have a specified type
                                  ~~~~ Inferred type is `str<2>`
                  
         pub global NESTED_STR: [str<_>] = &["hi"];
-                                          ^^^^^^^ Globals must have a specified type
+                   ^^^^^^^^^^ Globals must have a specified type
                                           ~~~~~~~ Inferred type is `[str<2>]`
         pub global FORMATTED_VALUE: str<5> = "there";
         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
-                                           ^^^^^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
+                   ^^^^^^^ Globals must have a specified type
                                            ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>)>`
         pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
+                   ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
             (&["hi"], [[]; 3]);
-            ^^^^^^^^^^^^^^^^^^ Globals must have a specified type
             ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
 
         fn main() { }
@@ -2839,7 +2894,8 @@ fn non_u32_as_array_length() {
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                    ^^^^^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric u8
+                    ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
+                    ~~~~~~~~~~~~~~~~ expected `u32`, found `u8`
         }
     "#;
     check_errors(src);
@@ -3850,15 +3906,14 @@ fn errors_if_while_body_type_is_not_unit() {
 
 #[test]
 fn check_impl_duplicate_method_without_self() {
-    // TODO: the primary error location should be n the second `foo`
     let src = "
     pub struct Foo {}
 
     impl Foo {
         fn foo() {}
-           ^^^ duplicate definitions of foo found
            ~~~ first definition found here
         fn foo() {}
+           ^^^ duplicate definitions of foo found
            ~~~ second definition found here
     }
 
@@ -3895,4 +3950,236 @@ fn subtract_to_int_min() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn mutate_with_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn mutate_with_reference_marked_mutable_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_variable_without_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || {
+            x += 2;
+            ^ Mutable variable x captured in lambda must be a mutable reference
+            ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        };
+        f();
+        assert(x == 5);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_variable_without_reference_in_nested_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || {
+            let inner = || {
+                x += 2;
+                ^ Mutable variable x captured in lambda must be a mutable reference
+                ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+            };
+            inner();
+        };
+        f();
+        assert(x == 5);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allow_capturing_mut_variable_only_used_immutably() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || x;
+        let _x2 = f();
+        assert(x == 3);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_function() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || mutate(&mut x);
+                               ^ Mutable variable x captured in lambda must be a mutable reference
+                               ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        f();
+        assert(x == 3);
+    }
+
+    fn mutate(x: &mut Field) {
+        *x = 5;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_function_in_nested_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || { 
+            let inner = || mutate(&mut x); 
+                                       ^ Mutable variable x captured in lambda must be a mutable reference
+                                       ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+            inner();
+        };
+        f();
+        assert(x == 3);
+    }
+
+    fn mutate(x: &mut Field) {
+        *x = 5;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_impl_method() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn mutate(&mut self) {
+            self.value = 2;
+        }
+    }
+
+    fn main() {
+        let mut foo = Foo { value: 1 };
+        let f = || foo.mutate();
+                   ^^^ Mutable variable foo captured in lambda must be a mutable reference
+                   ~~~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        f();
+        assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_attaching_mut_ref_to_immutable_object() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn mutate(&mut self) {
+            self.value = 2;
+        }
+    }
+
+    fn main() {
+        let foo = Foo { value: 1 };
+        let f = || foo.mutate();
+                   ^^^ Cannot mutate immutable variable `foo`
+        f();
+        assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn immutable_references_with_ownership_feature() {
+    let src = r#"
+        unconstrained fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+    "#;
+
+    let (_, _, errors) = get_program_using_features(src, &[UnstableFeature::Ownership]);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn immutable_references_without_ownership_feature() {
+    let src = r#"
+        fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_invalid_integer_bit_size() {
+    let src = r#"
+    fn main() {
+        let _: u42 = 4;
+               ^^^ Use of invalid bit size 42
+               ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_array_element_as_func_arg() {
+    let src = r#"
+    fn foo(x: &mut u32) {
+        *x += 1;
+    }
+    fn main() {
+        let mut state: [u32; 4] = [1, 2, 3, 4];
+        foo(&mut state[0]);
+                 ^^^^^^^^ Mutable references to array elements are currently unsupported
+                 ~~~~~~~~ Try storing the element in a fresh variable first
+        assert_eq(state[0], 2); // expect:2 got:1
+    }
+    "#;
+    check_errors(src);
 }

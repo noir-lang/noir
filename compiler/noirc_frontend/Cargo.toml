@@ -36,9 +36,8 @@ fxhash.workspace = true
 [dev-dependencies]
 base64.workspace = true
 proptest.workspace = true
-proptest-derive = "0.5.0"
+proptest-derive.workspace = true
 
 [features]
-experimental_parser = []
 bn254 = []
 bls12_381 = []

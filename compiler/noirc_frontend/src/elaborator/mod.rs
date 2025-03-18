@@ -199,25 +199,26 @@ pub struct Elaborator<'context> {
     /// Sometimes items are elaborated because a function attribute ran and generated items.
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
-    pub(crate) elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
+    pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
 }
 
 #[derive(Copy, Clone)]
 pub enum ElaborateReason {
     /// A function attribute generated an item that's being elaborated.
-    RunningAttribute,
-    /// Evaluating `Module::add_item`
-    AddingItemToModule,
+    RunningAttribute(Location),
+    /// Evaluating a comptime call like `Module::add_item`
+    EvaluatingComptimeCall(&'static str, Location),
 }
 
 impl ElaborateReason {
-    fn to_macro_error(self, error: CompilationError, location: Location) -> ComptimeError {
+    fn to_macro_error(self, error: CompilationError) -> ComptimeError {
         match self {
-            ElaborateReason::RunningAttribute => {
+            ElaborateReason::RunningAttribute(location) => {
                 ComptimeError::ErrorRunningAttribute { error: Box::new(error), location }
             }
-            ElaborateReason::AddingItemToModule => {
-                ComptimeError::ErrorAddingItemToModule { error: Box::new(error), location }
+            ElaborateReason::EvaluatingComptimeCall(method_name, location) => {
+                let error = Box::new(error);
+                ComptimeError::ErrorEvaluatingComptimeCall { method_name, error, location }
             }
         }
     }
@@ -251,7 +252,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
-        elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
+        elaborate_reasons: im::Vector<ElaborateReason>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -477,10 +478,10 @@ impl<'context> Elaborator<'context> {
 
         // Check arg and return-value visibility of standalone functions.
         if self.should_check_function_visibility(&func_meta, &modifiers) {
-            let name = Ident(Located::from(
-                func_meta.name.location,
+            let name = Ident::new(
                 self.interner.definition_name(func_meta.name.id).to_string(),
-            ));
+                func_meta.name.location,
+            );
             for (_, typ, _) in func_meta.parameters.iter() {
                 self.check_type_is_not_more_private_then_item(
                     &name,
@@ -588,7 +589,7 @@ impl<'context> Elaborator<'context> {
         for (mut constraint, expr_id, select_impl) in context.trait_constraints {
             let location = self.interner.expr_location(&expr_id);
 
-            if matches!(&constraint.typ, Type::MutableReference(_)) {
+            if matches!(&constraint.typ, Type::Reference(..)) {
                 let (_, dereferenced_typ) =
                     self.insert_auto_dereferences(expr_id, constraint.typ.clone());
                 constraint.typ = dereferenced_typ;
@@ -637,7 +638,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Add the given generics to scope.
-    /// Each generic will have a fresh Shared<TypeBinding> associated with it.
+    /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             let mut is_error = false;
@@ -687,7 +688,7 @@ impl<'context> Elaborator<'context> {
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
                 let ident = generic.ident();
-                let name = Rc::new(ident.0.contents.clone());
+                let name = Rc::new(ident.to_string());
                 Ok((typevar, name))
             }
             // An already-resolved generic is only possible if it is the result of a
@@ -841,7 +842,7 @@ impl<'context> Elaborator<'context> {
                     .trait_generics
                     .named_args
                     .iter()
-                    .any(|(name, _)| name.0.contents == *associated_type.name.as_ref())
+                    .any(|(name, _)| name.as_str() == *associated_type.name.as_ref())
                 {
                     // This generic isn't contained in the bound's named arguments,
                     // so add it by creating a fresh type variable.
@@ -999,7 +1000,7 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
+            .filter_map(|generic| self.find_generic(generic.ident().as_str()).cloned())
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
@@ -1078,7 +1079,7 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used(from);
                 self.mark_type_as_used(to);
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, _) => {
                 self.mark_type_as_used(typ);
             }
             Type::InfixExpr(left, _op, right, _) => {
@@ -1264,9 +1265,13 @@ impl<'context> Elaborator<'context> {
         self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        for (module, function, _) in &trait_impl.methods.functions {
+        for (module, function, noir_function) in &trait_impl.methods.functions {
             self.local_module = *module;
-            let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
+            let errors = check_trait_impl_method_matches_declaration(
+                self.interner,
+                *function,
+                noir_function,
+            );
             self.push_errors(errors.into_iter().map(|error| error.into()));
         }
 
@@ -1457,8 +1462,8 @@ impl<'context> Elaborator<'context> {
         self.self_type = Some(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type, Type::MutableReference(_)) {
-            self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl {
+        if matches!(self_type, Type::Reference(..)) {
+            self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
                 location: self_type_location,
             });
         }
@@ -1539,12 +1544,12 @@ impl<'context> Elaborator<'context> {
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+        &self.def_maps.get(&module.krate).expect(message)[module.local_id]
     }
 
     fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
+        &mut def_maps.get_mut(&module.krate).expect(message)[module.local_id]
     }
 
     fn declare_methods_on_struct(
@@ -1751,7 +1756,7 @@ impl<'context> Elaborator<'context> {
                 );
                 self.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
-            Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
+            Type::Reference(typ, _) | Type::Array(_, typ) | Type::Slice(typ) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {
@@ -1888,6 +1893,7 @@ impl<'context> Elaborator<'context> {
 
             datatype.borrow_mut().init_variants();
             let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
+            self.resolving_ids.insert(*type_id);
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let parameters = variant.item.parameters.as_ref();
@@ -1914,7 +1920,10 @@ impl<'context> Elaborator<'context> {
                 let location = variant.item.name.location();
                 self.interner.add_definition_location(reference_id, location, Some(module_id));
             }
+
+            self.resolving_ids.remove(type_id);
         }
+        self.generics.clear();
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
@@ -2162,5 +2171,14 @@ impl<'context> Elaborator<'context> {
             let reason = ParserErrorReason::ExperimentalFeature(feature);
             self.push_err(ParserError::with_reason(reason, location));
         }
+    }
+
+    /// Run the given function using the resolver and return true if any errors (not warnings)
+    /// occurred while running it.
+    pub fn errors_occurred_in<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (bool, T) {
+        let previous_errors = self.errors.len();
+        let ret = f(self);
+        let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());
+        (errored, ret)
     }
 }

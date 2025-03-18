@@ -111,7 +111,7 @@ impl UseSegmentPositions {
             if !prefix.is_empty() {
                 prefix.push_str("::");
             };
-            prefix.push_str(&ident.0.contents);
+            prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {
                 self.insert_use_segment_position(
@@ -133,7 +133,7 @@ impl UseSegmentPositions {
                 if !prefix.is_empty() {
                     prefix.push_str("::");
                 }
-                prefix.push_str(&ident.0.contents);
+                prefix.push_str(ident.as_str());
 
                 if alias.is_none() {
                     self.insert_use_segment_position(

@@ -95,6 +95,7 @@ async function setup_compiler(
     debugLogFn = logFn;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const cjs = await require('../build/cjs');
   return await NoirWasmCompiler.new(
     fileManager,

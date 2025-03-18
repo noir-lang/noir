@@ -102,11 +102,10 @@ fn trait_inheritance_with_generics_4() {
 
 #[test]
 fn trait_inheritance_dependency_cycle() {
-    // TODO: maybe the error location should be just on Foo
     let src = r#"
         trait Foo: Bar {}
-        ^^^^^^^^^^^^^^^^^ Dependency cycle found
-        ~~~~~~~~~~~~~~~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
+              ^^^ Dependency cycle found
+              ~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
         trait Bar: Foo {}
         fn main() {}
     "#;
@@ -115,18 +114,17 @@ fn trait_inheritance_dependency_cycle() {
 
 #[test]
 fn trait_inheritance_missing_parent_implementation() {
-    // TODO: the secondary errors are missing a closing backtick
     let src = r#"
         pub trait Foo {}
 
         pub trait Bar: Foo {}
-                       ~~~ required by this bound in `Bar
+                       ~~~ required by this bound in `Bar`
 
         pub struct Struct {}
 
         impl Bar for Struct {}
                      ^^^^^^ The trait bound `Struct: Foo` is not satisfied
-                     ~~~~~~ The trait `Foo` is not implemented for `Struct
+                     ~~~~~~ The trait `Foo` is not implemented for `Struct`
 
         fn main() {
             let _ = Struct {}; // silence Struct never constructed warning
@@ -214,7 +212,7 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
         pub trait Foo<T>
         where
             T: Greeter,
-               ~~~~~~~ required by this bound in `Foo
+               ~~~~~~~ required by this bound in `Foo`
         {
             fn greet<U>(object: U)
             where
@@ -230,7 +228,7 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
 
         impl Foo<SomeGreeter> for Bar {}
                                   ^^^ The trait bound `SomeGreeter: Greeter` is not satisfied
-                                  ~~~ The trait `Greeter` is not implemented for `SomeGreeter
+                                  ~~~ The trait `Greeter` is not implemented for `SomeGreeter`
 
         fn main() {}
     "#;
@@ -1213,4 +1211,81 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_tur
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn as_trait_path_in_expression() {
+    let src = r#"
+        fn main() {
+            cursed::<S>();
+        }
+
+        fn cursed<T>()
+            where T: Foo + Foo2
+        {
+            <T as Foo>::bar(1);
+            <T as Foo2>::bar(());
+
+            // Use each function with different generic arguments
+            <T as Foo>::bar(());
+        }
+
+        trait Foo  { fn bar<U>(x: U); }
+        trait Foo2 { fn bar<U>(x: U); }
+
+        pub struct S {}
+
+        impl Foo for S {
+            fn bar<Z>(_x: Z) {}
+        }
+
+        impl Foo2 for S {
+            fn bar<Z>(_x: Z) {}
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_renaming_trait_during_import() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
+    let src = r#"
+    mod trait_mod {
+        pub trait Foo {
+            fn foo(_: Self) {}
+        }
+
+        impl Foo for Field {}
+    }
+
+    use trait_mod::Foo as FooTrait;
+
+    fn main(x: Field) {
+        x.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn renaming_trait_avoids_name_collisions() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
+    let src = r#"
+    mod trait_mod {
+        pub trait Foo {
+            fn foo(_: Self) {}
+        }
+
+        impl Foo for Field {}
+    }
+
+    use trait_mod::Foo as FooTrait;
+
+    pub struct Foo {}
+
+    fn main(x: Field) {
+        x.foo();
+    }
+    "#;
+    assert_no_errors(src);
 }

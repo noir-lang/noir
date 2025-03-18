@@ -1,4 +1,7 @@
-use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul};
+use std::{
+    embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul},
+    ops::Add,
+};
 
 fn main() -> pub Field {
     let pre_address = 0x23d95e303879a5d0bbef78ecbc335e559da37431f6dcd11da54ed375c2846813;

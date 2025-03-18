@@ -91,6 +91,7 @@ impl Elaborator<'_> {
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
+        let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
         let (expression, expr_type) =
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
@@ -98,8 +99,11 @@ impl Elaborator<'_> {
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {
             let expected_type = annotated_type.clone();
-            let error =
-                ResolverError::UnspecifiedGlobalType { location: expr_location, expected_type };
+            let error = ResolverError::UnspecifiedGlobalType {
+                pattern_location,
+                expr_location,
+                expected_type,
+            };
             self.push_err(error);
         }
 
@@ -151,8 +155,11 @@ impl Elaborator<'_> {
         let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue);
 
         if !mutable {
-            let (name, location) = self.get_lvalue_name_and_location(&lvalue);
+            let (_, name, location) = self.get_lvalue_error_info(&lvalue);
             self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+        } else {
+            let (id, name, location) = self.get_lvalue_error_info(&lvalue);
+            self.check_can_mutate_lambda_capture(id, name, location);
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
@@ -202,11 +209,10 @@ impl Elaborator<'_> {
         );
 
         // Check that start range and end range have the same types
-        let range_location = start_location.merge(end_location);
         self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
             expected_typ: start_range_type.to_string(),
             expr_typ: end_range_type.to_string(),
-            expr_location: range_location,
+            expr_location: end_location,
         });
 
         let expected_type = self.polymorphic_integer();
@@ -214,7 +220,7 @@ impl Elaborator<'_> {
         self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
             typ: start_range_type.clone(),
             place: "for loop",
-            location: range_location,
+            location: start_location,
         });
 
         self.interner.push_definition_type(identifier.id, start_range_type);
@@ -331,20 +337,20 @@ impl Elaborator<'_> {
         (expr, self.interner.next_type_variable())
     }
 
-    fn get_lvalue_name_and_location(&self, lvalue: &HirLValue) -> (String, Location) {
+    fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
         match lvalue {
             HirLValue::Ident(name, _) => {
                 let location = name.location;
 
                 if let Some(definition) = self.interner.try_definition(name.id) {
-                    (definition.name.clone(), location)
+                    (name.id, definition.name.clone(), location)
                 } else {
-                    ("(undeclared variable)".into(), location)
+                    (DefinitionId::dummy_id(), "(undeclared variable)".into(), location)
                 }
             }
-            HirLValue::MemberAccess { object, .. } => self.get_lvalue_name_and_location(object),
-            HirLValue::Index { array, .. } => self.get_lvalue_name_and_location(array),
-            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_name_and_location(lvalue),
+            HirLValue::MemberAccess { object, .. } => self.get_lvalue_error_info(object),
+            HirLValue::Index { array, .. } => self.get_lvalue_error_info(array),
+            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_error_info(lvalue),
         }
     }
 
@@ -353,7 +359,7 @@ impl Elaborator<'_> {
             LValue::Ident(ident) => {
                 let mut mutable = true;
                 let location = ident.location();
-                let path = Path::from_single(ident.0.contents, location);
+                let path = Path::from_single(ident.to_string(), location);
                 let ((ident, scope_index), _) = self.get_ident_from_path(path);
 
                 self.resolve_local_variable(ident.clone(), scope_index);
@@ -401,7 +407,7 @@ impl Elaborator<'_> {
                     *mutable_ref = true;
                 };
 
-                let name = &field_name.0.contents;
+                let name = field_name.as_str();
                 let (object_type, field_index) = self
                     .check_field_access(
                         &lhs_type,
@@ -431,8 +437,8 @@ impl Elaborator<'_> {
                 let (mut lvalue, mut lvalue_type, mut mutable) = self.elaborate_lvalue(*array);
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
-                // as needed to unwrap any &mut wrappers.
-                while let Type::MutableReference(element) = lvalue_type.follow_bindings() {
+                // as needed to unwrap any `&` or `&mut` wrappers.
+                while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
                     lvalue =
                         HirLValue::Dereference { lvalue: Box::new(lvalue), element_type, location };
@@ -446,8 +452,8 @@ impl Elaborator<'_> {
                     Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
-                        let (_lvalue_name, lvalue_location) =
-                            self.get_lvalue_name_and_location(&lvalue);
+                        let (_id, _lvalue_name, lvalue_location) =
+                            self.get_lvalue_error_info(&lvalue);
                         self.push_err(TypeCheckError::StringIndexAssign {
                             location: lvalue_location,
                         });
@@ -476,7 +482,9 @@ impl Elaborator<'_> {
                 let lvalue = Box::new(lvalue);
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
-                let expected_type = Type::MutableReference(Box::new(element_type.clone()));
+
+                // Always expect a mutable reference here since we're storing to it
+                let expected_type = Type::Reference(Box::new(element_type.clone()), true);
 
                 self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_type.to_string(),
@@ -533,9 +541,8 @@ impl Elaborator<'_> {
                     }
                 }
             }
-            // If the lhs is a mutable reference we automatically transform
-            // lhs.field into (*lhs).field
-            Type::MutableReference(element) => {
+            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
+            Type::Reference(element, mutable) => {
                 if let Some(mut dereference_lhs) = dereference_lhs {
                     dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
                     return self.check_field_access(
@@ -547,7 +554,7 @@ impl Elaborator<'_> {
                 } else {
                     let (element, index) =
                         self.check_field_access(element, field_name, location, dereference_lhs)?;
-                    return Some((Type::MutableReference(Box::new(element)), index));
+                    return Some((Type::Reference(Box::new(element), *mutable), index));
                 }
             }
             _ => (),

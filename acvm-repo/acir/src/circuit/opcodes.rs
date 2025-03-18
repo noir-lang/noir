@@ -15,7 +15,8 @@ pub use black_box_function_call::{
 };
 pub use memory_operation::{BlockId, MemOp};
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BlockType {
     Memory,
     CallData(u32),
@@ -30,7 +31,8 @@ impl BlockType {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub enum Opcode<F> {
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+pub enum Opcode<F: AcirField> {
     /// An `AssertZero` opcode adds the constraint that `P(w) = 0`, where
     /// `w=(w_1,..w_n)` is a tuple of `n` witnesses, and `P` is a multi-variate
     /// polynomial of total degree at most `2`.
@@ -132,20 +134,8 @@ pub enum Opcode<F> {
 impl<F: AcirField> std::fmt::Display for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::AssertZero(expr) => {
-                write!(f, "EXPR [ ")?;
-                for i in &expr.mul_terms {
-                    write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;
-                }
-                for i in &expr.linear_combinations {
-                    write!(f, "({}, _{}) ", i.0, i.1.witness_index())?;
-                }
-                write!(f, "{}", expr.q_c)?;
-
-                write!(f, " ]")
-            }
-
-            Opcode::BlackBoxFuncCall(g) => write!(f, "{g}"),
+            Opcode::AssertZero(expr) => expr.fmt(f),
+            Opcode::BlackBoxFuncCall(g) => g.fmt(f),
             Opcode::MemoryOp { block_id, op, predicate } => {
                 write!(f, "MEM ")?;
                 if let Some(pred) = predicate {

@@ -37,8 +37,8 @@ pub enum DefCollectorErrorKind {
     CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { location: Location },
-    #[error("Cannot implement trait on a mutable reference type")]
-    MutableReferenceInTraitImpl { location: Location },
+    #[error("Cannot implement trait on a reference type")]
+    ReferenceInTraitImpl { location: Location },
     #[error("Impl for type `{typ}` overlaps with existing impl")]
     OverlappingImpl { typ: crate::Type, location: Location, prev_location: Location },
     #[error("Cannot `impl` a type defined outside the current crate")]
@@ -77,7 +77,7 @@ pub enum DefCollectorErrorKind {
 impl DefCollectorErrorKind {
     pub fn location(&self) -> Location {
         match self {
-            DefCollectorErrorKind::Duplicate { first_def: ident, .. }
+            DefCollectorErrorKind::Duplicate { second_def: ident, .. }
             | DefCollectorErrorKind::UnresolvedModuleDecl { mod_name: ident, .. }
             | DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
                 item_name: ident,
@@ -97,7 +97,7 @@ impl DefCollectorErrorKind {
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
             | DefCollectorErrorKind::NonStructTypeInImpl { location }
-            | DefCollectorErrorKind::MutableReferenceInTraitImpl { location }
+            | DefCollectorErrorKind::ReferenceInTraitImpl { location }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
@@ -115,7 +115,7 @@ impl DefCollectorErrorKind {
 
 impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
     fn from(error: &'a UnsupportedNumericGenericType) -> Diagnostic {
-        let name = &error.ident.0.contents;
+        let name = error.ident.as_str();
         let typ = &error.typ;
 
         Diagnostic::simple_error(
@@ -123,7 +123,7 @@ impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
                 "{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."
             ),
             "Unsupported numeric generic type".to_string(),
-            error.ident.0.location(),
+            error.ident.location(),
         )
     }
 }
@@ -153,38 +153,30 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
                 let primary_message = format!(
                     "Duplicate definitions of {} with name {} found",
-                    &typ, &first_def.0.contents
+                    &typ, first_def
                 );
                 {
-                    let first_location = first_def.0.location();
-                    let second_location = second_def.0.location();
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("First {} found here", &typ),
-                        first_location,
+                        format!("Second {} found here", &typ),
+                        second_def.location(),
                     );
-                    diag.add_secondary(format!("Second {} found here", &typ), second_location);
+                    diag.add_secondary(format!("First {} found here", &typ), first_def.location());
                     diag
                 }
             }
             DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path, alternative_path } => {
-                let location = mod_name.0.location();
-                let mod_name = &mod_name.0.contents;
-
                 Diagnostic::simple_error(
                     format!("No module `{mod_name}` at path `{expected_path}` or `{alternative_path}`"),
                     String::new(),
-                    location,
+                    mod_name.location(),
                 )
             }
             DefCollectorErrorKind::OverlappingModuleDecls { mod_name, expected_path, alternative_path } => {
-                let location = mod_name.0.location();
-                let mod_name = &mod_name.0.contents;
-
                 Diagnostic::simple_error(
                     format!("Overlapping modules `{mod_name}` at  path `{expected_path}` and `{alternative_path}`"),
                     String::new(),
-                    location,
+                    mod_name.location(),
                 )
             }
             DefCollectorErrorKind::PathResolutionError(error) => error.into(),
@@ -199,8 +191,8 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 *location,
             ),
-            DefCollectorErrorKind::MutableReferenceInTraitImpl { location } => Diagnostic::simple_error(
-                "Trait impls are not allowed on mutable reference types".into(),
+            DefCollectorErrorKind::ReferenceInTraitImpl { location } => Diagnostic::simple_error(
+                "Trait impls are not allowed on reference types".into(),
                 "Try using a struct type here instead".into(),
                 *location,
             ),
@@ -224,25 +216,20 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 trait_path.location,
             ),
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } => {
-                let trait_name = &trait_name.0.contents;
-                let impl_method_location = impl_method.location();
-                let impl_method_name = &impl_method.0.contents;
-                let primary_message = format!("Method with name `{impl_method_name}` is not part of trait `{trait_name}`, therefore it can't be implemented");
-                Diagnostic::simple_error(primary_message, "".to_owned(), impl_method_location)
+                let primary_message = format!("Method with name `{impl_method}` is not part of trait `{trait_name}`, therefore it can't be implemented");
+                Diagnostic::simple_error(primary_message, "".to_owned(), impl_method.location())
             }
             DefCollectorErrorKind::TraitMissingMethod {
                 trait_name,
                 method_name,
                 trait_impl_location,
             } => {
-                let trait_name = &trait_name.0.contents;
-                let impl_method_name = &method_name.0.contents;
                 let primary_message = format!(
-                    "Method `{impl_method_name}` from trait `{trait_name}` is not implemented"
+                    "Method `{method_name}` from trait `{trait_name}` is not implemented"
                 );
                 Diagnostic::simple_error(
                     primary_message,
-                    format!("Please implement {impl_method_name} here"),
+                    format!("Please implement {method_name} here"),
                     *trait_impl_location,
                 )
             }

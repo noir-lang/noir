@@ -1,5 +1,5 @@
-struct MyStruct {
-    Q: Field,
+pub struct MyStruct {
+    pub Q: Field,
 }
 
 impl crate1::MyTrait for MyStruct {
