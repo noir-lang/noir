@@ -74,7 +74,6 @@ impl FuzzerBuilder {
 
     /// Inserts an add instruction between two values
     pub fn insert_add_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: false }, rhs)
     }
 
@@ -83,13 +82,11 @@ impl FuzzerBuilder {
         lhs: Id<Value>,
         rhs: Id<Value>,
     ) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: true }, rhs)
     }
 
     /// Inserts a subtract instruction between two values
     pub fn insert_sub_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: false }, rhs)
     }
 
@@ -98,13 +95,11 @@ impl FuzzerBuilder {
         lhs: Id<Value>,
         rhs: Id<Value>,
     ) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs)
     }
 
     /// Inserts a multiply instruction between two values
     pub fn insert_mul_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: false }, rhs)
     }
 
@@ -113,31 +108,26 @@ impl FuzzerBuilder {
         lhs: Id<Value>,
         rhs: Id<Value>,
     ) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs)
     }
 
     /// Inserts a divide instruction between two values
     pub fn insert_div_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Div, rhs)
     }
 
     /// Inserts a modulo instruction between two values
     pub fn insert_mod_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Mod, rhs)
     }
 
     /// Inserts a not instruction for the given value
     pub fn insert_not_instruction(&mut self, lhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_not(lhs)
     }
 
     /// Inserts a cast instruction to the current numeric type
     pub fn insert_simple_cast(&mut self, value: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_cast(value, self.numeric_type)
     }
 
@@ -151,50 +141,45 @@ impl FuzzerBuilder {
         match self.numeric_type {
             NumericType::Signed { bit_size: _ } => {
                 let res1 = self.builder.insert_cast(value, NumericType::Signed { bit_size: size });
-                
+
                 self.insert_simple_cast(res1)
             }
             NumericType::Unsigned { bit_size: _ } => {
                 let res1 =
                     self.builder.insert_cast(value, NumericType::Unsigned { bit_size: size });
-                
+
                 self.insert_simple_cast(res1)
             }
-            NumericType::NativeField => {
-                value
-            }
+            NumericType::NativeField => value,
         }
     }
 
     /// Inserts an equals comparison instruction between two values
     pub fn insert_eq_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let res1 = self.builder.insert_binary(lhs, BinaryOp::Eq, rhs);
-        
+
         self.insert_simple_cast(res1)
     }
 
     /// Inserts a less than comparison instruction between two values
     pub fn insert_lt_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let res1 = self.builder.insert_binary(lhs, BinaryOp::Lt, rhs);
-        
+
         self.insert_simple_cast(res1)
     }
 
     /// Inserts a bitwise AND instruction between two values
     pub fn insert_and_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::And, rhs)
     }
 
     /// Inserts a bitwise OR instruction between two values
     pub fn insert_or_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Or, rhs)
     }
 
     /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        
         self.builder.insert_binary(lhs, BinaryOp::Xor, rhs)
     }
 
@@ -205,13 +190,13 @@ impl FuzzerBuilder {
         match self.numeric_type {
             NumericType::Signed { bit_size: _ } => {
                 let rhs_value = self.builder.insert_cast(rhs, NumericType::Signed { bit_size: 8 });
-                
+
                 self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value)
             }
             NumericType::Unsigned { bit_size: _ } => {
                 let rhs_value =
                     self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-                
+
                 self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value)
             }
             _ => {
@@ -228,13 +213,13 @@ impl FuzzerBuilder {
             NumericType::Signed { bit_size: _ } => {
                 let rhs_value =
                     self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-                
+
                 self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value)
             }
             NumericType::Unsigned { bit_size: _ } => {
                 let rhs_value =
                     self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-                
+
                 self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value)
             }
             _ => {
@@ -251,7 +236,7 @@ impl FuzzerBuilder {
             elems.push(helpers::u32_to_id_value(elem));
         }
         let types = vec![self.type_.clone(); elements.len()];
-        
+
         self.builder.insert_make_array(
             im::Vector::from(elems),
             Type::Array(Arc::new(types), elements.len() as u32),
@@ -262,7 +247,7 @@ impl FuzzerBuilder {
     pub fn insert_array_get(&mut self, array: Id<Value>, index: u32) -> Id<Value> {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
-        
+
         self.builder.insert_array_get(array, index_var, self.type_.clone())
     }
 
@@ -275,7 +260,7 @@ impl FuzzerBuilder {
     ) -> Id<Value> {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
-        
+
         self.builder.insert_array_set(array, index_var, value)
     }
 

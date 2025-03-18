@@ -182,7 +182,7 @@ impl FuzzerContext {
 
     /// Gets an element from an array at the given index
     fn insert_array_get(&mut self, array_idx: u32, index: u32) {
-        if self.acir_arrays.len() <= 0 {
+        if self.acir_arrays.is_empty() {
             // no arrays created
             return;
         }
@@ -204,7 +204,7 @@ impl FuzzerContext {
 
     /// Sets an element in an array at the given index
     fn insert_array_set(&mut self, array_idx: u32, index: u32, value: u32) {
-        if self.acir_arrays.len() <= 0 {
+        if self.acir_arrays.is_empty() {
             // no arrays created
             return;
         }
@@ -329,8 +329,7 @@ impl FuzzerContext {
                 self.acir_ids.push(id_to_int(acir_result));
                 self.brillig_ids.push(id_to_int(brillig_result));
             }
-            _ => {
-            }
+            _ => {}
         }
     }
 

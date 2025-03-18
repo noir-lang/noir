@@ -328,8 +328,7 @@ impl FuzzerContext {
                 self.acir_ids.push(id_to_int(acir_result));
                 self.brillig_ids.push(id_to_int(brillig_result));
             }
-            _ => {
-            }
+            _ => {}
         }
     }
 
