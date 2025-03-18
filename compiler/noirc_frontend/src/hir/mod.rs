@@ -14,7 +14,7 @@ use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{Contract, CrateDefMap, fully_qualified_module_path};
+use def_map::{CrateDefMap, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -137,7 +137,7 @@ impl Context<'_, '_> {
         let module = self.module(module_id);
 
         let parent =
-            def_map.get_module_path_with_separator(module_id.local_id.0, module.parent, "::");
+            def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
 
         if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
     }
@@ -207,13 +207,6 @@ impl Context<'_, '_> {
                 (function_name, function_id)
             })
             .collect()
-    }
-
-    /// Return a Vec of all `contract` declarations in the source code and the functions they contain
-    pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
-        self.def_map(crate_id)
-            .expect("The local crate should be analyzed already")
-            .get_all_contracts(&self.def_interner)
     }
 
     pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {

@@ -132,7 +132,7 @@ impl Type {
         Type::unsigned(8)
     }
 
-    /// Creates the str<N> type, of the given length N
+    /// Creates the `str<N>` type, of the given length N
     pub(crate) fn str(length: u32) -> Type {
         Type::Array(Arc::new(vec![Type::char()]), length)
     }

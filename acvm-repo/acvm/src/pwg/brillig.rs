@@ -4,7 +4,7 @@ use acir::{
     AcirField,
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
     },
@@ -16,7 +16,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
 
-use super::{get_value, insert_value, memory_op::MemoryOpSolver};
+use super::{
+    ErrorSelector, RawAssertionPayload, ResolvedAssertionPayload, get_value, insert_value,
+    memory_op::MemoryOpSolver,
+};
 
 #[derive(Debug)]
 pub enum BrilligSolverStatus<F> {
@@ -35,7 +38,7 @@ pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
-    /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
+    /// Assigns the zero value to all outputs of a given [brillig call][acir::circuit::opcodes::Opcode::BrilligCall].
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],

@@ -196,7 +196,7 @@ pub struct NodeInterner {
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
 
     /// A list of all type aliases that are referenced in the program.
-    /// Searched by LSP to resolve [Location]s of [TypeAliasType]s
+    /// Searched by LSP to resolve [Location]s of [TypeAlias]s
     pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 
     /// Stores the [Location] of a [Type] reference

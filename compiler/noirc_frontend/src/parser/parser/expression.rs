@@ -1101,6 +1101,39 @@ mod tests {
     }
 
     #[test]
+    fn parses_block_expression_with_a_single_assignment() {
+        let src = "{ x = 1 }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_break() {
+        let src = "{ break }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_continue() {
+        let src = "{ continue }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_let() {
+        let src = "
+        { let x = 1 }
+                  ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        parser.parse_expression();
+        let reason = get_single_error_reason(&parser.errors, span);
+        let ParserErrorReason::MissingSemicolonAfterLet = reason else {
+            panic!("Expected a different error");
+        };
+    }
+
+    #[test]
     fn parses_unsafe_expression() {
         let src = "
         // Safety: test
