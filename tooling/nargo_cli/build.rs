@@ -261,7 +261,11 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 String::new()
             };
 
-            if stdout.trim() != expected_stdout.trim() {
+            // Remove any trailing newlines added by some editors
+            let stdout = stdout.trim();
+            let expected_stdout = expected_stdout.trim();
+
+            if stdout != expected_stdout {
                 println!("stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}");
                 assert_eq!(stdout, expected_stdout);
             }
