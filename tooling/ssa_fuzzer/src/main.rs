@@ -25,7 +25,8 @@ fn main() {
     let mut brillig_program_builder = FuzzerBuilder::new_brillig();
 
     brillig_program_builder.insert_variables(type_.clone());
-    let brillig_result = brillig_program_builder.insert_mul_instruction_checked(Id::new(0), Id::new(0));
+    let brillig_result =
+        brillig_program_builder.insert_mul_instruction_checked(Id::new(0), Id::new(0));
     brillig_program_builder.finalize_function(brillig_result);
     let brillig_program = brillig_program_builder.compile().unwrap();
 
