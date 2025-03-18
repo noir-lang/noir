@@ -180,7 +180,7 @@ let a = [1, 2, 3];
 let b = a.mapi(|i, a| i + a * 2); // b is now [2, 5, 8]
 ```
 
-### `for_each`
+### for_each
 
 Applies a function to each element of the array.
 
@@ -201,7 +201,7 @@ a.for_each(|x| {
 // 3
 ```
 
-### `for_eachi`
+### for_eachi
 
 Applies a function to each element of the array, along with its index in the
 array.

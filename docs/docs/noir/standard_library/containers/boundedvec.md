@@ -307,7 +307,7 @@ Example:
 
 #include_code bounded-vec-mapi-example noir_stdlib/src/collections/bounded_vec.nr rust
 
-### `for_each`
+### for_each
 
 ```rust
 pub fn for_each<Env>(self, f: fn[Env](T) -> ())
@@ -319,7 +319,7 @@ Example:
 
 #include_code bounded-vec-for-each-example noir_stdlib/src/collections/bounded_vec.nr rust
 
-### `for_eachi`
+### for_eachi
 
 ```rust
 pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ())
