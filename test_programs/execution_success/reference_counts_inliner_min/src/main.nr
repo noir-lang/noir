@@ -92,8 +92,6 @@ fn regression_7297() {
     let array_2 = copy_mut(array, refcount_1);
     let refcount_2 = array_refcount(array);
 
-    println([refcount_0, refcount_1, refcount_2]);
-
     // Mutation of the original could occur if we double decremented the RC and then went back to 1 by accident.
     // For this to come out we have to run the test with `--inliner-aggressiveness -9223372036854775808`
     assert_eq(array[0], 6, "the original should not be mutated by copy_mut, only borrow_mut_two");
