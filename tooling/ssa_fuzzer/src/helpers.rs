@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use acvm::acir::native_types::Witness;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::map::Id;

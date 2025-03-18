@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::compiler::compile;
 use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 use crate::helpers;

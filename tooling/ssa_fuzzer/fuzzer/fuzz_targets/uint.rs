@@ -1,15 +1,17 @@
 //! This module implements a fuzzer for testing and comparing ACIR and Brillig SSA implementations.
 //! It generates random sequences of arithmetic and logical operations and ensures both implementations
 //! produce identical results.
+//!
 //! Main fuzz steps:
-//! 0) Generate random witness
-//! 1) Generate random sequence of instructions
-//! 2) Insert instructions into ACIR and Brillig builders
-//! 3) Get programs, and compile them
-//! 4) Run and compare
-//! if programs returned different results, then we have a bug
-//! if one of the programs failed to compile, then we just execute the other one
-//! and if the other one executed successfully, it's a bug
+//!    1. Generate random witness
+//!    2. Generate random sequence of instructions 
+//!    3. Insert instructions into ACIR and Brillig builders
+//!    4. Get programs, and compile them
+//!    5. Run and compare
+//!
+//! A bug is detected in two cases:
+//!    - If programs return different results
+//!    - If one program fails to compile but the other executes successfully
 
 #![no_main]
 
@@ -328,7 +330,6 @@ impl FuzzerContext {
                 self.acir_ids.push(id_to_int(acir_result));
                 self.brillig_ids.push(id_to_int(brillig_result));
             }
-            _ => {}
         }
     }
 
@@ -397,8 +398,8 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
 
     let (acir_program, brillig_program) = fuzzer_context.get_programs();
 
-    // if one of the programs failed to compile, we just execute the other one
-    // and if the other one executed successfully, it's a bug
+    //if one of the programs failed to compile, we just execute the other one
+    //and if the other one executed successfully, it's a bug
     let (acir_program, brillig_program) = match (acir_program, brillig_program) {
         (Ok(acir), Ok(brillig)) => (acir, brillig),
         (Err(_), Err(_)) => {
