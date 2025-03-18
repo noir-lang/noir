@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 
 use super::ModuleId;
 
@@ -7,7 +7,7 @@ use super::ModuleId;
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
-    TypeId(StructId),
+    TypeId(TypeId),
     TypeAliasId(TypeAliasId),
     TraitId(TraitId),
     GlobalId(GlobalId),
@@ -21,7 +21,7 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_type(&self) -> Option<StructId> {
+    pub fn as_type(&self) -> Option<TypeId> {
         match self {
             ModuleDefId::TypeId(type_id) => Some(*type_id),
             _ => None,

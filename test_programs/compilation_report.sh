@@ -6,9 +6,9 @@ current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
 # Tests to be profiled for compilation report
-tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression")
+tests_to_profile=("regression_4709" "ram_blowup_regression" "global_var_regression_entry_points")
 
-echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
+echo "[ " > $current_dir/compilation_report.json
 
 # If there is an argument that means we want to generate a report for only the current directory
 if [ "$1" == "1" ]; then
@@ -18,6 +18,7 @@ fi
 
 ITER="1"
 NUM_ARTIFACTS=${#tests_to_profile[@]}
+FLAGS=${FLAGS:- ""}
 
 for dir in ${tests_to_profile[@]}; do 
     if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
@@ -41,7 +42,7 @@ for dir in ${tests_to_profile[@]}; do
     TOTAL_TIME=0
 
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --silence-warnings
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --silence-warnings $FLAGS
     done
 
     TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))
@@ -61,7 +62,7 @@ for dir in ${tests_to_profile[@]}; do
                 printf "%.3f\n", 0
         }' <<<"${TIMES[@]}")
 
-    jq -rc "{artifact_name: \"$PACKAGE_NAME\", time: \""$AVG_TIME"s\"}" --null-input >> $current_dir/compilation_report.json
+    jq -rc "{name: \"$PACKAGE_NAME\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input >> $current_dir/compilation_report.json
 
     if (($ITER != $NUM_ARTIFACTS)); then
         echo "," >> $current_dir/compilation_report.json
@@ -72,4 +73,4 @@ for dir in ${tests_to_profile[@]}; do
     ITER=$(( $ITER + 1 ))
 done
 
-echo "]}" >> $current_dir/compilation_report.json
+echo "]" >> $current_dir/compilation_report.json

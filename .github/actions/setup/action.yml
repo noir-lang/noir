@@ -7,10 +7,10 @@ runs:
     - uses: actions/setup-node@v4
       id: node
       with:
-        node-version: 18.19.0
+        node-version: 20.18.3
         cache: 'yarn'
         cache-dependency-path: 'yarn.lock'
-    
+
     - name: Install
       run: yarn --immutable
       shell: bash

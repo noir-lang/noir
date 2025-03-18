@@ -1,4 +1,4 @@
-use crate::{errors::SemverError, ManifestError};
+use crate::{ManifestError, errors::SemverError};
 use nargo::{
     package::{Dependency, Package},
     workspace::Workspace,
@@ -37,7 +37,7 @@ fn semver_check_package(package: &Package, compiler_version: &Version) -> Result
                 return Err(SemverError::CouldNotParseRequiredVersion {
                     package_name: package.name.clone().into(),
                     error: err.to_string(),
-                })
+                });
             }
         };
 
@@ -109,12 +109,16 @@ mod tests {
             expression_width: None,
         };
         if let Err(err) = semver_check_package(&package, &compiler_version) {
-            panic!("semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}")
+            panic!(
+                "semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
+            )
         };
 
         package.compiler_required_version = Some("0.2.0".to_string());
         let got_err = match semver_check_package(&package, &compiler_version) {
-            Ok(_) => panic!("semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"),
+            Ok(_) => panic!(
+                "semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"
+            ),
             Err(err) => err,
         };
 
@@ -168,15 +172,19 @@ mod tests {
         );
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
-            panic!("semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}")
+            panic!(
+                "semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
+            )
         };
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_invalid").unwrap(),
             Dependency::Local { package: invalid_dependency.clone() },
         );
-        let got_err = match semver_check_package(&package,&compiler_version) {
-            Ok(_) => panic!("semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"),
+        let got_err = match semver_check_package(&package, &compiler_version) {
+            Ok(_) => panic!(
+                "semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"
+            ),
             Err(err) => err,
         };
 
@@ -204,7 +212,9 @@ mod tests {
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
-            panic!("semver check should have passed. compiler version is 0.2.0 and required version from the package is >=0.1.0\n error: {err:?}")
+            panic!(
+                "semver check should have passed. compiler version is 0.2.0 and required version from the package is >=0.1.0\n error: {err:?}"
+            )
         };
     }
 
@@ -244,7 +254,9 @@ mod tests {
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
-            panic!("semver check should have passed. compiler version is 0.1.0+build_data and required version from the package is 0.1.0\n The build data should be ignored\n error: {err:?}")
+            panic!(
+                "semver check should have passed. compiler version is 0.1.0+build_data and required version from the package is 0.1.0\n The build data should be ignored\n error: {err:?}"
+            )
         };
     }
 }

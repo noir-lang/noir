@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField,
     circuit::opcodes::MemOp,
     native_types::{Expression, Witness, WitnessMap},
-    AcirField,
 };
 
+use super::{ErrorLocation, OpcodeResolutionError};
 use super::{
     arithmetic::ExpressionSolver, get_value, insert_value, is_predicate_false, witness_to_value,
 };
-use super::{ErrorLocation, OpcodeResolutionError};
 
 type MemoryIndex = u32;
 
@@ -140,9 +140,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     use acir::{
+        AcirField, FieldElement,
         circuit::opcodes::MemOp,
         native_types::{Expression, Witness, WitnessMap},
-        AcirField, FieldElement,
     };
 
     use super::MemoryOpSolver;

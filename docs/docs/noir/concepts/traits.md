@@ -111,6 +111,79 @@ fn foo<T, U>(elements: [T], thing: U) where
 }
 ```
 
+## Invoking trait methods
+
+As seen in the previous section, the `area` method was invoked on a type `T` that had a where clause `T: Area`.
+
+To invoke `area` on a type that directly implements the trait `Area`, the trait must be in scope (imported):
+
+```rust
+use geometry::Rectangle;
+
+fn main() {
+    let rectangle = Rectangle { width: 1, height: 2};
+    let area = rectangle.area(); // Error: the compiler doesn't know which `area` method this is
+}
+```
+
+The above program errors because there might be multiple traits with an `area` method, all implemented
+by `Rectangle`, and it's not clear which one should be used.
+
+To make the above program compile, the trait must be imported:
+
+```rust
+use geometry::Rectangle;
+use geometry::Area; // Bring the Area trait into scope
+
+fn main() {
+    let rectangle = Rectangle { width: 1, height: 2};
+    let area = rectangle.area(); // OK: will use `area` from `geometry::Area`
+}
+```
+
+An error will also be produced if multiple traits with an `area` method are in scope. If both traits
+are needed in a file you can use the fully-qualified path to the trait:
+
+```rust
+use geometry::Rectangle;
+
+fn main() {
+    let rectangle = Rectangle { width: 1, height: 2};
+    let area = geometry::Area::area(rectangle);
+}
+```
+
+## As Trait Syntax
+
+Rarely to call a method it may not be sufficient to use the general method call syntax of `obj.method(args)`.
+One case where this may happen is if there are two traits in scope which both define a method with the same name.
+For example:
+
+```rust
+trait Foo  { fn bar(); }
+trait Foo2 { fn bar(); }
+
+fn example<T>()
+    where T: Foo + Foo2
+{
+    // How to call Foo::bar and Foo2::bar?
+}
+```
+
+In the above example we have both `Foo` and `Foo2` which define a `bar` method. The normal way to resolve
+this would be to use the static method syntax `Foo::bar(object)` but there is no object in this case and
+`Self` does not appear in the type signature of `bar` at all so we would not know which impl to choose.
+For these situations there is the "as trait" syntax: `<Type as Trait>::method(object, args...)`
+
+```rust
+fn example<T>()
+    where T: Foo + Foo2
+{
+    <T as Foo>::bar();
+    <T as Foo2>::bar();
+}
+```
+
 ## Generic Implementations
 
 You can add generics to a trait implementation by adding the generic list after the `impl` keyword:
@@ -252,36 +325,33 @@ impl MyTrait for Field {
 Since associated constants can also be used in a type position, its values are limited to only other
 expression kinds allowed in numeric generics.
 
-Note that currently all associated types and constants must be explicitly specified in a trait constraint.
-If we leave out any, we'll get an error that we're missing one:
+When writing a trait constraint, you can specify all associated types and constants explicitly if
+you wish:
 
 ```rust
-// Error! Constraint is missing associated constant for `Bar`
-fn foo<T>(x: T) where T: MyTrait<Foo = i32> {
+fn foo<T>(x: T) where T: MyTrait<Foo = i32, Bar = 11> {
     ...
 }
 ```
 
-Because all associated types and constants must be explicitly specified, they are essentially named generics,
-although this is set to change in the future. Future versions of Noir will allow users to elide associated types
-in trait constraints similar to Rust. When this is done, you may still refer to their value with the `<Type as Trait>::AssociatedType`
-syntax:
+Or you can also elide them since there should only be one `Foo` and `Bar` for a given implementation
+of `MyTrait` for a type:
 
 ```rust
-// Only valid in future versions of Noir:
 fn foo<T>(x: T) where T: MyTrait {
-    let _: <T as MyTrait>::Foo = ...;
+    ...
 }
 ```
 
-The type as trait syntax is possible in Noir today but is less useful when each type must be explicitly specified anyway:
+If you elide associated types, you can still refer to them via the type as trait syntax `<T as MyTrait>`:
 
 ```rust
-fn foo<T, F, let B: u32>(x: T) where T: MyTrait<Foo = F, Bar = B> {
-    // Works, but could just use F directly
-    let _: <T as MyTrait<Foo = F, Bar = B>>::Foo = ...;
-
-    let _: F = ...;
+fn foo<T>(x: T) where
+    T: MyTrait,
+    <T as MyTrait>::Foo: Default + Eq
+{
+    let foo_value: <T as MyTrait>::Foo = Default::default();
+    assert_eq(foo_value, foo_value);
 }
 ```
 
@@ -327,20 +397,6 @@ let my_struct = MyStruct::default();
 let x: Field = Default::default();
 let result = x + Default::default();
 ```
-
-:::warning
-
-```rust
-let _ = Default::default();
-```
-
-If type inference cannot select which impl to use because of an ambiguous `Self` type, an impl will be
-arbitrarily selected. This occurs most often when the result of a trait function call with no parameters
-is unused. To avoid this, when calling a trait function with no `self` or `Self` parameters or return type,
-always refer to it via the implementation type's namespace - e.g. `MyType::default()`.
-This is set to change to an error in future Noir versions.
-
-:::
 
 ## Default Method Implementations
 

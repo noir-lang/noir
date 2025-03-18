@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use acvm::{AcirField, FieldElement};
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{BinaryTypeOperator, Type, TypeBindings, UnificationError};
 
@@ -58,17 +58,23 @@ impl Type {
         run_simplifications: bool,
     ) -> Type {
         match self.follow_bindings() {
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let kind = lhs.infix_kind(&rhs);
-                let dummy_span = Span::default();
+                let dummy_location = Location::dummy();
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let (Ok(lhs_value), Ok(rhs_value)) = (
-                    lhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications),
-                    rhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications),
-                ) {
-                    if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_span) {
-                        return Type::Constant(result, kind);
+                if let Ok(lhs_value) =
+                    lhs.evaluate_to_field_element_helper(&kind, dummy_location, run_simplifications)
+                {
+                    if let Ok(rhs_value) = rhs.evaluate_to_field_element_helper(
+                        &kind,
+                        dummy_location,
+                        run_simplifications,
+                    ) {
+                        if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
+                        {
+                            return Type::Constant(result, kind);
+                        }
                     }
                 }
 
@@ -76,7 +82,7 @@ impl Type {
                 let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
 
                 if !run_simplifications {
-                    return Type::InfixExpr(Box::new(lhs), op, Box::new(rhs));
+                    return Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion);
                 }
 
                 if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, op, &rhs) {
@@ -97,7 +103,7 @@ impl Type {
                     return Self::sort_commutative(&lhs, op, &rhs);
                 }
 
-                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
+                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion)
             }
             Type::CheckedCast { from, to } => {
                 let inner_found_checked_cast = true;
@@ -131,14 +137,14 @@ impl Type {
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
             match item.canonicalize_unchecked() {
-                Type::InfixExpr(lhs_inner, new_op, rhs_inner) if new_op == op => {
+                Type::InfixExpr(lhs_inner, new_op, rhs_inner, _) if new_op == op => {
                     queue.push(*lhs_inner);
                     queue.push(*rhs_inner);
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
-                    let dummy_span = Span::default();
+                    let dummy_location = Location::dummy();
                     if let Ok(result) =
-                        op.function(constant, new_constant, &new_constant_kind, dummy_span)
+                        op.function(constant, new_constant, &new_constant_kind, dummy_location)
                     {
                         constant = result;
                     } else {
@@ -157,18 +163,18 @@ impl Type {
 
             // - 1 since `typ` already is set to the first instance
             for _ in 0..first_type_count - 1 {
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(first.0.clone()));
+                typ = Type::infix_expr(Box::new(typ), op, Box::new(first.0.clone()));
             }
 
             for (rhs, rhs_count) in sorted {
                 for _ in 0..rhs_count {
-                    typ = Type::InfixExpr(Box::new(typ), op, Box::new(rhs.clone()));
+                    typ = Type::infix_expr(Box::new(typ), op, Box::new(rhs.clone()));
                 }
             }
 
             if constant != zero_value {
                 let constant = Type::Constant(constant, lhs.infix_kind(rhs));
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(constant));
+                typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
             }
 
             typ
@@ -192,11 +198,11 @@ impl Type {
         match lhs.follow_bindings() {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
-                let from = Type::InfixExpr(from, op, Box::new(rhs.clone()));
+                let from = Type::infix_expr(from, op, Box::new(rhs.clone()));
                 let to = Self::try_simplify_non_constants_in_lhs(&to, op, rhs)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
-            Type::InfixExpr(l_lhs, l_op, l_rhs) => {
+            Type::InfixExpr(l_lhs, l_op, l_rhs, _) => {
                 // Note that this is exact, syntactic equality, not unification.
                 // `rhs` is expected to already be in canonical form.
                 if l_op.approx_inverse() != Some(op)
@@ -229,11 +235,11 @@ impl Type {
         match rhs.follow_bindings() {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
-                let from = Type::InfixExpr(Box::new(lhs.clone()), op, from);
+                let from = Type::infix_expr(Box::new(lhs.clone()), op, from);
                 let to = Self::try_simplify_non_constants_in_rhs(lhs, op, &to)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
-            Type::InfixExpr(r_lhs, r_op, r_rhs) => {
+            Type::InfixExpr(r_lhs, r_op, r_rhs, _) => {
                 // `N / (M * N)` should be simplified to `1 / M`, but we only handle
                 // simplifying to `M` in this function.
                 if op == BinaryTypeOperator::Division && r_op == BinaryTypeOperator::Multiplication
@@ -265,15 +271,14 @@ impl Type {
         rhs: &Type,
     ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
         let kind = lhs.infix_kind(rhs);
-        let dummy_span = Span::default();
-        let rhs = rhs.evaluate_to_field_element(&kind, dummy_span).ok()?;
+        let dummy_location = Location::dummy();
+        let rhs = rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
 
-        let Type::InfixExpr(l_type, l_op, l_rhs) = lhs.follow_bindings() else {
+        let Type::InfixExpr(l_type, l_op, l_rhs, _) = lhs.follow_bindings() else {
             return None;
         };
 
-        let dummy_span = Span::default();
-        let l_rhs = l_rhs.evaluate_to_field_element(&kind, dummy_span).ok()?;
+        let l_rhs = l_rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
         Some((l_type, l_op, l_rhs, rhs))
     }
 
@@ -298,11 +303,11 @@ impl Type {
                 if l_op == Subtraction {
                     op = op.inverse()?;
                 }
-                let dummy_span = Span::default();
+                let dummy_location = Location::dummy();
                 let result =
-                    op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_span).ok()?;
+                    op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
-                Some(Type::InfixExpr(l_type, l_op, Box::new(constant)))
+                Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication, Division) => {
                 // We need to ensure the result divides evenly to preserve integer division semantics
@@ -313,11 +318,11 @@ impl Type {
                 if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {
                     None
                 } else {
-                    let dummy_span = Span::default();
+                    let dummy_location = Location::dummy();
                     let result =
-                        op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_span).ok()?;
+                        op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
                     let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
-                    Some(Type::InfixExpr(l_type, l_op, constant))
+                    Some(Type::infix_expr(l_type, l_op, constant))
                 }
             }
             _ => None,
@@ -331,13 +336,14 @@ impl Type {
         other: &Type,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        if let Type::InfixExpr(lhs_a, op_a, rhs_a) = self {
+        if let Type::InfixExpr(lhs_a, op_a, rhs_a, _) = self {
             if let Some(inverse) = op_a.approx_inverse() {
                 let kind = lhs_a.infix_kind(rhs_a);
-                let dummy_span = Span::default();
-                if let Ok(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind, dummy_span) {
+                let dummy_location = Location::dummy();
+                if let Ok(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind, dummy_location) {
                     let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
-                    let new_other = Type::InfixExpr(Box::new(other.clone()), inverse, rhs_a);
+                    let new_other =
+                        Type::inverted_infix_expr(Box::new(other.clone()), inverse, rhs_a);
 
                     let mut tmp_bindings = bindings.clone();
                     if lhs_a.try_unify(&new_other, &mut tmp_bindings).is_ok() {
@@ -348,13 +354,14 @@ impl Type {
             }
         }
 
-        if let Type::InfixExpr(lhs_b, op_b, rhs_b) = other {
+        if let Type::InfixExpr(lhs_b, op_b, rhs_b, inversion) = other {
             if let Some(inverse) = op_b.approx_inverse() {
                 let kind = lhs_b.infix_kind(rhs_b);
-                let dummy_span = Span::default();
-                if let Ok(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind, dummy_span) {
+                let dummy_location = Location::dummy();
+                if let Ok(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind, dummy_location) {
                     let rhs_b = Box::new(Type::Constant(rhs_b_value, kind));
-                    let new_self = Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b);
+                    let new_self =
+                        Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b, !inversion);
 
                     let mut tmp_bindings = bindings.clone();
                     if new_self.try_unify(lhs_b, &mut tmp_bindings).is_ok() {
@@ -384,7 +391,7 @@ mod tests {
             TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
             std::rc::Rc::new("N".to_owned()),
         );
-        let n_minus_one = Type::InfixExpr(
+        let n_minus_one = Type::infix_expr(
             Box::new(n.clone()),
             BinaryTypeOperator::Subtraction,
             Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
@@ -392,7 +399,7 @@ mod tests {
         let checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
 
-        let n_minus_one_plus_one = Type::InfixExpr(
+        let n_minus_one_plus_one = Type::infix_expr(
             Box::new(checked_cast_n_minus_one.clone()),
             BinaryTypeOperator::Addition,
             Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
@@ -405,7 +412,7 @@ mod tests {
         // We also want to check that if the `CheckedCast` is on the RHS then we'll still be able to canonicalize
         // the expression `1 + (N - 1)` to `N`.
 
-        let one_plus_n_minus_one = Type::InfixExpr(
+        let one_plus_n_minus_one = Type::infix_expr(
             Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
             BinaryTypeOperator::Addition,
             Box::new(checked_cast_n_minus_one),
@@ -423,13 +430,13 @@ mod tests {
         let x_type = Type::TypeVariable(x_var.clone());
         let one = Type::Constant(FieldElement::one(), field_element_kind.clone());
 
-        let lhs = Type::InfixExpr(
+        let lhs = Type::infix_expr(
             Box::new(x_type.clone()),
             BinaryTypeOperator::Addition,
             Box::new(one.clone()),
         );
         let rhs =
-            Type::InfixExpr(Box::new(one), BinaryTypeOperator::Addition, Box::new(x_type.clone()));
+            Type::infix_expr(Box::new(one), BinaryTypeOperator::Addition, Box::new(x_type.clone()));
 
         // canonicalize
         let lhs = lhs.canonicalize();
@@ -546,7 +553,7 @@ mod proptests {
             10,  // We put up to 10 items per collection
             |inner| {
                 (inner.clone(), any::<BinaryTypeOperator>(), inner)
-                    .prop_map(|(lhs, op, rhs)| Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)))
+                    .prop_map(|(lhs, op, rhs)| Type::infix_expr(Box::new(lhs), op, Box::new(rhs)))
             },
         )
     }
@@ -593,7 +600,7 @@ mod proptests {
         #[test]
         // Expect cases that don't resolve to constants, e.g. see
         // `arithmetic_generics_checked_cast_indirect_zeros`
-        #[should_panic(expected = "matches!(infix, Type :: Constant(..))")]
+        #[should_panic(expected = "matches!(infix, Type::Constant(..))")]
         fn instantiate_before_or_after_canonicalize(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
 

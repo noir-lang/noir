@@ -3,21 +3,23 @@ mod tests {
     use acvm::acir::circuit::ExpressionWidth;
 
     use crate::{
+        brillig::BrilligOptions,
         errors::RuntimeError,
         ssa::{
-            opt::assert_normalized_ssa_equals, optimize_all, Ssa, SsaBuilder, SsaEvaluatorOptions,
-            SsaLogging,
+            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, opt::assert_normalized_ssa_equals,
+            optimize_all,
         },
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         let options = &SsaEvaluatorOptions {
             ssa_logging: SsaLogging::None,
-            enable_brillig_logging: false,
+            brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
             expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
+            enable_brillig_constraints_check_lookback: false,
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
@@ -84,7 +86,7 @@ mod tests {
 
         // After Array Set Optimizations:
         let expected = "
-          acir(inline) fn main f0 {
+          acir(inline) impure fn main f0 {
             b0(v0: u32):
               constrain u32 50 == v0
               v4 = call black_box(u32 10) -> u32

@@ -7,18 +7,17 @@ use clap::Args;
 use noir_lsp::NargoLspService;
 use tower::ServiceBuilder;
 
-use super::NargoConfig;
 use crate::errors::CliError;
 
 /// Starts the Noir LSP server
 ///
 /// Starts an LSP server which allows IDEs such as VS Code to display diagnostics in Noir source.
 ///
-/// VS Code Noir Language Support: https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir
+/// VS Code Noir Language Support: <https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir>
 #[derive(Debug, Clone, Args)]
 pub(crate) struct LspCommand;
 
-pub(crate) fn run(_args: LspCommand, _config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run() -> Result<(), CliError> {
     use tokio::runtime::Builder;
 
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();

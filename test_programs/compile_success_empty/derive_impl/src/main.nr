@@ -1,4 +1,4 @@
-comptime fn derive_default(typ: StructDefinition) -> Quoted {
+comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     let generics = typ.generics();
     assert_eq(
         generics.len(),
@@ -7,7 +7,7 @@ comptime fn derive_default(typ: StructDefinition) -> Quoted {
     );
 
     let type_name = typ.as_type();
-    let fields = typ.fields();
+    let fields = typ.fields_as_written();
 
     let fields = join(make_field_exprs(fields));
 

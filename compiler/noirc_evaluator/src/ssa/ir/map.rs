@@ -9,7 +9,7 @@ use thiserror::Error;
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
-/// either a DenseMap<T> or SparseMap<T>.
+/// either a `DenseMap<T>` or `SparseMap<T>`.
 ///
 /// Note that there is nothing in an Id binding it to a particular
 /// DenseMap or SparseMap. If an Id was created to correspond to one
@@ -123,7 +123,7 @@ pub(crate) enum IdDisplayFromStrErr {
     InvalidId(String),
 }
 
-/// The implementation of display and FromStr allows serializing and deserializing an Id<T> to a string.
+/// The implementation of display and FromStr allows serializing and deserializing an `Id<T>` to a string.
 /// This is useful when used as key in a map that has to be serialized to JSON/TOML.
 impl FromStr for Id<super::basic_block::BasicBlock> {
     type Err = IdDisplayFromStrErr;
@@ -190,7 +190,7 @@ impl<T> DenseMap<T> {
     /// Gets an iterator to a reference to each element in the dense map paired with its id.
     ///
     /// The id-element pairs are ordered by the numeric values of the ids.
-    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
+    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (Id<T>, &T)> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }

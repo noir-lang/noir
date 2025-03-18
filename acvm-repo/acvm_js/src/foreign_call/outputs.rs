@@ -1,6 +1,6 @@
 use acvm::{
-    brillig_vm::brillig::{ForeignCallParam, ForeignCallResult},
     FieldElement,
+    brillig_vm::brillig::{ForeignCallParam, ForeignCallResult},
 };
 use wasm_bindgen::JsValue;
 

@@ -3,21 +3,21 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::{
+    AcirField, BlackBoxFunc,
     circuit::{
+        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
     },
     native_types::{Expression, Witness},
-    AcirField, BlackBoxFunc,
 };
 
 use super::brillig_directive;
 use crate::{
+    ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::call_stack::CallStack,
-    ErrorType,
 };
 
 use iter_extended::vecmap;
@@ -186,16 +186,11 @@ impl<F: AcirField> GeneratedAcir<F> {
         inputs: &[Vec<FunctionInput<F>>],
         constant_inputs: Vec<F>,
         constant_outputs: Vec<F>,
-        output_count: usize,
-    ) -> Result<Vec<Witness>, InternalError> {
+        outputs: Vec<Witness>,
+    ) -> Result<(), InternalError> {
         let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
-        intrinsics_check_outputs(func_name, output_count);
-
-        let outputs = vecmap(0..output_count, |_| self.next_witness_index());
-
-        // clone is needed since outputs is moved when used in blackbox function.
-        let outputs_clone = outputs.clone();
+        intrinsics_check_outputs(func_name, outputs.len());
 
         let black_box_func_call = match func_name {
             BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
@@ -347,7 +342,7 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
-        Ok(outputs_clone)
+        Ok(())
     }
 
     /// Takes an input expression and returns witnesses that are constrained to be limbs
@@ -361,13 +356,18 @@ impl<F: AcirField> GeneratedAcir<F> {
         limb_count: u32,
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
+        let radix_range = 2..=256;
+        assert!(
+            radix_range.contains(&radix),
+            "ICE: Radix must be in the range 2..=256, but found: {:?}",
+            radix
+        );
         let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
             radix_big,
             "ICE: Radix must be a power of 2"
         );
-
         let limb_witnesses = self.brillig_to_radix(input_expr, radix, limb_count);
 
         let mut composed_limbs = Expression::default();
@@ -788,7 +788,10 @@ fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
         None => return,
     };
 
-    assert_eq!(expected_num_inputs,input_count,"Tried to call black box function {name} with {input_count} inputs, but this function's definition requires {expected_num_inputs} inputs");
+    assert_eq!(
+        expected_num_inputs, input_count,
+        "Tried to call black box function {name} with {input_count} inputs, but this function's definition requires {expected_num_inputs} inputs"
+    );
 }
 
 /// Checks that the number of outputs being used to call the blackbox function
@@ -818,5 +821,8 @@ fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
         None => return,
     };
 
-    assert_eq!(expected_num_outputs,output_count,"Tried to call black box function {name} with {output_count} outputs, but this function's definition requires {expected_num_outputs} outputs");
+    assert_eq!(
+        expected_num_outputs, output_count,
+        "Tried to call black box function {name} with {output_count} outputs, but this function's definition requires {expected_num_outputs} outputs"
+    );
 }

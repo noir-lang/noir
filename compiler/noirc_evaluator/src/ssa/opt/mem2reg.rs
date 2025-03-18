@@ -79,6 +79,7 @@ mod block;
 use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use vec_collections::VecSet;
 
 use crate::ssa::{
     ir::{
@@ -200,7 +201,7 @@ impl<'f> PerFunctionContext<'f> {
                 let is_dereference = block
                     .expressions
                     .get(store_address)
-                    .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
+                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
                 if !self.last_loads.contains_key(store_address)
                     && !store_alias_used
@@ -619,7 +620,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, BTreeSet<ValueId>> = HashMap::default();
+                let mut arg_set = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
@@ -632,7 +633,8 @@ impl<'f> PerFunctionContext<'f> {
                                 aliases.insert(*parameter);
 
                                 // Check if we have seen the same argument
-                                let seen_parameters = arg_set.entry(argument).or_default();
+                                let seen_parameters =
+                                    arg_set.entry(argument).or_insert_with(VecSet::empty);
                                 // Add the current parameter to the parameters we have seen for this argument.
                                 // The previous parameters and the current one alias one another.
                                 seen_parameters.insert(*parameter);
@@ -666,10 +668,11 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
     use im::vector;
 
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
@@ -679,7 +682,6 @@ mod tests {
             types::Type,
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]
@@ -1123,8 +1125,13 @@ mod tests {
             jmp b1(Field 0)
           b1(v0: Field):
             v4 = eq v0, Field 0
-            jmpif v4 then: b3, else: b2
+            jmpif v4 then: b2, else: b3
           b2():
+            v11 = load v3 -> &mut Field
+            store Field 2 at v11
+            v13 = add v0, Field 1
+            jmp b1(v13)
+          b3():
             v5 = load v1 -> Field
             v7 = eq v5, Field 2
             constrain v5 == Field 2
@@ -1133,11 +1140,6 @@ mod tests {
             v10 = eq v9, Field 2
             constrain v9 == Field 2
             return
-          b3():
-            v11 = load v3 -> &mut Field
-            store Field 2 at v11
-            v13 = add v0, Field 1
-            jmp b1(v13)
         }
         ";
 
@@ -1161,21 +1163,21 @@ mod tests {
             v4 = eq v0, Field 0
             jmpif v4 then: b3, else: b2
           b2():
-            v5 = load v1 -> Field
-            v7 = eq v5, Field 2
-            constrain v5 == Field 2
-            v8 = load v3 -> &mut Field
+            v9 = load v1 -> Field
+            v10 = eq v9, Field 2
+            constrain v9 == Field 2
+            v11 = load v3 -> &mut Field
             call f1(v3)
-            v10 = load v3 -> &mut Field
-            v11 = load v10 -> Field
-            v12 = eq v11, Field 2
-            constrain v11 == Field 2
+            v13 = load v3 -> &mut Field
+            v14 = load v13 -> Field
+            v15 = eq v14, Field 2
+            constrain v14 == Field 2
             return
           b3():
-            v13 = load v3 -> &mut Field
-            store Field 2 at v13
-            v15 = add v0, Field 1
-            jmp b1(v15)
+            v5 = load v3 -> &mut Field
+            store Field 2 at v5
+            v8 = add v0, Field 1
+            jmp b1(v8)
         }
         acir(inline) fn foo f1 {
           b0(v0: &mut Field):
@@ -1199,13 +1201,13 @@ mod tests {
           b0(v0: u1):
             jmpif v0 then: b2, else: b1
           b1():
-            v4 = allocate -> &mut Field
-            store Field 1 at v4
-            jmp b3(v4, v4, v4)
-          b2():
             v6 = allocate -> &mut Field
-            store Field 0 at v6
+            store Field 1 at v6
             jmp b3(v6, v6, v6)
+          b2():
+            v4 = allocate -> &mut Field
+            store Field 0 at v4
+            jmp b3(v4, v4, v4)
           b3(v1: &mut Field, v2: &mut Field, v3: &mut Field):
             v8 = load v1 -> Field
             store Field 2 at v2

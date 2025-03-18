@@ -25,12 +25,12 @@ use vector_pop_back::compile_vector_pop_back_procedure;
 use vector_pop_front::compile_vector_pop_front_procedure;
 use vector_remove::compile_vector_remove_procedure;
 
-use crate::brillig::brillig_ir::AcirField;
+use crate::brillig::{BrilligOptions, brillig_ir::AcirField};
 
 use super::{
+    BrilligContext,
     artifact::{BrilligArtifact, Label},
     debug_show::DebugToString,
-    BrilligContext,
 };
 
 /// Procedures are a set of complex operations that are common in the noir language.
@@ -110,8 +110,9 @@ impl std::fmt::Display for ProcedureId {
 
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
+    options: &BrilligOptions,
 ) -> BrilligArtifact<F> {
-    let mut brillig_context = BrilligContext::new_for_procedure(false, procedure_id.clone());
+    let mut brillig_context = BrilligContext::new_for_procedure(procedure_id.clone(), options);
     brillig_context.enter_context(Label::procedure(procedure_id.clone()));
 
     match procedure_id {

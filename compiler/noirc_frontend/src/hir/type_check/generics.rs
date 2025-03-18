@@ -3,9 +3,9 @@ use std::cell::Ref;
 use iter_extended::vecmap;
 
 use crate::{
+    DataType, ResolvedGeneric, Type,
     hir_def::traits::NamedType,
     node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
-    ResolvedGeneric, StructType, Type,
 };
 
 /// Represents something that can be generic over type variables
@@ -74,7 +74,7 @@ impl Generic for TypeAliasId {
     }
 }
 
-impl Generic for Ref<'_, StructType> {
+impl Generic for Ref<'_, DataType> {
     fn item_kind(&self) -> &'static str {
         "struct"
     }

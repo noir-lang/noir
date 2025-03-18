@@ -96,7 +96,7 @@ impl UseSegmentPositions {
                     kind_string,
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
-                            segment.ident.span().start()..use_tree.span.end() - 1,
+                            segment.ident.span().start()..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -111,7 +111,7 @@ impl UseSegmentPositions {
             if !prefix.is_empty() {
                 prefix.push_str("::");
             };
-            prefix.push_str(&ident.0.contents);
+            prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {
                 self.insert_use_segment_position(
@@ -119,7 +119,7 @@ impl UseSegmentPositions {
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
                             use_tree.prefix.segments[index + 1].ident.span().start()
-                                ..use_tree.span.end() - 1,
+                                ..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -133,7 +133,7 @@ impl UseSegmentPositions {
                 if !prefix.is_empty() {
                     prefix.push_str("::");
                 }
-                prefix.push_str(&ident.0.contents);
+                prefix.push_str(ident.as_str());
 
                 if alias.is_none() {
                     self.insert_use_segment_position(
@@ -163,7 +163,7 @@ impl UseSegmentPositions {
                     prefix,
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
-                            ident.span().start()..use_tree.span.end() - 1,
+                            ident.span().start()..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -182,7 +182,7 @@ impl UseSegmentPositions {
                         prefix,
                         UseSegmentPosition::BeforeList {
                             first_entry_span: Span::from(
-                                use_tree.span.end() - 1..use_tree.span.end() - 1,
+                                use_tree.location.span.end() - 1..use_tree.location.span.end() - 1,
                             ),
                             list_is_empty: true,
                         },

@@ -1,14 +1,15 @@
 use std::{collections::BTreeMap, fmt::Display};
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
+    hir_def::expr::Constructor,
+    signed_field::SignedField,
     token::{Attributes, FunctionAttribute},
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
@@ -36,7 +37,10 @@ pub enum Expression {
     Index(Index),
     Cast(Cast),
     For(For),
+    Loop(Box<Expression>),
+    While(While),
     If(If),
+    Match(Match),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
@@ -110,10 +114,16 @@ pub struct For {
 }
 
 #[derive(Debug, Clone, Hash)]
+pub struct While {
+    pub condition: Box<Expression>,
+    pub body: Box<Expression>,
+}
+
+#[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
-    Integer(FieldElement, /*sign*/ bool, Type, Location), // false for positive integer and true for negative
+    Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
     Str(String),
@@ -150,6 +160,21 @@ pub struct If {
     pub consequence: Box<Expression>,
     pub alternative: Option<Box<Expression>>,
     pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct Match {
+    pub variable_to_match: LocalId,
+    pub cases: Vec<MatchCase>,
+    pub default_case: Option<Box<Expression>>,
+    pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct MatchCase {
+    pub constructor: Constructor,
+    pub arguments: Vec<LocalId>,
+    pub branch: Expression,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -227,7 +252,9 @@ pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
+#[derive(
+    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.

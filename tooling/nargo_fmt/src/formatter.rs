@@ -1,10 +1,10 @@
 use buffer::Buffer;
 use noirc_frontend::{
+    ParsedModule,
     ast::Ident,
     hir::resolution::errors::Span,
     lexer::Lexer,
     token::{Keyword, SpannedToken, Token},
-    ParsedModule,
 };
 
 use crate::Config;
@@ -14,6 +14,7 @@ mod attribute;
 mod buffer;
 mod comments_and_whitespace;
 mod doc_comments;
+mod enums;
 mod expression;
 mod function;
 mod generics;
@@ -79,7 +80,7 @@ pub(crate) struct Formatter<'a> {
 
 impl<'a> Formatter<'a> {
     pub(crate) fn new(source: &'a str, config: &'a Config) -> Self {
-        let lexer = Lexer::new(source).skip_comments(false).skip_whitespaces(false);
+        let lexer = Lexer::new_with_dummy_file(source).skip_comments(false).skip_whitespaces(false);
         let mut formatter = Self {
             config,
             source,
@@ -106,6 +107,7 @@ impl<'a> Formatter<'a> {
         );
 
         self.format_parsed_module(parsed_module, self.ignore_next);
+        self.buffer.trim_multiple_newlines();
     }
 
     pub(crate) fn format_parsed_module(&mut self, parsed_module: ParsedModule, ignore_next: bool) {
@@ -123,7 +125,7 @@ impl<'a> Formatter<'a> {
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);
         };
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 
@@ -133,7 +135,7 @@ impl<'a> Formatter<'a> {
         if !matches!(self.token, Token::Ident(..) | Token::Int(..)) {
             panic!("Expected identifier or integer, got {:?}", self.token);
         }
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 
@@ -294,7 +296,7 @@ impl<'a> Formatter<'a> {
         self.ignore_next = false;
 
         let next_token = self.read_token_internal();
-        self.token_span = next_token.to_span();
+        self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }
 
@@ -302,7 +304,7 @@ impl<'a> Formatter<'a> {
         let token = self.lexer.next();
         if let Some(token) = token {
             match token {
-                Ok(token) => token,
+                Ok(token) => token.into_spanned_token(),
                 Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
             }
         } else {
