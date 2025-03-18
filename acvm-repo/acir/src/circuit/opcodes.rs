@@ -68,16 +68,14 @@ pub enum Opcode<F: AcirField> {
     /// Often used for exposing more efficient implementations of
     /// SNARK-unfriendly computations.
     ///
-    /// All black box functions take as input a tuple `(witness, num_bits)`,
-    /// where `num_bits` is a constant representing the bit size of the input
-    /// witness, and they have one or several witnesses as output.
+    /// All black box functions input is specified as [FunctionInput],
+    /// and they have one or several witnesses as output.
     ///
     /// Some more advanced computations assume that the proving system has an
     /// 'embedded curve'. It is a curve that cycles with the main curve of the
     /// proving system, i.e the scalar field of the embedded curve is the base
     /// field of the main one, and vice-versa.
-    ///
-    /// Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the
+    /// e.g. Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the
     /// embedded curve.
     BlackBoxFuncCall(BlackBoxFuncCall<F>),
 
