@@ -1,12 +1,11 @@
 use acir::{
+    AcirField,
     circuit::{
-        self,
+        self, Circuit, ExpressionWidth, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
-        Circuit, ExpressionWidth, Opcode,
     },
     native_types::{Expression, Witness},
-    AcirField,
 };
 use indexmap::IndexMap;
 
@@ -17,15 +16,16 @@ pub use csat::MIN_EXPRESSION_WIDTH;
 use tracing::info;
 
 use super::{
+    AcirTransformationMap,
     optimizers::{MergeExpressionsOptimizer, RangeOptimizer},
-    transform_assert_messages, AcirTransformationMap,
+    transform_assert_messages,
 };
 
 /// We need multiple passes to stabilize the output.
 /// The value was determined by running tests.
 const MAX_TRANSFORMER_PASSES: usize = 3;
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 pub fn transform<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
@@ -44,7 +44,7 @@ pub fn transform<F: AcirField>(
     (acir, transformation_map)
 }
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
@@ -87,7 +87,7 @@ pub(super) fn transform_internal<F: AcirField>(
     (acir, acir_opcode_positions)
 }
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///

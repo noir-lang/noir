@@ -5,11 +5,11 @@ use crate::{
 };
 
 use super::{
-    parse_many::{separated_by, separated_by_comma},
     Parser,
+    parse_many::{separated_by, separated_by_comma},
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// WhereClause = 'where' WhereClauseItems?
     ///
     /// WhereClauseItems = WhereClauseItem ( ',' WhereClauseItem )* ','?
@@ -89,10 +89,10 @@ mod tests {
     use crate::{
         ast::UnresolvedTraitConstraint,
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
         token::Token,
     };

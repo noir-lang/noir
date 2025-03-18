@@ -94,7 +94,7 @@ With circuit compiled and witness generated, we're ready to prove.
 Different proving backends may provide different tools and commands to work with Noir programs. Here Barretenberg's `bb` CLI tool is used as an example:
 
 ```sh
-bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target/proof
+bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target
 ```
 
 :::tip
@@ -106,21 +106,12 @@ Naming can be confusing, specially as you pass them to the `bb` commands. If uns
 The proof is now generated in the `target` folder. To verify it we first need to compute the verification key from the compiled circuit, and use it to verify:
 
 ```sh
-bb write_vk -b ./target/hello_world.json -o ./target/vk
+# Generate the verification key and save to ./target/vk
+bb write_vk -b ./target/hello_world.json -o ./target
+
+# Verify the proof
 bb verify -k ./target/vk -p ./target/proof
 ```
-
-:::info
-
-Notice that in order to verify a proof, the verifier knows nothing but the circuit, which is compiled and used to generate the verification key. This is obviously quite important: private inputs remain private.
-
-As for the public inputs, you may have noticed they haven't been specified. This behavior varies with each particular backend, but barretenberg typically attaches them to the proof. You can see them by parsing and splitting it. For example if your public inputs are 32 bytes:
-
-```bash
-head -c 32 ./target/proof | od -An -v -t x1 | tr -d $' \n'
-```
-
-:::
 
 Congratulations, you have now created and verified a proof for your very first Noir program!
 

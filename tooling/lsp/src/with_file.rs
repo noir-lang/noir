@@ -2,6 +2,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::{
+    ParsedModule,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
@@ -19,7 +20,6 @@ use noirc_frontend::{
     token::{
         Attributes, FmtStrFragment, LocatedToken, MetaAttribute, SecondaryAttribute, Token, Tokens,
     },
-    ParsedModule,
 };
 
 /// Returns a copy of the given ParsedModule with all FileIds present in its locations changed to the given FileId.
@@ -485,8 +485,8 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
                 generic_type_args_with_file(generic_type_args, file),
             )
         }
-        UnresolvedTypeData::MutableReference(typ) => {
-            UnresolvedTypeData::MutableReference(Box::new(unresolved_type_with_file(*typ, file)))
+        UnresolvedTypeData::Reference(typ, mutable) => {
+            UnresolvedTypeData::Reference(Box::new(unresolved_type_with_file(*typ, file)), mutable)
         }
         UnresolvedTypeData::Tuple(types) => {
             UnresolvedTypeData::Tuple(unresolved_types_with_file(types, file))
@@ -563,7 +563,7 @@ fn generic_type_args_with_file(generics: GenericTypeArgs, file: FileId) -> Gener
 
 fn ident_with_file(ident: Ident, file: FileId) -> Ident {
     let location = location_with_file(ident.location(), file);
-    Ident::new(ident.0.contents, location)
+    Ident::new(ident.into_string(), location)
 }
 
 fn secondary_attributes_with_file(

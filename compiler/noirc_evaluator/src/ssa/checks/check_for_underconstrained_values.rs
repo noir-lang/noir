@@ -113,8 +113,8 @@ struct DependencyContext {
     tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
     // Map of argument value ids to the Brillig call ids employing them
     call_arguments: HashMap<ValueId, Vec<InstructionId>>,
-    // Maintains count of calls being tracked
-    tracking_count: usize,
+    // The set of calls currently being tracked
+    tracking: HashSet<InstructionId>,
     // Opt-in to use the lookback feature (tracking the argument values
     // of a Brillig call before the call happens if their usage precedes
     // it). Can prevent certain false positives, at the cost of
@@ -138,8 +138,6 @@ struct BrilligTaintedIds {
     array_elements: HashMap<ValueId, Vec<usize>>,
     // Initial result value ids, along with element ids for arrays
     root_results: HashSet<ValueId>,
-    // The flag signaling that the call should be now tracked
-    tracking: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -195,7 +193,6 @@ impl BrilligTaintedIds {
             results: results_status,
             array_elements,
             root_results: HashSet::from_iter(results.iter().copied()),
-            tracking: false,
         }
     }
 
@@ -319,7 +316,12 @@ impl DependencyContext {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        trace!("processing instructions of block {} of function {}", block, function.id());
+        trace!(
+            "processing instructions of block {} of function {} {}",
+            block,
+            function.name(),
+            function.id()
+        );
 
         // First, gather information on all Brillig calls in the block
         // to be able to follow their arguments first appearing in the
@@ -339,6 +341,12 @@ impl DependencyContext {
 
                         if !visited {
                             let results = function.dfg.instruction_results(*instruction);
+
+                            // Calls with no results (e.g. print) shouldn't be checked
+                            if results.is_empty() {
+                                return;
+                            }
+
                             let current_tainted =
                                 BrilligTaintedIds::new(function, arguments, results);
 
@@ -394,23 +402,19 @@ impl DependencyContext {
                 for argument in &arguments {
                     if let Some(calls) = self.call_arguments.get(argument) {
                         for call in calls {
-                            if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                                tainted_ids.tracking = true;
-                                self.tracking_count += 1;
+                            if self.tainted.contains_key(call) {
+                                self.tracking.insert(*call);
                             }
                         }
                     }
                 }
             }
-            if let Some(tainted_ids) = self.tainted.get_mut(instruction) {
-                if !tainted_ids.tracking {
-                    tainted_ids.tracking = true;
-                    self.tracking_count += 1;
-                }
+            if self.tainted.contains_key(instruction) {
+                self.tracking.insert(*instruction);
             }
 
             // We can skip over instructions while nothing is being tracked
-            if self.tracking_count > 0 {
+            if !self.tracking.is_empty() {
                 let mut results = Vec::new();
 
                 // Collect non-constant instruction results
@@ -431,8 +435,10 @@ impl DependencyContext {
                         if let Some(value_id) = self.memory_slots.get(address) {
                             self.update_children(&[*value_id], &results);
                         } else {
-                            panic!("load instruction {} has attempted to access previously unused memory location",
-                                instruction);
+                            panic!(
+                                "load instruction {} has attempted to access previously unused memory location",
+                                instruction
+                            );
                         }
                     }
                     // Record the condition to set as future parent for the following values
@@ -502,7 +508,10 @@ impl DependencyContext {
                                 RuntimeType::Brillig(..) => {}
                             },
                             Value::ForeignFunction(..) => {
-                                panic!("should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
+                                panic!(
+                                    "should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}",
+                                    function.name()
+                                );
                             }
                             Value::Instruction { .. }
                             | Value::NumericConstant { .. }
@@ -519,7 +528,7 @@ impl DependencyContext {
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
                     Instruction::ArrayGet { array, index } => {
-                        self.process_array_get(function, *array, *index, &results);
+                        self.process_array_get(*array, *index, &results, function);
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);
                     }
@@ -544,8 +553,9 @@ impl DependencyContext {
 
         if !self.tainted.is_empty() {
             trace!(
-                "number of Brillig calls in function {} left unchecked: {}",
-                function,
+                "number of Brillig calls in function {} {} left unchecked: {}",
+                function.name(),
+                function.id(),
                 self.tainted.len()
             );
         }
@@ -558,7 +568,10 @@ impl DependencyContext {
             .tainted
             .keys()
             .map(|brillig_call| {
-                trace!("tainted structure for {}: {:?}", brillig_call, self.tainted[brillig_call]);
+                trace!(
+                    "tainted structure for {:?}: {:?}",
+                    brillig_call, self.tainted[brillig_call]
+                );
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
                     call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
                 })
@@ -566,9 +579,10 @@ impl DependencyContext {
             .collect();
 
         trace!(
-            "making {} reports on underconstrained Brillig calls for function {}",
+            "making {} reports on underconstrained Brillig calls for function {} {}",
             warnings.len(),
-            function.name()
+            function.name(),
+            function.id()
         );
         warnings
     }
@@ -582,8 +596,8 @@ impl DependencyContext {
         self.side_effects_condition.map(|v| parents.insert(v));
 
         // Don't update sets for the calls not yet being tracked
-        for (_, tainted_ids) in self.tainted.iter_mut() {
-            if tainted_ids.tracking {
+        for call in &self.tracking {
+            if let Some(tainted_ids) = self.tainted.get_mut(call) {
                 tainted_ids.update_children(&parents, children);
             }
         }
@@ -600,15 +614,15 @@ impl DependencyContext {
             .collect();
 
         // Skip untracked calls
-        for (_, tainted_ids) in self.tainted.iter_mut() {
-            if tainted_ids.tracking {
+        for call in &self.tracking {
+            if let Some(tainted_ids) = self.tainted.get_mut(call) {
                 tainted_ids.store_partial_constraints(&constrained_values);
             }
         }
 
-        self.tainted.retain(|_, tainted_ids| {
+        self.tainted.retain(|call, tainted_ids| {
             if tainted_ids.check_constrained() {
-                self.tracking_count -= 1;
+                self.tracking.remove(call);
                 false
             } else {
                 true
@@ -619,10 +633,10 @@ impl DependencyContext {
     /// Process ArrayGet instruction for tracked Brillig calls
     fn process_array_get(
         &mut self,
-        function: &Function,
         array: ValueId,
         index: ValueId,
         element_results: &[ValueId],
+        function: &Function,
     ) {
         use acvm::acir::AcirField;
 
@@ -630,8 +644,8 @@ impl DependencyContext {
         if let Some(value) = function.dfg.get_numeric_constant(index) {
             if let Some(index) = value.try_to_u32() {
                 // Skip untracked calls
-                for (_, tainted_ids) in self.tainted.iter_mut() {
-                    if tainted_ids.tracking {
+                for call in &self.tracking {
+                    if let Some(tainted_ids) = self.tainted.get_mut(call) {
                         tainted_ids.process_array_get(array, index as usize, element_results);
                     }
                 }
@@ -826,13 +840,18 @@ impl Context {
                             }
                         },
                         Value::ForeignFunction(..) => {
-                            panic!("Should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
+                            panic!(
+                                "Should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}",
+                                function.name()
+                            );
                         }
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. }
                         | Value::Global(_) => {
-                            panic!("At the point we are running disconnect there shouldn't be any other values as arguments")
+                            panic!(
+                                "At the point we are running disconnect there shouldn't be any other values as arguments"
+                            )
                         }
                     }
                 }
@@ -1410,6 +1429,32 @@ mod test {
 
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// No-result calls (e.g. print) shouldn't trigger the check
+    fn test_no_result_brillig_calls() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(Field 1)
+            return Field 1
+        }
+        acir(inline) fn println f1 {
+          b0(v0: Field):
+            call f2(u1 1, v0)
+            return
+        }
+        brillig(inline) fn print_unconstrained f2 {
+          b0(v0: u1, v1: Field):
+            return
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 }

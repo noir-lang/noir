@@ -1,6 +1,8 @@
 use fm::{FileId, FileMap};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use noirc_frontend::{
+    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    TypeVariable,
     ast::{ItemVisibility, Visibility},
     hir::def_map::ModuleId,
     hir_def::{
@@ -13,14 +15,12 @@ use noirc_frontend::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,
     },
-    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
-    TypeVariable,
 };
 
 use crate::{
     attribute_reference_finder::AttributeReferenceFinder,
     modules::module_full_path,
-    requests::{to_lsp_location, ProcessRequestCallbackArgs},
+    requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
 };
 
@@ -137,12 +137,12 @@ fn format_struct(
     }
     string.push_str("    ");
     string.push_str("struct ");
-    string.push_str(&typ.name.0.contents);
+    string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
     for field in fields {
         string.push_str("        ");
-        string.push_str(&field.name.0.contents);
+        string.push_str(field.name.as_str());
         string.push_str(": ");
         string.push_str(&format!("{}", field.typ));
         string.push_str(",\n");
@@ -165,12 +165,12 @@ fn format_enum(
     }
     string.push_str("    ");
     string.push_str("enum ");
-    string.push_str(&typ.name.0.contents);
+    string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
     for field in variants {
         string.push_str("        ");
-        string.push_str(&field.name.0.contents);
+        string.push_str(field.name.as_str());
 
         if !field.params.is_empty() {
             let types = field.params.iter().map(ToString::to_string).collect::<Vec<_>>();
@@ -201,10 +201,10 @@ fn format_struct_member(
     if format_parent_module(ReferenceId::Type(id), args, &mut string) {
         string.push_str("::");
     }
-    string.push_str(&struct_type.name.0.contents);
+    string.push_str(struct_type.name.as_str());
     string.push('\n');
     string.push_str("    ");
-    string.push_str(&field.name.0.contents);
+    string.push_str(field.name.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", field.typ));
     string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
@@ -227,10 +227,10 @@ fn format_enum_variant(
     if format_parent_module(ReferenceId::Type(id), args, &mut string) {
         string.push_str("::");
     }
-    string.push_str(&enum_type.name.0.contents);
+    string.push_str(enum_type.name.as_str());
     string.push('\n');
     string.push_str("    ");
-    string.push_str(&variant.name.0.contents);
+    string.push_str(variant.name.as_str());
     if !variant.params.is_empty() {
         let types = variant.params.iter().map(ToString::to_string).collect::<Vec<_>>();
         string.push('(');
@@ -256,7 +256,7 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    ");
     string.push_str("trait ");
-    string.push_str(&a_trait.name.0.contents);
+    string.push_str(a_trait.name.as_str());
     format_generics(&a_trait.generics, &mut string);
 
     append_doc_comments(args.interner, ReferenceId::Trait(id), &mut string);
@@ -292,7 +292,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str("mut ");
     }
     string.push_str("global ");
-    string.push_str(&global_info.ident.0.contents);
+    string.push_str(global_info.ident.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
 
@@ -318,7 +318,7 @@ fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
                 get_global_array_value(interner, hir_array_literal, true)
             }
             HirLiteral::Bool(value) => Some(value.to_string()),
-            HirLiteral::Integer(field_element, _) => Some(field_element.to_string()),
+            HirLiteral::Integer(value) => Some(value.to_string()),
             HirLiteral::Str(string) => Some(format!("{:?}", string)),
             HirLiteral::FmtStr(..) => None,
             HirLiteral::Unit => Some("()".to_string()),
@@ -338,11 +338,7 @@ fn get_global_array_value(
     match literal {
         HirArrayLiteral::Standard(values) => {
             get_exprs_global_value(interner, &values).map(|value| {
-                if is_slice {
-                    format!("&[{}]", value)
-                } else {
-                    format!("[{}]", value)
-                }
+                if is_slice { format!("&[{}]", value) } else { format!("[{}]", value) }
             })
         }
         HirArrayLiteral::Repeated { repeated_element, length } => {
@@ -360,11 +356,7 @@ fn get_global_array_value(
 fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<String> {
     let strings: Vec<String> =
         exprs.iter().filter_map(|value| get_global_value(interner, *value)).collect();
-    if strings.len() == exprs.len() {
-        Some(strings.join(", "))
-    } else {
-        None
-    }
+    if strings.len() == exprs.len() { Some(strings.join(", ")) } else { None }
 }
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
@@ -403,11 +395,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 .trait_generics
                 .iter()
                 .filter_map(|generic| {
-                    if let Type::NamedGeneric(_, name) = generic {
-                        Some(name)
-                    } else {
-                        None
-                    }
+                    if let Type::NamedGeneric(_, name) = generic { Some(name) } else { None }
                 })
                 .collect();
 
@@ -425,7 +413,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         }
 
         string.push(' ');
-        string.push_str(&trait_.name.0.contents);
+        string.push_str(trait_.name.as_str());
         if !trait_impl.trait_generics.is_empty() {
             string.push('<');
             for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
@@ -445,7 +433,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_ = args.interner.get_trait(trait_id);
         string.push('\n');
         string.push_str("    trait ");
-        string.push_str(&trait_.name.0.contents);
+        string.push_str(trait_.name.as_str());
         format_generics(&trait_.generics, &mut string);
 
         true
@@ -455,7 +443,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         if formatted_parent_module {
             string.push_str("::");
         }
-        string.push_str(&data_type.name.0.contents);
+        string.push_str(data_type.name.as_str());
         if enum_variant.is_none() {
             string.push('\n');
             string.push_str("    ");
@@ -470,7 +458,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             format_generics(&impl_generics, &mut string);
 
             string.push(' ');
-            string.push_str(&data_type.name.0.contents);
+            string.push_str(data_type.name.as_str());
             format_generic_names(&impl_generics, &mut string);
         }
 
@@ -510,7 +498,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let is_self = pattern_is_self(pattern, args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::MutableReference(..)) {
+        if is_self && matches!(typ, Type::Reference(..)) {
             string.push_str("&mut ");
         }
 
@@ -605,7 +593,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push('\n');
     string.push_str("    ");
     string.push_str("type ");
-    string.push_str(&type_alias.name.0.contents);
+    string.push_str(type_alias.name.as_str());
     string.push_str(" = ");
     string.push_str(&format!("{}", &type_alias.typ));
 
@@ -781,7 +769,7 @@ struct TypeLinksGatherer<'a> {
     links: Vec<String>,
 }
 
-impl<'a> TypeLinksGatherer<'a> {
+impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
             Type::Array(typ, _) => self.gather_type_links(typ),
@@ -826,7 +814,7 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(return_type);
                 self.gather_type_links(env);
             }
-            Type::MutableReference(typ) => self.gather_type_links(typ),
+            Type::Reference(typ, _) => self.gather_type_links(typ),
             Type::InfixExpr(lhs, _, rhs, _) => {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);

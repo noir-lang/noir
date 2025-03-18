@@ -1,8 +1,8 @@
 use super::expr::HirIdent;
+use crate::Type;
 use crate::ast::Ident;
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
-use crate::Type;
 use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on
@@ -100,9 +100,9 @@ impl HirPattern {
     /// Panics if the type is not a struct or tuple.
     pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
         match self {
-            HirPattern::Struct(_, fields, _) => Box::new(
-                fields.iter().map(move |(name, pattern)| (name.0.contents.clone(), pattern)),
-            ),
+            HirPattern::Struct(_, fields, _) => {
+                Box::new(fields.iter().map(move |(name, pattern)| (name.to_string(), pattern)))
+            }
             HirPattern::Tuple(fields, _) => {
                 Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
             }

@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
+    ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
         ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
@@ -15,12 +16,11 @@ use crate::{
         traits::{ResolvedTraitBound, TraitFunction},
     },
     node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
-    ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = unresolved_trait.module_id;
@@ -128,7 +128,7 @@ impl<'context> Elaborator<'context> {
                         },
                     );
 
-                    let func_id = unresolved_trait.method_ids[&name.0.contents];
+                    let func_id = unresolved_trait.method_ids[name.as_str()];
                     let mut where_clause = where_clause.to_vec();
 
                     // Attach any trait constraints on the trait to the function,
@@ -164,7 +164,7 @@ impl<'context> Elaborator<'context> {
                         .fns_with_default_impl
                         .functions
                         .iter()
-                        .filter(|(_, _, q)| q.name() == name.0.contents)
+                        .filter(|(_, _, q)| q.name() == name.as_str())
                         .collect();
 
                     let default_impl = if default_impl_list.len() == 1 {
@@ -260,9 +260,9 @@ impl<'context> Elaborator<'context> {
 /// `impl<C> Foo<D> for Bar<E> { fn foo<F>(...); } `
 ///
 /// We have to substitute:
-/// - Self for Bar<E>
-/// - A for D
-/// - B for F
+/// - `Self` for `Bar<E>`
+/// - `A` for `D`
+/// - `B` for `F`
 ///
 /// Before we can type check. Finally, we must also check that the unification
 /// result does not introduce any new bindings. This can happen if the impl
@@ -273,6 +273,7 @@ impl<'context> Elaborator<'context> {
 pub(crate) fn check_trait_impl_method_matches_declaration(
     interner: &mut NodeInterner,
     function: FuncId,
+    noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
     let modifiers = interner.function_modifiers(&function);
@@ -349,8 +350,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             definition_type,
             method_name,
             &meta.parameters,
+            &meta.return_type,
+            noir_function,
             meta.name.location,
-            &trait_info.name.0.contents,
+            trait_info.name.as_str(),
             &mut errors,
         );
     }
@@ -358,11 +361,14 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     errors
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_function_type_matches_expected_type(
     expected: &Type,
     actual: &Type,
     method_name: &str,
     actual_parameters: &Parameters,
+    actual_return_type: &FunctionReturnType,
+    noir_function: &NoirFunction,
     location: Location,
     trait_name: &str,
     errors: &mut Vec<TypeCheckError>,
@@ -381,11 +387,16 @@ fn check_function_type_matches_expected_type(
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
+                    let parameter_location = noir_function.def.parameters.get(i);
+                    let parameter_location = parameter_location.map(|param| param.typ.location);
+                    let parameter_location =
+                        parameter_location.unwrap_or_else(|| actual_parameters.0[i].0.location());
+
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
                         actual_typ: b.to_string(),
-                        parameter_location: actual_parameters.0[i].0.location(),
+                        parameter_location,
                         parameter_index: i + 1,
                     });
                 }
@@ -395,7 +406,7 @@ fn check_function_type_matches_expected_type(
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: ret_a.to_string(),
                     expr_typ: ret_b.to_string(),
-                    expr_location: location,
+                    expr_location: actual_return_type.location(),
                 });
             }
         } else {

@@ -11,7 +11,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
@@ -79,11 +79,11 @@ mod tests {
         },
         parse_program_with_dummy_file,
         parser::{
+            ItemKind, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            ItemKind, ParserErrorReason,
         },
     };
 
@@ -186,13 +186,11 @@ mod tests {
         assert_eq!(let_statement.pattern.span().start(), 16);
         assert_eq!(let_statement.pattern.span().end(), 19);
 
-        let ExpressionKind::Literal(Literal::Integer(abs_value, is_negative)) =
-            let_statement.expression.kind
-        else {
+        let ExpressionKind::Literal(Literal::Integer(value)) = let_statement.expression.kind else {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 
-        assert!(is_negative);
-        assert_eq!(abs_value, FieldElement::from(17u128));
+        assert!(value.is_negative);
+        assert_eq!(value.field, FieldElement::from(17u128));
     }
 }

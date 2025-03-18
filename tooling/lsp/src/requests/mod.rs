@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::{collections::HashMap, future::Future};
 
-use crate::{insert_all_files_for_workspace_into_file_manager, parse_diff, PackageCacheData};
+use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 use crate::{
     resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
 };
 use async_lsp::{ErrorCode, ResponseError};
-use fm::{codespan_files::Error, FileMap, PathString};
+use fm::{FileMap, PathString, codespan_files::Error};
 use lsp_types::{
     CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
@@ -19,14 +19,15 @@ use nargo_fmt::Config;
 use noirc_frontend::ast::Ident;
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleId};
+use noirc_frontend::node_interner::ReferenceId;
 use noirc_frontend::parser::ParserError;
 use noirc_frontend::usage_tracker::UsageTracker;
 use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
     LspState,
+    types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
 };
 
 // Handlers
@@ -191,7 +192,7 @@ impl Default for LspInitializationOptions {
 pub(crate) fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
-) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+) -> impl Future<Output = Result<InitializeResult, ResponseError>> + use<> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
     let initialization_options: LspInitializationOptions = params
         .initialization_options
@@ -293,7 +294,7 @@ pub(crate) fn on_initialize(
 pub(crate) fn on_formatting(
     state: &mut LspState,
     params: lsp_types::DocumentFormattingParams,
-) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
     std::future::ready(on_formatting_inner(state, params))
 }
 
@@ -441,7 +442,7 @@ where
 pub(crate) fn on_shutdown(
     _state: &mut LspState,
     _params: (),
-) -> impl Future<Output = Result<(), ResponseError>> {
+) -> impl Future<Output = Result<(), ResponseError>> + use<> {
     async { Ok(()) }
 }
 
@@ -590,70 +591,102 @@ pub(crate) fn find_all_references_in_workspace(
     include_self_type_name: bool,
 ) -> Option<Vec<Location>> {
     // First find the node that's referenced by the given location, if any
-    let referenced = interner.find_referenced(location);
+    let referenced = interner.find_referenced(location)?;
+    let name = get_reference_name(referenced, interner)?;
 
-    if let Some(referenced) = referenced {
-        // If we found the referenced node, find its location
-        let referenced_location = interner.reference_location(referenced);
+    // If we found the referenced node, find its location
+    let referenced_location = interner.reference_location(referenced);
 
-        // Now we find all references that point to this location, in all interners
-        // (there's one interner per package, and all interners in a workspace rely on the
-        // same FileManager so a Location/FileId in one package is the same as in another package)
-        let mut locations = find_all_references(
+    // Now we find all references that point to this location, in all interners
+    // (there's one interner per package, and all interners in a workspace rely on the
+    // same FileManager so a Location/FileId in one package is the same as in another package)
+    let mut locations = find_all_references(
+        referenced_location,
+        interner,
+        include_declaration,
+        include_self_type_name,
+    );
+    for cache_data in package_cache.values() {
+        locations.extend(find_all_references(
             referenced_location,
-            interner,
-            files,
+            &cache_data.node_interner,
             include_declaration,
             include_self_type_name,
-        );
-        for cache_data in package_cache.values() {
-            locations.extend(find_all_references(
-                referenced_location,
-                &cache_data.node_interner,
-                files,
-                include_declaration,
-                include_self_type_name,
-            ));
-        }
-
-        // The LSP client usually removes duplicate locations, but we do it here just in case they don't
-        locations.sort_by_key(|location| {
-            (
-                location.uri.to_string(),
-                location.range.start.line,
-                location.range.start.character,
-                location.range.end.line,
-                location.range.end.character,
-            )
-        });
-        locations.dedup();
-
-        if locations.is_empty() {
-            None
-        } else {
-            Some(locations)
-        }
-    } else {
-        None
+        ));
     }
+
+    // Only keep locations whose span, when read from the file, matches "name"
+    // (it might not match because of macro expansions)
+    locations.retain(|location| {
+        let Some(file) = files.get_file(location.file) else {
+            return false;
+        };
+
+        let Some(substring) =
+            file.source().get(location.span.start() as usize..location.span.end() as usize)
+        else {
+            return false;
+        };
+
+        substring == name
+    });
+
+    let mut locations = locations
+        .iter()
+        .filter_map(|location| to_lsp_location(files, location.file, location.span))
+        .collect::<Vec<_>>();
+
+    // The LSP client usually removes duplicate locations, but we do it here just in case they don't
+    locations.sort_by_key(|location| {
+        (
+            location.uri.to_string(),
+            location.range.start.line,
+            location.range.start.character,
+            location.range.end.line,
+            location.range.end.character,
+        )
+    });
+    locations.dedup();
+
+    if locations.is_empty() { None } else { Some(locations) }
 }
 
 pub(crate) fn find_all_references(
     referenced_location: noirc_errors::Location,
     interner: &NodeInterner,
-    files: &FileMap,
     include_declaration: bool,
     include_self_type_name: bool,
-) -> Vec<Location> {
+) -> Vec<noirc_errors::Location> {
     interner
         .find_all_references(referenced_location, include_declaration, include_self_type_name)
-        .map(|locations| {
-            locations
-                .iter()
-                .filter_map(|location| to_lsp_location(files, location.file, location.span))
-                .collect()
-        })
         .unwrap_or_default()
+}
+
+fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option<String> {
+    match reference {
+        ReferenceId::Module(module_id) => {
+            Some(interner.try_module_attributes(&module_id)?.name.clone())
+        }
+        ReferenceId::Type(type_id) => Some(interner.get_type(type_id).borrow().name.to_string()),
+        ReferenceId::StructMember(type_id, index) => {
+            Some(interner.get_type(type_id).borrow().field_at(index).name.to_string())
+        }
+        ReferenceId::EnumVariant(type_id, index) => {
+            Some(interner.get_type(type_id).borrow().variant_at(index).name.to_string())
+        }
+        ReferenceId::Trait(trait_id) => Some(interner.get_trait(trait_id).name.to_string()),
+        ReferenceId::Global(global_id) => Some(interner.get_global(global_id).ident.to_string()),
+        ReferenceId::Function(func_id) => Some(interner.function_name(&func_id).to_string()),
+        ReferenceId::Alias(type_alias_id) => {
+            Some(interner.get_type_alias(type_alias_id).borrow().name.to_string())
+        }
+        ReferenceId::Local(definition_id) => {
+            Some(interner.definition_name(definition_id).to_string())
+        }
+        ReferenceId::Reference(location, _) => {
+            get_reference_name(interner.find_referenced(location)?, interner)
+        }
+    }
 }
 
 /// Represents a trait reexported from a given module with a name.
@@ -671,7 +704,7 @@ mod initialization {
     };
     use tokio::test;
 
-    use crate::{requests::on_initialize, types::ServerCapabilities, LspState};
+    use crate::{LspState, requests::on_initialize, types::ServerCapabilities};
 
     #[test]
     async fn test_on_initialize() {

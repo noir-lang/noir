@@ -3,20 +3,20 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::{
+    AcirField, BlackBoxFunc,
     circuit::{
+        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
     },
     native_types::{Expression, Witness},
-    AcirField, BlackBoxFunc,
 };
 
 use super::brillig_directive;
 use crate::{
+    ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
-    ErrorType,
 };
 
 use iter_extended::vecmap;
@@ -795,7 +795,10 @@ fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
         None => return,
     };
 
-    assert_eq!(expected_num_inputs,input_count,"Tried to call black box function {name} with {input_count} inputs, but this function's definition requires {expected_num_inputs} inputs");
+    assert_eq!(
+        expected_num_inputs, input_count,
+        "Tried to call black box function {name} with {input_count} inputs, but this function's definition requires {expected_num_inputs} inputs"
+    );
 }
 
 /// Checks that the number of outputs being used to call the blackbox function
@@ -825,5 +828,8 @@ fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
         None => return,
     };
 
-    assert_eq!(expected_num_outputs,output_count,"Tried to call black box function {name} with {output_count} outputs, but this function's definition requires {expected_num_outputs} outputs");
+    assert_eq!(
+        expected_num_outputs, output_count,
+        "Tried to call black box function {name} with {output_count} outputs, but this function's definition requires {expected_num_outputs} outputs"
+    );
 }

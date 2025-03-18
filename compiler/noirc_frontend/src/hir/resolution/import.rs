@@ -49,7 +49,9 @@ pub enum PathResolutionError {
     TurbofishNotAllowedOnItem { item: String, location: Location },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
-    #[error("trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it")]
+    #[error(
+        "trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it"
+    )]
     TraitMethodNotInScope { ident: Ident, trait_name: String },
     #[error("Could not resolve '{ident}' in path")]
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
@@ -110,18 +112,23 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::TraitMethodNotInScope { ident, .. } => {
-                CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.location())
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
-                    format!("The following traits which provide `{ident}` are implemented but not in scope: {}", traits.join(", ")),
+                    format!(
+                        "The following traits which provide `{ident}` are implemented but not in scope: {}",
+                        traits.join(", ")
+                    ),
                     ident.location(),
                 )
             }
             PathResolutionError::MultipleTraitsInScope { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(
@@ -179,7 +186,7 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
     references_tracker: Option<ReferencesTracker<'references_tracker>>,
 }
 
-impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 'references_tracker> {
+impl PathResolutionTargetResolver<'_, '_> {
     fn resolve(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path),
@@ -190,7 +197,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
     }
 
     fn resolve_crate_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
-        let root_module = self.def_maps[&self.importing_module.krate].root;
+        let root_module = self.def_maps[&self.importing_module.krate].root();
         let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
         Ok((path, current_module))
     }
@@ -227,7 +234,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
         let crate_name = &path.segments.first().unwrap().ident;
         let dep_module = current_def_map
             .extern_prelude
-            .get(&crate_name.0.contents)
+            .get(crate_name.as_str())
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
         if let Some(references_tracker) = &mut self.references_tracker {
@@ -337,8 +344,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }
 
-            current_module =
-                &self.def_maps[&current_module_id.krate].modules[current_module_id.local_id.0];
+            current_module = &self.def_maps[&current_module_id.krate][current_module_id.local_id];
 
             // Check if namespace
             let found_ns = current_module.find_name(current_ident);
@@ -381,5 +387,5 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
 fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
     let message = "A crate should always be present for a given crate id";
-    &def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+    &def_maps.get(&module.krate).expect(message)[module.local_id]
 }

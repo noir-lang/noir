@@ -13,18 +13,17 @@
 //! without the need for multiple passes.
 //!
 //! Other passes perform a certain amount of constant folding automatically as they insert instructions
-//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value`] or
-//! [`DataFlowGraph::set_value_from_id`] are used on a value which enables instructions dependent on the value to
-//! now be simplified.
+//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value_from_id`]
+//! is used on a value which enables instructions dependent on the value to now be simplified.
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
 use acvm::{
-    acir::AcirField,
-    brillig_vm::{MemoryValue, VMStatus, VM},
     FieldElement,
+    acir::AcirField,
+    brillig_vm::{MemoryValue, VM, VMStatus},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use im::Vector;
@@ -32,9 +31,9 @@ use iter_extended::vecmap;
 
 use crate::{
     brillig::{
+        Brillig, BrilligOptions,
         brillig_gen::gen_brillig_for,
         brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
-        Brillig, BrilligOptions,
     },
     ssa::{
         ir::{
@@ -95,6 +94,11 @@ impl Ssa {
         let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
 
         for function in self.functions.values_mut() {
+            // We have already performed our final Brillig generation, so constant folding
+            // Brillig functions is unnecessary work.
+            if function.dfg.runtime().is_brillig() {
+                continue;
+            }
             function.constant_fold(false, brillig_info);
         }
 
@@ -808,6 +812,7 @@ mod test {
     use crate::{
         brillig::BrilligOptions,
         ssa::{
+            Ssa,
             function_builder::FunctionBuilder,
             ir::{
                 function::RuntimeType,
@@ -815,7 +820,6 @@ mod test {
                 types::{NumericType, Type},
             },
             opt::assert_normalized_ssa_equals,
-            Ssa,
         },
     };
 
@@ -1446,6 +1450,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
+        // Need to run SSA pass that sets up Brillig array gets
+        let ssa = ssa.brillig_array_gets();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
@@ -1596,10 +1602,10 @@ mod test {
               b2():
                 jmp b5()
               b3():
-                v4 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
+                v5 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
                 jmp b5()
               b4():
-                v5 = sub v0, u32 1
+                v4 = sub v0, u32 1
                 jmp b5()
               b5():
                 return

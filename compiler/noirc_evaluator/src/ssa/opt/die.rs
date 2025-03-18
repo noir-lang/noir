@@ -17,7 +17,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use super::rc::{pop_rc_for, RcInstruction};
+use super::rc::{RcInstruction, pop_rc_for};
 
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
@@ -26,20 +26,22 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true)
+        self.dead_instruction_elimination_inner(true, false)
     }
 
-    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
+    /// Post the Brillig generation we do not need to run this pass on Brillig functions.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
+        self.dead_instruction_elimination_inner(true, true)
+    }
+
+    fn dead_instruction_elimination_inner(mut self, flattened: bool, skip_brillig: bool) -> Ssa {
         let mut used_globals_map: HashMap<_, _> = self
             .functions
             .par_iter_mut()
             .filter_map(|(id, func)| {
-                let set = func.dead_instruction_elimination(true, flattened);
-                if func.runtime().is_brillig() {
-                    Some((*id, set))
-                } else {
-                    None
-                }
+                let set = func.dead_instruction_elimination(true, flattened, skip_brillig);
+                if func.runtime().is_brillig() { Some((*id, set)) } else { None }
             })
             .collect();
 
@@ -79,7 +81,12 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
         flattened: bool,
+        skip_brillig: bool,
     ) -> HashSet<ValueId> {
+        if skip_brillig && self.dfg.runtime().is_brillig() {
+            return HashSet::default();
+        }
+
         let mut context = Context { flattened, ..Default::default() };
 
         context.mark_function_parameter_arrays_as_used(self);
@@ -103,7 +110,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened);
+            return self.dead_instruction_elimination(false, flattened, skip_brillig);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -128,9 +135,8 @@ struct Context {
     /// them just yet.
     flattened: bool,
 
-    // When tracking mutations we consider arrays with the same type as all being possibly mutated.
-    // This we consider to span all blocks of the functions.
-    mutated_array_types: HashSet<Type>,
+    /// Track IncrementRc instructions per block to determine whether they are useless.
+    rc_tracker: RcTracker,
 }
 
 impl Context {
@@ -160,10 +166,8 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        // Lend the shared array type to the tracker.
-        let mut mutated_array_types = std::mem::take(&mut self.mutated_array_types);
-        let mut rc_tracker = RcTracker::new(&mut mutated_array_types);
-        rc_tracker.mark_terminator_arrays_as_used(function, block);
+        self.rc_tracker.new_block();
+        self.rc_tracker.mark_terminator_arrays_as_used(function, block);
 
         let instructions_len = block.instructions().len();
 
@@ -196,12 +200,11 @@ impl Context {
                 }
             }
 
-            rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
+            self.rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
 
-        self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays(&function.dfg));
-        self.instructions_to_remove.extend(rc_tracker.rc_pairs_to_remove);
-
+        self.instructions_to_remove.extend(self.rc_tracker.get_non_mutated_arrays(&function.dfg));
+        self.instructions_to_remove.extend(self.rc_tracker.rc_pairs_to_remove.drain());
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
         // but leave the constrains (any any value needed by those constrains)
@@ -220,9 +223,6 @@ impl Context {
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-
-        // Take the mutated array back.
-        self.mutated_array_types = mutated_array_types;
 
         false
     }
@@ -272,9 +272,13 @@ impl Context {
                 let typ = typ.get_contained_array();
                 // Want to store the array type which is being referenced,
                 // because it's the underlying array that the `inc_rc` is associated with.
-                self.mutated_array_types.insert(typ.clone());
+                self.add_mutated_array_type(typ.clone());
             }
         }
+    }
+
+    fn add_mutated_array_type(&mut self, typ: Type) {
+        self.rc_tracker.mutated_array_types.insert(typ.get_contained_array().clone());
     }
 
     /// Go through the RC instructions collected when we figured out which values were unused;
@@ -608,8 +612,9 @@ fn apply_side_effects(
     (lhs, rhs)
 }
 
+#[derive(Default)]
 /// Per block RC tracker.
-struct RcTracker<'a> {
+struct RcTracker {
     // We can track IncrementRc instructions per block to determine whether they are useless.
     // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
     // them if their value is not used anywhere in the function. However, even when their value is used, their existence
@@ -624,7 +629,8 @@ struct RcTracker<'a> {
     // If an array is the same type as one of those non-mutated array types, we can safely remove all IncrementRc instructions on that array.
     inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
     // Mutated arrays shared across the blocks of the function.
-    mutated_array_types: &'a mut HashSet<Type>,
+    // When tracking mutations we consider arrays with the same type as all being possibly mutated.
+    mutated_array_types: HashSet<Type>,
     // The SSA often creates patterns where after simplifications we end up with repeat
     // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
     // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
@@ -632,15 +638,12 @@ struct RcTracker<'a> {
     previous_inc_rc: Option<ValueId>,
 }
 
-impl<'a> RcTracker<'a> {
-    fn new(mutated_array_types: &'a mut HashSet<Type>) -> Self {
-        Self {
-            rcs_with_possible_pairs: Default::default(),
-            rc_pairs_to_remove: Default::default(),
-            inc_rcs: Default::default(),
-            previous_inc_rc: Default::default(),
-            mutated_array_types,
-        }
+impl RcTracker {
+    fn new_block(&mut self) {
+        self.rcs_with_possible_pairs.clear();
+        self.rc_pairs_to_remove.clear();
+        self.inc_rcs.clear();
+        self.previous_inc_rc = Default::default();
     }
 
     fn mark_terminator_arrays_as_used(&mut self, function: &Function, block: &BasicBlock) {
@@ -751,6 +754,7 @@ mod test {
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
@@ -758,7 +762,6 @@ mod test {
             types::{NumericType, Type},
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]
@@ -1099,7 +1102,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        let ssa = ssa.dead_instruction_elimination_inner(false);
+        let ssa = ssa.dead_instruction_elimination_inner(false, false);
 
         let expected = "
           acir(inline) fn main f0 {
@@ -1119,6 +1122,40 @@ mod test {
               return
           }
         ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_remove_inc_rc_if_mutated_in_other_block() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut [Field; 3]):
+            v1 = load v0 -> [Field; 3]
+            inc_rc v1
+            jmp b1()
+          b1():
+            v2 = load v0 -> [Field; 3]
+            v3 = array_set v2, index u32 0, value u32 0
+            store v3 at v0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut [Field; 3]):
+            v1 = load v0 -> [Field; 3]
+            inc_rc v1
+            jmp b1()
+          b1():
+            v2 = load v0 -> [Field; 3]
+            v4 = array_set v2, index u32 0, value u32 0
+            store v4 at v0
+            return
+        }
+        ";
+        let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, expected);
     }
 }

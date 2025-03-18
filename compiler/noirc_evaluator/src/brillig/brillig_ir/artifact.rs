@@ -3,8 +3,8 @@ use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::call_stack::CallStackId;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 use crate::ErrorType;
+use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 use super::procedures::ProcedureId;
 
@@ -305,25 +305,37 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
             let jump_instruction = self.byte_code[*location_of_jump].clone();
             match jump_instruction {
                 BrilligOpcode::Jump { location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the jump label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Jump { location: resolved_location };
                 }
                 BrilligOpcode::JumpIfNot { condition, location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the jump label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::JumpIfNot { condition, location: resolved_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the jump label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::JumpIf { condition, location: resolved_location };
                 }
                 BrilligOpcode::Call { location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the call label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the call label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Call { location: resolved_location };

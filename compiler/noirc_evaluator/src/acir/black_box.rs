@@ -1,9 +1,9 @@
 use acvm::{
-    acir::{
-        circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
-        AcirField, BlackBoxFunc,
-    },
     BlackBoxFunctionSolver,
+    acir::{
+        AcirField, BlackBoxFunc,
+        circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
+    },
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -11,8 +11,8 @@ use num_bigint::BigUint;
 use crate::errors::{InternalError, RuntimeError};
 
 use super::{
-    acir_variable::{AcirContext, AcirVar},
     AcirValue,
+    acir_variable::{AcirContext, AcirVar},
 };
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
@@ -35,7 +35,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                             name: "poseidon_2_permutation call".to_string(),
                             arg: "length".to_string(),
                             call_stack: self.get_call_stack(),
-                        }))
+                        }));
                     }
                 };
 
@@ -45,7 +45,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                             name: "length".to_string(),
                             call_stack: self.get_call_stack(),
-                        }))
+                        }));
                     }
                 };
 
@@ -160,7 +160,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                             name: "verify proof".to_string(),
                             arg: "proof type".to_string(),
                             call_stack: self.get_call_stack(),
-                        }))
+                        }));
                     }
                 };
 
@@ -170,7 +170,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                             name: "proof type".to_string(),
                             call_stack: self.get_call_stack(),
-                        }))
+                        }));
                     }
                 };
 

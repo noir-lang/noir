@@ -24,6 +24,7 @@ use self::{
     value::{Tree, Values},
 };
 
+use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
@@ -130,7 +131,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     Ok(ssa)
 }
 
-impl<'a> FunctionContext<'a> {
+impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
@@ -233,10 +234,10 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Integer(value, negative, typ, location) => {
+            ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
-                self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
+                self.checked_numeric_constant(*value, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
@@ -370,7 +371,7 @@ impl<'a> FunctionContext<'a> {
                     unary.location,
                 ))
             }
-            UnaryOp::MutableReference => {
+            UnaryOp::Reference { mutable: _ } => {
                 Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
@@ -767,7 +768,15 @@ impl<'a> FunctionContext<'a> {
         let tag = self.enum_tag(&variable);
         let tag_type = self.builder.type_of_value(tag).unwrap_numeric();
 
-        let end_block = self.builder.insert_block();
+        let make_end_block = |this: &mut Self| -> (BasicBlockId, Values) {
+            let block = this.builder.insert_block();
+            let results = Self::map_type(&match_expr.typ, |typ| {
+                this.builder.add_block_parameter(block, typ).into()
+            });
+            (block, results)
+        };
+
+        let (end_block, end_results) = make_end_block(self);
 
         // Optimization: if there is no default case we can jump directly to the last case
         // when finished with the previous case instead of using a jmpif with an unreachable
@@ -777,6 +786,8 @@ impl<'a> FunctionContext<'a> {
         } else {
             match_expr.cases.len() - 1
         };
+
+        let mut blocks_to_merge = Vec::with_capacity(last_case);
 
         for i in 0..last_case {
             let case = &match_expr.cases[i];
@@ -790,28 +801,70 @@ impl<'a> FunctionContext<'a> {
             self.builder.switch_to_block(case_block);
             self.bind_case_arguments(variable.clone(), case);
             let results = self.codegen_expression(&case.branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, results);
+
+            // Each branch will jump to a different end block for now. We have to merge them all
+            // later since SSA doesn't support more than two blocks jumping to the same end block.
+            let local_end_block = make_end_block(self);
+            self.builder.terminate_with_jmp(local_end_block.0, results);
+            blocks_to_merge.push(local_end_block);
 
             self.builder.switch_to_block(else_block);
         }
 
+        let (last_local_end_block, last_results) = make_end_block(self);
+        blocks_to_merge.push((last_local_end_block, last_results));
+
         if let Some(branch) = &match_expr.default_case {
             let results = self.codegen_expression(branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, results);
+            self.builder.terminate_with_jmp(last_local_end_block, results);
         } else {
             // If there is no default case, assume we saved the last case from the
             // last_case optimization above
             let case = match_expr.cases.last().unwrap();
             self.bind_case_arguments(variable, case);
             let results = self.codegen_expression(&case.branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, results);
+            self.builder.terminate_with_jmp(last_local_end_block, results);
+        }
+
+        // Merge blocks as last-in first-out:
+        //
+        // local_end_block0-----------------------------------------\
+        //                                                           end block
+        //                                                          /
+        // local_end_block1---------------------\                  /
+        //                                       new merge block2-/
+        // local_end_block2--\                  /
+        //                    new merge block1-/
+        // local_end_block3--/
+        //
+        // This is necessary since SSA panics during flattening if we immediately
+        // try to jump directly to end block instead: https://github.com/noir-lang/noir/issues/7323.
+        //
+        // It'd also be more efficient to merge them tournament-bracket style but that
+        // also leads to panics during flattening for similar reasons.
+        while let Some((block, results)) = blocks_to_merge.pop() {
+            self.builder.switch_to_block(block);
+
+            if let Some((block2, results2)) = blocks_to_merge.pop() {
+                // Merge two blocks in the queue together
+                let (new_merge, new_merge_results) = make_end_block(self);
+                blocks_to_merge.push((new_merge, new_merge_results));
+
+                let results = results.into_value_list(self);
+                self.builder.terminate_with_jmp(new_merge, results);
+
+                self.builder.switch_to_block(block2);
+                let results2 = results2.into_value_list(self);
+                self.builder.terminate_with_jmp(new_merge, results2);
+            } else {
+                // Finally done, jump to the end
+                let results = results.into_value_list(self);
+                self.builder.terminate_with_jmp(end_block, results);
+            }
         }
 
         self.builder.switch_to_block(end_block);
-        let result = Self::map_type(&match_expr.typ, |typ| {
-            self.builder.add_block_parameter(end_block, typ).into()
-        });
-        Ok(result)
+        Ok(end_results)
     }
 
     fn variant_index_value(
@@ -820,9 +873,7 @@ impl<'a> FunctionContext<'a> {
         typ: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         match constructor {
-            Constructor::Int(value) => {
-                self.checked_numeric_constant(value.field, value.is_negative, typ)
-            }
+            Constructor::Int(value) => self.checked_numeric_constant(*value, typ),
             other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
         }
     }

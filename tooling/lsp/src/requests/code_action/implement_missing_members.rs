@@ -11,7 +11,7 @@ use crate::{byte_span_to_range, trait_impl_method_stub_generator::TraitImplMetho
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn implement_missing_members(
         &mut self,
         noir_trait_impl: &NoirTraitImpl,
@@ -52,7 +52,7 @@ impl<'a> CodeActionFinder<'a> {
                     if let UnresolvedTypeData::Unspecified = alias.typ {
                         continue;
                     }
-                    associated_types.remove(&name.0.contents);
+                    associated_types.remove(name.as_string());
                 }
             }
         }
@@ -60,7 +60,7 @@ impl<'a> CodeActionFinder<'a> {
         // Also remove default methods
         for trait_function in &trait_.methods {
             if trait_function.default_impl.is_some() {
-                method_ids.remove(&trait_function.name.0.contents);
+                method_ids.remove(trait_function.name.as_string());
             }
         }
 

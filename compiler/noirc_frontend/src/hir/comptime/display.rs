@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
+    Type,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -15,12 +16,11 @@ use crate::{
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
-    Type,
 };
 
 use super::{
-    value::{ExprValue, TypedExpr},
     Value,
+    value::{ExprValue, TypedExpr},
 };
 
 pub(super) fn display_quoted(
@@ -49,7 +49,7 @@ struct TokensPrettyPrinter<'tokens, 'interner> {
     indent: usize,
 }
 
-impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
+impl Display for TokensPrettyPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut token_printer = TokenPrettyPrinter::new(self.interner, self.indent);
         for token in self.tokens {
@@ -86,6 +86,9 @@ pub(super) fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner)
 struct TokenPrettyPrinter<'interner> {
     interner: &'interner NodeInterner,
     indent: usize,
+    /// Determines whether the last outputted byte was alphanumeric.
+    /// This is used to add a space after the last token and before another token
+    /// that starts with an alphanumeric byte.
     last_was_alphanumeric: bool,
     last_was_right_brace: bool,
     last_was_semicolon: bool,
@@ -169,30 +172,33 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         }
 
         match token {
-            Token::QuotedType(id) => write!(f, "{}", self.interner.get_quoted_type(*id)),
+            Token::QuotedType(id) => {
+                let value = Value::Type(self.interner.get_quoted_type(*id).clone());
+                self.print_value(&value, last_was_alphanumeric, f)
+            }
             Token::InternedExpr(id) => {
                 let value = Value::expression(ExpressionKind::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedStatement(id) => {
                 let value = Value::statement(StatementKind::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedLValue(id) => {
                 let value = Value::lvalue(LValue::Interned(*id, Location::dummy()));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedUnresolvedTypeData(id) => {
                 let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedPattern(id) => {
                 let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::UnquoteMarker(id) => {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::Keyword(..)
             | Token::Ident(..)
@@ -254,6 +260,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
+            | Token::SliceStart
             | Token::ShiftLeft
             | Token::ShiftRight => {
                 self.last_was_op = true;
@@ -278,7 +285,6 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::RawStr(..)
             | Token::FmtStr(..)
             | Token::Whitespace(_)
-            | Token::LineComment(..)
             | Token::BlockComment(..)
             | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
@@ -287,12 +293,29 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 }
                 write!(f, "{token}")
             }
+            Token::LineComment(..) => {
+                writeln!(f, "{token}")?;
+                self.write_indent(f)
+            }
             Token::EOF => Ok(()),
         }
     }
 
-    fn print_value(&mut self, value: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn print_value(
+        &mut self,
+        value: &Value,
+        last_was_alphanumeric: bool,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         let string = value.display(self.interner).to_string();
+        if string.is_empty() {
+            return Ok(());
+        }
+
+        if last_was_alphanumeric && string.bytes().next().unwrap().is_ascii_alphanumeric() {
+            write!(f, " ")?;
+        }
+
         for (index, line) in string.lines().enumerate() {
             if index > 0 {
                 writeln!(f)?;
@@ -301,7 +324,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             line.fmt(f)?;
         }
 
-        self.last_was_alphanumeric = string.bytes().all(|byte| byte.is_ascii_alphanumeric());
+        self.last_was_alphanumeric = string.bytes().last().unwrap().is_ascii_alphanumeric();
         self.last_was_right_brace = string.ends_with('}');
         self.last_was_semicolon = string.ends_with(';');
 
@@ -327,7 +350,7 @@ pub struct ValuePrinter<'value, 'interner> {
     interner: &'interner NodeInterner,
 }
 
-impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
+impl Display for ValuePrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.value {
             Value::Unit => write!(f, "()"),
@@ -381,7 +404,13 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                     other => write!(f, "{other}(args)"),
                 }
             }
-            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
+            Value::Pointer(value, _, mutable) => {
+                if *mutable {
+                    write!(f, "&mut {}", value.borrow().display(self.interner))
+                } else {
+                    write!(f, "&{}", value.borrow().display(self.interner))
+                }
+            }
             Value::Array(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "[{}]", values.join(", "))
@@ -391,7 +420,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 write!(f, "&[{}]", values.join(", "))
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
-            Value::StructDefinition(id) => {
+            Value::TypeDefinition(id) => {
                 let def = self.interner.get_type(*id);
                 let def = def.borrow();
                 write!(f, "{}", def.name)
@@ -494,7 +523,7 @@ pub struct TokenPrinter<'token, 'interner> {
     interner: &'interner NodeInterner,
 }
 
-impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
+impl Display for TokenPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.token {
             Token::QuotedType(id) => {
@@ -700,7 +729,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
-        | Literal::Integer(_, _)
+        | Literal::Integer(_)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
         | Literal::FmtStr(_, _)
@@ -856,8 +885,9 @@ fn remove_interned_in_unresolved_type_data(
                 remove_interned_in_generic_type_args(interner, generic_type_args),
             )
         }
-        UnresolvedTypeData::MutableReference(typ) => UnresolvedTypeData::MutableReference(
+        UnresolvedTypeData::Reference(typ, mutable) => UnresolvedTypeData::Reference(
             Box::new(remove_interned_in_unresolved_type(interner, *typ)),
+            mutable,
         ),
         UnresolvedTypeData::Tuple(types) => UnresolvedTypeData::Tuple(vecmap(types, |typ| {
             remove_interned_in_unresolved_type(interner, typ)

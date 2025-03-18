@@ -2,15 +2,16 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
+    Type,
     ast::TraitBound,
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
-    Type,
+    signed_field::SignedField,
 };
-use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
+use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -34,7 +35,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: FieldElement,
+        value: SignedField,
         typ: Type,
         location: Location,
     },
@@ -385,11 +386,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
-                let int = match value.try_into_u128() {
-                    Some(int) => int.to_string(),
-                    None => value.to_string(),
-                };
-                let msg = format!("{int} is outside the range of the {typ} type");
+                let msg = format!("{value} is outside the range of the {typ} type");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ErrorNodeEncountered { location } => {
@@ -465,7 +462,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonIntegerArrayLength { typ, err, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
                 let secondary = if let Some(err) = err {
-                    format!("Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`")
+                    format!(
+                        "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
+                    )
                 } else {
                     "Array lengths must be integers".to_string()
                 };
@@ -704,15 +703,22 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 /// comptime call or macro "something" that eventually led to that error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComptimeError {
-    ErrorRunningAttribute { error: Box<CompilationError>, location: Location },
-    ErrorAddingItemToModule { error: Box<CompilationError>, location: Location },
+    ErrorRunningAttribute {
+        error: Box<CompilationError>,
+        location: Location,
+    },
+    ErrorEvaluatingComptimeCall {
+        method_name: &'static str,
+        error: Box<CompilationError>,
+        location: Location,
+    },
 }
 
 impl ComptimeError {
     pub fn location(&self) -> Location {
         match self {
             ComptimeError::ErrorRunningAttribute { location, .. }
-            | ComptimeError::ErrorAddingItemToModule { location, .. } => *location,
+            | ComptimeError::ErrorEvaluatingComptimeCall { location, .. } => *location,
         }
     }
 }
@@ -725,9 +731,9 @@ impl<'a> From<&'a ComptimeError> for CustomDiagnostic {
                 diagnostic.add_secondary("While running this function attribute".into(), *location);
                 diagnostic
             }
-            ComptimeError::ErrorAddingItemToModule { error, location } => {
+            ComptimeError::ErrorEvaluatingComptimeCall { method_name, error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
-                diagnostic.add_secondary("While interpreting `Module::add_item`".into(), *location);
+                diagnostic.add_secondary(format!("While evaluating `{method_name}`"), *location);
                 diagnostic
             }
         }

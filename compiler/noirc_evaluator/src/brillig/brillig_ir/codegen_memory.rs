@@ -1,15 +1,15 @@
 use acvm::{
-    acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     AcirField,
+    acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
 use super::{
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -260,7 +260,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_register(index_at_end_of_array);
     }
 
-    /// Converts a BrilligArray (pointer to [RC, ...items]) to a HeapArray (pointer to [items])
+    /// Converts a BrilligArray (pointer to `[RC, ...items]`) to a HeapArray (pointer to `[items]`)
     pub(crate) fn codegen_brillig_array_to_heap_array(&mut self, array: BrilligArray) -> HeapArray {
         let heap_array = HeapArray { pointer: self.allocate_register(), size: array.size };
         self.codegen_usize_op(array.pointer, heap_array.pointer, BrilligBinaryOp::Add, 1);

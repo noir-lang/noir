@@ -3,8 +3,8 @@ use noirc_errors::call_stack::CallStackId;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
-    acir::{AcirField, BlackBoxFunc},
     FieldElement,
+    acir::{AcirField, BlackBoxFunc},
 };
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
@@ -170,7 +170,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePopBack => {
             let length = dfg.get_numeric_constant(arguments[0]);
-            if length.map_or(true, |length| length.is_zero()) {
+            if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the last element from an empty slice.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
@@ -185,7 +185,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePopFront => {
             let length = dfg.get_numeric_constant(arguments[0]);
-            if length.map_or(true, |length| length.is_zero()) {
+            if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the first element from an empty slice.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
@@ -243,7 +243,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SliceRemove => {
             let length = dfg.get_numeric_constant(arguments[0]);
-            if length.map_or(true, |length| length.is_zero()) {
+            if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to remove an element from an empty slice.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
@@ -610,7 +610,9 @@ fn simplify_black_box_func(
                 "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
             )
         }
-        BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
+        BlackBoxFunc::Sha256Compression => {
+            blackbox::simplify_sha256_compression(dfg, arguments, block, call_stack)
+        }
         BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
     }
 }
@@ -718,10 +720,10 @@ fn simplify_derive_generators(
             );
             let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
             let mut results = Vec::new();
-            for gen in generators {
-                let x_big: BigUint = gen.x.into();
+            for generator in generators {
+                let x_big: BigUint = generator.x.into();
                 let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-                let y_big: BigUint = gen.y.into();
+                let y_big: BigUint = generator.y.into();
                 let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
@@ -742,29 +744,29 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
         let src = r#"
-            brillig(inline) fn main f0 {
-              b0():
-                v0 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+            brillig(inline) fn main func {
+              block():
+                separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
-                v2 = call derive_pedersen_generators(v0, u32 0) -> [(Field, Field, u1); 1]
+                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field, u1); 1]
 
-                return v2
+                return result
             }
             "#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         let expected = r#"
-            brillig(inline) fn main f0 {
-              b0():
-                v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-                v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
-                return v19
+            brillig(inline) fn main func {
+              block():
+                separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+                result = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
+                return result
             }
             "#;
         assert_normalized_ssa_equals(ssa, expected);

@@ -1,4 +1,5 @@
 use crate::{
+    ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -6,20 +7,19 @@ use crate::{
         errors::DefCollectorErrorKind,
     },
     node_interner::TraitImplId,
-    ResolvedGeneric,
 };
 use crate::{
+    Type,
     hir::def_collector::errors::DuplicateType,
     hir_def::traits::{TraitConstraint, TraitFunction},
     node_interner::{FuncId, TraitId},
-    Type,
 };
 
 use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn collect_trait_impl_methods(
         &mut self,
         trait_id: TraitId,
@@ -49,7 +49,7 @@ impl<'context> Elaborator<'context> {
                 .methods
                 .functions
                 .iter()
-                .filter(|(_, _, f)| f.name() == method.name.0.contents)
+                .filter(|(_, _, f)| f.name() == method.name.as_str())
                 .collect();
 
             if overrides.is_empty() {
@@ -202,10 +202,10 @@ impl<'context> Elaborator<'context> {
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
                 self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
                     constraint_typ: override_trait_constraint.typ,
-                    constraint_name: the_trait.name.0.contents.clone(),
+                    constraint_name: the_trait.name.to_string(),
                     constraint_generics: override_trait_constraint.trait_bound.trait_generics,
                     constraint_location: override_trait_constraint.trait_bound.location,
-                    trait_method_name: method.name.0.contents.clone(),
+                    trait_method_name: method.name.to_string(),
                     trait_method_location: method.location,
                 });
             }

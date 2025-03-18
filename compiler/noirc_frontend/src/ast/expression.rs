@@ -8,9 +8,10 @@ use crate::ast::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
-use acvm::{acir::AcirField, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
@@ -87,7 +88,7 @@ pub struct UnsupportedNumericGenericType {
 impl UnresolvedGeneric {
     pub fn location(&self) -> Location {
         match self {
-            UnresolvedGeneric::Variable(ident) => ident.0.location(),
+            UnresolvedGeneric::Variable(ident) => ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
             UnresolvedGeneric::Resolved(_, location) => *location,
         }
@@ -170,8 +171,8 @@ impl ExpressionKind {
         match (operator, &rhs) {
             (
                 UnaryOp::Minus,
-                Expression { kind: ExpressionKind::Literal(Literal::Integer(field, sign)), .. },
-            ) => ExpressionKind::Literal(Literal::Integer(*field, !sign)),
+                Expression { kind: ExpressionKind::Literal(Literal::Integer(field)), .. },
+            ) => ExpressionKind::Literal(Literal::Integer(-*field)),
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
@@ -199,7 +200,7 @@ impl ExpressionKind {
     }
 
     pub fn integer(contents: FieldElement) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(contents, false))
+        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents)))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {
@@ -382,7 +383,9 @@ impl BinaryOpKind {
 pub enum UnaryOp {
     Minus,
     Not,
-    MutableReference,
+    Reference {
+        mutable: bool,
+    },
 
     /// If implicitly_added is true, this operation was implicitly added by the compiler for a
     /// field dereference. The compiler may undo some of these implicitly added dereferences if
@@ -409,7 +412,7 @@ pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
+    Integer(SignedField),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
@@ -686,12 +689,8 @@ impl Display for Literal {
                 write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
-            Literal::Integer(integer, sign) => {
-                if *sign {
-                    write!(f, "-{}", integer.to_u128())
-                } else {
-                    write!(f, "{}", integer.to_u128())
-                }
+            Literal::Integer(signed_field) => {
+                write!(f, "{signed_field}")
             }
             Literal::Str(string) => write!(f, "\"{string}\""),
             Literal::RawStr(string, num_hashes) => {
@@ -735,7 +734,8 @@ impl Display for UnaryOp {
         match self {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
-            UnaryOp::MutableReference => write!(f, "&mut"),
+            UnaryOp::Reference { mutable } if *mutable => write!(f, "&mut"),
+            UnaryOp::Reference { .. } => write!(f, "&"),
             UnaryOp::Dereference { .. } => write!(f, "*"),
         }
     }
@@ -931,6 +931,13 @@ impl FunctionReturnType {
                 Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, location: *location })
             }
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            FunctionReturnType::Default(location) => *location,
+            FunctionReturnType::Ty(typ) => typ.location,
         }
     }
 }

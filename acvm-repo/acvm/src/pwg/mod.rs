@@ -3,17 +3,17 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField, BlackBoxFunc,
     brillig::ForeignCallResult,
     circuit::{
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
+        RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{
             AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
         },
-        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload,
     },
     native_types::{Expression, Witness, WitnessMap},
-    AcirField, BlackBoxFunc,
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
@@ -47,7 +47,7 @@ pub enum ACVMStatus<F> {
     /// Most commonly this will be due to an unsatisfied constraint due to invalid inputs to the circuit.
     Failure(OpcodeResolutionError<F>),
 
-    /// The ACVM has encountered a request for a Brillig [foreign call][acir::brillig_vm::Opcode::ForeignCall]
+    /// The ACVM has encountered a request for a Brillig [foreign call][brillig_vm::brillig::Opcode::ForeignCall]
     /// to retrieve information from outside of the ACVM. The result of the foreign call must be passed back
     /// to the ACVM using [`ACVM::resolve_pending_foreign_call`].
     ///
@@ -73,6 +73,7 @@ impl<F> std::fmt::Display for ACVMStatus<F> {
     }
 }
 
+#[expect(clippy::large_enum_variant)]
 pub enum StepResult<'a, F, B: BlackBoxFunctionSolver<F>> {
     Status(ACVMStatus<F>),
     IntoBrillig(BrilligSolver<'a, F, B>),
@@ -142,7 +143,9 @@ pub enum OpcodeResolutionError<F> {
     },
     #[error("Attempted to call `main` with a `Call` opcode")]
     AcirMainCallAttempted { opcode_location: ErrorLocation },
-    #[error("{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen")]
+    #[error(
+        "{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen"
+    )]
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
     #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {pred_value}")]
     PredicateLargerThanOne { opcode_location: ErrorLocation, pred_value: F },
@@ -175,7 +178,7 @@ pub struct ProfilingSample {
     pub brillig_function_id: Option<BrilligFunctionId>,
 }
 
-pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
+pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
 
     backend: &'a B,
@@ -309,7 +312,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
-    /// Resolves a foreign call's [result][acir::brillig_vm::ForeignCallResult] using a result calculated outside of the ACVM.
+    /// Resolves a foreign call's [result][brillig_vm::brillig::ForeignCallResult] using a result calculated outside of the ACVM.
     ///
     /// The ACVM can then be restarted to solve the remaining Brillig VM process as well as the remaining ACIR opcodes.
     pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
@@ -744,11 +747,7 @@ pub fn insert_value<F: AcirField>(
 // The function is used during partial witness generation to report unsolved witness
 fn any_witness_from_expression<F>(expr: &Expression<F>) -> Option<Witness> {
     if expr.linear_combinations.is_empty() {
-        if expr.mul_terms.is_empty() {
-            None
-        } else {
-            Some(expr.mul_terms[0].1)
-        }
+        if expr.mul_terms.is_empty() { None } else { Some(expr.mul_terms[0].1) }
     } else {
         Some(expr.linear_combinations[0].1)
     }

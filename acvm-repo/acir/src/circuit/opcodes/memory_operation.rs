@@ -3,11 +3,13 @@ use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BlockId(pub u32);
 
 /// Operation on a block of memory
 /// We can either write or read at an index in memory
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct MemOp<F> {
     /// A constant expression that can be 0 (read) or 1 (write)
     pub operation: Expression<F>,

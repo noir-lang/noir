@@ -1,4 +1,5 @@
 use crate::{
+    Type,
     ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
     graph::CrateId,
     hir::{
@@ -13,10 +14,9 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
-    Type,
 };
 
-use noirc_errors::{Located, Location};
+use noirc_errors::Location;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -67,7 +67,7 @@ pub(super) fn low_level_function_outside_stdlib(
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        modifiers.attributes.function().map_or(false, |func| func.is_low_level());
+        modifiers.attributes.function().is_some_and(|func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
@@ -81,7 +81,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function = modifiers.attributes.function().map_or(false, |func| func.is_oracle());
+    let is_oracle_function = modifiers.attributes.function().is_some_and(|func| func.is_oracle());
     if is_oracle_function && !modifiers.is_unconstrained {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleMarkedAsConstrained { ident })
@@ -104,7 +104,7 @@ pub(super) fn oracle_called_from_constrained_function(
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call = function_attributes.function().map_or(false, |func| func.is_oracle());
+    let is_oracle_call = function_attributes.function().is_some_and(|func| func.is_oracle());
     if is_oracle_call {
         Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } else {
@@ -201,13 +201,13 @@ pub(crate) fn overflowing_int(
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
+        HirExpression::Literal(HirLiteral::Integer(value)) => match annotated_type {
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = (*bit_size).into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value > max.into() || negative {
+                if value.field > max.into() || value.is_negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("0..={}", max),
                         location,
@@ -218,9 +218,11 @@ pub(crate) fn overflowing_int(
                 let bit_count: u32 = (*bit_count).into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
-                if (negative && value > min.into()) || (!negative && value > max.into()) {
+                if (value.is_negative && value.field > min.into())
+                    || (!value.is_negative && value.field > max.into())
+                {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("-{}..={}", min, max),
                         location,
@@ -249,7 +251,7 @@ pub(crate) fn overflowing_int(
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
-    Ident(Located::from(func.name.location, modifiers.name.clone()))
+    Ident::new(modifiers.name.clone(), func.name.location)
 }
 
 /// Check that a recursive function *can* return without endlessly calling itself.
@@ -297,11 +299,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
                 return true;
             }
             let definition = interner.definition(ident.id);
-            if let DefinitionKind::Function(id) = definition.kind {
-                func_id != id
-            } else {
-                true
-            }
+            if let DefinitionKind::Function(id) = definition.kind { func_id != id } else { true }
         }
         HirExpression::Block(b) => check_block(b),
         HirExpression::Prefix(e) => check(e.rhs),
@@ -309,7 +307,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
         HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::MethodCall(e) => check(e.object) && e.arguments.iter().cloned().all(check),
         HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
@@ -325,7 +322,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         | HirExpression::EnumConstructor(_)
         | HirExpression::Quote(_)
         | HirExpression::Unquote(_)
-        | HirExpression::Comptime(_)
         | HirExpression::Error => true,
     }
 }
@@ -340,11 +336,11 @@ fn can_return_without_recursing_match(
 
     match match_expr {
         HirMatch::Success(expr) => check(*expr),
-        HirMatch::Failure => true,
+        HirMatch::Failure { .. } => true,
         HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
         HirMatch::Switch(_, cases, otherwise) => {
             cases.iter().all(|case| check_match(&case.body))
-                && otherwise.as_ref().map_or(true, |case| check_match(case))
+                && otherwise.as_ref().is_none_or(|case| check_match(case))
         }
     }
 }

@@ -1,18 +1,28 @@
 pub mod poseidon;
 pub mod poseidon2;
-pub mod keccak;
-pub mod sha256;
-pub mod sha512;
 
 use crate::default::Default;
 use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
-use crate::uint128::U128;
 
-// Kept for backwards compatibility
-pub use sha256::{digest, sha256, sha256_compression, sha256_var};
+#[foreign(sha256_compression)]
+// docs:start:sha256_compression
+pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+// docs:end:sha256_compression
+
+#[foreign(keccakf1600)]
+// docs:start:keccakf1600
+pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+// docs:end:keccakf1600
+
+pub mod keccak {
+    #[deprecated("This function has been moved to std::hash::keccakf1600")]
+    pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {
+        super::keccakf1600(input)
+    }
+}
 
 #[foreign(blake2s)]
 // docs:start:blake2s
@@ -114,13 +124,6 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
     sum
 }
 
-// docs:start:keccak256
-pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
-// docs:end:keccak256
-{
-    crate::hash::keccak::keccak256(input, message_size)
-}
-
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
@@ -136,7 +139,7 @@ pub trait Hash {
 }
 
 // docs:start:derive_hash
-comptime fn derive_hash(s: StructDefinition) -> Quoted {
+comptime fn derive_hash(s: TypeDefinition) -> Quoted {
     let name = quote { Hash };
     let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
     let for_each_field = |name| quote { _self.$name.hash(_state); };
@@ -300,16 +303,6 @@ impl Hash for () {
     where
         H: Hasher,
     {}
-}
-
-impl Hash for U128 {
-    fn hash<H>(self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        H::write(state, self.lo as Field);
-        H::write(state, self.hi as Field);
-    }
 }
 
 impl<T, let N: u32> Hash for [T; N]

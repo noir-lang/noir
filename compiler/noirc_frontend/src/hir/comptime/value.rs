@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
+    Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
         IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
@@ -23,8 +24,8 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
-    Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -60,11 +61,11 @@ pub enum Value {
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
-    Pointer(Shared<Value>, /* auto_deref */ bool),
+    Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
-    StructDefinition(TypeId),
+    TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     TraitImpl(TraitImplId),
@@ -149,13 +150,13 @@ impl Value {
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
-            Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
-            Value::Pointer(element, auto_deref) => {
+            Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
+            Value::Pointer(element, auto_deref, mutable) => {
                 if *auto_deref {
                     element.borrow().get_type().into_owned()
                 } else {
                     let element = element.borrow().get_type().into_owned();
-                    Type::MutableReference(Box::new(element))
+                    Type::Reference(Box::new(element), *mutable)
                 }
             }
             Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
@@ -180,47 +181,39 @@ impl Value {
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value, false)),
+            Value::Field(value) => {
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+            }
             Value::I8(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::I16(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::I32(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::I64(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::U1(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
             }
             Value::U8(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
             }
             Value::U16(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
             }
             Value::U32(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
             }
             Value::U64(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
             }
-            Value::U128(value) => ExpressionKind::Literal(Literal::Integer(value.into(), false)),
+            Value::U128(value) => {
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+            }
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
@@ -328,7 +321,7 @@ impl Value {
             }
             Value::TypedExpr(..)
             | Value::Pointer(..)
-            | Value::StructDefinition(_)
+            | Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)
@@ -357,47 +350,37 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value, false)),
+            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Value::I8(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::I16(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::I32(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::I64(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::U1(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
             Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
             }
             Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
             }
             Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
             Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::U128(value) => HirExpression::Literal(HirLiteral::Integer(value.into(), false)),
+            Value::U128(value) => {
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+            }
             Value::String(value) | Value::CtString(value) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
             }
@@ -469,14 +452,14 @@ impl Value {
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
-            Value::Pointer(element, true) => {
+            Value::Pointer(element, true, _) => {
                 return element.unwrap_or_clone().into_hir_expression(interner, location);
             }
             Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)
-            | Value::StructDefinition(_)
+            | Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)
@@ -529,7 +512,7 @@ impl Value {
                 vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let name = Rc::new(interner.get_trait(trait_id).name.0.contents.clone());
+                let name = Rc::new(interner.get_trait(trait_id).name.to_string());
                 let typ = Type::TraitAsType(trait_id, name, generics);
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }

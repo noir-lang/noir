@@ -3,13 +3,13 @@ use std::{collections::BTreeMap, io::BufWriter};
 
 use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
-use color_eyre::eyre::{self};
+use color_eyre::eyre;
 use fm::codespan_files::Files;
 use fxhash::FxHashMap as HashMap;
-use inferno::flamegraph::{from_lines, Options, TextTruncateDirection};
+use inferno::flamegraph::{Options, TextTruncateDirection, from_lines};
+use noirc_errors::Location;
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
-use noirc_errors::Location;
 use noirc_evaluator::brillig::ProcedureId;
 
 pub(crate) trait Sample {
@@ -302,15 +302,15 @@ fn to_folded_sorted_lines(
 #[cfg(test)]
 mod tests {
     use acir::{
-        circuit::{opcodes::BlockId, AcirOpcodeLocation, Opcode as AcirOpcode, OpcodeLocation},
-        native_types::Expression,
         FieldElement,
+        circuit::{AcirOpcodeLocation, Opcode as AcirOpcode, OpcodeLocation, opcodes::BlockId},
+        native_types::Expression,
     };
     use fm::FileManager;
     use noirc_errors::{
+        Location, Span,
         call_stack::{CallStackHelper, CallStackId},
         debug_info::DebugInfo,
-        Location, Span,
     };
     use std::{collections::BTreeMap, path::Path};
 

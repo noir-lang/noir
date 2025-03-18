@@ -5,7 +5,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// ItemVisibility
     ///     = 'pub'                 // ItemVisibility::Public
     ///     | 'pub' '(' 'crate' ')' // ItemVisibility::PublicCrate
@@ -39,8 +39,8 @@ mod tests {
     use crate::{
         ast::ItemVisibility,
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
     };
 

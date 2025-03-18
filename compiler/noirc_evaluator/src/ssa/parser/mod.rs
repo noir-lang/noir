@@ -5,11 +5,12 @@ use std::{
 };
 
 use super::{
+    Ssa,
     ir::{
         instruction::BinaryOp,
         types::{NumericType, Type},
     },
-    Ssa,
+    opt::pure::Purity,
 };
 
 use acvm::{AcirField, FieldElement};
@@ -191,9 +192,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
-
-        // Ignore function purity if it is in the input
-        self.eat_identifier().ok();
+        let purity = self.parse_purity()?;
 
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
@@ -206,7 +205,7 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, external_name, internal_name, blocks })
+        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, blocks })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -229,6 +228,18 @@ impl<'a> Parser<'a> {
             Ok(RuntimeType::Acir(inline_type))
         } else {
             Ok(RuntimeType::Brillig(inline_type))
+        }
+    }
+
+    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+        if self.eat_keyword(Keyword::Pure)? {
+            Ok(Some(Purity::Pure))
+        } else if self.eat_keyword(Keyword::PredicatePure)? {
+            Ok(Some(Purity::PureWithPredicate))
+        } else if self.eat_keyword(Keyword::Impure)? {
+            Ok(Some(Purity::Impure))
+        } else {
+            Ok(None)
         }
     }
 
@@ -675,11 +686,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_value_or_error(&mut self) -> ParseResult<ParsedValue> {
-        if let Some(value) = self.parse_value()? {
-            Ok(value)
-        } else {
-            self.expected_value()
-        }
+        if let Some(value) = self.parse_value()? { Ok(value) } else { self.expected_value() }
     }
 
     fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
@@ -852,11 +859,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_ident_or_error(&mut self) -> ParseResult<String> {
-        if let Some(ident) = self.eat_ident()? {
-            Ok(ident)
-        } else {
-            self.expected_identifier()
-        }
+        if let Some(ident) = self.eat_ident()? { Ok(ident) } else { self.expected_identifier() }
     }
 
     fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
@@ -879,11 +882,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
-        if let Some(int) = self.eat_int()? {
-            Ok(int)
-        } else {
-            self.expected_int()
-        }
+        if let Some(int) = self.eat_int()? { Ok(int) } else { self.expected_int() }
     }
 
     fn eat_int_type(&mut self) -> ParseResult<Option<IntType>> {
@@ -933,11 +932,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
-        if self.eat(token.clone())? {
-            Ok(())
-        } else {
-            self.expected_token(token)
-        }
+        if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
     }
 
     fn at(&self, token: Token) -> bool {

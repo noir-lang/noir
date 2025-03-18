@@ -244,18 +244,18 @@ fn render_location<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::source_code_printer::render_location;
     use crate::source_code_printer::PrintedLine::Content;
-    use acvm::acir::circuit::AcirOpcodeLocation;
+    use crate::source_code_printer::render_location;
+    use acvm::acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
     use fm::FileManager;
     use noirc_artifacts::debug::DebugArtifact;
     use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::{Location, Span, debug_info::DebugInfo};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;
     use std::path::PathBuf;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     // Returns the absolute path to the file
     fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {

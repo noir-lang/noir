@@ -13,7 +13,7 @@
 //! generated for different entry points can conflict.
 //!
 //! To provide a more concrete example, let's take this program:
-//! ```
+//! ```noir
 //! global ONE: Field = 1;
 //! global TWO: Field = 2;
 //! global THREE: Field = 3;
@@ -40,7 +40,7 @@
 //! }
 //! ```
 //! The two entry points will have different global allocation maps:
-//! ```
+//! ```noir
 //! GlobalInit(Id(1)):
 //!   CONST M32835 = 1
 //!   CONST M32836 = 2
@@ -64,12 +64,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
+    Ssa,
     ir::{
         function::{Function, FunctionId},
         instruction::Instruction,
         value::Value,
     },
-    Ssa,
 };
 
 use super::inlining::called_functions_vec;

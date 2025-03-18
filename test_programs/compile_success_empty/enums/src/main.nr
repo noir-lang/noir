@@ -20,7 +20,19 @@ fn primitive_tests() {
         false => fail(),
         true => (),
     }
+
+    // Ensure we can match on MIN and use globals as constants
+    let i64_min = I64_MIN;
+    match i64_min {
+        9_223_372_036_854_775_807 => fail(),
+        -9_223_372_036_854_775_807 => fail(),
+        0 => fail(),
+        I64_MIN => (),
+        _ => fail(),
+    }
 }
+
+global I64_MIN: i64 = -9_223_372_036_854_775_808;
 
 enum Foo<T> {
     A(Field, Field),

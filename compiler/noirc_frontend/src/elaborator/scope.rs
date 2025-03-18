@@ -1,17 +1,15 @@
-use noirc_errors::Located;
-
-use crate::ast::{Ident, Path, ERROR_IDENT};
+use crate::ast::{ERROR_IDENT, Ident, Path};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::{
+    DataType, Shared,
     hir::resolution::errors::ResolverError,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         traits::Trait,
     },
     node_interner::{DefinitionId, TraitId, TypeId},
-    DataType, Shared,
 };
 use crate::{Type, TypeAlias};
 
@@ -22,7 +20,7 @@ use super::{Elaborator, ResolverMeta};
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
         assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
         ModuleId { krate: self.crate_id, local_id: self.local_module }
@@ -121,7 +119,7 @@ impl<'context> Elaborator<'context> {
             if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
                 let name = &definition_info.name;
                 if name != ERROR_IDENT && !definition_info.is_global() {
-                    let ident = Ident(Located::from(unused_var.location, name.to_owned()));
+                    let ident = Ident::new(name.to_owned(), unused_var.location);
                     self.push_err(ResolverError::UnusedVariable { ident });
                 }
             }
@@ -186,7 +184,7 @@ impl<'context> Elaborator<'context> {
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
         let ident = path.as_ident();
-        if ident.map_or(false, |i| i == SELF_TYPE_NAME) {
+        if ident.is_some_and(|i| i == SELF_TYPE_NAME) {
             if let Some(typ) = &self.self_type {
                 return Some(typ.clone());
             }

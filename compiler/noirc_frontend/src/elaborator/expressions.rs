@@ -4,13 +4,14 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
+    DataType, Kind, QuotedType, Shared, Type,
     ast::{
-        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
+        ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
         MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
-        UnsafeExpression,
+        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
+        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -18,14 +19,15 @@ use crate::{
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{generics::TraitGenerics, TypeCheckError},
+        type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+            HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
+            TraitMethod,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -34,12 +36,11 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
     token::{FmtStrFragment, Tokens},
-    DataType, Kind, QuotedType, Shared, Type,
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
+use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         self.elaborate_expression_with_target_type(expr, None)
     }
@@ -59,7 +60,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
-                return self.elaborate_member_access(*access, expr.location)
+                return self.elaborate_member_access(*access, expr.location);
             }
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.location),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.location),
@@ -71,11 +72,11 @@ impl<'context> Elaborator<'context> {
                 self.elaborate_lambda_with_target_type(*lambda, target_type)
             }
             ExpressionKind::Parenthesized(expr) => {
-                return self.elaborate_expression_with_target_type(*expr, target_type)
+                return self.elaborate_expression_with_target_type(*expr, target_type);
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
             ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location, target_type)
+                return self.elaborate_comptime_block(comptime, expr.location, target_type);
             }
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
@@ -94,11 +95,8 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { location: expr.location });
                 (HirExpression::Error, Type::Error)
             }
-            ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::AsTraitPathNotYetImplemented {
-                    location: expr.location,
-                });
-                (HirExpression::Error, Type::Error)
+            ExpressionKind::AsTraitPath(path) => {
+                return self.elaborate_as_trait_path(path);
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
@@ -220,9 +218,8 @@ impl<'context> Elaborator<'context> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer, sign) => {
-                let int = HirLiteral::Integer(integer, sign);
-                (Lit(int), self.polymorphic_integer_or_field())
+            Literal::Integer(integer) => {
+                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());
@@ -347,8 +344,12 @@ impl<'context> Elaborator<'context> {
 
         let operator = prefix.operator;
 
-        if let UnaryOp::MutableReference = operator {
-            self.check_can_mutate(rhs, rhs_location);
+        if let UnaryOp::Reference { mutable } = operator {
+            if mutable {
+                self.check_can_mutate(rhs, rhs_location);
+            } else {
+                self.use_unstable_feature(UnstableFeature::Ownership, location);
+            }
         }
 
         let expr =
@@ -364,23 +365,47 @@ impl<'context> Elaborator<'context> {
         (expr_id, typ)
     }
 
-    fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
+    pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         let expr = self.interner.expression(&expr_id);
         match expr {
             HirExpression::Ident(hir_ident, _) => {
                 if let Some(definition) = self.interner.try_definition(hir_ident.id) {
+                    let name = definition.name.clone();
                     if !definition.mutable {
                         self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                            name: definition.name.clone(),
+                            name,
                             location,
                         });
+                    } else {
+                        self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
                     }
                 }
+            }
+            HirExpression::Index(_) => {
+                self.push_err(TypeCheckError::MutableReferenceToArrayElement { location });
             }
             HirExpression::MemberAccess(member_access) => {
                 self.check_can_mutate(member_access.lhs, location);
             }
             _ => (),
+        }
+    }
+
+    // We must check whether the mutable variable we are attempting to mutate
+    // comes from a lambda capture. All captures are immutable so we want to error
+    // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
+    pub(super) fn check_can_mutate_lambda_capture(
+        &mut self,
+        id: DefinitionId,
+        name: String,
+        location: Location,
+    ) {
+        if let Some(lambda_context) = self.lambda_stack.last() {
+            let typ = self.interner.definition_type(id);
+            if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
+            {
+                self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
+            }
         }
     }
 
@@ -477,7 +502,7 @@ impl<'context> Elaborator<'context> {
             } else {
                 return self
                     .call_macro(func, comptime_args, location, typ)
-                    .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                    .unwrap_or((HirExpression::Error, Type::Error));
             }
         }
 
@@ -494,7 +519,7 @@ impl<'context> Elaborator<'context> {
         object_type = object_type.follow_bindings();
 
         let method_name_location = method_call.method_name.location();
-        let method_name = method_call.method_name.0.contents.as_str();
+        let method_name = method_call.method_name.as_str();
         let check_self_param = true;
         match self.lookup_method(&object_type, method_name, location, check_self_param) {
             Some(method_ref) => {
@@ -595,7 +620,7 @@ impl<'context> Elaborator<'context> {
                         let args = function_call.arguments.clone();
                         return self
                             .call_macro(function_call.func, args, location, typ)
-                            .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                            .unwrap_or((HirExpression::Error, Type::Error));
                     }
                 }
                 (HirExpression::Call(function_call), typ)
@@ -831,7 +856,7 @@ impl<'context> Elaborator<'context> {
             let expected_field_with_index = field_types
                 .iter()
                 .enumerate()
-                .find(|(_, (name, _, _))| name == &field_name.0.contents);
+                .find(|(_, (name, _, _))| name == field_name.as_str());
             let expected_index_and_visibility =
                 expected_field_with_index.map(|(index, (_, visibility, _))| (index, visibility));
             let expected_type =
@@ -869,7 +894,7 @@ impl<'context> Elaborator<'context> {
             if let Some((index, visibility)) = expected_index_and_visibility {
                 let struct_type = struct_type.borrow();
                 let field_location = field_name.location();
-                let field_name = &field_name.0.contents;
+                let field_name = field_name.as_str();
                 self.check_struct_field_visibility(
                     &struct_type,
                     field_name,
@@ -1058,11 +1083,22 @@ impl<'context> Elaborator<'context> {
     ) -> (HirExpression, Type) {
         self.use_unstable_feature(super::UnstableFeature::Enums, location);
 
+        let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
-        let (let_, variable) = self.wrap_in_let(expression, typ);
+        let (let_, variable) = self.wrap_in_let(expression, typ.clone());
 
-        let (rows, result_type) = self.elaborate_match_rules(variable, match_expr.rules);
-        let tree = HirExpression::Match(self.elaborate_match_rows(rows));
+        let (errored, (rows, result_type)) =
+            self.errors_occurred_in(|this| this.elaborate_match_rules(variable, match_expr.rules));
+
+        // Avoid calling `elaborate_match_rows` if there were errors while constructing
+        // the match rows - it'll just lead to extra errors like `unreachable pattern`
+        // warnings on branches which previously had type errors.
+        let tree = HirExpression::Match(if !errored {
+            self.elaborate_match_rows(rows, &typ, expr_location)
+        } else {
+            HirMatch::Failure { missing_case: false }
+        });
+
         let tree = self.interner.push_expr(tree);
         self.interner.push_expr_type(tree, result_type.clone());
         self.interner.push_expr_location(tree, location);
@@ -1319,5 +1355,56 @@ impl<'context> Elaborator<'context> {
 
         let (expr_id, typ) = self.inline_comptime_value(result, location);
         Some((self.interner.expression(&expr_id), typ))
+    }
+
+    fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
+        let location = path.typ.location.merge(path.trait_path.location);
+
+        let constraint = UnresolvedTraitConstraint {
+            typ: path.typ,
+            trait_bound: TraitBound {
+                trait_path: path.trait_path,
+                trait_id: None,
+                trait_generics: path.trait_generics,
+            },
+        };
+
+        let typ = self.resolve_type(constraint.typ.clone());
+        let Some(trait_bound) = self.resolve_trait_bound(&constraint.trait_bound) else {
+            // resolve_trait_bound only returns None if it has already issued an error, so don't
+            // issue another here.
+            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            return (error, Type::Error);
+        };
+
+        let constraint = TraitConstraint { typ, trait_bound };
+
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let Some(method) = the_trait.find_method(path.impl_item.as_str()) else {
+            let trait_name = the_trait.name.to_string();
+            let method_name = path.impl_item.to_string();
+            let location = path.impl_item.location();
+            self.push_err(ResolverError::NoSuchMethodInTrait { trait_name, method_name, location });
+            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            return (error, Type::Error);
+        };
+
+        let trait_method =
+            TraitMethod { method_id: method, constraint: constraint.clone(), assumed: true };
+
+        let definition_id = self.interner.trait_method_id(trait_method.method_id);
+
+        let ident = HirIdent {
+            location: path.impl_item.location(),
+            id: definition_id,
+            impl_kind: ImplKind::TraitMethod(trait_method),
+        };
+
+        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
+        self.interner.push_expr_location(id, location);
+
+        let typ = self.type_check_variable(ident, id, None);
+        self.interner.push_expr_type(id, typ.clone());
+        (id, typ)
     }
 }

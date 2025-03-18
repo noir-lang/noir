@@ -1,17 +1,23 @@
 use std::collections::BTreeMap;
 
 use acvm::{
+    AcirField, FieldElement,
     acir::circuit::{
-        brillig::BrilligFunctionId, AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector,
-        OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload, ResolvedOpcodeLocation,
+        AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
+        RawAssertionPayload, ResolvedAssertionPayload, ResolvedOpcodeLocation,
+        brillig::BrilligFunctionId,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
-    AcirField, FieldElement,
 };
-use noirc_abi::{display_abi_error, Abi, AbiErrorType};
+use noirc_abi::{Abi, AbiErrorType, display_abi_error};
 use noirc_errors::{
-    call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic,
-    FileDiagnostic,
+    CustomDiagnostic,
+    call_stack::CallStackId,
+    debug_info::DebugInfo,
+    reporter::ReportedErrors,
+    //   ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+    //    FileDiagnostic,      ResolvedOpcodeLocation, brillig::BrilligFunctionId,
+    //pwg::{ErrorLocation, OpcodeResolutionError}
 };
 
 pub use noirc_errors::Location;
@@ -226,7 +232,7 @@ pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError<FieldElement>,
     abi: &Abi,
     debug: &[DebugInfo],
-) -> Option<FileDiagnostic> {
+) -> Option<CustomDiagnostic> {
     let source_locations = match nargo_err {
         NargoError::ExecutionError(execution_error) => {
             extract_locations_from_error(execution_error, debug)?
@@ -238,5 +244,5 @@ pub fn try_to_diagnose_runtime_error(
     let location = *source_locations.last()?;
     let message = extract_message_from_error(&abi.error_types, nargo_err);
     let error = CustomDiagnostic::simple_error(message, String::new(), location);
-    Some(error.with_call_stack(source_locations).in_file(location.file))
+    Some(error.with_call_stack(source_locations))
 }

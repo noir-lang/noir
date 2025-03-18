@@ -7,8 +7,8 @@ use super::brillig_block::BrilligBlock;
 use super::{BrilligVariable, Function, FunctionContext, ValueId};
 use crate::{
     brillig::{
-        brillig_ir::{artifact::BrilligArtifact, BrilligContext},
         Brillig, BrilligOptions, ConstantAllocation, DataFlowGraph, FunctionId, Label,
+        brillig_ir::{BrilligContext, artifact::BrilligArtifact},
     },
     ssa::ir::types::NumericType,
     ssa::opt::brillig_entry_points::{build_inner_call_to_entry_points, get_brillig_entry_points},
@@ -148,11 +148,7 @@ impl BrilligGlobals {
                 .iter()
                 .filter_map(
                     |(&value, &num_occurrences)| {
-                        if num_occurrences > 1 {
-                            Some(value)
-                        } else {
-                            None
-                        }
+                        if num_occurrences > 1 { Some(value) } else { None }
                     },
                 )
                 .collect();
@@ -287,12 +283,12 @@ impl Brillig {
 #[cfg(test)]
 mod tests {
     use acvm::{
-        acir::brillig::{BitSize, IntegerBitSize, Opcode},
         FieldElement,
+        acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
 
     use crate::brillig::{
-        brillig_ir::registers::RegisterAllocator, BrilligOptions, GlobalSpace, LabelType, Ssa,
+        BrilligOptions, GlobalSpace, LabelType, Ssa, brillig_ir::registers::RegisterAllocator,
     };
 
     use super::ConstantAllocation;
@@ -441,6 +437,8 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
+        // Need to run SSA pass that sets up Brillig array gets
+        let ssa = ssa.brillig_array_gets();
         // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
         let mut ssa = ssa.dead_instruction_elimination();
 

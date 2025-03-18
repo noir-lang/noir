@@ -1,7 +1,7 @@
-use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
+    ParsedModule, QuotedType,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -16,8 +16,8 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
+    signed_field::SignedField,
     token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens},
-    ParsedModule, QuotedType,
 };
 
 use super::{
@@ -172,7 +172,7 @@ pub trait Visitor {
 
     fn visit_literal_bool(&mut self, _: bool, _: Span) {}
 
-    fn visit_literal_integer(&mut self, _value: FieldElement, _negative: bool, _: Span) {}
+    fn visit_literal_integer(&mut self, _value: SignedField, _: Span) {}
 
     fn visit_literal_str(&mut self, _: &str, _: Span) {}
 
@@ -393,7 +393,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_mutable_reference_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+    fn visit_reference_type(&mut self, _: &UnresolvedType, _mutable: bool, _: Span) -> bool {
         true
     }
 
@@ -946,8 +946,8 @@ impl Literal {
                 }
             }
             Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
-            Literal::Integer(value, negative) => {
-                visitor.visit_literal_integer(*value, *negative, span);
+            Literal::Integer(value) => {
+                visitor.visit_literal_integer(*value, span);
             }
             Literal::Str(str) => visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),
@@ -1382,8 +1382,8 @@ impl UnresolvedType {
                     generic_type_args.accept(visitor);
                 }
             }
-            UnresolvedTypeData::MutableReference(unresolved_type) => {
-                if visitor.visit_mutable_reference_type(unresolved_type, self.location.span) {
+            UnresolvedTypeData::Reference(unresolved_type, mutable) => {
+                if visitor.visit_reference_type(unresolved_type, *mutable, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }

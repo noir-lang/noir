@@ -12,11 +12,11 @@ use noirc_errors::call_stack::CallStack;
 
 use self::brillig_fn::FunctionContext;
 use super::{
-    brillig_ir::{
-        artifact::{BrilligParameter, GeneratedBrillig},
-        BrilligContext,
-    },
     Brillig, BrilligOptions, BrilligVariable, ValueId,
+    brillig_ir::{
+        BrilligContext,
+        artifact::{BrilligParameter, GeneratedBrillig},
+    },
 };
 use crate::{errors::InternalError, ssa::ir::function::Function};
 
@@ -54,7 +54,7 @@ pub(crate) fn gen_brillig_for(
                 return Err(InternalError::General {
                     message: format!("Cannot find linked fn {unresolved_fn_label}"),
                     call_stack: CallStack::new(),
-                })
+                });
             }
         };
         entry_point.link_with(artifact);

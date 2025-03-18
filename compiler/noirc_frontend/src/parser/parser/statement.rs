@@ -6,13 +6,13 @@ use crate::{
         ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
         StatementKind, WhileStatement,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
         if let Some((statement, (_token, _span))) = self.parse_statement() {
             statement
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(statement) => {
-                    return Some(StatementKind::Interned(statement))
+                    return Some(StatementKind::Interned(statement));
                 }
                 _ => unreachable!(),
             }
@@ -146,21 +146,12 @@ impl<'a> Parser<'a> {
             return Some(StatementKind::While(while_));
         }
 
-        if let Some(kind) = self.parse_if_expr() {
+        if let Some(kind) = self.parse_block_like() {
             let location = self.location_since(start_location);
-            return Some(StatementKind::Expression(Expression { kind, location }));
-        }
-
-        if let Some(kind) = self.parse_match_expr() {
-            let location = self.location_since(start_location);
-            return Some(StatementKind::Expression(Expression { kind, location }));
-        }
-
-        if let Some(block) = self.parse_block() {
-            return Some(StatementKind::Expression(Expression {
-                kind: ExpressionKind::Block(block),
-                location: self.location_since(start_location),
-            }));
+            let expression = Expression { kind, location };
+            let expression = self
+                .parse_member_accesses_or_method_calls_after_expression(expression, start_location);
+            return Some(StatementKind::Expression(expression));
         }
 
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
@@ -212,6 +203,24 @@ impl<'a> Parser<'a> {
         }
 
         Some(StatementKind::Expression(expression))
+    }
+
+    /// Parses an expression that looks like a block (ends with '}'):
+    /// `{ ... }`, `if { ... }` and `match { ... }`.
+    fn parse_block_like(&mut self) -> Option<ExpressionKind> {
+        if let Some(kind) = self.parse_if_expr() {
+            return Some(kind);
+        }
+
+        if let Some(kind) = self.parse_match_expr() {
+            return Some(kind);
+        }
+
+        if let Some(block) = self.parse_block() {
+            return Some(ExpressionKind::Block(block));
+        }
+
+        None
     }
 
     fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
@@ -462,11 +471,11 @@ mod tests {
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
     };
 
@@ -521,7 +530,9 @@ mod tests {
     fn parses_let_statement_with_unsafe() {
         let src = "// Safety: comment
         let x = unsafe { 1 };";
-        let statement = parse_statement_no_errors(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -534,6 +545,20 @@ mod tests {
         let x = unsafe { 1 };";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let (statement, _) = parser.parse_statement().unwrap();
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_let_statement_with_unsafe_after_some_other_comment() {
+        let src = "// Top comment
+        // Safety: comment
+        let x = unsafe { 1 };";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
