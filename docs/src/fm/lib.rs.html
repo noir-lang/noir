@@ -363,7 +363,7 @@
     }
 
     <span class="doccomment">/// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
-    /// "some_dir/package_name/src/main.nr"`
+    /// "some_dir/package_name/src/main.nr"
     </span><span class="kw">pub fn </span>find_by_path_suffix(<span class="kw-2">&amp;</span><span class="self">self</span>, suffix: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;FileId&gt;, Vec&lt;PathBuf&gt;&gt; {
         <span class="kw">let </span>suffix_path: Vec&lt;<span class="kw">_</span>&gt; = Path::new(suffix).components().rev().collect();
         <span class="kw">let </span>results: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
