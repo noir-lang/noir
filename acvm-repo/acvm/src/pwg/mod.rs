@@ -7,7 +7,6 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{
             AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
@@ -34,6 +33,7 @@ mod memory_op;
 
 pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
 pub use brillig::ForeignCallWaitInfo;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ACVMStatus<F> {
@@ -115,6 +115,26 @@ impl std::fmt::Display for ErrorLocation {
             }
         }
     }
+}
+
+/// A dynamic assertion payload whose data has been resolved.
+/// This is instantiated upon hitting an assertion failure.
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct RawAssertionPayload<F> {
+    /// Selector to the respective ABI type the data in this payload represents
+    pub selector: ErrorSelector,
+    /// Resolved data that represents some ABI type.
+    /// To be decoded in the final step of error resolution.
+    pub data: Vec<F>,
+}
+
+/// Enumeration of possible resolved assertion payloads.
+/// This is instantiated upon hitting an assertion failure,
+/// and can either be static strings or dynamic payloads.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ResolvedAssertionPayload<F> {
+    String(String),
+    Raw(RawAssertionPayload<F>),
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]

@@ -4,7 +4,7 @@ use acir::{
     AcirField,
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
     },
@@ -16,7 +16,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
 
-use super::{get_value, insert_value, memory_op::MemoryOpSolver};
+use super::{
+    ErrorSelector, RawAssertionPayload, ResolvedAssertionPayload, get_value, insert_value,
+    memory_op::MemoryOpSolver,
+};
 
 #[derive(Debug)]
 pub enum BrilligSolverStatus<F> {
