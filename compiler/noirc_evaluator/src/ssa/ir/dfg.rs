@@ -32,7 +32,7 @@ use serde_with::serde_as;
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
-    /// Runtime of the [Function] that owns this [DataFlowGraph].
+    /// Runtime of the [function][super::function::Function] that owns this [DataFlowGraph].
     /// This might change during the `runtime_separation` pass where
     /// ACIR functions are cloned as Brillig functions.
     runtime: RuntimeType,

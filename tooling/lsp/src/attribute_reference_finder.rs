@@ -46,7 +46,7 @@ impl<'a> AttributeReferenceFinder<'a> {
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
+            LocalModuleId::new(module_index)
         } else {
             def_map.root()
         };
@@ -71,7 +71,7 @@ impl Visitor for AttributeReferenceFinder<'_> {
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        if let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) {
+        if let Some(module_data) = def_map.get(self.module_id.local_id) {
             if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
                 self.module_id = ModuleId { krate: self.module_id.krate, local_id: *child_module };
             }

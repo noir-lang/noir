@@ -305,6 +305,13 @@ mod tests {
     }
 
     #[test]
+    fn format_function_type_without_return_type() {
+        let src = "  fn   ( )  ";
+        let expected = "fn()";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
     fn format_tuple_type_one_type() {
         let src = " ( Field , )";
         let expected = "(Field,)";
