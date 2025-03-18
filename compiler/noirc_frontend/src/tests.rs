@@ -1581,69 +1581,6 @@ fn numeric_generic_as_struct_field_type_fails() {
 }
 
 #[test]
-fn type_alias_to_numeric_generic() {
-    let src = r#"
-    type Double<let N: u32>: u32 = N * 2;
-    fn main() {
-        let b: [u32; 6] = foo();
-        assert(b[0] == 0);
-    }
-    fn foo<let N:u32>() -> [u32;Double::<N>] {
-        let mut a = [0;Double::<N>];
-        for i in 0..Double::<N> {
-            a[i] = i;
-        }
-        a
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn compose_type_alias_to_numeric() {
-    let src = r#"
-    type Double<let N: u32>: u32 = N * 2;
-    type Quadruple<let N: u32>: u32 = Double<Double<N>>;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
-    fn main() {
-        let b: [u32; 12] = foo();
-        assert(b[0] == 0);
-    }
-    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
-        let mut a = [0;Quadruple::<N>];
-        for i in 0..Quadruple::<N> {
-            a[i] = i;
-        }
-        a
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn type_alias_to_numeric_as_generic() {
-    let src = r#"
-    type Double<let N: u32>: u32 = N * 2;
-
-    pub struct Foo<T, let N: u32> {
-        a: T,
-        b: [Field; N],
-    }
-    fn main(x: Field) {
-        let a = foo::<4>(x);
-        assert(a.a == x);
-    }
-    fn foo<let N:u32>(x: Field) -> Foo<Field, Double<N>> {
-        Foo {
-            a: x,
-            b: [1; Double::<N>]
-        }
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
 fn normal_generic_as_array_length() {
     // TODO: improve error location, should be just on N
     let src = r#"

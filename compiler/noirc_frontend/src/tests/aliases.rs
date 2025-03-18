@@ -1,4 +1,4 @@
-use super::assert_no_errors;
+use super::{assert_no_errors, check_errors};
 
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
@@ -72,6 +72,77 @@ fn double_alias_in_path() {
 #[test]
 fn double_generic_alias_in_path() {
     let src = r#"
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn identity_numeric_type_alias_works() {
+    let src = r#"
+    pub type Identity<let N: u32>: u32 = N;
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_alias_to_numeric_generic() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    fn main() {
+        let b: [u32; 6] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u32;Double::<N>] {
+        let mut a = [0;Double::<N>];
+        for i in 0..Double::<N> {
+            a[i] = i;
+        }
+        a
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn disallows_composing_numeric_type_aliases() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    type Quadruple<let N: u32>: u32 = Double<Double<N>>;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
+    fn main() {
+        let b: [u32; 12] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
+        let mut a = [0;Quadruple::<N>];
+        for i in 0..Quadruple::<N> {
+            a[i] = i;
+        }
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_alias_to_numeric_as_generic() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+
+    pub struct Foo<T, let N: u32> {
+        a: T,
+        b: [Field; N],
+    }
+    fn main(x: Field) {
+        let a = foo::<4>(x);
+        assert(a.a == x);
+    }
+    fn foo<let N:u32>(x: Field) -> Foo<Field, Double<N>> {
+        Foo {
+            a: x,
+            b: [1; Double::<N>]
+        }
+    }
     "#;
     assert_no_errors(src);
 }
