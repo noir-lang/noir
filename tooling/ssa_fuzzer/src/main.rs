@@ -18,14 +18,14 @@ fn main() {
 
     let mut acir_program_builder = FuzzerBuilder::new_acir();
     acir_program_builder.insert_variables(type_.clone());
-    let acir_result = acir_program_builder.insert_mul_instruction(Id::new(0), Id::new(0));
+    let acir_result = acir_program_builder.insert_mul_instruction_checked(Id::new(0), Id::new(0));
     acir_program_builder.finalize_function(acir_result);
     let acir_program = acir_program_builder.compile().unwrap();
 
     let mut brillig_program_builder = FuzzerBuilder::new_brillig();
 
     brillig_program_builder.insert_variables(type_.clone());
-    let brillig_result = brillig_program_builder.insert_mul_instruction(Id::new(0), Id::new(0));
+    let brillig_result = brillig_program_builder.insert_mul_instruction_checked(Id::new(0), Id::new(0));
     brillig_program_builder.finalize_function(brillig_result);
     let brillig_program = brillig_program_builder.compile().unwrap();
 

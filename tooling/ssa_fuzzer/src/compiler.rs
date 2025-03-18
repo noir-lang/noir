@@ -203,7 +203,7 @@ pub fn compile(
         expression_width: ExpressionWidth::default(),
         emit_ssa: { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
-        enable_brillig_constraints_check: options.enable_brillig_constraints_check,
+        skip_brillig_constraints_check: true,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
