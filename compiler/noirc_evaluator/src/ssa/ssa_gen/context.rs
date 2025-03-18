@@ -1001,11 +1001,15 @@ impl<'a> FunctionContext<'a> {
         mut incremented_params: Vec<(ValueId, ValueId)>,
         terminator_args: &[ValueId],
     ) {
+        // TODO: This check likely leads to unsoundness.
+        // It is here to avoid decrementing the RC of a parameter we're returning but we
+        // only check the exact ValueId which can be easily circumvented by storing to and
+        // loading from a temporary reference.
         incremented_params.retain(|(parameter, _)| !terminator_args.contains(parameter));
 
         for (parameter, original) in incremented_params {
             if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.decrement_array_reference_count(parameter, original);
+                self.builder.decrement_array_reference_count(original);
             }
         }
     }
