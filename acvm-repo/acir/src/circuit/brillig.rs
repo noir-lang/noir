@@ -23,7 +23,7 @@
 //! `r`.
 //!
 //! In summary, executing Brillig will perform the computation defined by its
-//! bytecode, on the provided inputs, and assign the result to the outputs witnesses,
+//! bytecode, on the provided inputs, and assign the result to the output witnesses,
 //! without adding any constraints.
 
 use super::opcodes::BlockId;
