@@ -85,7 +85,7 @@ impl<F: AcirField> NargoError<F> {
 
 #[derive(Debug, Copy, Clone)]
 /// The opcode location for a call to a separate ACIR circuit
-/// This includes the function index of the caller within a [program][Program]
+/// This includes the function index of the caller within a [program][acvm::acir::circuit::Program]
 /// and the index in the callers ACIR to the specific call opcode.
 /// This is only resolved and set during circuit execution.
 pub struct ResolvedOpcodeLocation {
