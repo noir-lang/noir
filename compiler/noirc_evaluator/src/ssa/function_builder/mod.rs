@@ -242,7 +242,7 @@ impl FunctionBuilder {
     }
 
     pub fn get_current_block_index(&mut self) -> BasicBlockId {
-        return self.current_block();
+        self.current_block();
     }
 
     /// Insert an allocate instruction at the end of the current block, allocating the
