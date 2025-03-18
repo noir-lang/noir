@@ -893,7 +893,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     );
                     self.brillig_context.codegen_constrain(
                         condition,
-                        Some("array ref-count underflowed below zero".to_owned()),
+                        Some("array ref-count underflow detected".to_owned()),
                     );
                     self.brillig_context.deallocate_single_addr(condition);
                 }
