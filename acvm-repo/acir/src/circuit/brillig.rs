@@ -17,7 +17,7 @@
 //! which are the witness `q` and `r`. But from the constraint `a=bq+r`, how can the
 //! solver figure out how to solve `q` and `r` with only one equation? This is where
 //! brillig/unconstrained function come into action. We simply define a function that
-//! performs the usual Euclid algorithm to compute `q` and `r` from `a` and `b`.
+//! performs the usual Euclidean algorithm to compute `q` and `r` from `a` and `b`.
 //! Since executing Brillig does not generate constraints, it won't be provided to the
 //! proving system but simply used by the solver to compute the values of `q` and
 //! `r`.
