@@ -91,6 +91,7 @@ mod reflection {
             "Acir",
             PathBuf::from("./codegen/acir.cpp").as_path(),
             &tracer.registry().unwrap(),
+            CustomCode::default(),
         );
     }
 
@@ -101,10 +102,20 @@ mod reflection {
         tracer.trace_simple_type::<WitnessMap<FieldElement>>().unwrap();
         tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
 
+        let namespace = "Witnesses";
+        let mut code = CustomCode::default();
+        // The `WitnessMap` type will have a field of type `std::map<Witnesses::Witness, std::string>`,
+        // which requires us to implement the comparison operatior.
+        code.insert(
+            vec![namespace.to_string(), "Witness".to_string()],
+            "bool operator<(Witness const& rhs) const { return value < rhs.value; }".to_string(),
+        );
+
         serde_cpp_codegen(
-            "Witnesses",
+            namespace,
             PathBuf::from("./codegen/witness.cpp").as_path(),
             &tracer.registry().unwrap(),
+            code,
         );
     }
 
@@ -113,18 +124,18 @@ mod reflection {
     ///
     /// If `should_overwrite()` returns `false` then just check if the old file hash is the
     /// same as the new one, to guard against unintended changes in the serialization format.
-    fn serde_cpp_codegen(name: &str, path: &Path, registry: &Registry) {
+    fn serde_cpp_codegen(namespace: &str, path: &Path, registry: &Registry, code: CustomCode) {
         let old_hash = if path.is_file() {
             let old_source = std::fs::read(path).expect("failed to read existing code");
             Some(fxhash::hash64(&old_source))
         } else {
             None
         };
-        let msgpack_code = MsgPackCodeGenerator::generate(name, registry);
+        let msgpack_code = MsgPackCodeGenerator::generate(namespace, registry, code);
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new(name.to_string())
+        let config = serde_generate::CodeGeneratorConfig::new(namespace.to_string())
             .with_encodings(vec![serde_generate::Encoding::Bincode])
             .with_custom_code(msgpack_code);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
@@ -184,7 +195,6 @@ mod reflection {
 
     /// Generate custom code for the msgpack machinery in Barretenberg.
     /// See https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/serialize/msgpack.hpp
-    #[derive(Default)]
     struct MsgPackCodeGenerator {
         namespace: Vec<String>,
         code: CustomCode,
@@ -198,9 +208,8 @@ mod reflection {
             source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
         }
 
-        fn generate(namespace: &str, registry: &Registry) -> CustomCode {
-            let mut g = Self::default();
-            g.namespace.push(namespace.to_string());
+        fn generate(namespace: &str, registry: &Registry, code: CustomCode) -> CustomCode {
+            let mut g = Self { namespace: vec![namespace.to_string()], code };
             for (name, container) in registry {
                 g.generate_container(name, container);
             }
@@ -298,10 +307,10 @@ mod reflection {
         default:
             throw_or_abort("unknown '{name}' enum variant index: " + std::to_string(value.index()));
     }}
-    std::visit([&packer, tag](const auto& arg) {{ 
+    std::visit([&packer, tag](const auto& arg) {{
         std::map<std::string, msgpack::object> data;
         data[tag] = msgpack::object(arg);
-        packer.pack(data); 
+        packer.pack(data);
     }}, value);"#
                 )
             };

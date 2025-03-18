@@ -117,10 +117,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BinaryFieldOp' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -334,10 +334,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BinaryIntOp' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -499,10 +499,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'IntegerBitSize' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -588,10 +588,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BitSize' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -659,10 +659,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'MemoryAddress' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -986,10 +986,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BlackBoxOp' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -1147,10 +1147,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'HeapValueType' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -1237,10 +1237,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'ValueOrArray' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -1574,10 +1574,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BrilligOpcode' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -1746,10 +1746,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'ConstantOrWitnessEnum' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2101,10 +2101,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BlackBoxFuncCall' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2283,10 +2283,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BlockType' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2385,10 +2385,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BrilligInputs' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2461,10 +2461,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'BrilligOutputs' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2606,10 +2606,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'Opcode' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2697,10 +2697,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'ExpressionOrMemory' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2776,10 +2776,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'ExpressionWidth' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
@@ -2847,10 +2847,10 @@ namespace Acir {
                 default:
                     throw_or_abort("unknown 'OpcodeLocation' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) { 
+            std::visit([&packer, tag](const auto& arg) {
                 std::map<std::string, msgpack::object> data;
                 data[tag] = msgpack::object(arg);
-                packer.pack(data); 
+                packer.pack(data);
             }, value);
         }
 
