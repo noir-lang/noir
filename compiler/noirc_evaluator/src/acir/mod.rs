@@ -1392,7 +1392,7 @@ impl<'a> Context<'a> {
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         let call_data =
             self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
-        let value = if let Some(call_data) = call_data {
+        let mut value = if let Some(call_data) = call_data {
             let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
