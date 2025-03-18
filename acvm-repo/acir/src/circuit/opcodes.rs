@@ -120,7 +120,7 @@ pub enum Opcode<F: AcirField> {
         block_type: BlockType,
     },
 
-    /// Calls to unconstrained functions
+    /// Calls to unconstrained functions. Unconstrained functions are constructed with [Brillig][super::brillig].
     BrilligCall {
         /// Id for the function being called. It is the responsibility of the executor
         /// to fetch the appropriate Brillig bytecode from this id.
