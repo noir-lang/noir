@@ -20,12 +20,7 @@ Before we start, we want to make sure we have Node installed. For convenience (a
 curl -fsSL https://bun.sh/install | bash
 ```
 
-We'll also need version 1.0.0-beta.2 nargo installed:
-
-```bash
-curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash
-noirup -v 1.0.0-beta.2
-```
+We'll also need version 1.0.0-beta.2 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
 
 Let's go barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
 
