@@ -271,7 +271,7 @@ impl<'f> LoopInvariantContext<'f> {
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
         // The previous loop may have set that the current block is control dependent.
-        // If we fail to reset for the next loop, a block may be misadvertently labelled
+        // If we fail to reset for the next loop, a block may be inadvertently labelled
         // as control dependent thus preventing optimizations.
         self.current_block_control_dependent = false;
 
