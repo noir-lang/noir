@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["RPCForeignCallExecutor","ResolveForeignCallRequest"],"type":["ResolveForeignCallResult"]};

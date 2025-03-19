@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["execute_program_from_witness","run","run_command"],"struct":["ExecuteCommand"]};
