@@ -6,7 +6,7 @@ pub mod opcodes;
 
 use crate::{
     native_types::{Expression, Witness},
-    serialization::{self, bincode_serialize, deserialize_any_format},
+    serialization::{self, deserialize_any_format, serialize_with_format},
 };
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -250,9 +250,13 @@ impl<F: AcirField> Circuit<F> {
 impl<F: Serialize + AcirField> Program<F> {
     /// Serialize and compress the [Program] into bytes.
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = bincode_serialize(self)?;
+        // This is how the currently released `bb` expects the data.
+        // let buf = serialization::bincode_serialize(self)?;
+        // This will need a new `bb` even if it's the bincode format, because of the format byte.
+        let buf = serialize_with_format(self, serialization::Format::MsgPack)?;
+
+        // Compress the data, which should help with formats that uses field names.
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
-        encoder.write_all(&[serialization::Format::Bincode.into()])?;
         encoder.write_all(&buf)?;
         encoder.finish()?;
         Ok(())
