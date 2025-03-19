@@ -1,4 +1,4 @@
-use crate::{stack_frame::Variable, SourceLocation, StackFrame};
+use crate::{SourceLocation, StackFrame, stack_frame::Variable};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use nargo::errors::Location;

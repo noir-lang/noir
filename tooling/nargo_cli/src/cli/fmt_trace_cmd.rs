@@ -1,5 +1,8 @@
 use clap::Args;
-use format_trace::{prettify::{self, correct_path}, read_write_json::{save_to_file, serialize_file}};
+use format_trace::{
+    prettify::{self, correct_path},
+    read_write_json::{save_to_file, serialize_file},
+};
 use serde_json::Value;
 
 use crate::errors::CliError;
@@ -14,7 +17,7 @@ pub(crate) struct FmtTraceCommand {
     target_file: String,
 }
 
-pub(crate) fn run(args: FmtTraceCommand) -> Result<(), CliError> { 
+pub(crate) fn run(args: FmtTraceCommand) -> Result<(), CliError> {
     let ser_json: Value = serialize_file(args.src_file);
 
     let prettified_json: String = prettify::prettify_value(ser_json, "", false);

@@ -140,14 +140,15 @@ impl DebugInstrumenter {
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, location: Location, is_function_scope: bool) {
+    fn walk_scope(
+        &mut self,
+        statements: &mut Vec<ast::Statement>,
+        location: Location,
+        is_function_scope: bool,
+    ) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
-        let temp_var_name = if is_function_scope {
-            "__debug_return_expr"
-        } else {
-            "__debug_expr"
-        };
+        let temp_var_name = if is_function_scope { "__debug_return_expr" } else { "__debug_expr" };
 
         let span = Span::empty(location.span.end());
         let location = Location::new(span, location.file);

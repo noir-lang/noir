@@ -1,4 +1,4 @@
-use acvm::{acir::native_types::WitnessStackError, FieldElement};
+use acvm::{FieldElement, acir::native_types::WitnessStackError};
 use hex::FromHexError;
 use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
@@ -12,7 +12,9 @@ pub(crate) enum FilesystemError {
     #[error("Error: {} is not a valid path\nRun either `nargo compile` to generate missing build artifacts or `nargo prove` to construct a proof", .0.display())]
     PathNotValid(PathBuf),
 
-    #[error("Error: could not parse hex build artifact (proof, proving and/or verification keys, ACIR checksum) ({0})")]
+    #[error(
+        "Error: could not parse hex build artifact (proof, proving and/or verification keys, ACIR checksum) ({0})"
+    )]
     HexArtifactNotValid(FromHexError),
 
     #[error(
@@ -72,9 +74,13 @@ impl From<FilesystemError> for CliError {
         match error {
             FilesystemError::PathNotValid(ref _path) => CliError::Generic(format!("{}", error)),
             FilesystemError::HexArtifactNotValid(ref _e) => CliError::Generic(format!("{}", error)),
-            FilesystemError::MissingTomlFile(ref _name,ref _path) => CliError::Generic(format!("{}", error)),
+            FilesystemError::MissingTomlFile(ref _name, ref _path) => {
+                CliError::Generic(format!("{}", error))
+            }
             FilesystemError::InputParserError(ref _e) => CliError::Generic(format!("{}", error)),
-            FilesystemError::WitnessStackSerialization(ref _e) => CliError::Generic(format!("{}", error)),
+            FilesystemError::WitnessStackSerialization(ref _e) => {
+                CliError::Generic(format!("{}", error))
+            }
         }
     }
 }

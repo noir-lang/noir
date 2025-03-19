@@ -21,6 +21,8 @@ mod debug_cmd;
 mod execute_cmd;
 mod export_cmd;
 mod fmt_cmd;
+mod fmt_trace_cmd;
+mod fs;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
@@ -28,8 +30,6 @@ mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
 mod trace_cmd;
-mod fmt_trace_cmd;
-mod fs;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
 const IS_DIRTY: &str = env!("GIT_DIRTY");

@@ -14,7 +14,7 @@ pub enum PrintOutput<'a> {
     None,
     Stdout,
     String(&'a mut String),
-    PrintCallback(Box<dyn Fn (String) + 'a>),
+    PrintCallback(Box<dyn Fn(String) + 'a>),
 }
 
 impl<'a> std::fmt::Debug for PrintOutput<'a> {

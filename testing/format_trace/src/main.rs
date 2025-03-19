@@ -9,7 +9,9 @@ use prettify::correct_path;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {
-        panic!("Arguments must be exactly two. First the src file which must be formatted and the second one should be the destination file name");
+        panic!(
+            "Arguments must be exactly two. First the src file which must be formatted and the second one should be the destination file name"
+        );
     }
 
     let src_filename = args[1].clone();

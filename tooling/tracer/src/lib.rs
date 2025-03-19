@@ -23,8 +23,8 @@ pub mod tail_diff_vecs;
 use tail_diff_vecs::tail_diff_vecs;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
+use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use nargo::NargoError;
 use noir_debugger::context::{DebugCommandResult, DebugContext};
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
@@ -167,7 +167,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
-    fn maybe_update_saved_return_value(frame: &StackFrame, saved_return_value: &mut Option<Variable>) {
+    fn maybe_update_saved_return_value(
+        frame: &StackFrame,
+        saved_return_value: &mut Option<Variable>,
+    ) {
         for variable in &frame.variables {
             if variable.name == "__debug_return_expr" {
                 *saved_return_value = Some(variable.clone());
@@ -222,7 +225,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             self.maybe_report_print_events(tracer);
             register_step(tracer, location);
             register_variables(tracer, &stack_frames[index]);
-            Self::maybe_update_saved_return_value(&stack_frames[index], &mut self.saved_return_value);
+            Self::maybe_update_saved_return_value(
+                &stack_frames[index],
+                &mut self.saved_return_value,
+            );
         }
 
         self.stack_frames = stack_frames;

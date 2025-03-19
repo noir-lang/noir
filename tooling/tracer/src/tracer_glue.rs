@@ -1,7 +1,7 @@
-use crate::{stack_frame::Variable, SourceLocation, StackFrame};
+use crate::{SourceLocation, StackFrame, stack_frame::Variable};
 
-use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use acvm::FieldElement;
+use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use noirc_printable_type::{PrintableType, PrintableValue};
 use runtime_tracing::{EventLogKind, FullValueRecord, Line, Tracer, ValueRecord};
 use std::fmt::Write as _;

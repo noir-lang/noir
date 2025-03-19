@@ -63,7 +63,7 @@ where
                 }
                 PrintOutput::PrintCallback(callback_fn) => {
                     callback_fn(log_item());
-                },
+                }
             }
         }
         result

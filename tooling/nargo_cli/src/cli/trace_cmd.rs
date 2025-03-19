@@ -1,15 +1,15 @@
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
-use noirc_artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_toml};
 use noir_tracer::tracer_glue::store_trace;
-use noirc_abi::input_parser::Format;
 use noirc_abi::InputMap;
+use noirc_abi::input_parser::Format;
+use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{
-    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+    CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING, file_manager_with_stdlib,
 };
 use noirc_frontend::graph::CrateName;
 
@@ -67,7 +67,13 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
         args.compile_options.clone(),
     )?;
 
-    trace_program_and_decode(compiled_program, package, &args.prover_name, &args.trace_dir, args.compile_options.pedantic_solving)
+    trace_program_and_decode(
+        compiled_program,
+        package,
+        &args.prover_name,
+        &args.trace_dir,
+        args.compile_options.pedantic_solving,
+    )
 }
 
 fn trace_program_and_decode(
