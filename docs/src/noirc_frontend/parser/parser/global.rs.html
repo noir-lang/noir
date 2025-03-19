@@ -194,7 +194,8 @@
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -271,7 +272,7 @@
     <span class="kw">use crate</span>::{
         ast::{
             ExpressionKind, IntegerBitSize, ItemVisibility, LetStatement, Literal, Pattern,
-            Signedness, UnresolvedTypeData,
+            UnresolvedTypeData,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -281,6 +282,7 @@
                 get_source_with_error_span,
             },
         },
+        shared::Signedness,
     };
 
     <span class="kw">fn </span>parse_global_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; (LetStatement, ItemVisibility) {

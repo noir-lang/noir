@@ -2135,7 +2135,8 @@
 <a href="#2134" id="2134">2134</a>
 <a href="#2135" id="2135">2135</a>
 <a href="#2136" id="2136">2136</a>
-<a href="#2137" id="2137">2137</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2137" id="2137">2137</a>
+<a href="#2138" id="2138">2138</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2145,9 +2146,9 @@
 <span class="kw">use crate</span>::{
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
-        Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind, UnaryOp,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -2172,6 +2173,7 @@
         DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplKind,
         TraitMethodId,
     },
+    shared::Signedness,
     signed_field::SignedField,
     token::SecondaryAttribute,
 };

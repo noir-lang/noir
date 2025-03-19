@@ -637,7 +637,8 @@
 <a href="#636" id="636">636</a>
 <a href="#637" id="637">637</a>
 <a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -649,8 +650,8 @@
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -663,6 +664,7 @@
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    shared::Signedness,
     signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
 };

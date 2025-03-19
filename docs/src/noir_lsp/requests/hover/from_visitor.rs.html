@@ -115,9 +115,7 @@
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
+<a href="#117" id="117">117</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
@@ -205,9 +203,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>noirc_frontend::{
-        Type,
-        ast::{IntegerBitSize, Signedness},
-        signed_field::SignedField,
+        Type, ast::IntegerBitSize, shared::Signedness, signed_field::SignedField,
     };
 
     <span class="kw">use </span><span class="kw">super</span>::format_integer;

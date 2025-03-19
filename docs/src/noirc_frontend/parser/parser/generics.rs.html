@@ -283,12 +283,15 @@
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
 <a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{
-        GenericTypeArg, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedType, UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
+    shared::Signedness,
     token::{Keyword, Token, TokenKind},
 };
 
@@ -450,13 +453,14 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
-        ast::{GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedTypeData},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
         },
+        shared::Signedness,
     };
 
     <span class="kw">fn </span>parse_generics_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;UnresolvedGeneric&gt; {

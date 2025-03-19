@@ -3084,7 +3084,8 @@
 <a href="#3083" id="3083">3083</a>
 <a href="#3084" id="3084">3084</a>
 <a href="#3085" id="3085">3085</a>
-<a href="#3086" id="3086">3086</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3086" id="3086">3086</a>
+<a href="#3087" id="3087">3087</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3107,8 +3108,8 @@
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
-        Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
-        UnsafeExpression, Visibility,
+        Pattern, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        UnsafeExpression,
     },
     elaborator::{ElaborateReason, Elaborator},
     hir::{
@@ -3130,6 +3131,7 @@
     },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
+    shared::{Signedness, Visibility},
     token::{Attribute, LocatedToken, Token},
 };
 
@@ -5998,7 +6000,7 @@
     <span class="kw">let </span>bits = FieldElement::modulus().to_radix_be(<span class="number">2</span>);
     <span class="kw">let </span>bits_vector = bits.into_iter().map(|bit| Value::U1(bit != <span class="number">0</span>)).collect();
 
-    <span class="kw">let </span>int_type = Type::Integer(<span class="kw">crate</span>::ast::Signedness::Unsigned, IntegerBitSize::One);
+    <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     <span class="kw">let </span>typ = Type::Slice(Box::new(int_type));
     <span class="prelude-val">Ok</span>(Value::Slice(bits_vector, typ))
 }
@@ -6009,7 +6011,7 @@
     <span class="kw">let </span>bytes = FieldElement::modulus().to_bytes_be();
     <span class="kw">let </span>bytes_vector = bytes.into_iter().map(Value::U8).collect();
 
-    <span class="kw">let </span>int_type = Type::Integer(<span class="kw">crate</span>::ast::Signedness::Unsigned, IntegerBitSize::Eight);
+    <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     <span class="kw">let </span>typ = Type::Slice(Box::new(int_type));
     <span class="prelude-val">Ok</span>(Value::Slice(bytes_vector, typ))
 }

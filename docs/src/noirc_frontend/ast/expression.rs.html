@@ -950,16 +950,18 @@
 <a href="#949" id="949">949</a>
 <a href="#950" id="950">950</a>
 <a href="#951" id="951">951</a>
-<a href="#952" id="952">952</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
     Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    UnresolvedType, UnresolvedTypeData,
 };
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+<span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 <span class="kw">use crate</span>::{Kind, Type};

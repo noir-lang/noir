@@ -900,12 +900,14 @@
 <a href="#899" id="899">899</a>
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::{FileId, FileMap};
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
+<span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
-    ast::{ItemVisibility, Visibility},
+    ast::ItemVisibility,
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},

@@ -766,7 +766,8 @@
 <a href="#765" id="765">765</a>
 <a href="#766" id="766">766</a>
 <a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use crate</span>::{
     QuotedType,
@@ -1229,11 +1230,12 @@
 
     <span class="kw">use crate</span>::{
         QuotedType,
-        ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
+        ast::{IntegerBitSize, UnresolvedType, UnresolvedTypeData},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
+        shared::Signedness,
     };
 
     <span class="kw">fn </span>parse_type_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; UnresolvedType {

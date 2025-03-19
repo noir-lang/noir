@@ -222,17 +222,19 @@
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Location, Span};
 
 <span class="kw">use </span><span class="kw">super</span>::expr::{HirBlockExpression, HirExpression, HirIdent};
 <span class="kw">use </span><span class="kw">super</span>::stmt::HirPattern;
 <span class="kw">use </span><span class="kw">super</span>::traits::TraitConstraint;
-<span class="kw">use </span><span class="kw">crate</span>::ast::{BlockExpression, FunctionKind, FunctionReturnType, Visibility};
+<span class="kw">use </span><span class="kw">crate</span>::ast::{BlockExpression, FunctionKind, FunctionReturnType};
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::LocalModuleId;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
+<span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 
 <span class="kw">use crate</span>::{ResolvedGeneric, Type};
 

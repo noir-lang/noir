@@ -1140,7 +1140,8 @@
 <a href="#1139" id="1139">1139</a>
 <a href="#1140" id="1140">1140</a>
 <a href="#1141" id="1141">1141</a>
-<a href="#1142" id="1142">1142</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1142" id="1142">1142</a>
+<a href="#1143" id="1143">1143</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>value;
 
@@ -1152,9 +1153,10 @@
 <span class="kw">use </span>context::{Loop, SharedContext};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_errors::Location;
-<span class="kw">use </span>noirc_frontend::ast::{UnaryOp, Visibility};
+<span class="kw">use </span>noirc_frontend::ast::UnaryOp;
 <span class="kw">use </span>noirc_frontend::hir_def::types::Type <span class="kw">as </span>HirType;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::{<span class="self">self</span>, Expression, MatchCase, Program, While};
+<span class="kw">use </span>noirc_frontend::shared::Visibility;
 
 <span class="kw">use crate</span>::{
     errors::RuntimeError,

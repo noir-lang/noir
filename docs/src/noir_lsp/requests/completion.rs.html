@@ -2014,7 +2014,8 @@
 <a href="#2013" id="2013">2013</a>
 <a href="#2014" id="2014">2014</a>
 <a href="#2015" id="2015">2015</a>
-<a href="#2016" id="2016">2016</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2037,8 +2038,8 @@
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
         IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
         MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
-        PathKind, Pattern, Signedness, Statement, TraitBound, TraitImplItemKind, TypeImpl,
-        TypePath, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
@@ -2051,6 +2052,7 @@
     hir_def::traits::Trait,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
+    shared::Signedness,
     token::{MetaAttribute, Token, Tokens},
 };
 <span class="kw">use </span>sort_text::underscore_sort_text;

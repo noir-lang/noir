@@ -3279,9 +3279,7 @@
 <a href="#3278" id="3278">3278</a>
 <a href="#3279" id="3279">3279</a>
 <a href="#3280" id="3280">3280</a>
-<a href="#3281" id="3281">3281</a>
-<a href="#3282" id="3282">3282</a>
-<a href="#3283" id="3283">3283</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#3281" id="3281">3281</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
@@ -3303,10 +3301,8 @@
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_printable_type::PrintableType;
 
-<span class="kw">use crate</span>::{
-    ast::{Ident, Signedness},
-    node_interner::TypeId,
-};
+<span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
+<span class="kw">use crate</span>::{ast::Ident, node_interner::TypeId};
 
 <span class="kw">use super</span>::{
     expr::{HirCallExpression, HirExpression, HirIdent},

@@ -344,9 +344,10 @@
 <a href="#343" id="343">343</a>
 <a href="#344" id="344">344</a>
 <a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     Type,
-    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    ast::{Ident, NoirFunction, UnaryOp},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -360,6 +361,7 @@
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
+    shared::{Signedness, Visibility},
 };
 
 <span class="kw">use </span>noirc_errors::Location;

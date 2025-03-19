@@ -2426,7 +2426,8 @@
 <a href="#2425" id="2425">2425</a>
 <a href="#2426" id="2426">2426</a>
 <a href="#2427" id="2427">2427</a>
-<a href="#2428" id="2428">2428</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2428" id="2428">2428</a>
+<a href="#2429" id="2429">2429</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2436,10 +2437,11 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-</span><span class="kw">use </span><span class="kw">crate</span>::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
+</span><span class="kw">use </span><span class="kw">crate</span>::ast::{FunctionKind, IntegerBitSize, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
+<span class="kw">use </span><span class="kw">crate</span>::shared::{Signedness, Visibility};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::FmtStrFragment;
 <span class="kw">use crate</span>::{
@@ -4154,7 +4156,7 @@
     ) -&gt; ast::Expression {
         <span class="kw">use </span>ast::<span class="kw-2">*</span>;
 
-        <span class="kw">let </span>int_type = Type::Integer(<span class="kw">crate</span>::ast::Signedness::Unsigned, arr_elem_bits);
+        <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         <span class="kw">let </span>bytes_as_expr = vecmap(bytes, |byte| {
             <span class="kw">let </span>value = SignedField::positive(byte <span class="kw">as </span>u32);
@@ -4559,7 +4561,7 @@
                 }))
             }
             ast::Type::MutableReference(element) =&gt; {
-                <span class="kw">use </span><span class="kw">crate</span>::ast::UnaryOp::Reference;
+                <span class="kw">use </span>UnaryOp::Reference;
                 <span class="kw">let </span>rhs = Box::new(<span class="self">self</span>.zeroed_value_of_type(element, location));
                 <span class="kw">let </span>result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary {

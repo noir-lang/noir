@@ -492,7 +492,9 @@
 <a href="#491" id="491">491</a>
 <a href="#492" id="492">492</a>
 <a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -500,9 +502,11 @@
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
+<span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 <span class="kw">use crate</span>::{
-    ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
+    ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
+    shared::Signedness,
     signed_field::SignedField,
     token::{Attributes, FunctionAttribute},
 };

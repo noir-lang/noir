@@ -138,12 +138,14 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>noirc_errors::{Location, Span};
 
 <span class="kw">use crate</span>::{
-    ast::{FunctionReturnType, Ident, Param, Visibility},
+    ast::{FunctionReturnType, Ident, Param},
+    shared::Visibility,
     token::{Attributes, FunctionAttribute, SecondaryAttribute},
 };
 

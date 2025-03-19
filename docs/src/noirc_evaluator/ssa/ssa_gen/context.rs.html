@@ -1152,15 +1152,19 @@
 <a href="#1151" id="1151">1151</a>
 <a href="#1152" id="1152">1152</a>
 <a href="#1153" id="1153">1153</a>
-<a href="#1154" id="1154">1154</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1154" id="1154">1154</a>
+<a href="#1155" id="1155">1155</a>
+<a href="#1156" id="1156">1156</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
-<span class="kw">use </span>noirc_frontend::ast::{BinaryOpKind, Signedness};
-<span class="kw">use </span>noirc_frontend::monomorphization::ast::{<span class="self">self</span>, GlobalId, InlineType, LocalId, Parameters};
-<span class="kw">use </span>noirc_frontend::monomorphization::ast::{FuncId, Program};
+<span class="kw">use </span>noirc_frontend::ast::BinaryOpKind;
+<span class="kw">use </span>noirc_frontend::monomorphization::ast::{
+    <span class="self">self</span>, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
+};
+<span class="kw">use </span>noirc_frontend::shared::Signedness;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;

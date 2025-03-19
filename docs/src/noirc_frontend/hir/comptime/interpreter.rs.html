@@ -1869,7 +1869,8 @@
 <a href="#1868" id="1868">1868</a>
 <a href="#1869" id="1869">1869</a>
 <a href="#1870" id="1870">1870</a>
-<a href="#1871" id="1871">1871</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::blackbox_solver::BigIntSolverWithId;
@@ -1880,7 +1881,7 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::TypeVariable;
-<span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
+<span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::{ElaborateReason, Elaborator};
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::ModuleId;
@@ -1892,6 +1893,7 @@
     undo_instantiation_bindings,
 };
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::GlobalValue;
+<span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{FmtStrFragment, Tokens};
 <span class="kw">use crate</span>::{

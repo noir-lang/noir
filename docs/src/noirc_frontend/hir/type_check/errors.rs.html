@@ -772,8 +772,7 @@
 <a href="#771" id="771">771</a>
 <a href="#772" id="772">772</a>
 <a href="#773" id="773">773</a>
-<a href="#774" id="774">774</a>
-<a href="#775" id="775">775</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#774" id="774">774</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -781,14 +780,13 @@
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">use </span><span class="kw">crate</span>::ast::{
-    BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize, Signedness,
-};
+<span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirBinaryOp;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::traits::TraitConstraint;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::types::{BinaryTypeOperator, Kind, Type};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::NodeInterner;
+<span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 
 <span class="doccomment">/// Rust also only shows 3 maximum, even for short patterns.

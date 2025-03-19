@@ -661,7 +661,8 @@
 <a href="#660" id="660">660</a>
 <a href="#661" id="661">661</a>
 <a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::{hash::Hasher, rc::Rc};
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -679,8 +680,8 @@
 <span class="kw">use crate</span>::{
     QuotedType, Type,
     ast::{
-        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
-        StatementKind, UnresolvedTypeData,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind,
+        UnresolvedTypeData,
     },
     hir::{
         comptime::{
@@ -696,6 +697,7 @@
         stmt::HirPattern,
     },
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
+    shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
 };
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
