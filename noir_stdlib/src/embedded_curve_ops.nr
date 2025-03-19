@@ -166,11 +166,11 @@ pub fn embedded_curve_add(
         if point2.is_infinite {
             result = point1;
         }
-        let mut result_is_infinity = infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
+        let mut result_is_infinity =
+            infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
         result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
         result
     }
-    
 }
 
 #[foreign(embedded_curve_add)]
