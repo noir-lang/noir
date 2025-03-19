@@ -121,6 +121,12 @@ pub(crate) fn get_program_with_options(
             options,
         ));
     }
+
+    // TODO emit to files
+    let env_emit_frontend_tests = std::env::var("NARGO_EMIT_FRONTEND_TESTS");
+    if errors.is_empty() && env_emit_frontend_tests.is_ok() {
+        dbg!(src);
+    }
     (program, context, errors)
 }
 
