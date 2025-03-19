@@ -17,6 +17,7 @@ mod visibility;
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
@@ -122,16 +123,27 @@ pub(crate) fn get_program_with_options(
         ));
     }
 
-    // TODO emit to files
-    let env_emit_frontend_tests = std::env::var("NARGO_EMIT_FRONTEND_TESTS");
-    if errors.is_empty() && env_emit_frontend_tests.is_ok() {
-        dbg!(src);
-    }
+    emit_frontend_tests(src, errors.is_empty());
     (program, context, errors)
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program(src).2
+}
+
+fn emit_frontend_tests(src: &str, errors_is_empty: bool) {
+    // TODO re-enable env var
+    // let env_emit_frontend_tests_path = std::env::var("NARGO_EMIT_FRONTEND_TESTS_PATH");
+    let env_emit_frontend_tests_path: Result<&str, ()> = Ok("./tmp");
+    if errors.is_empty() && env_emit_frontend_tests_path.is_ok() {
+        let env_emit_frontend_tests_path = env_emit_frontend_tests_path.unwrap();
+        let output_path = Path::new(&env_emit_frontend_tests_path);
+        let mut hasher = DefaultHasher::new();
+        src.hash(&mut hasher);
+        let hash = hasher.finish().to_string();
+        let output_path = output_path.join(hash);
+        std::fs::write(output_path, src).expect("Unable to write test file");
+    }
 }
 
 fn assert_no_errors(src: &str) {

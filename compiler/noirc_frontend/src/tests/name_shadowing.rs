@@ -408,8 +408,6 @@ fn test_name_shadowing() {
     for (i, x) in names_to_collapse.iter().enumerate() {
         for (j, y) in names_to_collapse.iter().enumerate().filter(|(j, _)| i < *j) {
             if !cases_to_skip.contains(&(i, j)) {
-                dbg!((i, j));
-
                 let modified_src = src.replace(x, y);
                 let errors = get_program_errors(&modified_src);
                 assert!(!errors.is_empty(), "Expected errors, got: {:?}", errors);
