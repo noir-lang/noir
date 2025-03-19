@@ -1653,17 +1653,13 @@ impl<'context> Elaborator<'context> {
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type);
             let kind = Kind::numeric(num_type);
-            let num_expr = if let UnresolvedTypeData::Expression(expr) =
-                alias.type_alias_def.typ.typ.clone()
-            {
-                Some(expr)
-            } else {
+            let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
+            if num_expr.is_none() {
                 // We only support aliases to numeric generics expressions for now
                 self.errors.push(CompilationError::ResolverError(
                     ResolverError::RecursiveTypeAlias { location },
                 ));
-                None
-            };
+            }
             (self.resolve_type_with_kind(alias.type_alias_def.typ, &kind), num_expr)
         } else {
             (self.resolve_type(alias.type_alias_def.typ), None)

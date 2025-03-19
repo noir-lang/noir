@@ -451,6 +451,19 @@ impl UnresolvedTypeData {
             | UnresolvedTypeData::Error => false,
         }
     }
+
+    pub(crate) fn try_into_expression(&self) -> Option<UnresolvedTypeExpression> {
+        match self {
+            UnresolvedTypeData::Expression(expr) => Some(expr.clone()),
+            UnresolvedTypeData::Parenthesized(unresolved_type) => {
+                unresolved_type.typ.try_into_expression()
+            }
+            UnresolvedTypeData::Named(path, _, _) if path.is_ident() => {
+                Some(UnresolvedTypeExpression::Variable(path.clone()))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
