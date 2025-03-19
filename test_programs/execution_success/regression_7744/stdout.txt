@@ -1,3 +1,1 @@
-[regression_7744] Circuit witness successfully solved
-[regression_7744] Witness saved to /mnt/user-data/tom/noir/test_programs/execution_success/regression_7744/target/regression_7744.gz
 [regression_7744] Circuit output: Struct({"is_infinite": Field(0), "x": Field(0), "y": Field(5)})
