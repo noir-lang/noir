@@ -5,9 +5,10 @@ use thiserror::Error;
 
 use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    UnresolvedType, UnresolvedTypeData,
 };
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::shared::Visibility;
 use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};

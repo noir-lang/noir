@@ -86,9 +86,7 @@ fn format_integer(typ: &Type, value: SignedField) -> String {
 #[cfg(test)]
 mod tests {
     use noirc_frontend::{
-        Type,
-        ast::{IntegerBitSize, Signedness},
-        signed_field::SignedField,
+        Type, ast::IntegerBitSize, shared::Signedness, signed_field::SignedField,
     };
 
     use super::format_integer;
