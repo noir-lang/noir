@@ -10,9 +10,10 @@ pub(crate) use program::Ssa;
 use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
-use noirc_frontend::ast::{UnaryOp, Visibility};
+use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
+use noirc_frontend::shared::Visibility;
 
 use crate::{
     errors::RuntimeError,
