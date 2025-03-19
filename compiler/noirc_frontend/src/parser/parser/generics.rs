@@ -1,9 +1,10 @@
 use crate::{
     ast::{
-        GenericTypeArg, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedType, UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
+    shared::Signedness,
     token::{Keyword, Token, TokenKind},
 };
 

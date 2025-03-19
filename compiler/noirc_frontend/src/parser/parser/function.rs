@@ -2,12 +2,13 @@ use crate::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
+use crate::shared::Visibility;
 use crate::token::{Attribute, Attributes, Keyword, Token};
 use crate::{ast::UnresolvedGenerics, parser::labels::ParsingRuleLabel};
 use crate::{
     ast::{
         FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
-        UnresolvedTypeData, Visibility,
+        UnresolvedTypeData,
     },
     parser::ParserErrorReason,
 };
