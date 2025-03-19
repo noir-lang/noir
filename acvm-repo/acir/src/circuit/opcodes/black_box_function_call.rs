@@ -1,3 +1,8 @@
+//! Black box functions are ACIR opcodes which rely on backends implementing
+//! support for specialized constraints.
+//! This makes certain zk-snark unfriendly computations cheaper than if they were
+//! implemented in more basic constraints.
+
 use std::collections::BTreeSet;
 
 use crate::native_types::Witness;
@@ -6,20 +11,25 @@ use crate::{AcirField, BlackBoxFunc};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
-// Note: Some functions will not use all of the witness
-// So we need to supply how many bits of the witness is needed
-
+/// Enumeration for black box function inputs
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ConstantOrWitnessEnum<F> {
+    /// A constant field element
     Constant(F),
+    /// A witness element, representing dynamic inputs
     Witness(Witness),
 }
 
+/// Input to a black box call
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct FunctionInput<F> {
+    /// The actual input value
     input: ConstantOrWitnessEnum<F>,
+    /// A constant representing the bit size of the input value
+    /// Some functions will not use all of the witness
+    /// So we need to supply how many bits of the witness is needed
     num_bits: u32,
 }
 
@@ -81,6 +91,11 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
     }
 }
 
+/// These opcodes represent a specialized computation.
+/// Even if any computation can be done using only assert-zero opcodes,
+/// it is not always efficient.
+/// Some proving systems, can implement several computations more efficiently using
+/// techniques such as custom gates and lookup tables.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum BlackBoxFuncCall<F> {
     /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,

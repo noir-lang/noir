@@ -461,11 +461,12 @@ mod tests {
 
     use crate::{
         QuotedType,
-        ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
+        ast::{IntegerBitSize, UnresolvedType, UnresolvedTypeData},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
+        shared::Signedness,
     };
 
     fn parse_type_no_errors(src: &str) -> UnresolvedType {
