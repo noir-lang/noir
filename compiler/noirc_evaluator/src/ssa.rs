@@ -304,6 +304,8 @@ fn optimize_for_debug(
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         // .run_pass(Ssa::simplify_cfg, "Simplifying (3rd):")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
+        .run_pass(Ssa::brillig_array_gets, "Brillig Array Get Optimizations")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .finish())
 }
 
