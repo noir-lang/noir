@@ -14,7 +14,7 @@ namespace Acir {
             static Add bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Sub {
@@ -23,7 +23,7 @@ namespace Acir {
             static Sub bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Mul {
@@ -32,7 +32,7 @@ namespace Acir {
             static Mul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Div {
@@ -41,7 +41,7 @@ namespace Acir {
             static Div bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct IntegerDiv {
@@ -50,7 +50,7 @@ namespace Acir {
             static IntegerDiv bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Equals {
@@ -59,7 +59,7 @@ namespace Acir {
             static Equals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThan {
@@ -68,7 +68,7 @@ namespace Acir {
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThanEquals {
@@ -77,7 +77,7 @@ namespace Acir {
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
@@ -124,49 +124,45 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BinaryFieldOp' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BinaryFieldOp' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Add") {
-                Add v;
-                obj.convert(v);
+                Add v = obj.convert();
                 value = v;
             }
             else if (tag == "Sub") {
-                Sub v;
-                obj.convert(v);
+                Sub v = obj.convert();
                 value = v;
             }
             else if (tag == "Mul") {
-                Mul v;
-                obj.convert(v);
+                Mul v = obj.convert();
                 value = v;
             }
             else if (tag == "Div") {
-                Div v;
-                obj.convert(v);
+                Div v = obj.convert();
                 value = v;
             }
             else if (tag == "IntegerDiv") {
-                IntegerDiv v;
-                obj.convert(v);
+                IntegerDiv v = obj.convert();
                 value = v;
             }
             else if (tag == "Equals") {
-                Equals v;
-                obj.convert(v);
+                Equals v = obj.convert();
                 value = v;
             }
             else if (tag == "LessThan") {
-                LessThan v;
-                obj.convert(v);
+                LessThan v = obj.convert();
                 value = v;
             }
             else if (tag == "LessThanEquals") {
-                LessThanEquals v;
-                obj.convert(v);
+                LessThanEquals v = obj.convert();
                 value = v;
             }
             else {
@@ -183,7 +179,7 @@ namespace Acir {
             static Add bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Sub {
@@ -192,7 +188,7 @@ namespace Acir {
             static Sub bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Mul {
@@ -201,7 +197,7 @@ namespace Acir {
             static Mul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Div {
@@ -210,7 +206,7 @@ namespace Acir {
             static Div bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Equals {
@@ -219,7 +215,7 @@ namespace Acir {
             static Equals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThan {
@@ -228,7 +224,7 @@ namespace Acir {
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThanEquals {
@@ -237,7 +233,7 @@ namespace Acir {
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct And {
@@ -246,7 +242,7 @@ namespace Acir {
             static And bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Or {
@@ -255,7 +251,7 @@ namespace Acir {
             static Or bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Xor {
@@ -264,7 +260,7 @@ namespace Acir {
             static Xor bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Shl {
@@ -273,7 +269,7 @@ namespace Acir {
             static Shl bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Shr {
@@ -282,7 +278,7 @@ namespace Acir {
             static Shr bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
@@ -341,69 +337,61 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BinaryIntOp' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BinaryIntOp' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Add") {
-                Add v;
-                obj.convert(v);
+                Add v = obj.convert();
                 value = v;
             }
             else if (tag == "Sub") {
-                Sub v;
-                obj.convert(v);
+                Sub v = obj.convert();
                 value = v;
             }
             else if (tag == "Mul") {
-                Mul v;
-                obj.convert(v);
+                Mul v = obj.convert();
                 value = v;
             }
             else if (tag == "Div") {
-                Div v;
-                obj.convert(v);
+                Div v = obj.convert();
                 value = v;
             }
             else if (tag == "Equals") {
-                Equals v;
-                obj.convert(v);
+                Equals v = obj.convert();
                 value = v;
             }
             else if (tag == "LessThan") {
-                LessThan v;
-                obj.convert(v);
+                LessThan v = obj.convert();
                 value = v;
             }
             else if (tag == "LessThanEquals") {
-                LessThanEquals v;
-                obj.convert(v);
+                LessThanEquals v = obj.convert();
                 value = v;
             }
             else if (tag == "And") {
-                And v;
-                obj.convert(v);
+                And v = obj.convert();
                 value = v;
             }
             else if (tag == "Or") {
-                Or v;
-                obj.convert(v);
+                Or v = obj.convert();
                 value = v;
             }
             else if (tag == "Xor") {
-                Xor v;
-                obj.convert(v);
+                Xor v = obj.convert();
                 value = v;
             }
             else if (tag == "Shl") {
-                Shl v;
-                obj.convert(v);
+                Shl v = obj.convert();
                 value = v;
             }
             else if (tag == "Shr") {
-                Shr v;
-                obj.convert(v);
+                Shr v = obj.convert();
                 value = v;
             }
             else {
@@ -420,7 +408,7 @@ namespace Acir {
             static U1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U8 {
@@ -429,7 +417,7 @@ namespace Acir {
             static U8 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U16 {
@@ -438,7 +426,7 @@ namespace Acir {
             static U16 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U32 {
@@ -447,7 +435,7 @@ namespace Acir {
             static U32 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U64 {
@@ -456,7 +444,7 @@ namespace Acir {
             static U64 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U128 {
@@ -465,7 +453,7 @@ namespace Acir {
             static U128 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<U1, U8, U16, U32, U64, U128> value;
@@ -506,39 +494,37 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'IntegerBitSize' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'IntegerBitSize' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "U1") {
-                U1 v;
-                obj.convert(v);
+                U1 v = obj.convert();
                 value = v;
             }
             else if (tag == "U8") {
-                U8 v;
-                obj.convert(v);
+                U8 v = obj.convert();
                 value = v;
             }
             else if (tag == "U16") {
-                U16 v;
-                obj.convert(v);
+                U16 v = obj.convert();
                 value = v;
             }
             else if (tag == "U32") {
-                U32 v;
-                obj.convert(v);
+                U32 v = obj.convert();
                 value = v;
             }
             else if (tag == "U64") {
-                U64 v;
-                obj.convert(v);
+                U64 v = obj.convert();
                 value = v;
             }
             else if (tag == "U128") {
-                U128 v;
-                obj.convert(v);
+                U128 v = obj.convert();
                 value = v;
             }
             else {
@@ -555,7 +541,7 @@ namespace Acir {
             static Field bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Integer {
@@ -566,7 +552,7 @@ namespace Acir {
             static Integer bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         std::variant<Field, Integer> value;
@@ -595,19 +581,21 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BitSize' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BitSize' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Field") {
-                Field v;
-                obj.convert(v);
+                Field v = obj.convert();
                 value = v;
             }
             else if (tag == "Integer") {
-                Integer v;
-                obj.convert(v);
+                Integer v = obj.convert();
                 value = v;
             }
             else {
@@ -626,7 +614,7 @@ namespace Acir {
             static Direct bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Relative {
@@ -637,7 +625,7 @@ namespace Acir {
             static Relative bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         std::variant<Direct, Relative> value;
@@ -666,19 +654,21 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'MemoryAddress' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'MemoryAddress' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Direct") {
-                Direct v;
-                obj.convert(v);
+                Direct v = obj.convert();
                 value = v;
             }
             else if (tag == "Relative") {
-                Relative v;
-                obj.convert(v);
+                Relative v = obj.convert();
                 value = v;
             }
             else {
@@ -993,94 +983,81 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BlackBoxOp' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BlackBoxOp' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "AES128Encrypt") {
-                AES128Encrypt v;
-                obj.convert(v);
+                AES128Encrypt v = obj.convert();
                 value = v;
             }
             else if (tag == "Blake2s") {
-                Blake2s v;
-                obj.convert(v);
+                Blake2s v = obj.convert();
                 value = v;
             }
             else if (tag == "Blake3") {
-                Blake3 v;
-                obj.convert(v);
+                Blake3 v = obj.convert();
                 value = v;
             }
             else if (tag == "Keccakf1600") {
-                Keccakf1600 v;
-                obj.convert(v);
+                Keccakf1600 v = obj.convert();
                 value = v;
             }
             else if (tag == "EcdsaSecp256k1") {
-                EcdsaSecp256k1 v;
-                obj.convert(v);
+                EcdsaSecp256k1 v = obj.convert();
                 value = v;
             }
             else if (tag == "EcdsaSecp256r1") {
-                EcdsaSecp256r1 v;
-                obj.convert(v);
+                EcdsaSecp256r1 v = obj.convert();
                 value = v;
             }
             else if (tag == "MultiScalarMul") {
-                MultiScalarMul v;
-                obj.convert(v);
+                MultiScalarMul v = obj.convert();
                 value = v;
             }
             else if (tag == "EmbeddedCurveAdd") {
-                EmbeddedCurveAdd v;
-                obj.convert(v);
+                EmbeddedCurveAdd v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntAdd") {
-                BigIntAdd v;
-                obj.convert(v);
+                BigIntAdd v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntSub") {
-                BigIntSub v;
-                obj.convert(v);
+                BigIntSub v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntMul") {
-                BigIntMul v;
-                obj.convert(v);
+                BigIntMul v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntDiv") {
-                BigIntDiv v;
-                obj.convert(v);
+                BigIntDiv v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntFromLeBytes") {
-                BigIntFromLeBytes v;
-                obj.convert(v);
+                BigIntFromLeBytes v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntToLeBytes") {
-                BigIntToLeBytes v;
-                obj.convert(v);
+                BigIntToLeBytes v = obj.convert();
                 value = v;
             }
             else if (tag == "Poseidon2Permutation") {
-                Poseidon2Permutation v;
-                obj.convert(v);
+                Poseidon2Permutation v = obj.convert();
                 value = v;
             }
             else if (tag == "Sha256Compression") {
-                Sha256Compression v;
-                obj.convert(v);
+                Sha256Compression v = obj.convert();
                 value = v;
             }
             else if (tag == "ToRadix") {
-                ToRadix v;
-                obj.convert(v);
+                ToRadix v = obj.convert();
                 value = v;
             }
             else {
@@ -1101,7 +1078,7 @@ namespace Acir {
             static Simple bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Array {
@@ -1154,24 +1131,25 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'HeapValueType' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'HeapValueType' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Simple") {
-                Simple v;
-                obj.convert(v);
+                Simple v = obj.convert();
                 value = v;
             }
             else if (tag == "Array") {
-                Array v;
-                obj.convert(v);
+                Array v = obj.convert();
                 value = v;
             }
             else if (tag == "Vector") {
-                Vector v;
-                obj.convert(v);
+                Vector v = obj.convert();
                 value = v;
             }
             else {
@@ -1190,7 +1168,7 @@ namespace Acir {
             static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct HeapArray {
@@ -1201,7 +1179,7 @@ namespace Acir {
             static HeapArray bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct HeapVector {
@@ -1212,7 +1190,7 @@ namespace Acir {
             static HeapVector bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         std::variant<MemoryAddress, HeapArray, HeapVector> value;
@@ -1244,24 +1222,25 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'ValueOrArray' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'ValueOrArray' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "MemoryAddress") {
-                MemoryAddress v;
-                obj.convert(v);
+                MemoryAddress v = obj.convert();
                 value = v;
             }
             else if (tag == "HeapArray") {
-                HeapArray v;
-                obj.convert(v);
+                HeapArray v = obj.convert();
                 value = v;
             }
             else if (tag == "HeapVector") {
-                HeapVector v;
-                obj.convert(v);
+                HeapVector v = obj.convert();
                 value = v;
             }
             else {
@@ -1407,7 +1386,7 @@ namespace Acir {
             static Return bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct ForeignCall {
@@ -1478,7 +1457,7 @@ namespace Acir {
             static BlackBox bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Trap {
@@ -1581,109 +1560,93 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BrilligOpcode' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BrilligOpcode' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "BinaryFieldOp") {
-                BinaryFieldOp v;
-                obj.convert(v);
+                BinaryFieldOp v = obj.convert();
                 value = v;
             }
             else if (tag == "BinaryIntOp") {
-                BinaryIntOp v;
-                obj.convert(v);
+                BinaryIntOp v = obj.convert();
                 value = v;
             }
             else if (tag == "Not") {
-                Not v;
-                obj.convert(v);
+                Not v = obj.convert();
                 value = v;
             }
             else if (tag == "Cast") {
-                Cast v;
-                obj.convert(v);
+                Cast v = obj.convert();
                 value = v;
             }
             else if (tag == "JumpIfNot") {
-                JumpIfNot v;
-                obj.convert(v);
+                JumpIfNot v = obj.convert();
                 value = v;
             }
             else if (tag == "JumpIf") {
-                JumpIf v;
-                obj.convert(v);
+                JumpIf v = obj.convert();
                 value = v;
             }
             else if (tag == "Jump") {
-                Jump v;
-                obj.convert(v);
+                Jump v = obj.convert();
                 value = v;
             }
             else if (tag == "CalldataCopy") {
-                CalldataCopy v;
-                obj.convert(v);
+                CalldataCopy v = obj.convert();
                 value = v;
             }
             else if (tag == "Call") {
-                Call v;
-                obj.convert(v);
+                Call v = obj.convert();
                 value = v;
             }
             else if (tag == "Const") {
-                Const v;
-                obj.convert(v);
+                Const v = obj.convert();
                 value = v;
             }
             else if (tag == "IndirectConst") {
-                IndirectConst v;
-                obj.convert(v);
+                IndirectConst v = obj.convert();
                 value = v;
             }
             else if (tag == "Return") {
-                Return v;
-                obj.convert(v);
+                Return v = obj.convert();
                 value = v;
             }
             else if (tag == "ForeignCall") {
-                ForeignCall v;
-                obj.convert(v);
+                ForeignCall v = obj.convert();
                 value = v;
             }
             else if (tag == "Mov") {
-                Mov v;
-                obj.convert(v);
+                Mov v = obj.convert();
                 value = v;
             }
             else if (tag == "ConditionalMov") {
-                ConditionalMov v;
-                obj.convert(v);
+                ConditionalMov v = obj.convert();
                 value = v;
             }
             else if (tag == "Load") {
-                Load v;
-                obj.convert(v);
+                Load v = obj.convert();
                 value = v;
             }
             else if (tag == "Store") {
-                Store v;
-                obj.convert(v);
+                Store v = obj.convert();
                 value = v;
             }
             else if (tag == "BlackBox") {
-                BlackBox v;
-                obj.convert(v);
+                BlackBox v = obj.convert();
                 value = v;
             }
             else if (tag == "Trap") {
-                Trap v;
-                obj.convert(v);
+                Trap v = obj.convert();
                 value = v;
             }
             else if (tag == "Stop") {
-                Stop v;
-                obj.convert(v);
+                Stop v = obj.convert();
                 value = v;
             }
             else {
@@ -1700,7 +1663,7 @@ namespace Acir {
         static Witness bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
-        void msgpack_unpack(auto const& o) { o.convert(value); }
+        void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
     };
 
     struct ConstantOrWitnessEnum {
@@ -1713,7 +1676,7 @@ namespace Acir {
             static Constant bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Witness {
@@ -1724,7 +1687,7 @@ namespace Acir {
             static Witness bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         std::variant<Constant, Witness> value;
@@ -1753,19 +1716,21 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'ConstantOrWitnessEnum' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'ConstantOrWitnessEnum' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Constant") {
-                Constant v;
-                obj.convert(v);
+                Constant v = obj.convert();
                 value = v;
             }
             else if (tag == "Witness") {
-                Witness v;
-                obj.convert(v);
+                Witness v = obj.convert();
                 value = v;
             }
             else {
@@ -2108,109 +2073,93 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BlackBoxFuncCall' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BlackBoxFuncCall' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "AES128Encrypt") {
-                AES128Encrypt v;
-                obj.convert(v);
+                AES128Encrypt v = obj.convert();
                 value = v;
             }
             else if (tag == "AND") {
-                AND v;
-                obj.convert(v);
+                AND v = obj.convert();
                 value = v;
             }
             else if (tag == "XOR") {
-                XOR v;
-                obj.convert(v);
+                XOR v = obj.convert();
                 value = v;
             }
             else if (tag == "RANGE") {
-                RANGE v;
-                obj.convert(v);
+                RANGE v = obj.convert();
                 value = v;
             }
             else if (tag == "Blake2s") {
-                Blake2s v;
-                obj.convert(v);
+                Blake2s v = obj.convert();
                 value = v;
             }
             else if (tag == "Blake3") {
-                Blake3 v;
-                obj.convert(v);
+                Blake3 v = obj.convert();
                 value = v;
             }
             else if (tag == "EcdsaSecp256k1") {
-                EcdsaSecp256k1 v;
-                obj.convert(v);
+                EcdsaSecp256k1 v = obj.convert();
                 value = v;
             }
             else if (tag == "EcdsaSecp256r1") {
-                EcdsaSecp256r1 v;
-                obj.convert(v);
+                EcdsaSecp256r1 v = obj.convert();
                 value = v;
             }
             else if (tag == "MultiScalarMul") {
-                MultiScalarMul v;
-                obj.convert(v);
+                MultiScalarMul v = obj.convert();
                 value = v;
             }
             else if (tag == "EmbeddedCurveAdd") {
-                EmbeddedCurveAdd v;
-                obj.convert(v);
+                EmbeddedCurveAdd v = obj.convert();
                 value = v;
             }
             else if (tag == "Keccakf1600") {
-                Keccakf1600 v;
-                obj.convert(v);
+                Keccakf1600 v = obj.convert();
                 value = v;
             }
             else if (tag == "RecursiveAggregation") {
-                RecursiveAggregation v;
-                obj.convert(v);
+                RecursiveAggregation v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntAdd") {
-                BigIntAdd v;
-                obj.convert(v);
+                BigIntAdd v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntSub") {
-                BigIntSub v;
-                obj.convert(v);
+                BigIntSub v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntMul") {
-                BigIntMul v;
-                obj.convert(v);
+                BigIntMul v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntDiv") {
-                BigIntDiv v;
-                obj.convert(v);
+                BigIntDiv v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntFromLeBytes") {
-                BigIntFromLeBytes v;
-                obj.convert(v);
+                BigIntFromLeBytes v = obj.convert();
                 value = v;
             }
             else if (tag == "BigIntToLeBytes") {
-                BigIntToLeBytes v;
-                obj.convert(v);
+                BigIntToLeBytes v = obj.convert();
                 value = v;
             }
             else if (tag == "Poseidon2Permutation") {
-                Poseidon2Permutation v;
-                obj.convert(v);
+                Poseidon2Permutation v = obj.convert();
                 value = v;
             }
             else if (tag == "Sha256Compression") {
-                Sha256Compression v;
-                obj.convert(v);
+                Sha256Compression v = obj.convert();
                 value = v;
             }
             else {
@@ -2227,7 +2176,7 @@ namespace Acir {
         static BlockId bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
-        void msgpack_unpack(auto const& o) { o.convert(value); }
+        void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
     };
 
     struct BlockType {
@@ -2238,7 +2187,7 @@ namespace Acir {
             static Memory bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct CallData {
@@ -2249,7 +2198,7 @@ namespace Acir {
             static CallData bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct ReturnData {
@@ -2258,7 +2207,7 @@ namespace Acir {
             static ReturnData bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Memory, CallData, ReturnData> value;
@@ -2290,24 +2239,25 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BlockType' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BlockType' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Memory") {
-                Memory v;
-                obj.convert(v);
+                Memory v = obj.convert();
                 value = v;
             }
             else if (tag == "CallData") {
-                CallData v;
-                obj.convert(v);
+                CallData v = obj.convert();
                 value = v;
             }
             else if (tag == "ReturnData") {
-                ReturnData v;
-                obj.convert(v);
+                ReturnData v = obj.convert();
                 value = v;
             }
             else {
@@ -2338,7 +2288,7 @@ namespace Acir {
             static Single bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Array {
@@ -2349,7 +2299,7 @@ namespace Acir {
             static Array bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct MemoryArray {
@@ -2360,7 +2310,7 @@ namespace Acir {
             static MemoryArray bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         std::variant<Single, Array, MemoryArray> value;
@@ -2392,24 +2342,25 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BrilligInputs' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BrilligInputs' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Single") {
-                Single v;
-                obj.convert(v);
+                Single v = obj.convert();
                 value = v;
             }
             else if (tag == "Array") {
-                Array v;
-                obj.convert(v);
+                Array v = obj.convert();
                 value = v;
             }
             else if (tag == "MemoryArray") {
-                MemoryArray v;
-                obj.convert(v);
+                MemoryArray v = obj.convert();
                 value = v;
             }
             else {
@@ -2428,7 +2379,7 @@ namespace Acir {
             static Simple bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Array {
@@ -2439,7 +2390,7 @@ namespace Acir {
             static Array bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         std::variant<Simple, Array> value;
@@ -2468,19 +2419,21 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'BrilligOutputs' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'BrilligOutputs' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Simple") {
-                Simple v;
-                obj.convert(v);
+                Simple v = obj.convert();
                 value = v;
             }
             else if (tag == "Array") {
-                Array v;
-                obj.convert(v);
+                Array v = obj.convert();
                 value = v;
             }
             else {
@@ -2511,7 +2464,7 @@ namespace Acir {
             static AssertZero bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct BlackBoxFuncCall {
@@ -2522,7 +2475,7 @@ namespace Acir {
             static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct MemoryOp {
@@ -2613,39 +2566,37 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'Opcode' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'Opcode' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "AssertZero") {
-                AssertZero v;
-                obj.convert(v);
+                AssertZero v = obj.convert();
                 value = v;
             }
             else if (tag == "BlackBoxFuncCall") {
-                BlackBoxFuncCall v;
-                obj.convert(v);
+                BlackBoxFuncCall v = obj.convert();
                 value = v;
             }
             else if (tag == "MemoryOp") {
-                MemoryOp v;
-                obj.convert(v);
+                MemoryOp v = obj.convert();
                 value = v;
             }
             else if (tag == "MemoryInit") {
-                MemoryInit v;
-                obj.convert(v);
+                MemoryInit v = obj.convert();
                 value = v;
             }
             else if (tag == "BrilligCall") {
-                BrilligCall v;
-                obj.convert(v);
+                BrilligCall v = obj.convert();
                 value = v;
             }
             else if (tag == "Call") {
-                Call v;
-                obj.convert(v);
+                Call v = obj.convert();
                 value = v;
             }
             else {
@@ -2664,7 +2615,7 @@ namespace Acir {
             static Expression bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Memory {
@@ -2675,7 +2626,7 @@ namespace Acir {
             static Memory bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         std::variant<Expression, Memory> value;
@@ -2704,19 +2655,21 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'ExpressionOrMemory' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'ExpressionOrMemory' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Expression") {
-                Expression v;
-                obj.convert(v);
+                Expression v = obj.convert();
                 value = v;
             }
             else if (tag == "Memory") {
-                Memory v;
-                obj.convert(v);
+                Memory v = obj.convert();
                 value = v;
             }
             else {
@@ -2744,7 +2697,7 @@ namespace Acir {
             static Unbounded bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto const& o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Bounded {
@@ -2783,19 +2736,21 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'ExpressionWidth' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'ExpressionWidth' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Unbounded") {
-                Unbounded v;
-                obj.convert(v);
+                Unbounded v = obj.convert();
                 value = v;
             }
             else if (tag == "Bounded") {
-                Bounded v;
-                obj.convert(v);
+                Bounded v = obj.convert();
                 value = v;
             }
             else {
@@ -2814,7 +2769,7 @@ namespace Acir {
             static Acir bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
-            void msgpack_unpack(auto const& o) { o.convert(value); }
+            void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
         };
 
         struct Brillig {
@@ -2854,19 +2809,21 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto const& o) {
-            std::map<std::string, msgpack::object> data = o.convert();
-            auto entry = data.begin();
-            auto tag = entry->first;
-            auto obj = entry->second;
+        void msgpack_unpack(msgpack::object const& o) {
+            if (o.type != msgpack::type::object_type::MAP) {
+                throw_or_abort("expected map for 'OpcodeLocation' enum; got " + std::to_string(o.type));
+            }
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for 'OpcodeLocation' enum; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag = o.via.map.ptr[0].key.convert();
+            msgpack::object obj = o.via.map.ptr[0].val;
             if (tag == "Acir") {
-                Acir v;
-                obj.convert(v);
+                Acir v = obj.convert();
                 value = v;
             }
             else if (tag == "Brillig") {
-                Brillig v;
-                obj.convert(v);
+                Brillig v = obj.convert();
                 value = v;
             }
             else {
@@ -2883,7 +2840,7 @@ namespace Acir {
         static PublicInputs bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
-        void msgpack_unpack(auto const& o) { o.convert(value); }
+        void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
     };
 
     struct Circuit {

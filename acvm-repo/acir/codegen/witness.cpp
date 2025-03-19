@@ -14,7 +14,7 @@ namespace Witnesses {
         static Witness bincodeDeserialize(std::vector<uint8_t>);
 
         bool operator<(Witness const& rhs) const { return value < rhs.value; }void msgpack_pack(auto& packer) const { packer.pack(value); }
-        void msgpack_unpack(auto const& o) { o.convert(value); }
+        void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
     };
 
     struct WitnessMap {
@@ -25,7 +25,7 @@ namespace Witnesses {
         static WitnessMap bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
-        void msgpack_unpack(auto const& o) { o.convert(value); }
+        void msgpack_unpack(msgpack::object const& o) { o.convert(value); }
     };
 
     struct StackItem {
