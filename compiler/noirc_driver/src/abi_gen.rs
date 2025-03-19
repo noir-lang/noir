@@ -9,7 +9,7 @@ use noirc_abi::{
 use noirc_errors::Location;
 use noirc_evaluator::ErrorType;
 use noirc_frontend::TypeBinding;
-use noirc_frontend::ast::{Signedness, Visibility};
+use noirc_frontend::shared::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
     hir_def::{
