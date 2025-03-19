@@ -166,13 +166,14 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedTypeData},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
         },
+        shared::Signedness,
     };
 
     fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
