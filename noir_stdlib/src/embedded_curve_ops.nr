@@ -24,9 +24,10 @@ impl EmbeddedCurvePoint {
 
     /// Returns the curve's generator point.
     pub fn generator() -> EmbeddedCurvePoint {
+        // Generator point for the grumpkin curve (y^2 = x^3 - 17)
         EmbeddedCurvePoint {
             x: 1,
-            y: 17631683881184975370165255887551781615748388533673675138860,
+            y: 17631683881184975370165255887551781615748388533673675138860, // sqrt(-16)
             is_infinite: false,
         }
     }
