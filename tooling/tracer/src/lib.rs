@@ -1,6 +1,6 @@
 mod source_location;
-use acvm::acir::circuit::{ErrorSelector, RawAssertionPayload, ResolvedAssertionPayload};
-use acvm::pwg::OpcodeResolutionError;
+use acvm::acir::circuit::ErrorSelector;
+use acvm::pwg::{OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload};
 use nargo::errors::ExecutionError;
 use noirc_abi::AbiErrorType;
 use source_location::SourceLocation;
