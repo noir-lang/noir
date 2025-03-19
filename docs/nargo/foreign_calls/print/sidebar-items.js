@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["PrintOutput"],"fn":["convert_fmt_string_inputs","convert_string_inputs","fetch_printable_type","try_from_params"],"struct":["PrintForeignCallExecutor"]};

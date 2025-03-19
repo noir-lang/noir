@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_TRANSFORMER_PASSES"],"fn":["max_witness","transform","transform_internal","transform_internal_once"],"mod":["csat"],"struct":["WitnessFolder"]};
