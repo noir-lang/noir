@@ -1,10 +1,11 @@
 use crate::errors::CliError;
 
-use super::{init_cmd::initialize_project, NargoConfig};
+use super::{NargoConfig, init_cmd::initialize_project};
 use clap::Args;
 use nargo::package::{CrateName, PackageType};
 use std::path::PathBuf;
 
+#[allow(rustdoc::broken_intra_doc_links)]
 /// Create a Noir project in a new directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct NewCommand {

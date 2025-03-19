@@ -6,8 +6,8 @@ use im::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{
-    ir::types::{NumericType, Type},
     Ssa,
+    ir::types::{NumericType, Type},
 };
 
 use super::{
@@ -250,8 +250,8 @@ fn display_instruction_inner(
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))
         }
-        Instruction::DecrementRc { value, original } => {
-            writeln!(f, "dec_rc {} {}", show(*value), show(*original))
+        Instruction::DecrementRc { value } => {
+            writeln!(f, "dec_rc {}", show(*value))
         }
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
@@ -344,11 +344,7 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    if is_string_type && values.len() == 1 {
-        dfg.get_string(values[0])
-    } else {
-        None
-    }
+    if is_string_type && values.len() == 1 { dfg.get_string(values[0]) } else { None }
 }
 
 fn display_constrain_error(

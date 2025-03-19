@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
         // skip synthetic trait impl's, e.g. generated from trait aliases
         if trait_impl.is_synthetic {
@@ -18,8 +18,7 @@ impl<'a> Formatter<'a> {
         self.write_keyword(Keyword::Impl);
         self.format_generics(trait_impl.impl_generics);
         self.write_space();
-        self.format_path(trait_impl.trait_name);
-        self.format_generic_type_args(trait_impl.trait_generics);
+        self.format_type(trait_impl.r#trait);
         self.write_space();
         self.write_keyword(Keyword::For);
         self.write_space();

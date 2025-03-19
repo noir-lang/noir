@@ -1,7 +1,7 @@
 use acvm::acir::circuit::ExpressionWidth;
 use iter_extended::vecmap;
 use noirc_artifacts::program::ProgramArtifact;
-use prettytable::{row, table, Row};
+use prettytable::{Row, row, table};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use serde::Serialize;
 

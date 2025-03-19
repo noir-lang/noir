@@ -1,19 +1,18 @@
 #![cfg(test)]
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
-use noirc_arena::Index;
 use noirc_errors::Location;
 
+use super::Interpreter;
 use super::errors::InterpreterError;
 use super::value::Value;
-use super::Interpreter;
-use crate::elaborator::Elaborator;
+use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
+use crate::hir::def_map::{CrateDefMap, ModuleData};
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
@@ -23,23 +22,19 @@ use crate::parse_program;
 /// The stdlib is not made available as a dependency.
 pub(crate) fn with_interpreter<T>(
     src: &str,
-    f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,
+    f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
 ) -> T {
     let file = FileId::default();
 
-    // Can't use Index::test_new here for some reason, even with #[cfg(test)].
-    let module_id = LocalModuleId(Index::unsafe_zeroed());
-    let mut modules = noirc_arena::Arena::default();
     let location = Location::new(Default::default(), file);
-    let root = LocalModuleId(modules.insert(ModuleData::new(
+    let root_module = ModuleData::new(
         None,
         location,
         Vec::new(),
         Vec::new(),
         false, // is contract
         false, // is struct
-    )));
-    assert_eq!(root, module_id);
+    );
 
     let file_manager = FileManager::new(&PathBuf::new());
     let parsed_files = ParsedFiles::new();
@@ -48,25 +43,24 @@ pub(crate) fn with_interpreter<T>(
 
     let krate = context.crate_graph.add_crate_root(FileId::dummy());
 
-    let (module, errors) = parse_program(src);
+    let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
     let ast = module.into_sorted();
 
-    let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
+    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
 
-    let pedantic_solving = true;
     let mut elaborator = Elaborator::elaborate_and_return_self(
         &mut context,
         krate,
         collector.items,
-        None,
-        pedantic_solving,
+        ElaboratorOptions::test_default(),
     );
 
     let errors = elaborator.errors.clone();

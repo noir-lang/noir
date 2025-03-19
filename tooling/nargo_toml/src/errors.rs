@@ -28,7 +28,9 @@ pub enum ManifestError {
     #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
     MalformedFile(#[from] toml::de::Error),
 
-    #[error("Unexpected workspace definition found in {0}. If you're attempting to load this as a dependency, you may need to add a `directory` field to your `Nargo.toml` to show which package within the workspace to use")]
+    #[error(
+        "Unexpected workspace definition found in {0}. If you're attempting to load this as a dependency, you may need to add a `directory` field to your `Nargo.toml` to show which package within the workspace to use"
+    )]
     UnexpectedWorkspace(PathBuf),
 
     #[error("Cannot find file {entry} which was specified as the `entry` field in {toml}")]
@@ -80,16 +82,24 @@ pub enum ManifestError {
 #[allow(clippy::enum_variant_names)]
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum SemverError {
-    #[error("Invalid value for `compiler_version` in package {package_name}. Requirements may only refer to full releases")]
+    #[error(
+        "Invalid value for `compiler_version` in package {package_name}. Requirements may only refer to full releases"
+    )]
     InvalidCompilerVersionRequirement { package_name: CrateName, required_compiler_version: String },
-    #[error("Incompatible compiler version in package {package_name}. Required compiler version is {required_compiler_version} but the compiler version is {compiler_version_found}.\n Update the compiler_version field in Nargo.toml to >={required_compiler_version} or compile this project with version {required_compiler_version}")]
+    #[error(
+        "Incompatible compiler version in package {package_name}. Required compiler version is {required_compiler_version} but the compiler version is {compiler_version_found}.\n Update the compiler_version field in Nargo.toml to >={required_compiler_version} or compile this project with version {required_compiler_version}"
+    )]
     IncompatibleVersion {
         package_name: CrateName,
         required_compiler_version: String,
         compiler_version_found: String,
     },
-    #[error("Could not parse the required compiler version for package {package_name} in Nargo.toml. Error: {error}")]
+    #[error(
+        "Could not parse the required compiler version for package {package_name} in Nargo.toml. Error: {error}"
+    )]
     CouldNotParseRequiredVersion { package_name: String, error: String },
-    #[error("Could not parse the package version for package {package_name} in Nargo.toml. Error: {error}")]
+    #[error(
+        "Could not parse the package version for package {package_name} in Nargo.toml. Error: {error}"
+    )]
     CouldNotParsePackageVersion { package_name: String, error: String },
 }

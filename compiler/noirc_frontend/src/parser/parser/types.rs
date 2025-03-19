@@ -1,29 +1,49 @@
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
-    token::{Keyword, Token, TokenKind},
     QuotedType,
+    ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
+    token::{Keyword, Token, TokenKind},
 };
 
-use super::{parse_many::separated_by_comma_until_right_paren, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_paren};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
         if let Some(typ) = self.parse_type() {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
-            UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
+        }
+    }
+
+    /// Tries to parse a type. If the current token doesn't denote a type and it's not
+    /// one of `stop_tokens`, try to parse a type starting from the next token (and so on).
+    pub(crate) fn parse_type_or_error_with_recovery(
+        &mut self,
+        stop_tokens: &[Token],
+    ) -> UnresolvedType {
+        loop {
+            let typ = self.parse_type_or_error();
+            if typ.typ != UnresolvedTypeData::Error {
+                return typ;
+            }
+
+            if self.at_eof() || stop_tokens.contains(self.token.token()) {
+                return typ;
+            }
+
+            self.bump();
         }
     }
 
     pub(crate) fn parse_type(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let typ = self.parse_unresolved_type_data()?;
-        let span = self.span_since(start_span);
-        Some(UnresolvedType { typ, span })
+        let location = self.location_since(start_location);
+        Some(UnresolvedType { typ, location })
     }
 
     fn parse_unresolved_type_data(&mut self) -> Option<UnresolvedTypeData> {
@@ -122,7 +142,7 @@ impl<'a> Parser<'a> {
                 Err(err) => {
                     self.push_error(
                         ParserErrorReason::InvalidBitSize(err.0),
-                        self.previous_token_span,
+                        self.previous_token_location,
                     );
                     UnresolvedTypeData::Error
                 }
@@ -139,8 +159,10 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr =
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(
+                FieldElement::zero(),
+                self.current_token_location,
+            );
             return Some(UnresolvedTypeData::String(expr));
         }
 
@@ -148,7 +170,10 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+                UnresolvedTypeExpression::Constant(
+                    FieldElement::zero(),
+                    self.current_token_location,
+                )
             }
         };
 
@@ -164,9 +189,12 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr =
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
-            let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
+            let expr = UnresolvedTypeExpression::Constant(
+                FieldElement::zero(),
+                self.current_token_location,
+            );
+            let typ =
+                UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
         }
 
@@ -174,7 +202,10 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+                UnresolvedTypeExpression::Constant(
+                    FieldElement::zero(),
+                    self.current_token_location,
+                )
             }
         };
 
@@ -205,11 +236,14 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::TypedExpr) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
         }
+
+        let location = self.current_token_location;
         if self.eat_keyword(Keyword::StructDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
+            self.push_error(ParserErrorReason::StructDefinitionDeprecated, location);
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
-        if self.eat_keyword(Keyword::EnumDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::EnumDefinition));
+        if self.eat_keyword(Keyword::TypeDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
         if self.eat_keyword(Keyword::TraitConstraint) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));
@@ -257,7 +291,7 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::RightBracket);
             typ
         } else {
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
         if !self.eat_left_paren() {
@@ -280,8 +314,7 @@ impl<'a> Parser<'a> {
         let ret = if self.eat(Token::Arrow) {
             self.parse_type_or_error()
         } else {
-            self.expected_token(Token::Arrow);
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
@@ -289,11 +322,7 @@ impl<'a> Parser<'a> {
 
     fn parse_parameter(&mut self) -> Option<UnresolvedType> {
         let typ = self.parse_type_or_error();
-        if let UnresolvedTypeData::Error = typ.typ {
-            None
-        } else {
-            Some(typ)
-        }
+        if let UnresolvedTypeData::Error = typ.typ { None } else { Some(typ) }
     }
 
     fn parse_trait_as_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -343,15 +372,15 @@ impl<'a> Parser<'a> {
     }
 
     fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
-        if self.eat(Token::Ampersand) {
-            if !self.eat_keyword(Keyword::Mut) {
-                self.expected_mut_after_ampersand();
-            }
+        // The `&` may be lexed as a slice start if this is an array or slice type
+        if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
+            let mutable = self.eat_keyword(Keyword::Mut);
 
-            return Some(UnresolvedTypeData::MutableReference(Box::new(
-                self.parse_type_or_error(),
-            )));
-        };
+            return Some(UnresolvedTypeData::Reference(
+                Box::new(self.parse_type_or_error()),
+                mutable,
+            ));
+        }
 
         None
     }
@@ -422,7 +451,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
-        UnresolvedTypeData::Unspecified.with_span(self.span_at_previous_token_end())
+        UnresolvedTypeData::Unspecified.with_location(self.location_at_previous_token_end())
     }
 }
 
@@ -431,16 +460,17 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
-        parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
-            Parser,
-        },
         QuotedType,
+        ast::{IntegerBitSize, UnresolvedType, UnresolvedTypeData},
+        parser::{
+            Parser, ParserErrorReason,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+        },
+        shared::Signedness,
     };
 
     fn parse_type_no_errors(src: &str) -> UnresolvedType {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_error();
         expect_no_errors(&parser.errors);
         typ
@@ -468,6 +498,28 @@ mod tests {
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
         ));
+    }
+
+    #[test]
+    fn errors_on_invalid_bit_size() {
+        let src = "u31";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let typ = parser.parse_type_or_error();
+        assert_eq!(typ.typ, UnresolvedTypeData::Error);
+        assert_eq!(parser.errors.len(), 1);
+        let error = &parser.errors[0];
+        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
+    }
+
+    #[test]
+    fn errors_on_i128() {
+        let src = "i128";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let typ = parser.parse_type_or_error();
+        assert_eq!(typ.typ, UnresolvedTypeData::Error);
+        assert_eq!(parser.errors.len(), 1);
+        let error = &parser.errors[0];
+        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
     }
 
     #[test]
@@ -546,7 +598,7 @@ mod tests {
     #[test]
     fn parses_unclosed_parentheses_type() {
         let src = "(Field";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_error();
         assert_eq!(parser.errors.len(), 1);
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
@@ -556,10 +608,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_reference_type() {
+        let src = "&Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
     fn parses_mutable_reference_type() {
         let src = "&mut Field";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::MutableReference(typ) = typ.typ else {
+        let UnresolvedTypeData::Reference(typ, true) = typ.typ else {
             panic!("Expected a mutable reference type")
         };
         assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
@@ -591,7 +653,7 @@ mod tests {
               ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_type();
         let error = get_single_error(&parser.errors, span);
         assert_eq!(error.to_string(), "Expected a ']' but found end of input");
@@ -644,6 +706,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_function_type_without_return_type() {
+        let src = "fn()";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(ret.typ.to_string(), "()");
+    }
+
+    #[test]
     fn parses_function_type_with_env() {
         let src = "fn[Field]() -> Field";
         let typ = parse_type_no_errors(src);
@@ -666,7 +738,7 @@ mod tests {
     #[test]
     fn parses_function_type_with_colon_in_parameter() {
         let src = "fn(value: T) -> Field";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let _ = parser.parse_type_or_error();
         assert!(!parser.errors.is_empty());
     }

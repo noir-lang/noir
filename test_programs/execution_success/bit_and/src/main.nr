@@ -13,4 +13,3 @@ fn main(x: Field, y: Field, a: Field, b: Field) {
     let b_as_u8 = b as u8;
     assert((a_as_u8 & b_as_u8) == a_as_u8);
 }
-

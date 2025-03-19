@@ -5,15 +5,15 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
 use acvm::acir::{
+    BlackBoxFunc,
     circuit::{
+        AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{AcirFunctionId, BlockType},
-        AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation,
     },
     native_types::Witness,
-    BlackBoxFunc,
 };
-use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -25,12 +25,12 @@ mod brillig_call;
 mod brillig_directive;
 mod generated_acir;
 
-use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::BrilligOptions;
+use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::{
+    Brillig,
     brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
     brillig_ir::artifact::{BrilligParameter, GeneratedBrillig},
-    Brillig,
 };
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 use crate::ssa::ir::instruction::Hint;
@@ -51,7 +51,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use acir_variable::{power_of_two, AcirContext, AcirType, AcirVar};
+use acir_variable::{AcirContext, AcirType, AcirVar, power_of_two};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -404,11 +404,15 @@ impl<'a> Context<'a> {
                 match inline_type {
                     InlineType::Inline | InlineType::InlineAlways => {
                         if function.id() != ssa.main_id {
-                            panic!("ACIR function should have been inlined earlier if not marked otherwise");
+                            panic!(
+                                "ACIR function should have been inlined earlier if not marked otherwise"
+                            );
                         }
                     }
                     InlineType::NoPredicates => {
-                        panic!("All ACIR functions marked with #[no_predicates] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute");
+                        panic!(
+                            "All ACIR functions marked with #[no_predicates] should be inlined before ACIR gen. This is an SSA exclusive codegen attribute"
+                        );
                     }
                     InlineType::Fold => {}
                 }
@@ -863,7 +867,11 @@ impl<'a> Context<'a> {
                         let func = &ssa.functions[id];
                         match func.runtime() {
                             RuntimeType::Acir(inline_type) => {
-                                assert!(!matches!(inline_type, InlineType::Inline), "ICE: Got an ACIR function named {} that should have already been inlined", func.name());
+                                assert!(
+                                    !matches!(inline_type, InlineType::Inline),
+                                    "ICE: Got an ACIR function named {} that should have already been inlined",
+                                    func.name()
+                                );
 
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
                                 let output_count = result_ids
@@ -874,7 +882,9 @@ impl<'a> Context<'a> {
                                     .sum();
 
                                 let Some(acir_function_id) = ssa.get_entry_point_index(id) else {
-                                    unreachable!("Expected an associated final index for call to acir function {id} with args {arguments:?}");
+                                    unreachable!(
+                                        "Expected an associated final index for call to acir function {id} with args {arguments:?}"
+                                    );
                                 };
 
                                 let output_vars = self.acir_context.call_acir_function(
@@ -956,7 +966,11 @@ impl<'a> Context<'a> {
                                 };
 
                                 // Compiler sanity check
-                                assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
+                                assert_eq!(
+                                    result_ids.len(),
+                                    output_values.len(),
+                                    "ICE: The number of Brillig output values should match the result ids in SSA"
+                                );
 
                                 self.handle_ssa_call_outputs(result_ids, output_values, dfg)?;
                             }
@@ -1076,7 +1090,7 @@ impl<'a> Context<'a> {
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
                 }
-                .into())
+                .into());
             }
         };
         // Ensure that array id is fully resolved.
@@ -1378,22 +1392,21 @@ impl<'a> Context<'a> {
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         let call_data =
             self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
-        if let Some(call_data) = call_data {
+        let mut value = if let Some(call_data) = call_data {
             let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
                 .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            let result = self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
-            self.define_result(dfg, instruction, result.clone());
-            return Ok(result);
-        }
-        // Compiler sanity check
-        assert!(
-            !res_typ.contains_slice_element(),
-            "ICE: Nested slice result found during ACIR generation"
-        );
-        let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
+            self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?
+        } else {
+            // Compiler sanity check
+            assert!(
+                !res_typ.contains_slice_element(),
+                "ICE: Nested slice result found during ACIR generation"
+            );
+            self.array_get_value(&res_typ, block_id, &mut var_index)?
+        };
 
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
@@ -1477,7 +1490,7 @@ impl<'a> Context<'a> {
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
                 }
-                .into())
+                .into());
             }
         };
 
@@ -1525,7 +1538,11 @@ impl<'a> Context<'a> {
 
         let value_types = self.convert_value(array, dfg).flat_numeric_types();
         // Compiler sanity check
-        assert_eq!(value_types.len(), array_len, "ICE: The length of the flattened type array should match the length of the dynamic array");
+        assert_eq!(
+            value_types.len(),
+            array_len,
+            "ICE: The length of the flattened type array should match the length of the dynamic array"
+        );
 
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -1675,7 +1692,7 @@ impl<'a> Context<'a> {
                                     found: format!("{:?}", array_acir_value),
                                     call_stack: self.acir_context.get_call_stack(),
                                 }
-                                .into())
+                                .into());
                             }
                         }
                     }
@@ -1685,7 +1702,7 @@ impl<'a> Context<'a> {
                             found: format!("{:?}", &dfg[array_id]),
                             call_stack: self.acir_context.get_call_stack(),
                         }
-                        .into())
+                        .into());
                     }
                 };
             }
@@ -1973,26 +1990,7 @@ impl<'a> Context<'a> {
     ) -> Result<AcirVar, RuntimeError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
-
         let binary_type = self.type_of_binary_operation(binary, dfg);
-        match &binary_type {
-            Type::Numeric(NumericType::Unsigned { bit_size })
-            | Type::Numeric(NumericType::Signed { bit_size }) => {
-                // Conservative max bit size that is small enough such that two operands can be
-                // multiplied and still fit within the field modulus. This is necessary for the
-                // truncation technique: result % 2^bit_size to be valid.
-                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
-                if *bit_size > max_integer_bit_size {
-                    return Err(RuntimeError::UnsupportedIntegerSize {
-                        num_bits: *bit_size,
-                        max_num_bits: max_integer_bit_size,
-                        call_stack: self.acir_context.get_call_stack(),
-                    });
-                }
-            }
-            _ => {}
-        }
-
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
@@ -2113,6 +2111,12 @@ impl<'a> Context<'a> {
         max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
+        assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
+        assert!(
+            bit_size < max_bit_size,
+            "Attempted to generate a truncation into size larger than max input"
+        );
+
         let mut var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
@@ -2192,7 +2196,9 @@ impl<'a> Context<'a> {
                 Ok(self.convert_vars_to_values(vars, dfg, result_ids))
             }
             Intrinsic::ApplyRangeConstraint => {
-                unreachable!("ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`");
+                unreachable!(
+                    "ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`"
+                );
             }
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
@@ -2820,7 +2826,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
+    /// Convert a `Vec<AcirVar>` into a `Vec<AcirValue>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
     /// If the type of a result id is a slice, the slice length must precede it and we can
@@ -2895,15 +2901,15 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 mod test {
 
     use acvm::{
+        FieldElement,
         acir::{
             circuit::{
+                ExpressionWidth, Opcode, OpcodeLocation,
                 brillig::BrilligFunctionId,
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
-                ExpressionWidth, Opcode, OpcodeLocation,
             },
             native_types::Witness,
         },
-        FieldElement,
     };
     use noirc_errors::Location;
     use noirc_frontend::monomorphization::ast::InlineType;

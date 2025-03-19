@@ -6,19 +6,19 @@
 use std::collections::HashSet;
 
 use acvm::{
+    AcirField,
     acir::{
         circuit::{
+            Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligInputs},
             opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
-            Circuit, Opcode, Program,
         },
         native_types::Expression,
     },
     brillig_vm::brillig::Opcode as BrilligOpcode,
-    AcirField,
 };
 
-/// Constructs a [HashSet<F>] of values pulled from a [Program<F>] which are likely to be correspond
+/// Constructs a [`HashSet<F>`] of values pulled from a [`Program<F>`] which are likely to be correspond
 /// to significant inputs during fuzzing.
 pub(super) fn build_dictionary_from_program<F: AcirField>(program: &Program<F>) -> HashSet<F> {
     let constrained_dictionaries = program.functions.iter().map(build_dictionary_from_circuit);

@@ -111,7 +111,7 @@ impl FileManager {
     }
 
     /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
-    /// "some_dir/package_name/src/main.nr"`
+    /// "some_dir/package_name/src/main.nr"
     pub fn find_by_path_suffix(&self, suffix: &str) -> Result<Option<FileId>, Vec<PathBuf>> {
         let suffix_path: Vec<_> = Path::new(suffix).components().rev().collect();
         let results: Vec<_> = self
@@ -134,8 +134,9 @@ impl FileManager {
 pub trait NormalizePath {
     /// Replacement for `std::fs::canonicalize` that doesn't verify the path exists.
     ///
-    /// Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-    /// Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
+    /// Plucked from <https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61>
+    ///
+    /// Advice from <https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/>
     fn normalize(&self) -> PathBuf;
 }
 

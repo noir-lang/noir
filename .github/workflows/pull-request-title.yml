@@ -31,10 +31,10 @@ jobs:
   force-push-comment:
     name: Warn external contributors about force-pushing
     runs-on: ubuntu-22.04
-    if: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != 'noir-lang/noir' }} 
+    if: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != 'noir-lang/noir' }}
     permissions:
       pull-requests: write
-    
+
     steps:
       - name: Post comment on force pushes
         uses: marocchino/sticky-pull-request-comment@v2
@@ -45,4 +45,3 @@ jobs:
             Please **do not force push to this branch** after the Noir team have started review of this PR. Doing so will only delay us merging your PR as we will need to start the review process from scratch.
 
             Thanks for your understanding.
-          

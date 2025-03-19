@@ -9,7 +9,7 @@ use std::{
 };
 
 use errors::SemverError;
-use fm::{NormalizePath, FILE_EXTENSION};
+use fm::{FILE_EXTENSION, NormalizePath};
 use nargo::{
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
@@ -52,11 +52,7 @@ pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
 pub fn find_root(current_path: &Path, workspace: bool) -> Result<PathBuf, ManifestError> {
-    if workspace {
-        find_package_root(current_path)
-    } else {
-        find_file_root(current_path)
-    }
+    if workspace { find_package_root(current_path) } else { find_file_root(current_path) }
 }
 
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
@@ -190,7 +186,7 @@ impl PackageConfig {
                 return Err(ManifestError::InvalidPackageType(
                     root_dir.join("Nargo.toml"),
                     invalid.to_string(),
-                ))
+                ));
             }
             None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
         };
@@ -389,7 +385,7 @@ fn toml_to_workspace(
             let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
-                    return Err(ManifestError::MissingSelectedPackage(member.name))
+                    return Err(ManifestError::MissingSelectedPackage(member.name));
                 }
                 _ => Workspace {
                     root_dir: nargo_toml.root_dir,
@@ -540,7 +536,7 @@ mod tests {
 
     use test_case::test_matrix;
 
-    use crate::{find_root, Config, ManifestError};
+    use crate::{Config, ManifestError, find_root};
 
     #[test]
     fn parse_standard_toml() {
@@ -649,7 +645,8 @@ mod tests {
 
                     assert!(
                         indent <= current_indent + 1,
-                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, current_dir={}", current_dir.display()
+                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, current_dir={}",
+                        current_dir.display()
                     );
 
                     // Go into the last created directory

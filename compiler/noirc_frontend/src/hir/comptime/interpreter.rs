@@ -2,15 +2,15 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
-use acvm::{acir::AcirField, FieldElement};
-use fm::FileId;
+use acvm::{FieldElement, acir::AcirField};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
-use crate::elaborator::Elaborator;
+use crate::TypeVariable;
+use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
+use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
@@ -21,15 +21,16 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
+use crate::shared::Signedness;
+use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
-use crate::TypeVariable;
 use crate::{
+    Shared, Type, TypeBinding, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirPrefixExpression,
         },
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
@@ -38,11 +39,10 @@ use crate::{
         types::Kind,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
-    Shared, Type, TypeBinding, TypeBindings,
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{unwrap_rc, Closure, Value};
+use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod foreign;
@@ -67,9 +67,6 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Stateful bigint calculator.
     bigint_solver: BigIntSolverWithId,
-
-    /// Use pedantic ACVM solving
-    pedantic_solving: bool,
 }
 
 #[allow(unused)]
@@ -78,8 +75,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
         current_function: Option<FuncId>,
-        pedantic_solving: bool,
     ) -> Self {
+        let pedantic_solving = elaborator.pedantic_solving();
         let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
         Self {
             elaborator,
@@ -88,7 +85,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             bound_generics: Vec::new(),
             in_loop: false,
             bigint_solver,
-            pedantic_solving,
         }
     }
 
@@ -195,7 +191,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborate_in_function(None, |elaborator| {
+                    self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -211,10 +207,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_function<T>(
         &mut self,
         function: Option<FuncId>,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -222,11 +219,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_module<T>(
         &mut self,
         module: ModuleId,
-        file: FileId,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, file, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -398,7 +395,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             HirPattern::Mutable(pattern, _) => {
                 // Create a mutable reference to store to
-                let argument = Value::Pointer(Shared::new(argument), true);
+                let argument = Value::Pointer(Shared::new(argument), true, true);
                 self.define_pattern(pattern, typ, argument, location)
             }
             HirPattern::Tuple(pattern_fields, _) => {
@@ -431,10 +428,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
-                            let field = fields.get(&field_name.0.contents).ok_or_else(|| {
+                            let field = fields.get(field_name.as_string()).ok_or_else(|| {
                                 InterpreterError::ExpectedStructToHaveField {
                                     typ: struct_type.clone(),
-                                    field_name: field_name.0.contents.clone(),
+                                    field_name: field_name.to_string(),
                                     location,
                                 }
                             })?;
@@ -476,7 +473,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
-                    Value::Pointer(reference, true) => {
+                    Value::Pointer(reference, true, _) => {
                         *reference.borrow_mut() = argument;
                     }
                     _ => {
@@ -512,7 +509,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.evaluate_no_dereference(id)? {
-            Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+            Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
             other => Ok(other),
         }
     }
@@ -531,14 +528,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
-            HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
+            HirExpression::Match(match_) => todo!("Evaluate match in comptime code"),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
-            HirExpression::Comptime(block) => self.evaluate_block(block),
             HirExpression::Unsafe(block) => self.evaluate_block(block),
             HirExpression::EnumConstructor(constructor) => {
                 self.evaluate_enum_constructor(constructor, id)
@@ -622,9 +618,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Err(InterpreterError::NonIntegerArrayLength { typ, err: None, location })
                     }
                     TypeBinding::Bound(binding) => {
-                        let span = self.elaborator.interner.id_location(id).span;
+                        let location = self.elaborator.interner.id_location(id);
                         binding
-                            .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()), span)
+                            .evaluate_to_field_element(
+                                &Kind::Numeric(numeric_typ.clone()),
+                                location,
+                            )
                             .map_err(|err| {
                                 let typ = Type::TypeVariable(type_variable.clone());
                                 let err = Some(Box::new(err));
@@ -634,7 +633,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     }
                 }?;
 
-                self.evaluate_integer(value, false, id)
+                self.evaluate_integer(value.into(), id)
             }
         }
     }
@@ -643,9 +642,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value, is_negative) => {
-                self.evaluate_integer(value, is_negative, id)
-            }
+            HirLiteral::Integer(value) => self.evaluate_integer(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(fragments, captures, _length) => {
                 self.evaluate_format_string(fragments, captures, id)
@@ -673,7 +670,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 FmtStrFragment::String(string) => {
                     result.push_str(&string);
                 }
-                FmtStrFragment::Interpolation(_, span) => {
+                FmtStrFragment::Interpolation(..) => {
                     if let Some(value) = values.pop_front() {
                         // When interpolating a quoted value inside a format string, we don't include the
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
@@ -682,8 +679,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                                 if index > 0 {
                                     result.push(' ');
                                 }
-                                result
-                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                                result.push_str(
+                                    &token.token().display(self.elaborator.interner).to_string(),
+                                );
                             }
                         } else {
                             result.push_str(&value.display(self.elaborator.interner).to_string());
@@ -704,102 +702,85 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::FormatString(Rc::new(result), typ))
     }
 
-    fn evaluate_integer(
-        &self,
-        value: FieldElement,
-        is_negative: bool,
-        id: ExprId,
-    ) -> IResult<Value> {
+    fn evaluate_integer(&self, value: SignedField, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
         if let Type::FieldElement = &typ {
-            Ok(Value::Field(value))
+            Ok(Value::Field(value.into()))
         } else if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::One) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
-                    let value: u8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { 0u8.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U8(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                    let value: u16 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { 0u16.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U16(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                    let value: u32 =
-                        value.try_to_u32().ok_or(InterpreterError::IntegerOutOfRangeForType {
-                            value,
-                            typ,
-                            location,
-                        })?;
-                    let value = if is_negative { 0u32.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U32(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                    let value: u64 =
-                        value.try_to_u64().ok_or(InterpreterError::IntegerOutOfRangeForType {
-                            value,
-                            typ,
-                            location,
-                        })?;
-                    let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U64(value))
+                }
+                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                    let value: u128 = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
+                    Ok(Value::U128(value))
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
-                    let value: i8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I8(value))
                 }
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                    let value: i16 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I16(value))
                 }
                 (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                    let value: i32 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I32(value))
                 }
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                    let value: i64 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I64(value))
+                }
+                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                    return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
             }
         } else if let Type::TypeVariable(variable) = &typ {
             if variable.is_integer_or_field() {
-                Ok(Value::Field(value))
+                Ok(Value::Field(value.into()))
             } else if variable.is_integer() {
-                let value: u64 = value
-                    .try_to_u64()
+                let value = value
+                    .try_to_unsigned()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
                 Ok(Value::U64(value))
             } else {
                 Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
@@ -842,8 +823,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
-                let span = self.elaborator.interner.id_location(id).span;
-                match length.evaluate_to_u32(span) {
+                let location = self.elaborator.interner.id_location(id);
+                match length.evaluate_to_u32(location) {
                     Ok(length) => {
                         let elements = (0..length).map(|_| element.clone()).collect();
                         Ok(Value::Array(elements, typ))
@@ -867,7 +848,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = match prefix.operator {
-            UnaryOp::MutableReference => self.evaluate_no_dereference(prefix.rhs)?,
+            UnaryOp::Reference { .. } => self.evaluate_no_dereference(prefix.rhs)?,
             _ => self.evaluate(prefix.rhs)?,
         };
 
@@ -918,17 +899,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Err(InterpreterError::InvalidValueForUnary { typ, location, operator: "not" })
                 }
             },
-            UnaryOp::MutableReference => {
+            UnaryOp::Reference { mutable } => {
                 // If this is a mutable variable (auto_deref = true), turn this into an explicit
                 // mutable reference just by switching the value of `auto_deref`. Otherwise, wrap
                 // the value in a fresh reference.
                 match rhs {
-                    Value::Pointer(elem, true) => Ok(Value::Pointer(elem, false)),
-                    other => Ok(Value::Pointer(Shared::new(other), false)),
+                    Value::Pointer(elem, true, _) => Ok(Value::Pointer(elem, false, mutable)),
+                    other => Ok(Value::Pointer(Shared::new(other), false, mutable)),
                 }
             }
             UnaryOp::Dereference { implicitly_added: _ } => match rhs {
-                Value::Pointer(element, _) => Ok(element.borrow().clone()),
+                Value::Pointer(element, _, _) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.elaborator.interner.expr_location(&id);
                     let typ = value.get_type().into_owned();
@@ -1246,6 +1227,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Field(value) => {
                 value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
                     let typ = Type::default_int_type();
+                    let value = SignedField::positive(value);
                     InterpreterError::IntegerOutOfRangeForType { value, typ, location }
                 })?
             }
@@ -1281,7 +1263,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .into_iter()
             .map(|(name, expr)| {
                 let field_value = self.evaluate(expr)?;
-                Ok((Rc::new(name.0.contents), field_value))
+                Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
 
@@ -1321,10 +1303,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
 
-        fields.get(&access.rhs.0.contents).cloned().ok_or_else(|| {
+        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
-            let field_name = access.rhs.0.contents;
+            let field_name = access.rhs.into_string();
             let typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
         })
@@ -1343,9 +1325,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator, location)?;
-                    let expr = self.elaborate_in_function(self.current_function, |elaborator| {
-                        elaborator.elaborate_expression(expr).0
-                    });
+                    let expr =
+                        self.elaborate_in_function(self.current_function, None, |elaborator| {
+                            elaborator.elaborate_expression(expr).0
+                        });
                     result = self.evaluate(expr)?;
 
                     // Macro calls are typed as type variables during type checking.
@@ -1375,39 +1358,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn unify_without_binding(&mut self, actual: &Type, expected: &Type, location: Location) {
-        self.elaborator.unify_without_applying_bindings(actual, expected, location.file, || {
+        self.elaborator.unify_without_applying_bindings(actual, expected, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: expected.to_string(),
                 expr_typ: actual.to_string(),
-                expr_span: location.span,
+                expr_location: location,
             }
         });
-    }
-
-    fn evaluate_method_call(
-        &mut self,
-        call: HirMethodCallExpression,
-        id: ExprId,
-    ) -> IResult<Value> {
-        let object = self.evaluate(call.object)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
-        })?;
-        let location = self.elaborator.interner.expr_location(&id);
-
-        let typ = object.get_type().follow_bindings();
-        let method_name = &call.method.0.contents;
-
-        let method = self
-            .elaborator
-            .lookup_method(&typ, method_name, location.span, true)
-            .and_then(|method| method.func_id(self.elaborator.interner));
-
-        if let Some(method) = method {
-            self.call_function(method, arguments, TypeBindings::new(), location)
-        } else {
-            Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
-        }
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
@@ -1493,6 +1450,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
+                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                    cast_to_int!(lhs, to_u128, u128, U128)
+                }
                 (Signedness::Signed, IntegerBitSize::One) => {
                     Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
                 }
@@ -1506,6 +1466,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_i128, i64, I64)
                 }
+                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                    todo!()
+                }
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
             typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
@@ -1516,7 +1479,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let condition = match self.evaluate(if_.condition)? {
             Value::Bool(value) => value,
             value => {
-                let location = self.elaborator.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&if_.condition);
                 let typ = value.get_type().into_owned();
                 return Err(InterpreterError::NonBoolUsedInIf { typ, location });
             }
@@ -1571,6 +1534,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
             HirStatement::Loop(expression) => self.evaluate_loop(expression),
+            HirStatement::While(condition, block) => self.evaluate_while(condition, block),
             HirStatement::Break => self.evaluate_break(statement),
             HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
@@ -1623,7 +1587,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
-                    Value::Pointer(value, _) => {
+                    Value::Pointer(value, _, _) => {
                         *value.borrow_mut() = rhs;
                         Ok(())
                     }
@@ -1649,7 +1613,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.0.contents), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), rhs);
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1679,12 +1643,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
         match lvalue {
             HirLValue::Ident(ident, _) => match self.lookup(ident)? {
-                Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+                Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
                 other => Ok(other),
             },
             HirLValue::Dereference { lvalue, element_type, location } => {
                 match self.evaluate_lvalue(lvalue)? {
-                    Value::Pointer(value, _) => Ok(value.borrow().clone()),
+                    Value::Pointer(value, _, _) => Ok(value.borrow().clone()),
                     value => {
                         let typ = value.get_type().into_owned();
                         Err(InterpreterError::NonPointerDereferenced { typ, location: *location })
@@ -1704,7 +1668,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
-                    Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
+                    Value::Struct(fields, _) => Ok(fields[field_name.as_string()].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: *location,
@@ -1808,6 +1772,55 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result
     }
 
+    fn evaluate_while(&mut self, condition: ExprId, block: ExprId) -> IResult<Value> {
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+        let in_lsp = self.elaborator.interner.is_in_lsp_mode();
+        let mut counter = 0;
+        let mut result = Ok(Value::Unit);
+
+        loop {
+            let condition = match self.evaluate(condition)? {
+                Value::Bool(value) => value,
+                value => {
+                    let location = self.elaborator.interner.expr_location(&condition);
+                    let typ = value.get_type().into_owned();
+                    return Err(InterpreterError::NonBoolUsedInWhile { typ, location });
+                }
+            };
+            if !condition {
+                break;
+            }
+
+            self.push_scope();
+
+            let must_break = match self.evaluate(block) {
+                Ok(_) => false,
+                Err(InterpreterError::Break) => true,
+                Err(InterpreterError::Continue) => false,
+                Err(error) => {
+                    result = Err(error);
+                    true
+                }
+            };
+
+            self.pop_scope();
+
+            if must_break {
+                break;
+            }
+
+            counter += 1;
+            if in_lsp && counter == 10_000 {
+                let location = self.elaborator.interner.expr_location(&block);
+                result = Err(InterpreterError::LoopHaltedForUiResponsiveness { location });
+                break;
+            }
+        }
+
+        self.in_loop = was_in_loop;
+        result
+    }
+
     fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
@@ -1832,6 +1845,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
+
+        if self.elaborator.interner.disable_comptime_printing {
+            return Ok(Value::Unit);
+        }
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);

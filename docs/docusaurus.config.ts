@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import type { Config } from '@docusaurus/types';
 
 const { themes } = require('prism-react-renderer');
@@ -16,6 +15,7 @@ export default {
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
+  trailingSlash: false,
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -169,7 +169,6 @@ export default {
         readme: 'none',
         hidePageHeader: true,
         hideBreadcrumbs: true,
-        hideInPageTOC: true,
         useCodeBlocks: true,
         typeDeclarationFormat: 'table',
         propertiesFormat: 'table',
@@ -177,7 +176,6 @@ export default {
         enumMembersFormat: 'table',
         indexFormat: 'table',
         outputFileStrategy: 'members',
-        memberPageTitle: '{name}',
         membersWithOwnFile: ['Interface', 'Class', 'TypeAlias', 'Function'],
       },
     ],
@@ -200,7 +198,6 @@ export default {
         readme: 'none',
         hidePageHeader: true,
         hideBreadcrumbs: true,
-        hideInPageTOC: true,
         useCodeBlocks: true,
         typeDeclarationFormat: 'table',
         propertiesFormat: 'table',
@@ -208,7 +205,6 @@ export default {
         enumMembersFormat: 'table',
         indexFormat: 'table',
         outputFileStrategy: 'members',
-        memberPageTitle: '{name}',
         membersWithOwnFile: ['Function', 'TypeAlias'],
       },
     ],

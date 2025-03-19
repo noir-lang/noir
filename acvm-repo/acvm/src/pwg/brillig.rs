@@ -1,22 +1,25 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField,
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
+        OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
     },
     native_types::WitnessMap,
-    AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VMStatus, VM};
+use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VM, VMStatus};
 use serde::{Deserialize, Serialize};
 
-use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
+use crate::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
 
-use super::{get_value, insert_value, memory_op::MemoryOpSolver};
+use super::{
+    ErrorSelector, RawAssertionPayload, ResolvedAssertionPayload, get_value, insert_value,
+    memory_op::MemoryOpSolver,
+};
 
 #[derive(Debug)]
 pub enum BrilligSolverStatus<F> {
@@ -35,7 +38,7 @@ pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
-    /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
+    /// Assigns the zero value to all outputs of a given [brillig call][acir::circuit::opcodes::Opcode::BrilligCall].
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],
@@ -100,7 +103,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     Err(_) => {
                         return Err(OpcodeResolutionError::OpcodeNotSolvable(
                             OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
-                        ))
+                        ));
                     }
                 },
                 BrilligInputs::Array(expr_arr) => {
@@ -111,7 +114,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                             Err(_) => {
                                 return Err(OpcodeResolutionError::OpcodeNotSolvable(
                                     OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
-                                ))
+                                ));
                             }
                         }
                     }
@@ -313,7 +316,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
     }
 }
 
-/// Encapsulates a request from a Brillig VM process that encounters a [foreign call opcode][acir::brillig_vm::Opcode::ForeignCall]
+/// Encapsulates a request from a Brillig VM process that encounters a [foreign call opcode][brillig_vm::brillig::Opcode::ForeignCall]
 /// where the result of the foreign call has not yet been provided.
 ///
 /// The caller must resolve this opcode externally based upon the information in the request.
