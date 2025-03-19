@@ -317,25 +317,31 @@ mod reflection {
             };
             self.msgpack_pack(name, &pack_body);
 
-            // Unpack the enum
+            // Unpack the enum into a map, inspect the key, then unpack the entry value.
+            // See https://c.msgpack.org/cpp/structmsgpack_1_1object.html#a8c7c484d2a6979a833bdb69412ad382c
+            // for how to access the object's content without parsing it.
             let unpack_body = {
-                let mut body = "
-    std::map<std::string, msgpack::object> data = o.convert();
-    auto entry = data.begin();
-    auto tag = entry->first;
-    auto obj = entry->second;"
-                    .to_string();
+                let mut body = format!(
+                    r#"
+    if (o.type != msgpack::type::object_type::MAP) {{
+        throw_or_abort("expected map for '{name}' enum; got " + std::to_string(o.type));
+    }}
+    if (o.via.map.size != 1) {{
+        throw_or_abort("expected 1 entry for '{name}' enum; got " + std::to_string(o.via.map.size));
+    }}
+    std::string tag = o.via.map.ptr[0].key.convert();
+    msgpack::object obj = o.via.map.ptr[0].val;"#
+                );
 
                 for (i, v) in variants.iter() {
                     let name = &v.name;
                     body.push_str(&format!(
                         r#"
-    {} (tag == "{name}") {{
-        {name} v;
-        obj.convert(v);
+    {}if (tag == "{name}") {{
+        {name} v = obj.convert();
         value = v;
     }}"#,
-                        if *i == 0 { "if" } else { "else if" }
+                        if *i == 0 { "" } else { "else " }
                     ));
                 }
                 body.push_str(&format!(
@@ -379,7 +385,7 @@ mod reflection {
 
         /// Add a `msgpack_unpack` implementation.
         fn msgpack_unpack(&mut self, name: &str, body: &str) {
-            let code = Self::make_fn("void msgpack_unpack(auto const& o)", body);
+            let code = Self::make_fn("void msgpack_unpack(msgpack::object const& o)", body);
             self.add_code(name, &code);
         }
 
