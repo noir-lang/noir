@@ -1205,7 +1205,7 @@ mod control_dependence {
     }
 
     #[test]
-    fn non_control_dependent_loop_follows_control_depenent_loop() {
+    fn non_control_dependent_loop_follows_control_dependent_loop() {
         // Test that we appropriately reset the control dependence status.
         // This program first has a loop with a control dependent body, thus preventing hoisting instructions.
         // There is then a separate second loop which is non control dependent for which
