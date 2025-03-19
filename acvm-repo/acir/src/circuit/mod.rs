@@ -6,7 +6,7 @@ pub mod opcodes;
 
 use crate::{
     native_types::{Expression, Witness},
-    serialization::{bincode_deserialize, bincode_serialize},
+    serialization::{self, bincode_serialize, deserialize_any_format},
 };
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -252,6 +252,7 @@ impl<F: Serialize + AcirField> Program<F> {
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode_serialize(self)?;
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
+        encoder.write_all(&[serialization::Format::Bincode.into()])?;
         encoder.write_all(&buf)?;
         encoder.finish()?;
         Ok(())
@@ -280,7 +281,7 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf = Vec::new();
         gz_decoder.read_to_end(&mut buf)?;
-        let program = bincode_deserialize(&buf)?;
+        let program = deserialize_any_format(&buf)?;
         Ok(program)
     }
 

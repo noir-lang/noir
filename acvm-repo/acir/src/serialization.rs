@@ -2,7 +2,17 @@
 use crate::proto::convert::ProtoSchema;
 use acir_field::AcirField;
 use noir_protobuf::ProtoCodec;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
+
+/// A marker byte for the serialization format.
+#[derive(Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
+pub(crate) enum Format {
+    Bincode = 0,
+    MsgPack = 1,
+    Protobuf = 2,
+}
 
 /// Serialize a value using `bincode`, based on `serde`.
 ///
@@ -71,6 +81,41 @@ where
 {
     ProtoSchema::<F>::deserialize_from_slice(buf)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+}
+
+/// Deserialize any of the supported formats. Try go guess the format based on the first byte,
+/// but fall back to the legacy `bincode` format if anything fails.
+pub(crate) fn deserialize_any_format<F, T, R>(buf: &[u8]) -> std::io::Result<T>
+where
+    T: for<'a> Deserialize<'a>,
+    F: AcirField,
+    R: prost::Message + Default,
+    ProtoSchema<F>: ProtoCodec<T, R>,
+{
+    if !buf.is_empty() {
+        if let Ok(format) = Format::try_from(buf[0]) {
+            match format {
+                Format::Bincode => {
+                    if let Ok(value) = bincode_deserialize(&buf[1..]) {
+                        return Ok(value);
+                    }
+                }
+                Format::MsgPack => {
+                    if let Ok(value) = msgpack_deserialize(&buf[1..]) {
+                        return Ok(value);
+                    }
+                }
+                Format::Protobuf => {
+                    if let Ok(value) = proto_deserialize(&buf[1..]) {
+                        return Ok(value);
+                    }
+                }
+            }
+        }
+    }
+    // Try the default; as long as it's around, the match of the first byte
+    // to one of the `Format` could have been just a coincidence.
+    bincode_deserialize(buf)
 }
 
 #[cfg(test)]
