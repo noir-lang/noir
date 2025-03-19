@@ -139,33 +139,38 @@ pub fn embedded_curve_add(
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
-    let x_coordinates_match = point1.x == point2.x;
-    let y_coordinates_match = point1.y == point2.y;
-    let double_predicate = (x_coordinates_match & y_coordinates_match);
-    let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
-    let point1_1 = EmbeddedCurvePoint {
-        x: point1.x + (x_coordinates_match as Field),
-        y: point1.y,
-        is_infinite: x_coordinates_match,
-    };
-    // point1_1 is guaranteed to have a different abscissa than point2
-    let mut result = embedded_curve_add_unsafe(point1_1, point2);
-    result.is_infinite = x_coordinates_match;
+    if crate::runtime::is_unconstrained() {
+        embedded_curve_add_unsafe(point1, point2)
+    } else {
+        let x_coordinates_match = point1.x == point2.x;
+        let y_coordinates_match = point1.y == point2.y;
+        let double_predicate = (x_coordinates_match & y_coordinates_match);
+        let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
+        let point1_1 = EmbeddedCurvePoint {
+            x: point1.x + (x_coordinates_match as Field),
+            y: point1.y,
+            is_infinite: x_coordinates_match,
+        };
+        // point1_1 is guaranteed to have a different abscissa than point2
+        let mut result = embedded_curve_add_unsafe(point1_1, point2);
+        result.is_infinite = x_coordinates_match;
 
-    // dbl if x_match, y_match
-    let double = embedded_curve_add_unsafe(point1, point1);
-    result = if double_predicate { double } else { result };
+        // dbl if x_match, y_match
+        let double = embedded_curve_add_unsafe(point1, point1);
+        result = if double_predicate { double } else { result };
 
-    // infinity if x_match, !y_match
-    if point1.is_infinite {
-        result = point2;
+        // infinity if x_match, !y_match
+        if point1.is_infinite {
+            result = point2;
+        }
+        if point2.is_infinite {
+            result = point1;
+        }
+        let mut result_is_infinity = infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
+        result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
+        result
     }
-    if point2.is_infinite {
-        result = point1;
-    }
-    let mut result_is_infinity = infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
-    result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
-    result
+    
 }
 
 #[foreign(embedded_curve_add)]
