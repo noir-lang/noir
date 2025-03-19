@@ -1,4 +1,5 @@
 //! Serialization formats we consider using for the bytecode and the witness stack.
+
 use crate::proto::convert::ProtoSchema;
 use acir_field::AcirField;
 use noir_protobuf::ProtoCodec;
@@ -6,12 +7,13 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
 /// A marker byte for the serialization format.
-#[derive(Debug, IntoPrimitive, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub(crate) enum Format {
     Bincode = 0,
-    MsgPack = 1,
-    Protobuf = 2,
+    Protobuf = 1,
+    MsgPack = 2,
+    MsgPackCompact = 3,
 }
 
 /// Serialize a value using `bincode`, based on `serde`.
@@ -100,7 +102,7 @@ where
                         return Ok(value);
                     }
                 }
-                Format::MsgPack => {
+                Format::MsgPack | Format::MsgPackCompact => {
                     if let Ok(value) = msgpack_deserialize(&buf[1..]) {
                         return Ok(value);
                     }
@@ -116,6 +118,25 @@ where
     // Try the default; as long as it's around, the match of the first byte
     // to one of the `Format` could have been just a coincidence.
     bincode_deserialize(buf)
+}
+
+pub(crate) fn serialize_with_format<F, T, R>(value: &T, format: Format) -> std::io::Result<Vec<u8>>
+where
+    F: AcirField,
+    T: Serialize,
+    R: prost::Message,
+    ProtoSchema<F>: ProtoCodec<T, R>,
+{
+    // TODO: It would be more efficient to skip having to create a vector here, but use a std::io::Writer instead.
+    let mut buf = match format {
+        Format::Bincode => bincode_serialize(value)?,
+        Format::Protobuf => proto_serialize(value),
+        Format::MsgPack => msgpack_serialize(value, false)?,
+        Format::MsgPackCompact => msgpack_serialize(value, true)?,
+    };
+    let mut res = vec![format.into()];
+    res.append(&mut buf);
+    Ok(res)
 }
 
 #[cfg(test)]
