@@ -5,15 +5,37 @@ use acir_field::AcirField;
 use noir_protobuf::ProtoCodec;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use strum_macros::EnumString;
+
+const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 
 /// A marker byte for the serialization format.
-#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
+#[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub(crate) enum Format {
     Bincode = 0,
     Protobuf = 1,
-    MsgPack = 2,
-    MsgPackCompact = 3,
+    Msgpack = 2,
+    MsgpackCompact = 3,
+}
+
+impl Format {
+    /// Look for a `NOIR_SERIALIZATION_FORMAT` env var to turn on formatted serialization.
+    ///
+    /// The reason we use an env var is because:
+    /// 1. It has to be picked up in methods like `Program::serialize_program_base64` where no config is available.
+    /// 2. At the moment this is mostly for testing, to be able to commit code that _can_ produce different formats,
+    ///     but only activate it once a version of `bb` that can handle it is released.
+    pub(crate) fn from_env() -> Result<Option<Self>, String> {
+        let Ok(format) = std::env::var(FORMAT_ENV_VAR) else {
+            return Ok(None);
+        };
+        Self::from_str(&format)
+            .map(Some)
+            .map_err(|e| format!("unknown format '{format}' in {FORMAT_ENV_VAR}: {e}"))
+    }
 }
 
 /// Serialize a value using `bincode`, based on `serde`.
@@ -102,7 +124,7 @@ where
                         return Ok(value);
                     }
                 }
-                Format::MsgPack | Format::MsgPackCompact => {
+                Format::Msgpack | Format::MsgpackCompact => {
                     if let Ok(value) = msgpack_deserialize(&buf[1..]) {
                         return Ok(value);
                     }
@@ -131,21 +153,43 @@ where
     let mut buf = match format {
         Format::Bincode => bincode_serialize(value)?,
         Format::Protobuf => proto_serialize(value),
-        Format::MsgPack => msgpack_serialize(value, false)?,
-        Format::MsgPackCompact => msgpack_serialize(value, true)?,
+        Format::Msgpack => msgpack_serialize(value, false)?,
+        Format::MsgpackCompact => msgpack_serialize(value, true)?,
     };
     let mut res = vec![format.into()];
     res.append(&mut buf);
     Ok(res)
 }
 
+pub(crate) fn serialize_with_format_from_env<F, T, R>(value: &T) -> std::io::Result<Vec<u8>>
+where
+    F: AcirField,
+    T: Serialize,
+    R: prost::Message,
+    ProtoSchema<F>: ProtoCodec<T, R>,
+{
+    match Format::from_env() {
+        Ok(Some(format)) => {
+            // This will need a new `bb` even if it's the bincode format, because of the format byte.
+            serialize_with_format(value, format)
+        }
+        // This is how the currently released `bb` expects the data.
+        Ok(None) => {
+            // This will need a new `bb` even if it's the bincode format, because of the format byte.
+            bincode_serialize(value)
+        }
+        Err(e) => Err(std::io::Error::other(e)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use brillig::{HeapArray, ValueOrArray};
+    use std::str::FromStr;
 
     use crate::{
         native_types::Witness,
-        serialization::{msgpack_deserialize, msgpack_serialize},
+        serialization::{Format, msgpack_deserialize, msgpack_serialize},
     };
 
     mod version1 {
@@ -318,5 +362,10 @@ mod tests {
         let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
 
         assert!(matches!(msg, Value::Integer(_)));
+    }
+
+    #[test]
+    fn format_from_str() {
+        assert_eq!(Format::from_str("msgpack-compact").unwrap(), Format::MsgpackCompact);
     }
 }
