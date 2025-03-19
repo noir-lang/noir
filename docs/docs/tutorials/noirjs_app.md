@@ -20,17 +20,18 @@ Before we start, we want to make sure we have Node installed. For convenience (a
 curl -fsSL https://bun.sh/install | bash
 ```
 
+We'll also need version 1.0.0-beta.2 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
+
 Let's go barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
 
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-bun i @noir-lang/noir_wasm@1.0.0-beta.2 @noir-lang/noir_js@1.0.0-beta.2 @aztec/bb.js@0.72.1
+bun i @noir-lang/noir_js@1.0.0-beta.2 @aztec/bb.js@0.72.1
 ```
 
 Wait, what are these dependencies?
 
-- `noir_wasm` is the `wasm` version of the Noir compiler. Although most developers prefer to use `nargo` for compiling, there's nothing wrong with `noir_wasm`. We like `noir_wasm`.
 - `noir_js` is the main Noir package. It will execute our program, and generate the witness that will be sent to the backend.
 - `bb.js` is the Typescript interface for Aztec's Barretenberg proving backend. It also uses the `wasm` version in order to run on the browser.
 
@@ -76,6 +77,20 @@ type = "bin"
 This is all that we need to get started with Noir.
 
 ![my heart is ready for you, noir.js](@site/static/img/memes/titanic.jpeg)
+
+## Compile compile compile
+
+Finally we're up for something cool. But before we can execute a Noir program, we need to compile it into ACIR: an abstract representation.
+
+This can be done by cd-ing into our circuit directory and running the `nargo compile` command.
+
+```bash
+cd circuits
+
+nargo compile
+```
+
+This will write the compiled circuit into the `target` directory, which we'll then load into our JS later on.
 
 ## Setting up our app
 
@@ -158,39 +173,6 @@ At this point in the tutorial, your folder structure should look like this:
 
 :::
 
-## Compile compile compile
-
-Finally we're up for something cool. But before we can execute a Noir program, we need to compile it into ACIR: an abstract representation. Here's where `noir_wasm` comes in.
-
-`noir_wasm` expects a filesystem so it can resolve dependencies. While we could use the `public` folder, let's just import those using the nice `?url` syntax provided by vite. At the top of the file:
-
-```js
-import { compile, createFileManager } from "@noir-lang/noir_wasm"
-
-import main from "./circuit/src/main.nr?url";
-import nargoToml from "./circuit/Nargo.toml?url";
-```
-
-Compiling on the browser is common enough that `createFileManager` already gives us a nice in-memory filesystem we can use. So all we need to compile is fetching these files, writing them to our filesystem, and compile. Add this function:
-
-```js
-export async function getCircuit() {
- const fm = createFileManager("/");
- const { body } = await fetch(main);
- const { body: nargoTomlBody } = await fetch(nargoToml);
-
- fm.writeFile("./src/main.nr", body);
- fm.writeFile("./Nargo.toml", nargoTomlBody);
- return await compile(fm);
-}
-```
-
-:::tip
-
-As you can imagine, with `node` it's all conveniently easier since you get native access to `fs`...
-
-:::
-
 ## Some more JS
 
 We're starting with the good stuff now. We want to execute our circuit to get the witness, and then feed that witness to Barretenberg. Luckily, both packages are quite easy to work with. Let's import them at the top of the file:
@@ -198,15 +180,15 @@ We're starting with the good stuff now. We want to execute our circuit to get th
 ```js
 import { UltraHonkBackend } from '@aztec/bb.js';
 import { Noir } from '@noir-lang/noir_js';
+import circuit from "./circuit/target/circuit.json";
 ```
 
 And instantiate them inside our try-catch block:
 
 ```ts
 // try {
-const { program } = await getCircuit();
-const noir = new Noir(program);
-const backend = new UltraHonkBackend(program.bytecode);
+const noir = new Noir(circuit);
+const backend = new UltraHonkBackend(circuit.bytecode);
 // }
 ```
 
