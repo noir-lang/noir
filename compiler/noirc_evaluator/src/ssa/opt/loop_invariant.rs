@@ -1012,6 +1012,7 @@ mod test {
         // This test is similar to `nested_loop_invariant_code_motion`, except that
         // the loop logic is under a dynamic predicate.
         // Divisions are only reliant upon predicates and do not have other side effects.
+        //
         // If an unsafe division occurs in a loop block that is not control dependent,
         // we can still safely hoist that division as that instruction is always going to be hit.
         // Thus, we place the unsafe division under a predicate to ensure that we are testing
