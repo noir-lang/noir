@@ -21,6 +21,15 @@ impl EmbeddedCurvePoint {
     pub fn point_at_infinity() -> EmbeddedCurvePoint {
         EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
     }
+
+    /// Returns the curve's generator point.
+    pub fn generator() -> EmbeddedCurvePoint {
+        EmbeddedCurvePoint {
+            x: 1,
+            y: 17631683881184975370165255887551781615748388533673675138860,
+            is_infinite: false,
+        }
+    }
 }
 
 impl Add for EmbeddedCurvePoint {
@@ -121,12 +130,7 @@ pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
 pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 // docs:end:fixed_base_scalar_mul
 {
-    let g1 = EmbeddedCurvePoint {
-        x: 1,
-        y: 17631683881184975370165255887551781615748388533673675138860,
-        is_infinite: false,
-    };
-    multi_scalar_mul([g1], [scalar])
+    multi_scalar_mul([EmbeddedCurvePoint::generator()], [scalar])
 }
 
 /// This function only assumes that the points are on the curve
