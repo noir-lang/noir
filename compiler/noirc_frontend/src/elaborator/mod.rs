@@ -1654,13 +1654,24 @@ impl<'context> Elaborator<'context> {
             let num_type = self.resolve_type(num_type);
             let kind = Kind::numeric(num_type);
             let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
-            if num_expr.is_none() {
+
+            if let Some(num_expr) = num_expr {
+                // Checks that the expression only references generics and constants
+                if !num_expr.is_valid_expression() {
+                    self.errors.push(CompilationError::ResolverError(
+                        ResolverError::RecursiveTypeAlias { location },
+                    ));
+                    (Type::Error, None)
+                } else {
+                    (self.resolve_type_with_kind(alias.type_alias_def.typ, &kind), Some(num_expr))
+                }
+            } else {
                 // We only support aliases to numeric generics expressions for now
                 self.errors.push(CompilationError::ResolverError(
                     ResolverError::RecursiveTypeAlias { location },
                 ));
+                (Type::Error, None)
             }
-            (self.resolve_type_with_kind(alias.type_alias_def.typ, &kind), num_expr)
         } else {
             (self.resolve_type(alias.type_alias_def.typ), None)
         };

@@ -458,7 +458,9 @@ impl UnresolvedTypeData {
             UnresolvedTypeData::Parenthesized(unresolved_type) => {
                 unresolved_type.typ.try_into_expression()
             }
-            UnresolvedTypeData::Named(path, _, _) if path.is_ident() => {
+            UnresolvedTypeData::Named(path, generics, _)
+                if path.is_ident() && generics.is_empty() =>
+            {
                 Some(UnresolvedTypeExpression::Variable(path.clone()))
             }
             _ => None,
@@ -612,6 +614,17 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Constant(_, _) | UnresolvedTypeExpression::AsTraitPath(_) => {
                 false
             }
+        }
+    }
+
+    pub(crate) fn is_valid_expression(&self) -> bool {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => path.is_ident(),
+            UnresolvedTypeExpression::Constant(_, _) => true,
+            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
+                lhs.is_valid_expression() && rhs.is_valid_expression()
+            }
+            UnresolvedTypeExpression::AsTraitPath(_) => true,
         }
     }
 }
