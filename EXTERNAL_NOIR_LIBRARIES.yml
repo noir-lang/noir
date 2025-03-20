@@ -100,3 +100,4 @@ libraries:
     repo: Mach-34/noir-zk-regex
     ref: 20de93bd8b30bb51271690c7d13fad86399527e1
     path: packages/noir
+    timeout: 20
