@@ -133,7 +133,6 @@ mod tests {
                 };
                 let ascii_line: String = line.chars().filter(char::is_ascii).collect();
                 let line_expected_to_contain = expected_line.trim_start();
-                println!("{ascii_line}");
                 assert!(
                     ascii_line.contains(line_expected_to_contain),
                     "{:?}\ndid not contain\n{:?}",
