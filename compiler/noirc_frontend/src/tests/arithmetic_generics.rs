@@ -5,9 +5,10 @@ use acvm::{AcirField, FieldElement};
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::monomorphization::tests::get_monomorphized;
-use crate::tests::assert_no_errors;
+use crate::get_monomorphized;
+use crate::assert_no_errors;
 
+#[named]
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
     let source = r#"
@@ -23,9 +24,10 @@ fn arithmetic_generics_canonicalization_deduplication_regression() {
             };
         }
     "#;
-    assert_no_errors(source);
+    assert_no_errors!(source);
 }
 
+#[named]
 #[test]
 fn checked_casts_do_not_prevent_canonicalization() {
     // Regression test for https://github.com/noir-lang/noir/issues/6495
@@ -51,9 +53,10 @@ fn checked_casts_do_not_prevent_canonicalization() {
         }
     }
     "#;
-    assert_no_errors(source);
+    assert_no_errors!(source);
 }
 
+#[named]
 #[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
@@ -74,7 +77,7 @@ fn arithmetic_generics_checked_cast_zeros() {
         }
     "#;
 
-    let monomorphization_error = get_monomorphized(source).unwrap_err();
+    let monomorphization_error = get_monomorphized!(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
@@ -96,6 +99,7 @@ fn arithmetic_generics_checked_cast_zeros() {
     }
 }
 
+#[named]
 #[test]
 fn arithmetic_generics_checked_cast_indirect_zeros() {
     let source = r#"
@@ -116,7 +120,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
     "#;
 
-    let monomorphization_error = get_monomorphized(source).unwrap_err();
+    let monomorphization_error = get_monomorphized!(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
@@ -141,6 +145,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     }
 }
 
+#[named]
 #[test]
 fn global_numeric_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6125
@@ -153,9 +158,10 @@ fn global_numeric_generic_larger_than_u32() {
         let _ = foo::<A>();
     }
     "#;
-    assert_no_errors(source);
+    assert_no_errors!(source);
 }
 
+#[named]
 #[test]
 fn global_arithmetic_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6126
@@ -182,5 +188,5 @@ fn global_arithmetic_generic_larger_than_u32() {
         let _ = foo::<A>().size();
     }
     "#;
-    assert_no_errors(source);
+    assert_no_errors!(source);
 }

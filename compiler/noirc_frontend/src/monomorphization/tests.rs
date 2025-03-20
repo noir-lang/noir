@@ -1,13 +1,15 @@
 #![cfg(test)]
 use crate::{
     elaborator::UnstableFeature,
-    tests::{check_monomorphization_error_using_features, get_program},
+    check_monomorphization_error_using_features,
+    get_program,
 };
+
 
 use super::{ast::Program, errors::MonomorphizationError, monomorphize};
 
-pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = get_program(src);
+pub fn get_monomorphized(src: &str, test_path: &str) -> Result<Program, MonomorphizationError> {
+    let (_parsed_module, mut context, errors) = get_program(src, test_path);
     assert!(
         errors.iter().all(|err| !err.is_error()),
         "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
@@ -20,11 +22,33 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
     monomorphize(main, &mut context.def_interner, false)
 }
 
-fn check_rewrite(src: &str, expected: &str) {
-    let program = get_monomorphized(src).unwrap();
+fn check_rewrite(src: &str, expected: &str, test_path: &str) {
+    let program = get_monomorphized(src, test_path).unwrap();
     assert!(format!("{}", program) == expected);
 }
 
+#[macro_export]
+macro_rules! get_monomorphized {
+    ($src:expr) => {
+        get_monomorphized(
+            $src,
+            function_path!(),
+        )
+    }
+}
+
+#[macro_export]
+macro_rules! check_rewrite {
+    ($src:expr, $expected:expr) => {
+        check_rewrite(
+            $src,
+            $expected,
+            function_path!(),
+        )
+    }
+}
+
+#[named]
 #[test]
 fn bounded_recursive_type_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
@@ -45,9 +69,10 @@ fn bounded_recursive_type_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features!(src, &features);
 }
 
+#[named]
 #[test]
 fn recursive_type_with_alias_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
@@ -80,9 +105,10 @@ fn recursive_type_with_alias_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features!(src, &features);
 }
 
+#[named]
 #[test]
 fn mutually_recursive_types_error() {
     let src = "
@@ -103,9 +129,10 @@ fn mutually_recursive_types_error() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features!(src, &features);
 }
 
+#[named]
 #[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
@@ -134,5 +161,5 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     env$l1.0
 }
 "#;
-    check_rewrite(src, expected_rewrite);
+    check_rewrite!(src, expected_rewrite);
 }
