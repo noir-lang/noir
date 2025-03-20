@@ -599,7 +599,11 @@ impl<'a> Context<'a> {
                         .into());
                     };
                     self.initialize_array(block_id, len, Some(value.clone()))?;
-                    let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
+                    let flat_value = value
+                        .flatten()
+                        .into_iter()
+                        .map(|(var, typ)| AcirValue::Var(var, typ))
+                        .collect::<im::Vector<_>>();
                     self.ssa_values.insert(*param_id, AcirValue::Array(flat_value));
                     // self.ssa_values.insert(*param_id, value);
                 }
@@ -903,7 +907,7 @@ impl<'a> Context<'a> {
 
                                 let output_values =
                                     self.convert_vars_to_values(output_vars, dfg, result_ids);
-
+                                dbg!(output_values.len());
                                 self.handle_ssa_call_outputs(result_ids, output_values, dfg)?;
                             }
                             RuntimeType::Brillig(_) => {
@@ -1022,6 +1026,21 @@ impl<'a> Context<'a> {
     ) -> Result<(), RuntimeError> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
+                // let block_id = self.block_id(param_id);
+                // let len = if matches!(typ, Type::Array(_, _)) {
+                //     typ.flattened_size() as usize
+                // } else {
+                //     return Err(InternalError::Unexpected {
+                //         expected: "Block params should be an array".to_owned(),
+                //         found: format!("Instead got {:?}", typ),
+                //         call_stack: self.acir_context.get_call_stack(),
+                //     }
+                //     .into());
+                // };
+                // self.initialize_array(block_id, len, Some(value.clone()))?;
+                // let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
+                // self.ssa_values.insert(*param_id, AcirValue::Array(flat_value));
+
                 let array_id = dfg.resolve(*result_id);
                 let block_id = self.block_id(&array_id);
                 let array_typ = dfg.type_of_value(array_id);
@@ -1031,11 +1050,18 @@ impl<'a> Context<'a> {
                     Self::flattened_value_size(&output)
                 };
                 self.initialize_array(block_id, len, Some(output.clone()))?;
+                let flat_value = output
+                    .flatten()
+                    .into_iter()
+                    .map(|(var, typ)| AcirValue::Var(var, typ))
+                    .collect::<im::Vector<_>>();
+                self.ssa_values.insert(*result_id, AcirValue::Array(flat_value));
+            } else {
+                // Do nothing for AcirValue::DynamicArray and AcirValue::Var
+                // A dynamic array returned from a function call should already be initialized
+                // and a single variable does not require any extra initialization.
+                self.ssa_values.insert(*result_id, output);
             }
-            // Do nothing for AcirValue::DynamicArray and AcirValue::Var
-            // A dynamic array returned from a function call should already be initialized
-            // and a single variable does not require any extra initialization.
-            self.ssa_values.insert(*result_id, output);
         }
         Ok(())
     }
@@ -1197,6 +1223,13 @@ impl<'a> Context<'a> {
                 }))
             }
             AcirValue::Array(array) => {
+                // let flat_value = value.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ)).collect::<im::Vector<_>>();
+                let array = array
+                    .into_iter()
+                    .flat_map(AcirValue::flatten)
+                    .map(|(var, typ)| AcirValue::Var(var, typ))
+                    .collect::<im::Vector<_>>();
+                // let array = AcirValue::Array(array);
                 // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
                 if let Some(constant_index) = dfg.get_numeric_constant(index) {
                     let store_value = store_value.map(|value| self.convert_value(value, dfg));
@@ -1241,6 +1274,8 @@ impl<'a> Context<'a> {
                 self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
 
             if side_effects_always_enabled {
+                dbg!(array.clone());
+                dbg!(index);
                 // If we know that this write will always occur then we can perform it at compile time.
                 let value = AcirValue::Array(array.update(index, store_value));
                 self.define_result(dfg, instruction, value);
@@ -1256,6 +1291,8 @@ impl<'a> Context<'a> {
             // let value = array[index].clone();
             let results = dfg.instruction_results(instruction);
             let res_typ = dfg.type_of_value(results[0]);
+            // dbg!(index);
+            // dbg!(array.clone());
             let value = match res_typ {
                 Type::Array(_, _) => {
                     let mut elements = im::Vector::new();
@@ -1472,7 +1509,7 @@ impl<'a> Context<'a> {
         // if results[0].to_u32() == 0 {
         //     dbg!(res_typ.clone());
         // }
-        let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
+        // let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
         // dbg!(value.clone());
         // if results[0].to_u32() == 0 {
         //     dbg!(value.clone());
@@ -2052,7 +2089,7 @@ impl<'a> Context<'a> {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => Ok(acir_var),
             AcirValue::Array(array) => {
-                dbg!(value_id);
+                // dbg!(value_id);
                 Err(InternalError::Unexpected {
                     expected: "a numeric value".to_string(),
                     found: format!("{array:?}"),

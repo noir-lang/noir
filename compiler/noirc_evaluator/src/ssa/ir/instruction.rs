@@ -961,7 +961,9 @@ impl Instruction {
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
-                        dbg!("got here");
+                        // dbg!("got here");
+                        // dbg!(index);
+                        // dbg!(array.len());
                         let elements = array.update(index, *value);
                         let typ = dfg.type_of_value(*array_id);
                         let instruction = Instruction::MakeArray { elements, typ };
@@ -1204,13 +1206,21 @@ fn try_optimize_array_get_from_previous_set(
                             // dbg!(len);
                             // dbg!(index);
                             let mut elements = im::Vector::new();
+                            // dbg!(len);
+                            // dbg!(index);
+                            // dbg!(array.len());
                             for i in 0..*len {
                                 elements.push_back(array[index + i as usize]);
                             }
                             let instruction =
                                 Instruction::MakeArray { elements, typ: result_type[0].clone() };
                             let new_array = dfg
-                                .insert_instruction_and_results(instruction, block, None, call_stack)
+                                .insert_instruction_and_results(
+                                    instruction,
+                                    block,
+                                    None,
+                                    call_stack,
+                                )
                                 .first();
                             new_array
                         }

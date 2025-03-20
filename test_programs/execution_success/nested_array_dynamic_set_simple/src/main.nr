@@ -30,6 +30,8 @@ fn main(mut x: [Foo; 1], y: pub Field) {
     if y == 3 {
         foo_parents[y - 2].foos[y - 3].b[y - 1] = 5000;
     } 
+
+    // println(foo_parents[1].foos[0].b[2]);
     assert(foo_parents[1].foos[0].b[2] == 5000);
 }
 

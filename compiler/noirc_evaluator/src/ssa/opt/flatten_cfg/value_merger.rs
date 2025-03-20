@@ -36,6 +36,7 @@ impl<'a> ValueMerger<'a> {
         current_condition: Option<ValueId>,
         call_stack: CallStackId,
     ) -> Self {
+        // dbg!(slice_sizes.clone());
         ValueMerger {
             dfg,
             block,
@@ -43,7 +44,7 @@ impl<'a> ValueMerger<'a> {
             array_set_conditionals,
             current_condition,
             call_stack,
-            merging_slices: false
+            merging_slices: false,
         }
     }
 
@@ -79,10 +80,23 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             ),
             typ @ Type::Array(_, _) => {
+                dbg!(self.merging_slices);
                 if self.merging_slices {
-                    self.merge_array_values_flat_nested(typ, then_condition, else_condition, then_value, else_value)
+                    self.merge_array_values_flat_nested(
+                        typ,
+                        then_condition,
+                        else_condition,
+                        then_value,
+                        else_value,
+                    )
                 } else {
-                    self.merge_array_values_flat_nested(typ, then_condition, else_condition, then_value, else_value)
+                    self.merge_array_values_flat_nested(
+                        typ,
+                        then_condition,
+                        else_condition,
+                        then_value,
+                        else_value,
+                    )
                 }
             }
             typ @ Type::Slice(_) => {
@@ -271,8 +285,8 @@ impl<'a> ValueMerger<'a> {
         else_value_id: ValueId,
     ) -> ValueId {
         self.merging_slices = true;
-        dbg!(then_value_id);
-        dbg!(else_value_id);
+        // dbg!(then_value_id);
+        // dbg!(else_value_id);
 
         let mut merged = im::Vector::new();
 
@@ -281,44 +295,61 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        dbg!(element_types.clone());
+        // dbg!(element_types.clone());
+        let flat_element_types_size =
+            element_types.iter().fold(0, |acc, typ| acc + typ.flattened_size());
+        // dbg!(flat_element_types_size);
 
         let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
             let (slice, typ) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
             });
-            dbg!("got here");
-            (slice.len() / typ.element_types().len()) as u32
-            // slice.len() as u32
+            // dbg!("got here");
+            // dbg!(slice.len());
+            // (slice.len() / typ.element_types().len()) as u32
+            slice.len() as u32
         });
-        dbg!(then_len);
+        // dbg!(then_len);
 
         let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
             let (slice, typ) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
             });
-            dbg!("got here");
-            (slice.len() / typ.element_types().len()) as u32
-            // slice.len() as u32
+            // dbg!("got here");
+            // dbg!(slice.clone());
+            // dbg!(typ.clone());
+            // for value in slice.iter() {
+            //     let inner_val_typ = self.dfg.type_of_value(*value);
+            //     dbg!(inner_val_typ);
+            // }
+            // if slice.len() < flat_element_types_size
+            // (slice.len() / typ.element_types().len()) as u32
+            slice.len() as u32
         });
-        dbg!(else_len);
+        // dbg!(else_len);
         let len = then_len.max(else_len);
         // dbg!(len);
-        let flat_element_types_size = element_types.iter().fold(0, |acc, typ| acc + typ.flattened_size());
-        dbg!(flat_element_types_size);
-        let len = len / flat_element_types_size;
-        dbg!(len);
 
-        let flat_types = element_types.iter().flat_map(|typ| {
-            std::iter::repeat(typ.clone().flatten()).take(len as usize).flatten().collect::<Vec<_>>()
-        }).collect::<Vec<_>>();
-        dbg!(flat_types.clone());
-        dbg!(flat_types.len());
+        let composite_len = len / flat_element_types_size;
+        // dbg!(composite_len);
+
+        let flat_types = element_types
+            .iter()
+            .flat_map(|typ| {
+                std::iter::repeat(typ.clone().flatten())
+                    .take(composite_len as usize)
+                    .flatten()
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        // dbg!(flat_types.clone());
+        // dbg!(flat_types.len());
+
+        // let flat_typ = typ.clone().flatten();
 
         let mut my_index: u32 = 0;
         for typ in flat_types {
             let index = self.dfg.make_constant(my_index.into(), typ.unwrap_numeric());
-            my_index += 1;
             assert!(matches!(typ, Type::Numeric(_)));
             let typevars = Some(vec![typ.clone()]);
 
@@ -326,31 +357,20 @@ impl<'a> ValueMerger<'a> {
                 // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                 // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                 if len <= my_index {
+                    dbg!(len);
+                    dbg!(my_index);
                     self.make_slice_dummy_data(&typ)
                 } else {
                     let get = Instruction::ArrayGet { array, index };
                     self.dfg
-                        .insert_instruction_and_results(
-                            get,
-                            self.block,
-                            typevars,
-                            self.call_stack,
-                        )
+                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                         .first()
                 }
             };
+            let then_element = get_element(then_value_id, typevars.clone(), then_len);
+            let else_element = get_element(else_value_id, typevars, else_len);
 
-            // let then_element = get_element(then_value, typevars.clone());
-            // let else_element = get_element(else_value, typevars);
-
-            let then_element = get_element(
-                then_value_id,
-                typevars.clone(),
-                then_len,
-            );
-            let else_element =
-                get_element(else_value_id, typevars, else_len);
-
+            my_index += 1;
 
             merged.push_back(self.merge_values(
                 then_condition,
@@ -359,6 +379,8 @@ impl<'a> ValueMerger<'a> {
                 else_element,
             ));
         }
+
+        // dbg!(merged.clone());
 
         // for i in 0..len {
         //     for (element_index, element_type) in element_types.iter().enumerate() {

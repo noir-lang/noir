@@ -352,6 +352,10 @@ impl Type {
             _ => vec![self.clone()],
         }
     }
+
+    pub fn is_slice(&self) -> bool {
+        matches!(self, Type::Slice(_))
+    }
 }
 
 #[derive(Debug, Clone, Hash, Default)]
