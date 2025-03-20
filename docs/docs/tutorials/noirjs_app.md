@@ -188,20 +188,6 @@ const backend = new UltraHonkBackend(circuit.bytecode);
 // }
 ```
 
-:::warning
-
-WASMs are not always easy to work with. In our case, `vite` likes serving them with the wrong MIME type. There are different fixes but we found the easiest one is just YOLO instantiating the WASMs manually. Paste this at the top of the file, just below the other imports, and it will work just fine:
-
-```js
-import initNoirC from "@noir-lang/noirc_abi";
-import initACVM from "@noir-lang/acvm_js";
-import acvm from "@noir-lang/acvm_js/web/acvm_js_bg.wasm?url";
-import noirc from "@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm?url";
-await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
-```
-
-:::
-
 ## Executing and proving
 
 Now for the app itself. We're capturing whatever is in the input when people press the submit button. Inside our `try` block, let's just grab that input and get its value. Noir will gladly execute it, and give us a witness:
@@ -235,10 +221,16 @@ Our program is technically **done** . You're probably eager to see stuff happeni
 touch vite.config.js
 ```
 
-`vite` helps us with a little catch: `bb.js` in particular uses top-level awaits which aren't supported everywhere. So we can add this to the `vite.config.js` to make the bundler optimize them:
+Noir needs to load two WASM modules, but Vite doesn't include them by default in the bundle. We need to add the configuration below to `vite.config.js` to make it work.
+We also need to target ESNext since `bb.js` uses top-level await, which isn't supported in some browsers.
 
 ```js
-export default { optimizeDeps: { esbuildOptions: { target: "esnext" } } };
+export default {
+  optimizeDeps: {
+    esbuildOptions: { target: "esnext" },
+    exclude: ['@noir-lang/noirc_abi', '@noir-lang/acvm_js']
+  }
+};
 ```
 
 This should be enough for vite. We don't even need to install it, just run:
