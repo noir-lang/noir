@@ -117,19 +117,19 @@ jobs:
       - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
         run: |
-          # Exit immediately on error
-          set -e
-
           mkdir ./reports
 
-          ./gates_report_brillig.sh 9223372036854775807
-          jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_max.json
-
-          ./gates_report_brillig.sh 0
-          jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_zero.json
-
-          ./gates_report_brillig.sh -9223372036854775808
-          jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_min.json
+          # Map the inliner aggressiveness to its test name
+          declare -A inliner_settings=(
+            [9223372036854775807]="inliner_max"
+            [0]="inliner_zero"
+            [-9223372036854775808]="inliner_min"
+          )
+          for inliner_agg in "${!inliner_settings[@]}"; do
+            test_name="${inliner_settings[$inliner_agg]}"
+            ./gates_report_brillig.sh "$inliner_agg" || { echo "Script exited early on $test_name" >&2; exit 1; }
+            jq ".programs |= map(.package_name |= (. + \"_$test_name\"))" gates_report_brillig.json > "./reports/gates_report_brillig_$test_name.json"
+          done
 
           # Merge all reports
           jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig.json
@@ -170,19 +170,20 @@ jobs:
       - name: Generate Brillig execution report
         working-directory: ./test_programs
         run: |
-          # Exit immediately on error
-          set -e
-
           mkdir ./reports
 
-          ./gates_report_brillig_execution.sh 9223372036854775807
-          jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_max.json
+          # Map the inliner aggressiveness to its test name
+          declare -A inliner_settings=(
+            [9223372036854775807]="inliner_max"
+            [0]="inliner_zero"
+            [-9223372036854775808]="inliner_min"
+          )
 
-          ./gates_report_brillig_execution.sh 0
-          jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_zero.json
-
-          ./gates_report_brillig_execution.sh -9223372036854775808
-          jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_min.json
+          for inliner_agg in "${!inliner_settings[@]}"; do
+            test_name="${inliner_settings[$inliner_agg]}"
+            ./gates_report_brillig_execution.sh "$inliner_agg" || { echo "Script exited early on $test_name" >&2; exit 1; }
+            jq ".programs |= map(.package_name |= (. + \"_$test_name\"))" gates_report_brillig_execution.json > "./reports/gates_report_brillig_execution_$test_name.json"
+          done
 
           # Merge all reports
           jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig_execution.json
