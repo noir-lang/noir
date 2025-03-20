@@ -16,8 +16,8 @@ use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
-        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
-        StatementKind, UnresolvedTypeData,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind,
+        UnresolvedTypeData,
     },
     hir::{
         comptime::{
@@ -33,6 +33,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
+    shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;

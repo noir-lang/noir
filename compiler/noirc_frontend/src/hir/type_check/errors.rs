@@ -6,14 +6,13 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
 use thiserror::Error;
 
-use crate::ast::{
-    BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize, Signedness,
-};
+use crate::ast::{BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
+use crate::shared::Signedness;
 use crate::signed_field::SignedField;
 
 /// Rust also only shows 3 maximum, even for short patterns.

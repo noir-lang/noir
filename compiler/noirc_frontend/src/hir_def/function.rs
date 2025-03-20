@@ -5,10 +5,11 @@ use noirc_errors::{Location, Span};
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
-use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType, Visibility};
+use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
 use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
+use crate::shared::Visibility;
 
 use crate::{ResolvedGeneric, Type};
 
