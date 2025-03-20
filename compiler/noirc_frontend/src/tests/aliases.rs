@@ -108,6 +108,50 @@ fn disallows_composing_numeric_type_aliases() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double<Double<N>>;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Expected a numeric expression, but got `Double<Double<N>>`
+    fn main() {
+        let b: [u32; 12] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
+        let n = Double::<N>;    // To avoid the unused 'Double' error
+        let mut a = [0;Quadruple::<N>];
+        for i in 0..Quadruple::<N> {
+            a[i] = i + n;
+        }
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn disallows_numeric_type_aliases_to_expression_with_alias() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
+    fn main() {
+        let b: [u32; 12] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
+        let n = Double::<N>;    // To avoid the unused 'Double' error
+        let mut a = [0;Quadruple::<N>];
+        for i in 0..Quadruple::<N> {
+            a[i] = i + n;
+        }
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn disallows_numeric_type_aliases_to_expression_with_alias_1() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
     fn main() {
         let b: [u32; 12] = foo();
@@ -119,6 +163,17 @@ fn disallows_composing_numeric_type_aliases() {
         for i in 0..Quadruple::<N> {
             a[i] = i + n;
         }
+        a
+    }
+    "#;
+    check_errors(src);
+}
+#[test]
+fn disallows_numeric_type_aliases_to_type() {
+    let src = r#"
+    type Foo: u32 = u32;
+    ^^^^^^^^^^^^^^^^^^^  Expected a numeric expression, but got `u32`
+    fn main(a: Foo) -> pub Foo {
         a
     }
     "#;

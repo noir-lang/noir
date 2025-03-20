@@ -1666,9 +1666,11 @@ impl<'context> Elaborator<'context> {
                     (self.resolve_type_with_kind(alias.type_alias_def.typ, &kind), Some(num_expr))
                 }
             } else {
-                // We only support aliases to numeric generics expressions for now
                 self.errors.push(CompilationError::ResolverError(
-                    ResolverError::RecursiveTypeAlias { location },
+                    ResolverError::ExpectedNumericExpression {
+                        typ: alias.type_alias_def.typ.typ.to_string(),
+                        location,
+                    },
                 ));
                 (Type::Error, None)
             }
