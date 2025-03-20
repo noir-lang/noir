@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742498441669,
+  "lastUpdate": 1742498696421,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "99830073ec96932948bbdec7a269f025e0bac136",
-          "message": "chore(docs): Extend stable documentation versions to build to cover multiple `beta.n` releases (#7685)",
-          "timestamp": "2025-03-12T20:26:02Z",
-          "tree_id": "1812b390f7003842b850c553edc11283bf2fa368",
-          "url": "https://github.com/noir-lang/noir/commit/99830073ec96932948bbdec7a269f025e0bac136"
-        },
-        "date": 1741812635879,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/97e40901bd34f7e2c0df74822c70a5f21b722f60"
         },
         "date": 1742498211670,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 275.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 509.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 418.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 289,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 295.48,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d8f197665e1b754c44f08c06bfc2392ce65592d",
+          "message": "chore(docs): Avoid colliding filenames (#7771)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-03-20T18:55:25Z",
+          "tree_id": "53f99017a818869a43ba447f88f7d2424e0e4dc4",
+          "url": "https://github.com/noir-lang/noir/commit/8d8f197665e1b754c44f08c06bfc2392ce65592d"
+        },
+        "date": 1742498693150,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
