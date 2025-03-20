@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
-      RUSTDOCFLAGS: -Dwarnings
+      RUSTDOCFLAGS: -Dwarnings -Drustdoc::unescaped_backticks
 
     steps:
       - name: Checkout

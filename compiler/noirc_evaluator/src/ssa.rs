@@ -34,7 +34,7 @@ use noirc_errors::{
     debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
 };
 
-use noirc_frontend::ast::Visibility;
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
 use ssa_gen::Ssa;
 use tracing::{Level, span};

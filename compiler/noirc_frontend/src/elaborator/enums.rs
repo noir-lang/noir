@@ -9,7 +9,7 @@ use crate::{
     DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        Literal, NoirEnumeration, StatementKind, UnresolvedType, Visibility,
+        Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
     hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
@@ -22,6 +22,7 @@ use crate::{
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
+    shared::Visibility,
     signed_field::SignedField,
     token::Attributes,
 };

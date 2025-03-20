@@ -120,12 +120,13 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{IntegerBitSize, NoirEnumeration, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{IntegerBitSize, NoirEnumeration, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
             parser::tests::{expect_no_errors, get_source_with_error_span},
         },
+        shared::Signedness,
     };
 
     fn parse_enum_no_errors(src: &str) -> NoirEnumeration {

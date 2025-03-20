@@ -202,6 +202,8 @@ jobs:
 
       - name: Build acvm_js
         run: ./.github/scripts/acvm_js-build.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
