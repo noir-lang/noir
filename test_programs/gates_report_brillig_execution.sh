@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -o pipefail
 
 # These tests are incompatible with execution trace reporting
 excluded_dirs=(
