@@ -101,3 +101,15 @@ libraries:
     ref: 20de93bd8b30bb51271690c7d13fad86399527e1
     path: packages/noir
     timeout: 20
+  web_authn:
+    repo: olehmisar/noir_webauthn
+    ref: 1da8699d3b85b62bc87e2ea3207801affdb5c639
+    timeout: 20
+  noir_jwt:
+    repo: zkemail/noir-jwt
+    ref: d461d01b24432c42c17a149e7075974b2a7bce3d
+    timeout: 20
+  zkemail:
+    repo: zkemail/zkemail.nr
+    ref: 07053e865447b3167b670f9167f256e971fdb5c8
+    timeout: 20
