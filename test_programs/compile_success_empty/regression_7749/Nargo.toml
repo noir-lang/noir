@@ -1,5 +1,5 @@
 [package]
-name = "double_verify_honk_proof"
+name = "regression_7744"
 type = "bin"
 authors = [""]
 

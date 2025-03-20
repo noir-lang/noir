@@ -25,6 +25,7 @@ enum SerializationError {
     Deserialize(String),
 }
 
+/// Native error for serializing/deserializating a witness stack.
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub struct WitnessStackError(#[from] SerializationError);
@@ -46,18 +47,22 @@ pub struct StackItem<F> {
 }
 
 impl<F> WitnessStack<F> {
+    /// Append an element to the top of the stack
     pub fn push(&mut self, index: u32, witness: WitnessMap<F>) {
         self.stack.push(StackItem { index, witness });
     }
 
+    /// Removes the top element from the stack and return its
     pub fn pop(&mut self) -> Option<StackItem<F>> {
         self.stack.pop()
     }
 
+    /// Returns the top element of the stack, or `None` if it is empty
     pub fn peek(&self) -> Option<&StackItem<F>> {
         self.stack.last()
     }
 
+    /// Returns the size of the stack
     pub fn length(&self) -> usize {
         self.stack.len()
     }
