@@ -1194,7 +1194,7 @@
                 inputs
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, .. } =&gt; {
-                <span class="macro">vec!</span>[input1[<span class="number">0</span>], input1[<span class="number">1</span>], input2[<span class="number">0</span>], input2[<span class="number">1</span>]]
+                <span class="macro">vec!</span>[input1[<span class="number">0</span>], input1[<span class="number">1</span>], input1[<span class="number">2</span>], input2[<span class="number">0</span>], input2[<span class="number">1</span>], input2[<span class="number">2</span>]]
             }
             BlackBoxFuncCall::RANGE { input } =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>input],
             BlackBoxFuncCall::EcdsaSecp256k1 {
