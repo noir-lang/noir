@@ -142,6 +142,10 @@ pub fn embedded_curve_add(
     if crate::runtime::is_unconstrained() {
         embedded_curve_add_unsafe(point1, point2)
     } else {
+        // In a constrained context we need to do some black magic in order to satisfy the backend's
+        // expectations about the inputs to an `embedded_curve_add` opcode.
+        //
+        // TODO: document this better.
         let x_coordinates_match = point1.x == point2.x;
         let y_coordinates_match = point1.y == point2.y;
         let double_predicate = (x_coordinates_match & y_coordinates_match);
