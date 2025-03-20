@@ -308,6 +308,8 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     fn can_hoist_invariant(&mut self, instruction_id: InstructionId) -> bool {
+        use Instruction::*;
+
         let mut is_loop_invariant = true;
         // The list of blocks for a nested loop contain any inner loops as well.
         // We may have already re-inserted new instructions if two loops share blocks
@@ -324,9 +326,18 @@ impl<'f> LoopInvariantContext<'f> {
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
 
+        let instruction_is_constrain =
+            matches!(instruction, Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. });
+        let bounds = self.current_induction_variables.values().next().copied();
+        let upper_bound_non_zero =
+            bounds.map(|(_, upper_bound)| !upper_bound.is_zero()).unwrap_or(false);
+
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
-            || matches!(instruction, Instruction::MakeArray { .. })
-            || (instruction.can_be_deduplicated(self.inserter.function, true)
+            || matches!(instruction, MakeArray { .. })
+            || (instruction.can_be_hoisted(self.inserter.function, true)
+                && !self.current_block_control_dependent)
+            || (instruction_is_constrain
+                && upper_bound_non_zero
                 && !self.current_block_control_dependent)
             || self.can_be_deduplicated_from_loop_bound(&instruction);
 
@@ -1136,23 +1147,23 @@ mod control_dependence {
     fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          entry(v0: u32, v1: u32):
             v4 = eq v0, u32 5
-            jmp b1(u32 0)
-          b1(v2: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
             v7 = lt v2, u32 4
-            jmpif v7 then: b2, else: b3
-          b2():
-            jmpif v4 then: b4, else: b5
-          b3():
+            jmpif v7 then: loop_cond, else: exit
+          loop_cond():
+            jmpif v4 then: loop_body, else: loop_end
+          exit():
             return
-          b4():
+          loop_body():
             v8 = mul v0, v1
             constrain v8 == u32 12
-            jmp b5()
-          b5():
+            jmp loop_end()
+          loop_end():
             v11 = unchecked_add v2, u32 1
-            jmp b1(v11)
+            jmp loop(v11)
         }
         ";
 
@@ -1166,18 +1177,18 @@ mod control_dependence {
     fn hoist_safe_mul_that_is_non_control_dependent() {
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            jmp b1(u32 0)
-          b1(v2: u32):
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
             v3 = lt v2, u32 4
-            jmpif v3 then: b2, else: b3
-          b2():
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
             v6 = mul v0, v1
             v7 = mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
-            jmp b1(v10)
-          b3():
+            jmp loop(v10)
+          exit():
             return
         }
         ";
@@ -1186,18 +1197,18 @@ mod control_dependence {
 
         let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          entry(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
             constrain v4 == u32 12
-            jmp b1(u32 0)
-          b1(v2: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
             v8 = lt v2, u32 4
-            jmpif v8 then: b2, else: b3
-          b2():
+            jmpif v8 then: loop_body, else: exit
+          loop_body():
             v10 = unchecked_add v2, u32 1
-            jmp b1(v10)
-          b3():
+            jmp loop(v10)
+          exit():
             return
         }
         ";
@@ -1213,33 +1224,33 @@ mod control_dependence {
         // we expect instructions to be hoisted.
         let src = "
       brillig(inline) fn main f0 {
-        b0(v0: u32, v1: u32):
+        entry(v0: u32, v1: u32):
           v5 = eq v0, u32 5
-          jmp b1(u32 0)
-        b1(v2: u32):
+          jmp loop_1(u32 0)
+        loop_1(v2: u32):
           v8 = lt v2, u32 4
-          jmpif v8 then: b2, else: b3
-        b2():
-          jmpif v5 then: b4, else: b5
-        b3():
-          jmp b6(u32 0)
-        b4():
+          jmpif v8 then: loop_1_cond, else: loop_1_exit
+        loop_1_cond():
+          jmpif v5 then: loop_1_body, else: loop_1_end
+        loop_1_exit():
+          jmp loop_2(u32 0)
+        loop_1_body():
           v15 = mul v0, v1
           constrain v15 == u32 12
-          jmp b5()
-        b5():
+          jmp loop_1_end()
+        loop_1_end():
           v16 = unchecked_add v2, u32 1
-          jmp b1(v16)
-        b6(v3: u32):
+          jmp loop_1(v16)
+        loop_2(v3: u32):
           v10 = lt v3, u32 4
-          jmpif v10 then: b7, else: b8
-        b7():
+          jmpif v10 then: loop_2_body, else: exit
+        loop_2_body():
           v9 = mul v0, v1
           v11 = mul v9, v0
           constrain v11 == u32 12
           v14 = unchecked_add v3, u32 1
-          jmp b6(v14)
-        b8():
+          jmp loop_2(v14)
+        exit():
           return
       }
       ";
@@ -1247,13 +1258,13 @@ mod control_dependence {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
 
-        // From b7:
+        // From loop_2_body:
         // ```
         // v9 = mul v0, v1
         // v11 = mul v9, v0
         // constrain v11 == u32 12
         // ```
-        // To b3:
+        // To loop_1_exit:
         // ```
         // v9 = mul v0, v1
         // v10 = mul v9, v0
@@ -1261,33 +1272,33 @@ mod control_dependence {
         // ```
         let expected = "
       brillig(inline) fn main f0 {
-        b0(v0: u32, v1: u32):
+        entry(v0: u32, v1: u32):
           v5 = eq v0, u32 5
-          jmp b1(u32 0)
-        b1(v2: u32):
+          jmp loop_1(u32 0)
+        loop_1(v2: u32):
           v8 = lt v2, u32 4
-          jmpif v8 then: b2, else: b3
-        b2():
-          jmpif v5 then: b4, else: b5
-        b3():
+          jmpif v8 then: loop_1_cond, else: loop_1_exit
+        loop_1_cond():
+          jmpif v5 then: loop_1_body, else: loop_1_end
+        loop_1_exit():
           v9 = mul v0, v1
           v10 = mul v9, v0
           constrain v10 == u32 12
-          jmp b6(u32 0)
-        b4():
+          jmp loop_2(u32 0)
+        loop_1_body():
           v15 = mul v0, v1
           constrain v15 == u32 12
-          jmp b5()
-        b5():
+          jmp loop_1_end()
+        loop_1_end():
           v16 = unchecked_add v2, u32 1
-          jmp b1(v16)
-        b6(v3: u32):
+          jmp loop_1(v16)
+        loop_2(v3: u32):
           v12 = lt v3, u32 4
-          jmpif v12 then: b7, else: b8
-        b7():
+          jmpif v12 then: loop_2_body, else: exit
+        loop_2_body():
           v14 = unchecked_add v3, u32 1
-          jmp b6(v14)
-        b8():
+          jmp loop_2(v14)
+        exit():
           return
       }
       ";
