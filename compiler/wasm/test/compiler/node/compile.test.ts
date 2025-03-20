@@ -64,40 +64,38 @@ describe('noir-compiler/node', () => {
     /*30 second timeout*/ 30000,
   );
 
-  getSubdirs(join(testProgramsDir, 'compile_success_empty')).forEach((name: string) => {
-    shouldCompileProgramSuccessfully(
-      name,
-      async () => {
-        const programDir = join(testProgramsDir, 'compile_success_empty', name);
-        const fm = createFileManager(programDir);
-        const noirWasmArtifact = await compile_program(
-          fm,
-          undefined,
-          (_) => {},
-          (_) => {},
-        );
-        return noirWasmArtifact;
-      },
-      expect,
-      /*30 second timeout*/ 30000,
-    );
-  });
-
-  const filteredTests = [
+  const filteredCompileSuccessEmptyTests = [
     'comptime_enums',
     'enums',
-    'overlapping_dep_and_mod',
     'regression_7570_nested',
     'regression_7570_serial',
     'workspace_reexport_bug',
-    'custom_entry',
     'overlapping_dep_and_mod',
-    'regression_7323',
-    'workspace',
-    'workspace_default_member',
   ];
+  getSubdirs(join(testProgramsDir, 'compile_success_empty'))
+    .filter((name) => !filteredCompileSuccessEmptyTests.includes(name))
+    .forEach((name: string) => {
+      shouldCompileProgramSuccessfully(
+        name,
+        async () => {
+          const programDir = join(testProgramsDir, 'compile_success_empty', name);
+          const fm = createFileManager(programDir);
+          const noirWasmArtifact = await compile_program(
+            fm,
+            undefined,
+            (_) => {},
+            (_) => {},
+          );
+          return noirWasmArtifact;
+        },
+        expect,
+        /*30 second timeout*/ 30000,
+      );
+    });
+
+  const filteredExecutionSuccessTests = ['custom_entry', 'regression_7323', 'workspace', 'workspace_default_member'];
   getSubdirs(join(testProgramsDir, 'execution_success'))
-    .filter((name) => !filteredTests.includes(name))
+    .filter((name) => !filteredExecutionSuccessTests.includes(name))
     .forEach((name: string) => {
       shouldCompileProgramSuccessfully(
         name,
