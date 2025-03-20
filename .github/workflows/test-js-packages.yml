@@ -564,7 +564,9 @@ jobs:
           shopt -s globstar
 
           ls
-          cat ./Nargo.toml
+          echo "searching..."
+          find ./**/Nargo.toml
+          echo "changing..."
           sed -i '/^compiler_version/d' ./**/Nargo.toml
 
       - name: Run nargo test
