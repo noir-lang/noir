@@ -562,6 +562,9 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
+
+          ls
+          cat ./Nargo.toml
           sed -i '/^compiler_version/d' ./**/Nargo.toml
 
       - name: Run nargo test
