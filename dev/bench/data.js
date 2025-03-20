@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742474059365,
+  "lastUpdate": 1742474259006,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "94a8e37398d350bce9f02e063f89189330487932",
-          "message": "chore: update yarn version to 4.5.2 (#7678)",
-          "timestamp": "2025-03-12T13:00:37Z",
-          "tree_id": "092974ac8907171ae61ce8a1931f45f9c2fb4bdf",
-          "url": "https://github.com/noir-lang/noir/commit/94a8e37398d350bce9f02e063f89189330487932"
-        },
-        "date": 1741786065640,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "saleel@saleel.xyz",
             "name": "saleel",
             "username": "saleel"
@@ -14555,6 +14491,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 295.47,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49c56a52ebabfecab85d3bade61ae50b9e7e49ed",
+          "message": "feat: add `EmbeddedCurvePoint::generator()` to return generator point (#7754)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-03-20T12:11:39Z",
+          "tree_id": "185c990564d5da1452f8a5a944358ad946203c73",
+          "url": "https://github.com/noir-lang/noir/commit/49c56a52ebabfecab85d3bade61ae50b9e7e49ed"
+        },
+        "date": 1742474255756,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 275.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 509.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 418.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 289,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 295.48,
             "unit": "MB"
           }
         ]
