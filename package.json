@@ -9,7 +9,8 @@
     "tooling/noir_js",
     "tooling/noir_codegen",
     "acvm-repo/acvm_js",
-    "docs"
+    "docs",
+    "noir_wasm_cli"
   ],
   "scripts": {
     "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{docs,@noir-lang/root}\" run build",

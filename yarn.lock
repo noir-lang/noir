@@ -21976,6 +21976,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"noir_wasm_cli@workspace:noir_wasm_cli":
+  version: 0.0.0-use.local
+  resolution: "noir_wasm_cli@workspace:noir_wasm_cli"
+  dependencies:
+    "@noir-lang/noir_wasm": "workspace:*"
+    commander: "npm:^12.1.0"
+    eslint: "npm:^9.22.0"
+    eslint-plugin-prettier: "npm:^5.2.3"
+    ts-node: "npm:^10.9.1"
+    typescript: "npm:^5.8.2"
+  languageName: unknown
+  linkType: soft
+
 "nopt@npm:^7.0.0":
   version: 7.2.0
   resolution: "nopt@npm:7.2.0"
