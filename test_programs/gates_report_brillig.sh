@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-set -e
-set -o pipefail
+set -eo pipefail
 
 # These tests are incompatible with artifact size reporting
 excluded_dirs=(
