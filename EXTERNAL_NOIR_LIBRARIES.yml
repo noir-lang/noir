@@ -93,3 +93,7 @@ libraries:
     timeout: 300
     # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
     nargo_args: "--test-threads 1"
+  zk_regex:
+    repo: Mach-34/noir-zk-regex
+    ref: 20de93bd8b30bb51271690c7d13fad86399527e1
+    path: packages/noir
