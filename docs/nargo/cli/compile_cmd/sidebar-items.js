@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_contracts","compile_programs","compile_workspace","compile_workspace_full","get_target_width","parse_workspace","run","save_contract","watch_workspace"],"struct":["CompileCommand"]};
