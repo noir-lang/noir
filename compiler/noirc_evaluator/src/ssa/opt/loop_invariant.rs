@@ -330,7 +330,7 @@ impl<'f> LoopInvariantContext<'f> {
             || matches!(instruction, MakeArray { .. })
             || (instruction.can_be_hoisted(self.inserter.function, true)
                 && !self.current_block_control_dependent)
-            || self.can_be_hoisted_from_loop_bound(&instruction);
+            || self.can_be_hoisted_from_loop_bounds(&instruction);
 
         is_loop_invariant && can_be_hoisted
     }
@@ -363,7 +363,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// would determine that the instruction is not safe for hoisting.
     /// However, if we know that the induction variable's upper bound will always be in bounds of the array
     /// we can safely hoist the array access.
-    fn can_be_hoisted_from_loop_bound(&self, instruction: &Instruction) -> bool {
+    fn can_be_hoisted_from_loop_bounds(&self, instruction: &Instruction) -> bool {
         use Instruction::*;
 
         match instruction {
@@ -1033,7 +1033,7 @@ mod test {
         // division hoisting based upon loop bounds and nothing else.
         //
         // The operation in question we are trying to hoist is `v12 = div u32 10, v1`.
-        // Check that the lower bound of the outer loop is checked and that we do not
+        // Check whether the lower bound of the outer loop is zero and that we do not
         // hoist an operation that can potentially error with a division by zero.
         let src = "
         brillig(inline) fn main f0 {
