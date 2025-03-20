@@ -51,6 +51,9 @@ libraries:
   keccak256:
     repo: noir-lang/keccak256
     timeout: 3
+  poseidon:
+    repo: noir-lang/poseidon
+    timeout: 3
   aztec_nr:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
