@@ -14,5 +14,5 @@ pub fn save_to_file(dest_filename: String, json_string: String) {
         json_string_copy.push('\n');
     }
     fs::write(&dest_filename, json_string_copy)
-        .expect(&format!("Unable to write to destination file: {}", dest_filename.as_str()));
+        .unwrap_or_else(|_| panic!("Unable to write to destination file: {}", dest_filename.as_str()));
 }
