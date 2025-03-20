@@ -1744,7 +1744,7 @@
 <span class="kw">impl </span>Loop {
     <span class="doccomment">/// Return each block that is in a loop starting in the given header block.
     /// Expects back_edge_start -&gt; header to be the back edge of the loop.
-    </span><span class="kw">fn </span>find_blocks_in_loop(
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_blocks_in_loop(
         header: BasicBlockId,
         back_edge_start: BasicBlockId,
         cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,

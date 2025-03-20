@@ -805,11 +805,7 @@
 <a href="#804" id="804">804</a>
 <a href="#805" id="805">805</a>
 <a href="#806" id="806">806</a>
-<a href="#807" id="807">807</a>
-<a href="#808" id="808">808</a>
-<a href="#809" id="809">809</a>
-<a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a></pre></div><pre class="rust"><code><span class="doccomment">//! The dominator tree of a function, represented as a hash map of each reachable block id to its
+<a href="#807" id="807">807</a></pre></div><pre class="rust"><code><span class="doccomment">//! The dominator tree of a function, represented as a hash map of each reachable block id to its
 //! immediate dominator.
 //!
 //! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
@@ -820,10 +816,7 @@
 <span class="kw">use super</span>::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
-
-<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
-<span class="attr">#[allow(unused_imports)]
-</span><span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
+<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="doccomment">/// Dominator tree node. We keep one of these per reachable block.
 </span><span class="attr">#[derive(Clone, Default)]
@@ -992,10 +985,10 @@
     /// "Simple, Fast Dominator Algorithm."
     </span><span class="kw">fn </span>compute_dominator_tree(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cfg: <span class="kw-2">&amp;</span>ControlFlowGraph, post_order: <span class="kw-2">&amp;</span>PostOrder) {
         <span class="comment">// We'll be iterating over a reverse post-order of the CFG, skipping the entry block.
-        </span><span class="kw">let </span>(entry_block_id, entry_free_post_order) = post_order
-            .as_slice()
-            .split_last()
-            .expect(<span class="string">"ICE: functions always have at least one block"</span>);
+        </span><span class="kw">let </span><span class="prelude-val">Some</span>((entry_block_id, entry_free_post_order)) = post_order.as_slice().split_last()
+        <span class="kw">else </span>{
+            <span class="kw">return</span>;
+        };
 
         <span class="comment">// Do a first pass where we assign reverse post-order indices to all reachable nodes. The
         // entry block will be the only node with no immediate dominator.
@@ -1101,7 +1094,6 @@
     /// a dominator tree (standard CFG) or a post-dominator tree (reversed CFG).
     /// Calling this method on a dominator tree will return a function's dominance frontiers,
     /// while on a post-dominator tree the method will return the function's reverse (or post) dominance frontiers.
-    </span><span class="attr">#[cfg(test)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compute_dominance_frontiers(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,

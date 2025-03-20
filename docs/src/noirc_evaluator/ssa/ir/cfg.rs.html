@@ -397,7 +397,11 @@
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
 <a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 
 <span class="kw">use super</span>::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -418,11 +422,14 @@
 }
 
 <span class="attr">#[derive(Clone, Default)]
-</span><span class="doccomment">/// The Control Flow Graph maintains a mapping of blocks to their predecessors
+</span><span class="doccomment">/// The Control Flow Graph (CFG) maintains a mapping of blocks to their predecessors
 /// and successors where predecessors are basic blocks and successors are
 /// basic blocks.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ControlFlowGraph {
     data: HashMap&lt;BasicBlockId, CfgNode&gt;,
+    <span class="doccomment">/// Flag stating whether this CFG has been reversed.
+    /// In a reversed CFG, successors become predecessors.
+    </span>reversed: bool,
 }
 
 <span class="kw">impl </span>ControlFlowGraph {
@@ -436,7 +443,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>data = HashMap::default();
         data.insert(entry_block, empty_node);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>cfg = ControlFlowGraph { data };
+        <span class="kw">let </span><span class="kw-2">mut </span>cfg = ControlFlowGraph { data, reversed: <span class="bool-val">false </span>};
         cfg.compute(func);
         cfg
     }
@@ -488,10 +495,12 @@
     <span class="doccomment">/// Add a directed edge making `from` a predecessor of `to`.
     </span><span class="kw">fn </span>add_edge(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: BasicBlockId, to: BasicBlockId) {
         <span class="kw">let </span>predecessor_node = <span class="self">self</span>.data.entry(from).or_default();
-        <span class="macro">assert!</span>(
-            predecessor_node.successors.len() &lt; <span class="number">2</span>,
-            <span class="string">"ICE: A cfg node cannot have more than two successors"
-        </span>);
+        <span class="kw">if </span>!<span class="self">self</span>.reversed {
+            <span class="macro">assert!</span>(
+                predecessor_node.successors.len() &lt; <span class="number">2</span>,
+                <span class="string">"ICE: A cfg node cannot have more than two successors"
+            </span>);
+        }
         predecessor_node.successors.insert(to);
         <span class="kw">let </span>successor_node = <span class="self">self</span>.data.entry(to).or_default();
         successor_node.predecessors.insert(from);
@@ -524,9 +533,8 @@
     }
 
     <span class="doccomment">/// Reverse the control flow graph
-    </span><span class="attr">#[cfg(test)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reverse(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>reversed_cfg = ControlFlowGraph::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>reversed_cfg = ControlFlowGraph { reversed: <span class="bool-val">true</span>, ..Default::default() };
 
         <span class="kw">for </span>(block_id, node) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.data {
             <span class="comment">// For each block, reverse the edges
