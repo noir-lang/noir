@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742484045274,
+  "lastUpdate": 1742484048264,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,70 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "dfb2c267dc7daa273bcd148ca5a5cb2937c33668",
-          "message": "chore: easier way to test monormophization errors (#7679)",
-          "timestamp": "2025-03-12T15:08:04Z",
-          "tree_id": "596782f0d303432596689b82ac414dee5a406dca",
-          "url": "https://github.com/noir-lang/noir/commit/dfb2c267dc7daa273bcd148ca5a5cb2937c33668"
-        },
-        "date": 1741794278858,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "6d7c543ee5ff9d410b11274c0448f5ce0ca2d1da",
           "message": "fix: allow referring to comptime locals at runtime (#7681)",
           "timestamp": "2025-03-12T15:58:31Z",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a46f05f84beec3f6ebf1f289a9512fa064652fe6"
         },
         "date": 1742477493388,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 275.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 509.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 418.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 289,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 295.48,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "51d312bf2c480cb0d9ddaedf13462df46f67a928",
+          "message": "chore: pull out pure functions from interpreter (#7755)",
+          "timestamp": "2025-03-20T14:55:05Z",
+          "tree_id": "3f6f7ef4a8327b8bfc99e6a29d8996275b858d5d",
+          "url": "https://github.com/noir-lang/noir/commit/51d312bf2c480cb0d9ddaedf13462df46f67a928"
+        },
+        "date": 1742484045063,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
