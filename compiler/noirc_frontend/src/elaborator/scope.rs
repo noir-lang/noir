@@ -103,7 +103,9 @@ impl Elaborator<'_> {
                     // Therefore we allow this case although we cannot provide the value yet
                     return Ok((DefinitionId::dummy_id(), item));
                 }
-                if matches!(type_alias.borrow().typ, Type::Alias(_, _)) {
+                if matches!(type_alias.borrow().typ, Type::Alias(_, _))
+                    || matches!(type_alias.borrow().typ, Type::Error)
+                {
                     // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
                     return Ok((DefinitionId::dummy_id(), item));
                 }

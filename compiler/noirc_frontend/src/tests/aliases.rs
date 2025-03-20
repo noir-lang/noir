@@ -114,9 +114,10 @@ fn disallows_composing_numeric_type_aliases() {
         assert(b[0] == 0);
     }
     fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
+        let n = Double::<N>;    // To avoid the unused 'Double' error
         let mut a = [0;Quadruple::<N>];
         for i in 0..Quadruple::<N> {
-            a[i] = i;
+            a[i] = i + n;
         }
         a
     }
