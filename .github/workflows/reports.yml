@@ -125,9 +125,10 @@ jobs:
             [0]="inliner_zero"
             [-9223372036854775808]="inliner_min"
           )
+
           for inliner_agg in "${!inliner_settings[@]}"; do
             test_name="${inliner_settings[$inliner_agg]}"
-            ./gates_report_brillig.sh "$inliner_agg" || { echo "Script exited early on $test_name" >&2; exit 1; }
+            ./gates_report_brillig.sh "$inliner_agg" || echo "Script exited early on $test_name" && exit 1
             jq ".programs |= map(.package_name |= (. + \"_$test_name\"))" gates_report_brillig.json > "./reports/gates_report_brillig_$test_name.json"
           done
 
@@ -181,7 +182,7 @@ jobs:
 
           for inliner_agg in "${!inliner_settings[@]}"; do
             test_name="${inliner_settings[$inliner_agg]}"
-            ./gates_report_brillig_execution.sh "$inliner_agg" || { echo "Script exited early on $test_name" >&2; exit 1; }
+            ./gates_report_brillig_execution.sh "$inliner_agg" || echo "Script exited early on $test_name" && exit 1
             jq ".programs |= map(.package_name |= (. + \"_$test_name\"))" gates_report_brillig_execution.json > "./reports/gates_report_brillig_execution_$test_name.json"
           done
 
