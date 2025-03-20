@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742498001849,
+  "lastUpdate": 1742498215125,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,70 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "77ae087fe75a47d85559380e157145be8257c02e",
-          "message": "chore(docs): Minor fixes on local documentation development workflows (#7684)",
-          "timestamp": "2025-03-12T19:55:15Z",
-          "tree_id": "6b70c0250d5effc17aff057aa5542eada54d519d",
-          "url": "https://github.com/noir-lang/noir/commit/77ae087fe75a47d85559380e157145be8257c02e"
-        },
-        "date": 1741811073935,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "99830073ec96932948bbdec7a269f025e0bac136",
           "message": "chore(docs): Extend stable documentation versions to build to cover multiple `beta.n` releases (#7685)",
           "timestamp": "2025-03-12T20:26:02Z",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7da9709869e65fbab3e5a00b96a503e8bb8516ae"
         },
         "date": 1742496586108,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 275.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 509.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 418.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 289,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 295.48,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "97e40901bd34f7e2c0df74822c70a5f21b722f60",
+          "message": "feat(ssa): Basic control dependent LICM (#7660)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-03-20T18:48:33Z",
+          "tree_id": "20f50fcb5a8a46d011b7f1356feecacaf7a9675f",
+          "url": "https://github.com/noir-lang/noir/commit/97e40901bd34f7e2c0df74822c70a5f21b722f60"
+        },
+        "date": 1742498211670,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
