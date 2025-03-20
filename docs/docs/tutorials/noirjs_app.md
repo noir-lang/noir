@@ -14,11 +14,7 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 ## Dependencies
 
-Before we start, we want to make sure we have Node installed. For convenience (and speed), we can just install [Bun](https://bun.sh) as our package manager, and Node will work out-of-the-box:
-
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
+Before we start, we want to make sure we have Node installed. If you don't have it already you can install it [here](https://nodejs.org/en/download), we recommend using [Yarn](https://yarnpkg.com/getting-started/install) as our package manager for this tutorial.
 
 We'll also need version 1.0.0-beta.2 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
 
@@ -27,7 +23,7 @@ Let's go barebones. Doing the bare minimum is not only simple, but also allows y
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-bun i @noir-lang/noir_js@1.0.0-beta.2 @aztec/bb.js@0.72.1
+yarn add @noir-lang/noir_js@1.0.0-beta.2 @aztec/bb.js@0.72.1
 ```
 
 Wait, what are these dependencies?
@@ -248,7 +244,7 @@ export default { optimizeDeps: { esbuildOptions: { target: "esnext" } } };
 This should be enough for vite. We don't even need to install it, just run:
 
 ```bash
-bunx vite
+yarn dlx vite
 ```
 
 If it doesn't open a browser for you, just visit `localhost:5173`. You should now see the worst UI ever, with an ugly input.
