@@ -326,19 +326,9 @@ impl<'f> LoopInvariantContext<'f> {
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
 
-        let instruction_is_constrain =
-            matches!(instruction, Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. });
-        let bounds = self.current_induction_variables.values().next().copied();
-        let upper_bound_non_zero =
-            bounds.map(|(_, upper_bound)| !upper_bound.is_zero()).unwrap_or(false);
-
         let can_be_hoisted = instruction.can_be_hoisted(self.inserter.function, false)
             || matches!(instruction, MakeArray { .. })
             || (instruction.can_be_hoisted(self.inserter.function, true)
-                && !self.current_block_control_dependent)
-            // TODO: I should be able to contain this inside `can_be_hoisted_from_loop_bound`
-            || (instruction_is_constrain
-                && upper_bound_non_zero
                 && !self.current_block_control_dependent)
             || self.can_be_hoisted_from_loop_bound(&instruction);
 
@@ -374,8 +364,10 @@ impl<'f> LoopInvariantContext<'f> {
     /// However, if we know that the induction variable's upper bound will always be in bounds of the array
     /// we can safely hoist the array access.
     fn can_be_hoisted_from_loop_bound(&self, instruction: &Instruction) -> bool {
+        use Instruction::*;
+
         match instruction {
-            Instruction::ArrayGet { array, index } => {
+            ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
@@ -384,8 +376,18 @@ impl<'f> LoopInvariantContext<'f> {
                     false
                 }
             }
-            Instruction::Binary(binary) => {
-                self.can_evaluate_binary_op(binary, &self.outer_induction_variables)
+            Binary(binary) => self.can_evaluate_binary_op(binary, &self.outer_induction_variables),
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
+                // These instructions should not be hoisted if we know the loop will never be executed (an upper bound or zero or equal loop bounds)
+                // or we are unsure if the loop will ever be executed (dynamic loop bounds).
+                // If the instruction were to be hoisted out of a loop that never executes it could potentially cause the program to fail when it is not meant to fail.
+                let bounds = self.current_induction_variables.values().next().copied();
+                let does_loop_body_execute = bounds
+                    .map(|(lower_bound, upper_bound)| !(upper_bound - lower_bound).is_zero())
+                    .unwrap_or(false);
+                // If we know the loop will be executed these instructions can still only be hoisted if the instructions
+                // are in a non control dependent block.
+                does_loop_body_execute && !self.current_block_control_dependent
             }
             _ => false,
         }
@@ -1303,6 +1305,157 @@ mod control_dependence {
           return
       }
       ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_constrain_in_loop_with_zero_upper_bound() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the upper loop bound is 0
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, u32 0
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect the constrain to remain inside of `loop_body`
+        // as the loop is never going to be executed.
+        // If the constrain were to be hoisted out it could potentially
+        // cause the program to fail when it is not meant to fail.
+        let expected = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp loop(u32 0)
+          loop(v2: u32):
+            jmpif u1 0 then: loop_body, else: exit
+          loop_body():
+            constrain v4 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_constrain_in_loop_with_equal_non_zero_loop_bounds() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the lower and upper loop bounds are the same
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 1)
+          loop(v2: u32):
+            v3 = lt v2, u32 1
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        // We expect the constrain to remain inside of `loop_body`
+        // as the loop is never going to be executed.
+        // If the constrain were to be hoisted out it could potentially
+        // cause the program to fail when it is not meant to fail.
+        let expected = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp loop(u32 1)
+          loop(v2: u32):
+            v7 = eq v2, u32 0
+            jmpif v7 then: loop_body, else: exit
+          loop_body():
+            constrain v4 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_constrain_in_loop_with_dynamic_upper_bound() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the upper loop bound is dynamic
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, v1
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect the constrain to remain inside of `loop_body`
+        // as that block may potentially never be executed.
+        // If the constrain were to be hoisted out it could potentially
+        // cause the program to fail when it is not meant to fail.
+        let expected = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v6 = lt v2, v1
+            jmpif v6 then: loop_body, else: exit
+          loop_body():
+            constrain v4 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
 
         assert_normalized_ssa_equals(ssa, expected);
     }

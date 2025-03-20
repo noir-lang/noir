@@ -531,7 +531,7 @@ impl Instruction {
     /// rely on predicates can be hoisted as well.
     ///
     /// Certain instructions can be hoisted because they implicitly depend on a predicate.
-    /// However, to avoid tight coupling between passes, we make the deduplication
+    /// However, to avoid tight coupling between passes, we make the hoisting
     /// conditional on whether the caller wants the predicate to be taken into account or not.
     ///
     /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
@@ -578,7 +578,7 @@ impl Instruction {
             // Arrays can be mutated in unconstrained code so code that handles this case must
             // take care to track whether the array was possibly mutated or not before
             // hoisted. Since we don't know if the containing pass checks for this, we
-            // can only assume these are safe to deduplicate in constrained code.
+            // can only assume these are safe to hoist in constrained code.
             MakeArray { .. } => function.runtime().is_acir(),
 
             // These can have different behavior depending on the predicate.
