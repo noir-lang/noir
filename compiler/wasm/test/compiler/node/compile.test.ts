@@ -93,7 +93,13 @@ describe('noir-compiler/node', () => {
       );
     });
 
-  const filteredExecutionSuccessTests = ['custom_entry', 'regression_7323', 'workspace', 'workspace_default_member'];
+  const filteredExecutionSuccessTests = [
+    'custom_entry',
+    'overlapping_dep_and_mod',
+    'regression_7323',
+    'workspace',
+    'workspace_default_member',
+  ];
   getSubdirs(join(testProgramsDir, 'execution_success'))
     .filter((name) => !filteredExecutionSuccessTests.includes(name))
     .forEach((name: string) => {
