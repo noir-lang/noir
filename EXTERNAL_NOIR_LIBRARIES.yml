@@ -112,4 +112,5 @@ libraries:
   zkemail:
     repo: zkemail/zkemail.nr
     ref: 07053e865447b3167b670f9167f256e971fdb5c8
+    path: lib
     timeout: 20
