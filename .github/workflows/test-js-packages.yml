@@ -547,7 +547,7 @@ jobs:
           echo "repo: ${{ matrix.repo }}"
           echo "ref: ${{ matrix.ref }}"
           echo "path: ${{ matrix.path }}"
-          echo "path: ${{ matrix.timeout }}"
+          echo "timeout: ${{ matrix.timeout }}"
 
       - name: Checkout
         uses: actions/checkout@v4
