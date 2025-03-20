@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["embedded_curve_add","multi_scalar_mul"]};

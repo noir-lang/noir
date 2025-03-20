@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Either"],"struct":["Empty","Layer","Unhandled"],"trait":["Layering"]};

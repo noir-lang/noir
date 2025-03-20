@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ACVM_VERSION"],"enum":["ACVMCommand"],"fn":["start_cli"],"mod":["execute_cmd"],"static":["VERSION_STRING"],"struct":["ACVMCli"]};

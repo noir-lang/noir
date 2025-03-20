@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["MIN_EXPRESSION_WIDTH"],"fn":["fits_in_one_identity"],"struct":["CSatTransformer"]};
