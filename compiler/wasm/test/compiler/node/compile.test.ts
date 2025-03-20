@@ -5,12 +5,25 @@ import { expect } from 'chai';
 import { compile_program, compile_contract, createFileManager } from '@noir-lang/noir_wasm';
 import { readFile } from 'fs/promises';
 import { ContractArtifact, ProgramArtifact } from '../../../src/types/noir_artifact';
-import { shouldCompileContractIdentically, shouldCompileProgramIdentically } from '../shared/compile.test';
+import {
+  shouldCompileContractIdentically,
+  shouldCompileProgramIdentically,
+  shouldCompileProgramSuccessfully,
+} from '../shared/compile.test';
+import { readdirSync } from 'fs';
 
+const testProgramsDir = resolve(join(__dirname, '../../../../../test_programs'));
 const basePath = resolve(join(__dirname, '../../'));
+
+function getSubdirs(path: string): string[] {
+  return readdirSync(path, { withFileTypes: true })
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name);
+}
 
 describe('noir-compiler/node', () => {
   shouldCompileProgramIdentically(
+    'simple',
     async () => {
       const { simpleScriptProjectPath, simpleScriptExpectedArtifact } = getPaths(basePath);
 
@@ -24,6 +37,7 @@ describe('noir-compiler/node', () => {
   );
 
   shouldCompileProgramIdentically(
+    'deps',
     async () => {
       const { depsScriptProjectPath, depsScriptExpectedArtifact } = getPaths(basePath);
 
@@ -37,6 +51,7 @@ describe('noir-compiler/node', () => {
   );
 
   shouldCompileContractIdentically(
+    'noir-contract',
     async () => {
       const { contractProjectPath, contractExpectedArtifact } = getPaths(basePath);
 
@@ -48,4 +63,42 @@ describe('noir-compiler/node', () => {
     expect,
     /*30 second timeout*/ 30000,
   );
+
+  getSubdirs(join(testProgramsDir, 'compile_success_empty')).forEach((name: string) => {
+    shouldCompileProgramSuccessfully(
+      name,
+      async () => {
+        const programDir = join(testProgramsDir, 'compile_success_empty', name);
+        const fm = createFileManager(programDir);
+        const noirWasmArtifact = await compile_program(
+          fm,
+          undefined,
+          (_) => {},
+          (_) => {},
+        );
+        return noirWasmArtifact;
+      },
+      expect,
+      /*30 second timeout*/ 30000,
+    );
+  });
+
+  getSubdirs(join(testProgramsDir, 'execution_success')).forEach((name: string) => {
+    shouldCompileProgramSuccessfully(
+      name,
+      async () => {
+        const programDir = join(testProgramsDir, 'execution_success', name);
+        const fm = createFileManager(programDir);
+        const noirWasmArtifact = await compile_program(
+          fm,
+          undefined,
+          (_) => {},
+          (_) => {},
+        );
+        return noirWasmArtifact;
+      },
+      expect,
+      /*30 second timeout*/ 30000,
+    );
+  });
 });
