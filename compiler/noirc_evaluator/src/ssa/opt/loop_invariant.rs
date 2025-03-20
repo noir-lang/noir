@@ -332,16 +332,17 @@ impl<'f> LoopInvariantContext<'f> {
         let upper_bound_non_zero =
             bounds.map(|(_, upper_bound)| !upper_bound.is_zero()).unwrap_or(false);
 
-        let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
+        let can_be_hoisted = instruction.can_be_hoisted(self.inserter.function, false)
             || matches!(instruction, MakeArray { .. })
             || (instruction.can_be_hoisted(self.inserter.function, true)
                 && !self.current_block_control_dependent)
+            // TODO: I should be able to contain this inside `can_be_hoisted_from_loop_bound`
             || (instruction_is_constrain
                 && upper_bound_non_zero
                 && !self.current_block_control_dependent)
-            || self.can_be_deduplicated_from_loop_bound(&instruction);
+            || self.can_be_hoisted_from_loop_bound(&instruction);
 
-        is_loop_invariant && can_be_deduplicated
+        is_loop_invariant && can_be_hoisted
     }
 
     /// Keep track of a loop induction variable and respective upper bound.
@@ -372,7 +373,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// would determine that the instruction is not safe for hoisting.
     /// However, if we know that the induction variable's upper bound will always be in bounds of the array
     /// we can safely hoist the array access.
-    fn can_be_deduplicated_from_loop_bound(&self, instruction: &Instruction) -> bool {
+    fn can_be_hoisted_from_loop_bound(&self, instruction: &Instruction) -> bool {
         match instruction {
             Instruction::ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
