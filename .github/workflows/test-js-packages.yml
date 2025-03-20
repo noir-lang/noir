@@ -542,6 +542,13 @@ jobs:
 
     name: Check external repo - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
+      - name: Matrix Info
+        run: |
+          echo "repo: ${{ matrix.repo }}"
+          echo "ref: ${{ matrix.ref }}"
+          echo "path: ${{ matrix.path }}"
+          echo "path: ${{ matrix.timeout }}"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -562,17 +569,6 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-
-          ls
-          echo "cding..."
-          cd packages
-          ls
-          echo "cding..."
-          cd noir
-          ls
-          echo "searching..."
-          find ./**/Nargo.toml
-          echo "changing..."
           sed -i '/^compiler_version/d' ./**/Nargo.toml
 
       - name: Run nargo test
