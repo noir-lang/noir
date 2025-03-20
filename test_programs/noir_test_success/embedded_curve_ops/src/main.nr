@@ -14,7 +14,7 @@ fn test_infinite_point() {
     assert(g1 - g1 == zero);
     assert(g1 - zero == g1);
     assert(zero + zero == zero);
-    assert(multi_scalar_mul([g1], [s1]) == EmbeddedCurvePoint::generator());
+    assert(multi_scalar_mul([g1], [s1]) == g1);
     assert(multi_scalar_mul([g1, g1], [s1, s1]) == g2);
     assert(
         multi_scalar_mul(
