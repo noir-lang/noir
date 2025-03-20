@@ -527,7 +527,7 @@ impl Instruction {
 
     /// Indicates if the instruction can be safely hoisted out of a loop.
     /// If `hoist_with_predicate` is set, we assume we're hoisting the instruction
-    /// and its predicate, rather than just the instruction. Setting this a means instructions that
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
     /// rely on predicates can be hoisted as well.
     ///
     /// Certain instructions can be hoisted because they implicitly depend on a predicate.
@@ -563,7 +563,7 @@ impl Instruction {
             // We cannot hoist these instructions, even if we know the predicate is the same.
             // This is because an loop with dynamic bounds may never execute its loop body.
             // If the instruction were to trigger a failure, our program may fail inadvertently.
-            // If we know a loop's upper bound is greater than zero we can hoist these instructions,
+            // If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
             // but we do not want to assume that the caller of this method has accounted
             // for this case. Thus, we block hoisting on these instructions.
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => false,
