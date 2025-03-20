@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["builtin","foreign","unquote"],"struct":["Interpreter"]};
+window.SIDEBAR_ITEMS = {"fn":["bounds_check","evaluate_cast_one_step","evaluate_integer","evaluate_prefix_with_value"],"mod":["builtin","foreign","infix","unquote"],"struct":["Interpreter"]};
