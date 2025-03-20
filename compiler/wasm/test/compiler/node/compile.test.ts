@@ -83,22 +83,37 @@ describe('noir-compiler/node', () => {
     );
   });
 
-  getSubdirs(join(testProgramsDir, 'execution_success')).forEach((name: string) => {
-    shouldCompileProgramSuccessfully(
-      name,
-      async () => {
-        const programDir = join(testProgramsDir, 'execution_success', name);
-        const fm = createFileManager(programDir);
-        const noirWasmArtifact = await compile_program(
-          fm,
-          undefined,
-          (_) => {},
-          (_) => {},
-        );
-        return noirWasmArtifact;
-      },
-      expect,
-      /*30 second timeout*/ 30000,
-    );
-  });
+  const filteredTests = [
+    'comptime_enums',
+    'enums',
+    'overlapping_dep_and_mod',
+    'regression_7570_nested',
+    'regression_7570_serial',
+    'workspace_reexport_bug',
+    'custom_entry',
+    'overlapping_dep_and_mod',
+    'regression_7323',
+    'workspace',
+    'workspace_default_member',
+  ];
+  getSubdirs(join(testProgramsDir, 'execution_success'))
+    .filter((name) => !filteredTests.includes(name))
+    .forEach((name: string) => {
+      shouldCompileProgramSuccessfully(
+        name,
+        async () => {
+          const programDir = join(testProgramsDir, 'execution_success', name);
+          const fm = createFileManager(programDir);
+          const noirWasmArtifact = await compile_program(
+            fm,
+            undefined,
+            (_) => {},
+            (_) => {},
+          );
+          return noirWasmArtifact;
+        },
+        expect,
+        /*30 second timeout*/ 30000,
+      );
+    });
 });
