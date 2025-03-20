@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742497943128,
+  "lastUpdate": 1742497944317,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "77ae087fe75a47d85559380e157145be8257c02e",
-          "message": "chore(docs): Minor fixes on local documentation development workflows (#7684)",
-          "timestamp": "2025-03-12T19:55:15Z",
-          "tree_id": "6b70c0250d5effc17aff057aa5542eada54d519d",
-          "url": "https://github.com/noir-lang/noir/commit/77ae087fe75a47d85559380e157145be8257c02e"
-        },
-        "date": 1741810742400,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.708,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.483,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.246,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.582,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.948,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.988,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.472,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.518,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "97e40901bd34f7e2c0df74822c70a5f21b722f60",
+          "message": "feat(ssa): Basic control dependent LICM (#7660)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-03-20T18:48:33Z",
+          "tree_id": "20f50fcb5a8a46d011b7f1356feecacaf7a9675f",
+          "url": "https://github.com/noir-lang/noir/commit/97e40901bd34f7e2c0df74822c70a5f21b722f60"
+        },
+        "date": 1742497940923,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.702,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.49,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.304,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.778,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.156,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.928,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.943,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.466,
             "unit": "s"
           }
         ]
