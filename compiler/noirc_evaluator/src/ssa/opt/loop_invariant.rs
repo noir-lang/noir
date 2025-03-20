@@ -1312,7 +1312,7 @@ mod control_dependence {
     #[test]
     fn do_not_hoist_constrain_in_loop_with_zero_upper_bound() {
         // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
-        // that the upper loop bound is 0
+        // that the upper loop bound is zero
         let src = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
