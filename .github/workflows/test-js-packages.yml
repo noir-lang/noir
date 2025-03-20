@@ -564,6 +564,9 @@ jobs:
           shopt -s globstar
 
           ls
+          echo "cding..."
+          cd ${{ matrix.path }}
+          ls
           echo "searching..."
           find ./**/Nargo.toml
           echo "changing..."
