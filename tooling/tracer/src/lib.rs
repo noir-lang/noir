@@ -154,12 +154,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                 continue;
             };
 
-            if self.source_locations.len() == source_locations.len()
-                && self.source_locations.last().unwrap() == source_locations.last().unwrap()
-            {
+            if Self::are_src_locations_equal(&self.source_locations, &source_locations) {
                 // Continue stepping until a new line in the same file is reached, or the current file
                 // has changed.
-                // TODO(coda-bug/r916): a function call could result in an extra step
                 continue;
             }
 

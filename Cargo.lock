@@ -3073,7 +3073,6 @@ dependencies = [
  "format_trace",
  "fs2",
  "fxhash",
- "hex",
  "iai",
  "iter-extended",
  "lazy_static",

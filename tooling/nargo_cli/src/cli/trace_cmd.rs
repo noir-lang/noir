@@ -9,7 +9,7 @@ use noirc_abi::InputMap;
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{
-    CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING, file_manager_with_stdlib,
+    CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::graph::CrateName;
 

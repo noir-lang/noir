@@ -62,7 +62,6 @@ async-lsp = { workspace = true, features = [
     "tokio",
 ] }
 const_format.workspace = true
-hex.workspace = true
 similar-asserts.workspace = true
 termcolor = "1.1.2"
 color-eyre.workspace = true
