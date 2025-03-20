@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["remove_zero_coefficients","simplify_linear_terms","simplify_mul_terms"],"struct":["GeneralOptimizer"]};

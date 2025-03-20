@@ -28,7 +28,7 @@ Expects back_edge_start -&gt; header to be the back edge of the loop.</p>
     &amp;self,
     function: &amp;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     pre_header: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="struct" href="../../ir/basic_block/struct.BasicBlock.html" title="struct noirc_evaluator::ssa::ir::basic_block::BasicBlock">BasicBlock</a>&gt;,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>&gt;</h4></section></summary><div class="docblock"><p>Find the lower bound of the loop in the pre-header and return it
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;FieldElement&gt;</h4></section></summary><div class="docblock"><p>Find the lower bound of the loop in the pre-header and return it
 if it’s a numeric constant, which it will be if the previous SSA
 steps managed to inline it.</p>
 <p>Consider the following example of a <code>for i in 0..4</code> loop:</p>
@@ -38,7 +38,7 @@ steps managed to inline it.</p>
     jmp b1(u32 0)               // Lower-bound
   b1(v1: u32):                  // Induction variable
     v5 = lt v1, u32 4
-    jmpif v5 then: b3, else: b2</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.get_const_upper_bound" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#322-350">Source</a><h4 class="code-header">fn <a href="#method.get_const_upper_bound" class="fn">get_const_upper_bound</a>(&amp;self, function: &amp;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>&gt;</h4></section></summary><div class="docblock"><p>Find the upper bound of the loop in the loop header and return it
+    jmpif v5 then: b3, else: b2</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.get_const_upper_bound" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#322-350">Source</a><h4 class="code-header">fn <a href="#method.get_const_upper_bound" class="fn">get_const_upper_bound</a>(&amp;self, function: &amp;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;FieldElement&gt;</h4></section></summary><div class="docblock"><p>Find the upper bound of the loop in the loop header and return it
 if it’s a numeric constant, which it will be if the previous SSA
 steps managed to inline it.</p>
 <p>Consider the following example of a <code>for i in 0..4</code> loop:</p>
@@ -52,7 +52,7 @@ steps managed to inline it.</p>
     &amp;self,
     function: &amp;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     pre_header: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="struct" href="../../ir/basic_block/struct.BasicBlock.html" title="struct noirc_evaluator::ssa::ir::basic_block::BasicBlock">BasicBlock</a>&gt;,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>, <a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>)&gt;</h4></section></summary><div class="docblock"><p>Get the lower and upper bounds of the loop if both are constant numeric values.</p>
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(FieldElement, FieldElement)&gt;</h4></section></summary><div class="docblock"><p>Get the lower and upper bounds of the loop if both are constant numeric values.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.unroll" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#421-442">Source</a><h4 class="code-header">fn <a href="#method.unroll" class="fn">unroll</a>(
     &amp;self,
     function: &amp;mut <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
