@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742471613000,
+  "lastUpdate": 1742471615461,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,70 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6f4410990ff4d6711e3a5087f8205cee73d2882f",
-          "message": "chore: migrate to use new flat eslint config file (#7676)",
-          "timestamp": "2025-03-12T11:43:19Z",
-          "tree_id": "1cf3fdbcdaa3643c910bbf5963d6fea2f1338a94",
-          "url": "https://github.com/noir-lang/noir/commit/6f4410990ff4d6711e3a5087f8205cee73d2882f"
-        },
-        "date": 1741781435363,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "94a8e37398d350bce9f02e063f89189330487932",
           "message": "chore: update yarn version to 4.5.2 (#7678)",
           "timestamp": "2025-03-12T13:00:37Z",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/dc0f1c2b84248f2ced41e6115ee8e25c0fa78dfc"
         },
         "date": 1742398203299,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.43,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 275.86,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 509.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 418.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 289,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 295.47,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3a43abf9be80c6f89560405b65f5241ed67a6b2",
+          "message": "chore: remove bun from docs in favour of yarn (#7756)\n\nCo-authored-by: saleel <saleel@saleel.xyz>",
+          "timestamp": "2025-03-20T11:21:11Z",
+          "tree_id": "87422933d3238c902c0ea452a0a1a6fcf1321f9f",
+          "url": "https://github.com/noir-lang/noir/commit/c3a43abf9be80c6f89560405b65f5241ed67a6b2"
+        },
+        "date": 1742471611234,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
