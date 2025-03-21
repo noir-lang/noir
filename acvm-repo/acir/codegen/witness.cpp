@@ -15,12 +15,11 @@ namespace Witnesses {
 
         bool operator<(Witness const& rhs) const { return value < rhs.value; }void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-        void msgpack_unpack(auto o) {
-                    msgpack::object obj = o;
+        void msgpack_unpack(msgpack::object const& o) {
                     try {
-                        obj.convert(value);
+                        o.convert(value);
                     } catch (const msgpack::type_error&) {
-                        std::cerr << obj << std::endl;
+                        std::cerr << o << std::endl;
                         throw_or_abort("error converting into newtype 'Witness'");
                     }
         }
@@ -35,12 +34,11 @@ namespace Witnesses {
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-        void msgpack_unpack(auto o) {
-                    msgpack::object obj = o;
+        void msgpack_unpack(msgpack::object const& o) {
                     try {
-                        obj.convert(value);
+                        o.convert(value);
                     } catch (const msgpack::type_error&) {
-                        std::cerr << obj << std::endl;
+                        std::cerr << o << std::endl;
                         throw_or_abort("error converting into newtype 'WitnessMap'");
                     }
         }
