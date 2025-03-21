@@ -80,32 +80,32 @@ mod tests {
             VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
             VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
             VecDeque::from([
-                "    let x = unsafe { baz(x) };",
+                "let x = unsafe { baz(x) };",
                 "unconstrained fn baz(x: Field) -> Field {",
             ]),
             VecDeque::from([
-                "    let x = unsafe { baz(x) };",
+                "let x = unsafe { baz(x) };",
                 "unconstrained fn baz(x: Field) -> Field {",
             ]),
-            VecDeque::from(["    let x = unsafe { baz(x) };", "}"]),
-            VecDeque::from(["    let x = unsafe { baz(x) };"]),
-            VecDeque::from(["    foo(x);", "fn foo(x: Field) {"]),
-            VecDeque::from(["    foo(x);", "fn foo(x: Field) {"]),
+            VecDeque::from(["let x = unsafe { baz(x) };", "}"]),
+            VecDeque::from(["let x = unsafe { baz(x) };"]),
+            VecDeque::from(["foo(x);", "fn foo(x: Field) {"]),
+            VecDeque::from(["foo(x);", "fn foo(x: Field) {"]),
             VecDeque::from([
-                "    foo(x);",
-                "    let y = unsafe { baz(x) };",
+                "foo(x);",
+                "let y = unsafe { baz(x) };",
                 "unconstrained fn baz(x: Field) -> Field {",
             ]),
             VecDeque::from([
-                "    foo(x);",
-                "    let y = unsafe { baz(x) };",
+                "foo(x);",
+                "let y = unsafe { baz(x) };",
                 "unconstrained fn baz(x: Field) -> Field {",
             ]),
-            VecDeque::from(["    foo(x);", "    let y = unsafe { baz(x) };", "}"]),
-            VecDeque::from(["    foo(x);", "    let y = unsafe { baz(x) };"]),
-            VecDeque::from(["    foo(x);", "    bar(y);", "fn bar(y: Field) {"]),
-            VecDeque::from(["    foo(x);", "    bar(y);", "fn bar(y: Field) {"]),
-            VecDeque::from(["    foo(x);", "    bar(y);", "    assert(y != 0);"]),
+            VecDeque::from(["foo(x);", "let y = unsafe { baz(x) };", "}"]),
+            VecDeque::from(["foo(x);", "let y = unsafe { baz(x) };"]),
+            VecDeque::from(["foo(x);", "bar(y);", "fn bar(y: Field) {"]),
+            VecDeque::from(["foo(x);", "bar(y);", "fn bar(y: Field) {"]),
+            VecDeque::from(["foo(x);", "bar(y);", "assert(y != 0);"]),
         ];
         for mut expected_lines in expected_lines_by_command {
             // While running the debugger, issue a "next" cmd,
@@ -132,7 +132,7 @@ mod tests {
                     }
                 };
                 let ascii_line: String = line.chars().filter(char::is_ascii).collect();
-                let line_expected_to_contain = expected_line.trim_start();
+                let line_expected_to_contain = expected_line.trim();
                 assert!(
                     ascii_line.contains(line_expected_to_contain),
                     "{:?}\ndid not contain\n{:?}",
