@@ -305,8 +305,10 @@ mod reflection {
                             r#"
         case {i}:
             tag = "{}";
+            is_unit = {};
             break;"#,
-                            v.name
+                            v.name,
+                            matches!(v.value, VariantFormat::Unit)
                         )
                     })
                     .collect::<Vec<_>>()
@@ -315,15 +317,20 @@ mod reflection {
                 format!(
                     r#"
     std::string tag;
+    bool is_unit;
     switch (value.index()) {{
         {cases}
         default:
             throw_or_abort("unknown enum '{name}' variant index: " + std::to_string(value.index()));
     }}
-    std::visit([&packer, tag](const auto& arg) {{
-        std::map<std::string, msgpack::object> data;
-        data[tag] = msgpack::object(arg);
-        packer.pack(data);
+    std::visit([&packer, tag, is_unit](const auto& arg) {{
+        if (is_unit) {{
+            std::map<std::string, msgpack::object> data;
+            data[tag] = msgpack::object(arg);
+            packer.pack(data);
+        }} else {{
+            packer.pack(tag);
+        }}
     }}, value);"#
                 )
             };
@@ -336,21 +343,19 @@ mod reflection {
                 let mut body = format!(
                     r#"
     std::cerr << "reading into '{name}': " << o << std::endl;
-    if (o.type != msgpack::type::object_type::MAP) {{
+    if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {{
         std::cerr << o << std::endl;
-        throw_or_abort("expected MAP for enum '{name}'; got type " + std::to_string(o.type));
+        throw_or_abort("expected MAP or STR for enum '{name}'; got type " + std::to_string(o.type));
     }}
-    if (o.via.map.size != 1) {{
+    if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {{
         throw_or_abort("expected 1 entry for enum '{name}'; got " + std::to_string(o.via.map.size));
     }}
     std::string tag;
-    try {{
+    if (o.type == msgpack::type::object_type::MAP) {{
         o.via.map.ptr[0].key.convert(tag);
-    }} catch (const msgpack::type_error&) {{
-        std::cerr << o << std::endl;
-        throw_or_abort("error converting key to string for enum '{name}'");
-    }}
-    msgpack::object oval = o.via.map.ptr[0].val;"#
+    }} else {{
+        o.convert(tag);
+    }}"#
                 );
 
                 for (i, v) in variants.iter() {
@@ -358,22 +363,33 @@ mod reflection {
                     body.push_str(&format!(
                         r#"
     {}if (tag == "{variant}") {{
-        {variant} v;
+        {variant} v;"#,
+                        if *i == 0 { "" } else { "else " }
+                    ));
+
+                    if !matches!(v.value, VariantFormat::Unit) {
+                        body.push_str(&format!(
+                            r#"
         try {{
-            oval.convert(v);
+            o.via.map.ptr[0].val.convert(v);
         }} catch (const msgpack::type_error&) {{
-            std::cerr << oval << std::endl;
+            std::cerr << o << std::endl;
             throw_or_abort("error converting into enum variant '{name}::{variant}'");
         }}
+        "#
+                        ));
+                    }
+                    // Closing brace of if statement
+                    body.push_str(&format!(
+                        r#"
         value = v;
     }}"#,
-                        if *i == 0 { "" } else { "else " }
                     ));
                 }
                 body.push_str(&format!(
                     r#"
     else {{
-        std::cerr << oval << std::endl;
+        std::cerr << o << std::endl;
         throw_or_abort("unknown '{name}' enum variant: " + tag);
     }}"#
                 ));
@@ -414,6 +430,42 @@ mod reflection {
         fn msgpack_unpack(&mut self, name: &str, body: &str) {
             // Using `msgpack::object const& o` instad of `auto o`, because the latter is passed as `msgpack::object::implicit_type`,
             // which would have to be cast like `msgpack::object obj = o;`. This `const&` pattern exists in `msgpack-c` codebase.
+
+            // Instead of implementing the `msgpack_unpack` method as suggested by `msgpack.hpp` in Barretenberg,
+            // we could implement an extension method on `msgpack::object` as below. However, it has to be in
+            // the `msgpack::adaptor` namespace, which would mean it has to be appended at the end of the code,
+            // rather than into the structs, where `CustomCode` goes.
+            //
+            // namespace msgpack {
+            // namespace adaptor {
+            // // For Opcode
+            // template <> struct msgpack::adaptor::convert<Acir::Opcode> {
+            //     msgpack::object const& operator()(msgpack::object const& o, Acir::Opcode& v) const
+            //     {
+            //         std::cerr << "reading into 'Opcode': " << o << std::endl;
+            //         return o;
+            //         if (o.type != msgpack::type::MAP || o.via.map.size != 1) {
+            //             throw_or_abort("expecteed signle element map for 'Opcode'");
+            //         }
+
+            //         auto& kv = o.via.map.ptr[0];
+            //         std::string key = kv.key.as<std::string>();
+
+            //         if (key == "BrilligCall") {
+            //             Acir::Opcode::BrilligCall bc = kv.val.as<Acir::Opcode::BrilligCall>();
+            //             v.value = bc;
+            //         } else if (key == "AssertZero") {
+            //             Acir::Opcode::AssertZero az = kv.val.as<Acir::Opcode::AssertZero>();
+            //             v.value = az;
+            //         } else {
+            //             throw_or_abort("unknown tag for 'Opcode': " + key);
+            //         }
+            //         return o;
+            //     }
+            // };
+            // } // namespace adaptor
+            // } // namespace msgpack
+
             let code = Self::make_fn("void msgpack_unpack(msgpack::object const& o)", body);
             self.add_code(name, &code);
         }
