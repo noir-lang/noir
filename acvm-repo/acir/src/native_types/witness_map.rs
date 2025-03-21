@@ -84,13 +84,13 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
     }
 }
 
-impl<F: Serialize + AcirField> WitnessMap<F> {
+impl<F: Serialize> WitnessMap<F> {
     pub(crate) fn bincode_serialize(&self) -> Result<Vec<u8>, WitnessMapError> {
         bincode::serialize(self).map_err(|e| SerializationError::Deserialize(e.to_string()).into())
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> WitnessMap<F> {
+impl<F: for<'a> Deserialize<'a>> WitnessMap<F> {
     pub(crate) fn bincode_deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
         bincode::deserialize(buf).map_err(|e| SerializationError::Deserialize(e.to_string()).into())
     }
@@ -120,7 +120,7 @@ impl<F: Serialize + AcirField> TryFrom<WitnessMap<F>> for Vec<u8> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessMap<F> {
+impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessMap<F> {
     type Error = WitnessMapError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {

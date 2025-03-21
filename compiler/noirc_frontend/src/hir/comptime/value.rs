@@ -10,8 +10,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -24,6 +24,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    shared::Signedness,
     signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
 };
@@ -65,7 +66,7 @@ pub enum Value {
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
-    StructDefinition(TypeId),
+    TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     TraitImpl(TraitImplId),
@@ -150,7 +151,7 @@ impl Value {
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
-            Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
+            Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element, auto_deref, mutable) => {
                 if *auto_deref {
                     element.borrow().get_type().into_owned()
@@ -321,7 +322,7 @@ impl Value {
             }
             Value::TypedExpr(..)
             | Value::Pointer(..)
-            | Value::StructDefinition(_)
+            | Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)
@@ -459,7 +460,7 @@ impl Value {
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)
-            | Value::StructDefinition(_)
+            | Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)
@@ -512,7 +513,7 @@ impl Value {
                 vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let name = Rc::new(interner.get_trait(trait_id).name.0.contents.clone());
+                let name = Rc::new(interner.get_trait(trait_id).name.to_string());
                 let typ = Type::TraitAsType(trait_id, name, generics);
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }

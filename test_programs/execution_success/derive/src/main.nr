@@ -1,4 +1,4 @@
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 
 #[derive_via(derive_do_nothing)]
 trait DoNothing {
@@ -10,7 +10,7 @@ struct MyStruct {
     my_field: u32,
 }
 
-comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
+comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
     let typ = s.as_type();
     let generics = s.generics().map(|g| quote { $g }).join(quote {,});
     quote {

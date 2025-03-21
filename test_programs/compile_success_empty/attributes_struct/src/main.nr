@@ -13,7 +13,7 @@ fn main() {}
 #[add_attribute]
 pub struct Foo {}
 
-comptime fn add_attribute(s: StructDefinition) {
+comptime fn add_attribute(s: TypeDefinition) {
     assert(!s.has_named_attribute("foo"));
     s.add_attribute("foo");
     assert(s.has_named_attribute("foo"));

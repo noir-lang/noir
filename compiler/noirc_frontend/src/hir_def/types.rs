@@ -20,10 +20,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 
-use crate::{
-    ast::{Ident, Signedness},
-    node_interner::TypeId,
-};
+use crate::shared::Signedness;
+use crate::{ast::Ident, node_interner::TypeId};
 
 use super::{
     expr::{HirCallExpression, HirExpression, HirIdent},
@@ -55,7 +53,7 @@ pub enum Type {
     /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
 
-    /// FmtString(N, Vec<E>) is an array of characters of length N that contains
+    /// `FmtString(N, Vec<E>)` is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
     FmtString(Box<Type>, Box<Type>),
 
@@ -311,8 +309,7 @@ pub enum QuotedType {
     TopLevelItem,
     Type,
     TypedExpr,
-    StructDefinition,
-    EnumDefinition,
+    TypeDefinition,
     TraitConstraint,
     TraitDefinition,
     TraitImpl,
@@ -509,7 +506,7 @@ impl DataType {
         assert_eq!(self.generics.len(), generic_args.len());
 
         let mut fields = self.fields_raw()?.iter().enumerate();
-        fields.find(|(_, field)| field.name.0.contents == field_name).map(|(i, field)| {
+        fields.find(|(_, field)| field.name.as_str() == field_name).map(|(i, field)| {
             let generics = self.generics.iter().zip(generic_args);
             let substitutions = generics
                 .map(|(old, new)| {
@@ -530,7 +527,7 @@ impl DataType {
         let substitutions = self.get_fields_substitutions(generic_args);
 
         Some(vecmap(self.fields_raw()?, |field| {
-            let name = field.name.0.contents.clone();
+            let name = field.name.to_string();
             (name, field.visibility, field.typ.substitute(&substitutions))
         }))
     }
@@ -540,7 +537,7 @@ impl DataType {
         let substitutions = self.get_fields_substitutions(generic_args);
 
         Some(vecmap(self.fields_raw()?, |field| {
-            let name = field.name.0.contents.clone();
+            let name = field.name.to_string();
             (name, field.typ.substitute(&substitutions))
         }))
     }
@@ -1099,8 +1096,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
             QuotedType::TypedExpr => write!(f, "TypedExpr"),
-            QuotedType::StructDefinition => write!(f, "StructDefinition"),
-            QuotedType::EnumDefinition => write!(f, "EnumDefinition"),
+            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
             QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
             QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
             QuotedType::TraitImpl => write!(f, "TraitImpl"),

@@ -1,11 +1,10 @@
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{
-    OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
-};
+use acvm::acir::circuit::{OpcodeLocation, Program};
 use acvm::acir::native_types::WitnessStack;
 use acvm::brillig_vm::BranchToFeatureMap;
 use acvm::pwg::{
     ACVM, ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples,
+    ResolvedAssertionPayload,
 };
 use acvm::{AcirField, BlackBoxFunctionSolver};
 type NargoErrorAndCoverage<F> = (NargoError<F>, Option<Vec<u32>>);
@@ -13,7 +12,7 @@ type WitnessAndCoverage<F> = (WitnessStack<F>, Option<Vec<u32>>);
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use crate::NargoError;
-use crate::errors::ExecutionError;
+use crate::errors::{ExecutionError, ResolvedOpcodeLocation};
 use crate::foreign_calls::ForeignCallExecutor;
 
 struct ProgramExecutor<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>> {

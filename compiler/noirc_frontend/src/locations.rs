@@ -389,7 +389,7 @@ impl NodeInterner {
     }
 
     pub(crate) fn register_function(&mut self, id: FuncId, func_def: &FunctionDefinition) {
-        let name = func_def.name.0.contents.clone();
+        let name = func_def.name.to_string();
         let id = ModuleDefId::FunctionId(id);
         self.register_name_for_auto_import(name, id, func_def.visibility, None);
     }

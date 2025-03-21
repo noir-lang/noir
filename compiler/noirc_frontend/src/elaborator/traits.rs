@@ -128,7 +128,7 @@ impl Elaborator<'_> {
                         },
                     );
 
-                    let func_id = unresolved_trait.method_ids[&name.0.contents];
+                    let func_id = unresolved_trait.method_ids[name.as_str()];
                     let mut where_clause = where_clause.to_vec();
 
                     // Attach any trait constraints on the trait to the function,
@@ -164,7 +164,7 @@ impl Elaborator<'_> {
                         .fns_with_default_impl
                         .functions
                         .iter()
-                        .filter(|(_, _, q)| q.name() == name.0.contents)
+                        .filter(|(_, _, q)| q.name() == name.as_str())
                         .collect();
 
                     let default_impl = if default_impl_list.len() == 1 {
@@ -260,9 +260,9 @@ impl Elaborator<'_> {
 /// `impl<C> Foo<D> for Bar<E> { fn foo<F>(...); } `
 ///
 /// We have to substitute:
-/// - Self for Bar<E>
-/// - A for D
-/// - B for F
+/// - `Self` for `Bar<E>`
+/// - `A` for `D`
+/// - `B` for `F`
 ///
 /// Before we can type check. Finally, we must also check that the unification
 /// result does not introduce any new bindings. This can happen if the impl
@@ -353,7 +353,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             &meta.return_type,
             noir_function,
             meta.name.location,
-            &trait_info.name.0.contents,
+            trait_info.name.as_str(),
             &mut errors,
         );
     }

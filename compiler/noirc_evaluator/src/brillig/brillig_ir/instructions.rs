@@ -25,7 +25,7 @@ use super::{
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Processes a binary instruction according `operation`.
     ///
-    /// This method will compute lhs <operation> rhs
+    /// This method will compute lhs `<operation>` rhs
     /// and store the result in the `result` register.
     pub(crate) fn binary_instruction(
         &mut self,

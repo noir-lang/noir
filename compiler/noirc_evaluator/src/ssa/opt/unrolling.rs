@@ -253,7 +253,7 @@ impl Loops {
 impl Loop {
     /// Return each block that is in a loop starting in the given header block.
     /// Expects back_edge_start -> header to be the back edge of the loop.
-    fn find_blocks_in_loop(
+    pub(crate) fn find_blocks_in_loop(
         header: BasicBlockId,
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,
@@ -1086,30 +1086,30 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
 
         let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                jmp b1()
-              b1():
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                jmp b2()
-              b2():
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                jmp b3()
-              b3():
-                jmp b4()
-              b4():
-                return Field 0
-            }
+        acir(inline) fn main f0 {
+          b0():
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            jmp b2()
+          b1():
+            return Field 0
+          b2():
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            jmp b3()
+          b3():
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            jmp b4()
+          b4():
+            jmp b1()
+        }
         ";
 
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
@@ -1287,7 +1287,7 @@ mod tests {
             jmp b1()
           b1():
             v20 = load v3 -> [u64; 6]
-            dec_rc v0 v0
+            dec_rc v0
             return v20
         }
         ";
@@ -1354,24 +1354,24 @@ mod tests {
             v7 = eq v0, u32 2
             jmpif v7 then: b7, else: b3
           b3():
-            v9 = eq v0, u32 5
-            jmpif v9 then: b5, else: b4
+            v11 = eq v0, u32 5
+            jmpif v11 then: b5, else: b4
           b4():
-            v10 = load v1 -> Field
-            v12 = add v10, Field 1
-            store v12 at v1
-            v14 = add v0, u32 1
-            jmp b1(v14)
+            v15 = load v1 -> Field
+            v17 = add v15, Field 1
+            store v17 at v1
+            v18 = add v0, u32 1
+            jmp b1(v18)
           b5():
             jmp b6()
           b6():
-            v15 = load v1 -> Field
-            v17 = eq v15, Field 4
-            constrain v15 == Field 4
+            v12 = load v1 -> Field
+            v14 = eq v12, Field 4
+            constrain v12 == Field 4
             return
           b7():
-            v18 = add v0, u32 1
-            jmp b1(v18)
+            v9 = add v0, u32 1
+            jmp b1(v9)
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -1463,7 +1463,7 @@ mod tests {
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
-            dec_rc v0 v0
+            dec_rc v0
             return v8
         }}
         "

@@ -16,8 +16,8 @@ use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
-        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
-        StatementKind, UnresolvedTypeData,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind,
+        UnresolvedTypeData,
     },
     hir::{
         comptime::{
@@ -33,6 +33,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
+    shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -328,10 +329,10 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
-pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<TypeId> {
+pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
-        Value::StructDefinition(id) => Ok(id),
-        _ => type_mismatch(value, Type::Quoted(QuotedType::StructDefinition), location),
+        Value::TypeDefinition(id) => Ok(id),
+        _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
     }
 }
 
@@ -448,7 +449,7 @@ fn gather_hir_pattern_tokens(
                     tokens.push(Token::Comma);
                 }
 
-                let field_name = &field_name.0.contents;
+                let field_name = field_name.as_str();
                 tokens.push(Token::Ident(field_name.to_string()));
 
                 // If we have a pattern like `Foo { x }`, that's internally represented as `Foo { x: x }` so
@@ -591,7 +592,7 @@ pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {
 }
 
 fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
-    let token = Token::Ident(ident.0.contents.clone());
+    let token = Token::Ident(ident.to_string());
     let token = LocatedToken::new(token, location);
     Rc::new(vec![token])
 }

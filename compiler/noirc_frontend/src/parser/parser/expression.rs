@@ -147,6 +147,25 @@ impl Parser<'_> {
         self.parse_index(atom, start_location)
     }
 
+    pub(super) fn parse_member_accesses_or_method_calls_after_expression(
+        &mut self,
+        mut atom: Expression,
+        start_location: Location,
+    ) -> Expression {
+        let mut parsed;
+
+        loop {
+            (atom, parsed) = self.parse_member_access_or_method_call(atom, start_location);
+            if parsed {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        atom
+    }
+
     /// CallExpression = Atom CallArguments
     fn parse_call(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if let Some(call_arguments) = self.parse_call_arguments() {
@@ -1079,6 +1098,39 @@ mod tests {
             panic!("Expected block expression");
         };
         assert_eq!(block.statements.len(), 3);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_assignment() {
+        let src = "{ x = 1 }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_break() {
+        let src = "{ break }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_continue() {
+        let src = "{ continue }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_let() {
+        let src = "
+        { let x = 1 }
+                  ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        parser.parse_expression();
+        let reason = get_single_error_reason(&parser.errors, span);
+        let ParserErrorReason::MissingSemicolonAfterLet = reason else {
+            panic!("Expected a different error");
+        };
     }
 
     #[test]

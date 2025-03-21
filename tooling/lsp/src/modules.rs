@@ -217,8 +217,10 @@ pub(crate) fn get_ancestor_module_reexport(
 
     // If we can find one we need to adjust the exported name a bit.
     let parent_module_name = &interner.try_module_attributes(&parent_module)?.name;
-    grandparent_module_reexport.name.0.contents =
-        format!("{}::{}", grandparent_module_reexport.name.0.contents, parent_module_name);
+    grandparent_module_reexport.name = Ident::new(
+        format!("{}::{}", grandparent_module_reexport.name, parent_module_name),
+        grandparent_module_reexport.name.location(),
+    );
 
     Some(grandparent_module_reexport)
 }
