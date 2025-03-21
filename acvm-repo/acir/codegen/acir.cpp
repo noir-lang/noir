@@ -138,7 +138,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BinaryFieldOp': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BinaryFieldOp'; got type " + std::to_string(o.type));
@@ -375,7 +374,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BinaryIntOp': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BinaryIntOp'; got type " + std::to_string(o.type));
@@ -550,7 +548,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'IntegerBitSize': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'IntegerBitSize'; got type " + std::to_string(o.type));
@@ -659,7 +656,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BitSize': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BitSize'; got type " + std::to_string(o.type));
@@ -769,7 +765,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'MemoryAddress': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'MemoryAddress'; got type " + std::to_string(o.type));
@@ -1141,7 +1136,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BlackBoxOp': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BlackBoxOp'; got type " + std::to_string(o.type));
@@ -1431,7 +1425,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'HeapValueType': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'HeapValueType'; got type " + std::to_string(o.type));
@@ -1582,7 +1575,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'ValueOrArray': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'ValueOrArray'; got type " + std::to_string(o.type));
@@ -1981,7 +1973,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BrilligOpcode': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BrilligOpcode'; got type " + std::to_string(o.type));
@@ -2308,7 +2299,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'ConstantOrWitnessEnum': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'ConstantOrWitnessEnum'; got type " + std::to_string(o.type));
@@ -2711,7 +2701,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BlackBoxFuncCall': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BlackBoxFuncCall'; got type " + std::to_string(o.type));
@@ -3048,7 +3037,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BlockType': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BlockType'; got type " + std::to_string(o.type));
@@ -3197,7 +3185,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BrilligInputs': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BrilligInputs'; got type " + std::to_string(o.type));
@@ -3325,7 +3312,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'BrilligOutputs': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'BrilligOutputs'; got type " + std::to_string(o.type));
@@ -3520,7 +3506,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'Opcode': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'Opcode'; got type " + std::to_string(o.type));
@@ -3681,7 +3666,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'ExpressionOrMemory': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'ExpressionOrMemory'; got type " + std::to_string(o.type));
@@ -3790,7 +3774,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'ExpressionWidth': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'ExpressionWidth'; got type " + std::to_string(o.type));
@@ -3892,7 +3875,6 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::cerr << "reading into 'OpcodeLocation': " << o << std::endl;
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
                 throw_or_abort("expected MAP or STR for enum 'OpcodeLocation'; got type " + std::to_string(o.type));
@@ -3989,6 +3971,16 @@ namespace Acir {
         static Program bincodeDeserialize(std::vector<uint8_t>);
 
         MSGPACK_FIELDS(functions, unconstrained_functions);
+    };
+
+    struct ProgramWithoutBrillig {
+        std::vector<Acir::Circuit> functions;
+
+        friend bool operator==(const ProgramWithoutBrillig&, const ProgramWithoutBrillig&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static ProgramWithoutBrillig bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(functions);
     };
 
 } // end of namespace Acir
@@ -9701,6 +9693,48 @@ Acir::Program serde::Deserializable<Acir::Program>::deserialize(Deserializer &de
     Acir::Program obj;
     obj.functions = serde::Deserializable<decltype(obj.functions)>::deserialize(deserializer);
     obj.unconstrained_functions = serde::Deserializable<decltype(obj.unconstrained_functions)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Acir {
+
+    inline bool operator==(const ProgramWithoutBrillig &lhs, const ProgramWithoutBrillig &rhs) {
+        if (!(lhs.functions == rhs.functions)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> ProgramWithoutBrillig::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<ProgramWithoutBrillig>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline ProgramWithoutBrillig ProgramWithoutBrillig::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<ProgramWithoutBrillig>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw_or_abort("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::ProgramWithoutBrillig>::serialize(const Acir::ProgramWithoutBrillig &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.functions)>::serialize(obj.functions, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Acir::ProgramWithoutBrillig serde::Deserializable<Acir::ProgramWithoutBrillig>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Acir::ProgramWithoutBrillig obj;
+    obj.functions = serde::Deserializable<decltype(obj.functions)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
 }
