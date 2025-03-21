@@ -184,7 +184,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use brillig::{HeapArray, ValueOrArray};
+    use brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray};
     use std::str::FromStr;
 
     use crate::{
@@ -331,9 +331,9 @@ mod tests {
         }
     }
 
-    /// Test that an enum where each member wraps a struct serializes as a signle item map keyed by the type.
+    /// Test that an enum where each member wraps a struct serializes as a single item map keyed by the type.
     #[test]
-    fn msgpack_repr_enum_variant() {
+    fn msgpack_repr_enum_of_structs() {
         use rmpv::Value;
 
         let value = ValueOrArray::HeapArray(HeapArray {
@@ -351,6 +351,26 @@ mod tests {
             panic!("expected String key: {fields:?}");
         };
         assert_eq!(key.as_str(), Some("HeapArray"));
+    }
+
+    /// Test that an enum of unit structs serializes as a string.
+    #[test]
+    fn msgpack_repr_enum_of_unit_structs() {
+        let value = IntegerBitSize::U1;
+        let bz = msgpack_serialize(&value, false).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+
+        assert_eq!(msg.as_str(), Some("U1"));
+    }
+
+    /// Test how an enum where some members are unit structs serializes.
+    #[test]
+    fn msgpack_repr_enum_of_mixed() {
+        let value = vec![BitSize::Field, BitSize::Integer(IntegerBitSize::U64)];
+        let bz = msgpack_serialize(&value, false).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+
+        assert_eq!(format!("{msg}"), r#"["Field", {"Integer": "U64"}]"#);
     }
 
     /// Test that a newtype, just wrapping a value, is serialized as the underlying value.
