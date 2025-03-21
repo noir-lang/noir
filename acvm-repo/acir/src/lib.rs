@@ -395,11 +395,11 @@ mod reflection {
                         ));
                     }
                     // Closing brace of if statement
-                    body.push_str(&format!(
+                    body.push_str(
                         r#"
         value = v;
-    }}"#,
-                    ));
+    }"#,
+                    );
                 }
                 body.push_str(&format!(
                     r#"
