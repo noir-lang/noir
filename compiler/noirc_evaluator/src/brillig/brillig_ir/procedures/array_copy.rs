@@ -99,26 +99,24 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
 
                 let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
                 let is_fmt_string = ValueOrArray::MemoryAddress(zero_register.address);
-                let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
                 let type_string_metadata = print_u32_type_string(ctx);
                 let value_to_print =
                     ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
 
-                let inputs =
-                    [newline, is_fmt_string, item_count, type_string_metadata, value_to_print];
+                let inputs = [newline, is_fmt_string, type_string_metadata, value_to_print];
 
+                let u1_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U1));
                 let u8_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U8));
                 let u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
                 let input_types = [
-                    u32_type.clone(), // newline
-                    u32_type.clone(), // is_fmt_string
-                    u32_type.clone(), // item_count
+                    u1_type.clone(), // newline
+                    u1_type,         // is_fmt_string
                     HeapValueType::Array {
                         value_types: vec![u8_type],
                         size: PRINT_U32_TYPE_STRING.len(),
                     },
-                    u32_type.clone(), // value_to_print
+                    u32_type, // value to print
                 ];
 
                 ctx.foreign_call_instruction("print".to_string(), &inputs, &input_types, &[], &[]);
@@ -147,15 +145,8 @@ fn print_u32_type_string<F: AcirField + DebugToString>(
     initialize_constant_string(brillig_context, target, items_pointer);
     brillig_context.deallocate_register(items_pointer);
 
-    brillig_context.memory_op_instruction(
-        brillig_array.pointer,
-        ReservedRegisters::usize_one(),
-        brillig_array.pointer,
-        BrilligBinaryOp::Add,
-    );
-
     ValueOrArray::HeapArray(acvm::acir::brillig::HeapArray {
-        pointer: brillig_array.pointer,
+        pointer: brillig_context.codegen_make_array_items_pointer(brillig_array),
         size: brillig_array.size,
     })
 }
