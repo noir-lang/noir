@@ -149,7 +149,7 @@ where
     R: prost::Message,
     ProtoSchema<F>: ProtoCodec<T, R>,
 {
-    // TODO: It would be more efficient to skip having to create a vector here, but use a std::io::Writer instead.
+    // It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     let mut buf = match format {
         Format::Bincode => bincode_serialize(value)?,
         Format::Protobuf => proto_serialize(value),
@@ -173,9 +173,8 @@ where
             // This will need a new `bb` even if it's the bincode format, because of the format byte.
             serialize_with_format(value, format)
         }
-        // This is how the currently released `bb` expects the data.
         Ok(None) => {
-            // This will need a new `bb` even if it's the bincode format, because of the format byte.
+            // This is how the currently released `bb` expects the data.
             bincode_serialize(value)
         }
         Err(e) => Err(std::io::Error::other(e)),
