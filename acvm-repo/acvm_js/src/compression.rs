@@ -14,8 +14,7 @@ pub fn compress_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsString> 
 
     let witness_map = WitnessMap::from(witness_map);
     let witness_stack = WitnessStack::from(witness_map);
-    let compressed_witness_stack: Vec<u8> =
-        Vec::<u8>::try_from(witness_stack).map_err(|err| err.to_string())?;
+    let compressed_witness_stack = witness_stack.serialize().map_err(|err| err.to_string())?;
 
     Ok(compressed_witness_stack)
 }
@@ -30,7 +29,7 @@ pub fn decompress_witness(compressed_witness: Vec<u8>) -> Result<JsWitnessMap, J
     console_error_panic_hook::set_once();
 
     let mut witness_stack =
-        WitnessStack::try_from(compressed_witness.as_slice()).map_err(|err| err.to_string())?;
+        WitnessStack::deserialize(compressed_witness.as_slice()).map_err(|err| err.to_string())?;
 
     let witness =
         witness_stack.pop().expect("Should have at least one witness on the stack").witness;
@@ -46,8 +45,7 @@ pub fn compress_witness_stack(witness_stack: JsWitnessStack) -> Result<Vec<u8>, 
     console_error_panic_hook::set_once();
 
     let witness_stack = WitnessStack::from(witness_stack);
-    let compressed_witness_stack: Vec<u8> =
-        Vec::<u8>::try_from(witness_stack).map_err(|err| err.to_string())?;
+    let compressed_witness_stack = witness_stack.serialize().map_err(|err| err.to_string())?;
 
     Ok(compressed_witness_stack)
 }
@@ -61,7 +59,7 @@ pub fn decompress_witness_stack(compressed_witness: Vec<u8>) -> Result<JsWitness
     console_error_panic_hook::set_once();
 
     let witness_stack =
-        WitnessStack::try_from(compressed_witness.as_slice()).map_err(|err| err.to_string())?;
+        WitnessStack::deserialize(compressed_witness.as_slice()).map_err(|err| err.to_string())?;
 
     Ok(witness_stack.into())
 }

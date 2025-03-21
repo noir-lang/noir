@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use acir::{FieldElement, native_types::WitnessStackError};
+use acir::FieldElement;
 use acvm::acir::native_types::WitnessStack;
 
 use crate::errors::{CliError, FilesystemError};
@@ -15,7 +15,7 @@ pub fn save_witness_to_dir(
 
     let witness_path = witness_dir.join(witness_name).with_extension("gz");
 
-    let buf: Vec<u8> = witnesses.try_into().map_err(|e: WitnessStackError| {
+    let buf: Vec<u8> = witnesses.serialize().map_err(|e| {
         FilesystemError::OutputWitnessCreationFailed(witness_path.clone(), format!("{e:?}"))
     })?;
 

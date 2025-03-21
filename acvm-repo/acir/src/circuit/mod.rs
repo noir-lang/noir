@@ -625,8 +625,8 @@ mod tests {
         #[test]
         fn prop_witness_stack_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = Vec::<u8>::try_from(&witness)?;
-                let de = WitnessStack::try_from(bz.as_slice())?;
+                let bz = witness.serialize()?;
+                let de = WitnessStack::deserialize(bz.as_slice())?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
