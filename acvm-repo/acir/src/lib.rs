@@ -267,7 +267,20 @@ mod reflection {
         /// Newtypes serialize as their underlying `value` that the C++ generator creates
         fn generate_newtype(&mut self, name: &str) {
             self.msgpack_pack(name, "packer.pack(value);");
-            self.msgpack_unpack(name, "o.convert(value);");
+            self.msgpack_unpack(
+                name,
+                &format!(
+                    r#"
+            msgpack::object obj = o;
+            try {{
+                obj.convert(value);
+            }} catch (const msgpack::type_error&) {{
+                std::cerr << obj << std::endl;
+                throw_or_abort("error converting into newtype '{name}'");
+            }}
+            "#
+                ),
+            );
         }
 
         /// Tuples serialize as a vector of underlying data
@@ -306,7 +319,7 @@ mod reflection {
     switch (value.index()) {{
         {cases}
         default:
-            throw_or_abort("unknown '{name}' enum variant index: " + std::to_string(value.index()));
+            throw_or_abort("unknown enum '{name}' variant index: " + std::to_string(value.index()));
     }}
     std::visit([&packer, tag](const auto& arg) {{
         std::map<std::string, msgpack::object> data;
@@ -323,22 +336,37 @@ mod reflection {
             let unpack_body = {
                 let mut body = format!(
                     r#"
-    if (o.type != msgpack::type::object_type::MAP) {{
-        throw_or_abort("expected map for '{name}' enum; got " + std::to_string(o.type));
+    msgpack::object obj = o;
+    std::cerr << "reading into '{name}': " << obj << std::endl;
+    if (obj.type != msgpack::type::object_type::MAP) {{
+        std::cerr << obj << std::endl;
+        throw_or_abort("expected map for enum '{name}'; got " + std::to_string(obj.type));
     }}
-    if (o.via.map.size != 1) {{
-        throw_or_abort("expected 1 entry for '{name}' enum; got " + std::to_string(o.via.map.size));
+    if (obj.via.map.size != 1) {{
+        throw_or_abort("expected 1 entry for enum '{name}'; got " + std::to_string(obj.via.map.size));
     }}
-    std::string tag = o.via.map.ptr[0].key.convert();
-    msgpack::object obj = o.via.map.ptr[0].val;"#
+    std::string tag;
+    try {{
+        obj.via.map.ptr[0].key.convert(tag);
+    }} catch (const msgpack::type_error&) {{
+        std::cerr << obj << std::endl;
+        throw_or_abort("error converting key to string for enum '{name}'");
+    }}
+    msgpack::object oval = obj.via.map.ptr[0].val;"#
                 );
 
                 for (i, v) in variants.iter() {
-                    let name = &v.name;
+                    let variant = &v.name;
                     body.push_str(&format!(
                         r#"
-    {}if (tag == "{name}") {{
-        {name} v = obj.convert();
+    {}if (tag == "{variant}") {{
+        {variant} v;
+        try {{
+            oval.convert(v);
+        }} catch (const msgpack::type_error&) {{
+            std::cerr << oval << std::endl;
+            throw_or_abort("error converting into enum variant '{name}::{variant}'");
+        }}
         value = v;
     }}"#,
                         if *i == 0 { "" } else { "else " }
@@ -347,6 +375,7 @@ mod reflection {
                 body.push_str(&format!(
                     r#"
     else {{
+        std::cerr << oval << std::endl;
         throw_or_abort("unknown '{name}' enum variant: " + tag);
     }}"#
                 ));
@@ -385,7 +414,7 @@ mod reflection {
 
         /// Add a `msgpack_unpack` implementation.
         fn msgpack_unpack(&mut self, name: &str, body: &str) {
-            let code = Self::make_fn("void msgpack_unpack(msgpack::object const& o)", body);
+            let code = Self::make_fn("void msgpack_unpack(auto o)", body);
             self.add_code(name, &code);
         }
 
