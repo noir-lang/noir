@@ -1,10 +1,7 @@
 #![cfg(test)]
 use crate::{
-    elaborator::UnstableFeature,
-    check_monomorphization_error_using_features,
-    get_program,
+    check_monomorphization_error_using_features, elaborator::UnstableFeature, tests::get_program,
 };
-
 
 use super::{ast::Program, errors::MonomorphizationError, monomorphize};
 
@@ -30,22 +27,15 @@ fn check_rewrite(src: &str, expected: &str, test_path: &str) {
 #[macro_export]
 macro_rules! get_monomorphized {
     ($src:expr) => {
-        get_monomorphized(
-            $src,
-            function_path!(),
-        )
-    }
+        crate::monomorphization::tests::get_monomorphized($src, crate::function_path!())
+    };
 }
 
 #[macro_export]
 macro_rules! check_rewrite {
     ($src:expr, $expected:expr) => {
-        check_rewrite(
-            $src,
-            $expected,
-            function_path!(),
-        )
-    }
+        crate::monomorphization::tests::check_rewrite($src, $expected, crate::function_path!())
+    };
 }
 
 #[named]

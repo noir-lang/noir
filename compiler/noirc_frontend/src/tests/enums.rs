@@ -1,7 +1,6 @@
 use crate::{
-    hir::def_collector::dc_crate::CompilationError,
+    assert_no_errors, get_program_using_features, hir::def_collector::dc_crate::CompilationError,
     parser::ParserErrorReason,
-    assert_no_errors, get_program_using_features,
 };
 
 use crate::{check_errors, check_errors_using_features};

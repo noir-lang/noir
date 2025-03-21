@@ -15,7 +15,8 @@
 #![allow(clippy::mutable_key_type, clippy::result_large_err)]
 
 #[cfg(test)]
-#[macro_use] extern crate function_name;
+#[macro_use]
+extern crate function_name;
 
 pub mod ast;
 pub mod debug;

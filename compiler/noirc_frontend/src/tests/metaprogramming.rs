@@ -1,4 +1,5 @@
 use crate::{
+    check_errors,
     hir::{
         comptime::ComptimeError,
         def_collector::{
@@ -6,7 +7,6 @@ use crate::{
             errors::{DefCollectorErrorKind, DuplicateType},
         },
     },
-    check_errors,
 };
 
 use crate::{assert_no_errors, get_program_errors};

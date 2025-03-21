@@ -55,7 +55,10 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
     });
 }
 
-pub(crate) fn get_program<'a, 'b>(src: &'a str, test_path: &'b str) -> (ParsedModule, Context<'a, 'b>, Vec<CompilationError>) {
+pub(crate) fn get_program<'a, 'b>(
+    src: &'a str,
+    test_path: &'b str,
+) -> (ParsedModule, Context<'a, 'b>, Vec<CompilationError>) {
     let allow_parser_errors = false;
     get_program_with_options(src, test_path, allow_parser_errors, FrontendOptions::test_default())
 }
@@ -128,7 +131,7 @@ pub(crate) fn get_program_with_options(
     }
 
     let any_errors = errors.iter().any(CompilationError::is_error);
-    emit_frontend_test(test_path, src, any_errors);
+    emit_compile_test(test_path, src, any_errors);
     (program, context, errors)
 }
 
@@ -136,54 +139,77 @@ pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationE
     get_program(src, test_path).2
 }
 
-// TODO: if in CI, panic if any `main.nr` needs to be updated
-fn emit_frontend_test(test_path: &str, src: &str, any_errors: bool) {
+// if the "nextest" feature is enabled, this will panic instead of emitting a test crate
+fn emit_compile_test(test_path: &str, src: &str, any_errors: bool) {
+    // TODO: better method to get output dir or else relocate there?
+    // "compiler/noirc_frontend"
+    let noirc_frontend_path = Path::new(std::env!("CARGO_MANIFEST_DIR"));
+    let noir_root_path = noirc_frontend_path
+        .parent()
+        .expect("expected 'noirc_frontend' to be in 'compiler'")
+        .parent()
+        .expect("expected 'compiler' to be in the noir root");
+    let test_programs_path = noir_root_path.join("test_programs");
 
-    // TODO: replace :: with _ in mod_path
-    let mod_path_test_name = test_path;
+    let tests_dir_name = if any_errors { "compile_success_no_bug" } else { "compile_failure" };
+    let tests_dir = test_programs_path.join(tests_dir_name);
+    let package_name = test_path.replace("::", "_");
+    let crate_path = tests_dir.join(&package_name);
+    let nargo_toml_path = crate_path.join("Nargo.toml");
+    let src_hash_path = crate_path.join("src_hash.txt");
+    let src_path = crate_path.join("src");
+    let main_nr_path = src_path.join("main.nr");
 
-    if !any_errors {
+    // hash `src`
+    let mut hasher = DefaultHasher::new();
+    src.hash(&mut hasher);
+    let new_hash = hasher.finish().to_string();
 
-        // TODO: test_programs/compile_success_no_bug
-        // TODO: rename var
-        let env_emit_frontend_tests_path = "./tmp";
-        // let env_emit_frontend_tests_path = env_emit_frontend_tests_path.unwrap();
-        let compile_success_path = Path::new(&env_emit_frontend_tests_path);
-
-        // hash `src`
-        let mut hasher = DefaultHasher::new();
-        src.hash(&mut hasher);
-        let new_hash = hasher.finish().to_string();
-
-        let crate_path = compile_success_path.join(mod_path_test_name);
-        let src_hash_path = crate_path.join("src_hash.txt");
-        let main_nr_path = crate_path.join("src").join("main.nr");
-
-        if crate_path.is_dir() {
-            if src_hash_path.is_file() {
-                let current_hash = std::fs::read_to_string(&src_hash_path).expect("Unable to read src_hash.txt");
-                // if out of date, update
-                if current_hash != new_hash {
-                    // update main.nr
-                    std::fs::write(main_nr_path, src).expect("Unable to write test file");
-
-                    // update hash 
-                    std::fs::write(src_hash_path, new_hash).expect("Unable to write src_hash.txt file");
-                }
+    if crate_path.is_dir() && src_hash_path.is_file() {
+        let current_hash =
+            std::fs::read_to_string(&src_hash_path).expect("Unable to read src_hash.txt");
+        // if out of date, update main.nr and hash file
+        if current_hash != new_hash {
+            if cfg!(feature = "nextest") {
+                panic!(
+                    "test generated from frontend unit test {test_path} is out of date: run `cargo test` to update"
+                );
             }
-        } else {
-            // TODO: nargo new --name [mod_path_test_name] [crate_path]
-
-            // update main.nr
             std::fs::write(main_nr_path, src).expect("Unable to write test file");
-
-            // write hash 
             std::fs::write(src_hash_path, new_hash).expect("Unable to write src_hash.txt file");
         }
+    } else {
+        if cfg!(feature = "nextest") {
+            panic!(
+                "new test generated from frontend unit test {test_path}: run `cargo test` to generate"
+            );
+        }
 
-        // TODO: re-enable
-        println!("{}", src);
-        println!("");
+        std::fs::create_dir(&crate_path).expect(&format!(
+            "expected to be able to create the directory {}",
+            crate_path.display()
+        ));
+        std::fs::create_dir(&src_path)
+            .expect(&format!("expected to be able to create the directory {}", src_path.display()));
+
+        // TODO: from nargo_cli/src/cli/init_cmd
+        let package_type = "bin"; // nargo::package::PackageType::Binary;
+        let toml_contents = format!(
+            r#"
+            [package]
+            name = "{package_name}"
+            type = "{package_type}"
+            authors = [""]
+            
+            [dependencies]"#
+        );
+
+        std::fs::write(&nargo_toml_path, toml_contents)
+            .expect(&format!("Unable to write Nargo.toml to {}", nargo_toml_path.display()));
+        std::fs::write(&main_nr_path, src)
+            .expect(&format!("Unable to write test file to {}", main_nr_path.display()));
+        std::fs::write(&src_hash_path, new_hash)
+            .expect(&format!("Unable to write src_hash.txt file to {}", src_hash_path.display()));
     }
 }
 
@@ -235,7 +261,11 @@ pub(super) fn check_monomorphization_error(src: &str, test_path: &str) {
     check_monomorphization_error_using_features(src, test_path, &[]);
 }
 
-pub(super) fn check_monomorphization_error_using_features(src: &str, test_path: &str, features: &[UnstableFeature]) {
+pub(super) fn check_monomorphization_error_using_features(
+    src: &str,
+    test_path: &str,
+    features: &[UnstableFeature],
+) {
     let allow_parser_errors = false;
     let monomorphize = true;
     check_errors_with_options(
@@ -298,7 +328,8 @@ fn check_errors_with_options(
         secondary_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) = get_program_with_options(&src, test_path, allow_parser_errors, options);
+    let (_, mut context, errors) =
+        get_program_with_options(&src, test_path, allow_parser_errors, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {
@@ -419,53 +450,36 @@ fn get_error_line_span_and_message(
 #[macro_export]
 macro_rules! function_path {
     () => {
-        std::concat!(
-            std::module_path!(),
-            "::",
-            function_name!(),
-        )
-    }
+        std::concat!(std::module_path!(), "::", function_name!(),)
+    };
 }
 
 #[macro_export]
 macro_rules! get_program {
     ($src:expr) => {
-        crate::tests::get_program(
-            $src,
-            crate::function_path!(),
-        )
-    }
+        crate::tests::get_program($src, crate::function_path!())
+    };
 }
 
 #[macro_export]
 macro_rules! get_program_using_features {
     ($src:expr, $features:expr) => {
-        crate::tests::get_program_using_features(
-            $src,
-            crate::function_path!(),
-            $features,
-        )
-    }
+        crate::tests::get_program_using_features($src, crate::function_path!(), $features)
+    };
 }
 
 #[macro_export]
 macro_rules! assert_no_errors {
     ($src:expr) => {
-        crate::tests::assert_no_errors(
-            $src,
-            crate::function_path!(),
-        )
-    }
+        crate::tests::assert_no_errors($src, crate::function_path!())
+    };
 }
 
 #[macro_export]
 macro_rules! get_program_errors {
     ($src:expr) => {
-        crate::tests::get_program_errors(
-            $src,
-            crate::function_path!(),
-        )
-    }
+        crate::tests::get_program_errors($src, crate::function_path!())
+    };
 }
 
 #[macro_export]
@@ -477,41 +491,31 @@ macro_rules! get_program_with_options {
             $allow_parser_errors,
             $options,
         )
-    }
+    };
 }
 
 #[macro_export]
 macro_rules! get_program_captures {
     ($src:expr) => {
-        crate::tests::get_program_captures(
-            $src,
-            crate::function_path!(),
-        )
-    }
+        crate::tests::get_program_captures($src, crate::function_path!())
+    };
 }
 
 #[macro_export]
 macro_rules! check_errors {
     ($src:expr) => {
-        crate::tests::check_errors(
-            $src,
-            crate::function_path!(),
-        )
+        crate::tests::check_errors($src, crate::function_path!())
     };
     ($src:expr,) => {
         crate::check_errors!($src)
-    } 
+    };
 }
 
 #[macro_export]
 macro_rules! check_errors_using_features {
     ($src:expr, $features:expr) => {
-        crate::tests::check_errors_using_features(
-            $src,
-            crate::function_path!(),
-            $features,
-        )
-    }
+        crate::tests::check_errors_using_features($src, crate::function_path!(), $features)
+    };
 }
 
 #[macro_export]
@@ -522,7 +526,7 @@ macro_rules! check_monomorphization_error_using_features {
             crate::function_path!(),
             $features,
         )
-    }
+    };
 }
 
 #[named]
@@ -3640,8 +3644,7 @@ fn disallows_test_attribute_on_impl_method() {
             #[named]
 #[test]
             fn foo() { }
-               ^^^ The `#[named]
-#[test]` attribute is disallowed on `impl` methods
+               ^^^ The `#[test]` attribute is disallowed on `impl` methods
         }
 
         fn main() { }
@@ -3660,11 +3663,9 @@ fn disallows_test_attribute_on_trait_impl_method() {
         pub struct Foo { }
 
         impl Trait for Foo {
-            #[named]
-#[test]
+            #[test]
             fn foo() { }
-               ^^^ The `#[named]
-#[test]` attribute is disallowed on `impl` methods
+               ^^^ The `#[test]` attribute is disallowed on `impl` methods
         }
 
         fn main() { }

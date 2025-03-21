@@ -2,11 +2,11 @@
 
 use acvm::{AcirField, FieldElement};
 
+use crate::assert_no_errors;
+use crate::get_monomorphized;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::get_monomorphized;
-use crate::assert_no_errors;
 
 #[named]
 #[test]
