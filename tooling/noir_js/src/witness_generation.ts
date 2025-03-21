@@ -20,23 +20,23 @@ const defaultForeignCallHandler: ForeignCallHandler = async (name: string, args:
 export type ErrorWithPayload = ExecutionError & { decodedAssertionPayload?: any; noirCallStack?: string[] };
 
 function enrichExecutionError(artifact: CompiledCircuit, originalError: ExecutionError): Error {
-  const payload = originalError.rawAssertionPayload;
-  if (!payload) return originalError;
   const enrichedError = originalError as ErrorWithPayload;
 
-  try {
-    // Decode the payload
-    const decodedPayload = abiDecodeError(artifact.abi, payload);
+  if (originalError.rawAssertionPayload) {
+    try {
+      // Decode the payload
+      const decodedPayload = abiDecodeError(artifact.abi, originalError.rawAssertionPayload);
 
-    if (typeof decodedPayload === 'string') {
-      // If it's a string, just add it to the error message
-      enrichedError.message = `Circuit execution failed: ${decodedPayload}`;
-    } else {
-      // If not, attach the payload to the original error
-      enrichedError.decodedAssertionPayload = decodedPayload;
+      if (typeof decodedPayload === 'string') {
+        // If it's a string, just add it to the error message
+        enrichedError.message = `Circuit execution failed: ${decodedPayload}`;
+      } else {
+        // If not, attach the payload to the original error
+        enrichedError.decodedAssertionPayload = decodedPayload;
+      }
+    } catch (_errorDecoding) {
+      // Ignore errors decoding the payload
     }
-  } catch (_errorDecoding) {
-    // Ignore errors decoding the payload
   }
 
   try {
