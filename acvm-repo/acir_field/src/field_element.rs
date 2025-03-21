@@ -218,6 +218,21 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
         i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
     }
+    fn try_into_i128(self) -> Option<i128> {
+        // Negative integers are represented by the range [p + i128::MIN, p) whilst
+        // positive integers are represented by the range [0, i128::MAX).
+        // We can then differentiate positive from negative values by their MSB.
+        let is_negative = self.neg().num_bits() < self.num_bits();
+        let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
+        // There is data in the first 16 bytes, so it cannot be represented as an i128
+        if bytes[0..16].iter().any(|b| *b != 0) {
+            return None;
+        }
+        Some(
+            i128::from_be_bytes(bytes[16..32].try_into().unwrap())
+                * if is_negative { -1 } else { 1 },
+        )
+    }
 
     fn try_to_u64(&self) -> Option<u64> {
         (self.num_bits() <= 64).then(|| self.to_u128() as u64)

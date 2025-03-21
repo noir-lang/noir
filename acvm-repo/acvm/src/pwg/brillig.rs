@@ -11,7 +11,9 @@ use acir::{
     native_types::WitnessMap,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VM, VMStatus};
+use brillig_vm::{
+    BranchToFeatureMap, BrilligProfilingSamples, FailureReason, MemoryValue, VM, VMStatus,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
@@ -70,6 +72,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         acir_index: usize,
         brillig_function_id: BrilligFunctionId,
         profiling_active: bool,
+        with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm = Self::setup_brillig_vm(
             initial_witness,
@@ -78,6 +81,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             brillig_bytecode,
             bb_solver,
             profiling_active,
+            with_branch_to_feature_map,
         )?;
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
@@ -89,6 +93,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
         profiling_active: bool,
+        with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Result<VM<'b, F, B>, OpcodeResolutionError<F>> {
         // Set input values
         let mut calldata: Vec<F> = Vec::new();
@@ -136,7 +141,13 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
         // Instantiate a Brillig VM given the solved calldata
         // along with the Brillig bytecode.
-        let vm = VM::new(calldata, brillig_bytecode, bb_solver, profiling_active);
+        let vm = VM::new(
+            calldata,
+            brillig_bytecode,
+            bb_solver,
+            profiling_active,
+            with_branch_to_feature_map,
+        );
         Ok(vm)
     }
 
@@ -150,6 +161,10 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
     pub fn get_call_stack(&self) -> Vec<usize> {
         self.vm.get_call_stack()
+    }
+
+    pub fn get_fuzzing_trace(&self) -> Vec<u32> {
+        self.vm.get_fuzzing_trace()
     }
 
     pub(crate) fn solve(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
