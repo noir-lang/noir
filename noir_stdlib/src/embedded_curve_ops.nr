@@ -131,8 +131,6 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 
 /// This function only assumes that the points are on the curve
 /// It handles corner cases around the infinity point causing some overhead compared to embedded_curve_add_not_nul and embedded_curve_add_unsafe
-// This is a hack because returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
-// as is defined in the brillig bytecode format. This is a workaround which allows us to fix this without modifying the serialization format.
 // docs:start:embedded_curve_add
 pub fn embedded_curve_add(
     point1: EmbeddedCurvePoint,
