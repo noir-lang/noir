@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742562843902,
+  "lastUpdate": 1742562846737,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "35097f4384e59ea9ea8295d825380b7c4e9f6f9a",
-          "message": "chore: add tests for trait renaming in imports (#7631)",
-          "timestamp": "2025-03-13T12:58:29Z",
-          "tree_id": "9ffa9abab97a5c2933ac821e2dfe0f4c4619c130",
-          "url": "https://github.com/noir-lang/noir/commit/35097f4384e59ea9ea8295d825380b7c4e9f6f9a"
-        },
-        "date": 1741872361719,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.712,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 15,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.501,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.226,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.746,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.142,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 14.86,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 11.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.949,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.935,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.468,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.432,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6723aeca502c36ea6c7eedcb3e25a9a8396465bc",
+          "message": "feat: optimize unconstrained `embedded_curve_add` (#7751)",
+          "timestamp": "2025-03-21T12:52:33Z",
+          "tree_id": "1a701d23ffed7449e9de08512f9e95adee6dee62",
+          "url": "https://github.com/noir-lang/noir/commit/6723aeca502c36ea6c7eedcb3e25a9a8396465bc"
+        },
+        "date": 1742562842122,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.691,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.49,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.376,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.818,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.112,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.944,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.974,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.51,
             "unit": "s"
           }
         ]
