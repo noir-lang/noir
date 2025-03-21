@@ -23,10 +23,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         return_parameters: Vec<BrilligParameter>,
         target_function: FunctionId,
         globals_init: bool,
-        globals_memory_size: usize,
+        mut globals_memory_size: usize,
         options: &BrilligOptions,
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(options);
+
+        if options.enable_debug_assertions {
+            // Reserve space for the array clone counter
+            globals_memory_size += 1;
+        }
 
         context.globals_memory_size = Some(globals_memory_size);
 

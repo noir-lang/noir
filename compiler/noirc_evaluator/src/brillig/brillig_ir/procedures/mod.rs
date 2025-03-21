@@ -111,8 +111,16 @@ impl std::fmt::Display for ProcedureId {
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
     options: &BrilligOptions,
+    globals_memory_size: Option<usize>,
 ) -> BrilligArtifact<F> {
     let mut brillig_context = BrilligContext::new_for_procedure(procedure_id.clone(), options);
+
+    // If this flag is set, the array copy procedure needs to track when each array is cloned
+    // through a global counter variable.
+    if brillig_context.enable_debug_assertions {
+        brillig_context.globals_memory_size = globals_memory_size;
+    }
+
     brillig_context.enter_context(Label::procedure(procedure_id.clone()));
 
     match procedure_id {
@@ -142,6 +150,5 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     };
 
     brillig_context.return_instruction();
-
     brillig_context.artifact()
 }

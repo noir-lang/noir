@@ -108,11 +108,12 @@ fn convert_fmt_string_inputs<F: AcirField>(
         .ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
     let mut output = Vec::new();
-    let num_values = num_values.unwrap_field().to_u128() as usize;
+    let num_values = dbg!(num_values.unwrap_field()).to_u128() as usize;
 
-    let types_start_at = input_and_printable_types.len() - num_values;
+    let types_start_at = dbg!(input_and_printable_types).len() - num_values;
+
     let mut input_iter =
-        input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
+        input_and_printable_types[0..dbg!(types_start_at)].iter().flat_map(|param| param.fields());
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
         let value = decode_printable_value(&mut input_iter, &printable_type);
@@ -126,9 +127,9 @@ fn convert_fmt_string_inputs<F: AcirField>(
 fn fetch_printable_type<F: AcirField>(
     printable_type: &ForeignCallParam<F>,
 ) -> Result<PrintableType, ForeignCallError> {
-    let printable_type_as_fields = printable_type.fields();
+    let printable_type_as_fields = dbg!(printable_type.fields());
     let printable_type_as_string = decode_string_value(&printable_type_as_fields);
-    let printable_type: PrintableType = serde_json::from_str(&printable_type_as_string)?;
+    let printable_type: PrintableType = serde_json::from_str(dbg!(&printable_type_as_string))?;
 
     Ok(printable_type)
 }
