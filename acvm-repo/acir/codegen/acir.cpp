@@ -88,141 +88,104 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Add";
+                    is_unit = true;
                     break;
                 case 1:
                     tag = "Sub";
+                    is_unit = true;
                     break;
                 case 2:
                     tag = "Mul";
+                    is_unit = true;
                     break;
                 case 3:
                     tag = "Div";
+                    is_unit = true;
                     break;
                 case 4:
                     tag = "IntegerDiv";
+                    is_unit = true;
                     break;
                 case 5:
                     tag = "Equals";
+                    is_unit = true;
                     break;
                 case 6:
                     tag = "LessThan";
+                    is_unit = true;
                     break;
                 case 7:
                     tag = "LessThanEquals";
+                    is_unit = true;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BinaryFieldOp' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BinaryFieldOp': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BinaryFieldOp'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BinaryFieldOp'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BinaryFieldOp'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BinaryFieldOp'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Add") {
                 Add v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::Add'");
-                }
                 value = v;
             }
             else if (tag == "Sub") {
                 Sub v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::Sub'");
-                }
                 value = v;
             }
             else if (tag == "Mul") {
                 Mul v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::Mul'");
-                }
                 value = v;
             }
             else if (tag == "Div") {
                 Div v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::Div'");
-                }
                 value = v;
             }
             else if (tag == "IntegerDiv") {
                 IntegerDiv v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::IntegerDiv'");
-                }
                 value = v;
             }
             else if (tag == "Equals") {
                 Equals v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::Equals'");
-                }
                 value = v;
             }
             else if (tag == "LessThan") {
                 LessThan v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::LessThan'");
-                }
                 value = v;
             }
             else if (tag == "LessThanEquals") {
                 LessThanEquals v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryFieldOp::LessThanEquals'");
-                }
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BinaryFieldOp' enum variant: " + tag);
             }
         }
@@ -346,193 +309,136 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Add";
+                    is_unit = true;
                     break;
                 case 1:
                     tag = "Sub";
+                    is_unit = true;
                     break;
                 case 2:
                     tag = "Mul";
+                    is_unit = true;
                     break;
                 case 3:
                     tag = "Div";
+                    is_unit = true;
                     break;
                 case 4:
                     tag = "Equals";
+                    is_unit = true;
                     break;
                 case 5:
                     tag = "LessThan";
+                    is_unit = true;
                     break;
                 case 6:
                     tag = "LessThanEquals";
+                    is_unit = true;
                     break;
                 case 7:
                     tag = "And";
+                    is_unit = true;
                     break;
                 case 8:
                     tag = "Or";
+                    is_unit = true;
                     break;
                 case 9:
                     tag = "Xor";
+                    is_unit = true;
                     break;
                 case 10:
                     tag = "Shl";
+                    is_unit = true;
                     break;
                 case 11:
                     tag = "Shr";
+                    is_unit = true;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BinaryIntOp' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BinaryIntOp': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BinaryIntOp'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BinaryIntOp'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BinaryIntOp'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BinaryIntOp'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Add") {
                 Add v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Add'");
-                }
                 value = v;
             }
             else if (tag == "Sub") {
                 Sub v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Sub'");
-                }
                 value = v;
             }
             else if (tag == "Mul") {
                 Mul v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Mul'");
-                }
                 value = v;
             }
             else if (tag == "Div") {
                 Div v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Div'");
-                }
                 value = v;
             }
             else if (tag == "Equals") {
                 Equals v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Equals'");
-                }
                 value = v;
             }
             else if (tag == "LessThan") {
                 LessThan v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::LessThan'");
-                }
                 value = v;
             }
             else if (tag == "LessThanEquals") {
                 LessThanEquals v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::LessThanEquals'");
-                }
                 value = v;
             }
             else if (tag == "And") {
                 And v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::And'");
-                }
                 value = v;
             }
             else if (tag == "Or") {
                 Or v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Or'");
-                }
                 value = v;
             }
             else if (tag == "Xor") {
                 Xor v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Xor'");
-                }
                 value = v;
             }
             else if (tag == "Shl") {
                 Shl v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Shl'");
-                }
                 value = v;
             }
             else if (tag == "Shr") {
                 Shr v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BinaryIntOp::Shr'");
-                }
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BinaryIntOp' enum variant: " + tag);
             }
         }
@@ -602,115 +508,88 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "U1";
+                    is_unit = true;
                     break;
                 case 1:
                     tag = "U8";
+                    is_unit = true;
                     break;
                 case 2:
                     tag = "U16";
+                    is_unit = true;
                     break;
                 case 3:
                     tag = "U32";
+                    is_unit = true;
                     break;
                 case 4:
                     tag = "U64";
+                    is_unit = true;
                     break;
                 case 5:
                     tag = "U128";
+                    is_unit = true;
                     break;
                 default:
                     throw_or_abort("unknown enum 'IntegerBitSize' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'IntegerBitSize': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'IntegerBitSize'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'IntegerBitSize'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'IntegerBitSize'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'IntegerBitSize'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "U1") {
                 U1 v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'IntegerBitSize::U1'");
-                }
                 value = v;
             }
             else if (tag == "U8") {
                 U8 v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'IntegerBitSize::U8'");
-                }
                 value = v;
             }
             else if (tag == "U16") {
                 U16 v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'IntegerBitSize::U16'");
-                }
                 value = v;
             }
             else if (tag == "U32") {
                 U32 v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'IntegerBitSize::U32'");
-                }
                 value = v;
             }
             else if (tag == "U64") {
                 U64 v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'IntegerBitSize::U64'");
-                }
                 value = v;
             }
             else if (tag == "U128") {
                 U128 v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'IntegerBitSize::U128'");
-                }
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'IntegerBitSize' enum variant: " + tag);
             }
         }
@@ -754,63 +633,63 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Field";
+                    is_unit = true;
                     break;
                 case 1:
                     tag = "Integer";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BitSize' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BitSize': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BitSize'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BitSize'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BitSize'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BitSize'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Field") {
                 Field v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BitSize::Field'");
-                }
                 value = v;
             }
             else if (tag == "Integer") {
                 Integer v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BitSize::Integer'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BitSize' enum variant: " + tag);
             }
         }
@@ -864,63 +743,70 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Direct";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Relative";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'MemoryAddress' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'MemoryAddress': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'MemoryAddress'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'MemoryAddress'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'MemoryAddress'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'MemoryAddress'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Direct") {
                 Direct v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'MemoryAddress::Direct'");
                 }
+                
                 value = v;
             }
             else if (tag == "Relative") {
                 Relative v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'MemoryAddress::Relative'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'MemoryAddress' enum variant: " + tag);
             }
         }
@@ -1169,258 +1055,295 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "AES128Encrypt";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Blake2s";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "Blake3";
+                    is_unit = false;
                     break;
                 case 3:
                     tag = "Keccakf1600";
+                    is_unit = false;
                     break;
                 case 4:
                     tag = "EcdsaSecp256k1";
+                    is_unit = false;
                     break;
                 case 5:
                     tag = "EcdsaSecp256r1";
+                    is_unit = false;
                     break;
                 case 6:
                     tag = "MultiScalarMul";
+                    is_unit = false;
                     break;
                 case 7:
                     tag = "EmbeddedCurveAdd";
+                    is_unit = false;
                     break;
                 case 8:
                     tag = "BigIntAdd";
+                    is_unit = false;
                     break;
                 case 9:
                     tag = "BigIntSub";
+                    is_unit = false;
                     break;
                 case 10:
                     tag = "BigIntMul";
+                    is_unit = false;
                     break;
                 case 11:
                     tag = "BigIntDiv";
+                    is_unit = false;
                     break;
                 case 12:
                     tag = "BigIntFromLeBytes";
+                    is_unit = false;
                     break;
                 case 13:
                     tag = "BigIntToLeBytes";
+                    is_unit = false;
                     break;
                 case 14:
                     tag = "Poseidon2Permutation";
+                    is_unit = false;
                     break;
                 case 15:
                     tag = "Sha256Compression";
+                    is_unit = false;
                     break;
                 case 16:
                     tag = "ToRadix";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BlackBoxOp' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BlackBoxOp': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BlackBoxOp'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BlackBoxOp'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BlackBoxOp'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BlackBoxOp'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "AES128Encrypt") {
                 AES128Encrypt v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::AES128Encrypt'");
                 }
+                
                 value = v;
             }
             else if (tag == "Blake2s") {
                 Blake2s v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake2s'");
                 }
+                
                 value = v;
             }
             else if (tag == "Blake3") {
                 Blake3 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake3'");
                 }
+                
                 value = v;
             }
             else if (tag == "Keccakf1600") {
                 Keccakf1600 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::Keccakf1600'");
                 }
+                
                 value = v;
             }
             else if (tag == "EcdsaSecp256k1") {
                 EcdsaSecp256k1 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256k1'");
                 }
+                
                 value = v;
             }
             else if (tag == "EcdsaSecp256r1") {
                 EcdsaSecp256r1 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256r1'");
                 }
+                
                 value = v;
             }
             else if (tag == "MultiScalarMul") {
                 MultiScalarMul v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::MultiScalarMul'");
                 }
+                
                 value = v;
             }
             else if (tag == "EmbeddedCurveAdd") {
                 EmbeddedCurveAdd v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::EmbeddedCurveAdd'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntAdd") {
                 BigIntAdd v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::BigIntAdd'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntSub") {
                 BigIntSub v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::BigIntSub'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntMul") {
                 BigIntMul v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::BigIntMul'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntDiv") {
                 BigIntDiv v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::BigIntDiv'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntFromLeBytes") {
                 BigIntFromLeBytes v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::BigIntFromLeBytes'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntToLeBytes") {
                 BigIntToLeBytes v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::BigIntToLeBytes'");
                 }
+                
                 value = v;
             }
             else if (tag == "Poseidon2Permutation") {
                 Poseidon2Permutation v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::Poseidon2Permutation'");
                 }
+                
                 value = v;
             }
             else if (tag == "Sha256Compression") {
                 Sha256Compression v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::Sha256Compression'");
                 }
+                
                 value = v;
             }
             else if (tag == "ToRadix") {
                 ToRadix v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxOp::ToRadix'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BlackBoxOp' enum variant: " + tag);
             }
         }
@@ -1478,76 +1401,85 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Simple";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Array";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "Vector";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'HeapValueType' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'HeapValueType': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'HeapValueType'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'HeapValueType'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'HeapValueType'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'HeapValueType'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Simple") {
                 Simple v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'HeapValueType::Simple'");
                 }
+                
                 value = v;
             }
             else if (tag == "Array") {
                 Array v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'HeapValueType::Array'");
                 }
+                
                 value = v;
             }
             else if (tag == "Vector") {
                 Vector v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'HeapValueType::Vector'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'HeapValueType' enum variant: " + tag);
             }
         }
@@ -1620,76 +1552,85 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "MemoryAddress";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "HeapArray";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "HeapVector";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'ValueOrArray' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'ValueOrArray': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'ValueOrArray'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'ValueOrArray'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'ValueOrArray'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'ValueOrArray'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "MemoryAddress") {
                 MemoryAddress v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ValueOrArray::MemoryAddress'");
                 }
+                
                 value = v;
             }
             else if (tag == "HeapArray") {
                 HeapArray v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ValueOrArray::HeapArray'");
                 }
+                
                 value = v;
             }
             else if (tag == "HeapVector") {
                 HeapVector v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ValueOrArray::HeapVector'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'ValueOrArray' enum variant: " + tag);
             }
         }
@@ -1942,297 +1883,333 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "BinaryFieldOp";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "BinaryIntOp";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "Not";
+                    is_unit = false;
                     break;
                 case 3:
                     tag = "Cast";
+                    is_unit = false;
                     break;
                 case 4:
                     tag = "JumpIfNot";
+                    is_unit = false;
                     break;
                 case 5:
                     tag = "JumpIf";
+                    is_unit = false;
                     break;
                 case 6:
                     tag = "Jump";
+                    is_unit = false;
                     break;
                 case 7:
                     tag = "CalldataCopy";
+                    is_unit = false;
                     break;
                 case 8:
                     tag = "Call";
+                    is_unit = false;
                     break;
                 case 9:
                     tag = "Const";
+                    is_unit = false;
                     break;
                 case 10:
                     tag = "IndirectConst";
+                    is_unit = false;
                     break;
                 case 11:
                     tag = "Return";
+                    is_unit = true;
                     break;
                 case 12:
                     tag = "ForeignCall";
+                    is_unit = false;
                     break;
                 case 13:
                     tag = "Mov";
+                    is_unit = false;
                     break;
                 case 14:
                     tag = "ConditionalMov";
+                    is_unit = false;
                     break;
                 case 15:
                     tag = "Load";
+                    is_unit = false;
                     break;
                 case 16:
                     tag = "Store";
+                    is_unit = false;
                     break;
                 case 17:
                     tag = "BlackBox";
+                    is_unit = false;
                     break;
                 case 18:
                     tag = "Trap";
+                    is_unit = false;
                     break;
                 case 19:
                     tag = "Stop";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BrilligOpcode' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BrilligOpcode': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BrilligOpcode'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BrilligOpcode'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BrilligOpcode'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BrilligOpcode'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "BinaryFieldOp") {
                 BinaryFieldOp v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryFieldOp'");
                 }
+                
                 value = v;
             }
             else if (tag == "BinaryIntOp") {
                 BinaryIntOp v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryIntOp'");
                 }
+                
                 value = v;
             }
             else if (tag == "Not") {
                 Not v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Not'");
                 }
+                
                 value = v;
             }
             else if (tag == "Cast") {
                 Cast v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Cast'");
                 }
+                
                 value = v;
             }
             else if (tag == "JumpIfNot") {
                 JumpIfNot v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::JumpIfNot'");
                 }
+                
                 value = v;
             }
             else if (tag == "JumpIf") {
                 JumpIf v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::JumpIf'");
                 }
+                
                 value = v;
             }
             else if (tag == "Jump") {
                 Jump v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Jump'");
                 }
+                
                 value = v;
             }
             else if (tag == "CalldataCopy") {
                 CalldataCopy v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::CalldataCopy'");
                 }
+                
                 value = v;
             }
             else if (tag == "Call") {
                 Call v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Call'");
                 }
+                
                 value = v;
             }
             else if (tag == "Const") {
                 Const v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Const'");
                 }
+                
                 value = v;
             }
             else if (tag == "IndirectConst") {
                 IndirectConst v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::IndirectConst'");
                 }
+                
                 value = v;
             }
             else if (tag == "Return") {
                 Return v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Return'");
-                }
                 value = v;
             }
             else if (tag == "ForeignCall") {
                 ForeignCall v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::ForeignCall'");
                 }
+                
                 value = v;
             }
             else if (tag == "Mov") {
                 Mov v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Mov'");
                 }
+                
                 value = v;
             }
             else if (tag == "ConditionalMov") {
                 ConditionalMov v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::ConditionalMov'");
                 }
+                
                 value = v;
             }
             else if (tag == "Load") {
                 Load v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Load'");
                 }
+                
                 value = v;
             }
             else if (tag == "Store") {
                 Store v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Store'");
                 }
+                
                 value = v;
             }
             else if (tag == "BlackBox") {
                 BlackBox v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::BlackBox'");
                 }
+                
                 value = v;
             }
             else if (tag == "Trap") {
                 Trap v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Trap'");
                 }
+                
                 value = v;
             }
             else if (tag == "Stop") {
                 Stop v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Stop'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BrilligOpcode' enum variant: " + tag);
             }
         }
@@ -2305,63 +2282,70 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Constant";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Witness";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'ConstantOrWitnessEnum' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'ConstantOrWitnessEnum': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'ConstantOrWitnessEnum'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'ConstantOrWitnessEnum'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'ConstantOrWitnessEnum'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'ConstantOrWitnessEnum'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Constant") {
                 Constant v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ConstantOrWitnessEnum::Constant'");
                 }
+                
                 value = v;
             }
             else if (tag == "Witness") {
                 Witness v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ConstantOrWitnessEnum::Witness'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'ConstantOrWitnessEnum' enum variant: " + tag);
             }
         }
@@ -2629,297 +2613,340 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "AES128Encrypt";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "AND";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "XOR";
+                    is_unit = false;
                     break;
                 case 3:
                     tag = "RANGE";
+                    is_unit = false;
                     break;
                 case 4:
                     tag = "Blake2s";
+                    is_unit = false;
                     break;
                 case 5:
                     tag = "Blake3";
+                    is_unit = false;
                     break;
                 case 6:
                     tag = "EcdsaSecp256k1";
+                    is_unit = false;
                     break;
                 case 7:
                     tag = "EcdsaSecp256r1";
+                    is_unit = false;
                     break;
                 case 8:
                     tag = "MultiScalarMul";
+                    is_unit = false;
                     break;
                 case 9:
                     tag = "EmbeddedCurveAdd";
+                    is_unit = false;
                     break;
                 case 10:
                     tag = "Keccakf1600";
+                    is_unit = false;
                     break;
                 case 11:
                     tag = "RecursiveAggregation";
+                    is_unit = false;
                     break;
                 case 12:
                     tag = "BigIntAdd";
+                    is_unit = false;
                     break;
                 case 13:
                     tag = "BigIntSub";
+                    is_unit = false;
                     break;
                 case 14:
                     tag = "BigIntMul";
+                    is_unit = false;
                     break;
                 case 15:
                     tag = "BigIntDiv";
+                    is_unit = false;
                     break;
                 case 16:
                     tag = "BigIntFromLeBytes";
+                    is_unit = false;
                     break;
                 case 17:
                     tag = "BigIntToLeBytes";
+                    is_unit = false;
                     break;
                 case 18:
                     tag = "Poseidon2Permutation";
+                    is_unit = false;
                     break;
                 case 19:
                     tag = "Sha256Compression";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BlackBoxFuncCall' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BlackBoxFuncCall': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BlackBoxFuncCall'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BlackBoxFuncCall'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BlackBoxFuncCall'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BlackBoxFuncCall'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "AES128Encrypt") {
                 AES128Encrypt v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AES128Encrypt'");
                 }
+                
                 value = v;
             }
             else if (tag == "AND") {
                 AND v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AND'");
                 }
+                
                 value = v;
             }
             else if (tag == "XOR") {
                 XOR v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::XOR'");
                 }
+                
                 value = v;
             }
             else if (tag == "RANGE") {
                 RANGE v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RANGE'");
                 }
+                
                 value = v;
             }
             else if (tag == "Blake2s") {
                 Blake2s v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake2s'");
                 }
+                
                 value = v;
             }
             else if (tag == "Blake3") {
                 Blake3 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake3'");
                 }
+                
                 value = v;
             }
             else if (tag == "EcdsaSecp256k1") {
                 EcdsaSecp256k1 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256k1'");
                 }
+                
                 value = v;
             }
             else if (tag == "EcdsaSecp256r1") {
                 EcdsaSecp256r1 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256r1'");
                 }
+                
                 value = v;
             }
             else if (tag == "MultiScalarMul") {
                 MultiScalarMul v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::MultiScalarMul'");
                 }
+                
                 value = v;
             }
             else if (tag == "EmbeddedCurveAdd") {
                 EmbeddedCurveAdd v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EmbeddedCurveAdd'");
                 }
+                
                 value = v;
             }
             else if (tag == "Keccakf1600") {
                 Keccakf1600 v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Keccakf1600'");
                 }
+                
                 value = v;
             }
             else if (tag == "RecursiveAggregation") {
                 RecursiveAggregation v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RecursiveAggregation'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntAdd") {
                 BigIntAdd v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::BigIntAdd'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntSub") {
                 BigIntSub v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::BigIntSub'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntMul") {
                 BigIntMul v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::BigIntMul'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntDiv") {
                 BigIntDiv v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::BigIntDiv'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntFromLeBytes") {
                 BigIntFromLeBytes v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::BigIntFromLeBytes'");
                 }
+                
                 value = v;
             }
             else if (tag == "BigIntToLeBytes") {
                 BigIntToLeBytes v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::BigIntToLeBytes'");
                 }
+                
                 value = v;
             }
             else if (tag == "Poseidon2Permutation") {
                 Poseidon2Permutation v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Poseidon2Permutation'");
                 }
+                
                 value = v;
             }
             else if (tag == "Sha256Compression") {
                 Sha256Compression v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Sha256Compression'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BlackBoxFuncCall' enum variant: " + tag);
             }
         }
@@ -2991,76 +3018,71 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Memory";
+                    is_unit = true;
                     break;
                 case 1:
                     tag = "CallData";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "ReturnData";
+                    is_unit = true;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BlockType' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BlockType': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BlockType'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BlockType'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BlockType'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BlockType'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Memory") {
                 Memory v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlockType::Memory'");
-                }
                 value = v;
             }
             else if (tag == "CallData") {
                 CallData v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BlockType::CallData'");
                 }
+                
                 value = v;
             }
             else if (tag == "ReturnData") {
                 ReturnData v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlockType::ReturnData'");
-                }
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BlockType' enum variant: " + tag);
             }
         }
@@ -3145,76 +3167,85 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Single";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Array";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "MemoryArray";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BrilligInputs' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BrilligInputs': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BrilligInputs'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BrilligInputs'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BrilligInputs'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BrilligInputs'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Single") {
                 Single v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligInputs::Single'");
                 }
+                
                 value = v;
             }
             else if (tag == "Array") {
                 Array v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligInputs::Array'");
                 }
+                
                 value = v;
             }
             else if (tag == "MemoryArray") {
                 MemoryArray v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligInputs::MemoryArray'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BrilligInputs' enum variant: " + tag);
             }
         }
@@ -3268,63 +3299,70 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Simple";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Array";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'BrilligOutputs' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'BrilligOutputs': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'BrilligOutputs'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'BrilligOutputs'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BrilligOutputs'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'BrilligOutputs'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Simple") {
                 Simple v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOutputs::Simple'");
                 }
+                
                 value = v;
             }
             else if (tag == "Array") {
                 Array v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOutputs::Array'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'BrilligOutputs' enum variant: " + tag);
             }
         }
@@ -3440,115 +3478,130 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "AssertZero";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "BlackBoxFuncCall";
+                    is_unit = false;
                     break;
                 case 2:
                     tag = "MemoryOp";
+                    is_unit = false;
                     break;
                 case 3:
                     tag = "MemoryInit";
+                    is_unit = false;
                     break;
                 case 4:
                     tag = "BrilligCall";
+                    is_unit = false;
                     break;
                 case 5:
                     tag = "Call";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'Opcode' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'Opcode': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'Opcode'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'Opcode'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'Opcode'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'Opcode'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "AssertZero") {
                 AssertZero v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'Opcode::AssertZero'");
                 }
+                
                 value = v;
             }
             else if (tag == "BlackBoxFuncCall") {
                 BlackBoxFuncCall v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'Opcode::BlackBoxFuncCall'");
                 }
+                
                 value = v;
             }
             else if (tag == "MemoryOp") {
                 MemoryOp v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'Opcode::MemoryOp'");
                 }
+                
                 value = v;
             }
             else if (tag == "MemoryInit") {
                 MemoryInit v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'Opcode::MemoryInit'");
                 }
+                
                 value = v;
             }
             else if (tag == "BrilligCall") {
                 BrilligCall v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'Opcode::BrilligCall'");
                 }
+                
                 value = v;
             }
             else if (tag == "Call") {
                 Call v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'Opcode::Call'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'Opcode' enum variant: " + tag);
             }
         }
@@ -3602,63 +3655,70 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Expression";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Memory";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'ExpressionOrMemory' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'ExpressionOrMemory': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'ExpressionOrMemory'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'ExpressionOrMemory'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'ExpressionOrMemory'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'ExpressionOrMemory'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Expression") {
                 Expression v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Expression'");
                 }
+                
                 value = v;
             }
             else if (tag == "Memory") {
                 Memory v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Memory'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'ExpressionOrMemory' enum variant: " + tag);
             }
         }
@@ -3704,63 +3764,63 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Unbounded";
+                    is_unit = true;
                     break;
                 case 1:
                     tag = "Bounded";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'ExpressionWidth' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'ExpressionWidth': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'ExpressionWidth'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'ExpressionWidth'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'ExpressionWidth'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'ExpressionWidth'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Unbounded") {
                 Unbounded v;
-                try {
-                    oval.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
-                    throw_or_abort("error converting into enum variant 'ExpressionWidth::Unbounded'");
-                }
                 value = v;
             }
             else if (tag == "Bounded") {
                 Bounded v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'ExpressionWidth::Bounded'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'ExpressionWidth' enum variant: " + tag);
             }
         }
@@ -3806,63 +3866,70 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
+            bool is_unit;
             switch (value.index()) {
                 
                 case 0:
                     tag = "Acir";
+                    is_unit = false;
                     break;
                 case 1:
                     tag = "Brillig";
+                    is_unit = false;
                     break;
                 default:
                     throw_or_abort("unknown enum 'OpcodeLocation' variant index: " + std::to_string(value.index()));
             }
-            std::visit([&packer, tag](const auto& arg) {
-                std::map<std::string, msgpack::object> data;
-                data[tag] = msgpack::object(arg);
-                packer.pack(data);
+            std::visit([&packer, tag, is_unit](const auto& arg) {
+                if (is_unit) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                } else {
+                    packer.pack(tag);
+                }
             }, value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             std::cerr << "reading into 'OpcodeLocation': " << o << std::endl;
-            if (o.type != msgpack::type::object_type::MAP) {
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP for enum 'OpcodeLocation'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'OpcodeLocation'; got type " + std::to_string(o.type));
             }
-            if (o.via.map.size != 1) {
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'OpcodeLocation'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
-            try {
+            if (o.type == msgpack::type::object_type::MAP) {
                 o.via.map.ptr[0].key.convert(tag);
-            } catch (const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting key to string for enum 'OpcodeLocation'");
+            } else {
+                o.convert(tag);
             }
-            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Acir") {
                 Acir v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'OpcodeLocation::Acir'");
                 }
+                
                 value = v;
             }
             else if (tag == "Brillig") {
                 Brillig v;
                 try {
-                    oval.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
-                    std::cerr << oval << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'OpcodeLocation::Brillig'");
                 }
+                
                 value = v;
             }
             else {
-                std::cerr << oval << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("unknown 'OpcodeLocation' enum variant: " + tag);
             }
         }
