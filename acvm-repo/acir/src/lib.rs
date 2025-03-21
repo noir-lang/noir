@@ -339,15 +339,15 @@ mod reflection {
         default:
             throw_or_abort("unknown enum '{name}' variant index: " + std::to_string(value.index()));
     }}
-    std::visit([&packer, tag, is_unit](const auto& arg) {{
-        if (is_unit) {{
-            packer.pack(tag);
-        }} else {{
+    if (is_unit) {{
+        packer.pack(tag);
+    }} else {{
+        std::visit([&packer, tag](const auto& arg) {{
             std::map<std::string, msgpack::object> data;
             data[tag] = msgpack::object(arg);
             packer.pack(data);
-        }}
-    }}, value);"#
+        }}, value);
+    }}"#
                 )
             };
             self.msgpack_pack(name, &pack_body);
