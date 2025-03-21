@@ -12,7 +12,16 @@ use num_traits::Zero;
 
 use crate::corpus::TestCaseId;
 
+/// A state that represents a true comparison as part of a feature
+const FUZZING_COMPARISON_TRUE_STATE: usize = usize::MAX - 1;
+/// A state that represents a false comparison as part of a feature
+const FUZZING_COMPARISON_FALSE_STATE: usize = usize::MAX;
 
+/// The start of the range of the states that represent logarithm of the difference between the comparison arguments as part of a feature
+const FUZZING_COMPARISON_LOG_RANGE_START_STATE: usize = 0;
+
+/// The number of states in the range of the states that represent logarithm of the difference between the comparison arguments as part of a feature
+const FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES: usize = 256;
 
 /// The position of an opcode that is currently being executed in the bytecode
 pub type OpcodePosition = usize;
@@ -135,7 +144,6 @@ pub struct BranchCoverageRange {
 /// Structure containing information that at a particular index in the brillig program there is a comparison between elements of the following bit size
 pub struct CmpCoverageRange {
     index: usize,
-    bits: usize,
 }
 
 /// Structure containing information about positions of coverage-related opcodes in the brillig program
@@ -222,8 +230,6 @@ pub struct AccumulatedCmpCoverage {
     closest_bits_testcase: Option<TestCaseId>,
     /// The starting index of the region in the raw vector of coverage in brillig
     raw_index: usize,
-    /// The size of the comparison arguments
-    bits: usize,
     /// If tracking this comparison is enabled (we disable it if we've reached equality)
     enabled: bool,
 }
@@ -284,7 +290,6 @@ impl AccumulatedFuzzerCoverage {
                         closest_bits: u32::MAX,
                         closest_bits_testcase: None,
                         raw_index: cmp_coverage_range.index + 2,
-                        bits: cmp_coverage_range.bits,
                         enabled: true,
                     });
                 }
@@ -431,6 +436,10 @@ impl AccumulatedFuzzerCoverage {
 
             match least_different_bits.cmp(&cmp_approach.closest_bits) {
                 std::cmp::Ordering::Less => {
+                    println!("Comparison index: {}", cmp_approach.raw_index);
+                    println!("least_different_bits: {}", least_different_bits);
+                    println!("last_value: {}", last_value);
+
                     Self::handle_closer_comparison(
                         cmp_approach,
                         new_coverage,
@@ -454,15 +463,15 @@ impl AccumulatedFuzzerCoverage {
 
     fn find_closest_comparison(
         new_coverage: &SingleTestCaseCoverage,
-        cmp_approach: &mut AccumulatedCmpCoverage,
+        cmp_approach: &AccumulatedCmpCoverage,
     ) -> (u32, u32) {
         let mut least_different_bits = u32::MAX;
         let mut last_value = 0;
 
         // Each log of difference has a separate spot in the raw coverage
-        for i in 0..(cmp_approach.bits + 1) {
+        for i in 0..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
             if !new_coverage.brillig_coverage[i + cmp_approach.raw_index].is_zero() {
-                least_different_bits = (cmp_approach.bits - i) as u32;
+                least_different_bits =  i as u32;
                 last_value = new_coverage.brillig_coverage[i + cmp_approach.raw_index];
             }
         }
@@ -486,9 +495,7 @@ impl AccumulatedFuzzerCoverage {
             add_to_leavers(cmp_approach.testcases_involved[i]);
         }
 
-        println!("least_different_bits: {}", least_different_bits);
-        println!("last_value: {}", last_value);
-        // Register new metrics that have been reached
+                // Register new metrics that have been reached
         cmp_approach.closest_bits = least_different_bits;
         cmp_approach.encountered_loop_maximum = last_value;
         let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
@@ -600,14 +607,9 @@ impl AccumulatedFuzzerCoverage {
                 // No need to detect closeness any more if we've hit the equality case
                 continue;
             }
-            let mut least_different_bits = u32::MAX;
-            let mut last_value = 0;
-            for i in 0..(cmp_approach.bits + 1) {
-                if !new_coverage.brillig_coverage[i + cmp_approach.raw_index].is_zero() {
-                    least_different_bits = (cmp_approach.bits - i) as u32;
-                    last_value = new_coverage.brillig_coverage[i + cmp_approach.raw_index];
-                }
-            }
+let (least_different_bits, last_value) =
+                Self::find_closest_comparison(new_coverage, cmp_approach);
+
 
             match least_different_bits.cmp(&cmp_approach.closest_bits) {
                 std::cmp::Ordering::Less => return true,
@@ -676,8 +678,8 @@ pub fn analyze_brillig_program_before_fuzzing(
             }
             // Conditional mov
             &BrilligOpcode::ConditionalMov { .. } => {
-                feature_to_index_map.insert((opcode_index, usize::MAX - 1), total_features);
-                feature_to_index_map.insert((opcode_index, usize::MAX), total_features + 1);
+                feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
+                feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + 1);
                 coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
                     index: total_features,
                 }));
@@ -694,21 +696,25 @@ pub fn analyze_brillig_program_before_fuzzing(
                 acvm::acir::brillig::BinaryFieldOp::Equals
                 | acvm::acir::brillig::BinaryFieldOp::LessThan
                 | acvm::acir::brillig::BinaryFieldOp::LessThanEquals => {
-                    let features_per_comparison = 1 /*true */ + 1/*false */ + 255 /*possible bits() results*/;
-                    // Insert features for each potential difference log
-                    for i in 0..features_per_comparison {
-                        feature_to_index_map
-                            .insert((opcode_index, usize::MAX - i), total_features + i);
-                    }
                     coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
                         index: total_features,
-                        bits: 254,
                     }));
-                    total_features += features_per_comparison;
+                    // Insert features for boolean states
+                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
+                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + 1);
+                    total_features += 2;
+
+                    // Insert features for each potential difference log
+                    for i in 0..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
+                        feature_to_index_map
+                            .insert((opcode_index, FUZZING_COMPARISON_LOG_RANGE_START_STATE + i), total_features + i);
+                    }
+                    total_features += FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES;
+                    
                 }
             },
             // Binary operations (we need comparisons)
-            &BrilligOpcode::BinaryIntOp { destination: _, op, bit_size, .. } => match op {
+            &BrilligOpcode::BinaryIntOp { destination: _, op,  .. } => match op {
                 acvm::acir::brillig::BinaryIntOp::Add
                 | acvm::acir::brillig::BinaryIntOp::Sub
                 | acvm::acir::brillig::BinaryIntOp::Mul
@@ -722,18 +728,21 @@ pub fn analyze_brillig_program_before_fuzzing(
                 acvm::acir::brillig::BinaryIntOp::Equals
                 | acvm::acir::brillig::BinaryIntOp::LessThan
                 | acvm::acir::brillig::BinaryIntOp::LessThanEquals => {
-                    let comparison_bits=u32::from(bit_size) as usize;
-                    let features_per_comparison = 1 /*true */ + 1/*false */ + 1/*when ilog is zero*/ + comparison_bits; 
-                     // Insert features for each potential difference log
-                    for i in 0..features_per_comparison {
-                        feature_to_index_map
-                            .insert((opcode_index, usize::MAX - i), total_features + i);
-                    }
                     coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
                         index: total_features,
-                        bits: comparison_bits,
                     }));
-                    total_features += features_per_comparison;
+                    // Insert features for boolean states
+                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
+                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + 1);
+                    total_features += 2;
+
+                    // Insert features for each potential difference log
+                    for i in 0..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
+                        feature_to_index_map
+                            .insert((opcode_index, FUZZING_COMPARISON_LOG_RANGE_START_STATE + i), total_features + i);
+                    }
+                    total_features += FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES;
+
                 }
             },
             BrilligOpcode::Not { .. }

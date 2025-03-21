@@ -226,6 +226,30 @@ fn add_sub_xor_and_or_signed<
     i128_to_field(result_int.as_(), width)
 }
 
+/// Perform an integer binary operation on 2 field elements according to `mutation_operation`. Get field as a result
+fn add_sub_pow_2_update<
+    T: WrappingAdd
+        + WrappingSub
+        + HasBits
+        + BitXor<Output = T>
+        + BitAnd<Output = T>
+        + BitOr<Output = T>
+        + AsPrimitive<u128>
+        + PrimInt,
+>(
+    lhs: &FieldElement,
+    prng: &mut XorShiftRng,
+) -> FieldElement {
+    let width = T::BITS;
+    let lhs_int = T::from(field_to_u128(lhs)).expect("Should convert");
+    let update = T::from(1u128 << prng.gen_range(0..width)).expect("Should convert");
+    let result_int = if prng.gen_range(0..2).is_zero() {
+        lhs_int.wrapping_add(&update)
+    } else {
+        lhs_int.wrapping_sub(&update)
+    };
+    u128_to_field(result_int.as_())
+}
 /// Perform an unsigned integer binary operation on 2 field elements according to `mutation_operation`. Get field as a result
 fn add_sub_xor_and_or_unsigned<
     T: WrappingAdd
@@ -425,6 +449,31 @@ impl<'a> IntMutator<'a> {
         })
     }
 
+    fn perform_pow_2_update_signed(&mut self, input: &FieldElement, width: u32) -> InputValue {
+        InputValue::Field(match width {
+            8 => add_sub_pow_2_update::<i8>(input, self.prng),
+            16 => add_sub_pow_2_update::<i16>(input, self.prng),
+            32 => add_sub_pow_2_update::<i32>(input, self.prng),
+            64 => add_sub_pow_2_update::<i64>(input, self.prng),
+            128 => add_sub_pow_2_update::<i128>(input, self.prng),
+            _ => {
+                panic!("Shouldn't be reachable")
+            }
+        })
+    }
+
+    fn perform_pow_2_update_unsigned(&mut self, input: &FieldElement, width: u32) -> InputValue {
+        InputValue::Field(match width {
+            8 => add_sub_pow_2_update::<u8>(input, self.prng),
+            16 => add_sub_pow_2_update::<u16>(input, self.prng),
+            32 => add_sub_pow_2_update::<i32>(input, self.prng),
+            64 => add_sub_pow_2_update::<u64>(input, self.prng),
+            128 => add_sub_pow_2_update::<u128>(input, self.prng),
+            _ => {
+                panic!("Shouldn't be reachable")
+            }
+        })
+    }
     /// Perform a mutation on a signed int
     fn mutate_signed(&mut self, input: &FieldElement, width: u32) -> InputValue {
         let initial_i128 = field_to_i128(input, width);
@@ -443,6 +492,7 @@ impl<'a> IntMutator<'a> {
             IntTopLevelMutation::DictionaryValueUpdate => {
                 self.perform_signed_binary_operation_with_dictionary(input, width)
             }
+            IntTopLevelMutation::Pow2Update => self.perform_pow_2_update_signed(input, width),
         }
     }
 
@@ -554,6 +604,7 @@ impl<'a> IntMutator<'a> {
             IntTopLevelMutation::DictionaryValueUpdate => {
                 self.perform_unsigned_binary_operation_with_dictionary(input, width)
             }
+            IntTopLevelMutation::Pow2Update => self.perform_pow_2_update_unsigned(input, width),
         }
     }
 

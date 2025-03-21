@@ -76,12 +76,12 @@ pub type OpcodePosition = usize;
 pub type NextOpcodePositionOrState = usize;
 
 /// A state that represents a true comparison as part of a feature
-const FUZZING_COMPARISON_TRUE_STATE: usize = usize::MAX;
+const FUZZING_COMPARISON_TRUE_STATE: usize = usize::MAX - 1;
 /// A state that represents a false comparison as part of a feature
-const FUZZING_COMPARISON_FALSE_STATE: usize = usize::MAX - 1;
+const FUZZING_COMPARISON_FALSE_STATE: usize = usize::MAX;
 
-/// The end of the range of the states that represent logarithm of the difference between the comparison arguments as part of a feature
-const FUZZING_COMPARISON_LOG_RANGE_END_STATE: usize = usize::MAX - 2;
+/// The start of the range of the states that represent logarithm of the difference between the comparison arguments as part of a feature
+const FUZZING_COMPARISON_LOG_RANGE_START_STATE: usize = 0;
 
 /// A tuple of the current opcode position and the next opcode position or state
 pub type Branch = (OpcodePosition, NextOpcodePositionOrState);
@@ -292,8 +292,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         if !self.fuzzing_active {
             return;
         }
-        let index = self.branch_to_feature_map
-            [&(self.program_counter, if branch { usize::MAX } else { usize::MAX - 1 })];
+        let index = self.branch_to_feature_map[&(
+            self.program_counter,
+            if branch { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
+        )];
         self.fuzzer_trace[index] += 1;
     }
 
@@ -338,8 +340,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 };
                 let approach_index = self.branch_to_feature_map[&(
                     self.program_counter,
-                    FUZZING_COMPARISON_LOG_RANGE_END_STATE
-                        - BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits() as usize,
+                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
+                        + BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits() as usize,
                 )];
                 let condition_index = self.branch_to_feature_map[&(
                     self.program_counter,
@@ -383,8 +385,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 };
                 let approach_index = self.branch_to_feature_map[&(
                     self.program_counter,
-                    FUZZING_COMPARISON_LOG_RANGE_END_STATE
-                        - rhs_value.abs_diff(lhs_value).checked_ilog2().map_or_else(|| 0, |x| x + 1)
+                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
+                        + rhs_value.abs_diff(lhs_value).checked_ilog2().map_or_else(|| 0, |x| x + 1)
                             as usize,
                 )];
                 let condition_index = self.branch_to_feature_map[&(
@@ -1238,10 +1240,13 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Failure {
-            reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
-            call_stack: vec![5]
-        });
+        assert_eq!(
+            status,
+            VMStatus::Failure {
+                reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
+                call_stack: vec![5]
+            }
+        );
 
         // The address at index `2` should have not changed as we jumped over the add opcode
         let VM { memory, .. } = vm;
@@ -1959,10 +1964,13 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(vec![], &double_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(vm.status, VMStatus::ForeignCallWait {
-            function: "double".into(),
-            inputs: vec![FieldElement::from(5usize).into()]
-        });
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "double".into(),
+                inputs: vec![FieldElement::from(5usize).into()]
+            }
+        );
 
         // Push result we're waiting for
         vm.resolve_foreign_call(
@@ -2050,10 +2058,13 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(initial_matrix.clone(), &invert_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(vm.status, VMStatus::ForeignCallWait {
-            function: "matrix_2x2_transpose".into(),
-            inputs: vec![initial_matrix.into()]
-        });
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "matrix_2x2_transpose".into(),
+                inputs: vec![initial_matrix.into()]
+            }
+        );
 
         // Push result we're waiting for
         vm.resolve_foreign_call(expected_result.clone().into());
@@ -2159,10 +2170,13 @@ mod tests {
             brillig_execute_and_get_vm(input_string.clone(), &string_double_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(vm.status, VMStatus::ForeignCallWait {
-            function: "string_double".into(),
-            inputs: vec![input_string.clone().into()]
-        });
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "string_double".into(),
+                inputs: vec![input_string.clone().into()]
+            }
+        );
 
         // Push result we're waiting for
         vm.resolve_foreign_call(ForeignCallResult {
@@ -2255,10 +2269,13 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(initial_matrix.clone(), &invert_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(vm.status, VMStatus::ForeignCallWait {
-            function: "matrix_2x2_transpose".into(),
-            inputs: vec![initial_matrix.clone().into()]
-        });
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "matrix_2x2_transpose".into(),
+                inputs: vec![initial_matrix.clone().into()]
+            }
+        );
 
         // Push result we're waiting for
         vm.resolve_foreign_call(expected_result.clone().into());
@@ -2375,10 +2392,13 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(initial_memory, &matrix_mul_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(vm.status, VMStatus::ForeignCallWait {
-            function: "matrix_2x2_transpose".into(),
-            inputs: vec![matrix_a.into(), matrix_b.into()]
-        });
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "matrix_2x2_transpose".into(),
+                inputs: vec![matrix_a.into(), matrix_b.into()]
+            }
+        );
 
         // Push result we're waiting for
         vm.resolve_foreign_call(expected_result.clone().into());
@@ -2517,22 +2537,25 @@ mod tests {
         );
 
         // Check that VM is waiting
-        assert_eq!(vm.status, VMStatus::ForeignCallWait {
-            function: "flat_sum".into(),
-            inputs: vec![ForeignCallParam::Array(vec![
-                (1u128).into(),
-                (2u128).into(), // size of following vector
-                (2u128).into(),
-                (3u128).into(),
-                (4u128).into(),
-                (5u128).into(),
-                (3u128).into(), // size of following vector
-                (6u128).into(),
-                (7u128).into(),
-                (8u128).into(),
-                (9u128).into(),
-            ])],
-        });
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "flat_sum".into(),
+                inputs: vec![ForeignCallParam::Array(vec![
+                    (1u128).into(),
+                    (2u128).into(), // size of following vector
+                    (2u128).into(),
+                    (3u128).into(),
+                    (4u128).into(),
+                    (5u128).into(),
+                    (3u128).into(), // size of following vector
+                    (6u128).into(),
+                    (7u128).into(),
+                    (8u128).into(),
+                    (9u128).into(),
+                ])],
+            }
+        );
 
         // Push result we're waiting for
         vm.resolve_foreign_call(FieldElement::from(45u128).into());
@@ -2627,9 +2650,14 @@ mod tests {
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Failure {
-            reason: FailureReason::RuntimeError { message: "Attempted to divide by zero".into() },
-            call_stack: vec![2]
-        });
+        assert_eq!(
+            status,
+            VMStatus::Failure {
+                reason: FailureReason::RuntimeError {
+                    message: "Attempted to divide by zero".into()
+                },
+                call_stack: vec![2]
+            }
+        );
     }
 }

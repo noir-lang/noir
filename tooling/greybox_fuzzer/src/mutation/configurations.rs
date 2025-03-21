@@ -656,6 +656,7 @@ pub(crate) enum IntTopLevelMutation {
     Shift,
     SmallValueUpdate,
     DictionaryValueUpdate,
+    Pow2Update,
 }
 
 pub(crate) struct IntTopLevelMutationConfiguration {
@@ -666,6 +667,7 @@ pub(crate) struct IntTopLevelMutationConfiguration {
     small_value_update_weight: usize,
     #[allow(unused)]
     dictionary_value_update_weight: usize,
+    pow2_update_weight: usize,
     total_weight: usize,
 }
 
@@ -678,13 +680,15 @@ impl IntTopLevelMutationConfiguration {
         shift_weight: usize,
         small_value_update_weight: usize,
         dictionary_value_update_weight: usize,
+        pow2_update_weight: usize,
     ) -> Self {
         let total_weight = fixed_substitution_weight
             + dictionary_substitution_weight
             + negation_weight
             + shift_weight
             + small_value_update_weight
-            + dictionary_value_update_weight;
+            + dictionary_value_update_weight
+            + pow2_update_weight;
         Self {
             fixed_substitution_weight,
             dictionary_substitution_weight,
@@ -692,6 +696,7 @@ impl IntTopLevelMutationConfiguration {
             shift_weight,
             small_value_update_weight,
             dictionary_value_update_weight,
+            pow2_update_weight,
             total_weight,
         }
     }
@@ -718,7 +723,11 @@ impl IntTopLevelMutationConfiguration {
         if selector < self.small_value_update_weight {
             return IntTopLevelMutation::SmallValueUpdate;
         }
-        IntTopLevelMutation::DictionaryValueUpdate
+        selector -= self.small_value_update_weight;
+        if selector < self.dictionary_value_update_weight {
+            return IntTopLevelMutation::DictionaryValueUpdate;
+        }
+        IntTopLevelMutation::Pow2Update
     }
 }
 
@@ -869,6 +878,7 @@ pub(crate) const BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION: IntTopLevelMutation
         negation_weight: 0x2,
         shift_weight: 0x8,
         small_value_update_weight: 0x80,
+        pow2_update_weight: 0x20,
         dictionary_value_update_weight: 0x30,
-        total_weight: 0x20 + 0x30 + 0x2 + 0x8 + 0x80 + 0x30,
+        total_weight: 0x20 + 0x30 + 0x2 + 0x8 + 0x80 + 0x20 + 0x30,
     };
