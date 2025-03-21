@@ -128,11 +128,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -364,11 +364,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -538,11 +538,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -646,11 +646,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -755,11 +755,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -1126,11 +1126,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -1415,11 +1415,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -1565,11 +1565,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -1963,11 +1963,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -2289,11 +2289,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -2691,11 +2691,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -3027,11 +3027,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -3175,11 +3175,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -3302,11 +3302,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -3496,11 +3496,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -3656,11 +3656,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -3764,11 +3764,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
@@ -3865,11 +3865,11 @@ namespace Acir {
             }
             std::visit([&packer, tag, is_unit](const auto& arg) {
                 if (is_unit) {
+                    packer.pack(tag);
+                } else {
                     std::map<std::string, msgpack::object> data;
                     data[tag] = msgpack::object(arg);
                     packer.pack(data);
-                } else {
-                    packer.pack(tag);
                 }
             }, value);
         }
