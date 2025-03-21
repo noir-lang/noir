@@ -342,7 +342,6 @@ mod reflection {
             let unpack_body = {
                 let mut body = format!(
                     r#"
-    std::cerr << "reading into '{name}': " << o << std::endl;
     if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {{
         std::cerr << o << std::endl;
         throw_or_abort("expected MAP or STR for enum '{name}'; got type " + std::to_string(o.type));
@@ -442,7 +441,6 @@ mod reflection {
             // template <> struct msgpack::adaptor::convert<Acir::Opcode> {
             //     msgpack::object const& operator()(msgpack::object const& o, Acir::Opcode& v) const
             //     {
-            //         std::cerr << "reading into 'Opcode': " << o << std::endl;
             //         return o;
             //         if (o.type != msgpack::type::MAP || o.via.map.size != 1) {
             //             throw_or_abort("expecteed signle element map for 'Opcode'");
