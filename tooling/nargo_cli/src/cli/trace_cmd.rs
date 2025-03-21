@@ -105,8 +105,8 @@ pub(crate) fn trace_program(
     };
 
     let crate_name_string: String = crate_name.into();
-    let mut tracer = Tracer::new(crate_name_string.as_str(), &vec![]);
-    match noir_tracer::trace_circuit(
+    let mut tracer = Tracer::new(crate_name_string.as_str(), &[]);
+    if let Err(error) = noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver(pedantic_solving),
         &compiled_program.program.functions,
         &debug_artifact,
@@ -115,8 +115,7 @@ pub(crate) fn trace_program(
         &compiled_program.abi.error_types,
         &mut tracer,
     ) {
-        Err(error) => return Err(CliError::from(error)),
-        Ok(()) => (),
+        return Err(CliError::from(error));
     };
 
     store_trace(tracer, trace_dir);

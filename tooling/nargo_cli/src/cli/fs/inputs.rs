@@ -44,7 +44,7 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
         Ok(input_map) => input_map,
         Err(input_parser_error) => return Err(CliError::ArtifactError(
             ArtifactCliError::InputDeserializationError(
-                input_parser_error.into()
+                input_parser_error
             ),
         )),
     };

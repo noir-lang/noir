@@ -17,7 +17,7 @@ pub enum PrintOutput<'a> {
     PrintCallback(Box<dyn Fn(String) + 'a>),
 }
 
-impl<'a> std::fmt::Debug for PrintOutput<'a> {
+impl std::fmt::Debug for PrintOutput<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::None => write!(f, "None"),
