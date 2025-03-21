@@ -11,7 +11,7 @@ if [[ -z $1 ]]; then
 fi
 noirup -v $1
 
-CRITICAL_LIBRARIES=$(grep -v "^#\|^$" ./CRITICAL_NOIR_LIBRARIES)
+CRITICAL_LIBRARIES=$(yq '.libraries | filter(.critical == true) | map("https://github.com/" + .repo) | .[]' ./EXTERNAL_NOIR_LIBRARIES.yml)
 readarray -t REPOS_TO_CHECK < <(echo "$CRITICAL_LIBRARIES")
 
 getLatestReleaseTagForRepo() {
