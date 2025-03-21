@@ -13,16 +13,16 @@ use super::WitnessMap;
 
 #[derive(Debug, Error)]
 enum SerializationError {
-    #[error("error compressing witness map: {0}")]
+    #[error("error compressing witness stack: {0}")]
     Compress(std::io::Error),
 
-    #[error("error decompressing witness map: {0}")]
+    #[error("error decompressing witness stack: {0}")]
     Decompress(std::io::Error),
 
-    #[error("error serializing witness map: {0}")]
+    #[error("error serializing witness stack: {0}")]
     Serialize(std::io::Error),
 
-    #[error("error deserializing witness map: {0}")]
+    #[error("error deserializing witness stack: {0}")]
     Deserialize(std::io::Error),
 }
 
