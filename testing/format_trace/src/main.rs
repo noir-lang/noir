@@ -27,7 +27,7 @@ fn main() {
 mod tests {
     use super::*;
     fn generate_pretty_json(input_json: &str) -> String {
-        let ser_json = serde_json::from_str(&input_json).expect("Failed to parse the json input");
+        let ser_json = serde_json::from_str(input_json).expect("Failed to parse the json input");
         let prettified_json: String = prettify::prettify_value(ser_json, "", false);
         let mut final_pretty_json: String = correct_path(&prettified_json);
         final_pretty_json.push('\n'); //this is done automatically when saving the json to a file
@@ -41,7 +41,7 @@ mod tests {
   { "Key": "val" }
 ]
 "#;
-        let final_pretty_json = generate_pretty_json(&input_json);
+        let final_pretty_json = generate_pretty_json(input_json);
         assert_eq!(final_pretty_json, expected);
     }
 
@@ -53,7 +53,7 @@ mod tests {
   { "Path": "src/dir/main.nr" }
 ]
 "#;
-        let final_pretty_json = generate_pretty_json(&input_json);
+        let final_pretty_json = generate_pretty_json(input_json);
         assert_eq!(final_pretty_json, expected);
     }
 
@@ -65,7 +65,7 @@ mod tests {
   { "Path": "<relative-to-this>/src/dir/main.nr" }
 ]
 "#;
-        let final_pretty_json = generate_pretty_json(&input_json);
+        let final_pretty_json = generate_pretty_json(input_json);
         assert_eq!(final_pretty_json, expected);
     }
 
@@ -80,7 +80,7 @@ mod tests {
   ] }
 ]
 "#;
-        let final_pretty_json = generate_pretty_json(&input_json);
+        let final_pretty_json = generate_pretty_json(input_json);
         assert_eq!(final_pretty_json, expected);
     }
 
@@ -91,7 +91,7 @@ mod tests {
   { "key": { "inner_key1": "inner_value1", "inner_key2": "inner_value2" } }
 ]
 "#;
-        let final_pretty_json = generate_pretty_json(&input_json);
+        let final_pretty_json = generate_pretty_json(input_json);
         assert_eq!(final_pretty_json, expected);
     }
 
