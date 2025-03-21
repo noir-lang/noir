@@ -94,8 +94,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
     }
 
     fn are_src_locations_equal(
-        src_location_1: &Vec<SourceLocation>,
-        src_location_2: &Vec<SourceLocation>,
+        src_location_1: &[SourceLocation],
+        src_location_2: &[SourceLocation],
     ) -> bool {
         if src_location_1.len() != src_location_2.len() {
             false
@@ -185,7 +185,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
     }
 
     /// Propagates information about the current execution state to `tracer`.
-    fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>) {
+    fn update_record(&mut self, tracer: &mut Tracer, source_locations: &[SourceLocation]) {
         let stack_frames = get_stack_frames(&self.debug_context);
         let (first_nomatch, dropped_frames, new_frames) =
             tail_diff_vecs(&self.stack_frames, &stack_frames);
@@ -212,7 +212,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         assert!(new_frames.len() <= 1, "more than one frame entered at the same step");
         if !new_frames.is_empty() {
             let location = self.source_locations.last().expect("no previous location before call");
-            register_call(tracer, &location, new_frames[0]);
+            register_call(tracer, location, new_frames[0]);
         }
 
         let index = stack_frames.len() as isize - 1;
@@ -289,7 +289,7 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
                         debug_locations.push(noir_debugger::context::DebugLocation {
                             circuit_id: 0,
                             opcode_location: *opcode_loc,
-                            brillig_function_id: Some(function_id.clone()),
+                            brillig_function_id: Some(*function_id),
                         });
                     }
                     let source_locations = get_source_locations_for_call_stack(

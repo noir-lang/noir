@@ -132,9 +132,8 @@ fn register_value(
         }
         PrintableType::Array { length, typ } => {
             if let PrintableValue::Vec { array_elements, is_slice } = value {
-                // println!("array elements {array_elements:?} is_slice {is_slice}");
                 let element_values: Vec<ValueRecord> =
-                    array_elements.iter().map(|e| register_value(tracer, e, &*typ)).collect();
+                    array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
                 let type_name_base = if !is_slice { "Array" } else { "Slice" };
                 let type_id = tracer.ensure_type_id(
                     runtime_tracing::TypeKind::Seq,

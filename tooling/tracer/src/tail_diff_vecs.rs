@@ -26,7 +26,7 @@
 /// assert_eq!(tail_diff_vecs(&vec!(a, b), &vec!(a, b, c)), (2, vec!(), vec!(&c)));
 /// assert_eq!(tail_diff_vecs::<usize>(&vec!(), &vec!()), (0, vec!(), vec!()));
 /// ```
-pub fn tail_diff_vecs<'a, T>(xs: &'a Vec<T>, ys: &'a Vec<T>) -> (usize, Vec<&'a T>, Vec<&'a T>)
+pub fn tail_diff_vecs<'a, T>(xs: &'a [T], ys: &'a [T]) -> (usize, Vec<&'a T>, Vec<&'a T>)
 where
     T: PartialEq + Clone,
 {
