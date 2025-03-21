@@ -1,26 +1,10 @@
-use acvm::{FieldElement, acir::native_types::WitnessStackError};
+use acvm::FieldElement;
 use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
-use noirc_abi::errors::{AbiError, InputParserError};
+use noirc_abi::errors::AbiError;
 use std::path::PathBuf;
 use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub(crate) enum FilesystemError {
-    #[error(
-        " Error: cannot find {0}.toml file.\n Expected location: {1:?} \n Please generate this file at the expected location."
-    )]
-    MissingTomlFile(String, PathBuf),
-
-    /// Input parsing error
-    #[error(transparent)]
-    InputParserError(#[from] InputParserError),
-
-    /// WitnessStack serialization error
-    #[error(transparent)]
-    WitnessStackSerialization(#[from] WitnessStackError),
-}
 
 #[derive(Debug, Error)]
 pub(crate) enum CliError {
@@ -58,18 +42,4 @@ pub(crate) enum CliError {
     /// Error from the compilation pipeline
     #[error(transparent)]
     CompileError(#[from] CompileError),
-}
-
-impl From<FilesystemError> for CliError {
-    fn from(error: FilesystemError) -> Self {
-        match error {
-            FilesystemError::MissingTomlFile(ref _name, ref _path) => {
-                CliError::Generic(format!("{}", error))
-            }
-            FilesystemError::InputParserError(ref _e) => CliError::Generic(format!("{}", error)),
-            FilesystemError::WitnessStackSerialization(ref _e) => {
-                CliError::Generic(format!("{}", error))
-            }
-        }
-    }
 }
