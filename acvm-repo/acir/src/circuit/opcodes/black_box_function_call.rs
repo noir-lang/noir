@@ -394,7 +394,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 inputs
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, .. } => {
-                vec![input1[0], input1[1], input2[0], input2[1]]
+                vec![input1[0], input1[1], input1[2], input2[0], input2[1], input2[2]]
             }
             BlackBoxFuncCall::RANGE { input } => vec![*input],
             BlackBoxFuncCall::EcdsaSecp256k1 {

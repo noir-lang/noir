@@ -7,6 +7,43 @@
 //! - Already marked as loop invariants
 //!
 //! We also check that we are not hoisting instructions with side effects.
+//! However, there are certain instructions whose side effects are only activated
+//! under a predicate (e.g. an array out of bounds error on a dynamic index).
+//! Thus, we also track the control dependence of loop blocks to determine
+//! whether these "pure with predicate instructions" can be hoisted.
+//! We use post-dominance frontiers to determine control dependence.
+//!
+//! Let's look at definition 3 from the following paper:
+//! Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
+//! The program dependence graph and its use in optimization. ACM
+//! Trans. Program. Lang. Syst. 9, 3 (July 1987), 319–349.
+//! <https://doi.org/10.1145/24039.24041>
+//!
+//! ```text
+//! Let G be a control flow graph. Let X and Y be nodes in G. Y is
+//! control dependent on X iff
+//! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
+//! and Y) post-dominated by Y and
+//! (2) X is not post-dominated by Y.
+//! ```
+//!
+//! Verifying these conditions for every loop block would be quite inefficient.
+//! For example, let's say we just want to check whether a given loop block is control dependent at all
+//! after the loop preheader. We would have to to verify the conditions above for every block between the loop preheader
+//! and the given loop block. This is n^2 complexity in the worst case.
+//! To optimize the control dependence checks, we can use post-dominance frontiers (PDF).
+//!
+//! From Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
+//! ```text
+//! A dominance frontier is the set of all CFG nodes, y, such that
+//! b dominates a predecessor of y but does not strictly dominate y.
+//! ```
+//! Reversing this for post-dominance we can see that the conditions for control dependence
+//! are the same as those for post-dominance frontiers.
+//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff Y is in PDF(Y).
+//!
+//! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
+//! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -14,6 +51,8 @@ use crate::ssa::{
     Ssa,
     ir::{
         basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{
@@ -103,10 +142,24 @@ struct LoopInvariantContext<'f> {
     // This stores the current loop's pre-header block.
     // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
     current_pre_header: Option<BasicBlockId>,
+
+    cfg: ControlFlowGraph,
+
+    // Stores whether the current block being processed is control dependent
+    current_block_control_dependent: bool,
+
+    // Maps a block to its post-dominance frontiers
+    // This map should be precomputed a single time and used for checking control dependence.
+    post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 }
 
 impl<'f> LoopInvariantContext<'f> {
     fn new(function: &'f mut Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(function);
+        let reversed_cfg = cfg.reverse();
+        let post_order = PostOrder::with_cfg(&reversed_cfg);
+        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
         Self {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
@@ -114,6 +167,9 @@ impl<'f> LoopInvariantContext<'f> {
             current_induction_variables: HashMap::default(),
             outer_induction_variables: HashMap::default(),
             current_pre_header: None,
+            cfg,
+            current_block_control_dependent: false,
+            post_dom_frontiers,
         }
     }
 
@@ -125,6 +181,8 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
+            self.is_control_dependent_post_pre_header(loop_, *block);
+
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
                 self.transform_to_unchecked_from_loop_bounds(instruction_id);
 
@@ -164,6 +222,33 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_induction_var_bounds(loop_, false);
     }
 
+    /// Checks whether a `block` is control dependent on any blocks after
+    /// the given loop's header.
+    fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
+        let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
+
+        // Need to accurately determine whether the current block is dependent on any blocks between
+        // the current block and the loop header, exclusive of the current block and loop header themselves
+        if all_predecessors
+            .into_iter()
+            .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
+            .any(|predecessor| self.is_control_dependent(predecessor, block))
+        {
+            self.current_block_control_dependent = true;
+        }
+    }
+
+    /// Checks whether a `block` is control dependent on a `parent_block`
+    /// Uses post-dominance frontiers to determine control dependence.
+    /// Reference the doc comments at the top of the this module for more information
+    /// regarding post-dominance frontiers and control dependence.
+    fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
+        match self.post_dom_frontiers.get(&block) {
+            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
+            None => false,
+        }
+    }
+
     /// Gather the variables declared within the loop
     fn set_values_defined_in_loop(&mut self, loop_: &Loop) {
         // Clear any values that may be defined in previous loops, as the context is per function.
@@ -176,6 +261,10 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
+        // The previous loop may have set that the current block is control dependent.
+        // If we fail to reset for the next loop, a block may be inadvertently labelled
+        // as control dependent thus preventing optimizations.
+        self.current_block_control_dependent = false;
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -210,6 +299,8 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     fn can_hoist_invariant(&mut self, instruction_id: InstructionId) -> bool {
+        use Instruction::*;
+
         let mut is_loop_invariant = true;
         // The list of blocks for a nested loop contain any inner loops as well.
         // We may have already re-inserted new instructions if two loops share blocks
@@ -226,11 +317,13 @@ impl<'f> LoopInvariantContext<'f> {
                 !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
         });
 
-        let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
-            || matches!(instruction, Instruction::MakeArray { .. })
-            || self.can_be_deduplicated_from_loop_bound(&instruction);
+        let can_be_hoisted = instruction.can_be_hoisted(self.inserter.function, false)
+            || matches!(instruction, MakeArray { .. })
+            || (instruction.can_be_hoisted(self.inserter.function, true)
+                && !self.current_block_control_dependent)
+            || self.can_be_hoisted_from_loop_bounds(&instruction);
 
-        is_loop_invariant && can_be_deduplicated
+        is_loop_invariant && can_be_hoisted
     }
 
     /// Keep track of a loop induction variable and respective upper bound.
@@ -261,9 +354,11 @@ impl<'f> LoopInvariantContext<'f> {
     /// would determine that the instruction is not safe for hoisting.
     /// However, if we know that the induction variable's upper bound will always be in bounds of the array
     /// we can safely hoist the array access.
-    fn can_be_deduplicated_from_loop_bound(&self, instruction: &Instruction) -> bool {
+    fn can_be_hoisted_from_loop_bounds(&self, instruction: &Instruction) -> bool {
+        use Instruction::*;
+
         match instruction {
-            Instruction::ArrayGet { array, index } => {
+            ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
@@ -272,8 +367,18 @@ impl<'f> LoopInvariantContext<'f> {
                     false
                 }
             }
-            Instruction::Binary(binary) => {
-                self.can_evaluate_binary_op(binary, &self.outer_induction_variables)
+            Binary(binary) => self.can_evaluate_binary_op(binary, &self.outer_induction_variables),
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
+                // These instructions should not be hoisted if we know the loop will never be executed (an upper bound or zero or equal loop bounds)
+                // or we are unsure if the loop will ever be executed (dynamic loop bounds).
+                // If the instruction were to be hoisted out of a loop that never executes it could potentially cause the program to fail when it is not meant to fail.
+                let bounds = self.current_induction_variables.values().next().copied();
+                let does_loop_body_execute = bounds
+                    .map(|(lower_bound, upper_bound)| !(upper_bound - lower_bound).is_zero())
+                    .unwrap_or(false);
+                // If we know the loop will be executed these instructions can still only be hoisted if the instructions
+                // are in a non control dependent block.
+                does_loop_body_execute && !self.current_block_control_dependent
             }
             _ => false,
         }
@@ -401,19 +506,28 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
-        // `v6 = mul v0, v1` in b3 should now be `v3 = mul v0, v1` in b0
+        // From b3:
+        // ```
+        // v6 = mul v0, v1
+        // constrain v6 == i32 6
+        // ```
+        // To b0:
+        // ```
+        // v3 = mul v0, v1
+        // constrain v3 == i32 6
+        // ```
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = mul v0, v1
+            constrain v3 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v6 = lt v2, i32 4
-            jmpif v6 then: b3, else: b2
+            v7 = lt v2, i32 4
+            jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v3 == i32 6
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
@@ -463,22 +577,22 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v4 = mul v0, v1
+            constrain v4 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v7 = lt v2, i32 4
-            jmpif v7 then: b3, else: b2
+            v8 = lt v2, i32 4
+            jmpif v8 then: b3, else: b2
           b2():
             return
           b3():
             jmp b4(i32 0)
           b4(v3: i32):
-            v8 = lt v3, i32 4
-            jmpif v8 then: b6, else: b5
+            v9 = lt v3, i32 4
+            jmpif v9 then: b6, else: b5
           b5():
             v12 = unchecked_add v2, i32 1
             jmp b1(v12)
           b6():
-            constrain v4 == i32 6
             v11 = unchecked_add v3, i32 1
             jmp b4(v11)
         }
@@ -532,6 +646,7 @@ mod test {
             v3 = mul v0, v1
             v4 = mul v3, v0
             v6 = eq v4, i32 12
+            constrain v4 == i32 12
             jmp b1(i32 0)
           b1(v2: i32):
             v9 = lt v2, i32 4
@@ -539,7 +654,6 @@ mod test {
           b2():
             return
           b3():
-            constrain v4 == i32 12
             v11 = unchecked_add v2, i32 1
             jmp b1(v11)
         }
@@ -665,6 +779,7 @@ mod test {
           b3():
             v10 = array_get v6, index v2 -> u32
             v11 = eq v10, v0
+            constrain v10 == v0
             jmp b4(u32 0)
           b4(v3: u32):
             v12 = lt v3, u32 4
@@ -675,6 +790,7 @@ mod test {
           b6():
             v13 = array_get v6, index v3 -> u32
             v14 = eq v13, v0
+            constrain v13 == v0
             jmp b7(u32 0)
           b7(v4: u32):
             v15 = lt v4, u32 4
@@ -683,8 +799,6 @@ mod test {
             v18 = unchecked_add v3, u32 1
             jmp b4(v18)
           b9():
-            constrain v10 == v0
-            constrain v13 == v0
             v17 = unchecked_add v4, u32 1
             jmp b7(v17)
         }
@@ -812,14 +926,14 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = mul v0, v1
+            constrain v3 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v6 = lt v2, i32 4
-            jmpif v6 then: b3, else: b2
+            v7 = lt v2, i32 4
+            jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v3 == i32 6
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
@@ -900,32 +1014,45 @@ mod test {
 
     #[test]
     fn do_not_hoist_unsafe_div() {
-        // This test is similar to `nested_loop_invariant_code_motion`, the operation
-        // in question we are trying to hoist is `v9 = div i32 10, v0`.
-        // Check that the lower bound of the outer loop it checked and that we not
+        // This test is similar to `nested_loop_invariant_code_motion`, except that
+        // the loop logic is under a dynamic predicate.
+        // Divisions are only reliant upon predicates and do not have other side effects.
+        //
+        // If an unsafe division occurs in a loop block that is not control dependent,
+        // we can still safely hoist that division as that instruction is always going to be hit.
+        // Thus, we place the unsafe division under a predicate to ensure that we are testing
+        // division hoisting based upon loop bounds and nothing else.
+        //
+        // The operation in question we are trying to hoist is `v12 = div u32 10, v1`.
+        // Check whether the lower bound of the outer loop is zero and that we do not
         // hoist an operation that can potentially error with a division by zero.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
-            jmp b1(i32 0)
-          b1(v0: i32):
-            v4 = lt v0, i32 4
-            jmpif v4 then: b3, else: b2
+          b0(v0: u32):
+            v4 = eq v0, u32 5
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v7 = lt v1, u32 4
+            jmpif v7 then: b2, else: b3
           b2():
-            return
+            jmp b4(u32 0)
           b3():
-            jmp b4(i32 0)
-          b4(v1: i32):
-            v5 = lt v1, i32 4
-            jmpif v5 then: b6, else: b5
+            return
+          b4(v2: u32):
+            v8 = lt v2, u32 4
+            jmpif v8 then: b5, else: b6
           b5():
-            v11 = unchecked_add v0, i32 1
-            jmp b1(v11)
+            jmpif v4 then: b7, else: b8
           b6():
-            v7 = div i32 10, v0
-            constrain v7 == i32 6
-            v10 = unchecked_add v1, i32 1
-            jmp b4(v10)
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10)
+          b7():
+            v12 = div u32 10, v1
+            constrain v12 == u32 6
+            jmp b8()
+          b8():
+            v14 = unchecked_add v2, u32 1
+            jmp b4(v14)
         }
         ";
 
@@ -941,26 +1068,31 @@ mod test {
         // in this test starts with a lower bound of `1`.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
-            jmp b1(i32 1)
-          b1(v0: i32):
-            v4 = lt v0, i32 4
-            jmpif v4 then: b3, else: b2
+          b0(v0: u32):
+            v4 = eq v0, u32 5
+            jmp b1(u32 1)
+          b1(v1: u32):
+            v7 = lt v1, u32 4
+            jmpif v7 then: b2, else: b3
           b2():
-            return
+            jmp b4(u32 0)
           b3():
-            jmp b4(i32 0)
-          b4(v1: i32):
-            v5 = lt v1, i32 4
-            jmpif v5 then: b6, else: b5
+            return
+          b4(v2: u32):
+            v9 = lt v2, u32 4
+            jmpif v9 then: b5, else: b6
           b5():
-            v7 = unchecked_add v0, i32 1
-            jmp b1(v7)
+            jmpif v4 then: b7, else: b8
           b6():
-            v9 = div i32 10, v0
-            constrain v9 == i32 6
-            v11 = unchecked_add v1, i32 1
-            jmp b4(v11)
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10)
+          b7():
+            v12 = div u32 10, v1
+            constrain v12 == u32 6
+            jmp b8()
+          b8():
+            v14 = unchecked_add v2, u32 1
+            jmp b4(v14)
         }
         ";
 
@@ -969,26 +1101,350 @@ mod test {
         let ssa = ssa.loop_invariant_code_motion();
         let expected = "
         brillig(inline) fn main f0 {
-          b0():
-            jmp b1(i32 1)
-          b1(v0: i32):
-            v4 = lt v0, i32 4
-            jmpif v4 then: b3, else: b2
+          b0(v0: u32):
+            v4 = eq v0, u32 5
+            jmp b1(u32 1)
+          b1(v1: u32):
+            v7 = lt v1, u32 4
+            jmpif v7 then: b2, else: b3
           b2():
-            return
+            v9 = div u32 10, v1
+            jmp b4(u32 0)
           b3():
-            v6 = div i32 10, v0
-            jmp b4(i32 0)
-          b4(v1: i32):
-            v8 = lt v1, i32 4
-            jmpif v8 then: b6, else: b5
+            return
+          b4(v2: u32):
+            v11 = lt v2, u32 4
+            jmpif v11 then: b5, else: b6
           b5():
-            v11 = unchecked_add v0, i32 1
-            jmp b1(v11)
+            jmpif v4 then: b7, else: b8
           b6():
-            constrain v6 == i32 6
-            v10 = unchecked_add v1, i32 1
-            jmp b4(v10)
+            v12 = unchecked_add v1, u32 1
+            jmp b1(v12)
+          b7():
+            constrain v9 == u32 6
+            jmp b8()
+          b8():
+            v14 = unchecked_add v2, u32 1
+            jmp b4(v14)
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+}
+
+#[cfg(test)]
+mod control_dependence {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v4 = eq v0, u32 5
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v7 = lt v2, u32 4
+            jmpif v7 then: loop_cond, else: exit
+          loop_cond():
+            jmpif v4 then: loop_body, else: loop_end
+          exit():
+            return
+          loop_body():
+            v8 = mul v0, v1
+            constrain v8 == u32 12
+            jmp loop_end()
+          loop_end():
+            v11 = unchecked_add v2, u32 1
+            jmp loop(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn hoist_safe_mul_that_is_non_control_dependent() {
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, u32 4
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            constrain v4 == u32 12
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v8 = lt v2, u32 4
+            jmpif v8 then: loop_body, else: exit
+          loop_body():
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn non_control_dependent_loop_follows_control_dependent_loop() {
+        // Test that we appropriately reset the control dependence status.
+        // This program first has a loop with a control dependent body, thus preventing hoisting instructions.
+        // There is then a separate second loop which is non control dependent for which
+        // we expect instructions to be hoisted.
+        let src = "
+      brillig(inline) fn main f0 {
+        entry(v0: u32, v1: u32):
+          v5 = eq v0, u32 5
+          jmp loop_1(u32 0)
+        loop_1(v2: u32):
+          v8 = lt v2, u32 4
+          jmpif v8 then: loop_1_cond, else: loop_1_exit
+        loop_1_cond():
+          jmpif v5 then: loop_1_body, else: loop_1_end
+        loop_1_exit():
+          jmp loop_2(u32 0)
+        loop_1_body():
+          v15 = mul v0, v1
+          constrain v15 == u32 12
+          jmp loop_1_end()
+        loop_1_end():
+          v16 = unchecked_add v2, u32 1
+          jmp loop_1(v16)
+        loop_2(v3: u32):
+          v10 = lt v3, u32 4
+          jmpif v10 then: loop_2_body, else: exit
+        loop_2_body():
+          v9 = mul v0, v1
+          v11 = mul v9, v0
+          constrain v11 == u32 12
+          v14 = unchecked_add v3, u32 1
+          jmp loop_2(v14)
+        exit():
+          return
+      }
+      ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // From loop_2_body:
+        // ```
+        // v9 = mul v0, v1
+        // v11 = mul v9, v0
+        // constrain v11 == u32 12
+        // ```
+        // To loop_1_exit:
+        // ```
+        // v9 = mul v0, v1
+        // v10 = mul v9, v0
+        // constrain v10 == u32 12
+        // ```
+        let expected = "
+      brillig(inline) fn main f0 {
+        entry(v0: u32, v1: u32):
+          v5 = eq v0, u32 5
+          jmp loop_1(u32 0)
+        loop_1(v2: u32):
+          v8 = lt v2, u32 4
+          jmpif v8 then: loop_1_cond, else: loop_1_exit
+        loop_1_cond():
+          jmpif v5 then: loop_1_body, else: loop_1_end
+        loop_1_exit():
+          v9 = mul v0, v1
+          v10 = mul v9, v0
+          constrain v10 == u32 12
+          jmp loop_2(u32 0)
+        loop_1_body():
+          v15 = mul v0, v1
+          constrain v15 == u32 12
+          jmp loop_1_end()
+        loop_1_end():
+          v16 = unchecked_add v2, u32 1
+          jmp loop_1(v16)
+        loop_2(v3: u32):
+          v12 = lt v3, u32 4
+          jmpif v12 then: loop_2_body, else: exit
+        loop_2_body():
+          v14 = unchecked_add v3, u32 1
+          jmp loop_2(v14)
+        exit():
+          return
+      }
+      ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_constrain_in_loop_with_zero_upper_bound() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the upper loop bound is zero
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, u32 0
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect the constrain to remain inside of `loop_body`
+        // as the loop is never going to be executed.
+        // If the constrain were to be hoisted out it could potentially
+        // cause the program to fail when it is not meant to fail.
+        let expected = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp loop(u32 0)
+          loop(v2: u32):
+            jmpif u1 0 then: loop_body, else: exit
+          loop_body():
+            constrain v4 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_constrain_in_loop_with_equal_non_zero_loop_bounds() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the lower and upper loop bounds are the same and greater than zero
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 1)
+          loop(v2: u32):
+            v3 = lt v2, u32 1
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        // We expect the constrain to remain inside of `loop_body`
+        // as the loop is never going to be executed.
+        // If the constrain were to be hoisted out it could potentially
+        // cause the program to fail when it is not meant to fail.
+        let expected = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp loop(u32 1)
+          loop(v2: u32):
+            v7 = eq v2, u32 0
+            jmpif v7 then: loop_body, else: exit
+          loop_body():
+            constrain v4 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_constrain_in_loop_with_dynamic_upper_bound() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the upper loop bound is dynamic
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, v1
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect the constrain to remain inside of `loop_body`
+        // as that block may potentially never be executed.
+        // If the constrain were to be hoisted out it could potentially
+        // cause the program to fail when it is not meant to fail.
+        let expected = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v6 = lt v2, v1
+            jmpif v6 then: loop_body, else: exit
+          loop_body():
+            constrain v4 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
         }
         ";
 

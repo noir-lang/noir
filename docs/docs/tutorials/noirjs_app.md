@@ -14,11 +14,7 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 ## Dependencies
 
-Before we start, we want to make sure we have Node installed. For convenience (and speed), we can just install [Bun](https://bun.sh) as our package manager, and Node will work out-of-the-box:
-
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
+Before we start, we want to make sure we have Node installed. If you don't have it already you can install it [here](https://nodejs.org/en/download), we recommend using [Yarn](https://yarnpkg.com/getting-started/install) as our package manager for this tutorial.
 
 We'll also need version 1.0.0-beta.2 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
 
@@ -27,7 +23,7 @@ Let's go barebones. Doing the bare minimum is not only simple, but also allows y
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-bun i @noir-lang/noir_js@1.0.0-beta.2 @aztec/bb.js@0.72.1
+yarn add @noir-lang/noir_js@1.0.0-beta.2 @aztec/bb.js@0.72.1
 ```
 
 Wait, what are these dependencies?
@@ -192,20 +188,6 @@ const backend = new UltraHonkBackend(circuit.bytecode);
 // }
 ```
 
-:::warning
-
-WASMs are not always easy to work with. In our case, `vite` likes serving them with the wrong MIME type. There are different fixes but we found the easiest one is just YOLO instantiating the WASMs manually. Paste this at the top of the file, just below the other imports, and it will work just fine:
-
-```js
-import initNoirC from "@noir-lang/noirc_abi";
-import initACVM from "@noir-lang/acvm_js";
-import acvm from "@noir-lang/acvm_js/web/acvm_js_bg.wasm?url";
-import noirc from "@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm?url";
-await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
-```
-
-:::
-
 ## Executing and proving
 
 Now for the app itself. We're capturing whatever is in the input when people press the submit button. Inside our `try` block, let's just grab that input and get its value. Noir will gladly execute it, and give us a witness:
@@ -239,16 +221,22 @@ Our program is technically **done** . You're probably eager to see stuff happeni
 touch vite.config.js
 ```
 
-`vite` helps us with a little catch: `bb.js` in particular uses top-level awaits which aren't supported everywhere. So we can add this to the `vite.config.js` to make the bundler optimize them:
+Noir needs to load two WASM modules, but Vite doesn't include them by default in the bundle. We need to add the configuration below to `vite.config.js` to make it work.
+We also need to target ESNext since `bb.js` uses top-level await, which isn't supported in some browsers.
 
 ```js
-export default { optimizeDeps: { esbuildOptions: { target: "esnext" } } };
+export default {
+  optimizeDeps: {
+    esbuildOptions: { target: "esnext" },
+    exclude: ['@noir-lang/noirc_abi', '@noir-lang/acvm_js']
+  }
+};
 ```
 
 This should be enough for vite. We don't even need to install it, just run:
 
 ```bash
-bunx vite
+yarn dlx vite
 ```
 
 If it doesn't open a browser for you, just visit `localhost:5173`. You should now see the worst UI ever, with an ugly input.
