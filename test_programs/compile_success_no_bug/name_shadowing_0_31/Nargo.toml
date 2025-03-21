@@ -1,7 +1,0 @@
-
-            [package]
-            name = "name_shadowing_0_31"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
