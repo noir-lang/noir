@@ -40,11 +40,12 @@ mod reflection {
         path::{Path, PathBuf},
     };
 
-    use acir_field::FieldElement;
+    use acir_field::{AcirField, FieldElement};
     use brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
         MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
+    use serde::{Deserialize, Serialize};
     use serde_generate::CustomCode;
     use serde_reflection::{
         ContainerFormat, Format, Named, Registry, Tracer, TracerConfig, VariantFormat,
@@ -60,12 +61,27 @@ mod reflection {
         native_types::{Witness, WitnessMap, WitnessStack},
     };
 
+    /// Technical DTO for deserializing in Barretenberg while ignoring
+    /// the Brillig opcodes, so that we can add more without affecting it.
+    ///
+    /// This could be achieved in other ways, for example by having a
+    /// version of `Program` that deserializes into opaque bytes,
+    /// which would require a 2 step (de)serialization process.
+    ///
+    /// This one is simpler. The cost is that msgpack will deserialize
+    /// into a JSON-like structure, but since we won't be interpreting it,
+    /// it's okay if new tags appear.
+    #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+    struct ProgramWithoutBrillig<F: AcirField> {
+        pub functions: Vec<Circuit<F>>,
+    }
+
     #[test]
     fn serde_acir_cpp_codegen() {
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<BlockType>().unwrap();
         tracer.trace_simple_type::<Program<FieldElement>>().unwrap();
-        tracer.trace_simple_type::<Program<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<ProgramWithoutBrillig<FieldElement>>().unwrap();
         tracer.trace_simple_type::<Circuit<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ExpressionWidth>().unwrap();
         tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
