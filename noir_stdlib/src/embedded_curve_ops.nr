@@ -136,41 +136,48 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 
 /// This function only assumes that the points are on the curve
 /// It handles corner cases around the infinity point causing some overhead compared to embedded_curve_add_not_nul and embedded_curve_add_unsafe
-// This is a hack because returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
-// as is defined in the brillig bytecode format. This is a workaround which allows us to fix this without modifying the serialization format.
 // docs:start:embedded_curve_add
 pub fn embedded_curve_add(
     point1: EmbeddedCurvePoint,
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
-    let x_coordinates_match = point1.x == point2.x;
-    let y_coordinates_match = point1.y == point2.y;
-    let double_predicate = (x_coordinates_match & y_coordinates_match);
-    let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
-    let point1_1 = EmbeddedCurvePoint {
-        x: point1.x + (x_coordinates_match as Field),
-        y: point1.y,
-        is_infinite: x_coordinates_match,
-    };
-    // point1_1 is guaranteed to have a different abscissa than point2
-    let mut result = embedded_curve_add_unsafe(point1_1, point2);
-    result.is_infinite = x_coordinates_match;
+    if crate::runtime::is_unconstrained() {
+        embedded_curve_add_unsafe(point1, point2)
+    } else {
+        // In a constrained context we need to do some black magic in order to satisfy the backend's
+        // expectations about the inputs to an `embedded_curve_add` opcode.
+        //
+        // TODO: document this better.
+        let x_coordinates_match = point1.x == point2.x;
+        let y_coordinates_match = point1.y == point2.y;
+        let double_predicate = (x_coordinates_match & y_coordinates_match);
+        let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
+        let point1_1 = EmbeddedCurvePoint {
+            x: point1.x + (x_coordinates_match as Field),
+            y: point1.y,
+            is_infinite: x_coordinates_match,
+        };
+        // point1_1 is guaranteed to have a different abscissa than point2
+        let mut result = embedded_curve_add_unsafe(point1_1, point2);
+        result.is_infinite = x_coordinates_match;
 
-    // dbl if x_match, y_match
-    let double = embedded_curve_add_unsafe(point1, point1);
-    result = if double_predicate { double } else { result };
+        // dbl if x_match, y_match
+        let double = embedded_curve_add_unsafe(point1, point1);
+        result = if double_predicate { double } else { result };
 
-    // infinity if x_match, !y_match
-    if point1.is_infinite {
-        result = point2;
+        // infinity if x_match, !y_match
+        if point1.is_infinite {
+            result = point2;
+        }
+        if point2.is_infinite {
+            result = point1;
+        }
+        let mut result_is_infinity =
+            infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
+        result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
+        result
     }
-    if point2.is_infinite {
-        result = point1;
-    }
-    let mut result_is_infinity = infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
-    result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
-    result
 }
 
 #[foreign(embedded_curve_add)]
