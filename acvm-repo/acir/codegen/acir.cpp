@@ -613,12 +613,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Integer'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Integer'");
+                }
             }
         };
 
@@ -703,12 +703,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Direct'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Direct'");
+                }
             }
         };
 
@@ -722,12 +722,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Relative'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Relative'");
+                }
             }
         };
 
@@ -1357,12 +1357,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Simple'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Simple'");
+                }
             }
         };
 
@@ -1490,12 +1490,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'MemoryAddress'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'MemoryAddress'");
+                }
             }
         };
 
@@ -1509,12 +1509,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'HeapArray'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'HeapArray'");
+                }
             }
         };
 
@@ -1528,12 +1528,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'HeapVector'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'HeapVector'");
+                }
             }
         };
 
@@ -1838,12 +1838,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'BlackBox'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'BlackBox'");
+                }
             }
         };
 
@@ -2216,12 +2216,12 @@ namespace Acir {
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
         void msgpack_unpack(msgpack::object const& o) {
-                    try {
-                        o.convert(value);
-                    } catch (const msgpack::type_error&) {
-                        std::cerr << o << std::endl;
-                        throw_or_abort("error converting into newtype 'Witness'");
-                    }
+            try {
+                o.convert(value);
+            } catch (const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into newtype 'Witness'");
+            }
         }
     };
 
@@ -2237,12 +2237,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Constant'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Constant'");
+                }
             }
         };
 
@@ -2256,12 +2256,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Witness'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Witness'");
+                }
             }
         };
 
@@ -2951,12 +2951,12 @@ namespace Acir {
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
         void msgpack_unpack(msgpack::object const& o) {
-                    try {
-                        o.convert(value);
-                    } catch (const msgpack::type_error&) {
-                        std::cerr << o << std::endl;
-                        throw_or_abort("error converting into newtype 'BlockId'");
-                    }
+            try {
+                o.convert(value);
+            } catch (const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into newtype 'BlockId'");
+            }
         }
     };
 
@@ -2981,12 +2981,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'CallData'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'CallData'");
+                }
             }
         };
 
@@ -3100,12 +3100,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Single'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Single'");
+                }
             }
         };
 
@@ -3119,12 +3119,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Array'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Array'");
+                }
             }
         };
 
@@ -3138,12 +3138,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'MemoryArray'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'MemoryArray'");
+                }
             }
         };
 
@@ -3250,12 +3250,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Simple'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Simple'");
+                }
             }
         };
 
@@ -3269,12 +3269,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Array'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Array'");
+                }
             }
         };
 
@@ -3378,12 +3378,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'AssertZero'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'AssertZero'");
+                }
             }
         };
 
@@ -3397,12 +3397,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'BlackBoxFuncCall'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'BlackBoxFuncCall'");
+                }
             }
         };
 
@@ -3604,12 +3604,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Expression'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Expression'");
+                }
             }
         };
 
@@ -3623,12 +3623,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Memory'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Memory'");
+                }
             }
         };
 
@@ -3821,12 +3821,12 @@ namespace Acir {
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
             void msgpack_unpack(msgpack::object const& o) {
-                        try {
-                            o.convert(value);
-                        } catch (const msgpack::type_error&) {
-                            std::cerr << o << std::endl;
-                            throw_or_abort("error converting into newtype 'Acir'");
-                        }
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Acir'");
+                }
             }
         };
 
@@ -3927,12 +3927,12 @@ namespace Acir {
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
         void msgpack_unpack(msgpack::object const& o) {
-                    try {
-                        o.convert(value);
-                    } catch (const msgpack::type_error&) {
-                        std::cerr << o << std::endl;
-                        throw_or_abort("error converting into newtype 'PublicInputs'");
-                    }
+            try {
+                o.convert(value);
+            } catch (const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into newtype 'PublicInputs'");
+            }
         }
     };
 

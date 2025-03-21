@@ -287,12 +287,12 @@ mod reflection {
                 name,
                 &format!(
                     r#"
-            try {{
-                o.convert(value);
-            }} catch (const msgpack::type_error&) {{
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting into newtype '{name}'");
-            }}
+    try {{
+        o.convert(value);
+    }} catch (const msgpack::type_error&) {{
+        std::cerr << o << std::endl;
+        throw_or_abort("error converting into newtype '{name}'");
+    }}
             "#
                 ),
             );
