@@ -69,7 +69,7 @@ impl<'a> ValueMerger<'a> {
         if then_value == else_value {
             return then_value;
         }
-
+        // dbg!(self.dfg.type_of_value(then_value).clone());
         match self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Self::merge_numeric_values(
                 self.dfg,
@@ -80,7 +80,7 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             ),
             typ @ Type::Array(_, _) => {
-                dbg!(self.merging_slices);
+                // dbg!(self.merging_slices);
                 if self.merging_slices {
                     self.merge_array_values_flat_nested(
                         typ,
@@ -187,7 +187,7 @@ impl<'a> ValueMerger<'a> {
 
         // let flattened_size = typ.flattened_size();
         let flat_typ = typ.clone().flatten();
-
+        // dbg!(flat_typ.clone());
         let mut my_index: u128 = 0;
         for typ in flat_typ {
             let index = self.dfg.make_constant(my_index.into(), typ.unwrap_numeric());
@@ -333,19 +333,11 @@ impl<'a> ValueMerger<'a> {
         let composite_len = len / flat_element_types_size;
         // dbg!(composite_len);
 
-        let flat_types = element_types
-            .iter()
-            .flat_map(|typ| {
-                std::iter::repeat(typ.clone().flatten())
-                    .take(composite_len as usize)
-                    .flatten()
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+        let flat_types: Vec<Type> = (0..composite_len)
+            .flat_map(|_| element_types.iter().cloned().flat_map(Type::flatten))
+            .collect();
         // dbg!(flat_types.clone());
         // dbg!(flat_types.len());
-
-        // let flat_typ = typ.clone().flatten();
 
         let mut my_index: u32 = 0;
         for typ in flat_types {
@@ -533,7 +525,7 @@ impl<'a> ValueMerger<'a> {
         }
 
         let mut array = then_value;
-        dbg!(changed_indices.clone());
+        // dbg!(changed_indices.clone());
         for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
 

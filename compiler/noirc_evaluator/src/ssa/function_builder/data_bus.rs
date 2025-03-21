@@ -139,25 +139,38 @@ impl FunctionBuilder {
                 databus.values.push_back(value);
                 databus.index += 1;
             }
-            Type::Array(typ, len) => {
+            Type::Array(_, _) => {
                 databus.map.insert(value, databus.index);
 
-                let mut index = 0;
-                for _i in 0..len {
-                    for subitem_typ in typ.iter() {
-                        // load each element of the array, and add it to the databus
-                        let length_type = NumericType::length_type();
-                        let index_var = FieldElement::from(index as i128);
-                        let index_var =
-                            self.current_function.dfg.make_constant(index_var, length_type);
-                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
-                        index += match subitem_typ {
-                            Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
-                            Type::Numeric(_) => 1,
-                            _ => unreachable!("Unsupported type for databus"),
-                        };
-                        self.add_to_data_bus(element, databus);
-                    }
+                // let mut index = 0;
+                // for _i in 0..len {
+                //     for subitem_typ in typ.iter() {
+                //         // load each element of the array, and add it to the databus
+                //         let length_type = NumericType::length_type();
+                //         let index_var = FieldElement::from(index as i128);
+                //         let index_var =
+                //             self.current_function.dfg.make_constant(index_var, length_type);
+                //         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
+                //         index += match subitem_typ {
+                //             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
+                //             Type::Numeric(_) => 1,
+                //             _ => unreachable!("Unsupported type for databus"),
+                //         };
+                //         self.add_to_data_bus(element, databus);
+                //     }
+                // }
+                let flat_typ = typ.flatten();
+
+                let mut my_index: u128 = 0;
+                for typ in flat_typ {
+                    let index = self
+                        .current_function
+                        .dfg
+                        .make_constant(my_index.into(), typ.unwrap_numeric());
+                    my_index += 1;
+                    assert!(matches!(typ, Type::Numeric(_)));
+                    let element = self.insert_array_get(value, index, typ);
+                    self.add_to_data_bus(element, databus);
                 }
             }
             Type::Reference(_) => {

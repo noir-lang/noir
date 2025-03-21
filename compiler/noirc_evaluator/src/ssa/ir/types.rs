@@ -213,19 +213,7 @@ impl Type {
     pub(crate) fn flatten(self) -> Vec<Type> {
         match self {
             Type::Array(elements, len) => {
-                let x = elements
-                    .iter()
-                    .flat_map(|elem| {
-                        let x = std::iter::repeat(elem.clone().flatten())
-                            .take(len as usize)
-                            .flatten()
-                            .collect::<Vec<_>>();
-                        x
-                    })
-                    .collect::<Vec<_>>();
-
-                // elements.iter().flat_map(|elem| elem.clone().flatten()).collect()
-                x
+                (0..len).flat_map(|_| elements.iter().cloned().flat_map(Type::flatten)).collect()
             }
             Type::Slice(_) => {
                 unimplemented!("ICE: cannot flatten slice");
@@ -353,5 +341,28 @@ mod tests {
         assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+    }
+
+    #[test]
+    fn flatten_type() {
+        let array_typ = Type::Array(
+            Arc::new(vec![Type::unsigned(1), Type::field(), Type::field(), Type::unsigned(1)]),
+            2,
+        );
+        let flat_typ = array_typ.flatten();
+
+        let expected = vec![
+            Type::unsigned(1),
+            Type::field(),
+            Type::field(),
+            Type::unsigned(1),
+            Type::unsigned(1),
+            Type::field(),
+            Type::field(),
+            Type::unsigned(1),
+        ];
+        for (got, expected) in flat_typ.into_iter().zip(expected) {
+            assert_eq!(got, expected)
+        }
     }
 }

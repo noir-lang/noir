@@ -947,7 +947,7 @@ impl<'a> FunctionContext<'a> {
 
                 if *nested_indexing == 1 {
                     *nested_indexing = 2;
-                    dbg!("have seen nested index before");
+                    // dbg!("have seen nested index before");
                     assert_eq!(started_nested_indexing, 1);
                     let (old_array, array_lvalue) = self.extract_current_value_recursive_new(
                         array,
@@ -985,8 +985,8 @@ impl<'a> FunctionContext<'a> {
                 // dbg!(*nested_indexing);
                 // dbg!(started_nested_indexing);
                 let element = if *nested_indexing == 1 {
-                    dbg!("fetched element");
-                    dbg!(array_values.len());
+                    // dbg!("fetched element");
+                    // dbg!(array_values.len());
                     // dbg!(element_type.clone());
                     // dbg!(indices.clone());
                     if array_values.len() > 1 {
@@ -1029,7 +1029,7 @@ impl<'a> FunctionContext<'a> {
 
                     element
                 } else {
-                    dbg!("using old array");
+                    // dbg!("using old array");
                     old_array.clone()
                 };
                 // indices = indices.into_iter().rev().collect();
@@ -1041,7 +1041,7 @@ impl<'a> FunctionContext<'a> {
                 let array_lvalue = Box::new(array_lvalue);
                 // dbg!(indices.clone());
                 let indices = std::mem::take(indices);
-                dbg!(indices.clone());
+                // dbg!(indices.clone());
                 let index_lvalue = LValue::NestedArrayIndex {
                     old_array: array_values[0],
                     index: index_value,
@@ -1066,8 +1066,8 @@ impl<'a> FunctionContext<'a> {
                     nested_indexing,
                 )?;
                 let object_lvalue = Box::new(object_lvalue);
-                dbg!(started_nested_indexing);
-                dbg!(*nested_indexing);
+                // dbg!(started_nested_indexing);
+                // dbg!(*nested_indexing);
                 if *nested_indexing > 1 {
                     dbg!(object_lvalue.clone());
                     dbg!(old_object.clone());
@@ -1143,10 +1143,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::Index { array, index, .. } => {
                 // let (reference, array_lvalue) = self.extract_ident_recursive(array)?;
-                // dbg!(reference.clone());
-                // dbg!(array_lvalue.clone());
                 let index_value = self.codegen_non_tuple_expression(&index)?;
-                dbg!(index_value);
                 indices.push(NestedArrayIndex::Value(index_value));
                 self.extract_ident(array, indices)?
                 // array_lvalue
@@ -1154,7 +1151,6 @@ impl<'a> FunctionContext<'a> {
                 // LValue::Dereference { reference }
             }
             ast::LValue::MemberAccess { object, field_index } => {
-                dbg!(field_index);
                 indices.push(NestedArrayIndex::Constant(*field_index));
                 // let x = Self::get_field_ref(tuple, field_index)
                 // let object_lvalue = Box::new(object_lvalue);
@@ -1226,7 +1222,6 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 // TODO: compute the accurate field index
-                dbg!(field_index);
                 indices.push(NestedArrayIndex::Constant(*field_index));
                 self.build_lvalue_index(object, indices)?;
             }
@@ -1265,26 +1260,27 @@ impl<'a> FunctionContext<'a> {
                     original_value,
                 );
             }
-            LValue::NestedArrayIndex { old_array, index: _, array_lvalue, location, mut indices } => {
+            LValue::NestedArrayIndex {
+                old_array,
+                index: _,
+                array_lvalue,
+                location,
+                mut indices,
+            } => {
                 // dbg!(already_assigned_nested);
                 // dbg!()
                 // dbg!(indices.is_empty());
                 // if already_assigned_nested == 1 {
                 if indices.is_empty() {
-                    dbg!("got in nested index override");
+                    // dbg!("got in nested index override");
                     // dbg!(original_value.clone());
                     self.assign_new_value(*array_lvalue, new_value, 2, original_value);
                     return;
                 }
                 let typ = self.builder.current_function.dfg.type_of_value(old_array);
-                // dbg!(typ.clone());
-                // let extracted_ident = self.extract_ident(&array_lvalue, &mut indices)?;
-                // let extracted_ident = self.extract_lvalue_ident(*array_lvalue.clone());
-                // dbg!(extracted_ident.clone());
-                // dbg!(array_lvalue.clone());
-                // dbg!(new_value.clone());
-                dbg!(indices.clone());
-                dbg!(old_array.clone());
+
+                // dbg!(indices.clone());
+                // dbg!(old_array.clone());
                 // dbg!(array_lvalue.clone());
                 // Should already have extracted the appropriate array value from any tuples
                 let (flattened_index, new_array) =
@@ -1311,12 +1307,12 @@ impl<'a> FunctionContext<'a> {
                 location,
                 mut indices,
             } => {
-                dbg!(already_assigned_nested);
+                // dbg!(already_assigned_nested);
                 // dbg!()
-                dbg!(indices.is_empty());
+                // dbg!(indices.is_empty());
                 // if already_assigned_nested == 1 {
                 if indices.is_empty() {
-                    dbg!("got in nested index override");
+                    // dbg!("got in nested index override");
                     // dbg!(original_value.clone());
                     // let mut slice_values = slice.into_value_list(self);
 
@@ -1327,8 +1323,12 @@ impl<'a> FunctionContext<'a> {
                 }
 
                 let slice_values = slice.into_value_list(self);
-                let (flattened_index, _) =
-                    self.build_nested_lvalue_index(slice_values[1].into(), true,  false, &mut indices);
+                let (flattened_index, _) = self.build_nested_lvalue_index(
+                    slice_values[1].into(),
+                    true,
+                    false,
+                    &mut indices,
+                );
                 let new_slice_values = self
                     .assign_lvalue_index_no_offset(
                         original_value.clone(),
@@ -1365,12 +1365,12 @@ impl<'a> FunctionContext<'a> {
             LValue::MemberAccess { old_object, index, object_lvalue, skip_extraction } => {
                 // TODO: handle this for nested indexing
                 // Having this if block commented is necessary for lvalue assignment that starts with a member access.
-                dbg!(already_assigned_nested);
+                // dbg!(already_assigned_nested);
                 // if already_assigned_nested >= 1 {
-                dbg!(skip_extraction);
+                // dbg!(skip_extraction);
                 if skip_extraction {
                     //     // dbg!(lvalue.clone());
-                    dbg!("got here");
+                    // dbg!("got here");
                     self.assign_new_value(*object_lvalue, new_value, 1, original_value);
                     return;
                 }
@@ -1459,12 +1459,12 @@ impl<'a> FunctionContext<'a> {
 
         let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
 
-        dbg!(new_value.clone());
+        // dbg!(new_value.clone());
         new_value.for_each(|value| {
             let value = value.eval(self);
             let typ = self.builder.current_function.dfg.type_of_value(value);
             // dbg!(typ.clone());
-            dbg!(typ.flattened_size());
+            // dbg!(typ.flattened_size());
             array = self.builder.insert_array_set(array, index, value);
             // index = self.builder.insert_binary(index, BinaryOp::Add, one);
 
@@ -1559,7 +1559,7 @@ impl<'a> FunctionContext<'a> {
                 extracted_collection
             }
             ast::Expression::ExtractTupleField(tuple, field_index) => {
-                dbg!(field_index);
+                // dbg!(field_index);
                 // let x = self.codegen_expression(tuple)?;
                 // dbg!(x.clone());
                 // if let Some(NestedArrayIndex::Constant(top_index)) = indices.last_mut() {
@@ -1575,7 +1575,7 @@ impl<'a> FunctionContext<'a> {
             // }
             _ => {
                 let other_value = self.codegen_expression(expr)?;
-                dbg!(other_value.clone());
+                // dbg!(other_value.clone());
                 other_value
                 // unreachable!("ICE: Expected Ident, ExtractTupleField, or Index, but got {expr}")
             }
