@@ -9,10 +9,7 @@ use std::cmp::Ordering;
 use super::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
-
-use fxhash::FxHashMap as HashMap;
-#[allow(unused_imports)]
-use fxhash::FxHashSet as HashSet;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
@@ -181,10 +178,10 @@ impl DominatorTree {
     /// "Simple, Fast Dominator Algorithm."
     fn compute_dominator_tree(&mut self, cfg: &ControlFlowGraph, post_order: &PostOrder) {
         // We'll be iterating over a reverse post-order of the CFG, skipping the entry block.
-        let (entry_block_id, entry_free_post_order) = post_order
-            .as_slice()
-            .split_last()
-            .expect("ICE: functions always have at least one block");
+        let Some((entry_block_id, entry_free_post_order)) = post_order.as_slice().split_last()
+        else {
+            return;
+        };
 
         // Do a first pass where we assign reverse post-order indices to all reachable nodes. The
         // entry block will be the only node with no immediate dominator.
@@ -290,7 +287,6 @@ impl DominatorTree {
     /// a dominator tree (standard CFG) or a post-dominator tree (reversed CFG).
     /// Calling this method on a dominator tree will return a function's dominance frontiers,
     /// while on a post-dominator tree the method will return the function's reverse (or post) dominance frontiers.
-    #[cfg(test)]
     pub(crate) fn compute_dominance_frontiers(
         &mut self,
         cfg: &ControlFlowGraph,

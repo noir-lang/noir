@@ -25,6 +25,12 @@ function collect_dirs {
       continue
     fi
 
+    if [[ ! -f "$current_dir/$1/$dir/Nargo.toml" ]]; then
+      echo "No Nargo.toml found in $dir. Removing directory."
+      rm -rf "$current_dir/$1/$dir"
+      echo "$dir: skipped (no Nargo.toml)"
+    fi
+
     echo "  \"$1/$dir\"," >> Nargo.toml
 done
 }
