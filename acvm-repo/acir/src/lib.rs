@@ -271,11 +271,10 @@ mod reflection {
                 name,
                 &format!(
                     r#"
-            msgpack::object obj = o;
             try {{
-                obj.convert(value);
+                o.convert(value);
             }} catch (const msgpack::type_error&) {{
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting into newtype '{name}'");
             }}
             "#
@@ -336,23 +335,22 @@ mod reflection {
             let unpack_body = {
                 let mut body = format!(
                     r#"
-    msgpack::object obj = o;
-    std::cerr << "reading into '{name}': " << obj << std::endl;
-    if (obj.type != msgpack::type::object_type::MAP) {{
-        std::cerr << obj << std::endl;
-        throw_or_abort("expected map for enum '{name}'; got " + std::to_string(obj.type));
+    std::cerr << "reading into '{name}': " << o << std::endl;
+    if (o.type != msgpack::type::object_type::MAP) {{
+        std::cerr << o << std::endl;
+        throw_or_abort("expected MAP for enum '{name}'; got type " + std::to_string(o.type));
     }}
-    if (obj.via.map.size != 1) {{
-        throw_or_abort("expected 1 entry for enum '{name}'; got " + std::to_string(obj.via.map.size));
+    if (o.via.map.size != 1) {{
+        throw_or_abort("expected 1 entry for enum '{name}'; got " + std::to_string(o.via.map.size));
     }}
     std::string tag;
     try {{
-        obj.via.map.ptr[0].key.convert(tag);
+        o.via.map.ptr[0].key.convert(tag);
     }} catch (const msgpack::type_error&) {{
-        std::cerr << obj << std::endl;
+        std::cerr << o << std::endl;
         throw_or_abort("error converting key to string for enum '{name}'");
     }}
-    msgpack::object oval = obj.via.map.ptr[0].val;"#
+    msgpack::object oval = o.via.map.ptr[0].val;"#
                 );
 
                 for (i, v) in variants.iter() {
@@ -414,7 +412,9 @@ mod reflection {
 
         /// Add a `msgpack_unpack` implementation.
         fn msgpack_unpack(&mut self, name: &str, body: &str) {
-            let code = Self::make_fn("void msgpack_unpack(auto o)", body);
+            // Using `msgpack::object const& o` instad of `auto o`, because the latter is passed as `msgpack::object::implicit_type`,
+            // which would have to be cast like `msgpack::object obj = o;`. This `const&` pattern exists in `msgpack-c` codebase.
+            let code = Self::make_fn("void msgpack_unpack(msgpack::object const& o)", body);
             self.add_code(name, &code);
         }
 

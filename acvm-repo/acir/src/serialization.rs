@@ -331,7 +331,7 @@ mod tests {
         }
     }
 
-    /// Test that we understand how different enums are serialized.
+    /// Test that an enum where each member wraps a struct serializes as a signle item map keyed by the type.
     #[test]
     fn msgpack_repr_enum_variant() {
         use rmpv::Value;
@@ -353,6 +353,7 @@ mod tests {
         assert_eq!(key.as_str(), Some("HeapArray"));
     }
 
+    /// Test that a newtype, just wrapping a value, is serialized as the underlying value.
     #[test]
     fn msgpack_repr_newtype() {
         use rmpv::Value;

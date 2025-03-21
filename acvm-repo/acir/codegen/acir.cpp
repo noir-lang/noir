@@ -14,7 +14,7 @@ namespace Acir {
             static Add bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Sub {
@@ -23,7 +23,7 @@ namespace Acir {
             static Sub bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Mul {
@@ -32,7 +32,7 @@ namespace Acir {
             static Mul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Div {
@@ -41,7 +41,7 @@ namespace Acir {
             static Div bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct IntegerDiv {
@@ -50,7 +50,7 @@ namespace Acir {
             static IntegerDiv bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Equals {
@@ -59,7 +59,7 @@ namespace Acir {
             static Equals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThan {
@@ -68,7 +68,7 @@ namespace Acir {
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThanEquals {
@@ -77,7 +77,7 @@ namespace Acir {
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
@@ -124,24 +124,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BinaryFieldOp': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BinaryFieldOp'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BinaryFieldOp': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BinaryFieldOp'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BinaryFieldOp'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BinaryFieldOp'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BinaryFieldOp'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Add") {
                 Add v;
                 try {
@@ -237,7 +236,7 @@ namespace Acir {
             static Add bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Sub {
@@ -246,7 +245,7 @@ namespace Acir {
             static Sub bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Mul {
@@ -255,7 +254,7 @@ namespace Acir {
             static Mul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Div {
@@ -264,7 +263,7 @@ namespace Acir {
             static Div bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Equals {
@@ -273,7 +272,7 @@ namespace Acir {
             static Equals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThan {
@@ -282,7 +281,7 @@ namespace Acir {
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct LessThanEquals {
@@ -291,7 +290,7 @@ namespace Acir {
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct And {
@@ -300,7 +299,7 @@ namespace Acir {
             static And bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Or {
@@ -309,7 +308,7 @@ namespace Acir {
             static Or bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Xor {
@@ -318,7 +317,7 @@ namespace Acir {
             static Xor bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Shl {
@@ -327,7 +326,7 @@ namespace Acir {
             static Shl bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Shr {
@@ -336,7 +335,7 @@ namespace Acir {
             static Shr bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
@@ -395,24 +394,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BinaryIntOp': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BinaryIntOp'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BinaryIntOp': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BinaryIntOp'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BinaryIntOp'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BinaryIntOp'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BinaryIntOp'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Add") {
                 Add v;
                 try {
@@ -548,7 +546,7 @@ namespace Acir {
             static U1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U8 {
@@ -557,7 +555,7 @@ namespace Acir {
             static U8 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U16 {
@@ -566,7 +564,7 @@ namespace Acir {
             static U16 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U32 {
@@ -575,7 +573,7 @@ namespace Acir {
             static U32 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U64 {
@@ -584,7 +582,7 @@ namespace Acir {
             static U64 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct U128 {
@@ -593,7 +591,7 @@ namespace Acir {
             static U128 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<U1, U8, U16, U32, U64, U128> value;
@@ -634,24 +632,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'IntegerBitSize': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'IntegerBitSize'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'IntegerBitSize': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'IntegerBitSize'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'IntegerBitSize'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'IntegerBitSize'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'IntegerBitSize'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "U1") {
                 U1 v;
                 try {
@@ -727,7 +724,7 @@ namespace Acir {
             static Field bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Integer {
@@ -739,12 +736,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Integer'");
                         }
             }
@@ -776,24 +772,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BitSize': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BitSize'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BitSize': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BitSize'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BitSize'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BitSize'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BitSize'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Field") {
                 Field v;
                 try {
@@ -832,12 +827,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Direct'");
                         }
             }
@@ -852,12 +846,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Relative'");
                         }
             }
@@ -889,24 +882,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'MemoryAddress': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'MemoryAddress'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'MemoryAddress': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'MemoryAddress'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'MemoryAddress'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'MemoryAddress'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'MemoryAddress'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Direct") {
                 Direct v;
                 try {
@@ -1240,24 +1232,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BlackBoxOp': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BlackBoxOp'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BlackBoxOp': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BlackBoxOp'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BlackBoxOp'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BlackBoxOp'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BlackBoxOp'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "AES128Encrypt") {
                 AES128Encrypt v;
                 try {
@@ -1448,12 +1439,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Simple'");
                         }
             }
@@ -1509,24 +1499,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'HeapValueType': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'HeapValueType'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'HeapValueType': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'HeapValueType'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'HeapValueType'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'HeapValueType'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'HeapValueType'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Simple") {
                 Simple v;
                 try {
@@ -1575,12 +1564,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'MemoryAddress'");
                         }
             }
@@ -1595,12 +1583,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'HeapArray'");
                         }
             }
@@ -1615,12 +1602,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'HeapVector'");
                         }
             }
@@ -1655,24 +1641,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'ValueOrArray': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'ValueOrArray'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'ValueOrArray': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'ValueOrArray'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'ValueOrArray'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'ValueOrArray'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'ValueOrArray'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "MemoryAddress") {
                 MemoryAddress v;
                 try {
@@ -1847,7 +1832,7 @@ namespace Acir {
             static Return bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct ForeignCall {
@@ -1919,12 +1904,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'BlackBox'");
                         }
             }
@@ -2030,24 +2014,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BrilligOpcode': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BrilligOpcode'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BrilligOpcode': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BrilligOpcode'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BrilligOpcode'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BrilligOpcode'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BrilligOpcode'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "BinaryFieldOp") {
                 BinaryFieldOp v;
                 try {
@@ -2264,12 +2247,11 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-        void msgpack_unpack(auto o) {
-                    msgpack::object obj = o;
+        void msgpack_unpack(msgpack::object const& o) {
                     try {
-                        obj.convert(value);
+                        o.convert(value);
                     } catch (const msgpack::type_error&) {
-                        std::cerr << obj << std::endl;
+                        std::cerr << o << std::endl;
                         throw_or_abort("error converting into newtype 'Witness'");
                     }
         }
@@ -2286,12 +2268,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Constant'");
                         }
             }
@@ -2306,12 +2287,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Witness'");
                         }
             }
@@ -2343,24 +2323,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'ConstantOrWitnessEnum': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'ConstantOrWitnessEnum'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'ConstantOrWitnessEnum': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'ConstantOrWitnessEnum'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'ConstantOrWitnessEnum'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'ConstantOrWitnessEnum'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'ConstantOrWitnessEnum'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Constant") {
                 Constant v;
                 try {
@@ -2722,24 +2701,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BlackBoxFuncCall': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BlackBoxFuncCall'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BlackBoxFuncCall': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BlackBoxFuncCall'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BlackBoxFuncCall'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BlackBoxFuncCall'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BlackBoxFuncCall'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "AES128Encrypt") {
                 AES128Encrypt v;
                 try {
@@ -2956,12 +2934,11 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-        void msgpack_unpack(auto o) {
-                    msgpack::object obj = o;
+        void msgpack_unpack(msgpack::object const& o) {
                     try {
-                        obj.convert(value);
+                        o.convert(value);
                     } catch (const msgpack::type_error&) {
-                        std::cerr << obj << std::endl;
+                        std::cerr << o << std::endl;
                         throw_or_abort("error converting into newtype 'BlockId'");
                     }
         }
@@ -2975,7 +2952,7 @@ namespace Acir {
             static Memory bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct CallData {
@@ -2987,12 +2964,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'CallData'");
                         }
             }
@@ -3004,7 +2980,7 @@ namespace Acir {
             static ReturnData bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         std::variant<Memory, CallData, ReturnData> value;
@@ -3036,24 +3012,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BlockType': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BlockType'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BlockType': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BlockType'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BlockType'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BlockType'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BlockType'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Memory") {
                 Memory v;
                 try {
@@ -3114,12 +3089,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Single'");
                         }
             }
@@ -3134,12 +3108,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Array'");
                         }
             }
@@ -3154,12 +3127,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'MemoryArray'");
                         }
             }
@@ -3194,24 +3166,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BrilligInputs': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BrilligInputs'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BrilligInputs': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BrilligInputs'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BrilligInputs'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BrilligInputs'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BrilligInputs'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Single") {
                 Single v;
                 try {
@@ -3260,12 +3231,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Simple'");
                         }
             }
@@ -3280,12 +3250,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Array'");
                         }
             }
@@ -3317,24 +3286,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'BrilligOutputs': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'BrilligOutputs'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'BrilligOutputs': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'BrilligOutputs'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'BrilligOutputs'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'BrilligOutputs'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'BrilligOutputs'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Simple") {
                 Simple v;
                 try {
@@ -3385,12 +3353,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'AssertZero'");
                         }
             }
@@ -3405,12 +3372,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'BlackBoxFuncCall'");
                         }
             }
@@ -3504,24 +3470,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'Opcode': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'Opcode'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'Opcode': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'Opcode'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'Opcode'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'Opcode'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'Opcode'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "AssertZero") {
                 AssertZero v;
                 try {
@@ -3600,12 +3565,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Expression'");
                         }
             }
@@ -3620,12 +3584,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Memory'");
                         }
             }
@@ -3657,24 +3620,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'ExpressionOrMemory': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'ExpressionOrMemory'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'ExpressionOrMemory': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'ExpressionOrMemory'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'ExpressionOrMemory'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'ExpressionOrMemory'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'ExpressionOrMemory'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Expression") {
                 Expression v;
                 try {
@@ -3721,7 +3683,7 @@ namespace Acir {
             static Unbounded bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(auto o) {}
+            void msgpack_unpack(msgpack::object const& o) {}
         };
 
         struct Bounded {
@@ -3760,24 +3722,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'ExpressionWidth': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'ExpressionWidth'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'ExpressionWidth': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'ExpressionWidth'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'ExpressionWidth'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'ExpressionWidth'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'ExpressionWidth'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Unbounded") {
                 Unbounded v;
                 try {
@@ -3816,12 +3777,11 @@ namespace Acir {
 
             void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-            void msgpack_unpack(auto o) {
-                        msgpack::object obj = o;
+            void msgpack_unpack(msgpack::object const& o) {
                         try {
-                            obj.convert(value);
+                            o.convert(value);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << obj << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into newtype 'Acir'");
                         }
             }
@@ -3864,24 +3824,23 @@ namespace Acir {
             }, value);
         }
 
-        void msgpack_unpack(auto o) {
-            msgpack::object obj = o;
-            std::cerr << "reading into 'OpcodeLocation': " << obj << std::endl;
-            if (obj.type != msgpack::type::object_type::MAP) {
-                std::cerr << obj << std::endl;
-                throw_or_abort("expected map for enum 'OpcodeLocation'; got " + std::to_string(obj.type));
+        void msgpack_unpack(msgpack::object const& o) {
+            std::cerr << "reading into 'OpcodeLocation': " << o << std::endl;
+            if (o.type != msgpack::type::object_type::MAP) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP for enum 'OpcodeLocation'; got type " + std::to_string(o.type));
             }
-            if (obj.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'OpcodeLocation'; got " + std::to_string(obj.via.map.size));
+            if (o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'OpcodeLocation'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
-                obj.via.map.ptr[0].key.convert(tag);
+                o.via.map.ptr[0].key.convert(tag);
             } catch (const msgpack::type_error&) {
-                std::cerr << obj << std::endl;
+                std::cerr << o << std::endl;
                 throw_or_abort("error converting key to string for enum 'OpcodeLocation'");
             }
-            msgpack::object oval = obj.via.map.ptr[0].val;
+            msgpack::object oval = o.via.map.ptr[0].val;
             if (tag == "Acir") {
                 Acir v;
                 try {
@@ -3918,12 +3877,11 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
-        void msgpack_unpack(auto o) {
-                    msgpack::object obj = o;
+        void msgpack_unpack(msgpack::object const& o) {
                     try {
-                        obj.convert(value);
+                        o.convert(value);
                     } catch (const msgpack::type_error&) {
-                        std::cerr << obj << std::endl;
+                        std::cerr << o << std::endl;
                         throw_or_abort("error converting into newtype 'PublicInputs'");
                     }
         }
