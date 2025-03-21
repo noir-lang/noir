@@ -141,6 +141,11 @@ pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationE
 
 // if the "nextest" feature is enabled, this will panic instead of emitting a test crate
 fn emit_compile_test(test_path: &str, src: &str, any_errors: bool) {
+    // skip ~2.4k name_shadowing tests
+    if test_path.contains("name_shadowing_") {
+        return;
+    }
+
     // TODO: better method to get output dir or else relocate there?
     // "compiler/noirc_frontend"
     let noirc_frontend_path = Path::new(std::env!("CARGO_MANIFEST_DIR"));
