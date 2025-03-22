@@ -256,6 +256,10 @@ pub enum InterpreterError {
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
+    Warning {
+        message: String,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -331,7 +335,8 @@ impl InterpreterError {
             | InterpreterError::UnknownArrayLength { location, .. }
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
-            | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
+            | InterpreterError::LoopHaltedForUiResponsiveness { location }
+            | InterpreterError::Warning { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -694,6 +699,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
+            }
+            InterpreterError::Warning { message, location } => {
+                CustomDiagnostic::simple_warning(message.into(), String::new(), *location)
             }
         }
     }

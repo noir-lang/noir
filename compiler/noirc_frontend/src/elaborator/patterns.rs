@@ -20,6 +20,7 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
     },
+    token::FunctionAttribute,
 };
 
 use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
@@ -572,6 +573,8 @@ impl Elaborator<'_> {
             }
         }
 
+        self.check_call_to_warn_builtin_at_runtime(&definition_kind, location);
+
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, location);
@@ -594,6 +597,28 @@ impl Elaborator<'_> {
             }
         } else {
             (id, typ)
+        }
+    }
+
+    // It's an error to call to the built-in function "warn" if we are not in a comptime context
+    fn check_call_to_warn_builtin_at_runtime(
+        &mut self,
+        definition_kind: &Option<DefinitionKind>,
+        location: Location,
+    ) {
+        let Some(DefinitionKind::Function(func_id)) = definition_kind else {
+            return;
+        };
+
+        if self.in_comptime_context() {
+            return;
+        }
+
+        let attribute = self.interner.function_attributes(func_id).function();
+        if let Some(FunctionAttribute::Builtin(builtin)) = attribute {
+            if builtin == "warn" {
+                self.push_err(ResolverError::WarnUsedAtRuntime { location });
+            }
         }
     }
 

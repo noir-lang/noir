@@ -192,6 +192,8 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: &'static str },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
+    #[error("The `std::warn::warn` function cannot be called at runtime")]
+    WarnUsedAtRuntime { location: Location },
 }
 
 impl ResolverError {
@@ -255,9 +257,8 @@ impl ResolverError {
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
-            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
-                *location
-            }
+            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
+            | ResolverError::WarnUsedAtRuntime { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -798,6 +799,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Trait `{trait_name}` has no method named `{method_name}`"), 
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::WarnUsedAtRuntime {location } => {
+                Diagnostic::simple_error(
+                    "The `std::warn::warn` function cannot be called at runtime".to_string(),
+                    "This function can only be called in comptime code".to_string(),
                     *location,
                 )
             },
