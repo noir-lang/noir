@@ -1,5 +1,4 @@
 pub(crate) mod basic_block;
-pub(crate) mod call_stack;
 pub(crate) mod cfg;
 pub(crate) mod dfg;
 pub(crate) mod dom;

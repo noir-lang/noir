@@ -1,4 +1,5 @@
 use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStackId;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
@@ -12,7 +13,6 @@ use num_bigint::BigUint;
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         instruction::Intrinsic,
         map::Id,

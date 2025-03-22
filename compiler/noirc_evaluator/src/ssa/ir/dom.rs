@@ -328,12 +328,12 @@ mod tests {
     use std::cmp::Ordering;
 
     use iter_extended::vecmap;
+    use noirc_errors::call_stack::CallStackId;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             basic_block::{BasicBlock, BasicBlockId},
-            call_stack::CallStackId,
             cfg::ControlFlowGraph,
             dom::DominatorTree,
             function::Function,
