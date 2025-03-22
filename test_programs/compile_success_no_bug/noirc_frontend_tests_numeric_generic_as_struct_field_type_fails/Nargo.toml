@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_numeric_generic_as_struct_field_type_fails"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

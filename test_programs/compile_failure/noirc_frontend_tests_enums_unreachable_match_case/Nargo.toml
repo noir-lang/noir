@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_enums_unreachable_match_case"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

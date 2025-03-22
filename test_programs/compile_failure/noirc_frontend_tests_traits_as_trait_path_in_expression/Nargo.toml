@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_as_trait_path_in_expression"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

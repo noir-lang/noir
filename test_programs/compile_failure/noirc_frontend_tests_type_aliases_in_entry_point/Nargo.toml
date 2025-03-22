@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_type_aliases_in_entry_point"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

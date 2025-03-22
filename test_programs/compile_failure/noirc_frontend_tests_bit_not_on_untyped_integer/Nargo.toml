@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_bit_not_on_untyped_integer"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

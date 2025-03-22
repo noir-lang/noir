@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_metaprogramming_comptime_code_rejects_dynamic_variable"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

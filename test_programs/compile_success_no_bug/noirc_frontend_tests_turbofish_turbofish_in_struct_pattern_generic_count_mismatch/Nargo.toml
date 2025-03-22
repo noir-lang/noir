@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_turbofish_turbofish_in_struct_pattern_generic_count_mismatch"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]
