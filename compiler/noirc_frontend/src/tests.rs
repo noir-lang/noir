@@ -204,6 +204,7 @@ fn check_errors_with_options(
     //
     //   ~~~ error message
     let mut secondary_spans_with_errors: Vec<(Span, String)> = Vec::new();
+
     // The byte at the start of this line
     let mut byte = 0;
     // The length of the last line, needed to go back to the byte at the beginning of the last line
@@ -228,7 +229,6 @@ fn check_errors_with_options(
         byte += line.len() + 1; // For '\n'
         last_line_length = line.len();
     }
-
     let mut primary_spans_with_errors: HashMap<Span, String> =
         primary_spans_with_errors.into_iter().collect();
 
@@ -269,7 +269,6 @@ fn check_errors_with_options(
             .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
         let span = secondary.location.span;
         let message = &error.message;
-
         let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
             if let Some(message) = secondary_spans_with_errors.get(&span) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
