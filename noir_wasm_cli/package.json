@@ -1,0 +1,19 @@
+{
+  "name": "noir_wasm_cli",
+  "packageManager": "yarn@4.5.2",
+  "main": "dest/index.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0"
+  },
+  "dependencies": {
+    "@noir-lang/noir_wasm": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.22.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.8.2"
+  }
+}
