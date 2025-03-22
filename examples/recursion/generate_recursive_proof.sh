@@ -3,7 +3,7 @@ set -eu
 
 BACKEND=${BACKEND:-bb}
 
-nargo execute sum_witness --package sum
+nargo execute sum_witness --package sum --pedantic-solving
 
 # Once we have generated our inner proof, we must use this to generate inputs to `recurse_leaf``
 $BACKEND write_vk -b ./target/sum.json -o ./target --init_kzg_accumulator --output_format fields
@@ -29,7 +29,7 @@ echo "public_inputs = $PUBLIC_INPUTS" >> $RECURSE_LEAF_PROVER_TOML
 
 # We can now execute and prove `recurse_leaf`
 
-nargo execute recurse_leaf_witness --package recurse_leaf
+nargo execute recurse_leaf_witness --package recurse_leaf --pedantic-solving
 
 $BACKEND prove -b ./target/recurse_leaf.json -w ./target/recurse_leaf_witness.gz -o ./target --init_kzg_accumulator
 mv ./target/proof ./target/recurse_leaf_proof
@@ -58,7 +58,7 @@ echo "public_inputs = $PUBLIC_INPUTS" >> $RECURSE_NODE_PROVER_TOML
 
 # We can now execute and prove `recurse_node`
 
-nargo execute recurse_node_witness --package recurse_node
+nargo execute recurse_node_witness --package recurse_node --pedantic-solving
 $BACKEND prove -b ./target/recurse_node.json -w ./target/recurse_node_witness.gz -o ./target --honk_recursion 1 --init_kzg_accumulator
 mv ./target/proof ./target/recurse_node_proof
 

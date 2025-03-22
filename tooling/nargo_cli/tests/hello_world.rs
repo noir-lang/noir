@@ -41,5 +41,6 @@ fn hello_world_example() {
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("execute");
+    cmd.arg("--pedantic-solving");
     cmd.assert().success();
 }
