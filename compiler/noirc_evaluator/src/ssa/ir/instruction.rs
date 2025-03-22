@@ -598,11 +598,10 @@ impl Instruction {
         match self {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
-                        rhs != FieldElement::zero()
-                    } else {
-                        false
-                    }
+                    function
+                        .dfg
+                        .get_numeric_constant(binary.rhs)
+                        .map_or(false, |rhs| !rhs.is_zero())
                 } else {
                     true
                 }
@@ -662,6 +661,10 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => {
                 match binary.operator {
+                    BinaryOp::Div | BinaryOp::Mod => {
+                        // Division and modulo operations can fail if the RHS is zero but is otherwise safe.
+                        dfg.get_numeric_constant(binary.rhs).map_or(false, |rhs| !rhs.is_zero())
+                    }
                     BinaryOp::Add { unchecked: false }
                     | BinaryOp::Sub { unchecked: false }
                     | BinaryOp::Mul { unchecked: false } => {
