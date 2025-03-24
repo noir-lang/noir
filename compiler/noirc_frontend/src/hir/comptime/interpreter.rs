@@ -14,8 +14,6 @@ use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::expr::{HirConstrainExpression, HirEnumConstructorExpression, ImplKind};
-use crate::hir_def::function::FunctionBody;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
@@ -29,16 +27,18 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirPrefixExpression,
+            HirConstrainExpression, HirConstructorExpression, HirEnumConstructorExpression,
+            HirExpression, HirIdent, HirIfExpression, HirIndexExpression, HirInfixExpression,
+            HirLambda, HirLiteral, HirMemberAccess, HirPrefixExpression, ImplKind,
         },
+        function::FunctionBody,
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
             HirStatement,
         },
         types::Kind,
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
 };
 
 use super::errors::{IResult, InterpreterError};
@@ -46,6 +46,7 @@ use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod foreign;
+mod infix;
 mod unquote;
 
 #[allow(unused)]
@@ -706,88 +707,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
-        if let Type::FieldElement = &typ {
-            Ok(Value::Field(value.into()))
-        } else if let Type::Integer(sign, bit_size) = &typ {
-            match (sign, bit_size) {
-                (Signedness::Unsigned, IntegerBitSize::One) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
-                }
-                (Signedness::Unsigned, IntegerBitSize::Eight) => {
-                    let value = value.try_to_unsigned().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::U8(value))
-                }
-                (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                    let value = value.try_to_unsigned().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::U16(value))
-                }
-                (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                    let value = value.try_to_unsigned().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::U32(value))
-                }
-                (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                    let value = value.try_to_unsigned().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::U64(value))
-                }
-                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                    let value: u128 = value.try_to_unsigned().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::U128(value))
-                }
-                (Signedness::Signed, IntegerBitSize::One) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
-                }
-                (Signedness::Signed, IntegerBitSize::Eight) => {
-                    let value = value.try_to_signed().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::I8(value))
-                }
-                (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                    let value = value.try_to_signed().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::I16(value))
-                }
-                (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                    let value = value.try_to_signed().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::I32(value))
-                }
-                (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                    let value = value.try_to_signed().ok_or(
-                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                    )?;
-                    Ok(Value::I64(value))
-                }
-                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                    return Err(InterpreterError::TypeUnsupported { typ, location });
-                }
-            }
-        } else if let Type::TypeVariable(variable) = &typ {
-            if variable.is_integer_or_field() {
-                Ok(Value::Field(value.into()))
-            } else if variable.is_integer() {
-                let value = value
-                    .try_to_unsigned()
-                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                Ok(Value::U64(value))
-            } else {
-                Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
-            }
-        } else {
-            Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
-        }
+        evaluate_integer(typ, value, location)
     }
 
     pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
@@ -855,71 +775,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
             self.evaluate_overloaded_prefix(prefix, rhs, id)
         } else {
-            self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+            let location = self.elaborator.interner.expr_location(&id);
+            evaluate_prefix_with_value(rhs, prefix.operator, location)
         }
     }
 
-    fn evaluate_prefix_with_value(
-        &mut self,
-        rhs: Value,
-        operator: UnaryOp,
-        id: ExprId,
-    ) -> IResult<Value> {
-        match operator {
-            UnaryOp::Minus => match rhs {
-                Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
-                Value::I8(value) => Ok(Value::I8(-value)),
-                Value::I16(value) => Ok(Value::I16(-value)),
-                Value::I32(value) => Ok(Value::I32(-value)),
-                Value::I64(value) => Ok(Value::I64(-value)),
-                Value::U8(value) => Ok(Value::U8(0 - value)),
-                Value::U16(value) => Ok(Value::U16(0 - value)),
-                Value::U32(value) => Ok(Value::U32(0 - value)),
-                Value::U64(value) => Ok(Value::U64(0 - value)),
-                value => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    let operator = "minus";
-                    let typ = value.get_type().into_owned();
-                    Err(InterpreterError::InvalidValueForUnary { typ, location, operator })
-                }
-            },
-            UnaryOp::Not => match rhs {
-                Value::Bool(value) => Ok(Value::Bool(!value)),
-                Value::I8(value) => Ok(Value::I8(!value)),
-                Value::I16(value) => Ok(Value::I16(!value)),
-                Value::I32(value) => Ok(Value::I32(!value)),
-                Value::I64(value) => Ok(Value::I64(!value)),
-                Value::U8(value) => Ok(Value::U8(!value)),
-                Value::U16(value) => Ok(Value::U16(!value)),
-                Value::U32(value) => Ok(Value::U32(!value)),
-                Value::U64(value) => Ok(Value::U64(!value)),
-                value => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    let typ = value.get_type().into_owned();
-                    Err(InterpreterError::InvalidValueForUnary { typ, location, operator: "not" })
-                }
-            },
-            UnaryOp::Reference { mutable } => {
-                // If this is a mutable variable (auto_deref = true), turn this into an explicit
-                // mutable reference just by switching the value of `auto_deref`. Otherwise, wrap
-                // the value in a fresh reference.
-                match rhs {
-                    Value::Pointer(elem, true, _) => Ok(Value::Pointer(elem, false, mutable)),
-                    other => Ok(Value::Pointer(Shared::new(other), false, mutable)),
-                }
-            }
-            UnaryOp::Dereference { implicitly_added: _ } => match rhs {
-                Value::Pointer(element, _, _) => Ok(element.borrow().clone()),
-                value => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    let typ = value.get_type().into_owned();
-                    Err(InterpreterError::NonPointerDereferenced { typ, location })
-                }
-            },
-        }
-    }
-
-    #[allow(clippy::bool_comparison)]
     fn evaluate_infix(&mut self, infix: HirInfixExpression, id: ExprId) -> IResult<Value> {
         let lhs_value = self.evaluate(infix.lhs)?;
         let rhs_value = self.evaluate(infix.rhs)?;
@@ -928,195 +788,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return self.evaluate_overloaded_infix(infix, lhs_value, rhs_value, id);
         }
 
-        let lhs_type = lhs_value.get_type().into_owned();
-        let rhs_type = rhs_value.get_type().into_owned();
         let location = self.elaborator.interner.expr_location(&id);
 
-        let error = |operator| {
-            let lhs = lhs_type.clone();
-            let rhs = rhs_type.clone();
-            InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
-        };
-
-        /// Generate matches that can promote the type of one side to the other if they are compatible.
-        macro_rules! match_values {
-            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) {
-                $(
-                    ($lhs_var:ident, $rhs_var:ident) to $res_var:ident => $expr:expr
-                ),*
-                $(,)?
-             }
-            ) => {
-                match ($lhs_value, $rhs_value) {
-                    $(
-                    (Value::$lhs_var($lhs), Value::$rhs_var($rhs)) => {
-                        Ok(Value::$res_var(($expr).ok_or(error($op))?))
-                    },
-                    )*
-                    (lhs, rhs) => {
-                        Err(error($op))
-                    },
-                }
-            };
-        }
-
-        /// Generate matches for arithmetic operations on `Field` and integers.
-        macro_rules! match_arithmetic {
-            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, }) => {
-                match_values! {
-                    ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        (Field, Field) to Field => Some($field_expr),
-                        (I8,  I8)      to I8    => $int_expr,
-                        (I16, I16)     to I16   => $int_expr,
-                        (I32, I32)     to I32   => $int_expr,
-                        (I64, I64)     to I64   => $int_expr,
-                        (U8,  U8)      to U8    => $int_expr,
-                        (U16, U16)     to U16   => $int_expr,
-                        (U32, U32)     to U32   => $int_expr,
-                        (U64, U64)     to U64   => $int_expr,
-                    }
-                }
-            };
-        }
-
-        /// Generate matches for comparison operations on all types, returning `Bool`.
-        macro_rules! match_cmp {
-            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
-                match_values! {
-                    ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        (Field, Field) to Bool => Some($expr),
-                        (Bool, Bool)   to Bool => Some($expr),
-                        (I8,  I8)      to Bool => Some($expr),
-                        (I16, I16)     to Bool => Some($expr),
-                        (I32, I32)     to Bool => Some($expr),
-                        (I64, I64)     to Bool => Some($expr),
-                        (U8,  U8)      to Bool => Some($expr),
-                        (U16, U16)     to Bool => Some($expr),
-                        (U32, U32)     to Bool => Some($expr),
-                        (U64, U64)     to Bool => Some($expr),
-                    }
-                }
-            };
-        }
-
-        /// Generate matches for bitwise operations on `Bool` and integers.
-        macro_rules! match_bitwise {
-            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
-                match_values! {
-                    ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        (Bool, Bool)   to Bool => Some($expr),
-                        (I8,  I8)      to I8   => Some($expr),
-                        (I16, I16)     to I16  => Some($expr),
-                        (I32, I32)     to I32  => Some($expr),
-                        (I64, I64)     to I64  => Some($expr),
-                        (U8,  U8)      to U8   => Some($expr),
-                        (U16, U16)     to U16  => Some($expr),
-                        (U32, U32)     to U32  => Some($expr),
-                        (U64, U64)     to U64  => Some($expr),
-                    }
-                }
-            };
-        }
-
-        /// Generate matches for operations on just integer values.
-        macro_rules! match_integer {
-            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
-                match_values! {
-                    ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        (I8,  I8)      to I8   => $expr,
-                        (I16, I16)     to I16  => $expr,
-                        (I32, I32)     to I32  => $expr,
-                        (I64, I64)     to I64  => $expr,
-                        (U8,  U8)      to U8   => $expr,
-                        (U16, U16)     to U16  => $expr,
-                        (U32, U32)     to U32  => $expr,
-                        (U64, U64)     to U64  => $expr,
-                    }
-                }
-            };
-        }
-
-        /// Generate matches for bit shifting, which in Noir only accepts `u8` for RHS.
-        macro_rules! match_bitshift {
-            (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
-                match_values! {
-                    ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                        (I8,  U8)      to I8   => $expr,
-                        (I16, U8)      to I16  => $expr,
-                        (I32, U8)      to I32  => $expr,
-                        (I64, U8)      to I64  => $expr,
-                        (U8,  U8)      to U8   => $expr,
-                        (U16, U8)      to U16  => $expr,
-                        (U32, U8)      to U32  => $expr,
-                        (U64, U8)      to U64  => $expr,
-                    }
-                }
-            };
-        }
-
-        use InterpreterError::InvalidValuesForBinary;
-        match infix.operator.kind {
-            BinaryOpKind::Add => match_arithmetic! {
-                (lhs_value as lhs "+" rhs_value as rhs) {
-                    field: lhs + rhs,
-                    int: lhs.checked_add(rhs),
-                }
-            },
-            BinaryOpKind::Subtract => match_arithmetic! {
-                (lhs_value as lhs "-" rhs_value as rhs) {
-                    field: lhs - rhs,
-                    int: lhs.checked_sub(rhs),
-                }
-            },
-            BinaryOpKind::Multiply => match_arithmetic! {
-                (lhs_value as lhs "*" rhs_value as rhs) {
-                    field: lhs * rhs,
-                    int: lhs.checked_mul(rhs),
-                }
-            },
-            BinaryOpKind::Divide => match_arithmetic! {
-                (lhs_value as lhs "/" rhs_value as rhs) {
-                    field: lhs / rhs,
-                    int: lhs.checked_div(rhs),
-                }
-            },
-            BinaryOpKind::Equal => match_cmp! {
-                (lhs_value as lhs "==" rhs_value as rhs) => lhs == rhs
-            },
-            BinaryOpKind::NotEqual => match_cmp! {
-                (lhs_value as lhs "!=" rhs_value as rhs) => lhs != rhs
-            },
-            BinaryOpKind::Less => match_cmp! {
-                (lhs_value as lhs "<" rhs_value as rhs) => lhs < rhs
-            },
-            BinaryOpKind::LessEqual => match_cmp! {
-                (lhs_value as lhs "<=" rhs_value as rhs) => lhs <= rhs
-            },
-            BinaryOpKind::Greater => match_cmp! {
-                (lhs_value as lhs ">" rhs_value as rhs) => lhs > rhs
-            },
-            BinaryOpKind::GreaterEqual => match_cmp! {
-                (lhs_value as lhs ">=" rhs_value as rhs) => lhs >= rhs
-            },
-            BinaryOpKind::And => match_bitwise! {
-                (lhs_value as lhs "&" rhs_value as rhs) => lhs & rhs
-            },
-            BinaryOpKind::Or => match_bitwise! {
-                (lhs_value as lhs "|" rhs_value as rhs) => lhs | rhs
-            },
-            BinaryOpKind::Xor => match_bitwise! {
-                (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
-            },
-            BinaryOpKind::ShiftRight => match_bitshift! {
-                (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs.into())
-            },
-            BinaryOpKind::ShiftLeft => match_bitshift! {
-                (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into())
-            },
-            BinaryOpKind::Modulo => match_integer! {
-                (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
-            },
-        }
+        infix::evaluate_infix(lhs_value, rhs_value, infix.operator, location)
     }
 
     fn evaluate_overloaded_infix(
@@ -1143,7 +817,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // - Comparator operators: Convert the returned `Ordering` to a boolean.
         use BinaryOpKind::*;
         match operator {
-            NotEqual => self.evaluate_prefix_with_value(value, UnaryOp::Not, id),
+            NotEqual => evaluate_prefix_with_value(value, UnaryOp::Not, location),
             Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
             _ => Ok(value),
         }
@@ -1201,56 +875,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let index = self.evaluate(index.index)?;
 
         let location = self.elaborator.interner.expr_location(&id);
-        let (array, index) = self.bounds_check(array, index, location)?;
+        let (array, index) = bounds_check(array, index, location)?;
 
         Ok(array[index].clone())
-    }
-
-    /// Bounds check the given array and index pair.
-    /// This will also ensure the given arguments are in fact an array and integer.
-    fn bounds_check(
-        &self,
-        array: Value,
-        index: Value,
-        location: Location,
-    ) -> IResult<(Vector<Value>, usize)> {
-        let collection = match array {
-            Value::Array(array, _) => array,
-            Value::Slice(array, _) => array,
-            value => {
-                let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonArrayIndexed { typ, location });
-            }
-        };
-
-        let index = match index {
-            Value::Field(value) => {
-                value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
-                    let typ = Type::default_int_type();
-                    let value = SignedField::positive(value);
-                    InterpreterError::IntegerOutOfRangeForType { value, typ, location }
-                })?
-            }
-            Value::I8(value) => value as usize,
-            Value::I16(value) => value as usize,
-            Value::I32(value) => value as usize,
-            Value::I64(value) => value as usize,
-            Value::U8(value) => value as usize,
-            Value::U16(value) => value as usize,
-            Value::U32(value) => value as usize,
-            Value::U64(value) => value as usize,
-            value => {
-                let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
-            }
-        };
-
-        if index >= collection.len() {
-            use InterpreterError::IndexOutOfBounds;
-            return Err(IndexOutOfBounds { index, location, length: collection.len() });
-        }
-
-        Ok((collection, index))
     }
 
     fn evaluate_constructor(
@@ -1370,109 +997,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        Self::evaluate_cast_one_step(
-            &cast.r#type,
-            location,
-            evaluated_lhs,
-            self.elaborator.interner,
-        )
-    }
-
-    /// evaluate_cast without recursion
-    pub fn evaluate_cast_one_step(
-        typ: &Type,
-        location: Location,
-        evaluated_lhs: Value,
-        interner: &NodeInterner,
-    ) -> IResult<Value> {
-        macro_rules! signed_int_to_field {
-            ($x:expr) => {{
-                // Need to convert the signed integer to an i128 before
-                // we negate it to preserve the MIN value.
-                let mut value = $x as i128;
-                let is_negative = value < 0;
-                if is_negative {
-                    value = -value;
-                }
-                ((value as u128).into(), is_negative)
-            }};
-        }
-
-        let (mut lhs, lhs_is_negative) = match evaluated_lhs {
-            Value::Field(value) => (value, false),
-            Value::U1(value) => ((value as u128).into(), false),
-            Value::U8(value) => ((value as u128).into(), false),
-            Value::U16(value) => ((value as u128).into(), false),
-            Value::U32(value) => ((value as u128).into(), false),
-            Value::U64(value) => ((value as u128).into(), false),
-            Value::I8(value) => signed_int_to_field!(value),
-            Value::I16(value) => signed_int_to_field!(value),
-            Value::I32(value) => signed_int_to_field!(value),
-            Value::I64(value) => signed_int_to_field!(value),
-            Value::Bool(value) => {
-                (if value { FieldElement::one() } else { FieldElement::zero() }, false)
-            }
-            value => {
-                let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonNumericCasted { typ, location });
-            }
-        };
-
-        macro_rules! cast_to_int {
-            ($x:expr, $method:ident, $typ:ty, $f:ident) => {{
-                let mut value = $x.$method() as $typ;
-                if lhs_is_negative {
-                    value = 0 - value;
-                }
-                Ok(Value::$f(value))
-            }};
-        }
-
-        // Now actually cast the lhs, bit casting and wrapping as necessary
-        match typ.follow_bindings() {
-            Type::FieldElement => {
-                if lhs_is_negative {
-                    lhs = FieldElement::zero() - lhs;
-                }
-                Ok(Value::Field(lhs))
-            }
-            Type::Integer(sign, bit_size) => match (sign, bit_size) {
-                (Signedness::Unsigned, IntegerBitSize::One) => {
-                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-                }
-                (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
-                (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                    cast_to_int!(lhs, to_u128, u16, U16)
-                }
-                (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                    cast_to_int!(lhs, to_u128, u32, U32)
-                }
-                (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                    cast_to_int!(lhs, to_u128, u64, U64)
-                }
-                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                    cast_to_int!(lhs, to_u128, u128, U128)
-                }
-                (Signedness::Signed, IntegerBitSize::One) => {
-                    Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-                }
-                (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
-                (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                    cast_to_int!(lhs, to_i128, i16, I16)
-                }
-                (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                    cast_to_int!(lhs, to_i128, i32, I32)
-                }
-                (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                    cast_to_int!(lhs, to_i128, i64, I64)
-                }
-                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                    todo!()
-                }
-            },
-            Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
-            typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
-        }
+        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression, id: ExprId) -> IResult<Value> {
@@ -1632,7 +1157,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 };
 
                 let typ = array_value.get_type().into_owned();
-                let (elements, index) = self.bounds_check(array_value, index, location)?;
+                let (elements, index) = bounds_check(array_value, index, location)?;
 
                 let new_array = constructor(elements.update(index, rhs), typ);
                 self.store_lvalue(*array, new_array)
@@ -1678,7 +1203,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Index { array, index, typ: _, location } => {
                 let array = self.evaluate_lvalue(array)?;
                 let index = self.evaluate(*index)?;
-                let (elements, index) = self.bounds_check(array, index, *location)?;
+                let (elements, index) = bounds_check(array, index, *location)?;
                 Ok(elements[index].clone())
             }
         }
@@ -1868,5 +1393,276 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         Ok(Value::Unit)
+    }
+}
+
+fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
+    if let Type::FieldElement = &typ {
+        Ok(Value::Field(value.into()))
+    } else if let Type::Integer(sign, bit_size) = &typ {
+        match (sign, bit_size) {
+            (Signedness::Unsigned, IntegerBitSize::One) => {
+                return Err(InterpreterError::TypeUnsupported { typ, location });
+            }
+            (Signedness::Unsigned, IntegerBitSize::Eight) => {
+                let value = value
+                    .try_to_unsigned()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::U8(value))
+            }
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
+                let value = value
+                    .try_to_unsigned()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::U16(value))
+            }
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
+                let value = value
+                    .try_to_unsigned()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::U32(value))
+            }
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
+                let value = value
+                    .try_to_unsigned()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::U64(value))
+            }
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                let value: u128 = value
+                    .try_to_unsigned()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::U128(value))
+            }
+            (Signedness::Signed, IntegerBitSize::One) => {
+                return Err(InterpreterError::TypeUnsupported { typ, location });
+            }
+            (Signedness::Signed, IntegerBitSize::Eight) => {
+                let value = value
+                    .try_to_signed()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::I8(value))
+            }
+            (Signedness::Signed, IntegerBitSize::Sixteen) => {
+                let value = value
+                    .try_to_signed()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::I16(value))
+            }
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
+                let value = value
+                    .try_to_signed()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::I32(value))
+            }
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => {
+                let value = value
+                    .try_to_signed()
+                    .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+                Ok(Value::I64(value))
+            }
+            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                return Err(InterpreterError::TypeUnsupported { typ, location });
+            }
+        }
+    } else if let Type::TypeVariable(variable) = &typ {
+        if variable.is_integer_or_field() {
+            Ok(Value::Field(value.into()))
+        } else if variable.is_integer() {
+            let value = value
+                .try_to_unsigned()
+                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+            Ok(Value::U64(value))
+        } else {
+            Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+        }
+    } else {
+        Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+    }
+}
+
+/// evaluate_cast without recursion
+fn evaluate_cast_one_step(typ: &Type, location: Location, evaluated_lhs: Value) -> IResult<Value> {
+    macro_rules! signed_int_to_field {
+        ($x:expr) => {{
+            // Need to convert the signed integer to an i128 before
+            // we negate it to preserve the MIN value.
+            let mut value = $x as i128;
+            let is_negative = value < 0;
+            if is_negative {
+                value = -value;
+            }
+            ((value as u128).into(), is_negative)
+        }};
+    }
+
+    let (mut lhs, lhs_is_negative) = match evaluated_lhs {
+        Value::Field(value) => (value, false),
+        Value::U1(value) => ((value as u128).into(), false),
+        Value::U8(value) => ((value as u128).into(), false),
+        Value::U16(value) => ((value as u128).into(), false),
+        Value::U32(value) => ((value as u128).into(), false),
+        Value::U64(value) => ((value as u128).into(), false),
+        Value::I8(value) => signed_int_to_field!(value),
+        Value::I16(value) => signed_int_to_field!(value),
+        Value::I32(value) => signed_int_to_field!(value),
+        Value::I64(value) => signed_int_to_field!(value),
+        Value::Bool(value) => {
+            (if value { FieldElement::one() } else { FieldElement::zero() }, false)
+        }
+        value => {
+            let typ = value.get_type().into_owned();
+            return Err(InterpreterError::NonNumericCasted { typ, location });
+        }
+    };
+
+    macro_rules! cast_to_int {
+        ($x:expr, $method:ident, $typ:ty, $f:ident) => {{
+            let mut value = $x.$method() as $typ;
+            if lhs_is_negative {
+                value = 0 - value;
+            }
+            Ok(Value::$f(value))
+        }};
+    }
+
+    // Now actually cast the lhs, bit casting and wrapping as necessary
+    match typ.follow_bindings() {
+        Type::FieldElement => {
+            if lhs_is_negative {
+                lhs = FieldElement::zero() - lhs;
+            }
+            Ok(Value::Field(lhs))
+        }
+        Type::Integer(sign, bit_size) => match (sign, bit_size) {
+            (Signedness::Unsigned, IntegerBitSize::One) => {
+                Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
+            }
+            (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
+                cast_to_int!(lhs, to_u128, u16, U16)
+            }
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
+                cast_to_int!(lhs, to_u128, u32, U32)
+            }
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
+                cast_to_int!(lhs, to_u128, u64, U64)
+            }
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                cast_to_int!(lhs, to_u128, u128, U128)
+            }
+            (Signedness::Signed, IntegerBitSize::One) => {
+                Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
+            }
+            (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => {
+                cast_to_int!(lhs, to_i128, i16, I16)
+            }
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
+                cast_to_int!(lhs, to_i128, i32, I32)
+            }
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => {
+                cast_to_int!(lhs, to_i128, i64, I64)
+            }
+            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                todo!()
+            }
+        },
+        Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
+        typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
+    }
+}
+
+/// Bounds check the given array and index pair.
+/// This will also ensure the given arguments are in fact an array and integer.
+fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
+    let collection = match array {
+        Value::Array(array, _) => array,
+        Value::Slice(array, _) => array,
+        value => {
+            let typ = value.get_type().into_owned();
+            return Err(InterpreterError::NonArrayIndexed { typ, location });
+        }
+    };
+
+    let index = match index {
+        Value::Field(value) => {
+            value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+                let typ = Type::default_int_type();
+                let value = SignedField::positive(value);
+                InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+            })?
+        }
+        Value::I8(value) => value as usize,
+        Value::I16(value) => value as usize,
+        Value::I32(value) => value as usize,
+        Value::I64(value) => value as usize,
+        Value::U8(value) => value as usize,
+        Value::U16(value) => value as usize,
+        Value::U32(value) => value as usize,
+        Value::U64(value) => value as usize,
+        value => {
+            let typ = value.get_type().into_owned();
+            return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
+        }
+    };
+
+    if index >= collection.len() {
+        use InterpreterError::IndexOutOfBounds;
+        return Err(IndexOutOfBounds { index, location, length: collection.len() });
+    }
+
+    Ok((collection, index))
+}
+
+fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location) -> IResult<Value> {
+    match operator {
+        UnaryOp::Minus => match rhs {
+            Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
+            Value::I8(value) => Ok(Value::I8(-value)),
+            Value::I16(value) => Ok(Value::I16(-value)),
+            Value::I32(value) => Ok(Value::I32(-value)),
+            Value::I64(value) => Ok(Value::I64(-value)),
+            Value::U8(value) => Ok(Value::U8(0 - value)),
+            Value::U16(value) => Ok(Value::U16(0 - value)),
+            Value::U32(value) => Ok(Value::U32(0 - value)),
+            Value::U64(value) => Ok(Value::U64(0 - value)),
+            value => {
+                let operator = "minus";
+                let typ = value.get_type().into_owned();
+                Err(InterpreterError::InvalidValueForUnary { typ, location, operator })
+            }
+        },
+        UnaryOp::Not => match rhs {
+            Value::Bool(value) => Ok(Value::Bool(!value)),
+            Value::I8(value) => Ok(Value::I8(!value)),
+            Value::I16(value) => Ok(Value::I16(!value)),
+            Value::I32(value) => Ok(Value::I32(!value)),
+            Value::I64(value) => Ok(Value::I64(!value)),
+            Value::U8(value) => Ok(Value::U8(!value)),
+            Value::U16(value) => Ok(Value::U16(!value)),
+            Value::U32(value) => Ok(Value::U32(!value)),
+            Value::U64(value) => Ok(Value::U64(!value)),
+            value => {
+                let typ = value.get_type().into_owned();
+                Err(InterpreterError::InvalidValueForUnary { typ, location, operator: "not" })
+            }
+        },
+        UnaryOp::Reference { mutable } => {
+            // If this is a mutable variable (auto_deref = true), turn this into an explicit
+            // mutable reference just by switching the value of `auto_deref`. Otherwise, wrap
+            // the value in a fresh reference.
+            match rhs {
+                Value::Pointer(elem, true, _) => Ok(Value::Pointer(elem, false, mutable)),
+                other => Ok(Value::Pointer(Shared::new(other), false, mutable)),
+            }
+        }
+        UnaryOp::Dereference { implicitly_added: _ } => match rhs {
+            Value::Pointer(element, _, _) => Ok(element.borrow().clone()),
+            value => {
+                let typ = value.get_type().into_owned();
+                Err(InterpreterError::NonPointerDereferenced { typ, location })
+            }
+        },
     }
 }

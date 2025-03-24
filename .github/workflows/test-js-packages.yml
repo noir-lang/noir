@@ -26,7 +26,7 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
@@ -542,6 +542,13 @@ jobs:
 
     name: Check external repo - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
+      - name: Matrix Info
+        run: |
+          echo "repo: ${{ matrix.repo }}"
+          echo "ref: ${{ matrix.ref }}"
+          echo "path: ${{ matrix.path }}"
+          echo "timeout: ${{ matrix.timeout }}"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -568,10 +575,14 @@ jobs:
         id: test_report
         working-directory: ./test-repo/${{ matrix.path }}
         run: |
-          output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
           BEFORE=$SECONDS
-          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.nargo_args }} | tee $output_file
+          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.nargo_args }} | tee $OUTPUT_FILE
           TIME=$(($SECONDS-$BEFORE))
+
+          if [ ! -s $OUTPUT_FILE ]; then
+            # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
+            rm -f $OUTPUT_FILE
+          fi
 
           NAME=${{ matrix.repo }}/${{ matrix.path }}
           # Replace any slashes with underscores
@@ -580,13 +591,9 @@ jobs:
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
           jq --null-input "[{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]" > $TEST_REPORT_NAME.json
-
-          if [ ! -s $output_file ]; then
-            # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
-            rm -f $output_file
-          fi
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+          OUTPUT_FILE: ${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
       - name: Compare test results
         working-directory: ./noir-repo
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl

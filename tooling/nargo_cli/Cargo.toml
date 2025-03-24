@@ -17,6 +17,7 @@ workspace = true
 [[bin]]
 name = "nargo"
 path = "src/main.rs"
+doc = false # Avoid conflicts with the `nargo` library when documenting. We just want to document the `nargo` library.
 
 [build-dependencies]
 build-data.workspace = true
