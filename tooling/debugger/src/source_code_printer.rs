@@ -246,7 +246,7 @@ fn render_location<'a>(
 mod tests {
     use crate::source_code_printer::PrintedLine::Content;
     use crate::source_code_printer::render_location;
-    use acvm::acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
+    use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
     use noirc_artifacts::debug::DebugArtifact;
     use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
