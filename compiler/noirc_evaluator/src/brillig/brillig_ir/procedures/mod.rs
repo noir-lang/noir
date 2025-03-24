@@ -118,7 +118,7 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     // If this flag is set, the array copy procedure needs to track when each array is cloned
     // through a global counter variable.
     if brillig_context.count_arrays_copied {
-        brillig_context.globals_memory_size = globals_memory_size;
+        brillig_context.set_globals_memory_size(globals_memory_size);
     }
 
     brillig_context.enter_context(Label::procedure(procedure_id.clone()));

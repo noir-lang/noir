@@ -28,12 +28,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(options);
 
-        if options.enable_debug_assertions {
+        if options.enable_array_copy_counter {
             // Reserve space for the array clone counter
             globals_memory_size += 1;
         }
 
-        context.globals_memory_size = Some(globals_memory_size);
+        context.set_globals_memory_size(Some(globals_memory_size));
 
         context.codegen_entry_point(&arguments, &return_parameters);
 

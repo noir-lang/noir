@@ -135,7 +135,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         // If this flag is set, also compile the array copy counter as a global
-        if self.brillig_context.enable_debug_assertions() {
+        if self.brillig_context.count_array_copies() {
             let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
             self.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
@@ -161,6 +161,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Process the block's terminator instruction
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
+
+        if self.brillig_context.count_array_copies()
+            && matches!(terminator_instruction, TerminatorInstruction::Return { .. })
+            && self.brillig_context.get_globals_memory_size().is_some()
+        {
+            self.brillig_context.emit_println_of_array_copy_counter();
+        }
 
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }

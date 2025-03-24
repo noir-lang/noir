@@ -29,8 +29,10 @@ pub(crate) fn convert_ssa_function(
     options: &BrilligOptions,
     globals: &HashMap<ValueId, BrilligVariable>,
     hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
+    globals_memory_size: Option<usize>,
 ) -> BrilligArtifact<FieldElement> {
     let mut brillig_context = BrilligContext::new(options);
+    brillig_context.set_globals_memory_size(globals_memory_size);
 
     let mut function_context = FunctionContext::new(func);
 

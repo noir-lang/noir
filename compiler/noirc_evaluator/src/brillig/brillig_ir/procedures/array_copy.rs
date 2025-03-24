@@ -88,7 +88,6 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
 
                 let counter_register = array_copy_counter.extract_register();
                 ctx.codegen_usize_op(counter_register, counter_register, BrilligBinaryOp::Add, 1);
-                ctx.emit_println_of_array_copy_counter();
             }
         }
     });
@@ -153,7 +152,7 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// emit: `println(f"Total arrays copied: {array_copy_counter}")`
-    fn emit_println_of_array_copy_counter(&mut self) {
+    pub(crate) fn emit_println_of_array_copy_counter(&mut self) {
         let array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
             address: self.array_copy_counter_address(),
             bit_size: 32,
@@ -162,8 +161,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         let message = literal_string_to_value(ARRAY_COPY_COUNTER_MESSAGE, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let value_to_print =
-            ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
+        let value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
         let type_string_metadata = literal_string_to_value(PRINT_U32_TYPE_STRING, self);
         let is_fmt_string = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
 
