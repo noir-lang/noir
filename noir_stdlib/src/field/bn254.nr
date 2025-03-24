@@ -8,7 +8,7 @@ global PHI: Field = 64323764613183177041862057485226039389;
 pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
 // Decomposes a single field into two 16 byte fields.
-fn compute_decomposition(mut x: Field) -> (Field, Field) {
+fn compute_decomposition(x: Field) -> (Field, Field) {
     // Here's we're taking advantage of truncating 128 bit limbs from the input field
     // and then subtracting them from the input such the field division is equivalent to integer division.
     let low = (x as u128) as Field;
