@@ -48,26 +48,7 @@ pub fn extract_substring<let INPUT_LENGTH: u32, let MAX_SUBSTRING_LENGTH: u32>(
     substring_sequence: Sequence,
     input: [u8; INPUT_LENGTH],
 ) -> BoundedVec<u8, MAX_SUBSTRING_LENGTH> {
-    let mut substring: BoundedVec<u8, MAX_SUBSTRING_LENGTH> =
-        unsafe { __extract_substring(substring_sequence, input) };
-    assert(substring_sequence.length == substring.len(), "length mismatch");
-    for i in 0..MAX_SUBSTRING_LENGTH {
-        // hack for index to never exceed array bounds
-        // must be constrained to be true when matching is required to prevent 0's passing when shouldn't
-        // @dev while this adds constraints in worse case it can be more efficient if MAX_SUBSTRING_LENGTH < INPUT_LENGTH
-        let input_range_check = substring_sequence.index + i < INPUT_LENGTH;
-        let index = (substring_sequence.index + i) as Field * input_range_check as Field;
-
-        // range where input should match substring
-        let sequence_range_check = i >= substring_sequence.length;
-
-        // constrain array construction if in range
-        let expected_byte = input[index];
-        let byte = substring.get_unchecked(i);
-        let matched = (expected_byte as Field == byte as Field);
-        assert(matched | sequence_range_check, "incorrect substring construction");
-    }
-    substring
+    unsafe { __extract_substring(substring_sequence, input) }
 }
 
 /**
