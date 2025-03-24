@@ -1,19 +1,15 @@
-mod from_all;
-mod common;
-mod email_addr;
-
-global ADDR_REGEX_MAX_CAPTURE_LEN: u32 = 320;
-global CRLF_POSTFIX: u32 = 2;
-
-global FROM_ALL_MAX_PREFIX: u32 = 7;
-global FROM_ALL_MAX_LEN: u32 = FROM_ALL_MAX_PREFIX + ADDR_REGEX_MAX_CAPTURE_LEN + CRLF_POSTFIX;
-
 fn main() {
-    let input = "\r\nto:from:Sora Suegami <suegamisora@gmail.com>\r\n".as_bytes();
-    let from_all_sequence = from_all::regex_match(input);
-    assert(from_all_sequence.len() == 1, "Expected sequence found to from_all match");
-    let from_all_substring: BoundedVec<u8, FROM_ALL_MAX_LEN> =
-        common::extract_substring(from_all_sequence.get_unchecked(0), input);
+    let input: [u32; 2] = unsafe { inject_array() };
 
-    let _ = email_addr::regex_match(from_all_substring.storage());
+    let table: [u32; 2] = [0; 2];
+
+    let mut s = table[1];
+    let s_idx = s + input[0];
+    s = table[s_idx];
+    let s_idx = s + input[1];
+    s = table[s_idx];
+}
+
+unconstrained fn inject_array() -> [u32; 2] {
+    [0; 2]
 }
