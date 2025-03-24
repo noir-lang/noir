@@ -562,11 +562,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             )?,
         };
 
-        let result = solver.solve().map_err(|err| {
+        // If we're fuzzing, we need to get the fuzzing trace on an error
+        let result = solver.solve().inspect_err(|_| {
             if self.brillig_fuzzing_active {
                 self.brillig_fuzzing_trace = Some(solver.get_fuzzing_trace());
             };
-            err
         })?;
 
         match result {

@@ -206,14 +206,14 @@ impl InputMutator {
             ),
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
-                let input_vector = match previous_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(input_vector) = previous_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
+                // This is an array and can be structurally mutated if the number of elements is more than one
                 // This is an array and can be structurally mutated if the number of elements is more than one
                 let arrays_hit = arrays_hit + ((length > 1) as usize);
                 let mut structural_mutation_directive = None;
-                let mut element_vector_with_value_mutation = (0..length)
+                let mut element_vector_with_value_mutation: Vec<InputValue> = (0..length)
                     .zip(weight_tree_node.subnodes.as_ref().unwrap())
                     .map(|(idx, weight_node)| {
                         if mutation_weight >= weight_node.start && mutation_weight < weight_node.end

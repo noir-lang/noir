@@ -1,6 +1,15 @@
+//! This file implements the mechanisms for coverage - detection of changes is the execution of the target program
+//! It assists in exploration of the program through testcase mutation by telling the fuzzer whether a new testcase represents previously unexplored
+//! functionality. This in turn allows the fuzzer to add them to the corpus as footholds for further exploration
+//!
+//! There are several mechanisms for coverage being used:
+//! 1. Standard branch coverage taken from brillig, the same as with standard, non-zk programs (detects which branch has been taken in an if)
+//! 2. Conditional move coverage from brillig
+//! 3. Novel boolean witness coverage. If ACIR execution was successful, we scan the witness for potential boolean values and detect interesting testcases, if we discover a boolean witness with a state that hasn't been previously encountered.
+
+
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use std::u32;
 
 use acvm::acir::circuit::Opcode;
 use acvm::acir::native_types::{Witness, WitnessStack};
@@ -40,15 +49,6 @@ pub type UniqueFeatureIndex = usize;
 /// A map from a particular branch or comparison to its unique index in the raw vector used inside brillig vm
 pub type FeatureToIndexMap = HashMap<Feature, UniqueFeatureIndex>;
 
-/// This file implements the mechanisms for coverage - detection of changes is the execution of the target program
-/// It assists in exploration of the program through testcase mutation by telling the fuzzer whether a new testcase represents previously unexplored
-/// functionality. This in turn allows the fuzzer to add them to the corpus as footholds for further exploration
-///
-/// There are several mechanisms for coverage being used:
-/// 1. Standard branch coverage taken from brillig, the same as with standard, non-zk programs (detects which branch has been taken in an if)
-/// 2. Conditional move coverage from brillig
-/// 3. Novel boolean witness coverage. If ACIR execution was successful, we scan the witness for potential boolean values and detect interesting testcase,
-/// if we discover a boolean witness with a state that hasn't been previously encountered.
 
 /// Mechanism for automated detection of boolean witnesses in the ACIR witness map
 #[derive(Default)]
@@ -586,8 +586,8 @@ impl AccumulatedFuzzerCoverage {
             let testcase_value = new_coverage.brillig_coverage[branch.raw_index];
             if !testcase_value.is_zero() {
                 if (branch.encountered_loop_log2s
-                    | 1u32
-                        << (if testcase_value.is_zero() { 0 } else { testcase_value.ilog2() + 1 }))
+                    | (1u32
+                        << (if testcase_value.is_zero() { 0 } else { testcase_value.ilog2() + 1 })))
                     != branch.encountered_loop_log2s
                 {
                     return true;
@@ -615,7 +615,7 @@ let (least_different_bits, last_value) =
                 std::cmp::Ordering::Less => return true,
                 std::cmp::Ordering::Equal => {
                     if (cmp_approach.encountered_loop_log2s
-                        | 1u32 << (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 }))
+                        | (1u32 << (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 })))
                         != cmp_approach.encountered_loop_log2s
                     {
                         return true;

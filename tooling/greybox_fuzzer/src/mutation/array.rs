@@ -109,7 +109,7 @@ impl<'a> ArrayMutator<'a> {
     /// Perform one of structural mutations on the vector of input values
     pub fn perform_structure_mutation_on_vector(
         &mut self,
-        input_buffer: &Vec<InputValue>,
+        input_buffer: &[InputValue],
     ) -> Vec<InputValue> {
         match BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
             StructuralMutationOptions::ChaoticSelfSplice => {
@@ -124,7 +124,7 @@ impl<'a> ArrayMutator<'a> {
     }
 
     /// Swap 2 random chunks in the buffer
-    fn swap(&mut self, buffer: &Vec<InputValue>) -> Vec<InputValue> {
+    fn swap(&mut self, buffer: &[InputValue]) -> Vec<InputValue> {
         let mut result = Vec::new();
         let buffer_length = buffer.len();
 
@@ -158,8 +158,8 @@ impl<'a> ArrayMutator<'a> {
     }
 
     /// Take a random chunk of the input and insert it several times into the input
-    fn duplicate_chunk(&mut self, input_buffer: &Vec<InputValue>) -> Vec<InputValue> {
-        let mut result = input_buffer.clone();
+    fn duplicate_chunk(&mut self, input_buffer: &[InputValue]) -> Vec<InputValue> {
+        let mut result = input_buffer.to_vec();
         let buffer_length = input_buffer.len();
         // The maximum length of the chunk is half the total length
         let maximum_chunk_length = buffer_length / 2;
@@ -196,7 +196,7 @@ pub fn splice_array_structure(
     array_splicer.splice(first_input, second_input)
 }
 
-pub fn mutate_vector_structure(input: &Vec<InputValue>, prng: &mut XorShiftRng) -> Vec<InputValue> {
+pub fn mutate_vector_structure(input: &[InputValue], prng: &mut XorShiftRng) -> Vec<InputValue> {
     let mut array_mutator = ArrayMutator::new(prng);
     array_mutator.perform_structure_mutation_on_vector(input)
 }

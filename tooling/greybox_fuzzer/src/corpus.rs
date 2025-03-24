@@ -9,8 +9,8 @@ use std::{
 
 use fm::{FileId, FileManager};
 use noirc_abi::{
-    input_parser::json::{parse_json, serialize_to_json},
     Abi, InputMap,
+    input_parser::json::{parse_json, serialize_to_json},
 };
 use proptest::bool;
 use rand::prelude::*;
@@ -111,7 +111,7 @@ impl CorpusFileManager {
             if !entry.file_type().is_file() {
                 continue;
             }
-            if !entry.path().extension().map_or(false, |ext| ext == CORPUS_FILE_EXTENSION) {
+            if entry.path().extension().is_none_or(|ext| ext != CORPUS_FILE_EXTENSION) {
                 continue;
             };
             let path = entry.into_path();
@@ -359,7 +359,7 @@ impl Corpus {
         }
         id_testcase_pair
             .iter()
-            .map(|(id, _)| TestCase::with_id(*id, &self.cached_testcases[&id]))
+            .map(|(id, _)| TestCase::with_id(*id, &self.cached_testcases[id]))
             .collect()
     }
 

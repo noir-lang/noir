@@ -1,8 +1,8 @@
+//! This file contains the collection of objects for providing program-specific values to the mutator
 use std::{collections::HashSet, iter::zip};
 
 use acvm::{AcirField, FieldElement};
 use noirc_abi::{Abi, AbiType, InputMap, input_parser::InputValue};
-/// This file contains the collection of objects for providing program-specific values to the mutator
 
 /// A dictionary for integer values. Separated by width
 #[derive(Default)]
