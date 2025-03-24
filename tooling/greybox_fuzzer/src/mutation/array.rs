@@ -4,11 +4,12 @@ use noirc_abi::input_parser::InputValue;
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 
-use crate::mutation::configurations::{SpliceMutation, BASIC_SPLICE_MUTATION_CONFIGURATION};
+use crate::mutation::configurations::{BASIC_SPLICE_MUTATION_CONFIGURATION, SpliceMutationOptions};
 
 use super::configurations::{
-    SpliceCandidate, StructuralMutation, BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION,
-    BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION,
+    BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION,
+    BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION, SpliceCandidateOptions,
+    StructuralMutationOptions,
 };
 struct ArrayMutator<'a> {
     prng: &'a mut XorShiftRng,
@@ -35,8 +36,8 @@ impl<'a> ArrayMutator<'a> {
             // If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
             match BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION.select(self.prng) {
-                SpliceCandidate::First => {}
-                SpliceCandidate::Second => {
+                SpliceCandidateOptions::First => {}
+                SpliceCandidateOptions::Second => {
                     result.splice(
                         index..(index + sequence_length),
                         second_buffer[index..(index + sequence_length)].iter().cloned(),
@@ -65,12 +66,12 @@ impl<'a> ArrayMutator<'a> {
             // If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
             match BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION.select(self.prng) {
-                SpliceCandidate::First => {
+                SpliceCandidateOptions::First => {
                     result.extend_from_slice(
                         &first_buffer[source_position..(source_position + sequence_length)],
                     );
                 }
-                SpliceCandidate::Second => {
+                SpliceCandidateOptions::Second => {
                     result.extend_from_slice(
                         &second_buffer[source_position..(source_position + sequence_length)],
                     );
@@ -97,10 +98,10 @@ impl<'a> ArrayMutator<'a> {
         assert!(second_buffer.len() == first_buffer.len());
 
         let result = match BASIC_SPLICE_MUTATION_CONFIGURATION.select(self.prng) {
-            SpliceMutation::PositionPreserving => {
+            SpliceMutationOptions::PositionPreserving => {
                 self.structured_splice(first_buffer, second_buffer)
             }
-            SpliceMutation::RandomChunks => self.chaotic_splice(first_buffer, second_buffer),
+            SpliceMutationOptions::RandomChunks => self.chaotic_splice(first_buffer, second_buffer),
         };
         InputValue::Vec(result)
     }
@@ -111,12 +112,12 @@ impl<'a> ArrayMutator<'a> {
         input_buffer: &Vec<InputValue>,
     ) -> Vec<InputValue> {
         match BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
-            StructuralMutation::ChaoticSelfSplice => {
+            StructuralMutationOptions::ChaoticSelfSplice => {
                 self.chaotic_splice(input_buffer, input_buffer)
             }
-            StructuralMutation::ChunkDuplication => self.duplicate_chunk(input_buffer),
-            StructuralMutation::Swap => self.swap(input_buffer),
-            StructuralMutation::RandomValueDuplication => {
+            StructuralMutationOptions::ChunkDuplication => self.duplicate_chunk(input_buffer),
+            StructuralMutationOptions::Swap => self.swap(input_buffer),
+            StructuralMutationOptions::RandomValueDuplication => {
                 panic!("Vector mutations should have a value duplication weight of zero")
             }
         }

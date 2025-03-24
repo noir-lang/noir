@@ -1,12 +1,13 @@
 use crate::mutation::configurations::{
-    BASIC_SPLICE_MUTATION_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION, TopLevelMutation,
+    BASIC_SPLICE_MUTATION_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION,
+    TopLevelMutationOptions,
 };
 
 use super::configurations::{
     BASIC_BYTE_VALUE_MUTATION_CONFIGURATION, BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION,
-    BASIC_STRUCTURE_MUTATION_CONFIGURATION, ByteValueMutation, ByteValueMutationConfiguration,
-    DICTIONARY_EMPTY_BYTE_VALUE_MUTATION_CONFIGURATION, SpliceCandidate, SpliceMutation,
-    StructuralMutation,
+    BASIC_STRUCTURE_MUTATION_CONFIGURATION, ByteValueMutationConfig, ByteValueMutationOptions,
+    DICTIONARY_EMPTY_BYTE_VALUE_MUTATION_CONFIGURATION, SpliceCandidateOptions,
+    SpliceMutationOptions, StructuralMutationOptions,
 };
 use super::dictionary::IntDictionary;
 use acvm::{AcirField, FieldElement};
@@ -35,7 +36,7 @@ const MAX_ASCII: u8 = 0x7f;
 struct StringMutator<'a> {
     dictionary: &'a Vec<FieldElement>,
     prng: &'a mut XorShiftRng,
-    value_mutation_configuration: &'static ByteValueMutationConfiguration,
+    value_mutation_configuration: &'static ByteValueMutationConfig,
 }
 
 impl<'a> StringMutator<'a> {
@@ -57,10 +58,10 @@ impl<'a> StringMutator<'a> {
         let mut result = input.to_vec();
         let position = self.prng.gen_range(0..input.len());
         result[position] = match self.value_mutation_configuration.select(self.prng) {
-            ByteValueMutation::DictionaryByte => {
+            ByteValueMutationOptions::DictionaryByte => {
                 self.dictionary.choose(self.prng).unwrap().to_i128() as u8 & MAX_ASCII
             }
-            ByteValueMutation::RandomByte => self.prng.gen_range(MIN_ASCII..=MAX_ASCII),
+            ByteValueMutationOptions::RandomByte => self.prng.gen_range(MIN_ASCII..=MAX_ASCII),
         };
         result
     }
@@ -75,8 +76,8 @@ impl<'a> StringMutator<'a> {
         .to_vec();
         assert!(!result.is_empty());
         result = match BASIC_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng) {
-            TopLevelMutation::Value => self.perform_value_mutation(&result),
-            TopLevelMutation::Structure => self.perform_structure_mutation(&result),
+            TopLevelMutationOptions::Value => self.perform_value_mutation(&result),
+            TopLevelMutationOptions::Structure => self.perform_structure_mutation(&result),
         };
 
         InputValue::String(
@@ -86,14 +87,16 @@ impl<'a> StringMutator<'a> {
     }
 
     /// Perform one of structural mutations on the buffer
-    fn perform_structure_mutation(&mut self, input_buffer: &Vec<u8>) -> Vec<u8> {
+    fn perform_structure_mutation(&mut self, input_buffer: &[u8]) -> Vec<u8> {
         match BASIC_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
-            StructuralMutation::ChaoticSelfSplice => {
+            StructuralMutationOptions::ChaoticSelfSplice => {
                 self.chaotic_splice(input_buffer, input_buffer)
             }
-            StructuralMutation::ChunkDuplication => self.duplicate_chunk(input_buffer),
-            StructuralMutation::RandomValueDuplication => self.duplicate_random_value(input_buffer),
-            StructuralMutation::Swap => self.swap(input_buffer),
+            StructuralMutationOptions::ChunkDuplication => self.duplicate_chunk(input_buffer),
+            StructuralMutationOptions::RandomValueDuplication => {
+                self.duplicate_random_value(input_buffer)
+            }
+            StructuralMutationOptions::Swap => self.swap(input_buffer),
         }
     }
     /// Swap 2 random chunks in the buffer
@@ -189,8 +192,8 @@ impl<'a> StringMutator<'a> {
             // If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
             match BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION.select(self.prng) {
-                SpliceCandidate::First => {}
-                SpliceCandidate::Second => {
+                SpliceCandidateOptions::First => {}
+                SpliceCandidateOptions::Second => {
                     result.splice(
                         index..(index + sequence_length),
                         second_buffer[index..(index + sequence_length)].iter().copied(),
@@ -216,7 +219,7 @@ impl<'a> StringMutator<'a> {
             // If first buffer is selected for the chunk, do nothing (we already have that part in the result)
             // If the second is selected, copy the chunk into result
             match BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION.select(self.prng) {
-                SpliceCandidate::First => {
+                SpliceCandidateOptions::First => {
                     result.splice(
                         index..(index + sequence_length),
                         first_buffer[source_position..(source_position + sequence_length)]
@@ -224,7 +227,7 @@ impl<'a> StringMutator<'a> {
                             .copied(),
                     );
                 }
-                SpliceCandidate::Second => {
+                SpliceCandidateOptions::Second => {
                     result.splice(
                         index..(index + sequence_length),
                         second_buffer[source_position..(source_position + sequence_length)]
@@ -258,10 +261,12 @@ impl<'a> StringMutator<'a> {
         assert!(second_buffer.len() == first_buffer.len());
 
         let result = match BASIC_SPLICE_MUTATION_CONFIGURATION.select(self.prng) {
-            SpliceMutation::PositionPreserving => {
+            SpliceMutationOptions::PositionPreserving => {
                 self.structured_splice(&first_buffer, &second_buffer)
             }
-            SpliceMutation::RandomChunks => self.chaotic_splice(&first_buffer, &second_buffer),
+            SpliceMutationOptions::RandomChunks => {
+                self.chaotic_splice(&first_buffer, &second_buffer)
+            }
         };
         InputValue::String(
             String::from_utf8(result)

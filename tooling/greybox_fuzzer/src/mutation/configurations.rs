@@ -2,219 +2,93 @@
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 
+pub struct WeightedSelectionConfig<T, const N: usize> {
+    pub options_with_weights: [(T, usize); N],
+    pub total_weight: usize,
+}
+
+impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
+    pub const fn new(options_with_weights: [(T, usize); N]) -> Self {
+        let mut total_weight = 0;
+        let mut i = 0;
+        while i < options_with_weights.len() {
+            total_weight += options_with_weights[i].1;
+            i += 1;
+        }
+
+        Self { options_with_weights, total_weight }
+    }
+
+    pub fn select(&self, prng: &mut XorShiftRng) -> T {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        for (option, weight) in &self.options_with_weights {
+            if selector < *weight {
+                return *option;
+            }
+            selector -= weight;
+        }
+        unreachable!("Should have returned by now")
+    }
+}
+
 /// Mutations of individual bytes in strings
-pub(crate) enum ByteValueMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum ByteValueMutationOptions {
     RandomByte,
     DictionaryByte,
 }
-
-pub(crate) struct ByteValueMutationConfiguration {
-    random_byte_mutation_weight: usize,
-    #[allow(unused)]
-    dictionary_byte_mutation_weight: usize,
-    total_weight: usize,
-}
-
-/// Configuration for selecting a byte value mutation
-impl ByteValueMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(random_byte_mutation_weight: usize, dictionary_byte_mutation_weight: usize) -> Self {
-        let total_weight = random_byte_mutation_weight + dictionary_byte_mutation_weight;
-        Self { random_byte_mutation_weight, dictionary_byte_mutation_weight, total_weight }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> ByteValueMutation {
-        let selector = prng.gen_range(0..self.total_weight);
-        if selector < self.random_byte_mutation_weight {
-            return ByteValueMutation::RandomByte;
-        }
-        ByteValueMutation::DictionaryByte
-    }
-}
-
+pub(crate) type ByteValueMutationConfig = WeightedSelectionConfig<ByteValueMutationOptions, 2>;
 /// Splicing mutations for strings and arrays
-pub(crate) enum SpliceMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum SpliceMutationOptions {
     PositionPreserving,
     RandomChunks,
 }
 
-pub(crate) struct SpliceMutationConfiguration {
-    position_preserving_mutation_weight: usize,
-    #[allow(unused)]
-    random_chunks_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type SpliceMutationConfig = WeightedSelectionConfig<SpliceMutationOptions, 2>;
 
-/// Configuration for selecting the splicing mechanism
-impl SpliceMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(position_preserving_mutation_weight: usize, random_chunks_weight: usize) -> Self {
-        let total_weight = position_preserving_mutation_weight + random_chunks_weight;
-        Self { position_preserving_mutation_weight, random_chunks_weight, total_weight }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> SpliceMutation {
-        let selector = prng.gen_range(0..self.total_weight);
-        if selector < self.position_preserving_mutation_weight {
-            return SpliceMutation::PositionPreserving;
-        }
-        SpliceMutation::RandomChunks
-    }
-}
-
-pub(crate) enum UnbalancedArraySpliceType {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum UnbalancedArraySpliceOptions {
     ArraySpecific,
     Recurse,
 }
 
-pub(crate) struct UnbalancedArraySpliceConfiguration {
-    array_specific_weight: usize,
-    #[allow(unused)]
-    recurse_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type UnbalancedArraySpliceConfig =
+    WeightedSelectionConfig<UnbalancedArraySpliceOptions, 2>;
 
-/// Configuration for selecting the splicing mechanism
-impl UnbalancedArraySpliceConfiguration {
-    #[allow(unused)]
-    pub fn new(array_specific_weight: usize, recurse_weight: usize) -> Self {
-        let total_weight = array_specific_weight + recurse_weight;
-        Self { array_specific_weight, recurse_weight, total_weight }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> UnbalancedArraySpliceType {
-        let selector = prng.gen_range(0..self.total_weight);
-        if selector < self.array_specific_weight {
-            return UnbalancedArraySpliceType::ArraySpecific;
-        }
-        UnbalancedArraySpliceType::Recurse
-    }
-}
 /// Enum for splice candidate selection
-pub(crate) enum SpliceCandidate {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum SpliceCandidateOptions {
     First,
     Second,
 }
 
-pub(crate) struct SpliceCandidatePrioritizationConfiguration {
-    first_weight: usize,
-    #[allow(unused)]
-    second_weight: usize,
-    total_weight: usize,
-}
-
-/// Configuration for selecting which candidate to use for a spliced chunk
-impl SpliceCandidatePrioritizationConfiguration {
-    #[allow(unused)]
-    pub fn new(first_weight: usize, second_weight: usize) -> Self {
-        let total_weight = first_weight + second_weight;
-        Self { first_weight, second_weight, total_weight }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> SpliceCandidate {
-        let selector = prng.gen_range(0..self.total_weight);
-        if selector < self.first_weight {
-            return SpliceCandidate::First;
-        }
-        SpliceCandidate::Second
-    }
-}
+pub(crate) type SpliceCandidateConfig = WeightedSelectionConfig<SpliceCandidateOptions, 2>;
 
 /// Structural mutations used in strings and arrays (arrays don't use random value)
-pub(crate) enum StructuralMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum StructuralMutationOptions {
     ChaoticSelfSplice,
     ChunkDuplication,
     RandomValueDuplication,
     Swap,
 }
 
-pub(crate) struct StructuralMutationConfiguration {
-    chaotic_self_splice_weight: usize,
-    chunk_duplication_weight: usize,
-    random_value_duplication_weight: usize,
-    #[allow(unused)]
-    swap_weight: usize,
-    total_weight: usize,
-}
-
-/// Configuration for selecting the structural mutation
-impl StructuralMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        chaotic_self_splice_weight: usize,
-        chunk_duplication_weight: usize,
-        random_value_duplication_weight: usize,
-        swap_weight: usize,
-    ) -> Self {
-        let total_weight = chaotic_self_splice_weight
-            + chunk_duplication_weight
-            + random_value_duplication_weight
-            + swap_weight;
-        Self {
-            chaotic_self_splice_weight,
-            chunk_duplication_weight,
-            random_value_duplication_weight,
-            swap_weight,
-            total_weight,
-        }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> StructuralMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.chaotic_self_splice_weight {
-            return StructuralMutation::ChaoticSelfSplice;
-        }
-        selector -= self.chaotic_self_splice_weight;
-        if selector < self.chunk_duplication_weight {
-            return StructuralMutation::ChunkDuplication;
-        }
-        selector -= self.chunk_duplication_weight;
-        if selector < self.random_value_duplication_weight {
-            return StructuralMutation::RandomValueDuplication;
-        }
-        StructuralMutation::Swap
-    }
-}
+pub(crate) type StructuralMutationConfig = WeightedSelectionConfig<StructuralMutationOptions, 4>;
 
 /// Selection of value or structural mutation. Used in top-level input map and in strings
-pub(crate) enum TopLevelMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum TopLevelMutationOptions {
     Value,
     Structure,
 }
-pub(crate) struct TopLevelMutationConfiguration {
-    value_mutation_weight: usize,
-    #[allow(unused)]
-    structure_mutation_weight: usize,
-    total_weight: usize,
-}
-
-/// Configuration for selecting the general mutation mechanism
-impl TopLevelMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(value_mutation_weight: usize, structure_mutation_weight: usize) -> Self {
-        let total_weight = value_mutation_weight + structure_mutation_weight;
-        Self { value_mutation_weight, structure_mutation_weight, total_weight }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> TopLevelMutation {
-        let selector = prng.gen_range(0..self.total_weight);
-        if selector < self.value_mutation_weight {
-            return TopLevelMutation::Value;
-        }
-        TopLevelMutation::Structure
-    }
-}
+pub(crate) type TopLevelMutationConfig = WeightedSelectionConfig<TopLevelMutationOptions, 2>;
 
 // Field-specific configurations
 
 ///Field element substitution mutation types
-pub(crate) enum FieldElementSubstitutionMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FieldElementSubstitutionMutationOptions {
     Zero,
     One,
     MinusOne,
@@ -223,287 +97,59 @@ pub(crate) enum FieldElementSubstitutionMutation {
     PowerOfTwoMinusOne,
 }
 
-pub(crate) struct SubstitutionConfiguration {
-    substitution_by_zero_weight: usize,
-    substitution_by_one_weight: usize,
-    substitution_by_minus_one_weight: usize,
-    substitution_from_dictionary_weight: usize,
-    substitution_by_power_of_2_weight: usize,
-    substitution_by_power_of_2_minus_one: usize,
-    total_weight: usize,
-}
+pub(crate) type FieldElementSubstitutionMutationConfig =
+    WeightedSelectionConfig<FieldElementSubstitutionMutationOptions, 6>;
 
-/// Configuration for selecting a substitution mutation
-impl SubstitutionConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        substitution_by_zero_weight: usize,
-        substitution_by_one_weight: usize,
-        substitution_by_minus_one_weight: usize,
-        substitution_from_dictionary_weight: usize,
-        substitution_by_power_of_2: usize,
-        substitution_by_power_of_2_minus_one: usize,
-    ) -> Self {
-        let total_weight = substitution_by_minus_one_weight
-            + substitution_by_one_weight
-            + substitution_by_zero_weight
-            + substitution_from_dictionary_weight
-            + substitution_by_power_of_2
-            + substitution_by_power_of_2_minus_one;
-        Self {
-            substitution_by_zero_weight,
-            substitution_by_one_weight,
-            substitution_by_minus_one_weight,
-            substitution_from_dictionary_weight,
-            substitution_by_power_of_2_weight: substitution_by_power_of_2,
-            substitution_by_power_of_2_minus_one,
-            total_weight,
-        }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> FieldElementSubstitutionMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.substitution_by_zero_weight {
-            return FieldElementSubstitutionMutation::Zero;
-        }
-        selector -= self.substitution_by_zero_weight;
-        if selector < self.substitution_by_one_weight {
-            return FieldElementSubstitutionMutation::One;
-        }
-        selector -= self.substitution_by_one_weight;
-        if selector < self.substitution_by_minus_one_weight {
-            return FieldElementSubstitutionMutation::MinusOne;
-        }
-        selector -= self.substitution_by_minus_one_weight;
-        if selector < self.substitution_from_dictionary_weight {
-            return FieldElementSubstitutionMutation::Dictionary;
-        }
-        selector -= self.substitution_from_dictionary_weight;
-        if selector < self.substitution_by_power_of_2_weight {
-            return FieldElementSubstitutionMutation::PowerOfTwo;
-        }
-        selector -= self.substitution_by_power_of_2_weight;
-        debug_assert!(selector < self.substitution_by_power_of_2_minus_one);
-        FieldElementSubstitutionMutation::PowerOfTwoMinusOne
-    }
-}
-
-pub(crate) enum FieldElementInversionMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FieldElementInversionMutationOptions {
     Additive,
     Multiplicative,
 }
-pub(crate) struct FieldElementInversionConfiguration {
-    additive_inversion_weight: usize,
-    #[allow(unused)]
-    multiplicative_inversion_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type FieldElementInversionMutationConfig =
+    WeightedSelectionConfig<FieldElementInversionMutationOptions, 2>;
 
-impl FieldElementInversionConfiguration {
-    #[allow(unused)]
-    pub fn new(additive_inversion_weight: usize, multiplicative_inversion_weight: usize) -> Self {
-        let total_weight = additive_inversion_weight + multiplicative_inversion_weight;
-        Self { additive_inversion_weight, multiplicative_inversion_weight, total_weight }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> FieldElementInversionMutation {
-        let selector = prng.gen_range(0..self.total_weight);
-        if selector < self.additive_inversion_weight {
-            return FieldElementInversionMutation::Additive;
-        }
-        FieldElementInversionMutation::Multiplicative
-    }
-}
-
-pub(crate) enum FieldElementPow2Update {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FieldElementPow2UpdateOptions {
     Addition,
     Subtraction,
     Multiplication,
     Division,
 }
-pub(crate) struct Pow2UpdateConfiguration {
-    addition_weight: usize,
-    subtraction_weight: usize,
-    multiplication_weight: usize,
-    #[allow(unused)]
-    division_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type FieldElementPow2UpdateConfig =
+    WeightedSelectionConfig<FieldElementPow2UpdateOptions, 4>;
 
-impl Pow2UpdateConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        addition_weight: usize,
-        subtraction_weight: usize,
-        multiplication_weight: usize,
-        division_weight: usize,
-    ) -> Self {
-        let total_weight =
-            addition_weight + subtraction_weight + multiplication_weight + division_weight;
-        Self {
-            addition_weight,
-            subtraction_weight,
-            multiplication_weight,
-            division_weight,
-            total_weight,
-        }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> FieldElementPow2Update {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.addition_weight {
-            return FieldElementPow2Update::Addition;
-        }
-        selector -= self.addition_weight;
-        if selector < self.subtraction_weight {
-            return FieldElementPow2Update::Subtraction;
-        }
-        selector -= self.subtraction_weight;
-        if selector < self.multiplication_weight {
-            return FieldElementPow2Update::Multiplication;
-        }
-        FieldElementPow2Update::Division
-    }
-}
-
-pub(crate) enum FieldElementSmallValueUpdate {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FieldElementSmallValueUpdateOptions {
     Addition,
     Subtraction,
     Multiplication,
 }
-pub(crate) struct FieldElementSmallValueUpdateConfiguration {
-    addition_weight: usize,
-    subtraction_weight: usize,
-    #[allow(unused)]
-    multiplication_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type FieldElementSmallValueUpdateConfig =
+    WeightedSelectionConfig<FieldElementSmallValueUpdateOptions, 3>;
 
-impl FieldElementSmallValueUpdateConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        addition_weight: usize,
-        subtraction_weight: usize,
-        multiplication_weight: usize,
-    ) -> Self {
-        let total_weight = addition_weight + subtraction_weight + multiplication_weight;
-        Self { addition_weight, subtraction_weight, multiplication_weight, total_weight }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> FieldElementSmallValueUpdate {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.addition_weight {
-            return FieldElementSmallValueUpdate::Addition;
-        }
-        selector -= self.addition_weight;
-        if selector < self.subtraction_weight {
-            return FieldElementSmallValueUpdate::Subtraction;
-        }
-        FieldElementSmallValueUpdate::Multiplication
-    }
-}
-
-pub(crate) enum FieldElementDictionaryUpdate {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FieldElementDictionaryUpdateOptions {
     Addition,
     Subtraction,
     Multiplication,
 }
-pub(crate) struct FieldElementDictionaryUpdateConfiguration {
-    addition_weight: usize,
-    subtraction_weight: usize,
-    #[allow(unused)]
-    multiplication_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type FieldElementDictionaryUpdateConfig =
+    WeightedSelectionConfig<FieldElementDictionaryUpdateOptions, 3>;
 
-impl FieldElementDictionaryUpdateConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        addition_weight: usize,
-        subtraction_weight: usize,
-        multiplication_weight: usize,
-    ) -> Self {
-        let total_weight = addition_weight + subtraction_weight;
-        Self { addition_weight, subtraction_weight, multiplication_weight, total_weight }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> FieldElementDictionaryUpdate {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.addition_weight {
-            return FieldElementDictionaryUpdate::Addition;
-        }
-        selector -= self.addition_weight;
-        if selector < self.subtraction_weight {
-            return FieldElementDictionaryUpdate::Subtraction;
-        }
-        FieldElementDictionaryUpdate::Multiplication
-    }
-}
-
-pub(crate) enum TopLevelFieldElementMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum TopLevelFieldElementMutationOptions {
     Substitution,
     Inversion,
     Pow2Update,
     SmallValueUpdate,
     DictionaryUpdate,
 }
-pub(crate) struct TopLevelFieldElementMutationConfiguration {
-    substitution_weight: usize,
-    inversion_weight: usize,
-    pow_2_update_weight: usize,
-    small_value_update_weight: usize,
-    #[allow(unused)]
-    dictionary_update_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type TopLevelFieldElementMutationConfig =
+    WeightedSelectionConfig<TopLevelFieldElementMutationOptions, 5>;
 
-impl TopLevelFieldElementMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        substitution_weight: usize,
-        inversion_weight: usize,
-        pow_2_update_weight: usize,
-        small_value_update_weight: usize,
-        dictionary_update_weight: usize,
-    ) -> Self {
-        let total_weight = substitution_weight
-            + inversion_weight
-            + pow_2_update_weight
-            + small_value_update_weight
-            + dictionary_update_weight;
-        Self {
-            substitution_weight,
-            inversion_weight,
-            pow_2_update_weight,
-            small_value_update_weight,
-            dictionary_update_weight,
-            total_weight,
-        }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> TopLevelFieldElementMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.substitution_weight {
-            return TopLevelFieldElementMutation::Substitution;
-        }
-        selector -= self.substitution_weight;
-        if selector < self.inversion_weight {
-            return TopLevelFieldElementMutation::Inversion;
-        }
-        selector -= self.inversion_weight;
-        if selector < self.pow_2_update_weight {
-            return TopLevelFieldElementMutation::Pow2Update;
-        }
-        selector -= self.pow_2_update_weight;
-        if selector < self.small_value_update_weight {
-            return TopLevelFieldElementMutation::SmallValueUpdate;
-        }
-        TopLevelFieldElementMutation::DictionaryUpdate
-    }
-}
-
-pub enum TestCaseSpliceType {
+/// Enum for testcase splice type
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum TestCaseSpliceTypeOptions {
     /// Around 50% for each top-level element
     BalancedTopLevel,
     /// 80/20 for each element at lower level
@@ -512,80 +158,23 @@ pub enum TestCaseSpliceType {
     SingleElementImport,
 }
 
-pub(crate) struct TestCaseSpliceConfiguration {
-    balanced_top_level_weight: usize,
-    unbalanced_full_weight: usize,
-    #[allow(unused)]
-    single_element_import_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type TestCaseSpliceConfig = WeightedSelectionConfig<TestCaseSpliceTypeOptions, 3>;
 
-impl TestCaseSpliceConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        balanced_top_level_weight: usize,
-        unbalanced_full_weight: usize,
-        single_element_import_weight: usize,
-    ) -> Self {
-        let total_weight =
-            balanced_top_level_weight + unbalanced_full_weight + single_element_import_weight;
-        Self {
-            balanced_top_level_weight,
-            unbalanced_full_weight,
-            single_element_import_weight,
-            total_weight,
-        }
-    }
+// Int-specific configurations
 
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> TestCaseSpliceType {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.balanced_top_level_weight {
-            return TestCaseSpliceType::BalancedTopLevel;
-        }
-        selector -= self.balanced_top_level_weight;
-        if selector < self.unbalanced_full_weight {
-            return TestCaseSpliceType::UnbalancedFull;
-        }
-        TestCaseSpliceType::SingleElementImport
-    }
-}
-/// Int-specific configurations
-pub(crate) enum FixedIntSubstitution {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FixedIntSubstitutionOptions {
     Minimum,
     Maximum,
     Pow2,
 }
 
-pub(crate) struct FixedIntSubstitutionConfiguration {
-    minimum_weight: usize,
-    maximum_weight: usize,
-    #[allow(unused)]
-    pow2_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type FixedIntSubstitutionConfig =
+    WeightedSelectionConfig<FixedIntSubstitutionOptions, 3>;
 
-impl FixedIntSubstitutionConfiguration {
-    #[allow(unused)]
-    pub fn new(minimum_weight: usize, maximum_weight: usize, pow2_weight: usize) -> Self {
-        let total_weight = minimum_weight + maximum_weight + pow2_weight;
-        Self { minimum_weight, maximum_weight, pow2_weight, total_weight }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> FixedIntSubstitution {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.minimum_weight {
-            return FixedIntSubstitution::Minimum;
-        }
-        selector -= self.minimum_weight;
-        if selector < self.maximum_weight {
-            return FixedIntSubstitution::Maximum;
-        }
-        FixedIntSubstitution::Pow2
-    }
-}
-
-pub(crate) enum BinaryIntOperationMutation {
+/// Enum for binary integer operation mutation
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum BinaryIntOperationMutationOptions {
     Add,
     Sub,
     And,
@@ -593,61 +182,11 @@ pub(crate) enum BinaryIntOperationMutation {
     Xor,
 }
 
-pub(crate) struct BinaryIntOperationMutationConfiguration {
-    addition_weight: usize,
-    subtraction_weight: usize,
-    and_operation_weight: usize,
-    or_operation_weight: usize,
-    #[allow(unused)]
-    xor_operation_weight: usize,
-    total_weight: usize,
-}
+pub(crate) type BinaryIntOperationMutationConfig =
+    WeightedSelectionConfig<BinaryIntOperationMutationOptions, 5>;
 
-impl BinaryIntOperationMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        addition_weight: usize,
-        subtraction_weight: usize,
-        and_operation_weight: usize,
-        or_operation_weight: usize,
-        xor_operation_weight: usize,
-    ) -> Self {
-        let total_weight = addition_weight
-            + subtraction_weight
-            + and_operation_weight
-            + or_operation_weight
-            + xor_operation_weight;
-        Self {
-            addition_weight,
-            subtraction_weight,
-            and_operation_weight,
-            or_operation_weight,
-            xor_operation_weight,
-            total_weight,
-        }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> BinaryIntOperationMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.addition_weight {
-            return BinaryIntOperationMutation::Add;
-        }
-        selector -= self.addition_weight;
-        if selector < self.subtraction_weight {
-            return BinaryIntOperationMutation::Sub;
-        }
-        selector -= self.subtraction_weight;
-        if selector < self.and_operation_weight {
-            return BinaryIntOperationMutation::And;
-        }
-        selector -= self.and_operation_weight;
-        if selector < self.or_operation_weight {
-            return BinaryIntOperationMutation::Or;
-        }
-        BinaryIntOperationMutation::Xor
-    }
-}
-pub(crate) enum IntTopLevelMutation {
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum IntTopLevelMutationOptions {
     FixedSubstitution,
     DictionarySubstitution,
     Negation,
@@ -657,226 +196,141 @@ pub(crate) enum IntTopLevelMutation {
     Pow2Update,
 }
 
-pub(crate) struct IntTopLevelMutationConfiguration {
-    fixed_substitution_weight: usize,
-    dictionary_substitution_weight: usize,
-    negation_weight: usize,
-    shift_weight: usize,
-    small_value_update_weight: usize,
-    #[allow(unused)]
-    dictionary_value_update_weight: usize,
-    pow2_update_weight: usize,
-    total_weight: usize,
-}
-
-impl IntTopLevelMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        fixed_substitution_weight: usize,
-        dictionary_substitution_weight: usize,
-        negation_weight: usize,
-        shift_weight: usize,
-        small_value_update_weight: usize,
-        dictionary_value_update_weight: usize,
-        pow2_update_weight: usize,
-    ) -> Self {
-        let total_weight = fixed_substitution_weight
-            + dictionary_substitution_weight
-            + negation_weight
-            + shift_weight
-            + small_value_update_weight
-            + dictionary_value_update_weight
-            + pow2_update_weight;
-        Self {
-            fixed_substitution_weight,
-            dictionary_substitution_weight,
-            negation_weight,
-            shift_weight,
-            small_value_update_weight,
-            dictionary_value_update_weight,
-            pow2_update_weight,
-            total_weight,
-        }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> IntTopLevelMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.fixed_substitution_weight {
-            return IntTopLevelMutation::FixedSubstitution;
-        }
-        selector -= self.fixed_substitution_weight;
-        if selector < self.dictionary_substitution_weight {
-            return IntTopLevelMutation::DictionarySubstitution;
-        }
-        selector -= self.dictionary_substitution_weight;
-        if selector < self.negation_weight {
-            return IntTopLevelMutation::Negation;
-        }
-        selector -= self.negation_weight;
-        if selector < self.shift_weight {
-            return IntTopLevelMutation::Shift;
-        }
-        selector -= self.shift_weight;
-        if selector < self.small_value_update_weight {
-            return IntTopLevelMutation::SmallValueUpdate;
-        }
-        selector -= self.small_value_update_weight;
-        if selector < self.dictionary_value_update_weight {
-            return IntTopLevelMutation::DictionaryValueUpdate;
-        }
-        IntTopLevelMutation::Pow2Update
-    }
-}
+pub(crate) type IntTopLevelMutationConfig = WeightedSelectionConfig<IntTopLevelMutationOptions, 7>;
 
 // Default configurations for all mutations that are currently used
 
-pub(crate) const BASIC_SPLICE_MUTATION_CONFIGURATION: SpliceMutationConfiguration =
-    SpliceMutationConfiguration {
-        position_preserving_mutation_weight: 1,
-        random_chunks_weight: 1,
-        total_weight: 1 + 1,
-    };
-pub(crate) const BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION:
-    UnbalancedArraySpliceConfiguration = UnbalancedArraySpliceConfiguration {
-    array_specific_weight: 11,
-    recurse_weight: 9,
-    total_weight: 11 + 9,
-};
-pub(crate) const BASIC_BYTE_VALUE_MUTATION_CONFIGURATION: ByteValueMutationConfiguration =
-    ByteValueMutationConfiguration {
-        random_byte_mutation_weight: 1,
-        dictionary_byte_mutation_weight: 3,
-        total_weight: 1 + 3,
-    };
+pub(crate) const BASIC_SPLICE_MUTATION_CONFIGURATION: SpliceMutationConfig =
+    SpliceMutationConfig::new([
+        (SpliceMutationOptions::PositionPreserving, 1),
+        (SpliceMutationOptions::RandomChunks, 1),
+    ]);
+pub(crate) const BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION: UnbalancedArraySpliceConfig =
+    UnbalancedArraySpliceConfig::new([
+        (UnbalancedArraySpliceOptions::ArraySpecific, 11),
+        (UnbalancedArraySpliceOptions::Recurse, 9),
+    ]);
+pub(crate) const BASIC_BYTE_VALUE_MUTATION_CONFIGURATION: ByteValueMutationConfig =
+    ByteValueMutationConfig::new([
+        (ByteValueMutationOptions::RandomByte, 1),
+        (ByteValueMutationOptions::DictionaryByte, 3),
+    ]);
 
-pub(crate) const DICTIONARY_EMPTY_BYTE_VALUE_MUTATION_CONFIGURATION:
-    ByteValueMutationConfiguration = ByteValueMutationConfiguration {
-    random_byte_mutation_weight: 1,
-    dictionary_byte_mutation_weight: 0,
-    total_weight: 1,
-};
+pub(crate) const DICTIONARY_EMPTY_BYTE_VALUE_MUTATION_CONFIGURATION: ByteValueMutationConfig =
+    ByteValueMutationConfig::new([
+        (ByteValueMutationOptions::RandomByte, 1),
+        (ByteValueMutationOptions::DictionaryByte, 0),
+    ]);
 
-pub(crate) const BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION:
-    SpliceCandidatePrioritizationConfiguration = SpliceCandidatePrioritizationConfiguration {
-    first_weight: 11,
-    second_weight: 10,
-    total_weight: 11 + 10,
-};
+pub(crate) const BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION: SpliceCandidateConfig =
+    SpliceCandidateConfig::new([
+        (SpliceCandidateOptions::First, 11),
+        (SpliceCandidateOptions::Second, 10),
+    ]);
 
-pub(crate) const BASIC_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfiguration =
-    StructuralMutationConfiguration {
-        chaotic_self_splice_weight: 3,
-        chunk_duplication_weight: 2,
-        random_value_duplication_weight: 1,
-        swap_weight: 3,
-        total_weight: 3 + 2 + 1 + 3,
-    };
+pub(crate) const BASIC_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfig =
+    StructuralMutationConfig::new([
+        (StructuralMutationOptions::ChaoticSelfSplice, 3),
+        (StructuralMutationOptions::ChunkDuplication, 2),
+        (StructuralMutationOptions::RandomValueDuplication, 1),
+        (StructuralMutationOptions::Swap, 3),
+    ]);
 
-pub(crate) const BASIC_TOP_LEVEL_MUTATION_CONFIGURATION: TopLevelMutationConfiguration =
-    TopLevelMutationConfiguration {
-        value_mutation_weight: 7,
-        structure_mutation_weight: 3,
-        total_weight: 7 + 3,
-    };
+pub(crate) const BASIC_TOP_LEVEL_MUTATION_CONFIGURATION: TopLevelMutationConfig =
+    TopLevelMutationConfig::new([
+        (TopLevelMutationOptions::Value, 7),
+        (TopLevelMutationOptions::Structure, 3),
+    ]);
 
 // Field-specific mutation configurations
 
-pub(crate) const BASIC_FIELD_SUBSTITUTION_CONFIGURATION: SubstitutionConfiguration =
-    SubstitutionConfiguration {
-        substitution_by_zero_weight: 20,
-        substitution_by_one_weight: 20,
-        substitution_by_minus_one_weight: 20,
-        substitution_from_dictionary_weight: 20,
-        substitution_by_power_of_2_weight: 254,
-        substitution_by_power_of_2_minus_one: 254,
-        total_weight: 20 + 20 + 20 + 20 + 254 + 254,
-    };
-pub(crate) const BASIC_FIELD_INVERSION_CONFIGURATION: FieldElementInversionConfiguration =
-    FieldElementInversionConfiguration {
-        additive_inversion_weight: 10,
-        multiplicative_inversion_weight: 1,
-        total_weight: 10 + 1,
-    };
+pub(crate) const BASIC_FIELD_SUBSTITUTION_CONFIGURATION: FieldElementSubstitutionMutationConfig =
+    FieldElementSubstitutionMutationConfig::new([
+        (FieldElementSubstitutionMutationOptions::Zero, 20),
+        (FieldElementSubstitutionMutationOptions::One, 20),
+        (FieldElementSubstitutionMutationOptions::MinusOne, 20),
+        (FieldElementSubstitutionMutationOptions::Dictionary, 20),
+        (FieldElementSubstitutionMutationOptions::PowerOfTwo, 254),
+        (FieldElementSubstitutionMutationOptions::PowerOfTwoMinusOne, 254),
+    ]);
 
-pub(crate) const BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION: Pow2UpdateConfiguration =
-    Pow2UpdateConfiguration {
-        addition_weight: 3,
-        subtraction_weight: 3,
-        multiplication_weight: 2,
-        division_weight: 1,
-        total_weight: 3 + 3 + 2 + 1,
-    };
+pub(crate) const BASIC_FIELD_INVERSION_CONFIGURATION: FieldElementInversionMutationConfig =
+    FieldElementInversionMutationConfig::new([
+        (FieldElementInversionMutationOptions::Additive, 10),
+        (FieldElementInversionMutationOptions::Multiplicative, 1),
+    ]);
+
+pub(crate) const BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION: FieldElementPow2UpdateConfig =
+    FieldElementPow2UpdateConfig::new([
+        (FieldElementPow2UpdateOptions::Addition, 3),
+        (FieldElementPow2UpdateOptions::Subtraction, 3),
+        (FieldElementPow2UpdateOptions::Multiplication, 2),
+        (FieldElementPow2UpdateOptions::Division, 1),
+    ]);
+
 pub(crate) const BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION:
-    FieldElementSmallValueUpdateConfiguration = FieldElementSmallValueUpdateConfiguration {
-    addition_weight: 3,
-    subtraction_weight: 3,
-    multiplication_weight: 1,
-    total_weight: 3 + 3 + 1,
-};
+    FieldElementSmallValueUpdateConfig = FieldElementSmallValueUpdateConfig::new([
+    (FieldElementSmallValueUpdateOptions::Addition, 3),
+    (FieldElementSmallValueUpdateOptions::Subtraction, 3),
+    (FieldElementSmallValueUpdateOptions::Multiplication, 1),
+]);
 
 pub(crate) const BASIC_FIELD_ELEMENT_DICTIONARY_UPDATE_CONFIGURATION:
-    FieldElementDictionaryUpdateConfiguration = FieldElementDictionaryUpdateConfiguration {
-    addition_weight: 2,
-    subtraction_weight: 2,
-    multiplication_weight: 1,
-    total_weight: 2 + 2 + 1,
-};
+    FieldElementDictionaryUpdateConfig = FieldElementDictionaryUpdateConfig::new([
+    (FieldElementDictionaryUpdateOptions::Addition, 2),
+    (FieldElementDictionaryUpdateOptions::Subtraction, 2),
+    (FieldElementDictionaryUpdateOptions::Multiplication, 1),
+]);
 
 pub(crate) const BASIC_TOPLEVEL_FIELD_ELEMENT_MUTATION_CONFIGURATION:
-    TopLevelFieldElementMutationConfiguration = TopLevelFieldElementMutationConfiguration {
-    substitution_weight: 10,
-    inversion_weight: 1,
-    pow_2_update_weight: 5,
-    small_value_update_weight: 10,
-    dictionary_update_weight: 10,
-    total_weight: 10 + 1 + 5 + 10 + 10,
-};
+    TopLevelFieldElementMutationConfig = TopLevelFieldElementMutationConfig::new([
+    (TopLevelFieldElementMutationOptions::Substitution, 10),
+    (TopLevelFieldElementMutationOptions::Inversion, 1),
+    (TopLevelFieldElementMutationOptions::Pow2Update, 5),
+    (TopLevelFieldElementMutationOptions::SmallValueUpdate, 10),
+    (TopLevelFieldElementMutationOptions::DictionaryUpdate, 10),
+]);
 
-pub(crate) const BASIC_TESTCASE_SPLICE_CONFIGURATION: TestCaseSpliceConfiguration =
-    TestCaseSpliceConfiguration {
-        balanced_top_level_weight: 1,
-        unbalanced_full_weight: 1,
-        single_element_import_weight: 2,
-        total_weight: 1 + 1 + 2,
-    };
+pub(crate) const BASIC_TESTCASE_SPLICE_CONFIGURATION: TestCaseSpliceConfig =
+    TestCaseSpliceConfig::new([
+        (TestCaseSpliceTypeOptions::BalancedTopLevel, 1),
+        (TestCaseSpliceTypeOptions::UnbalancedFull, 1),
+        (TestCaseSpliceTypeOptions::SingleElementImport, 2),
+    ]);
 
 /// Generic vector structural mutation configuration (random value duplication weight MUST stay zero)
 #[allow(clippy::identity_op)]
-pub(crate) const BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfiguration =
-    StructuralMutationConfiguration {
-        chaotic_self_splice_weight: 3,
-        chunk_duplication_weight: 2,
-        random_value_duplication_weight: 0,
-        swap_weight: 3,
-        total_weight: 3 + 2 + 0 + 3,
-    };
-pub(crate) const BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION: FixedIntSubstitutionConfiguration =
-    FixedIntSubstitutionConfiguration {
-        minimum_weight: 1,
-        maximum_weight: 1,
-        pow2_weight: 1,
-        total_weight: 1 + 1 + 1,
-    };
+pub(crate) const BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfig =
+    StructuralMutationConfig::new([
+        (StructuralMutationOptions::ChaoticSelfSplice, 3),
+        (StructuralMutationOptions::ChunkDuplication, 2),
+        (StructuralMutationOptions::RandomValueDuplication, 0),
+        (StructuralMutationOptions::Swap, 3),
+    ]);
+
+pub(crate) const BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION: FixedIntSubstitutionConfig =
+    FixedIntSubstitutionConfig::new([
+        (FixedIntSubstitutionOptions::Minimum, 1),
+        (FixedIntSubstitutionOptions::Maximum, 1),
+        (FixedIntSubstitutionOptions::Pow2, 1),
+    ]);
 
 pub(crate) const BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION:
-    BinaryIntOperationMutationConfiguration = BinaryIntOperationMutationConfiguration {
-    addition_weight: 1,
-    subtraction_weight: 1,
-    and_operation_weight: 1,
-    or_operation_weight: 1,
-    xor_operation_weight: 1,
-    total_weight: 1 + 1 + 1 + 1 + 1,
-};
+    BinaryIntOperationMutationConfig = BinaryIntOperationMutationConfig::new([
+    (BinaryIntOperationMutationOptions::Add, 1),
+    (BinaryIntOperationMutationOptions::Sub, 1),
+    (BinaryIntOperationMutationOptions::And, 1),
+    (BinaryIntOperationMutationOptions::Or, 1),
+    (BinaryIntOperationMutationOptions::Xor, 1),
+]);
 
-pub(crate) const BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION: IntTopLevelMutationConfiguration =
-    IntTopLevelMutationConfiguration {
-        fixed_substitution_weight: 0x20,
-        dictionary_substitution_weight: 0x30,
-        negation_weight: 0x2,
-        shift_weight: 0x8,
-        small_value_update_weight: 0x80,
-        pow2_update_weight: 0x20,
-        dictionary_value_update_weight: 0x30,
-        total_weight: 0x20 + 0x30 + 0x2 + 0x8 + 0x80 + 0x20 + 0x30,
-    };
+pub(crate) const BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION: IntTopLevelMutationConfig =
+    IntTopLevelMutationConfig::new([
+        (IntTopLevelMutationOptions::FixedSubstitution, 0x20),
+        (IntTopLevelMutationOptions::DictionarySubstitution, 0x30),
+        (IntTopLevelMutationOptions::Negation, 0x2),
+        (IntTopLevelMutationOptions::Shift, 0x8),
+        (IntTopLevelMutationOptions::SmallValueUpdate, 0x80),
+        (IntTopLevelMutationOptions::DictionaryValueUpdate, 0x30),
+        (IntTopLevelMutationOptions::Pow2Update, 0x20),
+    ]);

@@ -23,7 +23,7 @@ use super::{
     configurations::{
         BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION,
         BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION, BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION,
-        BinaryIntOperationMutation, FixedIntSubstitution, IntTopLevelMutation,
+        BinaryIntOperationMutationOptions, FixedIntSubstitutionOptions, IntTopLevelMutationOptions,
     },
     dictionary::IntDictionary,
 };
@@ -211,17 +211,17 @@ fn add_sub_xor_and_or_signed<
 >(
     lhs: &FieldElement,
     rhs: &FieldElement,
-    mutation_operation: BinaryIntOperationMutation,
+    mutation_operation: BinaryIntOperationMutationOptions,
 ) -> FieldElement {
     let width = T::BITS;
     let lhs_int = T::from(field_to_i128(lhs, width)).expect("Should convert");
     let rhs_int = T::from(field_to_i128(rhs, width)).expect("Should convert");
     let result_int = match mutation_operation {
-        BinaryIntOperationMutation::Add => lhs_int.overflowing_add(&rhs_int).0,
-        BinaryIntOperationMutation::Sub => lhs_int.overflowing_sub(&rhs_int).0,
-        BinaryIntOperationMutation::Xor => lhs_int ^ rhs_int,
-        BinaryIntOperationMutation::And => lhs_int & rhs_int,
-        BinaryIntOperationMutation::Or => lhs_int | rhs_int,
+        BinaryIntOperationMutationOptions::Add => lhs_int.overflowing_add(&rhs_int).0,
+        BinaryIntOperationMutationOptions::Sub => lhs_int.overflowing_sub(&rhs_int).0,
+        BinaryIntOperationMutationOptions::Xor => lhs_int ^ rhs_int,
+        BinaryIntOperationMutationOptions::And => lhs_int & rhs_int,
+        BinaryIntOperationMutationOptions::Or => lhs_int | rhs_int,
     };
     i128_to_field(result_int.as_(), width)
 }
@@ -263,16 +263,16 @@ fn add_sub_xor_and_or_unsigned<
 >(
     lhs: &FieldElement,
     rhs: &FieldElement,
-    mutation_operation: BinaryIntOperationMutation,
+    mutation_operation: BinaryIntOperationMutationOptions,
 ) -> FieldElement {
     let lhs_int = T::from(field_to_u128(lhs)).expect("Should convert");
     let rhs_int = T::from(field_to_u128(rhs)).expect("Should convert");
     let result_int = match mutation_operation {
-        BinaryIntOperationMutation::Add => lhs_int.wrapping_add(&rhs_int),
-        BinaryIntOperationMutation::Sub => lhs_int.wrapping_sub(&rhs_int),
-        BinaryIntOperationMutation::Xor => lhs_int ^ rhs_int,
-        BinaryIntOperationMutation::And => lhs_int & rhs_int,
-        BinaryIntOperationMutation::Or => lhs_int | rhs_int,
+        BinaryIntOperationMutationOptions::Add => lhs_int.wrapping_add(&rhs_int),
+        BinaryIntOperationMutationOptions::Sub => lhs_int.wrapping_sub(&rhs_int),
+        BinaryIntOperationMutationOptions::Xor => lhs_int ^ rhs_int,
+        BinaryIntOperationMutationOptions::And => lhs_int & rhs_int,
+        BinaryIntOperationMutationOptions::Or => lhs_int | rhs_int,
     };
     u128_to_field(result_int.as_())
 }
@@ -360,13 +360,13 @@ impl<'a> IntMutator<'a> {
     fn substitute_signed_int_with_fixed_value(&mut self, width: u32) -> InputValue {
         InputValue::Field(i128_to_field(
             match BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION.select(self.prng) {
-                FixedIntSubstitution::Minimum => {
+                FixedIntSubstitutionOptions::Minimum => {
                     FIXED_SIGNED_VALUES[self.prng.gen_range(0..width as usize)]
                 }
-                FixedIntSubstitution::Maximum => {
+                FixedIntSubstitutionOptions::Maximum => {
                     FIXED_SIGNED_VALUES[self.prng.gen_range(64..(64 + width) as usize)]
                 }
-                FixedIntSubstitution::Pow2 => 2i128.pow(self.prng.gen_range(0..width)),
+                FixedIntSubstitutionOptions::Pow2 => 2i128.pow(self.prng.gen_range(0..width)),
             },
             width,
         ))
@@ -478,21 +478,23 @@ impl<'a> IntMutator<'a> {
     fn mutate_signed(&mut self, input: &FieldElement, width: u32) -> InputValue {
         let initial_i128 = field_to_i128(input, width);
         match BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng) {
-            IntTopLevelMutation::FixedSubstitution => {
+            IntTopLevelMutationOptions::FixedSubstitution => {
                 self.substitute_signed_int_with_fixed_value(width)
             }
-            IntTopLevelMutation::DictionarySubstitution => {
+            IntTopLevelMutationOptions::DictionarySubstitution => {
                 self.substitute_with_dictionary_value(width)
             }
-            IntTopLevelMutation::Negation => self.negate_signed_int(&initial_i128, width),
-            IntTopLevelMutation::Shift => self.shift_signed_int(&initial_i128, width),
-            IntTopLevelMutation::SmallValueUpdate => {
+            IntTopLevelMutationOptions::Negation => self.negate_signed_int(&initial_i128, width),
+            IntTopLevelMutationOptions::Shift => self.shift_signed_int(&initial_i128, width),
+            IntTopLevelMutationOptions::SmallValueUpdate => {
                 self.sub_add_small_value_signed(&initial_i128, width)
             }
-            IntTopLevelMutation::DictionaryValueUpdate => {
+            IntTopLevelMutationOptions::DictionaryValueUpdate => {
                 self.perform_signed_binary_operation_with_dictionary(input, width)
             }
-            IntTopLevelMutation::Pow2Update => self.perform_pow_2_update_signed(input, width),
+            IntTopLevelMutationOptions::Pow2Update => {
+                self.perform_pow_2_update_signed(input, width)
+            }
         }
     }
 
@@ -590,21 +592,23 @@ impl<'a> IntMutator<'a> {
     pub fn mutate_unsigned(&mut self, input: &FieldElement, width: u32) -> InputValue {
         let initial_u128 = field_to_u128(input);
         match BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng) {
-            IntTopLevelMutation::FixedSubstitution => {
+            IntTopLevelMutationOptions::FixedSubstitution => {
                 self.substitute_unsigned_int_with_fixed_value(width)
             }
-            IntTopLevelMutation::DictionarySubstitution => {
+            IntTopLevelMutationOptions::DictionarySubstitution => {
                 self.substitute_with_dictionary_value(width)
             }
-            IntTopLevelMutation::Negation => self.negate_unsigned_int(&initial_u128, width),
-            IntTopLevelMutation::Shift => self.shift_unsigned_int(&initial_u128, width),
-            IntTopLevelMutation::SmallValueUpdate => {
+            IntTopLevelMutationOptions::Negation => self.negate_unsigned_int(&initial_u128, width),
+            IntTopLevelMutationOptions::Shift => self.shift_unsigned_int(&initial_u128, width),
+            IntTopLevelMutationOptions::SmallValueUpdate => {
                 self.sub_add_small_value_unsigned(&initial_u128, width)
             }
-            IntTopLevelMutation::DictionaryValueUpdate => {
+            IntTopLevelMutationOptions::DictionaryValueUpdate => {
                 self.perform_unsigned_binary_operation_with_dictionary(input, width)
             }
-            IntTopLevelMutation::Pow2Update => self.perform_pow_2_update_unsigned(input, width),
+            IntTopLevelMutationOptions::Pow2Update => {
+                self.perform_pow_2_update_unsigned(input, width)
+            }
         }
     }
 

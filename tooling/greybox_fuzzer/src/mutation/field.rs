@@ -3,8 +3,9 @@ use super::configurations::{
     BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION, BASIC_FIELD_INVERSION_CONFIGURATION,
     BASIC_FIELD_SUBSTITUTION_CONFIGURATION, BASIC_TOPLEVEL_FIELD_ELEMENT_MUTATION_CONFIGURATION,
-    FieldElementDictionaryUpdate, FieldElementInversionMutation, FieldElementPow2Update,
-    FieldElementSmallValueUpdate, FieldElementSubstitutionMutation, TopLevelFieldElementMutation,
+    FieldElementDictionaryUpdateOptions, FieldElementInversionMutationOptions,
+    FieldElementPow2UpdateOptions, FieldElementSmallValueUpdateOptions,
+    FieldElementSubstitutionMutationOptions, TopLevelFieldElementMutationOptions,
 };
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
@@ -82,16 +83,16 @@ impl<'a> FieldMutator<'a> {
     #[allow(static_mut_refs)]
     fn apply_substitution(&mut self) -> FieldElement {
         match BASIC_FIELD_SUBSTITUTION_CONFIGURATION.select(self.prng) {
-            FieldElementSubstitutionMutation::Zero => FieldElement::from(0u32),
-            FieldElementSubstitutionMutation::One => FieldElement::from(1u32),
-            FieldElementSubstitutionMutation::MinusOne => -FieldElement::from(1u32),
-            FieldElementSubstitutionMutation::Dictionary => {
+            FieldElementSubstitutionMutationOptions::Zero => FieldElement::from(0u32),
+            FieldElementSubstitutionMutationOptions::One => FieldElement::from(1u32),
+            FieldElementSubstitutionMutationOptions::MinusOne => -FieldElement::from(1u32),
+            FieldElementSubstitutionMutationOptions::Dictionary => {
                 *self.dictionary.choose(self.prng).unwrap()
             }
-            FieldElementSubstitutionMutation::PowerOfTwo => unsafe {
+            FieldElementSubstitutionMutationOptions::PowerOfTwo => unsafe {
                 *POWERS_OF_TWO.choose(self.prng).unwrap()
             },
-            FieldElementSubstitutionMutation::PowerOfTwoMinusOne => unsafe {
+            FieldElementSubstitutionMutationOptions::PowerOfTwoMinusOne => unsafe {
                 *POWERS_OF_TWO_MINUS_ONE.choose(self.prng).unwrap()
             },
         }
@@ -99,8 +100,8 @@ impl<'a> FieldMutator<'a> {
 
     fn apply_inversion(&mut self, element: FieldElement) -> FieldElement {
         match BASIC_FIELD_INVERSION_CONFIGURATION.select(self.prng) {
-            FieldElementInversionMutation::Additive => -element,
-            FieldElementInversionMutation::Multiplicative => element.inverse(),
+            FieldElementInversionMutationOptions::Additive => -element,
+            FieldElementInversionMutationOptions::Multiplicative => element.inverse(),
         }
     }
 
@@ -110,10 +111,10 @@ impl<'a> FieldMutator<'a> {
         let chosen_inverse_power_of_two =
             unsafe { INVERSE_POWERS_OF_TWO.choose(self.prng).unwrap() };
         match BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION.select(self.prng) {
-            FieldElementPow2Update::Addition => element + *chosen_power_of_two,
-            FieldElementPow2Update::Subtraction => element - *chosen_power_of_two,
-            FieldElementPow2Update::Multiplication => element * *chosen_power_of_two,
-            FieldElementPow2Update::Division => element * *chosen_inverse_power_of_two,
+            FieldElementPow2UpdateOptions::Addition => element + *chosen_power_of_two,
+            FieldElementPow2UpdateOptions::Subtraction => element - *chosen_power_of_two,
+            FieldElementPow2UpdateOptions::Multiplication => element * *chosen_power_of_two,
+            FieldElementPow2UpdateOptions::Division => element * *chosen_inverse_power_of_two,
         }
     }
 
@@ -121,18 +122,18 @@ impl<'a> FieldMutator<'a> {
         let small_value =
             FieldElement::from(self.prng.gen_range(SMALL_VALUE_MIN..=SMALL_VALUE_MAX));
         match BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION.select(self.prng) {
-            FieldElementSmallValueUpdate::Addition => element + small_value,
-            FieldElementSmallValueUpdate::Subtraction => element - small_value,
-            FieldElementSmallValueUpdate::Multiplication => element * small_value,
+            FieldElementSmallValueUpdateOptions::Addition => element + small_value,
+            FieldElementSmallValueUpdateOptions::Subtraction => element - small_value,
+            FieldElementSmallValueUpdateOptions::Multiplication => element * small_value,
         }
     }
 
     fn apply_dictionary_update(&mut self, element: FieldElement) -> FieldElement {
         let dictionary_value = self.dictionary.choose(self.prng).unwrap();
         match BASIC_FIELD_ELEMENT_DICTIONARY_UPDATE_CONFIGURATION.select(self.prng) {
-            FieldElementDictionaryUpdate::Addition => element + *dictionary_value,
-            FieldElementDictionaryUpdate::Subtraction => element - *dictionary_value,
-            FieldElementDictionaryUpdate::Multiplication => element * *dictionary_value,
+            FieldElementDictionaryUpdateOptions::Addition => element + *dictionary_value,
+            FieldElementDictionaryUpdateOptions::Subtraction => element - *dictionary_value,
+            FieldElementDictionaryUpdateOptions::Multiplication => element * *dictionary_value,
         }
     }
 
@@ -143,17 +144,17 @@ impl<'a> FieldMutator<'a> {
         };
         InputValue::Field(
             match BASIC_TOPLEVEL_FIELD_ELEMENT_MUTATION_CONFIGURATION.select(self.prng) {
-                TopLevelFieldElementMutation::Substitution => self.apply_substitution(),
-                TopLevelFieldElementMutation::Inversion => {
+                TopLevelFieldElementMutationOptions::Substitution => self.apply_substitution(),
+                TopLevelFieldElementMutationOptions::Inversion => {
                     self.apply_inversion(initial_field_value)
                 }
-                TopLevelFieldElementMutation::Pow2Update => {
+                TopLevelFieldElementMutationOptions::Pow2Update => {
                     self.apply_pow_2_update(initial_field_value)
                 }
-                TopLevelFieldElementMutation::SmallValueUpdate => {
+                TopLevelFieldElementMutationOptions::SmallValueUpdate => {
                     self.apply_small_value_update(initial_field_value)
                 }
-                TopLevelFieldElementMutation::DictionaryUpdate => {
+                TopLevelFieldElementMutationOptions::DictionaryUpdate => {
                     self.apply_dictionary_update(initial_field_value)
                 }
             },

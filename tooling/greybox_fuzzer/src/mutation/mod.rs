@@ -2,13 +2,13 @@ use acvm::{AcirField, FieldElement};
 
 use array::{mutate_vector_structure, splice_array_structure};
 use configurations::{
-    TestCaseSpliceType, BASIC_TESTCASE_SPLICE_CONFIGURATION,
-    BASIC_TOP_LEVEL_MUTATION_CONFIGURATION, BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION,
+    BASIC_TESTCASE_SPLICE_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION,
+    BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION, TestCaseSpliceTypeOptions,
 };
 use dictionary::FullDictionary;
 use field::mutate_field_input_value;
 use int::mutate_int_input_value;
-use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap};
+use noirc_abi::{Abi, AbiType, InputMap, input_parser::InputValue};
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 use std::{
@@ -201,8 +201,8 @@ impl InputMutator {
             | AbiType::Field
             | AbiType::Integer { .. }
             | AbiType::String { .. } => match BASIC_TOP_LEVEL_MUTATION_CONFIGURATION.select(prng) {
-                configurations::TopLevelMutation::Value => (),
-                configurations::TopLevelMutation::Structure => {
+                configurations::TopLevelMutationOptions::Value => (),
+                configurations::TopLevelMutationOptions::Structure => {
                     if !arrays_hit.is_zero() {
                         return (previous_input.clone(), Some(prng.gen_range(1..=arrays_hit)));
                     }
@@ -435,10 +435,10 @@ impl InputMutator {
                     );
                 }
                 match BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION.select(prng) {
-                    configurations::UnbalancedArraySpliceType::ArraySpecific => {
+                    configurations::UnbalancedArraySpliceOptions::ArraySpecific => {
                         splice_array_structure(first_input, second_input, prng)
                     }
-                    configurations::UnbalancedArraySpliceType::Recurse => InputValue::Vec(
+                    configurations::UnbalancedArraySpliceOptions::Recurse => InputValue::Vec(
                         (0..length)
                             .map(|idx| {
                                 Self::splice_unbalanced(
@@ -628,7 +628,7 @@ impl InputMutator {
     ) -> InputMap {
         // TODO: add the most basic splice where the whole map is converted into a witness map and then we splice those
         match BASIC_TESTCASE_SPLICE_CONFIGURATION.select(prng) {
-            TestCaseSpliceType::BalancedTopLevel => {
+            TestCaseSpliceTypeOptions::BalancedTopLevel => {
                 self // Randomly pick top-level objects with 50/50 probability
                     .abi
                     .parameters
@@ -645,7 +645,7 @@ impl InputMutator {
                     })
                     .collect()
             }
-            TestCaseSpliceType::UnbalancedFull => {
+            TestCaseSpliceTypeOptions::UnbalancedFull => {
                 self // Randomly pick low-level elements with a distribution slightly gravitating towards the first testcase
                     .abi
                     .parameters
@@ -663,7 +663,7 @@ impl InputMutator {
                     })
                     .collect()
             }
-            TestCaseSpliceType::SingleElementImport => {
+            TestCaseSpliceTypeOptions::SingleElementImport => {
                 // Import one low-level element from the second testcase into the first one
                 // Pick an element to import in the whole input
                 let chosen_weight = prng.gen_range(0..self.weight_tree.get_weight());
