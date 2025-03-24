@@ -194,7 +194,7 @@ impl<'a> ValueMerger<'a> {
                 if !matches!(res_typ, Type::Numeric(_)) {
                     dbg!(array);
                     dbg!(res);
-                    panic!("fuck why");
+                    panic!("why?! fix this");
                 }
                 res
             };
