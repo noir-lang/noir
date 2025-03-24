@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742840456894,
+  "lastUpdate": 1742840458244,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0816c4183956c526ab6fab11b9fed97a05acab33",
-          "message": "feat(ssa): Dominance frontiers (#7692)",
-          "timestamp": "2025-03-13T18:10:18Z",
-          "tree_id": "23f09c03f5d5ccc3f977bb2217cbd48997a58a8c",
-          "url": "https://github.com/noir-lang/noir/commit/0816c4183956c526ab6fab11b9fed97a05acab33"
-        },
-        "date": 1741891269947,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.63,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.86,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.35,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d2d83dd601413c1c85f4097107b58ef94c42d7f2",
           "message": "chore(artifact_cli): Print circuit output to stdout (#7696)",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/565c3dd0b82f8dc299c022fb8c307b2a5975a520"
         },
         "date": 1742816850298,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.17,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5006fa9815ef18d59577447850731a9fefef8438",
+          "message": "chore: unhide `nargo export` command from CLI docs (#7787)",
+          "timestamp": "2025-03-24T17:49:27Z",
+          "tree_id": "f4ab4ff6ad9accd61126586b0bff80486f448a8d",
+          "url": "https://github.com/noir-lang/noir/commit/5006fa9815ef18d59577447850731a9fefef8438"
+        },
+        "date": 1742840453518,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
