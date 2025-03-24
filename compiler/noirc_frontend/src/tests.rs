@@ -150,93 +150,99 @@ pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationE
 }
 
 pub enum Expect {
+    Bug,
     Success,
     Error,
-    // TODO: needed?
-    // Any,
 }
 
 // if the "nextest" feature is enabled, this will panic instead of emitting a test crate
-fn emit_compile_test(test_path: &str, src: &str, expect: Expect) {
+fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
+    let package_name = test_path.replace("::", "_");
+
     let skipped_tests = vec![
         // skip ~2.4k name_shadowing tests
         "name_shadowing_",
-
         // TODO(https://github.com/noir-lang/noir/issues/7763)
-        "test_noirc_frontend_tests_unconditional_recursion_fail_",
-        "test_noirc_frontend_tests_unconditional_recursion_pass_",
-
+        "unconditional_recursion_fail_",
+        "unconditional_recursion_pass_",
+        // TODO(https://github.com/noir-lang/noir/issues/7783): array type fails to resolve when
+        // compiled
+        "traits_calls_trait_method_using_struct_name_when_multiple_impls_exist",
+        // TODO(https://github.com/noir-lang/noir/issues/7766): trait generic that passes
+        // frontend test fails to resolve with nargo
+        "turbofish_numeric_generic_nested_",
         // TODO: needs issue
-        "test_noirc_frontend_tests_enums_errors_on_unspecified_unstable_enum",
-        "test_noirc_frontend_tests_enums_errors_on_unspecified_unstable_match",
-
+        "enums_errors_on_unspecified_unstable_enum",
+        "enums_errors_on_unspecified_unstable_match",
         // TODO: follow-up issue
         // no main:
-        "test_noirc_frontend_tests_aliases_double_generic_alias_in_path",
-        "test_noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
-        "test_noirc_frontend_tests_does_not_stack_overflow_on_many_comments_in_a_row",
-        "test_noirc_frontend_tests_imports_use_super",
-        "test_noirc_frontend_tests_imports_use_super_in_path",
-        "test_noirc_frontend_tests_numeric_generic_in_function_signature",
-        "test_noirc_frontend_tests_numeric_generic_used_in_nested_type_pass",
-        "test_noirc_frontend_tests_numeric_generic_used_in_trait",
-        "test_noirc_frontend_tests_numeric_generic_used_in_turbofish",
-        "test_noirc_frontend_tests_numeric_generic_used_in_where_clause",
-        "test_noirc_frontend_tests_test_impl_self_within_default_def",
-
+        "aliases_double_generic_alias_in_path",
+        "arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+        "does_not_stack_overflow_on_many_comments_in_a_row",
+        "imports_use_super",
+        "imports_use_super_in_path",
+        "numeric_generic_in_function_signature",
+        "numeric_generic_used_in_nested_type_pass",
+        "numeric_generic_used_in_trait",
+        "numeric_generic_used_in_turbofish",
+        "numeric_generic_used_in_where_clause",
+        "test_impl_self_within_default_def",
         // TODO: follow-up issue
         // definitions overlap with stdlib:
-        "test_noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
-        "test_noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
-        "test_noirc_frontend_tests_check_trait_implemented_for_all_t",
-        "test_noirc_frontend_tests_numeric_generic_in_trait_impl_with_extra_impl_generics",
-        "test_noirc_frontend_tests_specify_function_types_with_turbofish",
-        "test_noirc_frontend_tests_specify_method_types_with_turbofish",
-        "test_noirc_frontend_tests_traits_regression_6530",
+        "check_trait_as_type_as_fn_parameter",
+        "check_trait_as_type_as_two_fn_parameters",
+        "check_trait_implemented_for_all_t",
+        "numeric_generic_in_trait_impl_with_extra_impl_generics",
+        "specify_function_types_with_turbofish",
+        "specify_method_types_with_turbofish",
+        "regression_6530",
     ];
-    if skipped_tests.any(|skipped_test_name| test_path.contains(skipped_test_name)) {
+    if skipped_tests.iter().any(|skipped_test_name| package_name.contains(skipped_test_name)) {
         return;
     }
 
     // in these cases, we expect a warning when 'check_errors' or similar is used
     let error_to_warn_cases = vec![
-        "test_noirc_frontend_tests_cast_256_to_u8_size_checks"
-        "test_noirc_frontend_tests_imports_warns_on_use_of_private_exported_item",
-        "test_noirc_frontend_tests_metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
-        "test_noirc_frontend_tests_resolve_unused_var",
-        "test_noirc_frontend_tests_unused_items_errors_on_unused_private_import",
-        "test_noirc_frontend_tests_unused_items_errors_on_unused_pub_crate_import",
-        "test_noirc_frontend_tests_unused_items_errors_on_unused_struct",
-        "test_noirc_frontend_tests_unused_items_errors_on_unused_trait",
-        "test_noirc_frontend_tests_unused_items_errors_on_unused_type_alias",
-        "test_noirc_frontend_tests_unused_items_warns_on_unused_global",
-        "test_noirc_frontend_tests_visibility_warns_if_calling_private_struct_method",
-        "test_noirc_frontend_tests_warns_on_nested_unsafe",
-        "test_noirc_frontend_tests_warns_on_unneeded_unsafe",
-
+        "cast_256_to_u8_size_checks",
+        "immutable_references_without_ownership_feature",
+        "imports_warns_on_use_of_private_exported_item",
+        "metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
+        "resolve_unused_var",
+        "unused_items_errors_on_unused_private_import",
+        "unused_items_errors_on_unused_pub_crate_import",
+        "unused_items_errors_on_unused_struct",
+        "unused_items_errors_on_unused_trait",
+        "unused_items_errors_on_unused_type_alias",
+        "unused_items_warns_on_unused_global",
+        "visibility_warns_if_calling_private_struct_method",
+        "warns_on_nested_unsafe",
+        "warns_on_unneeded_unsafe",
         // TODO: unused variable warning!?
-        "test_noirc_frontend_tests_struct_array_len",
-
-        // TODO: should these be hard errors? I don't see an issue to make them so
-        "test_noirc_frontend_tests_visibility_error_when_accessing_private_struct_field",
-        "test_noirc_frontend_tests_visibility_error_when_using_private_struct_field_in_constructor",
-        "test_noirc_frontend_tests_visibility_error_when_using_private_struct_field_in_struct_pattern",
-        "test_noirc_frontend_tests_visibility_errors_if_accessing_private_struct_member_inside_comptime_context",
-        "test_noirc_frontend_tests_visibility_errors_if_accessing_private_struct_member_inside_function_generated_at_comptime",
-        "test_noirc_frontend_tests_visibility_errors_if_trying_to_access_public_function_inside_private_module",
-        "test_noirc_frontend_tests_visibility_errors_once_on_unused_import_that_is_not_accessible",
+        "struct_array_len",
+        // TODO(https://github.com/noir-lang/noir/issues/6932): these will be hard errors
+        "visibility_error_when_accessing_private_struct_field",
+        "visibility_error_when_using_private_struct_field_in_constructor",
+        "visibility_error_when_using_private_struct_field_in_struct_pattern",
+        "visibility_errors_if_accessing_private_struct_member_inside_comptime_context",
+        "visibility_errors_if_accessing_private_struct_member_inside_function_generated_at_comptime",
+        "visibility_errors_if_trying_to_access_public_function_inside_private_module",
+        "visibility_errors_once_on_unused_import_that_is_not_accessible",
     ];
     if let Expect::Error = expect {
-        if test_path.contains(error_to_warn_cases) {
+        if error_to_warn_cases
+            .iter()
+            .any(|error_to_warn_case| package_name.contains(error_to_warn_case))
+        {
             expect = Expect::Success;
         }
     }
 
-    let error_to_bug_cases = vec![
-        "test_noirc_frontend_tests_cast_negative_one_to_u8_size_checks",
-    ];
+    let error_to_bug_cases = vec!["cast_negative_one_to_u8_size_checks"];
     if let Expect::Success = expect {
-        if test_path.contains(error_to_bug_cases) {
+        if error_to_bug_cases
+            .iter()
+            .any(|error_to_bug_case| package_name.contains(error_to_bug_case))
+        {
             expect = Expect::Bug;
         }
     }
@@ -257,7 +263,6 @@ fn emit_compile_test(test_path: &str, src: &str, expect: Expect) {
         Expect::Error => "compile_failure",
     };
     let tests_dir = test_programs_path.join(tests_dir_name);
-    let package_name = test_path.replace("::", "_");
     let crate_path = tests_dir.join(&package_name);
     let nargo_toml_path = crate_path.join("Nargo.toml");
     let src_hash_path = crate_path.join("src_hash.txt");

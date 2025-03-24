@@ -4,7 +4,7 @@ use crate::assert_no_errors;
 
 #[named]
 #[test]
-fn turbofish_numeric_generic_nested_call() {
+fn turbofish_numeric_generic_nested_function_call() {
     // Check for turbofish numeric generics used with function calls
     let src = r#"
     fn foo<let N: u32>() -> [u8; N] {
@@ -22,7 +22,11 @@ fn turbofish_numeric_generic_nested_call() {
     }
     "#;
     assert_no_errors!(src);
+}
 
+#[named]
+#[test]
+fn turbofish_numeric_generic_nested_method_call() {
     // Check for turbofish numeric generics used with method calls
     let src = r#"
     struct Foo<T> {
