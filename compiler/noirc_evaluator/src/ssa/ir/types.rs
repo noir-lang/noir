@@ -178,6 +178,7 @@ impl Type {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn array_size(&self) -> usize {
         match self {
             Type::Array(_, size) => *size as usize,

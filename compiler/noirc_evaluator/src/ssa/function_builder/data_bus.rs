@@ -1,11 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{
-    function::RuntimeType,
-    types::{NumericType, Type},
-    value::ValueId,
-};
-use acvm::FieldElement;
+use crate::ssa::ir::{function::RuntimeType, types::Type, value::ValueId};
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
@@ -143,14 +138,11 @@ impl FunctionBuilder {
                 databus.map.insert(value, databus.index);
 
                 let flat_typ = typ.flatten();
-
-                let mut my_index: u128 = 0;
-                for typ in flat_typ {
+                for (my_index, typ) in flat_typ.into_iter().enumerate() {
                     let index = self
                         .current_function
                         .dfg
                         .make_constant(my_index.into(), typ.unwrap_numeric());
-                    my_index += 1;
                     assert!(matches!(typ, Type::Numeric(_)));
                     let element = self.insert_array_get(value, index, typ);
                     self.add_to_data_bus(element, databus);

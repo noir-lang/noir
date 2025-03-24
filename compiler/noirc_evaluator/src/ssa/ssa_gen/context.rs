@@ -151,7 +151,7 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
-        for (id, mutable, name, typ) in parameters {
+        for (id, mutable, _, typ) in parameters {
             self.add_parameter_to_scope(*id, typ, *mutable);
         }
     }
@@ -882,42 +882,6 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    pub(super) fn extract_ident_new(
-        &mut self,
-        lvalue: &ast::LValue,
-        indices: &mut Vec<NestedArrayIndex>,
-        old_variable: &mut Option<Values>,
-    ) -> Result<Values, RuntimeError> {
-        let res = match lvalue {
-            ast::LValue::Ident(ident) => {
-                let (variable, should_auto_deref) = self.ident_lvalue(ident);
-                // dbg!(variable.clone());
-                *old_variable = Some(variable.clone());
-                if should_auto_deref {
-                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    dereferenced
-                } else {
-                    variable
-                }
-            }
-            ast::LValue::Index { array, index, element_type, location } => {
-                let index_value = self.codegen_non_tuple_expression(&index)?;
-                dbg!(index_value);
-                indices.push(NestedArrayIndex::Value(index_value));
-                self.extract_ident_new(array, indices, old_variable)?
-            }
-            ast::LValue::MemberAccess { object, field_index } => {
-                dbg!(field_index);
-                indices.push(NestedArrayIndex::Constant(*field_index));
-                self.extract_ident_new(&object, indices, old_variable)?
-            }
-            ast::LValue::Dereference { reference, element_type } => {
-                self.extract_ident_new(reference, indices, old_variable)?
-            }
-        };
-        Ok(res)
-    }
-
     pub(super) fn extract_current_value_recursive_new(
         &mut self,
         lvalue: &ast::LValue,
@@ -940,7 +904,7 @@ impl<'a> FunctionContext<'a> {
                 // let mut indices = Vec::new();
                 // dbg!(*nested_indexing);
 
-                let index_value = self.codegen_non_tuple_expression(&index)?;
+                let index_value = self.codegen_non_tuple_expression(index)?;
                 indices.push(NestedArrayIndex::Value(index_value));
 
                 // let (old_array, array_lvalue) = self.extract_current_value_recursive_new(array, 2, indices, nested_indexing)?;
@@ -961,7 +925,6 @@ impl<'a> FunctionContext<'a> {
                     let array_values = old_array.clone().into_value_list(self);
                     let index_lvalue = LValue::NestedArrayIndex {
                         old_array: array_values[0],
-                        index: index_value,
                         array_lvalue,
                         location: *location,
                         indices: vec![],
@@ -971,80 +934,50 @@ impl<'a> FunctionContext<'a> {
                     *nested_indexing = 1;
                 }
 
-                // let extracted_ident = self.extract_ident(array, &mut indices)?;
-                // dbg!(indices.clone());
-                // dbg!(extracted_ident.clone());
                 let (old_array, array_lvalue) =
                     self.extract_current_value_recursive_new(array, 1, indices, nested_indexing)?;
 
-                // let nested_array_lvalue = LValue::Dereference { reference: old_array.clone() };
-
                 let array_values = old_array.clone().into_value_list(self);
 
-                // dbg!(arraqy_values.len());
-                // dbg!(*nested_indexing);
-                // dbg!(started_nested_indexing);
                 let element = if *nested_indexing == 1 {
-                    // dbg!("fetched element");
-                    // dbg!(array_values.len());
-                    // dbg!(element_type.clone());
-                    // dbg!(indices.clone());
                     if array_values.len() > 1 {
-                        // let (old_array, index, index_lvalue, max_length) =
-                        // self.index_lvalue(array, index, location)?;
-                        let element = self.codegen_array_index(
-                            array_values[1],
-                            index_value,
-                            element_type,
-                            *location,
-                            Some(array_values[0]),
-                        )?;
+                        // TODO: Do not NEED this
+                        // let element = self.codegen_array_index(
+                        //     array_values[1],
+                        //     index_value,
+                        //     element_type,
+                        //     *location,
+                        //     Some(array_values[0]),
+                        // )?;
                         let array_lvalue = Box::new(array_lvalue);
                         let indices = std::mem::take(indices);
                         let index_lvalue = LValue::SliceIndexNestedArray {
                             old_slice: old_array,
-                            index: index_value,
                             slice_lvalue: array_lvalue,
                             location: *location,
                             indices,
                         };
-                        // let index_lvalue = LValue::SliceIndex {
-                        //     old_slice: old_array,
-                        //     index: index_value,
-                        //     slice_lvalue: array_lvalue,
-                        //     location: *location,
-                        // };
+
+                        let element = Self::map_type(element_type, |_| {
+                            let dummy =
+                                self.builder.numeric_constant(0u128, NumericType::NativeField);
+                            dummy.into()
+                        });
                         return Ok((element, index_lvalue));
                     }
-                    let typ = self.builder.current_function.dfg.type_of_value(array_values[0]);
-                    // dbg!(typ.clone());
 
-                    let element = self.codegen_array_index_acir(
-                        array_values[0],
-                        index_value,
-                        element_type,
-                        *location,
-                        &mut indices.clone(),
-                    )?;
-
-                    element
+                    Self::map_type(element_type, |_| {
+                        let dummy = self.builder.numeric_constant(0u128, NumericType::NativeField);
+                        dummy.into()
+                    })
                 } else {
-                    // dbg!("using old array");
                     old_array.clone()
                 };
-                // indices = indices.into_iter().rev().collect();
 
-                // dbg!(elemet.clone());
-                // println!("{}", self.builder.current_function);
-
-                // let array_lvalue = Box::new(extracted_ident);
                 let array_lvalue = Box::new(array_lvalue);
-                // dbg!(indices.clone());
                 let indices = std::mem::take(indices);
-                // dbg!(indices.clone());
                 let index_lvalue = LValue::NestedArrayIndex {
                     old_array: array_values[0],
-                    index: index_value,
                     array_lvalue,
                     location: *location,
                     indices,
@@ -1052,12 +985,6 @@ impl<'a> FunctionContext<'a> {
                 Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
-                dbg!(index);
-                // NOTE: this fixes `fold_complex_outputs` indexing as we flatten all complex structs within an array
-                // if let Some(NestedArrayIndex::Constant(top_index)) = indices.last_mut() {
-                //     dbg!("GOT previous constant index");
-                //     *top_index += *index;
-                // }
                 indices.push(NestedArrayIndex::Constant(*index));
                 let (old_object, object_lvalue) = self.extract_current_value_recursive_new(
                     object,
@@ -1066,11 +993,7 @@ impl<'a> FunctionContext<'a> {
                     nested_indexing,
                 )?;
                 let object_lvalue = Box::new(object_lvalue);
-                // dbg!(started_nested_indexing);
-                // dbg!(*nested_indexing);
                 if *nested_indexing > 1 {
-                    dbg!(object_lvalue.clone());
-                    dbg!(old_object.clone());
                     return Ok((
                         old_object.clone(),
                         LValue::MemberAccess {
@@ -1084,9 +1007,7 @@ impl<'a> FunctionContext<'a> {
                 } else if *nested_indexing == 1 && started_nested_indexing == 2 {
                     *nested_indexing = 2;
                 }
-                // else {
-                //     indices.clear();
-                // }
+
                 let element = Self::get_field_ref(&old_object, *index).clone();
                 Ok((
                     element,
@@ -1111,127 +1032,6 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// To be only used for LValue::Index
-    // pub(super) fn extract_ident_from_lvalue(
-    //     &mut self,
-    //     lvalue: &ast::LValue,
-    //     indices: &mut Vec<NestedArrayIndex>,
-    // ) -> Result<Values, RuntimeError> {
-    //     match lvalue {
-    //         ast::LValue::Ident(ident) => {
-    //         }
-    //         ast::LValue::Index { array, index, element_type, location } => {
-    //         }
-    //         ast::LValue::MemberAccess { object, field_index } => todo!(),
-    //         ast::LValue::Dereference { reference, element_type } => todo!(),
-    //     }
-    // }
-
-    pub(super) fn extract_ident(
-        &mut self,
-        lvalue: &ast::LValue,
-        indices: &mut Vec<NestedArrayIndex>,
-    ) -> Result<LValue, RuntimeError> {
-        let res = match lvalue {
-            ast::LValue::Ident(ident) => {
-                let (variable, should_auto_deref) = self.ident_lvalue(ident);
-                if should_auto_deref {
-                    LValue::Dereference { reference: variable }
-                } else {
-                    LValue::Ident
-                }
-            }
-            ast::LValue::Index { array, index, .. } => {
-                // let (reference, array_lvalue) = self.extract_ident_recursive(array)?;
-                let index_value = self.codegen_non_tuple_expression(&index)?;
-                indices.push(NestedArrayIndex::Value(index_value));
-                self.extract_ident(array, indices)?
-                // array_lvalue
-                // reference
-                // LValue::Dereference { reference }
-            }
-            ast::LValue::MemberAccess { object, field_index } => {
-                indices.push(NestedArrayIndex::Constant(*field_index));
-                // let x = Self::get_field_ref(tuple, field_index)
-                // let object_lvalue = Box::new(object_lvalue);
-                // let element = Self::get_field_ref(&old_object, *index).clone();
-                self.extract_ident(object, indices)?
-            }
-            ast::LValue::Dereference { reference, .. } => {
-                self.extract_ident(reference, indices)?
-                // let (reference, _) = self.extract_ident_recursive(reference)?;
-                // LValue::Dereference { reference }
-            }
-        };
-        Ok(res)
-    }
-
-    pub(super) fn extract_ident_recursive(
-        &mut self,
-        lvalue: &ast::LValue,
-    ) -> Result<(Values, LValue), RuntimeError> {
-        match lvalue {
-            ast::LValue::Ident(ident) => {
-                let (variable, should_auto_deref) = self.ident_lvalue(ident);
-                if should_auto_deref {
-                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    Ok((dereferenced, LValue::Dereference { reference: variable }))
-                } else {
-                    Ok((variable.clone(), LValue::Ident))
-                }
-            }
-            ast::LValue::Index { array, index, element_type, location } => {
-                Ok(self.extract_ident_recursive(array)?)
-            }
-            ast::LValue::MemberAccess { object, field_index: index } => {
-                let (old_object, object_lvalue) = self.extract_ident_recursive(object)?;
-                let object_lvalue = Box::new(object_lvalue);
-                let element = Self::get_field_ref(&old_object, *index).clone();
-                Ok((
-                    element,
-                    LValue::MemberAccess {
-                        old_object,
-                        object_lvalue,
-                        index: *index,
-                        skip_extraction: false,
-                    },
-                ))
-                // Ok(self.extract_ident_recursive(object)?)
-            }
-            ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_ident_recursive(reference)?;
-                let dereferenced = self.dereference_lvalue(&reference, element_type);
-                Ok((dereferenced, LValue::Dereference { reference }))
-            }
-        }
-    }
-
-    // Indices will be built in reverse order
-    pub(super) fn build_lvalue_index(
-        &mut self,
-        lvalue: &ast::LValue,
-        indices: &mut Vec<NestedArrayIndex>,
-    ) -> Result<(), RuntimeError> {
-        match lvalue {
-            ast::LValue::Ident(_) => {}
-            ast::LValue::Index { array, index, .. } => {
-                // indices.push(LValueIndex::Test(*index.to_owned()));
-                let index = self.codegen_non_tuple_expression(index)?;
-                indices.push(NestedArrayIndex::Value(index));
-                self.build_lvalue_index(array, indices)?;
-            }
-            ast::LValue::MemberAccess { object, field_index } => {
-                // TODO: compute the accurate field index
-                indices.push(NestedArrayIndex::Constant(*field_index));
-                self.build_lvalue_index(object, indices)?;
-            }
-            ast::LValue::Dereference { reference, element_type } => {
-                self.build_lvalue_index(reference, indices)?;
-            }
-        }
-        Ok(())
-    }
-
     /// Assigns a new value to the given LValue.
     /// The LValue can be created via a previous call to extract_current_value.
     /// This method recurs on the given LValue to create a new value to assign an allocation
@@ -1241,14 +1041,10 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         lvalue: LValue,
         new_value: Values,
-        already_assigned_nested: u32,
+        // TODO: should be able to remove
+        _already_assigned_nested: u32,
         original_value: Values,
     ) {
-        // if already_assigned_nested {
-        //     dbg!(lvalue.clone());
-        //     dbg!("got here");
-        //     return;
-        // }
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: array, index, array_lvalue, location } => {
@@ -1256,34 +1052,18 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(
                     *array_lvalue,
                     array,
-                    already_assigned_nested,
+                    _already_assigned_nested,
                     original_value,
                 );
             }
-            LValue::NestedArrayIndex {
-                old_array,
-                index: _,
-                array_lvalue,
-                location,
-                mut indices,
-            } => {
-                // dbg!(already_assigned_nested);
-                // dbg!()
-                // dbg!(indices.is_empty());
-                // if already_assigned_nested == 1 {
+            LValue::NestedArrayIndex { old_array, array_lvalue, location, mut indices } => {
                 if indices.is_empty() {
-                    // dbg!("got in nested index override");
-                    // dbg!(original_value.clone());
                     self.assign_new_value(*array_lvalue, new_value, 2, original_value);
                     return;
                 }
-                let typ = self.builder.current_function.dfg.type_of_value(old_array);
 
-                // dbg!(indices.clone());
-                // dbg!(old_array.clone());
-                // dbg!(array_lvalue.clone());
                 // Should already have extracted the appropriate array value from any tuples
-                let (flattened_index, new_array) =
+                let (flattened_index, _) =
                     self.build_nested_lvalue_index(old_array.into(), true, false, &mut indices);
                 // dbg!(new_array.clone());
                 let array = self
@@ -1302,20 +1082,11 @@ impl<'a> FunctionContext<'a> {
             }
             LValue::SliceIndexNestedArray {
                 old_slice: slice,
-                index,
                 slice_lvalue,
                 location,
                 mut indices,
             } => {
-                // dbg!(already_assigned_nested);
-                // dbg!()
-                // dbg!(indices.is_empty());
-                // if already_assigned_nested == 1 {
                 if indices.is_empty() {
-                    // dbg!("got in nested index override");
-                    // dbg!(original_value.clone());
-                    // let mut slice_values = slice.into_value_list(self);
-
                     // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                     // let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
                     self.assign_new_value(*slice_lvalue, new_value, 2, original_value);
@@ -1343,7 +1114,7 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(
                     *slice_lvalue,
                     new_slice,
-                    already_assigned_nested,
+                    _already_assigned_nested,
                     original_value,
                 );
             }
@@ -1358,19 +1129,13 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(
                     *slice_lvalue,
                     new_slice,
-                    already_assigned_nested,
+                    _already_assigned_nested,
                     original_value,
                 );
             }
             LValue::MemberAccess { old_object, index, object_lvalue, skip_extraction } => {
-                // TODO: handle this for nested indexing
                 // Having this if block commented is necessary for lvalue assignment that starts with a member access.
-                // dbg!(already_assigned_nested);
-                // if already_assigned_nested >= 1 {
-                // dbg!(skip_extraction);
                 if skip_extraction {
-                    //     // dbg!(lvalue.clone());
-                    // dbg!("got here");
                     self.assign_new_value(*object_lvalue, new_value, 1, original_value);
                     return;
                 }
@@ -1388,28 +1153,6 @@ impl<'a> FunctionContext<'a> {
             }
         }
     }
-
-    // fn extract_lvalue_ident(
-    //     &self,
-    //     lvalue: LValue
-    // ) -> LValue {
-    //     match lvalue {
-    //         LValue::Ident => todo!(),
-    //         LValue::Index { old_array, index, array_lvalue, location } => {
-    //             panic!("should not be here for acir")
-    //         }
-    //         LValue::NestedArrayIndex { old_array, index, array_lvalue, location, indices } => {
-    //             self.extract_lvalue_ident(*array_lvalue)
-    //         }
-    //         LValue::SliceIndex { old_slice, index, slice_lvalue, location } => todo!(),
-    //         LValue::MemberAccess { old_object, index, object_lvalue, .. } => {
-    //             self.extract_lvalue_ident(*object_lvalue)
-    //         }
-    //         LValue::Dereference { reference } => {
-    //             LValue::Dereference { reference }
-    //         }
-    //     }
-    // }
 
     fn assign_lvalue_index(
         &mut self,
@@ -1446,42 +1189,21 @@ impl<'a> FunctionContext<'a> {
         new_value: Values,
         mut array: ValueId,
         index: ValueId,
-        location: Location,
+        _location: Location,
     ) -> ValueId {
         let mut index = self.make_array_index(index);
-        // let element_size =
-        //     self.builder.numeric_constant(self.element_size(array), Type::unsigned(SSA_WORD_SIZE));
 
-        // // The actual base index is the user's index * the array element type's size
-        // let mut index =
-        //     self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        // let one = self.builder.numeric_constant(FieldElement::one(), Type::unsigned(SSA_WORD_SIZE));
-
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
-
-        // dbg!(new_value.clone());
         new_value.for_each(|value| {
             let value = value.eval(self);
             let typ = self.builder.current_function.dfg.type_of_value(value);
-            // dbg!(typ.clone());
-            // dbg!(typ.flattened_size());
+
             array = self.builder.insert_array_set(array, index, value);
-            // index = self.builder.insert_binary(index, BinaryOp::Add, one);
 
             let offset =
                 self.builder.numeric_constant(typ.flattened_size(), NumericType::length_type());
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
         });
 
-        // new_value.for_each(|value| {
-        //     dbg!(field_index);
-        //     let value = value.eval(self);
-        //     let typ = self.builder.current_function.dfg.type_of_value(value);
-        //     let offset =
-        //         self.builder.numeric_constant(typ.flattened_size(), NumericType::length_type());
-        //     let offset = self.make_offset(flattened_index, field_index);
-        //     field_index += typ.flattened_size() as u128;
-        // })
         array
     }
 
@@ -1522,20 +1244,9 @@ impl<'a> FunctionContext<'a> {
     ) -> Result<Values, RuntimeError> {
         Ok(match expr {
             ast::Expression::Ident(ident) => {
-                // dbg!(ident.typ.clone());
-                // let typ = Self::convert_type(&ident.typ).flatten()[1];
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
-                // variable.clone().for_each(|value| {
-                //     let value = value.eval_reference();
-                //     let typ = self.builder.current_function.dfg.type_of_value(value);
-                //     dbg!(typ.clone());
-                //     if matches!(typ, Type::Slice(_)) {
-                //         indices.push(NestedArrayIndex::Constant(1));
-                //     }
-                // });
                 if should_auto_deref {
-                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    dereferenced
+                    self.dereference_lvalue(&variable, &ident.typ)
                 } else {
                     variable
                 }
@@ -1545,18 +1256,7 @@ impl<'a> FunctionContext<'a> {
                 let index_value = self.codegen_non_tuple_expression(&index.index)?;
 
                 indices.push(NestedArrayIndex::Value(index_value));
-                let extracted_collection =
-                    self.extract_ident_from_expr(&index.collection, indices)?;
-                // dbg!(extracted_collection.clone());
-                // extracted_collection.clone().for_each(|value| {
-                //     let value = value.eval_reference();
-                //     let typ = self.builder.current_function.dfg.type_of_value(value);
-                //     dbg!(typ.clone());
-                //     if matches!(typ, Type::Slice(_)) {
-                //         indices.push(NestedArrayIndex::Constant(1));
-                //     }
-                // });
-                extracted_collection
+                self.extract_ident_from_expr(&index.collection, indices)?
             }
             ast::Expression::ExtractTupleField(tuple, field_index) => {
                 // dbg!(field_index);
@@ -1570,15 +1270,7 @@ impl<'a> FunctionContext<'a> {
                 indices.push(NestedArrayIndex::Constant(*field_index));
                 self.extract_ident_from_expr(tuple, indices)?
             }
-            // ast::Expression::Literal(literal) => {
-            //     self.codegen_literal(literal)?
-            // }
-            _ => {
-                let other_value = self.codegen_expression(expr)?;
-                // dbg!(other_value.clone());
-                other_value
-                // unreachable!("ICE: Expected Ident, ExtractTupleField, or Index, but got {expr}")
-            }
+            _ => self.codegen_expression(expr)?,
         })
     }
 
@@ -1784,14 +1476,12 @@ pub(super) enum LValue {
     },
     NestedArrayIndex {
         old_array: ValueId,
-        index: ValueId,
         array_lvalue: Box<LValue>,
         location: Location,
         indices: Vec<NestedArrayIndex>,
     },
     SliceIndexNestedArray {
         old_slice: Values,
-        index: ValueId,
         slice_lvalue: Box<LValue>,
         location: Location,
         indices: Vec<NestedArrayIndex>,

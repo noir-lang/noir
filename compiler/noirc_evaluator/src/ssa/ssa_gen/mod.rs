@@ -368,7 +368,7 @@ impl FunctionContext<'_> {
         let mut flat_elements = im::Vector::new();
         if let Some((array, _)) = self.builder.current_function.dfg.get_array_constant(element) {
             for value in array {
-                flat_elements.extend(self.codegen_array_helper(value))
+                flat_elements.extend(self.codegen_array_helper(value));
             }
         } else {
             let typ = self.builder.current_function.dfg.type_of_value(element);
@@ -376,14 +376,12 @@ impl FunctionContext<'_> {
                 Type::Array(_, _) => {
                     let flat_typ = typ.flatten();
 
-                    let mut my_index: u128 = 0;
-                    for typ in flat_typ {
+                    for (my_index, typ) in flat_typ.into_iter().enumerate() {
                         let index = self
                             .builder
                             .current_function
                             .dfg
                             .make_constant(my_index.into(), typ.unwrap_numeric());
-                        my_index += 1;
                         assert!(matches!(typ, Type::Numeric(_)));
                         let res = self.builder.insert_array_get(element, index, typ);
                         flat_elements.push_back(res);
@@ -478,17 +476,13 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_index_acir(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        // dbg!(index.clone());
-
         let mut indices = Vec::new();
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
         indices.push(NestedArrayIndex::Value(index_value));
 
         // TODO: maybe I can make a shared indices array that is cleared before codegen_expression
-        // in locations such as here, and then clearing it later one
+        // in locations such as here
         let extracted_values = self.extract_ident_from_expr(&index.collection, &mut indices)?;
-        // dbg!(extracted_values.clone());
-
         let array_or_slice = extracted_values.clone().into_value_list(self);
 
         for value in array_or_slice.iter() {
@@ -499,12 +493,10 @@ impl FunctionContext<'_> {
             }
         }
 
-        // dbg!(indices.clone());
         // TODO: add a test that has a tuple with (field, array) to make sure we do not conflict
         // with the slice object
 
-        // TODO: fix escaping from slice indexing
-        // as we can have an extracted ident that is a tuple
+        // TODO: fix escaping from slice indexing as we can have an extracted ident that is a tuple
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         // let array = if array_or_slice.len() > 1 {
@@ -513,56 +505,14 @@ impl FunctionContext<'_> {
         //     array_or_slice[0]
         // };
 
-        // let typ = self.builder.current_function.dfg.type_of_value(array);
-        // dbg!(typ.clone());
-        // dbg!(indices.clone());
-        // println!("{}", self.builder.current_function);
         let (flattened_index, new_array) =
             self.build_nested_lvalue_index(extracted_values, false, false, &mut indices);
-        // dbg!(new_array.clone());
         let array = new_array.into_value_list(self);
-        // assert_eq!(array.len(), 1);
-        // dbg!(array.len());
         let array = if array.len() == 1 { array[0] } else { array[1] };
         let flattened_index = self.make_array_index(flattened_index);
 
         let mut field_index = 0u128;
         Ok(Self::map_type(&index.element_type, |typ| {
-            let offset = self.make_offset(flattened_index, field_index);
-            field_index += typ.flattened_size() as u128;
-
-            let result = self.builder.insert_array_get(array, offset, typ);
-            result.into()
-        }))
-    }
-
-    /// This is broken off from codegen_index_acir so that it can also be
-    /// used to codegen a LValue::Index.
-    fn codegen_array_index_acir(
-        &mut self,
-        array: ValueId,
-        index: ValueId,
-        element_type: &ast::Type,
-        location: Location,
-        indices: &mut Vec<NestedArrayIndex>,
-    ) -> Result<Values, RuntimeError> {
-        let typ = self.builder.current_function.dfg.type_of_value(array);
-        // dbg!(typ.clone());
-        // let typ = Self::convert_type(element_type).flatten()[0].clone();
-
-        // We can pass a unit value here, as this method assumes that the appropriate value has already been
-        // extracted
-        let (flattened_index, new_array) =
-            self.build_nested_lvalue_index(array.into(), true, true, indices);
-
-        // dbg!(indices.clone());
-        // dbg!(new_array.clone());
-        // dbg!(element_type.clone());
-        let flattened_index = self.make_array_index(flattened_index);
-        // dbg!(flattened_index);
-        let mut field_index = 0u128;
-        Ok(Self::map_type(element_type, |typ| {
-            // dbg!(field_index);
             let offset = self.make_offset(flattened_index, field_index);
             field_index += typ.flattened_size() as u128;
 
@@ -1325,7 +1275,6 @@ impl FunctionContext<'_> {
         // dbg!(extracted_ident.clone());
 
         let mut first_index = None;
-        let mut extracting = false;
         while let Some(index) = indices.pop() {
             match index {
                 NestedArrayIndex::Constant(field_index) => {
@@ -1347,7 +1296,7 @@ impl FunctionContext<'_> {
 
         let array = extracted_ident.clone().flatten();
         if array.is_empty() {
-            dbg!("empty array");
+            panic!("empty array");
         }
         // if extracting {
         //     let array = array[0].clone().eval(self);
@@ -1389,19 +1338,12 @@ impl FunctionContext<'_> {
 
                 let elements = typ.get_contained_array().clone().element_types().to_vec();
                 let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
-                // dbg!(offset);
                 let offset = self.builder.numeric_constant(offset, NumericType::length_type());
                 let value = self.make_array_index(value);
                 let new_index =
                     self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
                 (new_index, elements)
-
-                // result_index = new_index;
-                // current_types = elements;
-                // dbg!(elements.clone());
-                // (new_index, elements)
             }
-            _ => todo!(),
         };
 
         while let Some(index) = indices.pop() {
@@ -1415,8 +1357,8 @@ impl FunctionContext<'_> {
                         indices.pop();
                     }
                     // TODO: this fixes `regression_struct_array_conditional` to not go out of bounds
-                    // but breaks other code
-                    if matches!(indices.last(), None) && skip_last_const_offset {
+                    // but breaks other code without `skip_last_const_offset`
+                    if indices.last().is_none() && skip_last_const_offset {
                         dbg!("got here");
                         break;
                     }
@@ -1463,9 +1405,7 @@ impl FunctionContext<'_> {
 
                     current_types = elements;
                 }
-                _ => {}
             }
-            // dbg!(current_types.clone());
         }
 
         (result_index, extracted_ident)

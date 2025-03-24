@@ -149,11 +149,9 @@ pub(super) fn simplify_call(
                             (Type::Array(_, _), true) => {
                                 // let mut flat_elements = im::Vector::new();
                                 let flat_typ = typ.clone().flatten();
-                                let mut my_index: u128 = 0;
-                                for typ in flat_typ {
+                                for (my_index, typ) in flat_typ.into_iter().enumerate() {
                                     let index =
                                         dfg.make_constant(my_index.into(), typ.unwrap_numeric());
-                                    my_index += 1;
                                     assert!(matches!(typ, Type::Numeric(_)));
                                     let get = Instruction::ArrayGet { array: *elem, index };
                                     // let res = self.builder.insert_array_get(element, index, typ);
