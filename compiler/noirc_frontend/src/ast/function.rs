@@ -3,7 +3,8 @@ use std::fmt::Display;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{FunctionReturnType, Ident, Param, Visibility},
+    ast::{FunctionReturnType, Ident, Param},
+    shared::Visibility,
     token::{Attributes, FunctionAttribute, SecondaryAttribute},
 };
 

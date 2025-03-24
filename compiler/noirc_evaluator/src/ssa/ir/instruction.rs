@@ -325,9 +325,7 @@ pub(crate) enum Instruction {
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    ///
-    /// The `original` contains the value of the array which was incremented by the pair of this decrement.
-    DecrementRc { value: ValueId, original: ValueId },
+    DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -523,6 +521,74 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => {
                 deduplicate_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
+            }
+        }
+    }
+
+    /// Indicates if the instruction can be safely hoisted out of a loop.
+    /// If `hoist_with_predicate` is set, we assume we're hoisting the instruction
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
+    /// rely on predicates can be hoisted as well.
+    ///
+    /// Certain instructions can be hoisted because they implicitly depend on a predicate.
+    /// However, to avoid tight coupling between passes, we make the hoisting
+    /// conditional on whether the caller wants the predicate to be taken into account or not.
+    ///
+    /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
+    /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
+    /// unexpected failures if the instruction was never meant to be executed.
+    pub(crate) fn can_be_hoisted(&self, function: &Function, hoist_with_predicate: bool) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => false,
+
+            Call { func, .. } => match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.can_be_deduplicated(false),
+                Value::Function(id) => match function.dfg.purity_of(id) {
+                    Some(Purity::Pure) => true,
+                    Some(Purity::PureWithPredicate) => false,
+                    Some(Purity::Impure) => false,
+                    None => false,
+                },
+                _ => false,
+            },
+
+            // We cannot hoist these instructions, even if we know the predicate is the same.
+            // This is because an loop with dynamic bounds may never execute its loop body.
+            // If the instruction were to trigger a failure, our program may fail inadvertently.
+            // If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
+            // but we do not want to assume that the caller of this method has accounted
+            // for this case. Thus, we block hoisting on these instructions.
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => false,
+
+            // Noop instructions can always be hoisted, although they're more likely to be
+            // removed entirely.
+            Noop => true,
+
+            // Cast instructions can always be hoisted
+            Cast(_, _) => true,
+
+            // Arrays can be mutated in unconstrained code so code that handles this case must
+            // take care to track whether the array was possibly mutated or not before
+            // hoisted. Since we don't know if the containing pass checks for this, we
+            // can only assume these are safe to hoist in constrained code.
+            MakeArray { .. } => function.runtime().is_acir(),
+
+            // These can have different behavior depending on the predicate.
+            Binary(_)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => {
+                hoist_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
             }
         }
     }
@@ -724,9 +790,7 @@ impl Instruction {
                 mutable: *mutable,
             },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
-            Instruction::DecrementRc { value, original } => {
-                Instruction::DecrementRc { value: f(*value), original: f(*original) }
-            }
+            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -797,9 +861,8 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value, original } => {
+            Instruction::DecrementRc { value } => {
                 *value = f(*value);
-                *original = f(*original);
             }
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
@@ -866,12 +929,10 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value }
+            | Instruction::DecrementRc { value }
+            | Instruction::RangeCheck { value, .. } => {
                 f(*value);
-            }
-            Instruction::DecrementRc { value, original } => {
-                f(*value);
-                f(*original);
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 f(*then_condition);

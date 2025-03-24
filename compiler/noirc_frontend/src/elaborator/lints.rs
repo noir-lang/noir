@@ -1,6 +1,6 @@
 use crate::{
     Type,
-    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    ast::{Ident, NoirFunction, UnaryOp},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -14,6 +14,7 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
+    shared::{Signedness, Visibility},
 };
 
 use noirc_errors::Location;
