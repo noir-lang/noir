@@ -12,7 +12,7 @@ fn compute_decomposition(mut x: Field) -> (Field, Field) {
     // Here's we're taking advantage of truncating 128 bit limbs from the input field
     // and then subtracting them from the input such the field division is equivalent to integer division.
     let low = (x as u128) as Field;
-    let high x = (x - low) / TWO_POW_128;
+    let high = (x - low) / TWO_POW_128;
     
     (low, high)
 }
