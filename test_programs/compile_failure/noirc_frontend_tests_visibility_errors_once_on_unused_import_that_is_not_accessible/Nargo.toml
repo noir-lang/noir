@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_errors_once_on_unused_import_that_is_not_accessible"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

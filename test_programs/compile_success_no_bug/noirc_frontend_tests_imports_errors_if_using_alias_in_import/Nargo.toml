@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_imports_errors_if_using_alias_in_import"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

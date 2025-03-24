@@ -1,8 +1,8 @@
 use crate::elaborator::FrontendOptions;
 
-use crate::{check_errors, get_program_with_options};
-
 use crate::assert_no_errors;
+use crate::tests::Expect;
+use crate::{check_errors, get_program_with_options};
 
 #[named]
 #[test]
@@ -600,7 +600,8 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
 
     let allow_parser_errors = true;
     let options = FrontendOptions::test_default();
-    let (_, _, errors) = get_program_with_options!(src, allow_parser_errors, options);
+    let (_, _, errors) =
+        get_program_with_options!(src, Expect::Error, allow_parser_errors, options);
     assert!(!errors.is_empty());
 }
 

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_warns_if_calling_private_struct_method"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

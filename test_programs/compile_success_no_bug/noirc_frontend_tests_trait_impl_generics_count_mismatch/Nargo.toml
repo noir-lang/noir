@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_trait_impl_generics_count_mismatch"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

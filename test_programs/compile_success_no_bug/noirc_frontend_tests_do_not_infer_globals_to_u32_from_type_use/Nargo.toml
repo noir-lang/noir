@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_do_not_infer_globals_to_u32_from_type_use"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

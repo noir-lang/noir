@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_numeric_generic_in_trait_impl_with_extra_impl_generics"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_does_not_error_if_referring_to_top_level_private_module_via_crate"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

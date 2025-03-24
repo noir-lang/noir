@@ -58,20 +58,28 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
 pub(crate) fn get_program<'a, 'b>(
     src: &'a str,
     test_path: &'b str,
+    expect: Expect,
 ) -> (ParsedModule, Context<'a, 'b>, Vec<CompilationError>) {
     let allow_parser_errors = false;
-    get_program_with_options(src, test_path, allow_parser_errors, FrontendOptions::test_default())
+    get_program_with_options(
+        src,
+        test_path,
+        expect,
+        allow_parser_errors,
+        FrontendOptions::test_default(),
+    )
 }
 
 pub(crate) fn get_program_using_features(
     src: &str,
     test_path: &str,
+    expect: Expect,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
     let allow_parser_errors = false;
     let mut options = FrontendOptions::test_default();
     options.enabled_unstable_features = features;
-    get_program_with_options(src, test_path, allow_parser_errors, options)
+    get_program_with_options(src, test_path, expect, allow_parser_errors, options)
 }
 
 /// Compile a program.
@@ -80,6 +88,7 @@ pub(crate) fn get_program_using_features(
 pub(crate) fn get_program_with_options(
     src: &str,
     test_path: &str,
+    expect: Expect,
     allow_parser_errors: bool,
     options: FrontendOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
@@ -130,20 +139,106 @@ pub(crate) fn get_program_with_options(
         ));
     }
 
-    let any_errors = errors.iter().any(CompilationError::is_error);
-    emit_compile_test(test_path, src, any_errors);
+    // TODO: needed?
+    // let any_errors = errors.iter().any(CompilationError::is_error);
+    emit_compile_test(test_path, src, expect);
     (program, context, errors)
 }
 
 pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationError> {
-    get_program(src, test_path).2
+    get_program(src, test_path, Expect::Error).2
+}
+
+pub enum Expect {
+    Success,
+    Error,
+    // TODO: needed?
+    // Any,
 }
 
 // if the "nextest" feature is enabled, this will panic instead of emitting a test crate
-fn emit_compile_test(test_path: &str, src: &str, any_errors: bool) {
-    // skip ~2.4k name_shadowing tests
-    if test_path.contains("name_shadowing_") {
+fn emit_compile_test(test_path: &str, src: &str, expect: Expect) {
+    let skipped_tests = vec![
+        // skip ~2.4k name_shadowing tests
+        "name_shadowing_",
+
+        // TODO(https://github.com/noir-lang/noir/issues/7763)
+        "test_noirc_frontend_tests_unconditional_recursion_fail_",
+        "test_noirc_frontend_tests_unconditional_recursion_pass_",
+
+        // TODO: needs issue
+        "test_noirc_frontend_tests_enums_errors_on_unspecified_unstable_enum",
+        "test_noirc_frontend_tests_enums_errors_on_unspecified_unstable_match",
+
+        // TODO: follow-up issue
+        // no main:
+        "test_noirc_frontend_tests_aliases_double_generic_alias_in_path",
+        "test_noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+        "test_noirc_frontend_tests_does_not_stack_overflow_on_many_comments_in_a_row",
+        "test_noirc_frontend_tests_imports_use_super",
+        "test_noirc_frontend_tests_imports_use_super_in_path",
+        "test_noirc_frontend_tests_numeric_generic_in_function_signature",
+        "test_noirc_frontend_tests_numeric_generic_used_in_nested_type_pass",
+        "test_noirc_frontend_tests_numeric_generic_used_in_trait",
+        "test_noirc_frontend_tests_numeric_generic_used_in_turbofish",
+        "test_noirc_frontend_tests_numeric_generic_used_in_where_clause",
+        "test_noirc_frontend_tests_test_impl_self_within_default_def",
+
+        // TODO: follow-up issue
+        // definitions overlap with stdlib:
+        "test_noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
+        "test_noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
+        "test_noirc_frontend_tests_check_trait_implemented_for_all_t",
+        "test_noirc_frontend_tests_numeric_generic_in_trait_impl_with_extra_impl_generics",
+        "test_noirc_frontend_tests_specify_function_types_with_turbofish",
+        "test_noirc_frontend_tests_specify_method_types_with_turbofish",
+        "test_noirc_frontend_tests_traits_regression_6530",
+    ];
+    if skipped_tests.any(|skipped_test_name| test_path.contains(skipped_test_name)) {
         return;
+    }
+
+    // in these cases, we expect a warning when 'check_errors' or similar is used
+    let error_to_warn_cases = vec![
+        "test_noirc_frontend_tests_cast_256_to_u8_size_checks"
+        "test_noirc_frontend_tests_imports_warns_on_use_of_private_exported_item",
+        "test_noirc_frontend_tests_metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
+        "test_noirc_frontend_tests_resolve_unused_var",
+        "test_noirc_frontend_tests_unused_items_errors_on_unused_private_import",
+        "test_noirc_frontend_tests_unused_items_errors_on_unused_pub_crate_import",
+        "test_noirc_frontend_tests_unused_items_errors_on_unused_struct",
+        "test_noirc_frontend_tests_unused_items_errors_on_unused_trait",
+        "test_noirc_frontend_tests_unused_items_errors_on_unused_type_alias",
+        "test_noirc_frontend_tests_unused_items_warns_on_unused_global",
+        "test_noirc_frontend_tests_visibility_warns_if_calling_private_struct_method",
+        "test_noirc_frontend_tests_warns_on_nested_unsafe",
+        "test_noirc_frontend_tests_warns_on_unneeded_unsafe",
+
+        // TODO: unused variable warning!?
+        "test_noirc_frontend_tests_struct_array_len",
+
+        // TODO: should these be hard errors? I don't see an issue to make them so
+        "test_noirc_frontend_tests_visibility_error_when_accessing_private_struct_field",
+        "test_noirc_frontend_tests_visibility_error_when_using_private_struct_field_in_constructor",
+        "test_noirc_frontend_tests_visibility_error_when_using_private_struct_field_in_struct_pattern",
+        "test_noirc_frontend_tests_visibility_errors_if_accessing_private_struct_member_inside_comptime_context",
+        "test_noirc_frontend_tests_visibility_errors_if_accessing_private_struct_member_inside_function_generated_at_comptime",
+        "test_noirc_frontend_tests_visibility_errors_if_trying_to_access_public_function_inside_private_module",
+        "test_noirc_frontend_tests_visibility_errors_once_on_unused_import_that_is_not_accessible",
+    ];
+    if let Expect::Error = expect {
+        if test_path.contains(error_to_warn_cases) {
+            expect = Expect::Success;
+        }
+    }
+
+    let error_to_bug_cases = vec![
+        "test_noirc_frontend_tests_cast_negative_one_to_u8_size_checks",
+    ];
+    if let Expect::Success = expect {
+        if test_path.contains(error_to_bug_cases) {
+            expect = Expect::Bug;
+        }
     }
 
     // TODO: better method to get output dir or else relocate there?
@@ -156,7 +251,11 @@ fn emit_compile_test(test_path: &str, src: &str, any_errors: bool) {
         .expect("expected 'compiler' to be in the noir root");
     let test_programs_path = noir_root_path.join("test_programs");
 
-    let tests_dir_name = if any_errors { "compile_success_no_bug" } else { "compile_failure" };
+    let tests_dir_name = match expect {
+        Expect::Bug => "compile_success_with_bug",
+        Expect::Success => "compile_success_no_bug",
+        Expect::Error => "compile_failure",
+    };
     let tests_dir = test_programs_path.join(tests_dir_name);
     let package_name = test_path.replace("::", "_");
     let crate_path = tests_dir.join(&package_name);
@@ -190,11 +289,12 @@ fn emit_compile_test(test_path: &str, src: &str, any_errors: bool) {
             );
         }
 
-        std::fs::create_dir(&crate_path).expect(&format!(
+        // create missing dir's
+        std::fs::create_dir_all(&crate_path).expect(&format!(
             "expected to be able to create the directory {}",
             crate_path.display()
         ));
-        std::fs::create_dir(&src_path)
+        std::fs::create_dir_all(&src_path)
             .expect(&format!("expected to be able to create the directory {}", src_path.display()));
 
         // TODO: from nargo_cli/src/cli/init_cmd
@@ -219,7 +319,7 @@ fn emit_compile_test(test_path: &str, src: &str, any_errors: bool) {
 }
 
 fn assert_no_errors(src: &str, test_path: &str) {
-    let (_, context, errors) = get_program(src, test_path);
+    let (_, context, errors) = get_program(src, test_path, Expect::Success);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);
@@ -334,7 +434,7 @@ fn check_errors_with_options(
 
     let src = code_lines.join("\n");
     let (_, mut context, errors) =
-        get_program_with_options(&src, test_path, allow_parser_errors, options);
+        get_program_with_options(&src, test_path, Expect::Error, allow_parser_errors, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {
@@ -461,15 +561,15 @@ macro_rules! function_path {
 
 #[macro_export]
 macro_rules! get_program {
-    ($src:expr) => {
-        crate::tests::get_program($src, crate::function_path!())
+    ($src:expr, $expect:expr) => {
+        crate::tests::get_program($src, crate::function_path!(), $expr)
     };
 }
 
 #[macro_export]
 macro_rules! get_program_using_features {
-    ($src:expr, $features:expr) => {
-        crate::tests::get_program_using_features($src, crate::function_path!(), $features)
+    ($src:expr, $expect:expr, $features:expr) => {
+        crate::tests::get_program_using_features($src, crate::function_path!(), $expect, $features)
     };
 }
 
@@ -489,10 +589,11 @@ macro_rules! get_program_errors {
 
 #[macro_export]
 macro_rules! get_program_with_options {
-    ($src:expr, $allow_parser_errors:expr, $options:expr) => {
+    ($src:expr, $expect:expr, $allow_parser_errors:expr, $options:expr) => {
         crate::tests::get_program_with_options(
             $src,
             crate::function_path!(),
+            $expect,
             $allow_parser_errors,
             $options,
         )
@@ -1076,7 +1177,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
 }
 
 fn get_program_captures(src: &str, test_path: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src, test_path);
+    let (program, context, _errors) = get_program(src, test_path, Expect::Success);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -4284,8 +4385,7 @@ fn int_min_global() {
         }
     "#;
 
-    let errors = get_program_errors!(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(src);
 }
 
 #[named]
@@ -4302,8 +4402,7 @@ fn subtract_to_int_min() {
         }
     "#;
 
-    let errors = get_program_errors!(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(src);
 }
 
 #[named]
@@ -4498,7 +4597,8 @@ fn immutable_references_with_ownership_feature() {
         fn borrow(_array: &[Field; 3]) {}
     "#;
 
-    let (_, _, errors) = get_program_using_features!(src, &[UnstableFeature::Ownership]);
+    let (_, _, errors) =
+        get_program_using_features!(src, Expect::Success, &[UnstableFeature::Ownership]);
     assert_eq!(errors.len(), 0);
 }
 

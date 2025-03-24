@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_errors_on_invalid_integer_bit_size"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

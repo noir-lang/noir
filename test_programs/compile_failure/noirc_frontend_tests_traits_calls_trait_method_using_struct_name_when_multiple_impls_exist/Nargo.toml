@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_calls_trait_method_using_struct_name_when_multiple_impls_exist"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

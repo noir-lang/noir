@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_ban_mutable_globals"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

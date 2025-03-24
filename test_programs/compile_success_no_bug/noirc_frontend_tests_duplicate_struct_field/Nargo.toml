@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_duplicate_struct_field"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

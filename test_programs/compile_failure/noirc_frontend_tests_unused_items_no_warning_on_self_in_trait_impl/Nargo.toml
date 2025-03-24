@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_no_warning_on_self_in_trait_impl"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

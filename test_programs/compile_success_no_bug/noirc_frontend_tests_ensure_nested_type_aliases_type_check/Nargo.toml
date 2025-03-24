@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_ensure_nested_type_aliases_type_check"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

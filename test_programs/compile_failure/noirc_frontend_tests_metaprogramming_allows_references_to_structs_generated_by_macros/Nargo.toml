@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_metaprogramming_allows_references_to_structs_generated_by_macros"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

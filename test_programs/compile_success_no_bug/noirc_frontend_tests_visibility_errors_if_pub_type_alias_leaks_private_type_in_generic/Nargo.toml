@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_errors_if_pub_type_alias_leaks_private_type_in_generic"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

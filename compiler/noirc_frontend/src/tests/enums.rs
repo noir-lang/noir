@@ -1,6 +1,6 @@
 use crate::{
     assert_no_errors, get_program_using_features, hir::def_collector::dc_crate::CompilationError,
-    parser::ParserErrorReason,
+    parser::ParserErrorReason, tests::Expect,
 };
 
 use crate::{check_errors, check_errors_using_features};
@@ -54,7 +54,7 @@ fn errors_on_unspecified_unstable_match() {
     "#;
 
     let no_features = &[];
-    let errors = get_program_using_features!(src, no_features).2;
+    let errors = get_program_using_features!(src, Expect::Error, no_features).2;
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ParseError(error) = &errors[0] else {

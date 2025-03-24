@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_numeric_generic_used_in_nested_type_pass"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

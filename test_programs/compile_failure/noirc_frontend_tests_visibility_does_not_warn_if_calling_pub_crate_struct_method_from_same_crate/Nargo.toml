@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_does_not_warn_if_calling_pub_crate_struct_method_from_same_crate"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

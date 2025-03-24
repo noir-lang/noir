@@ -7,6 +7,7 @@ use crate::get_monomorphized;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
+use crate::tests::Expect;
 
 #[named]
 #[test]
@@ -77,7 +78,7 @@ fn arithmetic_generics_checked_cast_zeros() {
         }
     "#;
 
-    let monomorphization_error = get_monomorphized!(source).unwrap_err();
+    let monomorphization_error = get_monomorphized!(source, Expect::Error).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
@@ -120,7 +121,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
     "#;
 
-    let monomorphization_error = get_monomorphized!(source).unwrap_err();
+    let monomorphization_error = get_monomorphized!(source, Expect::Error).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =

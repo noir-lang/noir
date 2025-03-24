@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cannot_call_unconstrained_function_outside_of_unsafe"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

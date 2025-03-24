@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cannot_pass_unconstrained_function_to_constrained_function"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

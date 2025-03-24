@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_turbofish_turbofish_numeric_generic_nested_call"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

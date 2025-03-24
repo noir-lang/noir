@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unresolved_path"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

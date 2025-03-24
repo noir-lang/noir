@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_normal_generic_used_when_numeric_expected_in_where_clause_2"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unconditional_recursion_pass_2"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

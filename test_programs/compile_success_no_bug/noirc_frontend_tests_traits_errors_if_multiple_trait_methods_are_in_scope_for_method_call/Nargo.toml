@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_errors_if_multiple_trait_methods_are_in_scope_for_method_call"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_numeric_generic_u16_array_size"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
