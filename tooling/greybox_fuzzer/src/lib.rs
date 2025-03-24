@@ -273,7 +273,6 @@ pub struct FuzzedExecutorFolderConfiguration {
 ///
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
 /// inputs, until it finds a counterexample.
-
 pub struct FuzzedExecutor<E, F> {
     /// The program to be fuzzed (acir version)
     acir_program: ProgramArtifact,

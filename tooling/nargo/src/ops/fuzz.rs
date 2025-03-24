@@ -163,7 +163,7 @@ where
              -> Result<WitnessStack<FieldElement>, String> {
                 let mut foreign_call_executor = build_foreign_call_executor(
                     show_output,
-                    foreign_call_resolver_url.clone(),
+                    foreign_call_resolver_url,
                     root_path.clone(),
                     package_name.clone(),
                 );
@@ -244,7 +244,7 @@ where
                         .unwrap();
                     let mut foreign_call_executor = build_foreign_call_executor(
                         show_output,
-                        foreign_call_resolver_url.clone(),
+                        foreign_call_resolver_url,
                         root_path.clone(),
                         package_name.clone(),
                     );

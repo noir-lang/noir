@@ -1,8 +1,6 @@
+//! This file contains configurations for selecting particular behaviors during mutations
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
-
-/// This file contains configurations for selecting particular behaviors during mutations
-///
 
 /// Mutations of individual bytes in strings
 pub(crate) enum ByteValueMutation {
@@ -213,7 +211,7 @@ impl TopLevelMutationConfiguration {
     }
 }
 
-/// Field-specific configurations
+// Field-specific configurations
 
 ///Field element substitution mutation types
 pub(crate) enum FieldElementSubstitutionMutation {
@@ -731,7 +729,7 @@ impl IntTopLevelMutationConfiguration {
     }
 }
 
-/// Default configurations for all mutations that are currently used
+// Default configurations for all mutations that are currently used
 
 pub(crate) const BASIC_SPLICE_MUTATION_CONFIGURATION: SpliceMutationConfiguration =
     SpliceMutationConfiguration {
@@ -782,7 +780,7 @@ pub(crate) const BASIC_TOP_LEVEL_MUTATION_CONFIGURATION: TopLevelMutationConfigu
         total_weight: 7 + 3,
     };
 
-/// Field-specific mutation configurations
+// Field-specific mutation configurations
 
 pub(crate) const BASIC_FIELD_SUBSTITUTION_CONFIGURATION: SubstitutionConfiguration =
     SubstitutionConfiguration {

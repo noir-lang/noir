@@ -1,17 +1,17 @@
 use crate::mutation::configurations::{
-    TopLevelMutation, BASIC_SPLICE_MUTATION_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION,
+    BASIC_SPLICE_MUTATION_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION, TopLevelMutation,
 };
 
 use super::configurations::{
-    ByteValueMutation, ByteValueMutationConfiguration, SpliceCandidate, SpliceMutation,
-    StructuralMutation, BASIC_BYTE_VALUE_MUTATION_CONFIGURATION,
-    BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION, BASIC_STRUCTURE_MUTATION_CONFIGURATION,
-    DICTIONARY_EMPTY_BYTE_VALUE_MUTATION_CONFIGURATION,
+    BASIC_BYTE_VALUE_MUTATION_CONFIGURATION, BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION,
+    BASIC_STRUCTURE_MUTATION_CONFIGURATION, ByteValueMutation, ByteValueMutationConfiguration,
+    DICTIONARY_EMPTY_BYTE_VALUE_MUTATION_CONFIGURATION, SpliceCandidate, SpliceMutation,
+    StructuralMutation,
 };
 use super::dictionary::IntDictionary;
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use rand::{seq::SliceRandom, Rng};
+use rand::{Rng, seq::SliceRandom};
 use rand_xorshift::XorShiftRng;
 use std::cmp::min;
 
@@ -53,8 +53,8 @@ impl<'a> StringMutator<'a> {
     }
 
     /// Perform one of value-changing mutations (substitution by a dictionary or random value)
-    fn perform_value_mutation(&mut self, input: &Vec<u8>) -> Vec<u8> {
-        let mut result = input.clone();
+    fn perform_value_mutation(&mut self, input: &[u8]) -> Vec<u8> {
+        let mut result = input.to_vec();
         let position = self.prng.gen_range(0..input.len());
         result[position] = match self.value_mutation_configuration.select(self.prng) {
             ByteValueMutation::DictionaryByte => {
@@ -97,7 +97,7 @@ impl<'a> StringMutator<'a> {
         }
     }
     /// Swap 2 random chunks in the buffer
-    fn swap(&mut self, buffer: &Vec<u8>) -> Vec<u8> {
+    fn swap(&mut self, buffer: &[u8]) -> Vec<u8> {
         let mut result = Vec::new();
         let buffer_length = buffer.len();
 
@@ -131,8 +131,8 @@ impl<'a> StringMutator<'a> {
     }
 
     /// Take a random chunk of the input and insert it several times into the input
-    fn duplicate_chunk(&mut self, input_buffer: &Vec<u8>) -> Vec<u8> {
-        let mut result = input_buffer.clone();
+    fn duplicate_chunk(&mut self, input_buffer: &[u8]) -> Vec<u8> {
+        let mut result = input_buffer.to_vec();
         let buffer_length = input_buffer.len();
         // The maximum length of the chunk is half the total length
         let maximum_chunk_length = buffer_length / 2;
@@ -160,8 +160,8 @@ impl<'a> StringMutator<'a> {
     }
 
     /// Take a random value and insert it several times
-    fn duplicate_random_value(&mut self, input_buffer: &Vec<u8>) -> Vec<u8> {
-        let mut result = input_buffer.clone();
+    fn duplicate_random_value(&mut self, input_buffer: &[u8]) -> Vec<u8> {
+        let mut result = input_buffer.to_vec();
         let buffer_length = input_buffer.len();
 
         // Find an insertion position with enough space
