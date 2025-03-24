@@ -217,7 +217,7 @@ impl CrateDefMap {
     }
 
     /// Go through all modules in this crate, and find all functions in
-    /// each module with the #[fuzz] attribute
+    /// each module with the `#[fuzz]` attribute
     pub fn get_all_fuzzing_harnesses<'a>(
         &'a self,
         interner: &'a NodeInterner,
@@ -241,7 +241,7 @@ impl CrateDefMap {
     }
 
     /// Go through all modules in this crate, and find all functions in
-    /// each module with the #[export] attribute
+    /// each module with the `#[export]` attribute
     pub fn get_all_exported_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,

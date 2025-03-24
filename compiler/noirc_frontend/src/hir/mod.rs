@@ -196,9 +196,9 @@ impl Context<'_, '_> {
             .collect()
     }
 
-    /// Returns a list of all functions in the current crate marked with #[fuzz]
+    /// Returns a list of all functions in the current crate marked with `#[fuzz]`
     /// whose names contain the given pattern string. An empty pattern string
-    /// will return all functions marked with #[fuzz].
+    /// will return all functions marked with `#[fuzz]`.
     pub fn get_all_fuzzing_harnesses_in_crate_matching(
         &self,
         crate_id: &CrateId,

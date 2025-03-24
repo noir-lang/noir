@@ -705,7 +705,6 @@ pub fn analyze_brillig_program_before_fuzzing(
                             .insert((opcode_index, FUZZING_COMPARISON_LOG_RANGE_START_STATE + i), total_features + i);
                     }
                     total_features += FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES;
-                    
                 }
             },
             // Binary operations (we need comparisons)
