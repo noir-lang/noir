@@ -1160,29 +1160,60 @@ mod test {
     }
 
     #[test]
-    fn regression_7785() {
-        // SSA generated from `compile_success_empty/regression_7785`
+    fn correctly_handles_chains_of_array_gets() {
+        //! This test checks that if there's a chain of `array_get` instructions which use the result of the previous
+        //! read as the index of the next `array_get`, we only replace the final `array_get` and do not propagate
+        //! up the chain. Otherwise we remove instructions for which the instructions are still used.
+
+        // SSA generated from `compile_success_empty/regression_7785` (slightly modified)
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v1 = call f1() -> [u32; 2]
+            v1 = call f1() -> u32
             v3 = make_array [u32 0, u32 0] : [u32; 2]
-            v4 = allocate -> &mut u32
-            v5 = array_get v1, index u32 0 -> u32
+            v5 = array_get v3, index v1 -> u32
             v6 = array_get v3, index v5 -> u32
-            v8 = array_get v1, index u32 1 -> u32
-            v9 = add v6, v8
-            v10 = array_get v3, index v9 -> u32
             return
         }
-        brillig(inline) predicate_pure fn inject_array f1 {
+        brillig(inline) predicate_pure fn inject_value f1 {
           b0():
-            v1 = make_array [u32 0, u32 0] : [u32; 2]
-            return v1
+            return u32 0
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        ssa.dead_instruction_elimination().normalize_ids();
+        let ssa = ssa.dead_instruction_elimination();
+
+        // Previously this would produce the SSA:
+        //
+        // acir(inline) predicate_pure fn main f0 {
+        //   b0():
+        //     v1 = call f1() -> u32
+        //     v7 = lt v1, u32 2
+        //     constrain v7 == u1 1, "Index out of bounds"
+        //     v9 = lt v4, u32 2  <-- Notice that `v4` has now been orphaned
+        //     constrain v9 == u1 1, "Index out of bounds"
+        //     return
+        //   }
+        // brillig(inline) predicate_pure fn inject_value f1 {
+        //   b0():
+        //     return u32 0
+        // }
+        let expected = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = call f1() -> u32
+            v2 = array_get v1, index v1 -> u32
+            v3 = lt v2, u32 2
+            constrain v3 == u1 1, \"Index out of bounds\"
+            return
+        }
+        brillig(inline) predicate_pure fn inject_value f1 {
+          b0():
+            return u32 0
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
