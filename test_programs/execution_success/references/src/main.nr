@@ -24,7 +24,7 @@ fn main(mut x: Field) {
     *c.bar.array = [3, 4];
     assert(*c.bar.array == [3, 4]);
     regression_1887();
-    // regression_2054();
+    regression_2054();
     regression_2030();
     regression_2255();
     regression_6443();
