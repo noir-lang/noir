@@ -7,15 +7,14 @@
 //! 2. Conditional move coverage from brillig
 //! 3. Novel boolean witness coverage. If ACIR execution was successful, we scan the witness for potential boolean values and detect interesting testcases, if we discover a boolean witness with a state that hasn't been previously encountered.
 
-
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
+use acvm::AcirField;
+use acvm::FieldElement;
 use acvm::acir::circuit::Opcode;
 use acvm::acir::native_types::{Witness, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
-use acvm::AcirField;
-use acvm::FieldElement;
 use noirc_artifacts::program::ProgramArtifact;
 use num_traits::Zero;
 
@@ -38,17 +37,14 @@ pub type OpcodePosition = usize;
 /// The position of the next opcode that will be executed in the bytecode or an id of a specific state produced by the opcode
 pub type NextOpcodePositionOrState = usize;
 
-
 /// A tuple of the current opcode position and the next opcode position or state
 pub type Feature = (OpcodePosition, NextOpcodePositionOrState);
 
 /// The index of a unique feature in the fuzzing trace
 pub type UniqueFeatureIndex = usize;
 
-
 /// A map from a particular branch or comparison to its unique index in the raw vector used inside brillig vm
 pub type FeatureToIndexMap = HashMap<Feature, UniqueFeatureIndex>;
-
 
 /// Mechanism for automated detection of boolean witnesses in the ACIR witness map
 #[derive(Default)]
@@ -471,7 +467,7 @@ impl AccumulatedFuzzerCoverage {
         // Each log of difference has a separate spot in the raw coverage
         for i in 0..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
             if !new_coverage.brillig_coverage[i + cmp_approach.raw_index].is_zero() {
-                least_different_bits =  i as u32;
+                least_different_bits = i as u32;
                 last_value = new_coverage.brillig_coverage[i + cmp_approach.raw_index];
             }
         }
@@ -495,7 +491,7 @@ impl AccumulatedFuzzerCoverage {
             add_to_leavers(cmp_approach.testcases_involved[i]);
         }
 
-                // Register new metrics that have been reached
+        // Register new metrics that have been reached
         cmp_approach.closest_bits = least_different_bits;
         cmp_approach.encountered_loop_maximum = last_value;
         let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
@@ -597,7 +593,7 @@ impl AccumulatedFuzzerCoverage {
                 }
             }
         }
-        
+
         // Go through comparison coverage and detect:
         // 1. If a particular comparison has achieved a difference between arguments whose log2 is smaller than previously observed
         // 2. If the smallest log2 previously observed has been detected more times in the same execution
@@ -607,9 +603,8 @@ impl AccumulatedFuzzerCoverage {
                 // No need to detect closeness any more if we've hit the equality case
                 continue;
             }
-let (least_different_bits, last_value) =
+            let (least_different_bits, last_value) =
                 Self::find_closest_comparison(new_coverage, cmp_approach);
-
 
             match least_different_bits.cmp(&cmp_approach.closest_bits) {
                 std::cmp::Ordering::Less => return true,

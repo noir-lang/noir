@@ -1,4 +1,4 @@
-use acvm::{acir::native_types::WitnessStack, FieldElement};
+use acvm::{FieldElement, acir::native_types::WitnessStack};
 use noirc_abi::InputMap;
 
 use crate::corpus::TestCaseId;
