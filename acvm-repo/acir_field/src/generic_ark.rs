@@ -161,6 +161,10 @@ macro_rules! field_wrapper {
                 self.0.try_into_u128()
             }
 
+            fn try_into_i128(self) -> Option<i128> {
+                self.0.try_into_i128()
+            }
+
             fn to_i128(self) -> i128 {
                 self.0.to_i128()
             }

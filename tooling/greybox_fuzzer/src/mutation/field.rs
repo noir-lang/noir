@@ -196,6 +196,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(static_mut_refs)]
     fn test_apply_substitution() {
         let mut prng = XorShiftRng::seed_from_u64(0);
         let dictionary = create_dictionary();
@@ -228,6 +229,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(static_mut_refs)]
     fn test_apply_pow_2_update() {
         let mut prng = XorShiftRng::seed_from_u64(0);
         let dictionary = create_dictionary();
