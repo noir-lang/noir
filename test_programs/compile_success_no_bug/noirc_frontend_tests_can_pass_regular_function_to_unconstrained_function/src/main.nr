@@ -1,10 +1,8 @@
+fn main() {
+    let func = foo;
+    expect_unconstrained(func);
+}
 
-    fn main() {
-        let func = foo;
-        expect_unconstrained(func);
-    }
+fn foo() {}
 
-    fn foo() {}
-
-    fn expect_unconstrained(_func: unconstrained fn() -> ()) {}
-    
+fn expect_unconstrained(_func: unconstrained fn() -> ()) {}

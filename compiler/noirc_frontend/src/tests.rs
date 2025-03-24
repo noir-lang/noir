@@ -139,8 +139,6 @@ pub(crate) fn get_program_with_options(
         ));
     }
 
-    // TODO: needed?
-    // let any_errors = errors.iter().any(CompilationError::is_error);
     emit_compile_test(test_path, src, expect);
     (program, context, errors)
 }
@@ -158,7 +156,6 @@ pub enum Expect {
 // if the "nextest" feature is enabled, this will panic instead of emitting a test crate
 fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
     let package_name = test_path.replace("::", "_");
-
     let skipped_tests = vec![
         // skip ~2.4k name_shadowing tests
         "name_shadowing_",
@@ -171,33 +168,10 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         // TODO(https://github.com/noir-lang/noir/issues/7766): trait generic that passes
         // frontend test fails to resolve with nargo
         "turbofish_numeric_generic_nested_",
-        // TODO: follow-up issue
-        // definitions overlap with stdlib:
-        "check_trait_as_type_as_fn_parameter",
-        "check_trait_as_type_as_two_fn_parameters",
-        "check_trait_implemented_for_all_t",
-        "numeric_generic_in_trait_impl_with_extra_impl_generics",
-        "specify_function_types_with_turbofish",
-        "specify_method_types_with_turbofish",
-        "regression_6530",
     ];
     if skipped_tests.iter().any(|skipped_test_name| package_name.contains(skipped_test_name)) {
         return;
     }
-
-        // TODO: cleanup once working
-        // // no main:
-        // "test_impl_self_within_default_def",
-        // "numeric_generic_used_in_turbofish",
-        // "numeric_generic_used_in_where_clause",
-        // "numeric_generic_in_function_signature",
-        // "numeric_generic_used_in_nested_type_pass",
-        // "numeric_generic_used_in_trait",
-        // "does_not_stack_overflow_on_many_comments_in_a_row",
-        // "arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
-        // "aliases_double_generic_alias_in_path",
-        // "imports_use_super",
-        // "imports_use_super_in_path",
 
     // in these cases, we expect a warning when 'check_errors' or similar is used
     let error_to_warn_cases = vec![
@@ -245,7 +219,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         }
     }
 
-    // TODO: better method to get output dir or else relocate there?
     // "compiler/noirc_frontend"
     let noirc_frontend_path = Path::new(std::env!("CARGO_MANIFEST_DIR"));
     let noir_root_path = noirc_frontend_path
@@ -300,7 +273,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         std::fs::create_dir_all(&src_path)
             .expect(&format!("expected to be able to create the directory {}", src_path.display()));
 
-        // TODO: from nargo_cli/src/cli/init_cmd
         let package_type = "bin"; // nargo::package::PackageType::Binary;
         let toml_contents = format!(
             r#"
@@ -642,21 +614,21 @@ macro_rules! check_monomorphization_error_using_features {
 #[test]
 fn check_trait_implemented_for_all_t() {
     let src = "
-    trait Default {
-        fn default() -> Self;
+    trait Default2 {
+        fn default2() -> Self;
     }
 
-    trait Eq {
-        fn eq(self, other: Self) -> bool;
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
     }
 
     trait IsDefault {
         fn is_default(self) -> bool;
     }
 
-    impl<T> IsDefault for T where T: Default + Eq {
+    impl<T> IsDefault for T where T: Default2 + Eq2 {
         fn is_default(self) -> bool {
-            self.eq(T::default())
+            self.eq2(T::default2())
         }
     }
 
@@ -664,19 +636,19 @@ fn check_trait_implemented_for_all_t() {
         a: u64,
     }
 
-    impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a }
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
     }
 
-    impl Default for u64 {
-        fn default() -> Self {
+    impl Default2 for u64 {
+        fn default2() -> Self {
             0
         }
     }
 
-    impl Default for Foo {
-        fn default() -> Self {
-            Foo { a: Default::default() }
+    impl Default2 for Foo {
+        fn default2() -> Self {
+            Foo { a: Default2::default2() }
         }
     }
 
@@ -1125,20 +1097,20 @@ fn test_impl_self_within_default_def() {
 #[test]
 fn check_trait_as_type_as_fn_parameter() {
     let src = "
-    trait Eq {
-        fn eq(self, other: Self) -> bool;
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
     }
 
     struct Foo {
         a: u64,
     }
 
-    impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a }
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
     }
 
-    fn test_eq(x: impl Eq) -> bool {
-        x.eq(x)
+    fn test_eq(x: impl Eq2) -> bool {
+        x.eq2(x)
     }
 
     fn main(a: Foo) -> pub bool {
@@ -1151,8 +1123,8 @@ fn check_trait_as_type_as_fn_parameter() {
 #[test]
 fn check_trait_as_type_as_two_fn_parameters() {
     let src = "
-    trait Eq {
-        fn eq(self, other: Self) -> bool;
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
     }
 
     trait Test {
@@ -1163,16 +1135,16 @@ fn check_trait_as_type_as_two_fn_parameters() {
         a: u64,
     }
 
-    impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a }
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
     }
 
     impl Test for u64 {
         fn test(self) -> bool { self == self }
     }
 
-    fn test_eq(x: impl Eq, y: impl Test) -> bool {
-        x.eq(x) == y.test()
+    fn test_eq(x: impl Eq2, y: impl Test) -> bool {
+        x.eq2(x) == y.test()
     }
 
     fn main(a: Foo, b: u64) -> pub bool {
@@ -1678,24 +1650,24 @@ fn deny_fold_attribute_on_unconstrained() {
 #[test]
 fn specify_function_types_with_turbofish() {
     let src = r#"
-        trait Default {
-            fn default() -> Self;
+        trait Default2 {
+            fn default2() -> Self;
         }
 
-        impl Default for Field {
-            fn default() -> Self { 0 }
+        impl Default2 for Field {
+            fn default2() -> Self { 0 }
         }
 
-        impl Default for u64 {
-            fn default() -> Self { 0 }
+        impl Default2 for u64 {
+            fn default2() -> Self { 0 }
         }
 
         // Need the above as we don't have access to the stdlib here.
         // We also need to construct a concrete value of `U` without giving away its type
         // as otherwise the unspecified type is ignored.
 
-        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
-            (T::default(), U::default())
+        fn generic_func<T, U>() -> (T, U) where T: Default2, U: Default2 {
+            (T::default2(), U::default2())
         }
 
         fn main() {
@@ -1709,12 +1681,12 @@ fn specify_function_types_with_turbofish() {
 #[test]
 fn specify_method_types_with_turbofish() {
     let src = r#"
-        trait Default {
-            fn default() -> Self;
+        trait Default2 {
+            fn default2() -> Self;
         }
 
-        impl Default for Field {
-            fn default() -> Self { 0 }
+        impl Default2 for Field {
+            fn default2() -> Self { 0 }
         }
 
         // Need the above as we don't have access to the stdlib here.
@@ -1726,8 +1698,8 @@ fn specify_method_types_with_turbofish() {
         }
 
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) -> U where U: Default {
-                U::default()
+            fn generic_method<U>(_self: Self) -> U where U: Default2 {
+                U::default2()
             }
         }
 
@@ -2097,8 +2069,8 @@ fn numeric_generic_used_in_trait() {
 #[test]
 fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     let src = r#"
-    trait Default {
-        fn default() -> Self;
+    trait Default2 {
+        fn default2() -> Self;
     }
 
     struct MyType<T> {
@@ -2112,9 +2084,9 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     // `N` is used first in the trait impl generics (`Deserialize<N> for MyType<T>`).
     // We want to make sure that the compiler correctly accounts for that `N` has a numeric kind
     // while `T` has a normal kind.
-    impl<T, let N: u32> Deserialize<N> for MyType<T> where T: Default {
+    impl<T, let N: u32> Deserialize<N> for MyType<T> where T: Default2 {
         fn deserialize(fields: [Field; N]) -> Self {
-            MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default() }
+            MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default2() }
         }
     }
 

@@ -1,7 +1,5 @@
-
-    fn main() {
-        match 3 {
-            _ => (),
-        }
+fn main() {
+    match 3 {
+        _ => (),
     }
-    
+}

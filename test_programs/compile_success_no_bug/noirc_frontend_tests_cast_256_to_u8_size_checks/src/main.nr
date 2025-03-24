@@ -1,5 +1,3 @@
-
-        fn main() {
-            assert(256 as u8 == 0);
-        }
-    
+fn main() {
+    assert(256 as u8 == 0);
+}

@@ -1,7 +1,5 @@
+fn main() {
+    let _func: unconstrained fn() -> () = foo;
+}
 
-    fn main() {
-        let _func: unconstrained fn() -> () = foo;
-    }
-
-    fn foo() {}
-    
+fn foo() {}

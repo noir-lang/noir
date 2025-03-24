@@ -1,11 +1,9 @@
+fn main() {
+    let _ = Foo { func: foo };
+}
 
-    fn main() {
-        let _ = Foo { func: foo };
-    }
+fn foo() {}
 
-    fn foo() {}
-
-    struct Foo {
-        func: unconstrained fn() -> (),
-    }
-    
+struct Foo {
+    func: unconstrained fn() -> (),
+}

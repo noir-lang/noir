@@ -4,7 +4,7 @@ set -e
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "overlapping_dep_and_mod" "overlapping_dep_and_mod_fix" "workspace_default_member" "workspace_reexport_bug")
 
-# These tests cause failures in CI with a stack overflow for some reason.
+# TODO(https://github.com/noir-lang/noir/issues/7790): These tests cause failures in CI with a stack overflow for some reason.
 ci_excluded_dirs=("eddsa")
 
 current_dir=$(pwd)
@@ -17,6 +17,11 @@ function collect_dirs {
   test_dirs=$(ls $current_dir/$1)
 
   for dir in $test_dirs; do
+    # skip generated tests
+    if [[ "${dir}" =~ ^noirc_frontend_* ]]; then
+      continue
+    fi
+
     if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
       continue
     fi

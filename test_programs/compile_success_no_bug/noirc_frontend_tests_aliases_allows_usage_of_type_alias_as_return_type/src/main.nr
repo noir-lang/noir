@@ -1,11 +1,9 @@
+type Foo = Field;
 
-    type Foo = Field;
+fn returns_a_foo() -> Foo {
+    42
+}
 
-    fn returns_a_foo() -> Foo {
-        42
-    }
-
-    fn main() {
-        let _ = returns_a_foo();
-    }
-    
+fn main() {
+    let _ = returns_a_foo();
+}

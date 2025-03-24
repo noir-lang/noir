@@ -1,9 +1,7 @@
+fn main() {
+    match 2 {
+        foo => assert_eq(foo, 2),
+    }
+}
 
-        fn main() {
-            match 2 {
-                foo => assert_eq(foo, 2),
-            }
-        }
-
-        fn foo() {}
-    
+fn foo() {}
