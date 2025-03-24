@@ -289,6 +289,10 @@ fn embedded_curve_add(
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
+    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+        .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
+        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
     let embedded_curve_point_typ = match &return_type {
         Type::Array(_, item_type) => item_type.as_ref().clone(),
         _ => {
@@ -302,10 +306,6 @@ fn embedded_curve_add(
             });
         }
     };
-
-    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::Array(
         vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
@@ -339,6 +339,10 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
+    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
+        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+
     let embedded_curve_point_typ = match &return_type {
         Type::Array(_, item_type) => item_type.as_ref().clone(),
         _ => {
@@ -352,10 +356,6 @@ fn multi_scalar_mul(
             });
         }
     };
-
-    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::Array(
         vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
