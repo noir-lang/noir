@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_enums_errors_on_unspecified_unstable_match"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

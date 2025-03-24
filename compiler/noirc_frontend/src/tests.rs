@@ -171,22 +171,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         // TODO(https://github.com/noir-lang/noir/issues/7766): trait generic that passes
         // frontend test fails to resolve with nargo
         "turbofish_numeric_generic_nested_",
-        // TODO: needs issue
-        "enums_errors_on_unspecified_unstable_enum",
-        "enums_errors_on_unspecified_unstable_match",
-        // TODO: follow-up issue
-        // no main:
-        "aliases_double_generic_alias_in_path",
-        "arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
-        "does_not_stack_overflow_on_many_comments_in_a_row",
-        "imports_use_super",
-        "imports_use_super_in_path",
-        "numeric_generic_in_function_signature",
-        "numeric_generic_used_in_nested_type_pass",
-        "numeric_generic_used_in_trait",
-        "numeric_generic_used_in_turbofish",
-        "numeric_generic_used_in_where_clause",
-        "test_impl_self_within_default_def",
         // TODO: follow-up issue
         // definitions overlap with stdlib:
         "check_trait_as_type_as_fn_parameter",
@@ -201,13 +185,29 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         return;
     }
 
+        // TODO: cleanup once working
+        // // no main:
+        // "test_impl_self_within_default_def",
+        // "numeric_generic_used_in_turbofish",
+        // "numeric_generic_used_in_where_clause",
+        // "numeric_generic_in_function_signature",
+        // "numeric_generic_used_in_nested_type_pass",
+        // "numeric_generic_used_in_trait",
+        // "does_not_stack_overflow_on_many_comments_in_a_row",
+        // "arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+        // "aliases_double_generic_alias_in_path",
+        // "imports_use_super",
+        // "imports_use_super_in_path",
+
     // in these cases, we expect a warning when 'check_errors' or similar is used
     let error_to_warn_cases = vec![
         "cast_256_to_u8_size_checks",
+        "enums_errors_on_unspecified_unstable_enum",
         "immutable_references_without_ownership_feature",
         "imports_warns_on_use_of_private_exported_item",
         "metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
         "resolve_unused_var",
+        "struct_array_len",
         "unused_items_errors_on_unused_private_import",
         "unused_items_errors_on_unused_pub_crate_import",
         "unused_items_errors_on_unused_struct",
@@ -217,8 +217,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         "visibility_warns_if_calling_private_struct_method",
         "warns_on_nested_unsafe",
         "warns_on_unneeded_unsafe",
-        // TODO: unused variable warning!?
-        "struct_array_len",
         // TODO(https://github.com/noir-lang/noir/issues/6932): these will be hard errors
         "visibility_error_when_accessing_private_struct_field",
         "visibility_error_when_using_private_struct_field_in_constructor",
@@ -1117,6 +1115,8 @@ fn test_impl_self_within_default_def() {
             self
         }
     }
+
+    fn main() { }
     ";
     assert_no_errors!(src);
 }
@@ -1908,6 +1908,8 @@ fn wrong_type_in_for_range() {
 fn numeric_generic_in_function_signature() {
     let src = r#"
     pub fn foo<let N: u32>(arr: [Field; N]) -> [Field; N] { arr }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -2056,6 +2058,8 @@ fn numeric_generic_used_in_nested_type_pass() {
     pub struct InnerNumeric<let N: u32> {
         inner: [u64; N],
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -2083,6 +2087,8 @@ fn numeric_generic_used_in_trait() {
     trait Deserialize<let N: u32, T> {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -2115,6 +2121,8 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -2134,6 +2142,8 @@ fn numeric_generic_used_in_where_clause() {
         }
         T::deserialize(fields)
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -2152,6 +2162,8 @@ fn numeric_generic_used_in_turbofish() {
         assert(double::<9>() == 18);
         assert(double::<7 + 8>() == 30);
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -4313,7 +4325,8 @@ fn errors_on_if_without_else_type_mismatch() {
 #[named]
 #[test]
 fn does_not_stack_overflow_on_many_comments_in_a_row() {
-    let src = "//\n".repeat(10_000);
+    let mut src = "//\n".repeat(10_000);
+    src.push_str("fn main() { }");
     assert_no_errors!(&src);
 }
 

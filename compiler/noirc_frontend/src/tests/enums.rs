@@ -54,7 +54,7 @@ fn errors_on_unspecified_unstable_match() {
     "#;
 
     let no_features = &[];
-    let errors = get_program_using_features!(src, Expect::Error, no_features).2;
+    let errors = get_program_using_features!(src, Expect::Success, no_features).2;
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ParseError(error) = &errors[0] else {

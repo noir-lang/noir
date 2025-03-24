@@ -53,6 +53,8 @@ fn checked_casts_do_not_prevent_canonicalization() {
             append(self.inner.serialize())
         }
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(source);
 }

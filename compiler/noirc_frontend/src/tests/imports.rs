@@ -15,6 +15,8 @@ fn use_super() {
             some_func();
         }
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -40,6 +42,8 @@ fn use_super_in_path() {
             super::some_func();
         }
     }
+
+    fn main() { }
     "#;
     assert_no_errors!(src);
 }
