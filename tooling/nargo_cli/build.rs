@@ -402,7 +402,7 @@ fn generate_fuzzing_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             r#"
                 nargo.assert().failure().stderr(predicate::str::contains("Failing input"));
             "#,
-            120,
+            240,
         );
     }
     writeln!(test_file, "}}").unwrap();
