@@ -899,7 +899,7 @@ impl<
                 let _ = display_metrics(&self.metrics);
                 break result;
             }
-            if time_tracker.elapsed() - last_metric_check >= Duration::from_secs(1) {
+            if time_tracker.elapsed() - last_metric_check >= Duration::from_millis(1000) {
                 // Update and display metrics
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
                 self.metrics.set_last_round_update_time(updating_time);
