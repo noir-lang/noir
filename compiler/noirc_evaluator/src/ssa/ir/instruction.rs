@@ -614,10 +614,11 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | IfElse { .. }
+            | ArraySet { .. }
             | Noop
             | MakeArray { .. } => true,
 
-            ArrayGet { .. } | ArraySet { .. } => false,
+            ArrayGet { array, index } => function.dfg.is_safe_index(*index, *array),
 
             // Store instructions must be removed by DIE in acir code, any load
             // instructions should already be unused by that point.

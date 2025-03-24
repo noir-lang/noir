@@ -1199,21 +1199,7 @@ mod test {
         //   b0():
         //     return u32 0
         // }
-        let expected = "
-        acir(inline) predicate_pure fn main f0 {
-          b0():
-            v1 = call f1() -> u32
-            v2 = array_get v1, index v1 -> u32
-            v3 = lt v2, u32 2
-            constrain v3 == u1 1, \"Index out of bounds\"
-            return
-        }
-        brillig(inline) predicate_pure fn inject_value f1 {
-          b0():
-            return u32 0
-        }
-        ";
 
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
