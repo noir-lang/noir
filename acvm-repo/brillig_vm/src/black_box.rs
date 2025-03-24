@@ -1,4 +1,4 @@
-use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
+use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
     BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError, aes128_encrypt, blake2s,
@@ -173,7 +173,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 &[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
-                    MemoryValue::new_integer(is_infinite.to_u128(), IntegerBitSize::U1),
+                    MemoryValue::U1(is_infinite != F::zero()),
                 ],
             );
             Ok(())
@@ -206,7 +206,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 &[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
-                    MemoryValue::new_integer(infinite.to_u128(), IntegerBitSize::U1),
+                    MemoryValue::U1(infinite != F::zero()),
                 ],
             );
             Ok(())

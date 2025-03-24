@@ -81,9 +81,7 @@ fn call_foreign(
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-        "embedded_curve_add" => {
-            embedded_curve_add(interner, args, return_type, location, pedantic_solving)
-        }
+        "embedded_curve_add" => embedded_curve_add(args, return_type, location, pedantic_solving),
         "multi_scalar_mul" => {
             multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
         }
@@ -278,7 +276,6 @@ fn ecdsa_secp256_verify(
 /// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn embedded_curve_add(
-    interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -286,26 +283,14 @@ fn embedded_curve_add(
 ) -> IResult<Value> {
     let (point1, point2) = check_two_arguments(arguments, location)?;
 
+    let embedded_curve_point_typ = point1.0.get_type().into_owned();
+
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
         .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
-
-    let embedded_curve_point_typ = match &return_type {
-        Type::Array(_, item_type) => item_type.as_ref().clone(),
-        _ => {
-            return Err(InterpreterError::TypeMismatch {
-                expected: Type::Array(
-                    Box::new(Type::Constant(1_usize.into(), Kind::u32())),
-                    Box::new(interner.next_type_variable()), // EmbeddedCurvePoint
-                ),
-                actual: return_type.clone(),
-                location,
-            });
-        }
-    };
 
     Ok(Value::Array(
         vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
