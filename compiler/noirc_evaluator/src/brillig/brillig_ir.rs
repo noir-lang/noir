@@ -97,6 +97,8 @@ pub(crate) struct BrilligContext<F, Registers> {
     can_call_procedures: bool,
     /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
     enable_debug_assertions: bool,
+    /// Count the number of arrays that are copied, and output this to stdout
+    count_arrays_copied: bool,
 
     globals_memory_size: Option<usize>,
 }
@@ -105,6 +107,17 @@ impl<F, R> BrilligContext<F, R> {
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
+    }
+
+    /// Returns the address of the implicit debug variable containing the count of
+    /// implicitly copied arrays as a result of RC's copy on write semantics.
+    /// This method assumes 
+    pub(crate) fn array_copy_counter_address(&self) -> MemoryAddress {
+        assert!(self.count_arrays_copied, "`count_arrays_copied` is not set, so the array copy counter does not exist");
+
+        let size = self.globals_memory_size.expect("Expected a globals memory size");
+        // The copy counter is always put in the last global slot
+        MemoryAddress::direct(GlobalSpace::start() + size - 1)
     }
 }
 
@@ -119,6 +132,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: true,
             globals_memory_size: None,
         }
@@ -224,6 +238,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -244,6 +259,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -331,7 +347,11 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn create_context(id: FunctionId) -> BrilligContext<FieldElement, Stack> {
-        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let options = BrilligOptions {
+            enable_debug_trace: true,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+        };
         let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(id));
         context
@@ -345,6 +365,7 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
+            enable_array_copy_counter: context.count_arrays_copied,
         };
         let artifact = context.artifact();
         let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
@@ -361,7 +382,7 @@ pub(crate) mod tests {
             let LabelType::Procedure(procedure_id) = unresolved_fn_label.label_type else {
                 panic!("Test functions cannot be linked with other functions");
             };
-            let procedure_artifact = compile_procedure(procedure_id, &options);
+            let procedure_artifact = compile_procedure(procedure_id, &options, None);
             entry_point_artifact.link_with(&procedure_artifact);
         }
         entry_point_artifact.finish()
@@ -395,7 +416,11 @@ pub(crate) mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
-        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let options = BrilligOptions {
+            enable_debug_trace: true,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+        };
         let mut context = BrilligContext::new(&options);
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0

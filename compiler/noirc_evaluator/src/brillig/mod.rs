@@ -33,6 +33,7 @@ pub use self::brillig_ir::procedures::ProcedureId;
 pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
+    pub enable_array_copy_counter: bool,
 }
 
 /// Context structure for the brillig pass.

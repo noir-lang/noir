@@ -137,7 +137,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // If this flag is set, also compile the array copy counter as a global
         if self.brillig_context.enable_debug_assertions() {
             let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
-            eprintln!("initializing array copy counter @ {:?}", new_variable.extract_register());
             self.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
         }
