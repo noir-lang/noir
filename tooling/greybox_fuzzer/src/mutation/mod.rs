@@ -3,7 +3,8 @@ use acvm::{AcirField, FieldElement};
 use array::{mutate_vector_structure, splice_array_structure};
 use configurations::{
     BASIC_TESTCASE_SPLICE_CONFIGURATION, BASIC_TOP_LEVEL_MUTATION_CONFIGURATION,
-    BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION, TestCaseSpliceTypeOptions,
+    BASIC_UNBALANCED_ARRAY_SPLICE_MUTATION_CONFIGURATION, BASIC_UNBALANCED_SLICE_CONFIGURATION,
+    TestCaseSpliceTypeOptions, UnbalancedSpliceOptions,
 };
 use dictionary::FullDictionary;
 use field::mutate_field_input_value;
@@ -60,41 +61,6 @@ impl NodeWeight {
     }
 }
 
-enum UnbalancedSplice {
-    FirstTestCase,
-    SecondTestCase,
-}
-
-struct UnbalancedSpliceConfiguration {
-    first_testcase_weight: usize,
-    #[allow(unused)]
-    second_testcase_weight: usize,
-    total_weight: usize,
-}
-
-impl UnbalancedSpliceConfiguration {
-    #[allow(unused)]
-    pub fn new(first_testcase_weight: usize, second_testcase_weight: usize) -> Self {
-        let total_weight = first_testcase_weight + second_testcase_weight;
-        Self { first_testcase_weight, second_testcase_weight, total_weight }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> UnbalancedSplice {
-        let selector = prng.gen_range(0..self.total_weight);
-        if selector < self.first_testcase_weight {
-            return UnbalancedSplice::FirstTestCase;
-        }
-        UnbalancedSplice::SecondTestCase
-    }
-}
-
-const BASIC_UNBALANCED_SLICE_CONFIGURATION: UnbalancedSpliceConfiguration =
-    UnbalancedSpliceConfiguration {
-        first_testcase_weight: 8,
-        second_testcase_weight: 2,
-        total_weight: 8 + 2,
-    };
 const BOOL_WEIGHT: u32 = 1u32;
 const FIELD_WEIGHT: u32 = 8u32;
 const STRING_WEIGHT_MULTIPLIER: u32 = 4;
@@ -103,11 +69,8 @@ impl InputMutator {
     pub fn new(abi: &Abi, original_dictionary: &HashSet<FieldElement>) -> Self {
         let mut weight_tree = Self::count_all_input_weights(abi);
         weight_tree.calculate_offsets(0);
-        Self {
-            abi: abi.clone(),
-            weight_tree,
-            full_dictionary: FullDictionary::new(original_dictionary),
-        }
+        let full_dictionary = FullDictionary::new(original_dictionary);
+        Self { abi: abi.clone(), weight_tree, full_dictionary }
     }
 
     /// Fill the dictionary with values from an interesting input
@@ -398,16 +361,16 @@ impl InputMutator {
             // For a single-element type pick one based on the unbalanced schedule
             AbiType::Boolean | AbiType::Field | AbiType::Integer { .. } => {
                 match BASIC_UNBALANCED_SLICE_CONFIGURATION.select(prng) {
-                    UnbalancedSplice::FirstTestCase => first_input.clone(),
-                    UnbalancedSplice::SecondTestCase => second_input.clone(),
+                    UnbalancedSpliceOptions::FirstTestCase => first_input.clone(),
+                    UnbalancedSpliceOptions::SecondTestCase => second_input.clone(),
                 }
             }
 
             // For string, with a 50% chance pick one based on the unbalanced schedule, with 50% splice with string splicing methods
             AbiType::String { length: _ } => match prng.gen_range(0..2) {
                 0 => match BASIC_UNBALANCED_SLICE_CONFIGURATION.select(prng) {
-                    UnbalancedSplice::FirstTestCase => first_input.clone(),
-                    UnbalancedSplice::SecondTestCase => second_input.clone(),
+                    UnbalancedSpliceOptions::FirstTestCase => first_input.clone(),
+                    UnbalancedSpliceOptions::SecondTestCase => second_input.clone(),
                 },
                 _ => splice_string_input_value(first_input, second_input, prng),
             },

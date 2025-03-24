@@ -198,6 +198,19 @@ pub(crate) enum IntTopLevelMutationOptions {
 
 pub(crate) type IntTopLevelMutationConfig = WeightedSelectionConfig<IntTopLevelMutationOptions, 7>;
 
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum UnbalancedSpliceOptions {
+    FirstTestCase,
+    SecondTestCase,
+}
+
+pub(crate) type UnbalancedSpliceConfig = WeightedSelectionConfig<UnbalancedSpliceOptions, 2>;
+
+pub(crate) const BASIC_UNBALANCED_SLICE_CONFIGURATION: UnbalancedSpliceConfig =
+    UnbalancedSpliceConfig::new([
+        (UnbalancedSpliceOptions::FirstTestCase, 8),
+        (UnbalancedSpliceOptions::SecondTestCase, 2),
+    ]);
 // Default configurations for all mutations that are currently used
 
 pub(crate) const BASIC_SPLICE_MUTATION_CONFIGURATION: SpliceMutationConfig =
