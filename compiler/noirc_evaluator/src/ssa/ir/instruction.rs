@@ -607,16 +607,17 @@ impl Instruction {
                     true
                 }
             }
+
             Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | Allocate
             | Load { .. }
-            | ArrayGet { .. }
             | IfElse { .. }
-            | ArraySet { .. }
             | Noop
             | MakeArray { .. } => true,
+
+            ArrayGet { .. } | ArraySet { .. } => false,
 
             // Store instructions must be removed by DIE in acir code, any load
             // instructions should already be unused by that point.

@@ -1171,8 +1171,8 @@ mod test {
           b0():
             v1 = call f1() -> u32
             v3 = make_array [u32 0, u32 0] : [u32; 2]
-            v5 = array_get v3, index v1 -> u32
-            v6 = array_get v3, index v5 -> u32
+            v4 = array_get v3, index v1 -> u32
+            v5 = array_get v3, index v4 -> u32
             return
         }
         brillig(inline) predicate_pure fn inject_value f1 {
