@@ -13,7 +13,9 @@ pub use default::DefaultForeignCallBuilder;
 #[cfg(feature = "rpc")]
 pub use default::DefaultForeignCallExecutor;
 
+/// Interface for executing foreign calls
 pub trait ForeignCallExecutor<F> {
+    /// Accepts
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
@@ -23,6 +25,7 @@ pub trait ForeignCallExecutor<F> {
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub enum ForeignCall {
+    /// Reference [print] for more info regarding this call's inputs
     Print,
     CreateMock,
     SetMockParams,
