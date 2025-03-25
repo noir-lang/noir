@@ -4188,9 +4188,8 @@ fn mutable_reference_to_array_element_as_func_arg() {
 fn object_type_must_be_known_in_method_call() {
     let src = r#"
     pub fn foo<let N: u32>() -> [Field; N] {
-        let mut bar = _;
-                      ^ in expressions, `_` can only be used on the left-hand side of an assignment
-                      ~ `_` not allowed here
+        let array = [];
+        let mut bar = array[0];
         let _ = bar.len();
                 ^^^ Object type is unknown in method call
                 ~~~ Type must be known by this point to know which method to call
