@@ -1,4 +1,5 @@
 fn main() {
+    // Safety: Test program
     let input: u32 = unsafe { inject_value() };
 
     let table: [u32; 2] = [0; 2];
