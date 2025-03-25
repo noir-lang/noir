@@ -491,7 +491,14 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
         fn main() {}
     "#;
     check_errors!(src);
+}
 
+// TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
+// this just tests that the trait alias has an equivalent error to the expected
+// desugared version
+#[named]
+#[test]
+fn trait_alias_with_where_clause_has_equivalent_errors_2() {
     let alias_src = r#"
         trait Bar {
             fn bar(self) -> Self;

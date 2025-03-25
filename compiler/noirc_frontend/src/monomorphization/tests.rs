@@ -30,6 +30,7 @@ fn check_rewrite(src: &str, expected: &str, test_path: &str) {
     assert!(format!("{}", program) == expected);
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! get_monomorphized {
     ($src:expr, $expect:expr) => {
@@ -37,6 +38,7 @@ macro_rules! get_monomorphized {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! check_rewrite {
     ($src:expr, $expected:expr) => {

@@ -529,6 +529,7 @@ fn get_error_line_span_and_message(
     Some((span, error))
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! function_path {
     () => {
@@ -536,6 +537,7 @@ macro_rules! function_path {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! get_program {
     ($src:expr, $expect:expr) => {
@@ -543,6 +545,7 @@ macro_rules! get_program {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! get_program_using_features {
     ($src:expr, $expect:expr, $features:expr) => {
@@ -555,6 +558,7 @@ macro_rules! get_program_using_features {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! assert_no_errors {
     ($src:expr) => {
@@ -562,6 +566,7 @@ macro_rules! assert_no_errors {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! get_program_errors {
     ($src:expr) => {
@@ -569,6 +574,7 @@ macro_rules! get_program_errors {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! get_program_with_options {
     ($src:expr, $expect:expr, $allow_parser_errors:expr, $options:expr) => {
@@ -582,6 +588,7 @@ macro_rules! get_program_with_options {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! get_program_captures {
     ($src:expr) => {
@@ -589,6 +596,7 @@ macro_rules! get_program_captures {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! check_errors {
     ($src:expr) => {
@@ -599,6 +607,7 @@ macro_rules! check_errors {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! check_errors_using_features {
     ($src:expr, $features:expr) => {
@@ -606,6 +615,7 @@ macro_rules! check_errors_using_features {
     };
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! check_monomorphization_error_using_features {
     ($src:expr, $features:expr) => {
