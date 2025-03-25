@@ -267,6 +267,7 @@ struct Helpers {
             try {
                 it->second->convert(field);
             } catch (const msgpack::type_error&) {
+                std::cerr << *it->second << std::endl;
                 throw_or_abort("error converting into field " + struct_name + "::" + field_name);
             }
         } else {
