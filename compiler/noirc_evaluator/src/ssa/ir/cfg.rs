@@ -153,9 +153,9 @@ impl ControlFlowGraph {
 #[cfg(test)]
 mod tests {
     use crate::ssa::ir::{
-        basic_block::BasicBlockId, call_stack::CallStackId, instruction::TerminatorInstruction,
-        map::Id, types::Type,
+        basic_block::BasicBlockId, instruction::TerminatorInstruction, map::Id, types::Type,
     };
+    use noirc_errors::call_stack::CallStackId;
 
     use super::{super::function::Function, ControlFlowGraph};
 

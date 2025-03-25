@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+pub mod call_stack;
 pub mod debug_info;
 mod position;
 pub mod reporter;

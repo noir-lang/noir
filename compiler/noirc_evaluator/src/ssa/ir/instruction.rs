@@ -1,4 +1,5 @@
 use binary::{truncate, truncate_field};
+use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -15,7 +16,6 @@ use crate::ssa::opt::{flatten_cfg::value_merger::ValueMerger, pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
-    call_stack::CallStackId,
     dfg::DataFlowGraph,
     function::Function,
     map::Id,
