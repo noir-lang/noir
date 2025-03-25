@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use noirc_driver::CrateId;
 use noirc_frontend::{
     DataType, Generics, Kind, Type,
-    ast::{Ident, ItemVisibility, Visibility},
+    ast::{Ident, ItemVisibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
         def_map::{DefMaps, ModuleDefId, ModuleId},
@@ -16,6 +16,7 @@ use noirc_frontend::{
     },
     modules::{module_def_id_to_reference_id, relative_module_full_path},
     node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
+    shared::Visibility,
     token::{FunctionAttribute, LocatedToken, SecondaryAttribute},
 };
 
