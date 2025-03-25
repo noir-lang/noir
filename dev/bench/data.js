@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742934543586,
+  "lastUpdate": 1742934548750,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8165,70 +8165,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "d894fa4b1993af14833f830dbae6cfcb4c67c32e",
-          "message": "chore: update docusaurus config to correct trailing slash issue (#7720)",
-          "timestamp": "2025-03-14T19:57:29Z",
-          "tree_id": "1f38ded5e1bd3a4b0be17a85ca3fdd4e455fc37f",
-          "url": "https://github.com/noir-lang/noir/commit/d894fa4b1993af14833f830dbae6cfcb4c67c32e"
-        },
-        "date": 1741985122719,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.284,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.732,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.487,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.025,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "f4f0cd1943b481783bb65723e3185fdb6fffc848",
           "message": "chore: encapsulate `Index` within `LocalModuleId` (#7719)",
           "timestamp": "2025-03-14T20:29:32Z",
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c63f8001b0eae417179838e002a171612119e15",
+          "message": "feat(debugging): Add `--count-array-copies` flag (#7789)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-03-25T20:03:08Z",
+          "tree_id": "9d991e17ba7877a8ad500706b6cc9a33136a1b3e",
+          "url": "https://github.com/noir-lang/noir/commit/2c63f8001b0eae417179838e002a171612119e15"
+        },
+        "date": 1742934544534,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.305,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.792,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.529,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.027,
             "unit": "s"
           }
         ]
