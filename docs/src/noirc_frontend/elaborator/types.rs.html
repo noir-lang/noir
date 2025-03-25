@@ -2136,7 +2136,29 @@
 <a href="#2135" id="2135">2135</a>
 <a href="#2136" id="2136">2136</a>
 <a href="#2137" id="2137">2137</a>
-<a href="#2138" id="2138">2138</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2138" id="2138">2138</a>
+<a href="#2139" id="2139">2139</a>
+<a href="#2140" id="2140">2140</a>
+<a href="#2141" id="2141">2141</a>
+<a href="#2142" id="2142">2142</a>
+<a href="#2143" id="2143">2143</a>
+<a href="#2144" id="2144">2144</a>
+<a href="#2145" id="2145">2145</a>
+<a href="#2146" id="2146">2146</a>
+<a href="#2147" id="2147">2147</a>
+<a href="#2148" id="2148">2148</a>
+<a href="#2149" id="2149">2149</a>
+<a href="#2150" id="2150">2150</a>
+<a href="#2151" id="2151">2151</a>
+<a href="#2152" id="2152">2152</a>
+<a href="#2153" id="2153">2153</a>
+<a href="#2154" id="2154">2154</a>
+<a href="#2155" id="2155">2155</a>
+<a href="#2156" id="2156">2156</a>
+<a href="#2157" id="2157">2157</a>
+<a href="#2158" id="2158">2158</a>
+<a href="#2159" id="2159">2159</a>
+<a href="#2160" id="2160">2160</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3571,6 +3593,7 @@
         object_type: <span class="kw-2">&amp;</span>Type,
         method_name: <span class="kw-2">&amp;</span>str,
         location: Location,
+        object_location: Location,
         check_self_param: bool,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;HirMethodReference&gt; {
         <span class="kw">match </span>object_type.follow_bindings() {
@@ -3584,14 +3607,21 @@
                 });
                 <span class="prelude-val">None
             </span>}
-            Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                <span class="self">self</span>.lookup_method_in_trait_constraints(object_type, method_name, location)
-            }
+            Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="self">self</span>.lookup_method_in_trait_constraints(
+                object_type,
+                method_name,
+                location,
+                object_location,
+            ),
             <span class="comment">// References to another type should resolve to methods of their element type.
             // This may be a data type or a primitive type.
-            </span>Type::Reference(element, _mutable) =&gt; {
-                <span class="self">self</span>.lookup_method(<span class="kw-2">&amp;</span>element, method_name, location, check_self_param)
-            }
+            </span>Type::Reference(element, _mutable) =&gt; <span class="self">self</span>.lookup_method(
+                <span class="kw-2">&amp;</span>element,
+                method_name,
+                location,
+                object_location,
+                check_self_param,
+            ),
 
             <span class="comment">// If we fail to resolve the object to a data type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
@@ -3607,6 +3637,7 @@
                 <span class="kw-2">&amp;</span>other,
                 method_name,
                 location,
+                object_location,
                 check_self_param,
             ),
         }
@@ -3617,6 +3648,7 @@
         object_type: <span class="kw-2">&amp;</span>Type,
         method_name: <span class="kw-2">&amp;</span>str,
         location: Location,
+        object_location: Location,
         check_self_param: bool,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;HirMethodReference&gt; {
         <span class="comment">// First search in the type methods. If there is one, that's the one.
@@ -3671,7 +3703,12 @@
             <span class="comment">// It could be that this type is a composite type that is bound to a trait,
             // for example `x: (T, U) ... where (T, U): SomeTrait`
             // (so this case is a generalization of the NamedGeneric case)
-            </span><span class="self">self</span>.lookup_method_in_trait_constraints(object_type, method_name, location)
+            </span><span class="self">self</span>.lookup_method_in_trait_constraints(
+                object_type,
+                method_name,
+                location,
+                object_location,
+            )
         }
     }
 
@@ -3787,6 +3824,7 @@
         object_type: <span class="kw-2">&amp;</span>Type,
         method_name: <span class="kw-2">&amp;</span>str,
         location: Location,
+        object_location: Location,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;HirMethodReference&gt; {
         <span class="kw">let </span>func_id = <span class="kw">match </span><span class="self">self</span>.current_item {
             <span class="prelude-val">Some</span>(DependencyId::Function(id)) =&gt; id,
@@ -3830,11 +3868,17 @@
             }
         }
 
-        <span class="self">self</span>.push_err(TypeCheckError::UnresolvedMethodCall {
-            method_name: method_name.to_string(),
-            object_type: object_type.clone(),
-            location,
-        });
+        <span class="kw">if </span>object_type.is_bindable() {
+            <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
+                location: object_location,
+            });
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.push_err(TypeCheckError::UnresolvedMethodCall {
+                method_name: method_name.to_string(),
+                object_type: object_type.clone(),
+                location,
+            });
+        }
 
         <span class="prelude-val">None
     </span>}

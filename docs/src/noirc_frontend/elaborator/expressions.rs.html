@@ -1408,7 +1408,13 @@
 <a href="#1407" id="1407">1407</a>
 <a href="#1408" id="1408">1408</a>
 <a href="#1409" id="1409">1409</a>
-<a href="#1410" id="1410">1410</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1931,7 +1937,13 @@
         <span class="kw">let </span>method_name_location = method_call.method_name.location();
         <span class="kw">let </span>method_name = method_call.method_name.as_str();
         <span class="kw">let </span>check_self_param = <span class="bool-val">true</span>;
-        <span class="kw">match </span><span class="self">self</span>.lookup_method(<span class="kw-2">&amp;</span>object_type, method_name, location, check_self_param) {
+        <span class="kw">match </span><span class="self">self</span>.lookup_method(
+            <span class="kw-2">&amp;</span>object_type,
+            method_name,
+            location,
+            object_location,
+            check_self_param,
+        ) {
             <span class="prelude-val">Some</span>(method_ref) =&gt; {
                 <span class="comment">// Automatically add `&amp;mut` if the method expects a mutable reference and
                 // the object is not already one.
