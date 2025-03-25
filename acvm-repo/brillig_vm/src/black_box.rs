@@ -173,7 +173,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 &[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
-                    MemoryValue::new_field(is_infinite),
+                    MemoryValue::U1(is_infinite != F::zero()),
                 ],
             );
             Ok(())
@@ -206,7 +206,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 &[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
-                    MemoryValue::new_field(infinite),
+                    MemoryValue::U1(infinite != F::zero()),
                 ],
             );
             Ok(())

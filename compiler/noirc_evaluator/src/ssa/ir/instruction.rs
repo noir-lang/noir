@@ -607,6 +607,7 @@ impl Instruction {
                     true
                 }
             }
+
             Cast(_, _)
             | Not(_)
             | Truncate { .. }

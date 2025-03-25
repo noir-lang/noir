@@ -281,7 +281,14 @@ fn decode_and_save_program_witness(
     }
 
     if let Some(witness_name) = target_witness_name {
-        let witness_path = save_witness_to_dir(witness_stack, &witness_name, target_dir)?;
+        let mut witness_path = save_witness_to_dir(witness_stack, &witness_name, target_dir)?;
+
+        // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
+        if let Ok(current_dir) = std::env::current_dir() {
+            if let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
+                witness_path = name_without_prefix.to_path_buf();
+            }
+        }
         println!("[{}] Witness saved to {}", package_name, witness_path.display());
     }
     Ok(())
