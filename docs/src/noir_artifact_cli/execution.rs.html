@@ -136,7 +136,15 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::BlackBoxFunctionSolver;
@@ -241,7 +249,15 @@
     witness_name: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
     <span class="kw">let </span>witness_name = witness_name.unwrap_or(circuit_name);
-    <span class="kw">let </span>witness_path = save_witness_to_dir(witness_stack, witness_name, witness_dir)<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>witness_path = save_witness_to_dir(witness_stack, witness_name, witness_dir)<span class="question-mark">?</span>;
+
+    <span class="comment">// See if we can make the file path a bit shorter/easier to read if it starts with the current directory
+    </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(current_dir) = std::env::current_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(name_without_prefix) = witness_path.strip_prefix(current_dir) {
+            witness_path = name_without_prefix.to_path_buf();
+        }
+    }
+
     <span class="macro">println!</span>(<span class="string">"[{}] Witness saved to {}"</span>, circuit_name, witness_path.display());
     <span class="prelude-val">Ok</span>(())
 }
