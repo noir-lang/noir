@@ -91,8 +91,11 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
 impl<F: AcirField + Serialize> WitnessMap<F> {
     /// Serialize and compress.
     pub fn serialize(&self) -> Result<Vec<u8>, WitnessMapError> {
-        let buf = serialization::serialize_with_format_from_env(self)
-            .map_err(|e| WitnessMapError(SerializationError::Serialize(e)))?;
+        let buf = serialization::serialize_with_format_from_env(
+            self,
+            Some(serialization::Format::default()),
+        )
+        .map_err(|e| WitnessMapError(SerializationError::Serialize(e)))?;
 
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
         let mut buf = Vec::new();

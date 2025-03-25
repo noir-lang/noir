@@ -27,6 +27,12 @@ pub(crate) enum Format {
     Protobuf = 4,
 }
 
+impl Default for Format {
+    fn default() -> Self {
+        Self::Msgpack
+    }
+}
+
 impl Format {
     /// Look for a `NOIR_SERIALIZATION_FORMAT` env var to turn on formatted serialization.
     ///
@@ -132,7 +138,7 @@ where
             match format {
                 Format::BincodeLegacy => {
                     // This is just a coincidence, as this format does not appear in the data,
-                    // but we know it's none of the other formats.
+                    // but we know it's none of the other formats, so we can just return bincode.
                 }
                 Format::Bincode => {
                     if let Ok(value) = bincode_deserialize(&buf[1..]) {
@@ -176,14 +182,20 @@ where
     Ok(res)
 }
 
-pub(crate) fn serialize_with_format_from_env<F, T, R>(value: &T) -> std::io::Result<Vec<u8>>
+/// Serialize the format with whatever the env indicates.
+/// If the env is empty, but a `default` value is passed, use that.
+/// Otherwise if both are empty, use `bincode`.
+pub(crate) fn serialize_with_format_from_env<F, T, R>(
+    value: &T,
+    default: Option<Format>,
+) -> std::io::Result<Vec<u8>>
 where
     F: AcirField,
     T: Serialize,
     R: prost::Message,
     ProtoSchema<F>: ProtoCodec<T, R>,
 {
-    match Format::from_env() {
+    match Format::from_env().map(|fopt| fopt.or(default)) {
         Ok(Some(format)) => {
             // This will need a new `bb` even if it's the bincode format, because of the format byte.
             serialize_with_format(value, format)
