@@ -1,7 +1,7 @@
 // This test provides a basic implementation of a MSM in Noir, that allows us to check
 // performance improvements and regressions.
 use std::embedded_curve_ops::embedded_curve_add_unsafe;
-use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar};
+use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul};
 
 // `main` must be marked unconstrained as the function uses `break` internally
 unconstrained fn main(
@@ -16,7 +16,7 @@ unconstrained fn double_then_add_msm<let N: u32>(
     scalars: [Field; N],
 ) -> EmbeddedCurvePoint {
     // EmbeddedCurveScalar are two 128-bit numbers
-    let mut acc = fixed_base_scalar_mul(EmbeddedCurveScalar::from_field(0));
+    let mut acc = fixed_base_scalar_mul(EmbeddedCurveScalar::from_field(1));
     for i in 0..N {
         // These should probably be EmbeddedCurveScalars
         // let full_scalar: Field = scalars[i].hi * 2.pow_32(128) + scalars[i].lo;
