@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742932852690,
+  "lastUpdate": 1742933112062,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e8644d0e180999cc8fed095a550ed1b16d21e723",
-          "message": "feat: allow `fn` returning `()` without having to write `-> ()` (#7717)",
-          "timestamp": "2025-03-14T19:05:30Z",
-          "tree_id": "ebdd5d63b77efb9f54f8ae5182dd74d003f913a8",
-          "url": "https://github.com/noir-lang/noir/commit/e8644d0e180999cc8fed095a550ed1b16d21e723"
-        },
-        "date": 1741984087325,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.86,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.36,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4d82f2b43fe8563df8223e02cbaee8db04a11d5b"
         },
         "date": 1742929460558,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.13,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5436a73d3aa20a27324e8962f361a388a0b84c87",
+          "message": "chore: make brillig vm's `cast` implementation pure. (#7793)",
+          "timestamp": "2025-03-25T19:38:56Z",
+          "tree_id": "b4686a447d594ec3c00ad34940fc0fb699195abc",
+          "url": "https://github.com/noir-lang/noir/commit/5436a73d3aa20a27324e8962f361a388a0b84c87"
+        },
+        "date": 1742933108389,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
