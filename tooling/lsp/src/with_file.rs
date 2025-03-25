@@ -10,11 +10,11 @@ use noirc_frontend::{
         FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression,
         LValue, Lambda, LetStatement, Literal, MatchExpression, MemberAccessExpression,
         MethodCallExpression, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct,
-        NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, PathSegment, Pattern,
-        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
-        TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
+        NoirTrait, NoirTraitImpl, Param, Path, PathSegment, Pattern, PrefixExpression, Statement,
+        StatementKind, StructField, TraitBound, TraitImplItem, TraitImplItemKind, TraitItem,
+        TypeAlias, TypeImpl, TypePath, UnresolvedGeneric, UnresolvedTraitConstraint,
+        UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, UseTree,
+        UseTreeKind, WhileStatement,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
@@ -131,14 +131,21 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
     }
 }
 
-fn noir_type_alias_with_file(noir_type_alias: NoirTypeAlias, file: FileId) -> NoirTypeAlias {
-    NoirTypeAlias {
-        name: ident_with_file(noir_type_alias.name, file),
-        generics: unresolved_generics_with_file(noir_type_alias.generics, file),
-        typ: unresolved_type_with_file(noir_type_alias.typ, file),
-        visibility: noir_type_alias.visibility,
-        location: location_with_file(noir_type_alias.location, file),
+fn type_alias_with_file(type_alias: TypeAlias, file: FileId) -> TypeAlias {
+    TypeAlias {
+        name: ident_with_file(type_alias.name, file),
+        generics: unresolved_generics_with_file(type_alias.generics, file),
+        typ: unresolved_type_with_file(type_alias.typ, file),
+        visibility: type_alias.visibility,
+        location: location_with_file(type_alias.location, file),
+        numeric_type: type_alias
+            .numeric_type
+            .map(|num_type| unresolved_type_with_file(num_type, file)),
     }
+}
+
+fn noir_type_alias_with_file(noir_type_alias: TypeAlias, file: FileId) -> TypeAlias {
+    type_alias_with_file(noir_type_alias, file)
 }
 
 fn type_impl_with_file(type_impl: TypeImpl, file: FileId) -> TypeImpl {

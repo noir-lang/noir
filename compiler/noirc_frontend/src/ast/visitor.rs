@@ -7,7 +7,7 @@ use crate::{
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
         Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
+        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
         PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl, UseTree,
         UseTreeKind,
     },
@@ -22,9 +22,9 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, UnsafeExpression,
+    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind,
+    TypeAlias, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -148,7 +148,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_noir_type_alias(&mut self, _: &NoirTypeAlias, _: Span) -> bool {
+    fn visit_noir_type_alias(&mut self, _: &TypeAlias, _: Span) -> bool {
         true
     }
 
@@ -815,7 +815,7 @@ impl NoirEnumeration {
     }
 }
 
-impl NoirTypeAlias {
+impl TypeAlias {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_noir_type_alias(self, span) {
             self.accept_children(visitor);
