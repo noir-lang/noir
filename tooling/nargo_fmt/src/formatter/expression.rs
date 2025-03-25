@@ -2487,4 +2487,23 @@ global y = 1;
 "#;
         assert_format(src, src);
     }
+
+    #[test]
+    fn joins_comma_with_verbatim() {
+        let src = r#"fn main() {
+    foo(1, ["(", "I", " ", "x" , "b"]);
+}
+"#;
+        let expected = r#"fn main() {
+    foo(
+        1,
+        [
+            "(", "I", " ",
+            "x", "b",
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, expected, 30);
+    }
 }

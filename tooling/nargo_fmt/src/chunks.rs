@@ -185,19 +185,22 @@ impl ChunkGroup {
     }
 
     /// Appends a text to this group.
-    /// If the last chunk in this group is a text, no new chunk is inserted and
-    /// instead the last text chunk is extended.
+    /// If the last chunk in this group is a text or verbatim,
+    /// no new chunk is inserted and instead the last text chunk is extended.
     pub(crate) fn text(&mut self, chunk: TextChunk) {
         if chunk.width == 0 {
             return;
         }
 
-        if let Some(Chunk::Text(text_chunk)) = self.chunks.last_mut() {
-            text_chunk.string.push_str(&chunk.string);
-            text_chunk.width += chunk.width;
-            text_chunk.has_newlines |= chunk.has_newlines;
-        } else {
-            self.push(Chunk::Text(chunk));
+        match self.chunks.last_mut() {
+            Some(Chunk::Text(text_chunk)) | Some(Chunk::Verbatim(text_chunk)) => {
+                text_chunk.string.push_str(&chunk.string);
+                text_chunk.width += chunk.width;
+                text_chunk.has_newlines |= chunk.has_newlines;
+            }
+            _ => {
+                self.push(Chunk::Text(chunk));
+            }
         }
     }
 
