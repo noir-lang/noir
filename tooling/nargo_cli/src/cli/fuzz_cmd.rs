@@ -94,10 +94,10 @@ fn list_harnesses_command(
         .install(|| {
             workspace.into_iter().par_bridge().map(|package| {
                 let harnesses = list_harnesses(
-                    &file_manager,
-                    &parsed_files,
+                    file_manager,
+                    parsed_files,
                     package,
-                    &pattern,
+                    pattern,
                     &args.compile_options,
                 );
                 match harnesses {
@@ -120,7 +120,7 @@ fn list_harnesses_command(
     if !found_harness {
         println!("No fuzzing harnesses found");
     }
-    return Ok(());
+    Ok(())
 }
 
 /// Run the fuzzing harnesses for this program
