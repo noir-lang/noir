@@ -653,7 +653,7 @@
 
     <span class="comment">// Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     </span><span class="kw">let </span>profiling_active = <span class="bool-val">false</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(calldata, code, blackbox_solver, profiling_active);
+    <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(calldata, code, blackbox_solver, profiling_active, <span class="prelude-val">None</span>);
 
     <span class="comment">// Run the Brillig VM on these inputs, bytecode, etc!
     </span><span class="kw">let </span>vm_status = vm.process_opcodes();

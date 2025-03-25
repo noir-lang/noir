@@ -82,7 +82,10 @@
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::{NargoError, foreign_calls::transcript::TranscriptError};
 <span class="kw">use </span>noirc_abi::{
     AbiReturnType,
@@ -96,6 +99,9 @@
 </span><span class="kw">pub enum </span>FilesystemError {
     <span class="attr">#[error(<span class="string">"Cannot find input file '{0}'"</span>)]
     </span>MissingInputFile(PathBuf),
+
+    <span class="attr">#[error(<span class="string">"Failed to create output file '{0}': {1}"</span>)]
+    </span>OutputFileCreationFailed(PathBuf, String),
 
     <span class="attr">#[error(<span class="string">"Failed to parse input file '{0}': {1}"</span>)]
     </span>InvalidInputFile(PathBuf, String),

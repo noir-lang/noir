@@ -54,11 +54,34 @@
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
 <a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_abi::{
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
     input_parser::{Format, InputValue},
 };
-<span class="kw">use </span>std::{collections::BTreeMap, path::Path};
+<span class="kw">use </span>std::{collections::BTreeMap, io::Write, path::Path};
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
 
@@ -109,5 +132,28 @@
     <span class="kw">let </span>return_value = inputs.remove(MAIN_RETURN_NAME);
 
     <span class="prelude-val">Ok</span>((inputs, return_value))
+}
+
+<span class="doccomment">/// Writes input map to a file
+</span><span class="kw">pub fn </span>write_inputs_to_file&lt;P: AsRef&lt;Path&gt;&gt;(
+    path: P,
+    file_name: <span class="kw-2">&amp;</span>str,
+    format: Format,
+    abi: <span class="kw-2">&amp;</span>Abi,
+    input_map: <span class="kw-2">&amp;</span>InputMap,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
+    <span class="kw">use </span><span class="kw">crate</span>::errors::FilesystemError::OutputFileCreationFailed;
+    <span class="kw">if </span>abi.is_empty() {
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+    }
+    <span class="kw">use </span>std::fs::File;
+    <span class="kw">let </span>file_path = path.as_ref().join(file_name).with_extension(format.ext());
+    <span class="kw">let </span><span class="kw-2">mut </span>file =
+        File::create(<span class="kw-2">&amp;</span>file_path).map_err(|e| OutputFileCreationFailed(file_path, e.to_string()))<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>input_string = format.serialize(input_map, abi)<span class="question-mark">?</span>;
+    file.write_all(input_string.as_bytes()).expect(<span class="string">"Failed to write to file"</span>);
+
+    <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div></section></main></body></html>

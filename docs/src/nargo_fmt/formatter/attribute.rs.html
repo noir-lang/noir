@@ -345,8 +345,50 @@
 <a href="#344" id="344">344</a>
 <a href="#345" id="345">345</a>
 <a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
+    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, SecondaryAttribute,
+    TestScope, Token,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::chunks::ChunkGroup;
@@ -402,9 +444,12 @@
             | FunctionAttribute::Builtin(<span class="kw">_</span>)
             | FunctionAttribute::Oracle(<span class="kw">_</span>) =&gt; <span class="self">self</span>.format_one_arg_attribute(),
             FunctionAttribute::Test(test_scope) =&gt; <span class="self">self</span>.format_test_attribute(test_scope),
+            FunctionAttribute::FuzzingHarness(fuzz_scope) =&gt; <span class="self">self</span>.format_fuzz_attribute(fuzz_scope),
             FunctionAttribute::Fold
             | FunctionAttribute::NoPredicates
-            | FunctionAttribute::InlineAlways =&gt; <span class="self">self</span>.format_no_args_attribute(),
+            | FunctionAttribute::InlineAlways =&gt; {
+                <span class="self">self</span>.format_no_args_attribute();
+            }
         }
 
         <span class="self">self</span>.write_line();
@@ -476,6 +521,29 @@
                 <span class="self">self</span>.write_left_paren(); <span class="comment">// (
                 </span><span class="self">self</span>.skip_comments_and_whitespace();
                 <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// should_fail_with
+                </span><span class="self">self</span>.write_space();
+                <span class="self">self</span>.write_token(Token::Assign);
+                <span class="self">self</span>.write_space();
+                <span class="self">self</span>.skip_comments_and_whitespace();
+                <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// "reason"
+                </span><span class="self">self</span>.write_right_paren(); <span class="comment">// )
+            </span>}
+        }
+
+        <span class="self">self</span>.write_right_bracket(); <span class="comment">// ]
+    </span>}
+
+    <span class="kw">fn </span>format_fuzz_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, fuzz_scope: FuzzingScope) {
+        <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// #[
+        </span><span class="self">self</span>.skip_comments_and_whitespace();
+        <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// fuzz
+
+        </span><span class="kw">match </span>fuzz_scope {
+            FuzzingScope::None =&gt; (),
+            FuzzingScope::OnlyFailWith { .. } =&gt; {
+                <span class="self">self</span>.write_left_paren(); <span class="comment">// (
+                </span><span class="self">self</span>.skip_comments_and_whitespace();
+                <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// only_fail_with
                 </span><span class="self">self</span>.write_space();
                 <span class="self">self</span>.write_token(Token::Assign);
                 <span class="self">self</span>.write_space();
@@ -682,6 +750,20 @@
     </span><span class="kw">fn </span>format_test_should_fail_with_reason_attribute() {
         <span class="kw">let </span>src = <span class="string">"  #[ test ( should_fail_with=\"reason\" )] "</span>;
         <span class="kw">let </span>expected = <span class="string">"#[test(should_fail_with = \"reason\")]"</span>;
+        assert_format_attribute(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_fuzz_attribute() {
+        <span class="kw">let </span>src = <span class="string">"  #[ fuzz ] "</span>;
+        <span class="kw">let </span>expected = <span class="string">"#[fuzz]"</span>;
+        assert_format_attribute(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_test_only_fail_with_reason_attribute() {
+        <span class="kw">let </span>src = <span class="string">"  #[ fuzz ( only_fail_with=\"reason\" )] "</span>;
+        <span class="kw">let </span>expected = <span class="string">"#[fuzz(only_fail_with = \"reason\")]"</span>;
         assert_format_attribute(src, expected);
     }
 

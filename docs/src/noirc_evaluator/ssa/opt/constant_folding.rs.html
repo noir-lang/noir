@@ -2454,7 +2454,7 @@
         <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
         <span class="kw">let </span>black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
         <span class="kw">let </span>profiling_active = <span class="bool-val">false</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(calldata, bytecode, <span class="kw-2">&amp;</span>black_box_solver, profiling_active);
+        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(calldata, bytecode, <span class="kw-2">&amp;</span>black_box_solver, profiling_active, <span class="prelude-val">None</span>);
         <span class="kw">let </span>vm_status: VMStatus&lt;<span class="kw">_</span>&gt; = vm.process_opcodes();
         <span class="kw">let </span>VMStatus::Finished { return_data_offset, return_data_size } = vm_status <span class="kw">else </span>{
             <span class="kw">return </span>EvaluationResult::CannotEvaluate;

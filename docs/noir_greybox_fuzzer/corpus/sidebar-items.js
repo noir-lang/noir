@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CORPUS_FILE_EXTENSION","DEFAULT_CORPUS_FOLDER"],"fn":["generate_testcase_id"],"static":["NEXT_TESTCASE_ID"],"struct":["Corpus","CorpusFileManager","Sequence","TestCase","TestCaseOrchestrator"],"type":["NextSelection","TestCaseId"]};

@@ -392,7 +392,14 @@
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
 <a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 <span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
@@ -418,17 +425,23 @@
     rhs: MemoryValue&lt;F&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryValue&lt;F&gt;, BrilligArithmeticError&gt; {
     <span class="kw">let </span>a = lhs.expect_field().map_err(|err| {
-        <span class="kw">let </span>MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
-        BrilligArithmeticError::MismatchedLhsBitSize {
-            lhs_bit_size: value_bit_size,
-            op_bit_size: expected_bit_size,
+        <span class="kw">if let </span>MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+            BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: value_bit_size,
+                op_bit_size: expected_bit_size,
+            }
+        } <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"MemoryTypeError NotInteger is only produced by to_u128"</span>)
         }
     })<span class="question-mark">?</span>;
     <span class="kw">let </span>b = rhs.expect_field().map_err(|err| {
-        <span class="kw">let </span>MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
-        BrilligArithmeticError::MismatchedRhsBitSize {
-            rhs_bit_size: value_bit_size,
-            op_bit_size: expected_bit_size,
+        <span class="kw">if let </span>MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+            BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: value_bit_size,
+                op_bit_size: expected_bit_size,
+            }
+        } <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"MemoryTypeError NotInteger is only produced by to_u128"</span>)
         }
     })<span class="question-mark">?</span>;
 
@@ -546,14 +559,15 @@
         }
 
         BinaryIntOp::Shl | BinaryIntOp::Shr =&gt; {
-            <span class="kw">let </span>rhs = rhs.expect_u8().map_err(
-                |MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size }| {
+            <span class="kw">let </span>rhs = rhs.expect_u8().map_err(|error| <span class="kw">match </span>error {
+                MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } =&gt; {
                     BrilligArithmeticError::MismatchedRhsBitSize {
                         rhs_bit_size: value_bit_size,
                         op_bit_size: expected_bit_size,
                     }
-                },
-            )<span class="question-mark">?</span>;
+                }
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"MemoryTypeError NotInteger is only produced by to_u128"</span>),
+            })<span class="question-mark">?</span>;
 
             <span class="kw">match </span>(lhs, bit_size) {
                 (MemoryValue::U1(lhs), IntegerBitSize::U1) =&gt; {

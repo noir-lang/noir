@@ -289,7 +289,7 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::collections::BTreeMap;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_json(
+<span class="kw">pub fn </span>parse_json(
     input_string: <span class="kw-2">&amp;</span>str,
     abi: <span class="kw-2">&amp;</span>Abi,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;BTreeMap&lt;String, InputValue&gt;, InputParserError&gt; {
@@ -323,7 +323,7 @@
     <span class="prelude-val">Ok</span>(parsed_inputs)
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>serialize_to_json(
+<span class="kw">pub fn </span>serialize_to_json(
     input_map: <span class="kw-2">&amp;</span>BTreeMap&lt;String, InputValue&gt;,
     abi: <span class="kw-2">&amp;</span>Abi,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;String, InputParserError&gt; {

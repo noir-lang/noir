@@ -1656,7 +1656,8 @@
 <a href="#1655" id="1655">1655</a>
 <a href="#1656" id="1656">1656</a>
 <a href="#1657" id="1657">1657</a>
-<a href="#1658" id="1658">1658</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2645,6 +2646,7 @@
     <span class="kw">let </span>module_data = <span class="kw-2">&amp;mut </span>def_map[module.local_id];
 
     <span class="kw">let </span>is_test = function.def.attributes.is_test_function();
+    <span class="kw">let </span>is_fuzzing_harness = function.def.attributes.is_fuzzing_harness();
     <span class="kw">let </span>is_entry_point_function = <span class="kw">if </span>module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } <span class="kw">else </span>{
@@ -2661,7 +2663,7 @@
         interner.register_function(func_id, <span class="kw-2">&amp;</span>function.def);
     }
 
-    <span class="kw">if </span>!is_test &amp;&amp; !is_entry_point_function &amp;&amp; !has_export {
+    <span class="kw">if </span>!is_test &amp;&amp; !is_fuzzing_harness &amp;&amp; !is_entry_point_function &amp;&amp; !has_export {
         <span class="kw">let </span>item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }

@@ -569,13 +569,13 @@
 }
 
 <span class="doccomment">/// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-</span><span class="kw">struct </span>TestForeignCallExecutor&lt;E&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>TestForeignCallExecutor&lt;E&gt; {
     executor: E,
     encountered_unknown_foreign_call: bool,
 }
 
 <span class="kw">impl</span>&lt;E&gt; TestForeignCallExecutor&lt;E&gt; {
-    <span class="kw">fn </span>new(executor: E) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(executor: E) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ executor, encountered_unknown_foreign_call: <span class="bool-val">false </span>}
     }
 }

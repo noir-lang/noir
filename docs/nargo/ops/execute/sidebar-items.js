@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["execute_program","execute_program_inner","execute_program_with_profiling"],"struct":["ProgramExecutor"]};
+window.SIDEBAR_ITEMS = {"fn":["execute_program","execute_program_inner","execute_program_with_brillig_fuzzing","execute_program_with_profiling"],"struct":["ProgramExecutor"],"type":["NargoErrorAndCoverage","WitnessAndCoverage"]};

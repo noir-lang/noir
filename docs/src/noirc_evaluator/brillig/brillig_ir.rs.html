@@ -841,7 +841,7 @@
         bytecode: <span class="kw-2">&amp;</span>[BrilligOpcode&lt;FieldElement&gt;],
     ) -&gt; (VM&lt;<span class="lifetime">'_</span>, FieldElement, DummyBlackBoxSolver&gt;, usize, usize) {
         <span class="kw">let </span>profiling_active = <span class="bool-val">false</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(calldata, bytecode, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, profiling_active);
+        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(calldata, bytecode, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, profiling_active, <span class="prelude-val">None</span>);
 
         <span class="kw">let </span>status = vm.process_opcodes();
         <span class="kw">if let </span>VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -917,7 +917,7 @@
 
         <span class="kw">let </span>bytecode: Vec&lt;BrilligOpcode&lt;FieldElement&gt;&gt; = context.artifact().finish().byte_code;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>bytecode, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>bytecode, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
         <span class="kw">let </span>status = vm.process_opcodes();
         <span class="macro">assert_eq!</span>(
             status,

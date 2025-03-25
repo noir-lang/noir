@@ -810,7 +810,42 @@
 <a href="#809" id="809">809</a>
 <a href="#810" id="810">810</a>
 <a href="#811" id="811">811</a>
-<a href="#812" id="812">812</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -827,6 +862,7 @@
     native_types::{Expression, Witness, WitnessMap},
 };
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxResolutionError;
+<span class="kw">use </span>brillig_vm::BranchToFeatureMap;
 
 <span class="kw">use </span><span class="self">self</span>::{
     arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
@@ -1044,6 +1080,14 @@
     profiling_active: bool,
 
     profiling_samples: ProfilingSamples,
+
+    <span class="comment">// Whether we need to trace brillig execution for fuzzing
+    </span>brillig_fuzzing_active: bool,
+
+    <span class="comment">// Brillig branch to feature map
+    </span>brillig_branch_to_feature_map: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>BranchToFeatureMap&gt;,
+
+    brillig_fuzzing_trace: <span class="prelude-ty">Option</span>&lt;Vec&lt;u32&gt;&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; ACVM&lt;<span class="lifetime">'a</span>, F, B&gt; {
@@ -1071,12 +1115,28 @@
             assertion_payloads,
             profiling_active: <span class="bool-val">false</span>,
             profiling_samples: Vec::new(),
+            brillig_fuzzing_active: <span class="bool-val">false</span>,
+            brillig_branch_to_feature_map: <span class="prelude-val">None</span>,
+            brillig_fuzzing_trace: <span class="prelude-val">None</span>,
         }
     }
 
     <span class="comment">// Enable profiling
     </span><span class="kw">pub fn </span>with_profiler(<span class="kw-2">&amp;mut </span><span class="self">self</span>, profiling_active: bool) {
         <span class="self">self</span>.profiling_active = profiling_active;
+    }
+
+    <span class="comment">// Enable brillig fuzzing
+    </span><span class="kw">pub fn </span>with_brillig_fuzzing(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        brillig_branch_to_feature_map: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>BranchToFeatureMap&gt;,
+    ) {
+        <span class="self">self</span>.brillig_fuzzing_active = brillig_branch_to_feature_map.is_some();
+        <span class="self">self</span>.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
+    }
+
+    <span class="kw">pub fn </span>get_brillig_fuzzing_trace(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;u32&gt;&gt; {
+        <span class="self">self</span>.brillig_fuzzing_trace.clone()
     }
 
     <span class="doccomment">/// Returns a reference to the current state of the ACVM's [`WitnessMap`].
@@ -1345,10 +1405,16 @@
                 <span class="self">self</span>.instruction_pointer,
                 <span class="kw-2">*</span>id,
                 <span class="self">self</span>.profiling_active,
+                <span class="self">self</span>.brillig_branch_to_feature_map,
             )<span class="question-mark">?</span>,
         };
 
-        <span class="kw">let </span>result = solver.solve()<span class="question-mark">?</span>;
+        <span class="comment">// If we're fuzzing, we need to get the fuzzing trace on an error
+        </span><span class="kw">let </span>result = solver.solve().inspect_err(|<span class="kw">_</span>| {
+            <span class="kw">if </span><span class="self">self</span>.brillig_fuzzing_active {
+                <span class="self">self</span>.brillig_fuzzing_trace = <span class="prelude-val">Some</span>(solver.get_fuzzing_trace());
+            };
+        })<span class="question-mark">?</span>;
 
         <span class="kw">match </span>result {
             BrilligSolverStatus::ForeignCallWait(foreign_call) =&gt; {
@@ -1360,6 +1426,9 @@
                 <span class="macro">unreachable!</span>(<span class="string">"Brillig solver still in progress"</span>)
             }
             BrilligSolverStatus::Finished =&gt; {
+                <span class="kw">if </span><span class="self">self</span>.brillig_fuzzing_active {
+                    <span class="self">self</span>.brillig_fuzzing_trace = <span class="prelude-val">Some</span>(solver.get_fuzzing_trace());
+                }
                 <span class="comment">// Write execution outputs
                 </span><span class="kw">if </span><span class="self">self</span>.profiling_active {
                     <span class="kw">let </span>profiling_info =
@@ -1421,6 +1490,7 @@
             <span class="self">self</span>.instruction_pointer,
             <span class="kw-2">*</span>id,
             <span class="self">self</span>.profiling_active,
+            <span class="self">self</span>.brillig_branch_to_feature_map,
         );
         <span class="kw">match </span>solver {
             <span class="prelude-val">Ok</span>(solver) =&gt; StepResult::IntoBrillig(solver),

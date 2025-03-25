@@ -336,7 +336,22 @@
 <a href="#335" id="335">335</a>
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
@@ -360,6 +375,8 @@
         <span class="string">"Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}"
     </span>)]
     </span>MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
+    <span class="attr">#[error(<span class="string">"Value is not an integer"</span>)]
+    </span>NotAnInteger,
 }
 
 <span class="kw">impl</span>&lt;F&gt; MemoryValue&lt;F&gt; {
@@ -431,6 +448,19 @@
             MemoryValue::U32(value) =&gt; F::from(<span class="kw-2">*</span>value <span class="kw">as </span>u128),
             MemoryValue::U64(value) =&gt; F::from(<span class="kw-2">*</span>value <span class="kw">as </span>u128),
             MemoryValue::U128(value) =&gt; F::from(<span class="kw-2">*</span>value),
+        }
+    }
+
+    <span class="doccomment">/// Converts the memory value to U128, if the value is an integer.
+    </span><span class="kw">pub fn </span>to_u128(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u128, MemoryTypeError&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            MemoryValue::Field(..) =&gt; <span class="prelude-val">Err</span>(MemoryTypeError::NotAnInteger),
+            MemoryValue::U1(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value <span class="kw">as </span>u8 <span class="kw">as </span>u128),
+            MemoryValue::U8(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value <span class="kw">as </span>u128),
+            MemoryValue::U16(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value <span class="kw">as </span>u128),
+            MemoryValue::U32(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value <span class="kw">as </span>u128),
+            MemoryValue::U64(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value <span class="kw">as </span>u128),
+            MemoryValue::U128(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value),
         }
     }
 

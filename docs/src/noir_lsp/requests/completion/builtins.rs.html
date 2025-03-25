@@ -296,7 +296,17 @@
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::CompletionItemKind;
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::CompletionItemKind;
 <span class="kw">use </span>noirc_frontend::{ast::AttributeTarget, token::Keyword};
 <span class="kw">use </span>strum::IntoEnumIterator;
 
@@ -402,6 +412,7 @@
                     <span class="string">"no_predicates"</span>,
                     <span class="string">"recursive"</span>,
                     <span class="string">"test"</span>,
+                    <span class="string">"fuzz"</span>,
                     <span class="string">"varargs"</span>,
                 ];
                 <span class="self">self</span>.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
@@ -432,6 +443,15 @@
                         <span class="string">"test(should_fail_with = \"...\")"</span>,
                         CompletionItemKind::METHOD,
                         <span class="string">"test(should_fail_with = \"${1:message}\")"</span>,
+                        <span class="prelude-val">None</span>,
+                    ));
+                }
+
+                <span class="kw">if </span>name_matches(<span class="string">"fuzz"</span>, prefix) || name_matches(<span class="string">"only_fail_with"</span>, prefix) {
+                    <span class="self">self</span>.completion_items.push(snippet_completion_item(
+                        <span class="string">"fuzz(only_fail_with = \"...\")"</span>,
+                        CompletionItemKind::METHOD,
+                        <span class="string">"fuzz(only_fail_with = \"${1:message}\")"</span>,
                         <span class="prelude-val">None</span>,
                     ));
                 }

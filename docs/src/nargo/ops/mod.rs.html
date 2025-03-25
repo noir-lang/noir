@@ -15,7 +15,11 @@
 <a href="#14" id="14">14</a>
 <a href="#15" id="15">15</a>
 <a href="#16" id="16">16</a>
-<a href="#17" id="17">17</a></pre></div><pre class="rust"><code><span class="kw">pub use </span><span class="self">self</span>::check::check_program;
+<a href="#17" id="17">17</a>
+<a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a></pre></div><pre class="rust"><code><span class="kw">pub use </span><span class="self">self</span>::check::check_program;
 <span class="kw">pub use </span><span class="self">self</span>::compile::{
     collect_errors, compile_contract, compile_program, compile_program_with_debug_instrumenter,
     compile_workspace, report_errors,
@@ -24,11 +28,15 @@
 <span class="kw">pub use </span><span class="self">self</span>::transform::{transform_contract, transform_program};
 
 <span class="kw">pub use </span><span class="self">self</span>::execute::{execute_program, execute_program_with_profiling};
+<span class="kw">pub use </span><span class="self">self</span>::fuzz::{
+    FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus, run_fuzzing_harness,
+};
 <span class="kw">pub use </span><span class="self">self</span>::test::{TestStatus, run_test};
 
 <span class="kw">mod </span>check;
 <span class="kw">mod </span>compile;
 <span class="kw">mod </span>execute;
+<span class="kw">mod </span>fuzz;
 <span class="kw">mod </span>optimize;
 <span class="kw">mod </span>test;
 <span class="kw">mod </span>transform;

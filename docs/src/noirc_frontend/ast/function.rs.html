@@ -139,7 +139,8 @@
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>noirc_errors::{Location, Span};
 
@@ -264,6 +265,7 @@
             <span class="prelude-val">Some</span>(FunctionAttribute::Builtin(<span class="kw">_</span>)) =&gt; FunctionKind::Builtin,
             <span class="prelude-val">Some</span>(FunctionAttribute::Foreign(<span class="kw">_</span>)) =&gt; FunctionKind::LowLevel,
             <span class="prelude-val">Some</span>(FunctionAttribute::Test { .. }) =&gt; FunctionKind::Normal,
+            <span class="prelude-val">Some</span>(FunctionAttribute::FuzzingHarness { .. }) =&gt; FunctionKind::Normal,
             <span class="prelude-val">Some</span>(FunctionAttribute::Oracle(<span class="kw">_</span>)) =&gt; FunctionKind::Oracle,
             <span class="prelude-val">Some</span>(FunctionAttribute::Fold) =&gt; FunctionKind::Normal,
             <span class="prelude-val">Some</span>(FunctionAttribute::NoPredicates) =&gt; FunctionKind::Normal,

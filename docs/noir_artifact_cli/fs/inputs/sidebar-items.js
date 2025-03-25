@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["read_inputs_from_file"]};
+window.SIDEBAR_ITEMS = {"fn":["read_inputs_from_file","write_inputs_to_file"]};

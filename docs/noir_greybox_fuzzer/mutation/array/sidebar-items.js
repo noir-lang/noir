@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["mutate_vector_structure","splice_array_structure"],"struct":["ArrayMutator"]};
