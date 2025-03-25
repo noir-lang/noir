@@ -314,3 +314,26 @@ fn generic_functions() {
     let result = interpret(program);
     assert_eq!(result, Value::U8(2));
 }
+
+
+#[test]
+fn can_handle_recursion() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7213
+    let program = "
+
+    global RECURSION_LIMIT: u32 = 33;
+
+    comptime fn main() {
+        recurse(RECURSION_LIMIT);
+    }
+    
+    comptime fn recurse(n: u32) {
+        if n > 0 {
+            recurse(n-1);
+        }
+    }
+
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Unit);
+}
