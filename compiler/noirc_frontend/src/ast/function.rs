@@ -123,6 +123,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
             Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
+            Some(FunctionAttribute::FuzzingHarness { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
             Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
