@@ -111,24 +111,18 @@ impl<F, R> BrilligContext<F, R> {
 
     /// Returns the address of the implicit debug variable containing the count of
     /// implicitly copied arrays as a result of RC's copy on write semantics.
-    /// This method assumes
     pub(crate) fn array_copy_counter_address(&self) -> MemoryAddress {
         assert!(
             self.count_arrays_copied,
             "`count_arrays_copied` is not set, so the array copy counter does not exist"
         );
 
-        let size = self.globals_memory_size.expect("Expected a globals memory size");
-        // The copy counter is always put in the last global slot
-        MemoryAddress::direct(GlobalSpace::start() + size - 1)
+        // The copy counter is always put in the first global slot
+        MemoryAddress::Direct(GlobalSpace::start())
     }
 
     pub(crate) fn count_array_copies(&self) -> bool {
         self.count_arrays_copied
-    }
-
-    pub(crate) fn get_globals_memory_size(&self) -> Option<usize> {
-        self.globals_memory_size
     }
 
     /// Set the globals memory size if it is not already set.
