@@ -14,15 +14,19 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    PrintOutput, foreign_calls::DefaultForeignCallBuilder,
-    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
-    prepare_package, workspace::Workspace,
+    PrintOutput,
+    foreign_calls::DefaultForeignCallBuilder,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::{TestStatus, check_crate_and_report_errors},
+    package::Package,
+    parse_all, prepare_package,
+    workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 
-use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
@@ -116,12 +120,24 @@ struct Test<'a> {
     runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + UnwindSafe + 'a>,
 }
 
-struct TestResult {
+pub(crate) struct TestResult {
     name: String,
     package_name: String,
     status: TestStatus,
     output: String,
     time_to_run: Duration,
+}
+
+impl TestResult {
+    pub(crate) fn new(
+        name: String,
+        package_name: String,
+        status: TestStatus,
+        output: String,
+        time_to_run: Duration,
+    ) -> Self {
+        TestResult { name, package_name, status, output, time_to_run }
+    }
 }
 
 const STACK_SIZE: usize = 4 * 1024 * 1024;

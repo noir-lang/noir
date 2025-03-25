@@ -3215,6 +3215,7 @@ version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "assert_cmd",
+ "bn254_blackbox_solver",
  "build-data",
  "codespan-reporting",
  "dap",

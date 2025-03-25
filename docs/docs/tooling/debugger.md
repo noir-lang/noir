@@ -17,10 +17,6 @@ In order to use either version of the debugger, you will need to install recent 
 - Noir & Nargo ≥0.28.0
 - Noir's VS Code extension ≥0.0.11
 
-:::info
-At the moment, the debugger supports debugging binary projects, but not contracts.
-:::
-
 We cover the VS Code Noir debugger more in depth in [its VS Code debugger how-to guide](../how_to/debugger/debugging_with_vs_code.md) and [the reference](../reference/debugger/debugger_vscode.md).
 
 The REPL debugger is discussed at length in [the REPL debugger how-to guide](../how_to/debugger/debugging_with_the_repl.md) and [the reference](../reference/debugger/debugger_repl.md).
