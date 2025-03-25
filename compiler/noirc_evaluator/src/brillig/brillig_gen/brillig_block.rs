@@ -168,6 +168,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         if self.brillig_context.count_array_copies()
             && matches!(terminator_instruction, TerminatorInstruction::Return { .. })
+            && self.brillig_context.in_entry_point_function()
         {
             self.brillig_context.emit_println_of_array_copy_counter();
         }
