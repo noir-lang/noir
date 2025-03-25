@@ -372,7 +372,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active);
+        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -448,7 +448,7 @@ pub(crate) mod tests {
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false);
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
         assert_eq!(
             status,
