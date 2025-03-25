@@ -1577,7 +1577,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 /// # Panics
 ///
 /// Panics if `2**power` exceeds `F::modulus()`.
-pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
+fn power_of_two<F: AcirField>(power: u32) -> F {
     if power >= F::max_num_bits() {
         panic!("Field cannot represent this power of two");
     }
