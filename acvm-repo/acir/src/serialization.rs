@@ -15,10 +15,22 @@ const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub(crate) enum Format {
-    Bincode = 0,
-    Protobuf = 1,
+    /// Bincode without format marker.
+    /// This does not actually appear in the data.
+    BincodeLegacy = 0,
+    /// Bincode with format marker.
+    Bincode = 1,
+    /// Msgpack with named structs.
     Msgpack = 2,
+    /// Msgpack with tuple structs.
     MsgpackCompact = 3,
+    Protobuf = 4,
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Self::Msgpack
+    }
 }
 
 impl Format {
@@ -119,6 +131,10 @@ where
     if !buf.is_empty() {
         if let Ok(format) = Format::try_from(buf[0]) {
             match format {
+                Format::BincodeLegacy => {
+                    // This is just a coincidence, as this format does not appear in the data,
+                    // but we know it's none of the other formats, so we can just return bincode.
+                }
                 Format::Bincode => {
                     if let Ok(value) = bincode_deserialize(&buf[1..]) {
                         return Ok(value);
@@ -151,6 +167,7 @@ where
 {
     // It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     let mut buf = match format {
+        Format::BincodeLegacy => return bincode_serialize(value),
         Format::Bincode => bincode_serialize(value)?,
         Format::Protobuf => proto_serialize(value),
         Format::Msgpack => msgpack_serialize(value, false)?,
@@ -161,14 +178,20 @@ where
     Ok(res)
 }
 
-pub(crate) fn serialize_with_format_from_env<F, T, R>(value: &T) -> std::io::Result<Vec<u8>>
+/// Serialize the format with whatever the env indicates.
+/// If the env is empty, but a `default` value is passed, use that.
+/// Otherwise if both are empty, use `bincode`.
+pub(crate) fn serialize_with_format_from_env<F, T, R>(
+    value: &T,
+    default: Option<Format>,
+) -> std::io::Result<Vec<u8>>
 where
     F: AcirField,
     T: Serialize,
     R: prost::Message,
     ProtoSchema<F>: ProtoCodec<T, R>,
 {
-    match Format::from_env() {
+    match Format::from_env().map(|fopt| fopt.or(default)) {
         Ok(Some(format)) => {
             // This will need a new `bb` even if it's the bincode format, because of the format byte.
             serialize_with_format(value, format)
