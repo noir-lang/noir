@@ -187,6 +187,14 @@ impl Context {
                 {
                     possible_index_out_of_bounds_indexes
                         .push(instructions_len - instruction_index - 1);
+
+                    // We need to still mark the array index as used as we refer to it in the inserted bounds check.
+                    let (Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. }) =
+                        instruction
+                    else {
+                        unreachable!("Only enter this branch on array gets/sets")
+                    };
+                    self.mark_used_instruction_results(&function.dfg, *index);
                 }
             } else {
                 // We can't remove rc instructions if they're loaded from a reference
@@ -1199,6 +1207,21 @@ mod test {
         //   b0():
         //     return u32 0
         // }
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = call f1() -> u32
+            v3 = make_array [u32 0, u32 0] : [u32; 2]
+            v4 = array_get v3, index v1 -> u32
+            v6 = lt v4, u32 2
+            constrain v6 == u1 1, \"Index out of bounds\"
+            return
+        }
+        brillig(inline) predicate_pure fn inject_value f1 {
+          b0():
+            return u32 0
+        }
+        ";
 
         assert_normalized_ssa_equals(ssa, src);
     }
