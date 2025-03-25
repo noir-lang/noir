@@ -235,8 +235,6 @@ pub(crate) type BrilligGlobalsArtifact = (
     HashMap<(FieldElement, NumericType), BrilligVariable>,
 );
 
-// pub(crate) type GlobalsCompi
-
 pub(crate) fn convert_ssa_globals(
     options: &BrilligOptions,
     globals_dfg: &DataFlowGraph,
