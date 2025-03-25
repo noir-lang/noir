@@ -332,13 +332,15 @@ struct Helpers {
 
         /// Regular structs pack into a map.
         fn generate_struct(&mut self, name: &str, fields: &[Named<Format>]) {
-            // We should be able to use `MSGPACK_FIELDS`, and it works most of the time,
-            // but we did run into an inexplicable bug where the keys in the map become NIL
-            // while preparing to deserialize, see [here](https://github.com/AztecProtocol/aztec-packages/pull/12841#issuecomment-2746520682).
-            // Because there seems to be nothing we can do about it if we go this way,
-            // we generate the code to deal with the maps directly instead.
-
+            // We can use the `MSGPACK_FIELDS` macro with the following:
             // self.msgpack_fields(name, fields.iter().map(|f| f.name.clone()));
+
+            // Or we can generate code for individual fields, which relies on
+            // the `add_helpers` to add some utility functions. This way the
+            // code is more verbose, but also easier to control, e.g. we can
+            // raise errors telling specifically which field was wrong,
+            // or we could reject the data if there was a new field we could
+            // not recognise, or we could even handle aliases.
 
             self.msgpack_pack(name, &{
                 let mut body = format!(
