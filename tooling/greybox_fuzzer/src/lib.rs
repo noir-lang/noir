@@ -45,7 +45,10 @@ use termcolor::{Color, ColorSpec, WriteColor};
 const FOREIGN_CALL_FAILURE_SUBSTRING: &str = "Failed calling external resolver.";
 
 /// We aim the number of testcases per round so one round takes these many microseconds
-const SINGLE_FUZZING_ROUND_TARGET_TIME: u128 = 500_000u128;
+const SINGLE_FUZZING_ROUND_TARGET_TIME: u128 = 100_000u128;
+
+/// Minimum pulse interval in milliseconds for printing metrics
+const MINIMUM_PULSE_INTERVAL_MILLIS: u64 = 1000u64;
 
 /// A seed for the XorShift RNG for use during mutation
 type SimpleXorShiftRNGSeed = <XorShiftRng as SeedableRng>::Seed;
@@ -194,6 +197,8 @@ struct Metrics {
     brillig_discoveries: usize,
     /// Discovered something with Brillig last round
     found_new_with_brillig: bool,
+    /// Pulse interval in milliseconds
+    pulse_interval_millis: u64,
 }
 
 impl Metrics {
@@ -237,15 +242,25 @@ impl Metrics {
     pub fn increment_acir_brillig_discoveries(&mut self) {
         self.acir_brillig_discoveries += 1;
         self.found_new_with_acir_brillig = true;
+        // Set pulse interval to zero so that metrics are printed immediately
+        self.pulse_interval_millis = 0;
     }
     pub fn increment_brillig_discoveries(&mut self) {
         self.brillig_discoveries += 1;
         self.found_new_with_brillig = true;
+        // Set pulse interval to zero so that metrics are printed immediately
+        self.pulse_interval_millis = 0;
     }
     pub fn refresh_round(&mut self) {
         self.found_new_with_acir_brillig = false;
         self.found_new_with_brillig = false;
         self.removed_testcase_last_round = false;
+        // If the value is less than the minimum, set it to the minimum, otherwise double it to increase the pulse interval
+        self.pulse_interval_millis = if self.pulse_interval_millis < MINIMUM_PULSE_INTERVAL_MILLIS {
+            MINIMUM_PULSE_INTERVAL_MILLIS
+        } else {
+            self.pulse_interval_millis * 2
+        };
     }
 }
 pub struct FuzzedExecutorExecutionConfiguration {
@@ -455,6 +470,7 @@ impl<
         let mut starting_corpus_ids: Vec<_> =
             corpus.get_full_stored_corpus().iter().map(|x| x.id()).collect();
 
+        // Can't minimize if there is no corpus
         if self.minimize_corpus && starting_corpus_ids.is_empty() {
             return FuzzTestResult::MinimizationFailure(
                 "No initial corpus found to minimize".to_string(),
@@ -489,6 +505,8 @@ impl<
 
         // Generate the default input (it is needed if the corpus is empty)
         let default_map = self.mutator.generate_default_input_map();
+
+        // If the corpus is empty, insert the default testcase
         if starting_corpus_ids.is_empty() {
             let default_testcase = TestCase::from(&default_map);
             match corpus.insert(
@@ -511,11 +529,18 @@ impl<
             .build()
             .unwrap();
 
+        // Number of testcases to process in each iteration
         let testcases_per_iteration = self.num_threads * 2;
+
+        // Track time
         let time_tracker = Instant::now();
         let mut last_metric_check = time_tracker.elapsed();
+
+        // Multipliers for ACIR and Brillig executions
         let mut brillig_executions_multiplier = 1usize;
         let mut acir_executions_multiplier = 1usize;
+
+        // Whether we've processed the starting corpus yet
         let mut processed_starting_corpus = false;
         let fuzz_res = loop {
             let mut testcase_set: Vec<FuzzTask> = Vec::new();
@@ -654,15 +679,19 @@ impl<
 
             if processed_starting_corpus {
                 // Update the testcase execution multipliers so that we spend at least around 200ms on each round
-                let mut time_per_testcase =
-                    fuzz_time_micros / brillig_executions_multiplier as u128;
+                let mut time_per_testcase = fuzz_time_micros
+                    / if acir_round {
+                        acir_executions_multiplier as u128
+                    } else {
+                        brillig_executions_multiplier as u128
+                    };
                 time_per_testcase = max(time_per_testcase, 30);
                 let executions_multiplier =
                     (SINGLE_FUZZING_ROUND_TARGET_TIME / time_per_testcase) as usize;
                 if acir_round {
-                    acir_executions_multiplier = max(1, executions_multiplier);
+                    acir_executions_multiplier = max(2, executions_multiplier);
                 } else {
-                    brillig_executions_multiplier = max(1, executions_multiplier);
+                    brillig_executions_multiplier = max(2, executions_multiplier);
                 }
             }
 
@@ -761,7 +790,6 @@ impl<
                     }
 
                     // Add values from the interesting testcase to the dictionary
-                    println!("New coverage discovered: {:?}", &case);
                     self.mutator.update_dictionary(&case);
 
                     //Insert the new testcase into the corpus
@@ -876,7 +904,6 @@ impl<
                 let (new_coverage_discovered, testcases_to_remove) =
                     accumulated_coverage.merge(&new_coverage);
                 if new_coverage_discovered {
-                    println!("New coverage discovered: {:?}", &case);
                     for &testcase_for_removal in testcases_to_remove.iter() {
                         self.metrics.increment_removed_testcase_count();
                         corpus.remove(testcase_for_removal);
@@ -898,7 +925,9 @@ impl<
                 let _ = display_metrics(&self.metrics);
                 break result;
             }
-            if time_tracker.elapsed() - last_metric_check >= Duration::from_millis(1000) {
+            if time_tracker.elapsed() - last_metric_check
+                >= Duration::from_millis(self.metrics.pulse_interval_millis)
+            {
                 // Update and display metrics
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
                 self.metrics.set_last_round_update_time(updating_time);

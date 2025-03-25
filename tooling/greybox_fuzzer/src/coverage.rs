@@ -432,10 +432,6 @@ impl AccumulatedFuzzerCoverage {
 
             match least_different_bits.cmp(&cmp_approach.closest_bits) {
                 std::cmp::Ordering::Less => {
-                    println!("Comparison index: {}", cmp_approach.raw_index);
-                    println!("least_different_bits: {}", least_different_bits);
-                    println!("last_value: {}", last_value);
-
                     Self::handle_closer_comparison(
                         cmp_approach,
                         new_coverage,
