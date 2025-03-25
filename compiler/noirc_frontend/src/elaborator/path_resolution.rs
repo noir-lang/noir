@@ -106,8 +106,9 @@ impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
+        mark_datatypes_as_used: bool,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let path_resolution = self.resolve_path(path)?;
+        let path_resolution = self.resolve_path(path, mark_datatypes_as_used)?;
 
         for error in path_resolution.errors {
             self.push_err(error);
@@ -120,7 +121,11 @@ impl Elaborator<'_> {
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
     /// will be returned with a potential list of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
-    pub(super) fn resolve_path(&mut self, mut path: Path) -> PathResolutionResult {
+    pub(super) fn resolve_path(
+        &mut self,
+        mut path: Path,
+        mark_datatypes_as_used: bool,
+    ) -> PathResolutionResult {
         let mut module_id = self.module_id();
 
         if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
@@ -138,7 +143,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.resolve_path_in_module(path, module_id)
+        self.resolve_path_in_module(path, module_id, mark_datatypes_as_used)
     }
 
     /// Resolves a path in `current_module`.
@@ -147,6 +152,7 @@ impl Elaborator<'_> {
         &mut self,
         path: Path,
         importing_module: ModuleId,
+        mark_datatypes_as_used: bool,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
             Some(ReferencesTracker::new(self.interner))
@@ -155,7 +161,7 @@ impl Elaborator<'_> {
         };
         let (path, module_id, _) =
             resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(path, module_id, importing_module)
+        self.resolve_name_in_module(path, module_id, importing_module, mark_datatypes_as_used)
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -165,6 +171,7 @@ impl Elaborator<'_> {
         path: Path,
         starting_module: ModuleId,
         importing_module: ModuleId,
+        mark_datatypes_as_used: bool,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
@@ -189,7 +196,11 @@ impl Elaborator<'_> {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+        if mark_datatypes_as_used {
+            self.usage_tracker.mark_as_used(current_module_id, first_segment);
+        } else {
+            self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+        }
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
@@ -313,7 +324,11 @@ impl Elaborator<'_> {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+            if mark_datatypes_as_used {
+                self.usage_tracker.mark_as_used(current_module_id, current_ident);
+            } else {
+                self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+            }
 
             current_ns = found_ns;
         }

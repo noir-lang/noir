@@ -861,9 +861,10 @@ fn quoted_as_trait_constraint(
     )?;
     let reason =
         Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
+    let mark_datatypes_as_used = true;
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_trait_bound(&trait_bound)
+            elaborator.resolve_trait_bound(&trait_bound, mark_datatypes_as_used)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
@@ -879,9 +880,10 @@ fn quoted_as_type(
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
+    let marked_datatype_as_used = true;
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_type(typ)
+            elaborator.resolve_type(typ, marked_datatype_as_used)
         });
     Ok(Value::Type(typ))
 }

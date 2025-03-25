@@ -80,9 +80,10 @@ impl Elaborator<'_> {
     pub(super) fn lookup_global(
         &mut self,
         path: Path,
+        mark_datatypes_as_used: bool,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
         let location = path.location;
-        let item = self.resolve_path_or_error(path)?;
+        let item = self.resolve_path_or_error(path, mark_datatypes_as_used)?;
 
         if let Some(function) = item.function_id() {
             return Ok((self.interner.function_definition_id(function), item));
@@ -137,7 +138,8 @@ impl Elaborator<'_> {
     /// Lookup a given trait by name/path.
     pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
         let location = path.location;
-        match self.resolve_path_or_error(path) {
+        let mark_datatypes_as_used = false;
+        match self.resolve_path_or_error(path, mark_datatypes_as_used) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
                     Some(self.get_trait_mut(trait_id))
@@ -158,9 +160,13 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given struct type by name.
-    pub fn lookup_datatype_or_error(&mut self, path: Path) -> Option<Shared<DataType>> {
+    pub fn lookup_datatype_or_error(
+        &mut self,
+        path: Path,
+        mark_datatypes_as_used: bool,
+    ) -> Option<Shared<DataType>> {
         let location = path.location;
-        match self.resolve_path_or_error(path) {
+        match self.resolve_path_or_error(path, mark_datatypes_as_used) {
             Ok(item) => {
                 if let PathResolutionItem::Type(struct_id) = item {
                     Some(self.get_type(struct_id))
@@ -182,7 +188,11 @@ impl Elaborator<'_> {
 
     /// Looks up a given type by name.
     /// This will also instantiate any struct types found.
-    pub(super) fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
+    pub(super) fn lookup_type_or_error(
+        &mut self,
+        path: Path,
+        mark_datatypes_as_used: bool,
+    ) -> Option<Type> {
         let ident = path.as_ident();
         if ident.is_some_and(|i| i == SELF_TYPE_NAME) {
             if let Some(typ) = &self.self_type {
@@ -191,7 +201,7 @@ impl Elaborator<'_> {
         }
 
         let location = path.location;
-        match self.resolve_path_or_error(path) {
+        match self.resolve_path_or_error(path, mark_datatypes_as_used) {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
@@ -217,8 +227,12 @@ impl Elaborator<'_> {
         }
     }
 
-    pub fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error(path) {
+    pub fn lookup_type_alias(
+        &mut self,
+        path: Path,
+        mark_datatypes_as_used: bool,
+    ) -> Option<Shared<TypeAlias>> {
+        match self.resolve_path_or_error(path, mark_datatypes_as_used) {
             Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
                 Some(self.interner.get_type_alias(type_alias_id))
             }

@@ -310,7 +310,7 @@ impl Elaborator<'_> {
                     old_value.num_times_used += 1;
                     old_value.ident.clone()
                 } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
+                    self.lookup_global(Path::from_single(ident_name.to_string(), *location), false)
                 {
                     HirIdent::non_trait_method(definition_id, *location)
                 } else {
@@ -763,7 +763,8 @@ impl Elaborator<'_> {
 
         let last_segment = path.last_segment();
 
-        let Some(typ) = self.lookup_type_or_error(path) else {
+        let mark_datatypes_as_used = true;
+        let Some(typ) = self.lookup_type_or_error(path, mark_datatypes_as_used) else {
             return (HirExpression::Error, Type::Error);
         };
 
@@ -953,7 +954,8 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
-        let r#type = self.resolve_type(cast.r#type);
+        let mark_datatypes_as_used = false;
+        let r#type = self.resolve_type(cast.r#type, mark_datatypes_as_used);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
@@ -1190,7 +1192,8 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } else {
-                    self.resolve_type(typ)
+                    let mark_datatypes_as_used = false;
+                    self.resolve_type(typ, mark_datatypes_as_used)
                 };
 
                 arg_types.push(typ.clone());
@@ -1375,8 +1378,11 @@ impl Elaborator<'_> {
             },
         };
 
-        let typ = self.resolve_type(constraint.typ.clone());
-        let Some(trait_bound) = self.resolve_trait_bound(&constraint.trait_bound) else {
+        let mark_datatypes_as_used = true;
+        let typ = self.resolve_type(constraint.typ.clone(), mark_datatypes_as_used);
+        let Some(trait_bound) =
+            self.resolve_trait_bound(&constraint.trait_bound, mark_datatypes_as_used)
+        else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);

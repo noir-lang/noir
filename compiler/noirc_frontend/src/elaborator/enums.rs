@@ -419,7 +419,8 @@ impl Elaborator<'_> {
                 // user is trying to resolve to a non-local item.
                 let shadow_existing = path.is_ident().then_some(last_ident);
 
-                match self.resolve_path_or_error(path) {
+                let mark_datatypes_as_used = false;
+                match self.resolve_path_or_error(path, mark_datatypes_as_used) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         shadow_existing,
@@ -531,7 +532,8 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let typ = self.resolve_type(constructor.typ);
+        let mark_datatypes_as_used = false;
+        let typ = self.resolve_type(constructor.typ, mark_datatypes_as_used);
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
@@ -588,7 +590,8 @@ impl Elaborator<'_> {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
 
-                match self.resolve_path_or_error(path) {
+                let mark_datatypes_as_used = false;
+                match self.resolve_path_or_error(path, mark_datatypes_as_used) {
                     // Use None for `name` here - we don't want to define a variable if this
                     // resolves to an existing item.
                     Ok(resolution) => self.path_resolution_to_constructor(
