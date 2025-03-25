@@ -2477,7 +2477,46 @@
 <a href="#2476" id="2476">2476</a>
 <a href="#2477" id="2477">2477</a>
 <a href="#2478" id="2478">2478</a>
-<a href="#2479" id="2479">2479</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2479" id="2479">2479</a>
+<a href="#2480" id="2480">2480</a>
+<a href="#2481" id="2481">2481</a>
+<a href="#2482" id="2482">2482</a>
+<a href="#2483" id="2483">2483</a>
+<a href="#2484" id="2484">2484</a>
+<a href="#2485" id="2485">2485</a>
+<a href="#2486" id="2486">2486</a>
+<a href="#2487" id="2487">2487</a>
+<a href="#2488" id="2488">2488</a>
+<a href="#2489" id="2489">2489</a>
+<a href="#2490" id="2490">2490</a>
+<a href="#2491" id="2491">2491</a>
+<a href="#2492" id="2492">2492</a>
+<a href="#2493" id="2493">2493</a>
+<a href="#2494" id="2494">2494</a>
+<a href="#2495" id="2495">2495</a>
+<a href="#2496" id="2496">2496</a>
+<a href="#2497" id="2497">2497</a>
+<a href="#2498" id="2498">2498</a>
+<a href="#2499" id="2499">2499</a>
+<a href="#2500" id="2500">2500</a>
+<a href="#2501" id="2501">2501</a>
+<a href="#2502" id="2502">2502</a>
+<a href="#2503" id="2503">2503</a>
+<a href="#2504" id="2504">2504</a>
+<a href="#2505" id="2505">2505</a>
+<a href="#2506" id="2506">2506</a>
+<a href="#2507" id="2507">2507</a>
+<a href="#2508" id="2508">2508</a>
+<a href="#2509" id="2509">2509</a>
+<a href="#2510" id="2510">2510</a>
+<a href="#2511" id="2511">2511</a>
+<a href="#2512" id="2512">2512</a>
+<a href="#2513" id="2513">2513</a>
+<a href="#2514" id="2514">2514</a>
+<a href="#2515" id="2515">2515</a>
+<a href="#2516" id="2516">2516</a>
+<a href="#2517" id="2517">2517</a>
+<a href="#2518" id="2518">2518</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -4954,6 +4993,45 @@ global y = 1;
     }
 }\n"</span>;
         assert_format(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_last_assignment_in_block_without_semicolon() {
+        <span class="kw">let </span>src = <span class="string">"fn main() {
+    let mut x: Field = 0;
+    {
+        x = 1
+    }
+    assert_eq(x, 1);
+}
+"</span>;
+        assert_format(src, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_last_break_in_block_without_semicolon() {
+        <span class="kw">let </span>src = <span class="string">"fn main() {
+    let mut x: Field = 0;
+    {
+        break
+    }
+    assert_eq(x, 1);
+}
+"</span>;
+        assert_format(src, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_last_continue_in_block_without_semicolon() {
+        <span class="kw">let </span>src = <span class="string">"fn main() {
+    let mut x: Field = 0;
+    {
+        continue
+    }
+    assert_eq(x, 1);
+}
+"</span>;
+        assert_format(src, src);
     }
 }
 </code></pre></div></section></main></body></html>
