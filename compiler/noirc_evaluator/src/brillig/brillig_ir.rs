@@ -136,15 +136,6 @@ impl<F, R> BrilligContext<F, R> {
         }
         self.globals_memory_size = new_size;
     }
-
-    /// True if we are currently in an entry point function. This is currently only
-    /// indirectly deduced by whether `globals_memory_size` is set. This is used
-    /// for the output of the array copy counter so that flag should be tested
-    /// if globals_memory_size is ever changed. Testing should be done with a low inliner
-    /// aggressiveness to more easily identify whether it is printing in multiple functions.
-    pub(crate) fn in_entry_point_function(&self) -> bool {
-        self.globals_memory_size.is_some()
-    }
 }
 
 /// Regular brillig context to codegen user defined functions

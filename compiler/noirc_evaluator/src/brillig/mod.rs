@@ -54,15 +54,10 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        globals_memory_size: Option<usize>,
+        is_entry_point: bool,
     ) {
-        let obj = convert_ssa_function(
-            func,
-            options,
-            globals,
-            hoisted_global_constants,
-            globals_memory_size,
-        );
+        let obj =
+            convert_ssa_function(func, options, globals, hoisted_global_constants, is_entry_point);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -138,14 +133,14 @@ impl Ssa {
                 .unwrap_or((&empty_allocations, &empty_const_allocations));
 
             let func = &self.functions[&brillig_function_id];
-            let globals_memory_size =
-                brillig.globals_memory_size.get(&brillig_function_id).copied();
+            let is_entry_point = brillig_globals.entry_points().contains_key(&brillig_function_id);
+
             brillig.compile(
                 func,
                 options,
                 globals_allocations,
                 hoisted_constant_allocations,
-                globals_memory_size,
+                is_entry_point,
             );
         }
 
