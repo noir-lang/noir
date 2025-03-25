@@ -1,9 +1,10 @@
 use fm::{FileId, FileMap};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
-    ast::{ItemVisibility, Visibility},
+    ast::ItemVisibility,
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirExpression, HirLiteral},

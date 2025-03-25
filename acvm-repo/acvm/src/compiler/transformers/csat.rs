@@ -10,9 +10,9 @@ use indexmap::IndexMap;
 pub const MIN_EXPRESSION_WIDTH: usize = 3;
 
 /// A transformer which processes any [`Expression`]s to break them up such that they
-/// fit within the [`ProofSystemCompiler`][crate::ProofSystemCompiler]'s width.
+/// fit within the backend's width.
 ///
-/// This transformer is only used when targeting the [`Bounded`][crate::ExpressionWidth::Bounded] configuration.
+/// This transformer is only used when targeting the [`Bounded`][acir::circuit::ExpressionWidth::Bounded] configuration.
 ///
 /// This is done by creating intermediate variables to hold partial calculations and then combining them
 /// to calculate the original expression.

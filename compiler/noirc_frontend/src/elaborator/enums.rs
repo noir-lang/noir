@@ -9,7 +9,7 @@ use crate::{
     DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        Literal, NoirEnumeration, StatementKind, UnresolvedType, Visibility,
+        Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
     hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
@@ -22,6 +22,7 @@ use crate::{
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
+    shared::Visibility,
     signed_field::SignedField,
     token::Attributes,
 };
@@ -794,8 +795,8 @@ impl Elaborator<'_> {
 
     /// Compiles the rows of a match expression, outputting a decision tree for the match.
     ///
-    /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
-    /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
+    /// This is an adaptation of <https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021>
+    /// which is an implementation of <https://julesjacobs.com/notes/patternmatching/patternmatching.pdf>
     pub(super) fn elaborate_match_rows(
         &mut self,
         rows: Vec<Row>,

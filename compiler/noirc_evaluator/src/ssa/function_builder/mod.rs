@@ -394,8 +394,8 @@ impl FunctionBuilder {
 
     /// Insert an instruction to decrement an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
-    pub(crate) fn insert_dec_rc(&mut self, value: ValueId, original: ValueId) {
-        self.insert_instruction(Instruction::DecrementRc { value, original }, None);
+    pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
+        self.insert_instruction(Instruction::DecrementRc { value }, None);
     }
 
     /// Insert an enable_side_effects_if instruction. These are normally only automatically
@@ -497,7 +497,7 @@ impl FunctionBuilder {
     ///
     /// Returns the ID of the array that was affected, if any.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
-        self.update_array_reference_count(value, None)
+        self.update_array_reference_count(value, true)
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
@@ -505,12 +505,8 @@ impl FunctionBuilder {
     /// any arrays, this does nothing.
     ///
     /// Returns the ID of the array that was affected, if any.
-    pub(crate) fn decrement_array_reference_count(
-        &mut self,
-        value: ValueId,
-        original: ValueId,
-    ) -> Option<ValueId> {
-        self.update_array_reference_count(value, Some(original))
+    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
+        self.update_array_reference_count(value, false)
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
@@ -522,11 +518,7 @@ impl FunctionBuilder {
     /// the meantime, which in itself would make sure its RC is decremented.
     ///
     /// Returns the ID of the array that was affected, if any.
-    fn update_array_reference_count(
-        &mut self,
-        value: ValueId,
-        original: Option<ValueId>,
-    ) -> Option<ValueId> {
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> Option<ValueId> {
         if self.current_function.runtime().is_acir() {
             return None;
         }
@@ -536,7 +528,7 @@ impl FunctionBuilder {
                 if element.contains_an_array() {
                     let reference = value;
                     let value = self.insert_load(reference, element.as_ref().clone());
-                    self.update_array_reference_count(value, original);
+                    self.update_array_reference_count(value, increment);
                     Some(value)
                 } else {
                     None
@@ -545,10 +537,10 @@ impl FunctionBuilder {
             Type::Array(..) | Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                if let Some(original) = original {
-                    self.insert_dec_rc(value, original);
-                } else {
+                if increment {
                     self.insert_inc_rc(value);
+                } else {
+                    self.insert_dec_rc(value);
                 }
                 Some(value)
             }
