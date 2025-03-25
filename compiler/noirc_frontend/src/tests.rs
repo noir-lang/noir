@@ -4658,6 +4658,7 @@ fn mutable_reference_to_array_element_as_func_arg() {
     check_errors!(src);
 }
 
+#[named]
 #[test]
 fn object_type_must_be_known_in_method_call() {
     let src = r#"
@@ -4672,5 +4673,5 @@ fn object_type_must_be_known_in_method_call() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
