@@ -88,7 +88,9 @@
 <a href="#87" id="87">87</a>
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">pub mod </span>layers;
@@ -103,7 +105,8 @@
 <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
 </span><span class="kw">pub use </span>default::DefaultForeignCallExecutor;
 
-<span class="kw">pub trait </span>ForeignCallExecutor&lt;F&gt; {
+<span class="doccomment">/// Interface for executing foreign calls
+</span><span class="kw">pub trait </span>ForeignCallExecutor&lt;F&gt; {
     <span class="kw">fn </span>execute(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         foreign_call: <span class="kw-2">&amp;</span>ForeignCallWaitInfo&lt;F&gt;,
@@ -113,7 +116,8 @@
 <span class="doccomment">/// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 </span><span class="kw">pub enum </span>ForeignCall {
-    Print,
+    <span class="doccomment">/// Reference [mod@print] for more info regarding this call's inputs
+    </span>Print,
     CreateMock,
     SetMockParams,
     GetMockLastParams,
