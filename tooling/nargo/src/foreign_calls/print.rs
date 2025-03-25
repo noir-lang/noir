@@ -127,6 +127,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
     let num_values = num_values.unwrap_field().to_u128() as usize;
 
     let types_start_at = input_and_printable_types.len() - num_values;
+
     let mut input_iter =
         input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
