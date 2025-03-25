@@ -1990,6 +1990,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
+                         ^^^^^^^^ Indexing arrays and slices must be done with `u32`, not `u64`
             self.len += 1;
         }
     }
@@ -4197,6 +4198,32 @@ fn object_type_must_be_known_in_method_call() {
     }
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn indexing_array_with_non_u32() {
+    let src = r#"
+    fn main() {
+        let index: u64 = 0;
+        let array = [1, 2, 3];
+        let _ = array[index];
+                      ^^^^^ Indexing arrays and slices must be done with `u32`, not `u64`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn indexing_array_with_non_u32_in_lvalue() {
+    let src = r#"
+    fn main() {
+        let index: u64 = 0;
+        let mut array = [1, 2, 3];
+        array[index] = 0;
+              ^^^^^ Indexing arrays and slices must be done with `u32`, not `u64`
+    }
     "#;
     check_errors(src);
 }

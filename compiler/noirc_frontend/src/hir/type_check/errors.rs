@@ -26,6 +26,8 @@ pub enum Source {
     Assignment,
     #[error("ArrayElements")]
     ArrayElements,
+    #[error("ArrayIndex")]
+    ArrayIndex,
     #[error("ArrayLen")]
     ArrayLen,
     #[error("StringLen")]
@@ -571,6 +573,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                         format!("Cannot assign an expression of type {actual} to a value of type {expected}")
                     }
                     Source::ArrayElements => format!("Cannot compare {expected} and {actual}, the array element types differ"),
+                    Source::ArrayIndex => format!("Indexing arrays and slices must be done with `{expected}`, not `{actual}`"),
                     Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
                     Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),

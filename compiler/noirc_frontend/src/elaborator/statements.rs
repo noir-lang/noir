@@ -3,8 +3,8 @@ use noirc_errors::Location;
 use crate::{
     DataType, Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, ItemVisibility, LValue,
-        LetStatement, Path, Statement, StatementKind, WhileStatement,
+        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
+        ItemVisibility, LValue, LetStatement, Path, Statement, StatementKind, WhileStatement,
     },
     hir::{
         resolution::{
@@ -18,6 +18,7 @@ use crate::{
         stmt::{HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
+    shared::Signedness,
 };
 
 use super::{Elaborator, Loop, lints};
@@ -427,11 +428,12 @@ impl Elaborator<'_> {
                 let expr_location = index.location;
                 let (index, index_type) = self.elaborate_expression(index);
 
-                let expected = self.polymorphic_integer_or_field();
-                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
-                    expected_typ: "an integer".to_owned(),
-                    expr_typ: index_type.to_string(),
-                    expr_location,
+                let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
+                    expected: expected.clone(),
+                    actual: index_type.clone(),
+                    location: expr_location,
+                    source: Source::ArrayIndex,
                 });
 
                 let (mut lvalue, mut lvalue_type, mut mutable) = self.elaborate_lvalue(*array);
