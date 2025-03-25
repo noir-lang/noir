@@ -4,8 +4,6 @@ set -e
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "overlapping_dep_and_mod" "overlapping_dep_and_mod_fix" "workspace_default_member" "workspace_reexport_bug")
 
-ci_excluded_dirs=("eddsa")
-
 current_dir=$(pwd)
 
 # We generate a Noir workspace which contains all of the test cases
@@ -22,10 +20,6 @@ function collect_dirs {
     fi
 
     if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
-      continue
-    fi
-
-    if [[ ${CI-false} = "true" ]] && [[ " ${ci_excluded_dirs[@]} " =~ " ${dir} " ]]; then
       continue
     fi
 
