@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742908977401,
+  "lastUpdate": 1742908990812,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1e391ac4022cb23b9406e11dbd4d66be1f41aa34",
-          "message": "chore(frontend): Regression test for creating a mutable reference to an array element (#7699)",
-          "timestamp": "2025-03-14T12:56:16Z",
-          "tree_id": "8524984eb5ff239cee82f0e9f714910800067c95",
-          "url": "https://github.com/noir-lang/noir/commit/1e391ac4022cb23b9406e11dbd4d66be1f41aa34"
-        },
-        "date": 1741958354767,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.64,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.86,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.35,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/59972d4d7fac09fd904a16556dd9ae89ae41a1ec"
         },
         "date": 1742906882337,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.13,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "20a9084582dba63bb38dea08765f03e8c037df3d",
+          "message": "fix: mark array index as used in DIE pass when replacing read with explicit bounds check (#7786)",
+          "timestamp": "2025-03-25T12:58:03Z",
+          "tree_id": "868b9062ed32c4e971834a193fdd73a7ae398f0e",
+          "url": "https://github.com/noir-lang/noir/commit/20a9084582dba63bb38dea08765f03e8c037df3d"
+        },
+        "date": 1742908986756,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
