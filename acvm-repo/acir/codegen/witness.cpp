@@ -5,6 +5,52 @@
 #include "bincode.hpp"
 
 namespace Witnesses {
+struct Helpers {
+    static std::map<std::string, msgpack::object const*> make_kvmap(
+        msgpack::object const& o,
+        std::string name
+    ) {
+        if(o.type != msgpack::type::MAP) {
+            std::cerr << o << std::endl;
+            throw_or_abort("expected MAP for " + name);
+        }
+        std::map<std::string, msgpack::object const*> kvmap;
+        for (uint32_t i = 0; i < o.via.map.size; ++i) {
+            if (o.via.map.ptr[i].key.type != msgpack::type::STR) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected STR for keys of " + name);
+            }
+            kvmap.emplace(
+                std::string(
+                    o.via.map.ptr[i].key.via.str.ptr,
+                    o.via.map.ptr[i].key.via.str.size),
+                &o.via.map.ptr[i].val);
+        }
+        return kvmap;
+    }
+
+    template<typename T>
+    static void conv_fld_from_kvmap(
+        std::map<std::string, msgpack::object const*> const& kvmap,
+        std::string struct_name,
+        std::string field_name,
+        T& field
+    ) {
+        auto it = kvmap.find(field_name);
+        if (it != kvmap.end()) {
+            try {
+                it->second->convert(field);
+            } catch (const msgpack::type_error&) {
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+            }
+        } else {
+            throw_or_abort("missing field: " + struct_name + "::" + field_name);
+        }
+    }
+};
+}
+
+namespace Witnesses {
 
     struct Witness {
         uint32_t value;
@@ -52,7 +98,18 @@ namespace Witnesses {
         std::vector<uint8_t> bincodeSerialize() const;
         static StackItem bincodeDeserialize(std::vector<uint8_t>);
 
-        MSGPACK_FIELDS(index, witness);
+        void msgpack_pack(auto& packer) const {
+            packer.pack_map(2);
+            packer.pack(std::make_pair("index", index));
+            packer.pack(std::make_pair("witness", witness));
+        }
+
+        void msgpack_unpack(msgpack::object const& o) {
+            auto name = "StackItem";
+            auto kvmap = Helpers::make_kvmap(o, name);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "index", index);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness);
+        }
     };
 
     struct WitnessStack {
@@ -62,7 +119,16 @@ namespace Witnesses {
         std::vector<uint8_t> bincodeSerialize() const;
         static WitnessStack bincodeDeserialize(std::vector<uint8_t>);
 
-        MSGPACK_FIELDS(stack);
+        void msgpack_pack(auto& packer) const {
+            packer.pack_map(1);
+            packer.pack(std::make_pair("stack", stack));
+        }
+
+        void msgpack_unpack(msgpack::object const& o) {
+            auto name = "WitnessStack";
+            auto kvmap = Helpers::make_kvmap(o, name);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack);
+        }
     };
 
 } // end of namespace Witnesses
