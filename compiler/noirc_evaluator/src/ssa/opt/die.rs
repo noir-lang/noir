@@ -1197,10 +1197,10 @@ mod test {
         // acir(inline) predicate_pure fn main f0 {
         //   b0():
         //     v1 = call f1() -> u32
-        //     v7 = lt v1, u32 2
-        //     constrain v7 == u1 1, "Index out of bounds"
-        //     v9 = lt v4, u32 2  <-- Notice that `v4` has now been orphaned
-        //     constrain v9 == u1 1, "Index out of bounds"
+        //     v3 = lt v1, u32 2
+        //     constrain v3 == u1 1, "Index out of bounds"
+        //     v5 = lt v4, u32 2  <-- Notice that `v4` has now been orphaned
+        //     constrain v5 == u1 1, "Index out of bounds"
         //     return
         //   }
         // brillig(inline) predicate_pure fn inject_value f1 {
