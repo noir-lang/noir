@@ -653,16 +653,7 @@
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a>
-<a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#655" id="655">655</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::{hash::Hasher, rc::Rc};
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -1307,15 +1298,6 @@
 <span class="doccomment">/// Create a `Value::Slice` from bytes.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_byte_slice(values: <span class="kw-2">&amp;</span>[u8]) -&gt; Value {
     Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
-}
-
-<span class="doccomment">/// Create a `Value::Array` from fields.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_field_array(values: <span class="kw-2">&amp;</span>[FieldElement]) -&gt; Value {
-    <span class="kw">let </span>typ = Type::Array(
-        Box::new(Type::Constant(values.len().into(), Kind::u32())),
-        Box::new(Type::FieldElement),
-    );
-    Value::Array(values.iter().copied().map(Value::Field).collect(), typ)
 }
 
 <span class="doccomment">/// Create a `Value::Struct` from fields and the expected return type.

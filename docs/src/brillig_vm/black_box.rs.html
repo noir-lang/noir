@@ -557,7 +557,7 @@
                 <span class="kw-2">&amp;</span>[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
-                    MemoryValue::new_field(is_infinite),
+                    MemoryValue::U1(is_infinite != F::zero()),
                 ],
             );
             <span class="prelude-val">Ok</span>(())
@@ -590,7 +590,7 @@
                 <span class="kw-2">&amp;</span>[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
-                    MemoryValue::new_field(infinite),
+                    MemoryValue::U1(infinite != F::zero()),
                 ],
             );
             <span class="prelude-val">Ok</span>(())

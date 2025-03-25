@@ -476,17 +476,55 @@
 <a href="#475" id="475">475</a>
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField, BlackBoxResolutionError, FieldElement,
     acir::BlackBoxFunc,
     blackbox_solver::{BigIntSolverWithId, BlackBoxFunctionSolver},
 };
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver; <span class="comment">// Currently locked to only bn254!
-</span><span class="kw">use </span>im::Vector;
+</span><span class="kw">use </span>im::{Vector, vector};
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    Type,
+    Kind, Type,
     hir::comptime::{
         InterpreterError, Value, errors::IResult,
         interpreter::builtin::builtin_helpers::to_byte_array,
@@ -499,7 +537,7 @@
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
         get_array_map, get_bool, get_field, get_fixed_array_map, get_slice_map, get_struct_field,
-        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_field_array, to_struct,
+        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_struct,
     },
 };
 
@@ -559,8 +597,10 @@
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-        <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, location, pedantic_solving),
-        <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(interner, args, location, pedantic_solving),
+        <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, return_type, location, pedantic_solving),
+        <span class="string">"multi_scalar_mul" </span>=&gt; {
+            multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
+        }
         <span class="string">"poseidon2_permutation" </span>=&gt; {
             poseidon2_permutation(interner, args, location, pedantic_solving)
         }
@@ -749,14 +789,17 @@
 /// fn embedded_curve_add(
 ///     point1: EmbeddedCurvePoint,
 ///     point2: EmbeddedCurvePoint,
-/// ) -&gt; [Field; 3]
+/// ) -&gt; [EmbeddedCurvePoint; 1]
 /// ```
 </span><span class="kw">fn </span>embedded_curve_add(
     arguments: Vec&lt;(Value, Location)&gt;,
+    return_type: Type,
     location: Location,
     pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(point1, point2) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>embedded_curve_point_typ = point1.<span class="number">0</span>.get_type().into_owned();
 
     <span class="kw">let </span>(p1x, p1y, p1inf) = get_embedded_curve_point(point1)<span class="question-mark">?</span>;
     <span class="kw">let </span>(p2x, p2y, p2inf) = get_embedded_curve_point(point2)<span class="question-mark">?</span>;
@@ -765,18 +808,22 @@
         .ec_add(<span class="kw-2">&amp;</span>p1x, <span class="kw-2">&amp;</span>p1y, <span class="kw-2">&amp;</span>p1inf.into(), <span class="kw-2">&amp;</span>p2x, <span class="kw-2">&amp;</span>p2y, <span class="kw-2">&amp;</span>p2inf.into())
         .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(to_field_array(<span class="kw-2">&amp;</span>[x, y, inf]))
+    <span class="prelude-val">Ok</span>(Value::Array(
+        <span class="macro">vector!</span>[to_embedded_curve_point(x, y, inf &gt; <span class="number">0_usize</span>.into(), embedded_curve_point_typ)],
+        return_type,
+    ))
 }
 
 <span class="doccomment">/// ```text
 /// pub fn multi_scalar_mul&lt;let N: u32&gt;(
 ///     points: [EmbeddedCurvePoint; N],
 ///     scalars: [EmbeddedCurveScalar; N],
-/// ) -&gt; [Field; 3]
+/// ) -&gt; [EmbeddedCurvePoint; 1]
 /// ```
 </span><span class="kw">fn </span>multi_scalar_mul(
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
+    return_type: Type,
     location: Location,
     pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
@@ -797,7 +844,24 @@
         .multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(to_field_array(<span class="kw-2">&amp;</span>[x, y, inf]))
+    <span class="kw">let </span>embedded_curve_point_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>return_type {
+        Type::Array(<span class="kw">_</span>, item_type) =&gt; item_type.as_ref().clone(),
+        <span class="kw">_ </span>=&gt; {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
+                expected: Type::Array(
+                    Box::new(Type::Constant(<span class="number">1_usize</span>.into(), Kind::u32())),
+                    Box::new(interner.next_type_variable()), <span class="comment">// EmbeddedCurvePoint
+                </span>),
+                actual: return_type.clone(),
+                location,
+            });
+        }
+    };
+
+    <span class="prelude-val">Ok</span>(Value::Array(
+        <span class="macro">vector!</span>[to_embedded_curve_point(x, y, inf &gt; <span class="number">0_usize</span>.into(), embedded_curve_point_typ)],
+        return_type,
+    ))
 }
 
 <span class="doccomment">/// `poseidon2_permutation&lt;let N: u32&gt;(_input: [Field; N], _state_length: u32) -&gt; [Field; N]`
@@ -892,6 +956,18 @@
 
 <span class="kw">fn </span>to_bigint(id: u32, typ: Type) -&gt; Value {
     to_struct([(<span class="string">"pointer"</span>, Value::U32(id)), (<span class="string">"modulus"</span>, Value::U32(id))], typ)
+}
+
+<span class="kw">fn </span>to_embedded_curve_point(
+    x: FieldElement,
+    y: FieldElement,
+    is_infinite: bool,
+    typ: Type,
+) -&gt; Value {
+    to_struct(
+        [(<span class="string">"x"</span>, Value::Field(x)), (<span class="string">"y"</span>, Value::Field(y)), (<span class="string">"is_infinite"</span>, Value::Bool(is_infinite))],
+        typ,
+    )
 }
 
 <span class="attr">#[cfg(test)]
