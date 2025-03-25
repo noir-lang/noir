@@ -124,7 +124,7 @@ impl ChunkFormatter<'_, '_> {
                 formatter.write_right_paren();
             })),
             Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_, _) | Literal::RawStr(..) => {
-                group.text(self.chunk(|formatter| {
+                group.verbatim(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
                 }));
@@ -2475,5 +2475,16 @@ global y = 1;
     }
 }\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_add_extra_spaces_to_fmtstr() {
+        let src = r#"fn main() {
+    let multiline_string: str<22> = "{
+        \"key\": \"value\"
+}";
+}
+"#;
+        assert_format(src, src);
     }
 }
