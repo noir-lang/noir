@@ -23,7 +23,7 @@ use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use noir_artifact_cli::fs::inputs::write_inputs_to_file;
 
-/// Run the tests for this program
+/// Run the fuzzing harnesses for this program
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "f")]
 pub(crate) struct FuzzCommand {
@@ -80,6 +80,50 @@ impl WorkspaceCommand for FuzzCommand {
         LockType::None
     }
 }
+
+/// List the fuzzing harnesses for this program
+fn list_harnesses_command(
+    args: FuzzCommand,
+    workspace: Workspace,
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    pattern: &FunctionNameMatch,
+) -> Result<(), CliError> {
+    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    let all_harnesses_by_package: Vec<(CrateName, Vec<String>)> = pool
+        .install(|| {
+            workspace.into_iter().par_bridge().map(|package| {
+                let harnesses = list_harnesses(
+                    &file_manager,
+                    &parsed_files,
+                    package,
+                    &pattern,
+                    &args.compile_options,
+                );
+                match harnesses {
+                    Ok(harness_names) => Ok((package.name.clone(), harness_names)),
+                    Err(cli_error) => Err(cli_error),
+                }
+            })
+        })
+        .collect::<Result<_, _>>()?;
+    let mut found_harness = false;
+    for (crate_name, discovered_harnesses) in all_harnesses_by_package.iter() {
+        if !discovered_harnesses.is_empty() {
+            println!("Package {crate_name} contains fuzzing harnesses:");
+            for harness in discovered_harnesses.iter() {
+                println!("\t{harness}");
+            }
+            found_harness = true;
+        }
+    }
+    if !found_harness {
+        println!("No fuzzing harnesses found");
+    }
+    return Ok(());
+}
+
+/// Run the fuzzing harnesses for this program
 pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
@@ -98,38 +142,7 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
     };
 
     if args.list_all {
-        let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
-        let all_harnesses_by_package: Vec<(CrateName, Vec<String>)> = pool
-            .install(|| {
-                workspace.into_iter().par_bridge().map(|package| {
-                    let harnesses = list_harnesses(
-                        &file_manager,
-                        &parsed_files,
-                        package,
-                        &pattern,
-                        &args.compile_options,
-                    );
-                    match harnesses {
-                        Ok(harness_names) => Ok((package.name.clone(), harness_names)),
-                        Err(cli_error) => Err(cli_error),
-                    }
-                })
-            })
-            .collect::<Result<_, _>>()?;
-        let mut found_harness = false;
-        for (crate_name, discovered_harnesses) in all_harnesses_by_package.iter() {
-            if !discovered_harnesses.is_empty() {
-                println!("Package {crate_name} contains fuzzing harnesses:");
-                for harness in discovered_harnesses.iter() {
-                    println!("\t{harness}");
-                }
-                found_harness = true;
-            }
-        }
-        if !found_harness {
-            println!("No fuzzing harnesses found");
-        }
-        return Ok(());
+        return list_harnesses_command(args, workspace, &file_manager, &parsed_files, &pattern);
     }
 
     let fuzz_folder_config = FuzzFolderConfig {
@@ -168,17 +181,21 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
             FunctionNameMatch::Exact(pattern) => {
                 let single_pattern = pattern[0].clone();
                 return Err(CliError::Generic(format!(
-                    "Found 0 fuzzing_harnesses matching input '{single_pattern}'.",
+                    "Found 0 fuzzing harnesses matching input '{single_pattern}'.",
                 )));
             }
             FunctionNameMatch::Contains(pattern) => {
                 let single_pattern = pattern[0].clone();
                 return Err(CliError::Generic(format!(
-                    "Found 0 fuzzing_harnesses containing '{single_pattern}'.",
+                    "Found 0 fuzzing harnesses containing '{single_pattern}'.",
                 )));
             }
             // If we are running all tests in a crate, having none is not an error
-            FunctionNameMatch::Anything => {}
+            FunctionNameMatch::Anything => {
+                return Err(CliError::Generic(String::from(
+                    "Found no fuzzing harnesses in this workspace.",
+                )));
+            }
         };
     }
 
@@ -251,7 +268,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
             file_manager,
             package,
             compile_options,
-            &fuzzing_reports[(&fuzzing_reports.len() - 1)..fuzzing_reports.len()],
+            &fuzzing_reports[fuzzing_reports.len() - 1],
         )?;
     }
 
@@ -320,7 +337,7 @@ fn display_fuzzing_report_and_store(
     file_manager: &FileManager,
     package: &Package,
     compile_options: &CompileOptions,
-    fuzzing_report: &[(String, FuzzingRunStatus)],
+    fuzzing_report: &(String, FuzzingRunStatus),
 ) -> Result<(), CliError> {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
@@ -331,157 +348,141 @@ fn display_fuzzing_report_and_store(
             .expect("Failed to create fuzzing failure directory");
     }
 
-    for (fuzzing_harness_name, test_status) in fuzzing_report {
-        write!(writer, "[").expect("Failed to write to stderr");
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    let (fuzzing_harness_name, status) = fuzzing_report;
+    write!(writer, "[").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
 
-        write!(writer, "{}", package.name).expect("Failed to write to stderr");
-        writer.reset().expect("Failed to reset writer");
-        write!(writer, "] Executed fuzzing task on ").expect("Failed to write to stderr");
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
-        write!(writer, "{fuzzing_harness_name}").expect("Failed to write to stderr");
-        writer.reset().expect("Failed to reset writer");
-        write!(writer, "...").expect("Failed to write to stderr");
-        writer.flush().expect("Failed to flush writer");
+    write!(writer, "{}", package.name).expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+    write!(writer, "] Executed fuzzing task on ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{fuzzing_harness_name}").expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+    write!(writer, "...").expect("Failed to write to stderr");
+    writer.flush().expect("Failed to flush writer");
 
-        match &test_status {
-            FuzzingRunStatus::ExecutionPass { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
-                    .expect("Failed to set color");
-                writeln!(writer, "ok").expect("Failed to write to stderr");
-            }
-            FuzzingRunStatus::MinimizationPass { .. } => {
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
-                    .expect("Failed to set color");
-                writeln!(writer, "successfully minimized corpus")
-                    .expect("Failed to write to stderr");
-            }
-            FuzzingRunStatus::CorpusFailure { message } => {
-                writeln!(writer, "issue with corpus: ").expect("Failed to write to stderr");
+    match &status {
+        FuzzingRunStatus::ExecutionPass { .. } => {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                .expect("Failed to set color");
+            writeln!(writer, "ok").expect("Failed to write to stderr");
+        }
+        FuzzingRunStatus::MinimizationPass { .. } => {
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                .expect("Failed to set color");
+            writeln!(writer, "successfully minimized corpus").expect("Failed to write to stderr");
+        }
+        FuzzingRunStatus::CorpusFailure { message } => {
+            writeln!(writer, "issue with corpus: ").expect("Failed to write to stderr");
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                .expect("Failed to set color");
+
+            writeln!(writer, "{message}").expect("Failed to write to stderr");
+            writer.reset().expect("Failed to reset writer");
+        }
+        FuzzingRunStatus::MinimizationFailure { message } => {
+            writeln!(writer, "couldn't minimize corpus: ").expect("Failed to write to stderr");
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                .expect("Failed to set color");
+
+            writeln!(writer, "{message}").expect("Failed to write to stderr");
+            writer.reset().expect("Failed to reset writer");
+        }
+        FuzzingRunStatus::ForeignCallFailure { message } => {
+            writeln!(writer, "issue with a foreign call: ").expect("Failed to write to stderr");
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                .expect("Failed to set color");
+
+            writeln!(writer, "{message}").expect("Failed to write to stderr");
+            writer.reset().expect("Failed to reset writer");
+        }
+        FuzzingRunStatus::ExecutionFailure { message, counterexample, error_diagnostic } => {
+            write!(writer, "execution ").expect("Failed to write to stderr");
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                .expect("Failed to set color");
+            write!(writer, "failed").expect("Failed to write to stderr");
+            writer.reset().expect("Failed to reset writer");
+            writeln!(writer, " with message:").expect("Failed to write to stderr");
+            writer
+                .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                .expect("Failed to set color");
+
+            writeln!(writer, "{message}").expect("Failed to write to stderr");
+            writer.reset().expect("Failed to reset writer");
+            if let Some((input_map, abi)) = counterexample {
+                writeln!(writer, "Failing input: ",).expect("Failed to write to stderr");
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
                     .expect("Failed to set color");
-
-                writeln!(writer, "{message}").expect("Failed to write to stderr");
+                writeln!(
+                    writer,
+                    "{}",
+                    serialize_to_json(input_map, abi)
+                        .expect("Input map should be correctly serialized with this Abi")
+                )
+                .expect("Failed to write to stderr");
                 writer.reset().expect("Failed to reset writer");
-            }
-            FuzzingRunStatus::MinimizationFailure { message } => {
-                writeln!(writer, "couldn't minimize corpus: ").expect("Failed to write to stderr");
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                    .expect("Failed to set color");
-
-                writeln!(writer, "{message}").expect("Failed to write to stderr");
-                writer.reset().expect("Failed to reset writer");
-            }
-            FuzzingRunStatus::ForeignCallFailure { message } => {
-                writeln!(writer, "issue with a foreign call: ").expect("Failed to write to stderr");
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                    .expect("Failed to set color");
-
-                writeln!(writer, "{message}").expect("Failed to write to stderr");
-                writer.reset().expect("Failed to reset writer");
-            }
-            FuzzingRunStatus::ExecutionFailure { message, counterexample, error_diagnostic } => {
-                write!(writer, "execution ").expect("Failed to write to stderr");
-                writer
-                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                    .expect("Failed to set color");
-                write!(writer, "failed").expect("Failed to write to stderr");
-                writer.reset().expect("Failed to reset writer");
-                writeln!(writer, " with message:").expect("Failed to write to stderr");
+                let file_name = "Prover-failing-".to_owned()
+                    + &package.name.to_string()
+                    + "-"
+                    + fuzzing_harness_name;
+                write_inputs_to_file(
+                    fuzzing_failure_path.clone(),
+                    &file_name,
+                    Format::Toml,
+                    abi,
+                    input_map,
+                )
+                .expect("Couldn't write toml file");
+                writeln!(writer, "saved input to:").expect("Failed to write to stderr");
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
                     .expect("Failed to set color");
-
-                writeln!(writer, "{message}").expect("Failed to write to stderr");
-                writer.reset().expect("Failed to reset writer");
-                if let Some((input_map, abi)) = counterexample {
-                    writeln!(writer, "Failing input: ",).expect("Failed to write to stderr");
-                    writer
-                        .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                        .expect("Failed to set color");
-                    writeln!(
-                        writer,
-                        "{}",
-                        serialize_to_json(input_map, abi)
-                            .expect("Input map should be correctly serialized with this Abi")
-                    )
+                // TODO(https://github.com/noir-lang/noir/issues/7796): Make the path shorter if possible
+                let mut full_path_of_example = fuzzing_failure_path.clone().join(file_name);
+                full_path_of_example.set_extension(PathBuf::from("toml"));
+                writeln!(writer, "\"{}\"", full_path_of_example.to_str().unwrap())
                     .expect("Failed to write to stderr");
-                    writer.reset().expect("Failed to reset writer");
-                    let file_name = "Prover-failing-".to_owned()
-                        + &package.name.to_string()
-                        + "-"
-                        + fuzzing_harness_name;
-                    write_inputs_to_file(
-                        fuzzing_failure_path.clone(),
-                        &file_name,
-                        Format::Toml,
-                        abi,
-                        input_map,
-                    )
-                    .expect("Couldn't write toml file");
-                    writeln!(writer, "saved input to:").expect("Failed to write to stderr");
-                    writer
-                        .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
-                        .expect("Failed to set color");
-                    let mut full_path_of_example = fuzzing_failure_path.clone().join(file_name);
-                    full_path_of_example.set_extension(PathBuf::from("toml"));
-                    writeln!(writer, "\"{}\"", full_path_of_example.to_str().unwrap())
-                        .expect("Failed to write to stderr");
-                    writer.reset().expect("Failed to reset writer");
-                }
-                if let Some(diag) = error_diagnostic {
-                    noirc_errors::reporter::report_all(
-                        file_manager.as_file_map(),
-                        &[diag.clone()],
-                        compile_options.deny_warnings,
-                        compile_options.silence_warnings,
-                    );
-                }
+                writer.reset().expect("Failed to reset writer");
             }
-            FuzzingRunStatus::CompileError(err) => {
+            if let Some(diag) = error_diagnostic {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    &[err.clone()],
+                    &[diag.clone()],
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
             }
         }
-        writer.reset().expect("Failed to reset writer");
-        writer.flush().expect("Failed to flush writer");
+        FuzzingRunStatus::CompileError(err) => {
+            noirc_errors::reporter::report_all(
+                file_manager.as_file_map(),
+                &[err.clone()],
+                compile_options.deny_warnings,
+                compile_options.silence_warnings,
+            );
+        }
     }
+    writer.reset().expect("Failed to reset writer");
+    writer.flush().expect("Failed to flush writer");
 
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
-    let count_all = fuzzing_report.len();
-    let count_failed = fuzzing_report.iter().filter(|(_, status)| status.failed()).count();
-    let plural = if count_all == 1 { "" } else { "s" };
-    if count_failed == 0 {
+    if !status.failed() {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
-        write!(writer, "{count_all} test{plural} passed").expect("Failed to write to stderr");
+        write!(writer, "{} passed (didn't find any issues)", fuzzing_harness_name)
+            .expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
         writeln!(writer).expect("Failed to write to stderr");
     } else {
-        let count_passed = count_all - count_failed;
-        let plural_failed = if count_failed == 1 { "" } else { "s" };
-        let plural_passed = if count_passed == 1 { "" } else { "s" };
-
-        if count_passed != 0 {
-            writer
-                .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
-                .expect("Failed to set color");
-            write!(writer, "{count_passed} test{plural_passed} passed, ",)
-                .expect("Failed to write to stderr");
-        }
-
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
-        writeln!(writer, "{count_failed} test{plural_failed} failed")
-            .expect("Failed to write to stderr");
+        write!(writer, "{} failed", fuzzing_harness_name).expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
     }
 

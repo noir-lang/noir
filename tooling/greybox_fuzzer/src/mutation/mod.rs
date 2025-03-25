@@ -92,12 +92,8 @@ impl InputMutator {
                 let length = *length as usize;
                 let subnode_weight = Self::count_single_input_weight(typ);
                 let node_weight = subnode_weight.get_weight() * length as u32;
-
-                NodeWeight {
-                    start: 0,
-                    end: node_weight,
-                    subnodes: Some(vec![subnode_weight; length]),
-                }
+                let subnodes = Some(vec![subnode_weight; length]);
+                NodeWeight { start: 0, end: node_weight, subnodes }
             }
 
             AbiType::Struct { fields, .. } => {
@@ -589,7 +585,7 @@ impl InputMutator {
         second_input_map: &InputMap,
         prng: &mut XorShiftRng,
     ) -> InputMap {
-        // TODO: add the most basic splice where the whole map is converted into a witness map and then we splice those
+        // TODO(https://github.com/noir-lang/noir/issues/7503): add the most basic splice where the whole map is converted into a witness map and then we splice those
         match BASIC_TESTCASE_SPLICE_CONFIGURATION.select(prng) {
             TestCaseSpliceTypeOptions::BalancedTopLevel => {
                 self // Randomly pick top-level objects with 50/50 probability

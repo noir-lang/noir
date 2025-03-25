@@ -181,6 +181,10 @@ impl<'a> StringMutator<'a> {
         result
     }
     /// Create a spliced version of 2 buffers, where each element in the result is at the same index as in the original ones
+    /// Let's say you have a struct {a: u8, b: u8} and two testcases are:
+    /// {a: 1, b: 2} and {a: 3, b: 4}
+    /// The result of the splice can be:
+    /// {a: 1, b: 4}, {a: 3, b: 2} or {a: 3, b: 4}, {a: 1, b: 2}, but not {a: 1, b: 3}, {a: 4, b: 1}, etc
     fn structured_splice(&mut self, first_buffer: &[u8], second_buffer: &[u8]) -> Vec<u8> {
         let mut result = first_buffer.to_vec();
         let mut index = 0;

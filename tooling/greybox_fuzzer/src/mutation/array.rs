@@ -200,3 +200,75 @@ pub fn mutate_vector_structure(input: &[InputValue], prng: &mut XorShiftRng) -> 
     let mut array_mutator = ArrayMutator::new(prng);
     array_mutator.perform_structure_mutation_on_vector(input)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acvm::{AcirField, FieldElement};
+    use noirc_abi::input_parser::InputValue;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
+
+    #[test]
+    fn test_swap() {
+        // Create a deterministic PRNG for testing
+        let seed = [42u8; 16];
+        let mut prng = XorShiftRng::from_seed(seed);
+
+        // Create a test array mutator
+        let mut array_mutator = ArrayMutator::new(&mut prng);
+
+        // Create a test buffer with distinct values for easy verification
+        let buffer: Vec<InputValue> =
+            (0..10).map(|i| InputValue::Field(FieldElement::from(i as u128))).collect();
+
+        // Perform the swap operation
+        let result = array_mutator.swap(&buffer);
+
+        // Verify the result has the same length as the input
+        assert_eq!(result.len(), buffer.len());
+
+        // Verify that all elements from the original buffer are present in the result
+        // (though potentially in a different order)
+        let mut original_elements: Vec<u128> = buffer
+            .iter()
+            .map(|v| match v {
+                InputValue::Field(i) => i.to_u128(),
+                _ => panic!("Unexpected input value type"),
+            })
+            .collect();
+
+        let mut result_elements: Vec<u128> = result
+            .iter()
+            .map(|v| match v {
+                InputValue::Field(i) => i.to_u128(),
+                _ => panic!("Unexpected input value type"),
+            })
+            .collect();
+
+        original_elements.sort();
+        result_elements.sort();
+
+        assert_eq!(original_elements, result_elements);
+
+        // Verify that the order has changed (the swap actually did something)
+        // This might rarely fail if the random swap happens to produce the same order,
+        // but with our seed it should be consistent
+        assert_ne!(
+            buffer
+                .iter()
+                .map(|v| match v {
+                    InputValue::Field(i) => i.to_u128(),
+                    _ => panic!("Unexpected input value type"),
+                })
+                .collect::<Vec<_>>(),
+            result
+                .iter()
+                .map(|v| match v {
+                    InputValue::Field(i) => i.to_u128(),
+                    _ => panic!("Unexpected input value type"),
+                })
+                .collect::<Vec<_>>()
+        );
+    }
+}

@@ -253,16 +253,13 @@ pub fn execute_program_with_profiling<
     foreign_call_executor: &mut E,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let profiling_active = true;
-    match execute_program_inner(
+    execute_program_inner(
         program,
         initial_witness,
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-    ) {
-        Ok((witness_stack, profiling_samples, ..)) => Ok((witness_stack, profiling_samples)),
-        Err(err) => Err(err),
-    }
+    )
 }
 pub(crate) fn execute_program_with_brillig_fuzzing<
     F: AcirField,

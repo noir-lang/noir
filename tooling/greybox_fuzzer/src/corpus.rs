@@ -136,11 +136,7 @@ impl CorpusFileManager {
     /// Returns a vector containing all parsed inputs from the corpus
     pub fn get_full_corpus(&self) -> Vec<&InputMap> {
         let file_ids = self.file_manager.as_file_map().all_file_ids();
-        let mut full_corpus = Vec::new();
-        for file_id in file_ids {
-            full_corpus.push(&self.parsed_map[file_id]);
-        }
-        full_corpus
+        file_ids.map(|file_id| &self.parsed_map[file_id]).collect()
     }
 
     /// Returns the path to the corpus directory
@@ -261,10 +257,6 @@ impl TestCaseOrchestrator {
         if !self.current_sequence.is_empty() {
             // Update execution counts
             self.current_sequence.decrement();
-            self.executions_per_testcase
-                .entry(self.current_sequence.testcase_id)
-                .and_modify(|executions| *executions += 1);
-            self.total_executions += 1;
         } else {
             // Calculate average executions per testcase
             let average = self.total_executions / testcase_count as u64;
@@ -287,12 +279,12 @@ impl TestCaseOrchestrator {
                 testcase_id: chosen_id,
                 executions_left: min(1u64 << self.sequence_number[&chosen_id], average / 2),
             };
-
-            // Update execution counts
-            self.total_executions += 1;
-            self.executions_per_testcase.entry(chosen_id).and_modify(|executions| *executions += 1);
         }
-
+        // Update execution counts
+        self.executions_per_testcase
+            .entry(self.current_sequence.testcase_id)
+            .and_modify(|executions| *executions += 1);
+        self.total_executions += 1;
         // If we have multiple testcases, randomly select a different one for splicing
         if testcase_count > 1 {
             let mut additional_id = self.current_sequence.testcase_id;
@@ -369,7 +361,7 @@ impl Corpus {
     }
 
     /// Adds a testcase to the cache (stored but not active)
-    pub fn insert_into_cache(&mut self, testcase_id: TestCaseId, new_testcase_value: InputMap) {
+    fn insert_into_cache(&mut self, testcase_id: TestCaseId, new_testcase_value: InputMap) {
         self.cached_testcases.insert(testcase_id, new_testcase_value);
     }
 
@@ -402,11 +394,7 @@ impl Corpus {
 
     /// Returns the input values for a testcase by its ID, checking both active and cached testcases
     pub fn get_testcase_by_id(&self, id: TestCaseId) -> &InputMap {
-        if self.discovered_testcases.contains_key(&id) {
-            &self.discovered_testcases[&id]
-        } else {
-            &self.cached_testcases[&id]
-        }
+        self.discovered_testcases.get(&id).unwrap_or_else(|| &self.cached_testcases[&id])
     }
 
     /// Selects the next testcase(s) for ACIR execution
