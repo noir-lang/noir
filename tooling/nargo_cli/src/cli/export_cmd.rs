@@ -22,6 +22,7 @@ use super::check_cmd::check_crate_and_report_errors;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
+#[allow(rustdoc::broken_intra_doc_links)]
 /// Exports functions marked with #[export] attribute
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExportCommand {

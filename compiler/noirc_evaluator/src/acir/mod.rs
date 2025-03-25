@@ -1392,22 +1392,21 @@ impl<'a> Context<'a> {
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         let call_data =
             self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
-        if let Some(call_data) = call_data {
+        let mut value = if let Some(call_data) = call_data {
             let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
             let bus_index = self
                 .acir_context
                 .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            let result = self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?;
-            self.define_result(dfg, instruction, result.clone());
-            return Ok(result);
-        }
-        // Compiler sanity check
-        assert!(
-            !res_typ.contains_slice_element(),
-            "ICE: Nested slice result found during ACIR generation"
-        );
-        let mut value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
+            self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?
+        } else {
+            // Compiler sanity check
+            assert!(
+                !res_typ.contains_slice_element(),
+                "ICE: Nested slice result found during ACIR generation"
+            );
+            self.array_get_value(&res_typ, block_id, &mut var_index)?
+        };
 
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
@@ -2189,7 +2188,7 @@ impl<'a> Context<'a> {
                 let inputs = vecmap(&arguments_no_slice_len, |arg| self.convert_value(*arg, dfg));
 
                 let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
-                    sum + dfg.try_get_array_length(*result_id).unwrap_or(1) as usize
+                    sum + dfg.type_of_value(*result_id).flattened_size() as usize
                 });
 
                 let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
@@ -2827,7 +2826,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
+    /// Convert a `Vec<AcirVar>` into a `Vec<AcirValue>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
     /// If the type of a result id is a slice, the slice length must precede it and we can

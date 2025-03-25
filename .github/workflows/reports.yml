@@ -10,6 +10,7 @@ jobs:
   benchmark-projects-list:
     name: Load benchmark projects list
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     outputs:
       projects: ${{ steps.get_bench_projects.outputs.projects }}
 
@@ -26,6 +27,7 @@ jobs:
 
   build-nargo:
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
 
     steps:
       - name: Checkout Noir repo
@@ -42,6 +44,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -58,7 +62,8 @@ jobs:
   compare_gates_reports:
     name: Circuit sizes
     needs: [build-nargo]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -99,6 +104,7 @@ jobs:
     name: Brillig bytecode sizes
     needs: [build-nargo]
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -111,6 +117,8 @@ jobs:
       - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
         run: |
+          set -e
+
           mkdir ./reports
 
           ./gates_report_brillig.sh 9223372036854775807
@@ -148,6 +156,7 @@ jobs:
     name: Brillig execution trace sizes
     needs: [build-nargo]
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -160,6 +169,8 @@ jobs:
       - name: Generate Brillig execution report
         working-directory: ./test_programs
         run: |
+          set -e
+
           mkdir ./reports
 
           ./gates_report_brillig_execution.sh 9223372036854775807
@@ -197,6 +208,7 @@ jobs:
     name: Peak memory usage
     needs: [build-nargo]
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -238,6 +250,7 @@ jobs:
     name: Compilation and execution time
     needs: [build-nargo]
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -505,6 +518,7 @@ jobs:
   upload_compilation_report:
     name: Upload compilation report
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -556,6 +570,7 @@ jobs:
   upload_compilation_memory_report:
     name: Upload compilation memory report
     needs: [generate_memory_report, external_repo_memory_report]
+    timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -606,6 +621,7 @@ jobs:
   upload_execution_memory_report:
     name: Upload execution memory report
     needs: [generate_memory_report, external_repo_memory_report]
+    timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -653,10 +669,10 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
-
   upload_execution_report:
     name: Upload execution report
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -709,6 +725,7 @@ jobs:
   reports-end:
     name: End
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:

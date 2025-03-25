@@ -2,12 +2,13 @@ use crate::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
+use crate::shared::Visibility;
 use crate::token::{Attribute, Attributes, Keyword, Token};
 use crate::{ast::UnresolvedGenerics, parser::labels::ParsingRuleLabel};
 use crate::{
     ast::{
         FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
-        UnresolvedTypeData, Visibility,
+        UnresolvedTypeData,
     },
     parser::ParserErrorReason,
 };
@@ -171,6 +172,8 @@ impl Parser<'_> {
 
     fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
         loop {
+            self.error_on_outer_doc_comments_on_parameter();
+
             let start_location = self.current_token_location;
 
             let pattern_or_self = if allow_self {
@@ -229,7 +232,7 @@ impl Parser<'_> {
         let mut pattern = Pattern::Identifier(ident);
 
         if self_pattern.reference {
-            self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
+            self_type = UnresolvedTypeData::Reference(Box::new(self_type), self_pattern.mutable)
                 .with_location(ident_location);
         } else if self_pattern.mutable {
             pattern = Pattern::Mutable(Box::new(pattern), ident_location, true);
@@ -324,8 +327,8 @@ fn empty_body() -> BlockExpression {
 mod tests {
     use crate::{
         ast::{
-            IntegerBitSize, ItemVisibility, NoirFunction, Signedness, UnresolvedTypeData,
-            Visibility,
+            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
+            UnresolvedTypeData,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -335,6 +338,7 @@ mod tests {
                 get_source_with_error_span,
             },
         },
+        shared::{Signedness, Visibility},
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
@@ -569,5 +573,58 @@ mod tests {
             params[1].typ.typ,
             UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
         );
+    }
+
+    #[test]
+    fn parses_block_followed_by_call() {
+        let src = "fn foo() { { 1 }.bar() }";
+        let noir_function = parse_function_no_error(src);
+        let statements = &noir_function.def.body.statements;
+        assert_eq!(statements.len(), 1);
+
+        let StatementKind::Expression(expr) = &statements[0].kind else {
+            panic!("Expected expression statement");
+        };
+
+        let ExpressionKind::MethodCall(call) = &expr.kind else {
+            panic!("Expected method call expression");
+        };
+
+        assert!(matches!(call.object.kind, ExpressionKind::Block(_)));
+        assert_eq!(call.method_name.to_string(), "bar");
+    }
+
+    #[test]
+    fn parses_if_followed_by_call() {
+        let src = "fn foo() { if 1 { 2 } else { 3 }.bar() }";
+        let noir_function = parse_function_no_error(src);
+        let statements = &noir_function.def.body.statements;
+        assert_eq!(statements.len(), 1);
+
+        let StatementKind::Expression(expr) = &statements[0].kind else {
+            panic!("Expected expression statement");
+        };
+
+        let ExpressionKind::MethodCall(call) = &expr.kind else {
+            panic!("Expected method call expression");
+        };
+
+        assert!(matches!(call.object.kind, ExpressionKind::If(_)));
+        assert_eq!(call.method_name.to_string(), "bar");
+    }
+
+    #[test]
+    fn errors_on_doc_comments_on_parameter() {
+        let src = "
+        fn foo(
+            /// Doc comment
+            x: Field,
+        )
+        ";
+        let (_module, errors) = parse_program_with_dummy_file(src);
+        assert_eq!(errors.len(), 1);
+
+        let reason = errors[0].reason().unwrap();
+        assert_eq!(reason, &ParserErrorReason::DocCommentCannotBeAppliedToFunctionParameters);
     }
 }

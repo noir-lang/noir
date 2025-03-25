@@ -41,7 +41,7 @@ pub(crate) type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
 ///  - main
 ///  - Any Brillig function called from Acir
 ///  - Some Brillig functions depending on aggressiveness and some metrics
-///  - Any Acir functions with a [fold inline type][InlineType::Fold],
+///  - Any Acir functions with a [fold inline type][noirc_frontend::monomorphization::ast::InlineType],
 ///
 /// The returned `InlineInfos` won't have every function in it, only the ones which the algorithm visited.
 pub(crate) fn compute_inline_infos(

@@ -188,6 +188,10 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
+    /// & followed immediately by '['
+    /// This is a lexer hack to distinguish slices
+    /// from taking a reference to an array
+    SliceStart,
     /// ^
     Caret,
     /// <<
@@ -287,6 +291,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
+        Token::SliceStart => BorrowedToken::Ampersand,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -357,24 +362,24 @@ pub struct LocatedToken(Located<Token>);
 
 impl PartialEq<LocatedToken> for Token {
     fn eq(&self, other: &LocatedToken) -> bool {
-        self == &other.0.contents
+        self == other.token()
     }
 }
 impl PartialEq<Token> for LocatedToken {
     fn eq(&self, other: &Token) -> bool {
-        &self.0.contents == other
+        self.token() == other
     }
 }
 
 impl From<LocatedToken> for Token {
     fn from(spt: LocatedToken) -> Self {
-        spt.0.contents
+        spt.into_token()
     }
 }
 
 impl<'a> From<&'a LocatedToken> for &'a Token {
     fn from(spt: &'a LocatedToken) -> Self {
-        &spt.0.contents
+        spt.token()
     }
 }
 
@@ -414,24 +419,24 @@ pub struct SpannedToken(Spanned<Token>);
 
 impl PartialEq<SpannedToken> for Token {
     fn eq(&self, other: &SpannedToken) -> bool {
-        self == &other.0.contents
+        self == other.token()
     }
 }
 impl PartialEq<Token> for SpannedToken {
     fn eq(&self, other: &Token) -> bool {
-        &self.0.contents == other
+        self.token() == other
     }
 }
 
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
-        spt.0.contents
+        spt.into_token()
     }
 }
 
 impl<'a> From<&'a SpannedToken> for &'a Token {
     fn from(spt: &'a SpannedToken) -> Self {
-        &spt.0.contents
+        spt.token()
     }
 }
 
@@ -522,6 +527,7 @@ impl fmt::Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
+            Token::SliceStart => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -639,7 +645,7 @@ impl Token {
     }
 
     /// These are all the operators allowed as part of
-    /// a short-hand assignment: a <op>= b
+    /// a short-hand assignment: `a <op>= b`
     pub fn assign_shorthand_operators() -> [Token; 10] {
         use Token::*;
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
@@ -949,10 +955,10 @@ pub enum SecondaryAttribute {
     Export,
     Field(String),
 
-    /// A custom tag attribute: #['foo]
+    /// A custom tag attribute: `#['foo]`
     Tag(CustomAttribute),
 
-    /// An attribute expected to run a comptime function of the same name: #[foo]
+    /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
 
     Abi(String),
@@ -1110,6 +1116,7 @@ pub enum Keyword {
     TraitDefinition,
     TraitImpl,
     Type,
+    TypeDefinition,
     TypedExpr,
     TypeType,
     Unchecked,
@@ -1171,6 +1178,7 @@ impl fmt::Display for Keyword {
             Keyword::TraitDefinition => write!(f, "TraitDefinition"),
             Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
+            Keyword::TypeDefinition => write!(f, "TypeDefinition"),
             Keyword::TypedExpr => write!(f, "TypedExpr"),
             Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
@@ -1235,6 +1243,7 @@ impl Keyword {
             "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
+            "TypeDefinition" => Keyword::TypeDefinition,
             "TypedExpr" => Keyword::TypedExpr,
             "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,

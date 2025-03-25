@@ -75,10 +75,12 @@ impl Formatter<'_> {
                 self.format_path(path);
                 self.format_generic_type_args(generic_type_args);
             }
-            UnresolvedTypeData::MutableReference(typ) => {
+            UnresolvedTypeData::Reference(typ, mutable) => {
                 self.write_token(Token::Ampersand);
-                self.write_keyword(Keyword::Mut);
-                self.write_space();
+                if mutable {
+                    self.write_keyword(Keyword::Mut);
+                    self.write_space();
+                }
                 self.format_type(*typ);
             }
             UnresolvedTypeData::Tuple(types) => {
@@ -299,6 +301,13 @@ mod tests {
     fn format_function_type_with_env() {
         let src = "  fn  [ Env ] ( ) -> Field ";
         let expected = "fn[Env]() -> Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_function_type_without_return_type() {
+        let src = "  fn   ( )  ";
+        let expected = "fn()";
         assert_format_type(src, expected);
     }
 

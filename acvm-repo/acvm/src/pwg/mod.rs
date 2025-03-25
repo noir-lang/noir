@@ -7,7 +7,6 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{
             AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
@@ -34,6 +33,7 @@ mod memory_op;
 
 pub use self::brillig::{BrilligSolver, BrilligSolverStatus};
 pub use brillig::ForeignCallWaitInfo;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ACVMStatus<F> {
@@ -47,7 +47,7 @@ pub enum ACVMStatus<F> {
     /// Most commonly this will be due to an unsatisfied constraint due to invalid inputs to the circuit.
     Failure(OpcodeResolutionError<F>),
 
-    /// The ACVM has encountered a request for a Brillig [foreign call][acir::brillig_vm::Opcode::ForeignCall]
+    /// The ACVM has encountered a request for a Brillig [foreign call][brillig_vm::brillig::Opcode::ForeignCall]
     /// to retrieve information from outside of the ACVM. The result of the foreign call must be passed back
     /// to the ACVM using [`ACVM::resolve_pending_foreign_call`].
     ///
@@ -117,6 +117,26 @@ impl std::fmt::Display for ErrorLocation {
     }
 }
 
+/// A dynamic assertion payload whose data has been resolved.
+/// This is instantiated upon hitting an assertion failure.
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct RawAssertionPayload<F> {
+    /// Selector to the respective ABI type the data in this payload represents
+    pub selector: ErrorSelector,
+    /// Resolved data that represents some ABI type.
+    /// To be decoded in the final step of error resolution.
+    pub data: Vec<F>,
+}
+
+/// Enumeration of possible resolved assertion payloads.
+/// This is instantiated upon hitting an assertion failure,
+/// and can either be static strings or dynamic payloads.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ResolvedAssertionPayload<F> {
+    String(String),
+    Raw(RawAssertionPayload<F>),
+}
+
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum OpcodeResolutionError<F> {
     #[error("Cannot solve opcode: {0}")]
@@ -178,7 +198,7 @@ pub struct ProfilingSample {
     pub brillig_function_id: Option<BrilligFunctionId>,
 }
 
-pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
+pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
 
     backend: &'a B,
@@ -312,7 +332,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
-    /// Resolves a foreign call's [result][acir::brillig_vm::ForeignCallResult] using a result calculated outside of the ACVM.
+    /// Resolves a foreign call's [result][brillig_vm::brillig::ForeignCallResult] using a result calculated outside of the ACVM.
     ///
     /// The ACVM can then be restarted to solve the remaining Brillig VM process as well as the remaining ACIR opcodes.
     pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {

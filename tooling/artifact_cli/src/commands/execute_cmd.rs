@@ -8,7 +8,10 @@ use crate::{
     errors::CliError,
     execution::{self, ExecutionResults},
 };
-use nargo::{PrintOutput, foreign_calls::DefaultForeignCallBuilder};
+use nargo::{
+    PrintOutput,
+    foreign_calls::{DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor},
+};
 use noirc_driver::CompiledProgram;
 
 use super::parse_and_normalize_path;
@@ -40,9 +43,26 @@ pub struct ExecuteCommand {
     #[clap(long)]
     pub contract_fn: Option<String>,
 
+    /// Path to the oracle transcript that is to be replayed during the
+    /// execution in response to foreign calls. The format is expected
+    /// to be JSON Lines, with each request/response on a separate line.
+    ///
+    /// Note that a transcript might be invalid if the inputs change and
+    /// the circuit takes a different path during execution.
+    #[clap(long, conflicts_with = "oracle_resolver")]
+    pub oracle_file: Option<PathBuf>,
+
     /// JSON RPC url to solve oracle calls.
-    #[clap(long)]
+    #[clap(long, conflicts_with = "oracle_file")]
     pub oracle_resolver: Option<String>,
+
+    /// Root directory for the RPC oracle resolver.
+    #[clap(long, value_parser = parse_and_normalize_path)]
+    pub oracle_root_dir: Option<PathBuf>,
+
+    /// Package name for the RPC oracle resolver
+    #[clap(long)]
+    pub oracle_package_name: Option<String>,
 
     /// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
     #[clap(long, default_value_t = false)]
@@ -92,10 +112,15 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
 
 /// Execute a circuit and return the output witnesses.
 fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<ExecutionResults, CliError> {
-    // TODO: Build a custom foreign call executor that reads from the Oracle transcript,
+    // Build a custom foreign call executor that replays the Oracle transcript,
     // and use it as a base for the default executor. Using it as the innermost rather
     // than top layer so that any extra `print` added for debugging is handled by the
     // default, rather than trying to match it to the transcript.
+    let transcript_executor = match args.oracle_file {
+        Some(ref path) => layers::Either::Left(ReplayForeignCallExecutor::from_file(path)?),
+        None => layers::Either::Right(layers::Empty),
+    };
+
     let mut foreign_call_executor = DefaultForeignCallBuilder {
         output: PrintOutput::Stdout,
         enable_mocks: false,
@@ -103,7 +128,7 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
         root_path: None,
         package_name: None,
     }
-    .build();
+    .build_with_base(transcript_executor);
 
     let blackbox_solver = Bn254BlackBoxSolver(args.pedantic_solving);
 

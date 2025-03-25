@@ -1,7 +1,4 @@
-use noirc_errors::Located;
-
 use crate::{
-    ast::Ident,
     hir::{
         comptime::ComptimeError,
         def_collector::{
@@ -96,7 +93,7 @@ fn unquoted_integer_as_integer_token() {
 #[test]
 fn allows_references_to_structs_generated_by_macros() {
     let src = r#"
-    comptime fn make_new_struct(_s: StructDefinition) -> Quoted {
+    comptime fn make_new_struct(_s: TypeDefinition) -> Quoted {
         quote { struct Bar {} }
     }
 
@@ -117,7 +114,7 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     // This can't be tested using `check_errors` right now because the two secondary
     // errors land on the same span.
     let src = r#"
-    comptime fn make_colliding_functions(_s: StructDefinition) -> Quoted {
+    comptime fn make_colliding_functions(_s: TypeDefinition) -> Quoted {
         quote { 
             fn foo() {}
         }
@@ -145,16 +142,16 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
         panic!("Expected a ComptimeError, got {:?}", errors[0]);
     };
 
-    assert!(matches!(
-        *error,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::Duplicate {
-                typ: DuplicateType::Function,
-                first_def: Ident(Located { contents, .. }),
-                ..
-            },
-        ) if contents == "foo"
-    ));
+    let CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
+        typ: DuplicateType::Function,
+        first_def,
+        ..
+    }) = *error
+    else {
+        panic!("Expected a duplicate error");
+    };
+
+    assert_eq!(first_def.as_str(), "foo");
 }
 
 #[test]

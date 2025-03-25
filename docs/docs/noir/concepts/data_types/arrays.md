@@ -164,6 +164,65 @@ let a = [1, 2, 3];
 let b = a.map(|a| a * 2); // b is now [2, 4, 6]
 ```
 
+### mapi
+
+Applies a function to each element of the array, along with its index in the
+array, returning a new array containing the mapped elements.
+
+```rust
+fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U; N]
+```
+
+example
+
+```rust
+let a = [1, 2, 3];
+let b = a.mapi(|i, a| i + a * 2); // b is now [2, 5, 8]
+```
+
+### for_each
+
+Applies a function to each element of the array.
+
+```rust
+fn for_each<Env>(self, f: fn[Env](T) -> ())
+```
+
+example
+
+```rust
+let a = [1, 2, 3];
+a.for_each(|x| {
+    println(f"{x}");
+});
+// prints:
+// 1
+// 2
+// 3
+```
+
+### for_eachi
+
+Applies a function to each element of the array, along with its index in the
+array.
+
+```rust
+fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ())
+```
+
+example
+
+```rust
+let a = [1, 2, 3];
+a.for_eachi(|i, x| {
+    println(f"{i}, {x}");
+});
+// prints:
+// 0, 1
+// 1, 2
+// 2, 3
+```
+
 ### fold
 
 Applies a function to each element of the array, returning the final accumulated value. The first
@@ -252,6 +311,23 @@ fn main() {
     let arr = [2, 2, 2, 2, 5];
     let any = arr.any(|a| a == 5);
     assert(any);
+}
+```
+
+### concat
+
+Concatenates this array with another array.
+
+```rust
+fn concat<let M: u32>(self, array2: [T; M]) -> [T; N + M]
+```
+
+```rust
+fn main() {
+    let arr1 = [1, 2, 3, 4];
+    let arr2 = [6, 7, 8, 9, 10, 11];
+    let concatenated_arr = arr1.concat(arr2);
+    assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
 }
 ```
 

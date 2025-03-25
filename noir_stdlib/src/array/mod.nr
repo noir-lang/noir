@@ -53,6 +53,65 @@ impl<T, let N: u32> [T; N] {
         ret
     }
 
+    /// Applies a function to each element of this array along with its index,
+    /// returning a new array containing the mapped elements.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// let a = [1, 2, 3];
+    /// let b = a.mapi(|i, a| i + a * 2);
+    /// assert_eq(b, [2, 5, 8]);
+    /// ```
+    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U; N] {
+        let uninitialized = crate::mem::zeroed();
+        let mut ret = [uninitialized; N];
+
+        for i in 0..self.len() {
+            ret[i] = f(i, self[i]);
+        }
+
+        ret
+    }
+
+    /// Applies a function to each element of this array.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// let a = [1, 2, 3];
+    /// let mut b = [0; 3];
+    /// let mut i = 0;
+    /// a.for_each(|x| {
+    ///     b[i] = x;
+    ///     i += 1;
+    /// });
+    /// assert_eq(a, b);
+    /// ```
+    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
+        for i in 0..self.len() {
+            f(self[i]);
+        }
+    }
+
+    /// Applies a function to each element of this array along with its index.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// let a = [1, 2, 3];
+    /// let mut b = [0; 3];
+    /// a.for_eachi(|i, x| {
+    ///     b[i] = x;
+    /// });
+    /// assert_eq(a, b);
+    /// ```
+    pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
+        for i in 0..self.len() {
+            f(i, self[i]);
+        }
+    }
+
     /// Applies a function to each element of the array, returning the final accumulated value. The first
     /// parameter is the initial value.
     ///
@@ -135,6 +194,29 @@ impl<T, let N: u32> [T; N] {
             ret |= predicate(elem);
         }
         ret
+    }
+
+    /// Concatenates this array with another array.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// fn main() {
+    ///     let arr1 = [1, 2, 3, 4];
+    ///     let arr2 = [6, 7, 8, 9, 10, 11];
+    ///     let concatenated_arr = arr1.concat(arr2);
+    ///     assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
+    /// }
+    /// ```
+    pub fn concat<let M: u32>(self, array2: [T; M]) -> [T; N + M] {
+        let mut result = [crate::mem::zeroed(); N + M];
+        for i in 0..N {
+            result[i] = self[i];
+        }
+        for i in 0..M {
+            result[i + N] = array2[i];
+        }
+        result
     }
 }
 
@@ -317,5 +399,91 @@ mod test {
             114, 116, 118, 119, 120, 121, 123, 123, 123, 125, 126, 127,
         ];
         assert(sorted == expected);
+
+    #[test]
+    fn mapi_empty() {
+        assert_eq([].mapi(|i, x| i * x + 1), []);
+    }
+
+    #[test]
+    fn for_each_empty() {
+        let empty_array: [Field; 0] = [];
+        empty_array.for_each(|_x| assert(false));
+    }
+
+    #[test]
+    fn for_eachi_empty() {
+        let empty_array: [Field; 0] = [];
+        empty_array.for_eachi(|_i, _x| assert(false));
+    }
+
+    #[test]
+    fn map_example() {
+        let a = [1, 2, 3];
+        let b = a.map(|a| a * 2);
+        assert_eq(b, [2, 4, 6]);
+    }
+
+    #[test]
+    fn mapi_example() {
+        let a = [1, 2, 3];
+        let b = a.mapi(|i, a| i + a * 2);
+        assert_eq(b, [2, 5, 8]);
+    }
+
+    #[test]
+    fn for_each_example() {
+        let a = [1, 2, 3];
+        let mut b = [0, 0, 0];
+        let b_ref = &mut b;
+        let mut i = 0;
+        let i_ref = &mut i;
+        a.for_each(|x| {
+            b_ref[*i_ref] = x * 2;
+            *i_ref += 1;
+        });
+        assert_eq(b, [2, 4, 6]);
+        assert_eq(i, 3);
+    }
+
+    #[test]
+    fn for_eachi_example() {
+        let a = [1, 2, 3];
+        let mut b = [0, 0, 0];
+        let b_ref = &mut b;
+        a.for_eachi(|i, a| { b_ref[i] = i + a * 2; });
+        assert_eq(b, [2, 5, 8]);
+    }
+
+    #[test]
+    fn concat() {
+        let arr1 = [1, 2, 3, 4];
+        let arr2 = [6, 7, 8, 9, 10, 11];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
+    }
+
+    #[test]
+    fn concat_zero_length_with_something() {
+        let arr1 = [];
+        let arr2 = [1];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1]);
+    }
+
+    #[test]
+    fn concat_something_with_zero_length() {
+        let arr1 = [1];
+        let arr2 = [];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1]);
+    }
+
+    #[test]
+    fn concat_zero_lengths() {
+        let arr1: [Field; 0] = [];
+        let arr2: [Field; 0] = [];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, []);
     }
 }

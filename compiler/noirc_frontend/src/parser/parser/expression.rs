@@ -79,10 +79,14 @@ impl Parser<'_> {
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
-        if self.at(Token::Ampersand) && self.next_is(Token::Keyword(Keyword::Mut)) {
+        if self.at(Token::Ampersand) {
+            let mut mutable = false;
+            if self.next_is(Token::Keyword(Keyword::Mut)) {
+                mutable = true;
+                self.bump();
+            }
             self.bump();
-            self.bump();
-            Some(UnaryOp::MutableReference)
+            Some(UnaryOp::Reference { mutable })
         } else if self.eat(Token::Minus) {
             Some(UnaryOp::Minus)
         } else if self.eat(Token::Bang) {
@@ -141,6 +145,25 @@ impl Parser<'_> {
         }
 
         self.parse_index(atom, start_location)
+    }
+
+    pub(super) fn parse_member_accesses_or_method_calls_after_expression(
+        &mut self,
+        mut atom: Expression,
+        start_location: Location,
+    ) -> Expression {
+        let mut parsed;
+
+        loop {
+            (atom, parsed) = self.parse_member_access_or_method_call(atom, start_location);
+            if parsed {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        atom
     }
 
     /// CallExpression = Atom CallArguments
@@ -738,7 +761,7 @@ impl Parser<'_> {
 
     /// SliceExpression = '&' ArrayLiteral
     fn parse_slice_literal(&mut self) -> Option<ArrayLiteral> {
-        if !(self.at(Token::Ampersand) && self.next_is(Token::LeftBracket)) {
+        if !(self.at(Token::SliceStart) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
@@ -1078,6 +1101,39 @@ mod tests {
     }
 
     #[test]
+    fn parses_block_expression_with_a_single_assignment() {
+        let src = "{ x = 1 }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_break() {
+        let src = "{ break }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_continue() {
+        let src = "{ continue }";
+        let _ = parse_expression_no_errors(src);
+    }
+
+    #[test]
+    fn parses_block_expression_with_a_single_let() {
+        let src = "
+        { let x = 1 }
+                  ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        parser.parse_expression();
+        let reason = get_single_error_reason(&parser.errors, span);
+        let ParserErrorReason::MissingSemicolonAfterLet = reason else {
+            panic!("Expected a different error");
+        };
+    }
+
+    #[test]
     fn parses_unsafe_expression() {
         let src = "
         // Safety: test
@@ -1257,7 +1313,7 @@ mod tests {
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
         };
-        assert!(matches!(prefix.operator, UnaryOp::MutableReference));
+        assert!(matches!(prefix.operator, UnaryOp::Reference { mutable: true }));
 
         let ExpressionKind::Variable(path) = prefix.rhs.kind else {
             panic!("Expected variable");

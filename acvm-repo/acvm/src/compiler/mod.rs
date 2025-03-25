@@ -71,7 +71,7 @@ fn transform_assert_messages<F: Clone>(
         .collect()
 }
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Runs multiple passes until the output stabilizes.
 pub fn compile<F: AcirField>(

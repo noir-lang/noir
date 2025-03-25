@@ -98,8 +98,8 @@ impl<'a> SignatureFinder<'a> {
         }
 
         // Otherwise, the call must be a reference to an fn type
-        if let Some(mut typ) = self.interner.type_at_location(location) {
-            typ = typ.follow_bindings();
+        if let Some(typ) = self.interner.type_at_location(location) {
+            let mut typ = typ.follow_bindings();
             if let Type::Forall(_, forall_typ) = typ {
                 typ = *forall_typ;
             }
@@ -132,7 +132,7 @@ impl<'a> SignatureFinder<'a> {
 
         if let Some(enum_type_id) = enum_type_id {
             label.push_str("enum ");
-            label.push_str(&self.interner.get_type(enum_type_id).borrow().name.0.contents);
+            label.push_str(self.interner.get_type(enum_type_id).borrow().name.as_str());
             label.push_str("::");
         } else {
             label.push_str("fn ");
@@ -146,11 +146,13 @@ impl<'a> SignatureFinder<'a> {
             }
 
             if has_self && index == 0 {
-                if let Type::MutableReference(..) = typ {
-                    label.push_str("&mut self");
-                } else {
-                    label.push_str("self");
+                if let Type::Reference(_, mutable) = typ {
+                    label.push('&');
+                    if *mutable {
+                        label.push_str("mut ");
+                    }
                 }
+                label.push_str("self");
             } else {
                 let parameter_start = label.chars().count();
 

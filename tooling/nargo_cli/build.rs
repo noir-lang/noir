@@ -60,10 +60,20 @@ const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     "is_unconstrained",
 ];
 
-/// Tests which aren't expected to work with the default inliner cases.
+/// Tests which aren't expected to work with the default minimum inliner cases.
 const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
     // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
     ("eddsa", 0),
+];
+
+/// Tests which aren't expected to work with the default maximum inliner cases.
+const INLINER_MAX_OVERRIDES: [(&str, i64); 0] = [];
+
+/// These tests should only be run on exactly 1 inliner setting (the one given here)
+const INLINER_OVERRIDES: [(&str, i64); 3] = [
+    ("reference_counts_inliner_0", 0),
+    ("reference_counts_inliner_min", i64::MIN),
+    ("reference_counts_inliner_max", i64::MAX),
 ];
 
 /// Some tests are expected to have warnings
@@ -77,6 +87,9 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     "enums",
     "comptime_enums",
 ];
+
+/// Tests for which we don't check that stdout matches the expected output.
+const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -113,6 +126,8 @@ struct MatrixConfig {
     vary_inliner: bool,
     // If there is a non-default minimum inliner aggressiveness to use with the brillig tests.
     min_inliner: i64,
+    // If there is a non-default maximum inliner aggressiveness to use with the brillig tests.
+    max_inliner: i64,
 }
 
 // Enum to be able to preserve readable test labels and also compare to numbers.
@@ -161,6 +176,9 @@ fn generate_test_cases(
         if !cases.iter().any(|c| c.value() == matrix_config.min_inliner) {
             cases.push(Inliner::Custom(matrix_config.min_inliner));
         }
+        if !cases.iter().any(|c| c.value() == matrix_config.max_inliner) {
+            cases.push(Inliner::Custom(matrix_config.max_inliner));
+        }
         cases
     } else {
         vec![Inliner::Default]
@@ -171,7 +189,8 @@ fn generate_test_cases(
     let mut test_cases = Vec::new();
     for brillig in &brillig_cases {
         for inliner in &inliner_cases {
-            if *brillig && inliner.value() < matrix_config.min_inliner {
+            let inliner_range = matrix_config.min_inliner..=matrix_config.max_inliner;
+            if *brillig && !inliner_range.contains(&inliner.value()) {
                 continue;
             }
             test_cases.push(format!(
@@ -190,7 +209,7 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut nargo = Command::cargo_bin("nargo").unwrap();
-    nargo.arg("--program-dir").arg(test_program_dir);
+    nargo.arg("--program-dir").arg(test_program_dir.clone());
     nargo.arg("{test_command}").arg("--force");
     nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
     // Check whether the test case is non-deterministic
@@ -224,32 +243,81 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         test_file,
         "mod {test_type} {{
         use super::*;
+
+        fn remove_noise_lines(string: String) -> String {{
+            string.lines().filter(|line| 
+                !line.contains(\"Witness saved to\") && 
+                    !line.contains(\"Circuit witness successfully solved\") &&
+                    !line.contains(\"Waiting for lock\")
+            ).collect::<Vec<&str>>().join(\"\n\")
+        }}
     "
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
+        let test_content = if TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str()) {
+            "nargo.assert().success();"
+        } else {
+            r#"
+            nargo.assert().success();
+
+            let output = nargo.output().unwrap();
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let stdout = remove_noise_lines(stdout);
+
+            let stdout_path = test_program_dir.join("stdout.txt");
+            let expected_stdout = if stdout_path.exists() {
+                String::from_utf8(fs::read(stdout_path).unwrap()).unwrap()
+            } else {
+                String::new()
+            };
+
+            // Remove any trailing newlines added by some editors
+            let stdout = stdout.trim();
+            let expected_stdout = expected_stdout.trim();
+
+            if stdout != expected_stdout {
+                println!("stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}");
+                assert_eq!(stdout, expected_stdout);
+            }
+            "#
+        };
+
         generate_test_cases(
             test_file,
             &test_name,
             &test_dir,
             "execute",
-            r#"
-                nargo.assert().success();
-            "#,
+            test_content,
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
-                min_inliner: INLINER_MIN_OVERRIDES
-                    .iter()
-                    .find(|(n, _)| *n == test_name.as_str())
-                    .map(|(_, i)| *i)
-                    .unwrap_or(i64::MIN),
+                min_inliner: min_inliner(&test_name),
+                max_inliner: max_inliner(&test_name),
             },
         );
     }
     writeln!(test_file, "}}").unwrap();
+}
+
+fn max_inliner(test_name: &str) -> i64 {
+    INLINER_MAX_OVERRIDES
+        .iter()
+        .chain(&INLINER_OVERRIDES)
+        .find(|(n, _)| *n == test_name)
+        .map(|(_, i)| *i)
+        .unwrap_or(i64::MAX)
+}
+
+fn min_inliner(test_name: &str) -> i64 {
+    INLINER_MIN_OVERRIDES
+        .iter()
+        .chain(&INLINER_OVERRIDES)
+        .find(|(n, _)| *n == test_name)
+        .map(|(_, i)| *i)
+        .unwrap_or(i64::MIN)
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
