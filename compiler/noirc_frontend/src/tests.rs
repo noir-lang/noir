@@ -156,7 +156,7 @@ pub enum Expect {
 // if the "nextest" feature is enabled, this will panic instead of emitting a test crate
 fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
     let package_name = test_path.replace("::", "_");
-    let skipped_tests = vec![
+    let skipped_tests = [
         // skip ~2.4k name_shadowing tests
         "name_shadowing_",
         // TODO(https://github.com/noir-lang/noir/issues/7763)
@@ -174,7 +174,7 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
     }
 
     // in these cases, we expect a warning when 'check_errors' or similar is used
-    let error_to_warn_cases = vec![
+    let error_to_warn_cases = [
         "cast_256_to_u8_size_checks",
         "enums_errors_on_unspecified_unstable_enum",
         "immutable_references_without_ownership_feature",
@@ -209,7 +209,7 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         }
     }
 
-    let error_to_bug_cases = vec!["cast_negative_one_to_u8_size_checks"];
+    let error_to_bug_cases = ["cast_negative_one_to_u8_size_checks"];
     if let Expect::Success = expect {
         if error_to_bug_cases
             .iter()
@@ -266,12 +266,12 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         }
 
         // create missing dir's
-        std::fs::create_dir_all(&crate_path).expect(&format!(
-            "expected to be able to create the directory {}",
-            crate_path.display()
-        ));
-        std::fs::create_dir_all(&src_path)
-            .expect(&format!("expected to be able to create the directory {}", src_path.display()));
+        std::fs::create_dir_all(&crate_path).unwrap_or_else(|_| {
+            panic!("expected to be able to create the directory {}", crate_path.display())
+        });
+        std::fs::create_dir_all(&src_path).unwrap_or_else(|_| {
+            panic!("expected to be able to create the directory {}", src_path.display())
+        });
 
         let package_type = "bin"; // nargo::package::PackageType::Binary;
         let toml_contents = format!(
@@ -284,12 +284,14 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
             [dependencies]"#
         );
 
-        std::fs::write(&nargo_toml_path, toml_contents)
-            .expect(&format!("Unable to write Nargo.toml to {}", nargo_toml_path.display()));
+        std::fs::write(&nargo_toml_path, toml_contents).unwrap_or_else(|_| {
+            panic!("Unable to write Nargo.toml to {}", nargo_toml_path.display())
+        });
         std::fs::write(&main_nr_path, src)
-            .expect(&format!("Unable to write test file to {}", main_nr_path.display()));
-        std::fs::write(&src_hash_path, new_hash)
-            .expect(&format!("Unable to write src_hash.txt file to {}", src_hash_path.display()));
+            .unwrap_or_else(|_| panic!("Unable to write test file to {}", main_nr_path.display()));
+        std::fs::write(&src_hash_path, new_hash).unwrap_or_else(|_| {
+            panic!("Unable to write src_hash.txt file to {}", src_hash_path.display())
+        });
     }
 }
 
@@ -537,37 +539,42 @@ macro_rules! function_path {
 #[macro_export]
 macro_rules! get_program {
     ($src:expr, $expect:expr) => {
-        crate::tests::get_program($src, crate::function_path!(), $expr)
+        $crate::tests::get_program($src, $crate::function_path!(), $expr)
     };
 }
 
 #[macro_export]
 macro_rules! get_program_using_features {
     ($src:expr, $expect:expr, $features:expr) => {
-        crate::tests::get_program_using_features($src, crate::function_path!(), $expect, $features)
+        $crate::tests::get_program_using_features(
+            $src,
+            $crate::function_path!(),
+            $expect,
+            $features,
+        )
     };
 }
 
 #[macro_export]
 macro_rules! assert_no_errors {
     ($src:expr) => {
-        crate::tests::assert_no_errors($src, crate::function_path!())
+        $crate::tests::assert_no_errors($src, $crate::function_path!())
     };
 }
 
 #[macro_export]
 macro_rules! get_program_errors {
     ($src:expr) => {
-        crate::tests::get_program_errors($src, crate::function_path!())
+        $crate::tests::get_program_errors($src, $crate::function_path!())
     };
 }
 
 #[macro_export]
 macro_rules! get_program_with_options {
     ($src:expr, $expect:expr, $allow_parser_errors:expr, $options:expr) => {
-        crate::tests::get_program_with_options(
+        $crate::tests::get_program_with_options(
             $src,
-            crate::function_path!(),
+            $crate::function_path!(),
             $expect,
             $allow_parser_errors,
             $options,
@@ -578,33 +585,33 @@ macro_rules! get_program_with_options {
 #[macro_export]
 macro_rules! get_program_captures {
     ($src:expr) => {
-        crate::tests::get_program_captures($src, crate::function_path!())
+        $crate::tests::get_program_captures($src, $crate::function_path!())
     };
 }
 
 #[macro_export]
 macro_rules! check_errors {
     ($src:expr) => {
-        crate::tests::check_errors($src, crate::function_path!())
+        $crate::tests::check_errors($src, $crate::function_path!())
     };
     ($src:expr,) => {
-        crate::check_errors!($src)
+        $crate::check_errors!($src)
     };
 }
 
 #[macro_export]
 macro_rules! check_errors_using_features {
     ($src:expr, $features:expr) => {
-        crate::tests::check_errors_using_features($src, crate::function_path!(), $features)
+        $crate::tests::check_errors_using_features($src, $crate::function_path!(), $features)
     };
 }
 
 #[macro_export]
 macro_rules! check_monomorphization_error_using_features {
     ($src:expr, $features:expr) => {
-        crate::tests::check_monomorphization_error_using_features(
+        $crate::tests::check_monomorphization_error_using_features(
             $src,
-            crate::function_path!(),
+            $crate::function_path!(),
             $features,
         )
     };

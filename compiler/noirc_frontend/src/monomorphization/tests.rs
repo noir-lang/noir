@@ -33,14 +33,14 @@ fn check_rewrite(src: &str, expected: &str, test_path: &str) {
 #[macro_export]
 macro_rules! get_monomorphized {
     ($src:expr, $expect:expr) => {
-        crate::monomorphization::tests::get_monomorphized($src, crate::function_path!(), $expect)
+        $crate::monomorphization::tests::get_monomorphized($src, $crate::function_path!(), $expect)
     };
 }
 
 #[macro_export]
 macro_rules! check_rewrite {
     ($src:expr, $expected:expr) => {
-        crate::monomorphization::tests::check_rewrite($src, $expected, crate::function_path!())
+        $crate::monomorphization::tests::check_rewrite($src, $expected, $crate::function_path!())
     };
 }
 
