@@ -2589,79 +2589,7 @@
 <a href="#2588" id="2588">2588</a>
 <a href="#2589" id="2589">2589</a>
 <a href="#2590" id="2590">2590</a>
-<a href="#2591" id="2591">2591</a>
-<a href="#2592" id="2592">2592</a>
-<a href="#2593" id="2593">2593</a>
-<a href="#2594" id="2594">2594</a>
-<a href="#2595" id="2595">2595</a>
-<a href="#2596" id="2596">2596</a>
-<a href="#2597" id="2597">2597</a>
-<a href="#2598" id="2598">2598</a>
-<a href="#2599" id="2599">2599</a>
-<a href="#2600" id="2600">2600</a>
-<a href="#2601" id="2601">2601</a>
-<a href="#2602" id="2602">2602</a>
-<a href="#2603" id="2603">2603</a>
-<a href="#2604" id="2604">2604</a>
-<a href="#2605" id="2605">2605</a>
-<a href="#2606" id="2606">2606</a>
-<a href="#2607" id="2607">2607</a>
-<a href="#2608" id="2608">2608</a>
-<a href="#2609" id="2609">2609</a>
-<a href="#2610" id="2610">2610</a>
-<a href="#2611" id="2611">2611</a>
-<a href="#2612" id="2612">2612</a>
-<a href="#2613" id="2613">2613</a>
-<a href="#2614" id="2614">2614</a>
-<a href="#2615" id="2615">2615</a>
-<a href="#2616" id="2616">2616</a>
-<a href="#2617" id="2617">2617</a>
-<a href="#2618" id="2618">2618</a>
-<a href="#2619" id="2619">2619</a>
-<a href="#2620" id="2620">2620</a>
-<a href="#2621" id="2621">2621</a>
-<a href="#2622" id="2622">2622</a>
-<a href="#2623" id="2623">2623</a>
-<a href="#2624" id="2624">2624</a>
-<a href="#2625" id="2625">2625</a>
-<a href="#2626" id="2626">2626</a>
-<a href="#2627" id="2627">2627</a>
-<a href="#2628" id="2628">2628</a>
-<a href="#2629" id="2629">2629</a>
-<a href="#2630" id="2630">2630</a>
-<a href="#2631" id="2631">2631</a>
-<a href="#2632" id="2632">2632</a>
-<a href="#2633" id="2633">2633</a>
-<a href="#2634" id="2634">2634</a>
-<a href="#2635" id="2635">2635</a>
-<a href="#2636" id="2636">2636</a>
-<a href="#2637" id="2637">2637</a>
-<a href="#2638" id="2638">2638</a>
-<a href="#2639" id="2639">2639</a>
-<a href="#2640" id="2640">2640</a>
-<a href="#2641" id="2641">2641</a>
-<a href="#2642" id="2642">2642</a>
-<a href="#2643" id="2643">2643</a>
-<a href="#2644" id="2644">2644</a>
-<a href="#2645" id="2645">2645</a>
-<a href="#2646" id="2646">2646</a>
-<a href="#2647" id="2647">2647</a>
-<a href="#2648" id="2648">2648</a>
-<a href="#2649" id="2649">2649</a>
-<a href="#2650" id="2650">2650</a>
-<a href="#2651" id="2651">2651</a>
-<a href="#2652" id="2652">2652</a>
-<a href="#2653" id="2653">2653</a>
-<a href="#2654" id="2654">2654</a>
-<a href="#2655" id="2655">2655</a>
-<a href="#2656" id="2656">2656</a>
-<a href="#2657" id="2657">2657</a>
-<a href="#2658" id="2658">2658</a>
-<a href="#2659" id="2659">2659</a>
-<a href="#2660" id="2660">2660</a>
-<a href="#2661" id="2661">2661</a>
-<a href="#2662" id="2662">2662</a>
-<a href="#2663" id="2663">2663</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#2591" id="2591">2591</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -2692,6 +2620,7 @@
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">mod </span>arithmetic;
 <span class="kw">mod </span>black_box;
+<span class="kw">mod </span>cast;
 <span class="kw">mod </span>memory;
 
 <span class="doccomment">/// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
@@ -3091,7 +3020,7 @@
             }
             Opcode::Cast { destination: destination_address, source: source_address, bit_size } =&gt; {
                 <span class="kw">let </span>source_value = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source_address);
-                <span class="kw">let </span>casted_value = <span class="self">self</span>.cast(<span class="kw-2">*</span>bit_size, source_value);
+                <span class="kw">let </span>casted_value = cast::cast(source_value, <span class="kw-2">*</span>bit_size);
                 <span class="self">self</span>.memory.write(<span class="kw-2">*</span>destination_address, casted_value);
                 <span class="self">self</span>.increment_program_counter()
             }
@@ -3665,79 +3594,6 @@
         };
         <span class="self">self</span>.memory.write(destination, negated_value);
         <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="doccomment">/// Casts a value to a different bit size.
-    </span><span class="kw">fn </span>cast(<span class="kw-2">&amp;</span><span class="self">self</span>, target_bit_size: BitSize, source_value: MemoryValue&lt;F&gt;) -&gt; MemoryValue&lt;F&gt; {
-        <span class="kw">use </span>MemoryValue::<span class="kw-2">*</span>;
-
-        <span class="kw">match </span>(source_value, target_bit_size) {
-            <span class="comment">// Field downcast to u128
-            </span>(Field(field), BitSize::Integer(IntegerBitSize::U128)) =&gt; U128(field.to_u128()),
-            <span class="comment">// Field downcast to arbitrary bit size
-            </span>(Field(field), BitSize::Integer(target_bit_size)) =&gt; {
-                <span class="kw">let </span>as_u128 = field.to_u128();
-                <span class="kw">match </span>target_bit_size {
-                    IntegerBitSize::U1 =&gt; U1(as_u128 &amp; <span class="number">0x01 </span>== <span class="number">1</span>),
-                    IntegerBitSize::U8 =&gt; U8(as_u128 <span class="kw">as </span>u8),
-                    IntegerBitSize::U16 =&gt; U16(as_u128 <span class="kw">as </span>u16),
-                    IntegerBitSize::U32 =&gt; U32(as_u128 <span class="kw">as </span>u32),
-                    IntegerBitSize::U64 =&gt; U64(as_u128 <span class="kw">as </span>u64),
-                    IntegerBitSize::U128 =&gt; <span class="macro">unreachable!</span>(),
-                }
-            }
-
-            (U1(value), BitSize::Integer(IntegerBitSize::U8)) =&gt; U8(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U16)) =&gt; U16(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U32)) =&gt; U32(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U64)) =&gt; U64(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U128)) =&gt; U128(value.into()),
-            (U1(value), BitSize::Field) =&gt; Field(value.into()),
-
-            (U8(value), BitSize::Integer(IntegerBitSize::U1)) =&gt; U1(value &amp; <span class="number">0x01 </span>== <span class="number">1</span>),
-            (U8(value), BitSize::Integer(IntegerBitSize::U16)) =&gt; U16(value.into()),
-            (U8(value), BitSize::Integer(IntegerBitSize::U32)) =&gt; U32(value.into()),
-            (U8(value), BitSize::Integer(IntegerBitSize::U64)) =&gt; U64(value.into()),
-            (U8(value), BitSize::Integer(IntegerBitSize::U128)) =&gt; U128(value.into()),
-            (U8(value), BitSize::Field) =&gt; Field((value <span class="kw">as </span>u128).into()),
-
-            (U16(value), BitSize::Integer(IntegerBitSize::U1)) =&gt; U1(value &amp; <span class="number">0x01 </span>== <span class="number">1</span>),
-            (U16(value), BitSize::Integer(IntegerBitSize::U8)) =&gt; U8(value <span class="kw">as </span>u8),
-            (U16(value), BitSize::Integer(IntegerBitSize::U32)) =&gt; U32(value.into()),
-            (U16(value), BitSize::Integer(IntegerBitSize::U64)) =&gt; U64(value.into()),
-            (U16(value), BitSize::Integer(IntegerBitSize::U128)) =&gt; U128(value.into()),
-            (U16(value), BitSize::Field) =&gt; Field((value <span class="kw">as </span>u128).into()),
-
-            (U32(value), BitSize::Integer(IntegerBitSize::U1)) =&gt; U1(value &amp; <span class="number">0x01 </span>== <span class="number">1</span>),
-            (U32(value), BitSize::Integer(IntegerBitSize::U8)) =&gt; U8(value <span class="kw">as </span>u8),
-            (U32(value), BitSize::Integer(IntegerBitSize::U16)) =&gt; U16(value <span class="kw">as </span>u16),
-            (U32(value), BitSize::Integer(IntegerBitSize::U64)) =&gt; U64(value.into()),
-            (U32(value), BitSize::Integer(IntegerBitSize::U128)) =&gt; U128(value.into()),
-            (U32(value), BitSize::Field) =&gt; Field((value <span class="kw">as </span>u128).into()),
-
-            (U64(value), BitSize::Integer(IntegerBitSize::U1)) =&gt; U1(value &amp; <span class="number">0x01 </span>== <span class="number">1</span>),
-            (U64(value), BitSize::Integer(IntegerBitSize::U8)) =&gt; U8(value <span class="kw">as </span>u8),
-            (U64(value), BitSize::Integer(IntegerBitSize::U16)) =&gt; U16(value <span class="kw">as </span>u16),
-            (U64(value), BitSize::Integer(IntegerBitSize::U32)) =&gt; U32(value <span class="kw">as </span>u32),
-            (U64(value), BitSize::Integer(IntegerBitSize::U128)) =&gt; U128(value.into()),
-            (U64(value), BitSize::Field) =&gt; Field((value <span class="kw">as </span>u128).into()),
-
-            (U128(value), BitSize::Integer(IntegerBitSize::U1)) =&gt; U1(value &amp; <span class="number">0x01 </span>== <span class="number">1</span>),
-            (U128(value), BitSize::Integer(IntegerBitSize::U8)) =&gt; U8(value <span class="kw">as </span>u8),
-            (U128(value), BitSize::Integer(IntegerBitSize::U16)) =&gt; U16(value <span class="kw">as </span>u16),
-            (U128(value), BitSize::Integer(IntegerBitSize::U32)) =&gt; U32(value <span class="kw">as </span>u32),
-            (U128(value), BitSize::Integer(IntegerBitSize::U64)) =&gt; U64(value <span class="kw">as </span>u64),
-            (U128(value), BitSize::Field) =&gt; Field(value.into()),
-
-            <span class="comment">// no ops
-            </span>(Field(<span class="kw">_</span>), BitSize::Field) =&gt; source_value,
-            (U1(<span class="kw">_</span>), BitSize::Integer(IntegerBitSize::U1)) =&gt; source_value,
-            (U8(<span class="kw">_</span>), BitSize::Integer(IntegerBitSize::U8)) =&gt; source_value,
-            (U16(<span class="kw">_</span>), BitSize::Integer(IntegerBitSize::U16)) =&gt; source_value,
-            (U32(<span class="kw">_</span>), BitSize::Integer(IntegerBitSize::U32)) =&gt; source_value,
-            (U64(<span class="kw">_</span>), BitSize::Integer(IntegerBitSize::U64)) =&gt; source_value,
-            (U128(<span class="kw">_</span>), BitSize::Integer(IntegerBitSize::U128)) =&gt; source_value,
-        }
     }
 }
 
