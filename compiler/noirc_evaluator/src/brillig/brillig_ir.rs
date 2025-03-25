@@ -408,7 +408,7 @@ pub(crate) mod tests {
             let LabelType::Procedure(procedure_id) = unresolved_fn_label.label_type else {
                 panic!("Test functions cannot be linked with other functions");
             };
-            let procedure_artifact = compile_procedure(procedure_id, &options, None);
+            let procedure_artifact = compile_procedure(procedure_id, &options);
             entry_point_artifact.link_with(&procedure_artifact);
         }
         entry_point_artifact.finish()

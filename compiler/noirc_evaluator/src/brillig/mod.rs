@@ -78,9 +78,7 @@ impl Brillig {
             }
             // Procedures are compiled as needed
             LabelType::Procedure(procedure_id) => {
-                let globals_size = (self.globals_memory_size.len() == 1)
-                    .then(|| *self.globals_memory_size.values().next().unwrap());
-                Some(Cow::Owned(compile_procedure(procedure_id, options, globals_size)))
+                Some(Cow::Owned(compile_procedure(procedure_id, options)))
             }
             LabelType::GlobalInit(function_id) => self.globals.get(&function_id).map(Cow::Borrowed),
             _ => unreachable!("ICE: Expected a function or procedure label"),
