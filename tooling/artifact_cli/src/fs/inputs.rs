@@ -2,7 +2,7 @@ use noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
     input_parser::{Format, InputValue},
 };
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, io::Write, path::Path};
 
 use crate::errors::CliError;
 
@@ -53,4 +53,27 @@ pub fn read_inputs_from_file(
     let return_value = inputs.remove(MAIN_RETURN_NAME);
 
     Ok((inputs, return_value))
+}
+
+/// Writes input map to a file
+pub fn write_inputs_to_file<P: AsRef<Path>>(
+    path: P,
+    file_name: &str,
+    format: Format,
+    abi: &Abi,
+    input_map: &InputMap,
+) -> Result<(), CliError> {
+    use crate::errors::FilesystemError::OutputFileCreationFailed;
+    if abi.is_empty() {
+        return Ok(());
+    }
+    use std::fs::File;
+    let file_path = path.as_ref().join(file_name).with_extension(format.ext());
+    let mut file =
+        File::create(&file_path).map_err(|e| OutputFileCreationFailed(file_path, e.to_string()))?;
+
+    let input_string = format.serialize(input_map, abi)?;
+    file.write_all(input_string.as_bytes()).expect("Failed to write to file");
+
+    Ok(())
 }
