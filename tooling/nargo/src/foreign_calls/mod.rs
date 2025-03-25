@@ -24,7 +24,7 @@ pub trait ForeignCallExecutor<F> {
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub enum ForeignCall {
-    /// Reference [print] for more info regarding this call's inputs
+    /// Reference [mod@print] for more info regarding this call's inputs
     Print,
     CreateMock,
     SetMockParams,
