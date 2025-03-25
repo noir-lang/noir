@@ -86,7 +86,7 @@ pub struct SsaEvaluatorOptions {
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
     /// When `None` the size increase check is skipped altogether and any decrease in the SSA
     /// instruction count is accepted.
-    pub max_bytecode_increase_percent: Option<i32>,
+    pub max_bytecode_increase_percent: i32,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -192,7 +192,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
         .try_run_pass(
             |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
-            "Unrolling",
+            "Unrolling (1st)",
+        )?
+        .try_run_pass(
+            |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            "Unrolling (2nd)",
         )?
         .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
         .run_pass(Ssa::mem2reg, "Mem2Reg (3rd)")
