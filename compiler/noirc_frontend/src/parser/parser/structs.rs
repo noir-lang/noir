@@ -129,7 +129,7 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{IntegerBitSize, NoirStruct, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{IntegerBitSize, NoirStruct, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -138,6 +138,7 @@ mod tests {
                 get_source_with_error_span,
             },
         },
+        shared::Signedness,
     };
 
     fn parse_struct_no_errors(src: &str) -> NoirStruct {

@@ -58,7 +58,7 @@ test_cases.forEach((testInfo) => {
 
     const contract = await ethers.deployContract(testInfo.compiled, []);
 
-    const result = await contract.verify(proofData.proof.slice(4), proofData.publicInputs);
+    const result = await contract.verify(proofData.proof, proofData.publicInputs);
 
     expect(result).to.be.true;
   });

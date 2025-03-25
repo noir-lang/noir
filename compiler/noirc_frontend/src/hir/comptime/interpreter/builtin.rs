@@ -21,8 +21,8 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
-        Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
-        UnsafeExpression, Visibility,
+        Pattern, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        UnsafeExpression,
     },
     elaborator::{ElaborateReason, Elaborator},
     hir::{
@@ -44,6 +44,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
+    shared::{Signedness, Visibility},
     token::{Attribute, LocatedToken, Token},
 };
 
@@ -2912,7 +2913,7 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
 
-    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::One);
+    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bits_vector, typ))
 }
@@ -2923,7 +2924,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     let bytes = FieldElement::modulus().to_bytes_be();
     let bytes_vector = bytes.into_iter().map(Value::U8).collect();
 
-    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
+    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bytes_vector, typ))
 }

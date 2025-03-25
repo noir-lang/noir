@@ -28,7 +28,6 @@ use acvm::FieldElement;
 pub use docs::*;
 pub use enumeration::*;
 use noirc_errors::Span;
-use serde::{Deserialize, Serialize};
 pub use statement::*;
 pub use structure::*;
 pub use traits::*;
@@ -38,8 +37,10 @@ use crate::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
+    shared::Signedness,
     token::IntType,
 };
+
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
@@ -451,21 +452,6 @@ impl UnresolvedTypeData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-pub enum Signedness {
-    Unsigned,
-    Signed,
-}
-
-impl Signedness {
-    pub fn is_signed(&self) -> bool {
-        match self {
-            Signedness::Unsigned => false,
-            Signedness::Signed => true,
-        }
-    }
-}
-
 impl UnresolvedTypeExpression {
     // This large error size is justified because it improves parsing speeds by around 40% in
     // release mode. See `ParserError` definition for further explanation.
@@ -583,32 +569,6 @@ impl std::fmt::Display for ItemVisibility {
             ItemVisibility::Public => write!(f, "pub"),
             ItemVisibility::Private => Ok(()),
             ItemVisibility::PublicCrate => write!(f, "pub(crate)"),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-/// Represents whether the parameter is public or known only to the prover.
-pub enum Visibility {
-    Public,
-    // Constants are not allowed in the ABI for main at the moment.
-    // Constant,
-    #[default]
-    Private,
-    /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
-    /// it is useful for recursion and is handled by the proving system.
-    /// The u32 value is used to group inputs having the same value.
-    CallData(u32),
-    ReturnData,
-}
-
-impl std::fmt::Display for Visibility {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Public => write!(f, "pub"),
-            Self::Private => write!(f, "priv"),
-            Self::CallData(id) => write!(f, "calldata{id}"),
-            Self::ReturnData => write!(f, "returndata"),
         }
     }
 }

@@ -383,7 +383,14 @@ impl<'a> Parser<'a> {
         }
 
         let lhs = self.parse_value_or_error()?;
-        self.eat_or_error(Token::Equal)?;
+        let equals = if self.eat(Token::Equal)? {
+            true
+        } else if self.eat(Token::NotEqual)? {
+            false
+        } else {
+            return self.expected_one_of_tokens(&[Token::Equal, Token::NotEqual]);
+        };
+
         let rhs = self.parse_value_or_error()?;
 
         let assert_message = if self.eat(Token::Comma)? {
@@ -398,7 +405,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Ok(Some(ParsedInstruction::Constrain { lhs, rhs, assert_message }))
+        Ok(Some(ParsedInstruction::Constrain { lhs, equals, rhs, assert_message }))
     }
 
     fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {

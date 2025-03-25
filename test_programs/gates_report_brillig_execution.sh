@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
 # These tests are incompatible with execution trace reporting
 excluded_dirs=(
@@ -14,6 +14,11 @@ excluded_dirs=(
   "is_unconstrained"
   # This test utilizes enums which are experimental
   "regression_7323"
+  # These tests fail with different inliner settings, while this script
+  # assumes that a test can pass with all inliner settings.
+  "reference_counts_inliner_min"
+  "reference_counts_inliner_0"
+  "reference_counts_inliner_max"
 )
 
 current_dir=$(pwd)

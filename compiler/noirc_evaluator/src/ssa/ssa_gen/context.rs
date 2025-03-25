@@ -4,9 +4,11 @@ use std::sync::{Arc, Mutex, RwLock};
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
-use noirc_frontend::monomorphization::ast::{FuncId, Program};
+use noirc_frontend::ast::BinaryOpKind;
+use noirc_frontend::monomorphization::ast::{
+    self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
+};
+use noirc_frontend::shared::Signedness;
 use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;

@@ -264,7 +264,7 @@ impl Translator {
                 let value_id = self.builder.insert_cast(lhs, typ.unwrap_numeric());
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
+            ParsedInstruction::Constrain { lhs, equals, rhs, assert_message } => {
                 let lhs = self.translate_value(lhs)?;
                 let rhs = self.translate_value(rhs)?;
                 let assert_message = match assert_message {
@@ -282,7 +282,12 @@ impl Translator {
                     }
                     None => None,
                 };
-                self.builder.insert_constrain(lhs, rhs, assert_message);
+                if equals {
+                    self.builder.insert_constrain(lhs, rhs, assert_message);
+                } else {
+                    let instruction = Instruction::ConstrainNotEqual(lhs, rhs, assert_message);
+                    self.builder.insert_instruction(instruction, None);
+                }
             }
             ParsedInstruction::DecrementRc { value } => {
                 let value = self.translate_value(value)?;
