@@ -39,7 +39,7 @@ struct MyStruct<let S: u32> {
 
 // Used in an impl
 impl<let S: u32> MyStruct<S> {
-    fn insert(mut self: Self, index: Field, elem: Field) -> Self {
+    fn insert(mut self: Self, index: u32, elem: Field) -> Self {
         // Regression test for numeric generics on impls
         assert(index as u32 < S);
 

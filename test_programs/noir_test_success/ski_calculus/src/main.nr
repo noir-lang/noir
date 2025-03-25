@@ -16,13 +16,13 @@ pub enum Node {
     I,
     App(Id, Id),
 
-    // NOTE: (+1) and literal u64's are included to easily check the values of
+    // NOTE: (+1) and literal u32's are included to easily check the values of
     // lambda-encoded natural numbers. E.g. if THREE is `3` lambda-encoded, then
     // (THREE (+1) 0) will evalaute to the literal `3`.
     // (+1)
     Succ,
-    // Literal u64
-    Const(u64),
+    // Literal u32
+    Const(u32),
 }
 
 impl Eq for Node {
