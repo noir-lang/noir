@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742934554637,
+  "lastUpdate": 1742934702464,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d894fa4b1993af14833f830dbae6cfcb4c67c32e",
-          "message": "chore: update docusaurus config to correct trailing slash issue (#7720)",
-          "timestamp": "2025-03-14T19:57:29Z",
-          "tree_id": "1f38ded5e1bd3a4b0be17a85ca3fdd4e455fc37f",
-          "url": "https://github.com/noir-lang/noir/commit/d894fa4b1993af14833f830dbae6cfcb4c67c32e"
-        },
-        "date": 1741985478069,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.86,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.36,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5436a73d3aa20a27324e8962f361a388a0b84c87"
         },
         "date": 1742933108389,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.13,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c63f8001b0eae417179838e002a171612119e15",
+          "message": "feat(debugging): Add `--count-array-copies` flag (#7789)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-03-25T20:03:08Z",
+          "tree_id": "9d991e17ba7877a8ad500706b6cc9a33136a1b3e",
+          "url": "https://github.com/noir-lang/noir/commit/2c63f8001b0eae417179838e002a171612119e15"
+        },
+        "date": 1742934698878,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
