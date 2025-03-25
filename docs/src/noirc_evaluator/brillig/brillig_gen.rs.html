@@ -136,10 +136,10 @@
     options: <span class="kw-2">&amp;</span>BrilligOptions,
     globals: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, BrilligVariable&gt;,
     hoisted_global_constants: <span class="kw-2">&amp;</span>HashMap&lt;(FieldElement, NumericType), BrilligVariable&gt;,
+    is_entry_point: bool,
 ) -&gt; BrilligArtifact&lt;FieldElement&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>brillig_context = BrilligContext::new(options);
-
-    <span class="kw">let </span><span class="kw-2">mut </span>function_context = FunctionContext::new(func);
+    <span class="kw">let </span><span class="kw-2">mut </span>function_context = FunctionContext::new(func, is_entry_point);
 
     brillig_context.enter_context(Label::function(func.id()));
 

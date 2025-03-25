@@ -74,16 +74,147 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
-<span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<span class="kw">use </span>acvm::{
+    AcirField,
+    acir::brillig::{BitSize, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray},
+};
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
-<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext,
-    brillig_variable::{BrilligArray, SingleAddrVariable},
-    debug_show::DebugToString,
-    registers::{RegisterAllocator, ScratchSpace},
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{
+    BrilligVariable,
+    brillig_ir::{
+        BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+        brillig_variable::{BrilligArray, SingleAddrVariable},
+        debug_show::DebugToString,
+        registers::{RegisterAllocator, ScratchSpace},
+    },
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
@@ -145,9 +276,128 @@
                 BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
                 <span class="number">1_usize</span>.into(),
             );
+
             <span class="comment">// Decrease the original ref count now that this copy is no longer pointing to it
             </span>ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, <span class="number">1</span>);
+
+            <span class="comment">// Increase our array copy counter if that flag is set
+            </span><span class="kw">if </span>ctx.count_arrays_copied {
+                <span class="kw">let </span>array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
+                    address: ctx.array_copy_counter_address(),
+                    bit_size: <span class="number">32</span>,
+                });
+
+                <span class="kw">let </span>counter_register = array_copy_counter.extract_register();
+                ctx.codegen_usize_op(counter_register, counter_register, BrilligBinaryOp::Add, <span class="number">1</span>);
+            }
         }
     });
+}
+
+<span class="doccomment">/// The message to print when copying an array.
+</span><span class="kw">const </span>ARRAY_COPY_COUNTER_MESSAGE: <span class="kw-2">&amp;</span>str = <span class="string">"Total arrays copied: {}"</span>;
+
+<span class="doccomment">/// The metadata string needed to tell `print` to print out a u32
+</span><span class="kw">const </span>PRINT_U32_TYPE_STRING: <span class="kw-2">&amp;</span>str = <span class="string">"{\"kind\":\"unsignedinteger\",\"width\":32}"</span>;
+<span class="comment">// "{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"unsignedinteger\",\"width\":32}}";
+
+// Create and return the string `PRINT_U32_TYPE_STRING`
+</span><span class="kw">fn </span>literal_string_to_value&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
+    target: <span class="kw-2">&amp;</span>str,
+    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
+) -&gt; ValueOrArray {
+    <span class="kw">let </span>brillig_array =
+        BrilligArray { pointer: brillig_context.allocate_register(), size: target.len() };
+
+    brillig_context.codegen_initialize_array(brillig_array);
+
+    <span class="kw">let </span>items_pointer = brillig_context.codegen_make_array_items_pointer(brillig_array);
+
+    initialize_constant_string(brillig_context, target, items_pointer);
+    brillig_context.deallocate_register(items_pointer);
+
+    ValueOrArray::HeapArray(acvm::acir::brillig::HeapArray {
+        pointer: brillig_context.codegen_make_array_items_pointer(brillig_array),
+        size: brillig_array.size,
+    })
+}
+
+<span class="comment">// This function was adapted from `initialize_constant_array_comptime`
+</span><span class="kw">fn </span>initialize_constant_string&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
+    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
+    data: <span class="kw-2">&amp;</span>str,
+    pointer: MemoryAddress,
+) {
+    <span class="comment">// Allocate a register for the iterator
+    </span><span class="kw">let </span>write_pointer_register = brillig_context.allocate_register();
+    brillig_context.mov_instruction(write_pointer_register, pointer);
+
+    <span class="kw">for </span>(element_idx, byte) <span class="kw">in </span>data.bytes().enumerate() {
+        <span class="kw">let </span>byte_field = AcirField::from_le_bytes_reduce(<span class="kw-2">&amp;</span>[byte]);
+        <span class="comment">// Store the item in memory
+        </span>brillig_context.indirect_const_instruction(write_pointer_register, <span class="number">32</span>, byte_field);
+
+        <span class="kw">if </span>element_idx != data.len() - <span class="number">1 </span>{
+            <span class="comment">// Increment the write_pointer_register
+            </span>brillig_context.memory_op_instruction(
+                write_pointer_register,
+                ReservedRegisters::usize_one(),
+                write_pointer_register,
+                BrilligBinaryOp::Add,
+            );
+        }
+    }
+
+    brillig_context.deallocate_register(write_pointer_register);
+}
+
+<span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
+    <span class="doccomment">/// emit: `println(f"Total arrays copied: {array_copy_counter}")`
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>emit_println_of_array_copy_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span>array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
+            address: <span class="self">self</span>.array_copy_counter_address(),
+            bit_size: <span class="number">32</span>,
+        });
+
+        <span class="kw">let </span>newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
+        <span class="kw">let </span>message = literal_string_to_value(ARRAY_COPY_COUNTER_MESSAGE, <span class="self">self</span>);
+        <span class="kw">let </span>item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
+        <span class="kw">let </span>value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
+        <span class="kw">let </span>type_string_metadata = literal_string_to_value(PRINT_U32_TYPE_STRING, <span class="self">self</span>);
+        <span class="kw">let </span>is_fmt_string = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
+
+        <span class="kw">let </span>inputs = [
+            newline, <span class="comment">// true
+            </span>message,
+            item_count,     <span class="comment">// 1
+            </span>value_to_print, <span class="comment">// array clone counter
+            </span>type_string_metadata,
+            is_fmt_string, <span class="comment">// true
+        </span>];
+
+        <span class="kw">let </span>u1_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U1));
+        <span class="kw">let </span>u8_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U8));
+        <span class="kw">let </span>u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
+
+        <span class="kw">let </span>newline_type = u1_type.clone();
+        <span class="kw">let </span>size = ARRAY_COPY_COUNTER_MESSAGE.len();
+        <span class="kw">let </span>msg_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type.clone()], size };
+        <span class="kw">let </span>item_count_type = HeapValueType::field();
+        <span class="kw">let </span>value_to_print_type = u32_type;
+        <span class="kw">let </span>size = PRINT_U32_TYPE_STRING.len();
+        <span class="kw">let </span>metadata_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type], size };
+        <span class="kw">let </span>is_fmt_string_type = u1_type;
+
+        <span class="kw">let </span>input_types = [
+            newline_type,
+            msg_type,
+            item_count_type,
+            value_to_print_type,
+            metadata_type,
+            is_fmt_string_type,
+        ];
+
+        <span class="self">self</span>.foreign_call_instruction(<span class="string">"print"</span>.to_string(), <span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>input_types, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+    }
 }
 </code></pre></div></section></main></body></html>

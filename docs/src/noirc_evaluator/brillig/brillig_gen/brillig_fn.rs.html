@@ -89,7 +89,10 @@
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
     brillig::brillig_ir::{
@@ -121,11 +124,13 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) liveness: VariableLiveness,
     <span class="doccomment">/// Information on where to allocate constants
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) constant_allocation: ConstantAllocation,
+    <span class="doccomment">/// True if this function is a brillig entry point
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) is_entry_point: bool,
 }
 
 <span class="kw">impl </span>FunctionContext {
     <span class="doccomment">/// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span>Function, is_entry_point: bool) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>id = function.id();
 
         <span class="kw">let </span><span class="kw-2">mut </span>reverse_post_order = Vec::new();
@@ -140,6 +145,7 @@
             ssa_value_allocations: HashMap::default(),
             blocks: reverse_post_order,
             liveness,
+            is_entry_point,
             constant_allocation: constants,
         }
     }

@@ -907,7 +907,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>brillig_context = create_context(ssa.main_id);
         brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(<span class="number">0</span>)));
 
-        <span class="kw">let </span>function_context = FunctionContext::new(ssa.main());
+        <span class="kw">let </span>function_context = FunctionContext::new(ssa.main(), <span class="bool-val">true</span>);
         (ssa, function_context, brillig_context)
     }
 

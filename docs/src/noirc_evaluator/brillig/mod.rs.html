@@ -136,7 +136,18 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_ir;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -171,6 +182,7 @@
 </span><span class="kw">pub struct </span>BrilligOptions {
     <span class="kw">pub </span>enable_debug_trace: bool,
     <span class="kw">pub </span>enable_debug_assertions: bool,
+    <span class="kw">pub </span>enable_array_copy_counter: bool,
 }
 
 <span class="doccomment">/// Context structure for the brillig pass.
@@ -191,8 +203,10 @@
         options: <span class="kw-2">&amp;</span>BrilligOptions,
         globals: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, BrilligVariable&gt;,
         hoisted_global_constants: <span class="kw-2">&amp;</span>HashMap&lt;(FieldElement, NumericType), BrilligVariable&gt;,
+        is_entry_point: bool,
     ) {
-        <span class="kw">let </span>obj = convert_ssa_function(func, options, globals, hoisted_global_constants);
+        <span class="kw">let </span>obj =
+            convert_ssa_function(func, options, globals, hoisted_global_constants, is_entry_point);
         <span class="self">self</span>.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -268,7 +282,15 @@
                 .unwrap_or((<span class="kw-2">&amp;</span>empty_allocations, <span class="kw-2">&amp;</span>empty_const_allocations));
 
             <span class="kw">let </span>func = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>brillig_function_id];
-            brillig.compile(func, options, globals_allocations, hoisted_constant_allocations);
+            <span class="kw">let </span>is_entry_point = brillig_globals.entry_points().contains_key(<span class="kw-2">&amp;</span>brillig_function_id);
+
+            brillig.compile(
+                func,
+                options,
+                globals_allocations,
+                hoisted_constant_allocations,
+                is_entry_point,
+            );
         }
 
         brillig

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_array_copy_procedure"]};
+window.SIDEBAR_ITEMS = {"constant":["ARRAY_COPY_COUNTER_MESSAGE","PRINT_U32_TYPE_STRING"],"fn":["compile_array_copy_procedure","initialize_constant_string","literal_string_to_value"]};

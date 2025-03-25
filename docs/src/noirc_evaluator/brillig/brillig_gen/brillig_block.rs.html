@@ -2132,7 +2132,26 @@
 <a href="#2131" id="2131">2131</a>
 <a href="#2132" id="2132">2132</a>
 <a href="#2133" id="2133">2133</a>
-<a href="#2134" id="2134">2134</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2134" id="2134">2134</a>
+<a href="#2135" id="2135">2135</a>
+<a href="#2136" id="2136">2136</a>
+<a href="#2137" id="2137">2137</a>
+<a href="#2138" id="2138">2138</a>
+<a href="#2139" id="2139">2139</a>
+<a href="#2140" id="2140">2140</a>
+<a href="#2141" id="2141">2141</a>
+<a href="#2142" id="2142">2142</a>
+<a href="#2143" id="2143">2143</a>
+<a href="#2144" id="2144">2144</a>
+<a href="#2145" id="2145">2145</a>
+<a href="#2146" id="2146">2146</a>
+<a href="#2147" id="2147">2147</a>
+<a href="#2148" id="2148">2148</a>
+<a href="#2149" id="2149">2149</a>
+<a href="#2150" id="2150">2150</a>
+<a href="#2151" id="2151">2151</a>
+<a href="#2152" id="2152">2152</a>
+<a href="#2153" id="2153">2153</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -2240,6 +2259,17 @@
         used_globals: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
         hoisted_global_constants: <span class="kw-2">&amp;</span>BTreeSet&lt;(FieldElement, NumericType)&gt;,
     ) -&gt; HashMap&lt;(FieldElement, NumericType), BrilligVariable&gt; {
+        <span class="comment">// Using the end of the global memory space adds more complexity as we
+        // have to account for possible register de-allocations as part of regular global compilation.
+        // Thus, we want to allocate any reserved global slots first.
+        //
+        // If this flag is set, compile the array copy counter as a global
+        </span><span class="kw">if </span><span class="self">self</span>.brillig_context.count_array_copies() {
+            <span class="kw">let </span>new_variable = allocate_value_with_type(<span class="self">self</span>.brillig_context, Type::unsigned(<span class="number">32</span>));
+            <span class="self">self</span>.brillig_context
+                .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
+        }
+
         <span class="kw">for </span>(id, value) <span class="kw">in </span>globals.values_iter() {
             <span class="kw">if </span>!used_globals.contains(<span class="kw-2">&amp;</span>id) {
                 <span class="kw">continue</span>;
@@ -2267,6 +2297,7 @@
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: ({constant:?}, {typ:?}) was already in cache"</span>);
             }
         }
+
         new_hoisted_constants
     }
 
@@ -2287,6 +2318,13 @@
         <span class="comment">// Process the block's terminator instruction
         </span><span class="kw">let </span>terminator_instruction =
             block.terminator().expect(<span class="string">"block is expected to be constructed"</span>);
+
+        <span class="kw">if </span><span class="self">self</span>.brillig_context.count_array_copies()
+            &amp;&amp; <span class="macro">matches!</span>(terminator_instruction, TerminatorInstruction::Return { .. })
+            &amp;&amp; <span class="self">self</span>.function_context.is_entry_point
+        {
+            <span class="self">self</span>.brillig_context.emit_println_of_array_copy_counter();
+        }
 
         <span class="self">self</span>.convert_ssa_terminator(terminator_instruction, dfg);
     }

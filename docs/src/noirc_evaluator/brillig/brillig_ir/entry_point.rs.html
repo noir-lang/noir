@@ -517,7 +517,7 @@
     ) -&gt; BrilligArtifact&lt;F&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(options);
 
-        context.globals_memory_size = <span class="prelude-val">Some</span>(globals_memory_size);
+        context.set_globals_memory_size(<span class="prelude-val">Some</span>(globals_memory_size));
 
         context.codegen_entry_point(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>return_parameters);
 

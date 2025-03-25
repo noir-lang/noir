@@ -148,7 +148,8 @@
 <a href="#147" id="147">147</a>
 <a href="#148" id="148">148</a>
 <a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
@@ -277,6 +278,7 @@
     <span class="kw">let </span>num_values = num_values.unwrap_field().to_u128() <span class="kw">as </span>usize;
 
     <span class="kw">let </span>types_start_at = input_and_printable_types.len() - num_values;
+
     <span class="kw">let </span><span class="kw-2">mut </span>input_iter =
         input_and_printable_types[<span class="number">0</span>..types_start_at].iter().flat_map(|param| param.fields());
     <span class="kw">for </span>printable_type <span class="kw">in </span>input_and_printable_types.iter().skip(types_start_at) {

@@ -797,7 +797,12 @@
 <a href="#796" id="796">796</a>
 <a href="#797" id="797">797</a>
 <a href="#798" id="798">798</a>
-<a href="#799" id="799">799</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -942,6 +947,10 @@
     <span class="doccomment">/// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>enable_brillig_debug_assertions: bool,
+
+    <span class="doccomment">/// Count the number of arrays that are copied in an unconstrained context for performance debugging
+    </span><span class="attr">#[arg(long)]
+    </span><span class="kw">pub </span>count_array_copies: bool,
 
     <span class="doccomment">/// Flag to turn on the lookback feature of the Brillig call constraints
     /// check, allowing tracking argument values before the call happens preventing
@@ -1536,6 +1545,7 @@
         brillig_options: BrilligOptions {
             enable_debug_trace: options.show_brillig,
             enable_debug_assertions: options.enable_brillig_debug_assertions,
+            enable_array_copy_counter: options.count_array_copies,
         },
         print_codegen_timings: options.benchmark_codegen,
         expression_width: <span class="kw">if </span>options.bounded_codegen {
