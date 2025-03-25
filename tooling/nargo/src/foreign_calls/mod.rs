@@ -15,7 +15,6 @@ pub use default::DefaultForeignCallExecutor;
 
 /// Interface for executing foreign calls
 pub trait ForeignCallExecutor<F> {
-    /// Accepts
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
