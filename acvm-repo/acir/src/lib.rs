@@ -160,8 +160,9 @@ mod reflection {
 
         // Further massaging of the generated code
         let mut source = String::from_utf8(source).expect("not a UTF-8 string");
-        MsgPackCodeGenerator::add_preamble(&mut source);
         replace_throw(&mut source);
+        MsgPackCodeGenerator::add_preamble(&mut source);
+        MsgPackCodeGenerator::add_helpers(&mut source, namespace);
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
@@ -218,11 +219,64 @@ mod reflection {
     }
 
     impl MsgPackCodeGenerator {
-        /// Add the import of the Barretenberg C++ header for msgpack
+        /// Add the import of the Barretenberg C++ header for msgpack.
         fn add_preamble(source: &mut String) {
             let inc = r#"#include "serde.hpp""#;
             let pos = source.find(inc).expect("serde.hpp missing");
             source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
+        }
+
+        /// Add helper functions to cut down repetition in the generated code.
+        fn add_helpers(source: &mut String, namespace: &str) {
+            // Based on https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L75
+            // Using a `struct Helpers` with `static` methods, because top level functions turn up as duplicates in `wasm-ld`.
+            let helpers = r#"
+struct Helpers {
+    static std::map<std::string, msgpack::object const*> make_kvmap(
+        msgpack::object const& o,
+        std::string name
+    ) {
+        if(o.type != msgpack::type::MAP) {
+            std::cerr << o << std::endl;
+            throw_or_abort("expected MAP for " + name);
+        }
+        std::map<std::string, msgpack::object const*> kvmap;
+        for (uint32_t i = 0; i < o.via.map.size; ++i) {
+            if (o.via.map.ptr[i].key.type != msgpack::type::STR) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected STR for keys of " + name);
+            }
+            kvmap.emplace(
+                std::string(
+                    o.via.map.ptr[i].key.via.str.ptr,
+                    o.via.map.ptr[i].key.via.str.size),
+                &o.via.map.ptr[i].val);
+        }
+        return kvmap;
+    }
+
+    template<typename T>
+    static void conv_fld_from_kvmap(
+        std::map<std::string, msgpack::object const*> const& kvmap,
+        std::string struct_name,
+        std::string field_name,
+        T& field
+    ) {
+        auto it = kvmap.find(field_name);
+        if (it != kvmap.end()) {
+            try {
+                it->second->convert(field);
+            } catch (const msgpack::type_error&) {
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+            }
+        } else {
+            throw_or_abort("missing field: " + struct_name + "::" + field_name);
+        }
+    }
+};
+"#;
+            let pos = source.find(&format!("namespace {namespace}")).expect("namespace");
+            source.insert_str(pos, &format!("namespace {namespace} {{{helpers}}}\n\n"));
         }
 
         fn generate(namespace: &str, registry: &Registry, code: CustomCode) -> CustomCode {
@@ -277,10 +331,50 @@ mod reflection {
 
         /// Regular structs pack into a map.
         fn generate_struct(&mut self, name: &str, fields: &[Named<Format>]) {
-            self.msgpack_fields(name, fields.iter().map(|f| f.name.clone()));
+            // We should be able to use `MSGPACK_FIELDS`, and it works most of the time,
+            // but we did run into an inexplicable bug where the keys in the map become NIL
+            // while preparing to deserialize, see [here](https://github.com/AztecProtocol/aztec-packages/pull/12841#issuecomment-2746520682).
+            // Because there seems to be nothing we can do about it if we go this way,
+            // we generate the code to deal with the maps directly instead.
+
+            // self.msgpack_fields(name, fields.iter().map(|f| f.name.clone()));
+
+            self.msgpack_pack(name, &{
+                let mut body = format!(
+                    "
+    packer.pack_map({});",
+                    fields.len()
+                );
+                for field in fields {
+                    let field_name = &field.name;
+                    body.push_str(&format!(
+                        r#"
+    packer.pack(std::make_pair("{field_name}", {field_name}));"#
+                    ));
+                }
+                body
+            });
+
+            self.msgpack_unpack(name, &{
+                // Turn the MAP into a `std::map<string, msgpack::object>`,
+                // then look up each field, returning error if one isn't found.
+                let mut body = format!(
+                    r#"
+    auto name = "{name}";
+    auto kvmap = Helpers::make_kvmap(o, name);"#
+                );
+                for field in fields {
+                    let field_name = &field.name;
+                    body.push_str(&format!(
+                        r#"
+    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name});"#
+                    ));
+                }
+                body
+            });
         }
 
-        /// Newtypes serialize as their underlying `value` that the C++ generator creates
+        /// Newtypes serialize as their underlying `value` that the C++ generator creates.
         fn generate_newtype(&mut self, name: &str) {
             self.msgpack_pack(name, "packer.pack(value);");
             self.msgpack_unpack(
@@ -298,9 +392,9 @@ mod reflection {
             );
         }
 
-        /// Tuples serialize as a vector of underlying data
+        /// Tuples serialize as a vector of underlying data.
         fn generate_tuple(&mut self, _name: &str, _formats: &[Format]) {
-            todo!("Implement msgpack for tuples");
+            unimplemented!("Until we have a tuple enum in our schema we don't need this.");
         }
 
         /// Enums serialize as a single element map keyed by the variant type name.
@@ -313,7 +407,7 @@ mod reflection {
             self.namespace.pop();
 
             // Pack the enum itself
-            let pack_body = {
+            self.msgpack_pack(name, &{
                 let cases = variants
                     .iter()
                     .map(|(i, v)| {
@@ -349,15 +443,15 @@ mod reflection {
         }}, value);
     }}"#
                 )
-            };
-            self.msgpack_pack(name, &pack_body);
+            });
 
             // Unpack the enum into a map, inspect the key, then unpack the entry value.
             // See https://c.msgpack.org/cpp/structmsgpack_1_1object.html#a8c7c484d2a6979a833bdb69412ad382c
             // for how to access the object's content without parsing it.
-            let unpack_body = {
+            self.msgpack_unpack(name, &{
                 let mut body = format!(
                     r#"
+
     if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {{
         std::cerr << o << std::endl;
         throw_or_abort("expected MAP or STR for enum '{name}'; got type " + std::to_string(o.type));
@@ -366,10 +460,15 @@ mod reflection {
         throw_or_abort("expected 1 entry for enum '{name}'; got " + std::to_string(o.via.map.size));
     }}
     std::string tag;
-    if (o.type == msgpack::type::object_type::MAP) {{
-        o.via.map.ptr[0].key.convert(tag);
-    }} else {{
-        o.convert(tag);
+    try {{
+        if (o.type == msgpack::type::object_type::MAP) {{
+            o.via.map.ptr[0].key.convert(tag);
+        }} else {{
+            o.convert(tag);
+        }}
+    }} catch(const msgpack::type_error&) {{
+        std::cerr << o << std::endl;
+        throw_or_abort("error converting tag to string for enum '{name}'");
     }}"#
                 );
 
@@ -410,8 +509,7 @@ mod reflection {
                 ));
 
                 body
-            };
-            self.msgpack_unpack(name, &unpack_body);
+            });
         }
 
         /// Generate msgpack code for nested enum variants.
@@ -429,6 +527,9 @@ mod reflection {
 
         /// Use the `MSGPACK_FIELDS` macro with a list of fields.
         /// This one takes care of serializing and deserializing as well.
+        ///
+        /// Uses [define_map](https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L75-L88) under the hood.
+        #[allow(dead_code)]
         fn msgpack_fields(&mut self, name: &str, fields: impl Iterator<Item = String>) {
             let fields = fields.collect::<Vec<_>>().join(", ");
             let code = format!("MSGPACK_FIELDS({});", fields);
