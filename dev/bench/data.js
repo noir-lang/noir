@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742942638789,
+  "lastUpdate": 1742942643644,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f4f0cd1943b481783bb65723e3185fdb6fffc848",
-          "message": "chore: encapsulate `Index` within `LocalModuleId` (#7719)",
-          "timestamp": "2025-03-14T20:29:32Z",
-          "tree_id": "8fc6c2c4f89f18aec3b3254206ab251624ebbe1b",
-          "url": "https://github.com/noir-lang/noir/commit/f4f0cd1943b481783bb65723e3185fdb6fffc848"
-        },
-        "date": 1741985821265,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.284,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.73,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.486,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.027,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa7f175c38d0e9b08739020a2f5b195871df4437",
+          "message": "chore(docs): Add docs dev prereqs to README (#7808)",
+          "timestamp": "2025-03-25T22:22:42Z",
+          "tree_id": "75e288e7a49e9e5ae9fb6be12825eed81fbcd853",
+          "url": "https://github.com/noir-lang/noir/commit/fa7f175c38d0e9b08739020a2f5b195871df4437"
+        },
+        "date": 1742942638799,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.304,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.79,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.533,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.008,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
             "unit": "s"
           }
         ]
