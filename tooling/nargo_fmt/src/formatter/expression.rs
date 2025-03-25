@@ -2478,7 +2478,7 @@ global y = 1;
     }
 
     #[test]
-    fn format_last_assignment_in_block_without_semicoln() {
+    fn format_last_assignment_in_block_without_semicolon() {
         let src = "fn main() {
     let mut x: Field = 0;
     {
@@ -2491,7 +2491,7 @@ global y = 1;
     }
 
     #[test]
-    fn format_last_break_in_block_without_semicoln() {
+    fn format_last_break_in_block_without_semicolon() {
         let src = "fn main() {
     let mut x: Field = 0;
     {
@@ -2504,7 +2504,7 @@ global y = 1;
     }
 
     #[test]
-    fn format_last_continue_in_block_without_semicoln() {
+    fn format_last_continue_in_block_without_semicolon() {
         let src = "fn main() {
     let mut x: Field = 0;
     {
