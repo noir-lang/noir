@@ -899,18 +899,14 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_bound_inner(
         &mut self,
         bound: &TraitBound,
-        mark_datatypes_as_used: bool,
+        r#use: bool,
     ) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
 
-        let (ordered, named) = self.resolve_type_args_inner(
-            bound.trait_generics.clone(),
-            trait_id,
-            location,
-            mark_datatypes_as_used,
-        );
+        let (ordered, named) =
+            self.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, r#use);
 
         let trait_generics = TraitGenerics { ordered, named };
         Some(ResolvedTraitBound { trait_id, trait_generics, location })

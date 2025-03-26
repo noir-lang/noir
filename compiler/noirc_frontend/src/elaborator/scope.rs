@@ -161,10 +161,10 @@ impl Elaborator<'_> {
     pub(super) fn lookup_datatype_or_error(
         &mut self,
         path: Path,
-        mark_datatypes_as_used: bool,
+        r#use: bool,
     ) -> Option<Shared<DataType>> {
         let location = path.location;
-        match self.resolve_path_or_error_inner(path, mark_datatypes_as_used) {
+        match self.resolve_path_or_error_inner(path, r#use) {
             Ok(item) => {
                 if let PathResolutionItem::Type(struct_id) = item {
                     Some(self.get_type(struct_id))
@@ -224,9 +224,9 @@ impl Elaborator<'_> {
     pub(super) fn lookup_type_alias(
         &mut self,
         path: Path,
-        mark_datatypes_as_used: bool,
+        r#use: bool,
     ) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error_inner(path, mark_datatypes_as_used) {
+        match self.resolve_path_or_error_inner(path, r#use) {
             Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
                 Some(self.interner.get_type_alias(type_alias_id))
             }

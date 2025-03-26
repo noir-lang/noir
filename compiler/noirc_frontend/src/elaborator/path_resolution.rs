@@ -120,9 +120,9 @@ impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
         path: Path,
-        mark_datatypes_as_used: bool,
+        r#use: bool,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let path_resolution = self.resolve_path_inner(path, mark_datatypes_as_used)?;
+        let path_resolution = self.resolve_path_inner(path, r#use)?;
 
         for error in path_resolution.errors {
             self.push_err(error);
@@ -146,7 +146,7 @@ impl Elaborator<'_> {
     pub(super) fn resolve_path_inner(
         &mut self,
         mut path: Path,
-        mark_datatypes_as_used: bool,
+        r#use: bool,
     ) -> PathResolutionResult {
         let mut module_id = self.module_id();
 
@@ -165,7 +165,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.resolve_path_in_module(path, module_id, mark_datatypes_as_used)
+        self.resolve_path_in_module(path, module_id, r#use)
     }
 
     /// Resolves a path in `current_module`.
@@ -174,7 +174,7 @@ impl Elaborator<'_> {
         &mut self,
         path: Path,
         importing_module: ModuleId,
-        mark_datatypes_as_used: bool,
+        r#use: bool,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
             Some(ReferencesTracker::new(self.interner))
@@ -183,7 +183,7 @@ impl Elaborator<'_> {
         };
         let (path, module_id, _) =
             resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(path, module_id, importing_module, mark_datatypes_as_used)
+        self.resolve_name_in_module(path, module_id, importing_module, r#use)
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -193,7 +193,7 @@ impl Elaborator<'_> {
         path: Path,
         starting_module: ModuleId,
         importing_module: ModuleId,
-        mark_datatypes_as_used: bool,
+        r#use: bool,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
@@ -218,7 +218,7 @@ impl Elaborator<'_> {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        if mark_datatypes_as_used {
+        if r#use {
             self.usage_tracker.mark_as_used(current_module_id, first_segment);
         } else {
             self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
@@ -346,7 +346,7 @@ impl Elaborator<'_> {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            if mark_datatypes_as_used {
+            if r#use {
                 self.usage_tracker.mark_as_used(current_module_id, current_ident);
             } else {
                 self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
