@@ -18,7 +18,7 @@ fn compute_root(leaf: [u8; 32], path: [u8; 64], _index: u32, root: [u8; 32]) {
             hash_input[j + b] = path[offset + j];
         }
 
-        current = std::hash::sha256(hash_input);
+        current = std::hash::blake3(hash_input);
         index = index >> 1;
     }
 

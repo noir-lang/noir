@@ -1,17 +1,12 @@
 use std::collections::BTreeMap;
 
 use acvm::{
-    acir::circuit::{
-        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload,
-        ResolvedAssertionPayload, ResolvedOpcodeLocation,
-    },
-    pwg::{ErrorLocation, OpcodeResolutionError},
     AcirField, FieldElement,
+    acir::circuit::{ErrorSelector, OpcodeLocation, brillig::BrilligFunctionId},
+    pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
-use noirc_abi::{display_abi_error, Abi, AbiErrorType};
-use noirc_errors::{
-    debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
-};
+use noirc_abi::{Abi, AbiErrorType, display_abi_error};
+use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo, reporter::ReportedErrors};
 
 pub use noirc_errors::Location;
 
@@ -86,6 +81,16 @@ impl<F: AcirField> NargoError<F> {
             _ => None,
         }
     }
+}
+
+/// The opcode location for a call to a separate ACIR circuit
+/// This includes the function index of the caller within a [program][acvm::acir::circuit::Program]
+/// and the index in the callers ACIR to the specific call opcode.
+/// This is only resolved and set during circuit execution.
+#[derive(Debug, Copy, Clone)]
+pub struct ResolvedOpcodeLocation {
+    pub acir_function_index: usize,
+    pub opcode_location: OpcodeLocation,
 }
 
 #[derive(Debug, Error)]
@@ -230,7 +235,7 @@ pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError<FieldElement>,
     abi: &Abi,
     debug: &[DebugInfo],
-) -> Option<FileDiagnostic> {
+) -> Option<CustomDiagnostic> {
     let source_locations = match nargo_err {
         NargoError::ExecutionError(execution_error) => {
             extract_locations_from_error(execution_error, debug)?
@@ -241,6 +246,6 @@ pub fn try_to_diagnose_runtime_error(
     // of the call stack (the last item in the Vec).
     let location = *source_locations.last()?;
     let message = extract_message_from_error(&abi.error_types, nargo_err);
-    let error = CustomDiagnostic::simple_error(message, String::new(), location.span);
-    Some(error.with_call_stack(source_locations).in_file(location.file))
+    let error = CustomDiagnostic::simple_error(message, String::new(), location);
+    Some(error.with_call_stack(source_locations))
 }

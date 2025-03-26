@@ -4,7 +4,7 @@ use crate::ast::{Ident, UnresolvedGenerics, UnresolvedType};
 use crate::token::SecondaryAttribute;
 
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use super::{Documented, ItemVisibility};
 
@@ -16,7 +16,7 @@ pub struct NoirEnumeration {
     pub visibility: ItemVisibility,
     pub generics: UnresolvedGenerics,
     pub variants: Vec<Documented<EnumVariant>>,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl NoirEnumeration {
@@ -30,7 +30,11 @@ impl NoirEnumeration {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnumVariant {
     pub name: Ident,
-    pub parameters: Vec<UnresolvedType>,
+
+    /// This is None for tag variants without parameters.
+    /// A value of `Some(vec![])` corresponds to a variant defined as `Foo()`
+    /// with parenthesis but no parameters.
+    pub parameters: Option<Vec<UnresolvedType>>,
 }
 
 impl Display for NoirEnumeration {
@@ -41,8 +45,12 @@ impl Display for NoirEnumeration {
         writeln!(f, "enum {}{} {{", self.name, generics)?;
 
         for variant in self.variants.iter() {
-            let parameters = vecmap(&variant.item.parameters, ToString::to_string).join(", ");
-            writeln!(f, "    {}({}),", variant.item.name, parameters)?;
+            if let Some(parameters) = &variant.item.parameters {
+                let parameters = vecmap(parameters, ToString::to_string).join(", ");
+                writeln!(f, "    {}({}),", variant.item.name, parameters)?;
+            } else {
+                writeln!(f, "    {},", variant.item.name)?;
+            }
         }
 
         write!(f, "}}")

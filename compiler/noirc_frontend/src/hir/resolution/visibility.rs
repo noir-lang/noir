@@ -1,6 +1,6 @@
+use crate::Type;
 use crate::graph::CrateId;
 use crate::node_interner::{FuncId, NodeInterner, TraitId, TypeId};
-use crate::Type;
 
 use std::collections::BTreeMap;
 
@@ -59,9 +59,9 @@ pub(crate) fn module_descendent_of_target(
         return true;
     }
 
-    def_map.modules[current.0]
+    def_map[current]
         .parent
-        .map_or(false, |parent| module_descendent_of_target(def_map, target, parent))
+        .is_some_and(|parent| module_descendent_of_target(def_map, target, parent))
 }
 
 /// Returns true if `target` is a struct and its parent is `current`.
@@ -70,8 +70,8 @@ fn module_is_parent_of_struct_module(
     current: LocalModuleId,
     target: LocalModuleId,
 ) -> bool {
-    let module_data = &def_map.modules[target.0];
-    module_data.is_struct && module_data.parent == Some(current)
+    let module_data = &def_map[target];
+    module_data.is_type && module_data.parent == Some(current)
 }
 
 pub fn struct_member_is_visible(
@@ -158,7 +158,7 @@ pub fn method_call_is_visible(
                 );
             }
 
-            if let Some(struct_id) = func_meta.struct_id {
+            if let Some(struct_id) = func_meta.type_id {
                 return struct_member_is_visible(
                     struct_id,
                     modifiers.visibility,

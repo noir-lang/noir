@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use color_eyre::eyre;
+use color_eyre::eyre::{self};
 use const_format::formatcp;
 
 mod execution_flamegraph_cmd;
@@ -32,5 +32,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         ProfilerCommand::Gates(args) => gates_flamegraph_cmd::run(args),
         ProfilerCommand::Opcodes(args) => opcodes_flamegraph_cmd::run(args),
         ProfilerCommand::ExecutionOpcodes(args) => execution_flamegraph_cmd::run(args),
-    }
+    }?;
+
+    Ok(())
 }

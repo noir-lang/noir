@@ -39,7 +39,11 @@ impl Function {
         let reachable_blocks = self.reachable_blocks();
 
         if !self.runtime().is_entry_point() {
-            assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
+            assert_eq!(
+                reachable_blocks.len(),
+                1,
+                "Expected there to be 1 block remaining in Acir function for array_set optimization"
+            );
         }
 
         let mut context = Context::new(&self.dfg);
@@ -187,7 +191,7 @@ fn make_mutable(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
 
     #[test]
     fn array_set_in_loop_with_conditional_clone() {

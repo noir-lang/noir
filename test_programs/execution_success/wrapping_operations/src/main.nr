@@ -3,4 +3,3 @@ fn main(x: u8, y: u8) {
     assert(std::wrapping_add(y, 1) == x);
     assert(std::wrapping_mul(y, y) == 1);
 }
-

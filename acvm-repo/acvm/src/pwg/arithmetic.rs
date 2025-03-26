@@ -1,9 +1,9 @@
 use acir::{
-    native_types::{Expression, Witness, WitnessMap},
     AcirField,
+    native_types::{Expression, Witness, WitnessMap},
 };
 
-use super::{insert_value, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError};
+use super::{ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 
 /// An Expression solver will take a Circuit's assert-zero opcodes with witness assignments
 /// and create the other witness variables
@@ -254,7 +254,52 @@ mod tests {
     use acir::FieldElement;
 
     #[test]
-    fn expression_solver_smoke_test() {
+    fn solves_simple_assignment() {
+        let a = Witness(0);
+
+        // a - 1 == 0;
+        let opcode_a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::one(), a)],
+            q_c: -FieldElement::one(),
+        };
+
+        let mut values = WitnessMap::new();
+        assert_eq!(ExpressionSolver::solve(&mut values, &opcode_a), Ok(()));
+
+        assert_eq!(values.get(&a).unwrap(), &FieldElement::from(1_i128));
+    }
+
+    #[test]
+    fn solves_unknown_in_mul_term() {
+        let a = Witness(0);
+        let b = Witness(1);
+        let c = Witness(2);
+        let d = Witness(3);
+
+        // a * b - b - c - d == 0;
+        let opcode_a = Expression {
+            mul_terms: vec![(FieldElement::one(), a, b)],
+            linear_combinations: vec![
+                (-FieldElement::one(), b),
+                (-FieldElement::one(), c),
+                (-FieldElement::one(), d),
+            ],
+            q_c: FieldElement::zero(),
+        };
+
+        let mut values = WitnessMap::new();
+        values.insert(b, FieldElement::from(2_i128));
+        values.insert(c, FieldElement::from(1_i128));
+        values.insert(d, FieldElement::from(1_i128));
+
+        assert_eq!(ExpressionSolver::solve(&mut values, &opcode_a), Ok(()));
+
+        assert_eq!(values.get(&a).unwrap(), &FieldElement::from(2_i128));
+    }
+
+    #[test]
+    fn solves_unknown_in_linear_term() {
         let a = Witness(0);
         let b = Witness(1);
         let c = Witness(2);

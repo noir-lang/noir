@@ -3,9 +3,9 @@ use std::cell::Ref;
 use iter_extended::vecmap;
 
 use crate::{
+    DataType, ResolvedGeneric, Type,
     hir_def::traits::NamedType,
     node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
-    DataType, ResolvedGeneric, Type,
 };
 
 /// Represents something that can be generic over type variables

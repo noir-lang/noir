@@ -26,7 +26,6 @@ export class NoirWasmCompiler {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   #wasmCompiler: any;
   #sourceMap: any;
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   #fm: FileManager;
   #dependencyManager: DependencyManager;
 
@@ -97,10 +96,8 @@ export class NoirWasmCompiler {
     try {
       const entrypoint = this.#package.getEntryPointPath();
       const deps = {
-        /* eslint-disable camelcase */
         root_dependencies: this.#dependencyManager.getEntrypointDependencies(),
         library_dependencies: this.#dependencyManager.getLibraryDependencies(),
-        /* eslint-enable camelcase */
       };
       const packageSources = await this.#package.getSources(this.#fm);
       const librarySources = (
@@ -145,10 +142,8 @@ export class NoirWasmCompiler {
     try {
       const entrypoint = this.#package.getEntryPointPath();
       const deps = {
-        /* eslint-disable camelcase */
         root_dependencies: this.#dependencyManager.getEntrypointDependencies(),
         library_dependencies: this.#dependencyManager.getLibraryDependencies(),
-        /* eslint-enable camelcase */
       };
       const packageSources = await this.#package.getSources(this.#fm);
       const librarySources = (
@@ -182,7 +177,7 @@ export class NoirWasmCompiler {
     try {
       const libFile = this.#dependencyManager.findFile(path);
       return await this.#fm.readFile(libFile ?? path, 'utf-8');
-    } catch (err) {
+    } catch (_err) {
       return '';
     }
   }

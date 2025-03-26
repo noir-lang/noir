@@ -26,13 +26,18 @@ pub struct ModuleData {
     /// Contains only the definitions directly defined in the current module
     definitions: ItemScope,
 
+    /// All traits in scope, either from `use` imports or `trait` declarations.
+    /// The Ident value is the trait name or the `use` alias, if any.
+    /// This is stored separately from `scope` to quickly check if a trait is in scope.
+    traits_in_scope: HashMap<TraitId, Ident>,
+
     pub location: Location,
 
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
-    /// True if this module is actually a struct
-    pub is_struct: bool,
+    /// True if this module is actually a type
+    pub is_type: bool,
 
     pub attributes: Vec<SecondaryAttribute>,
 }
@@ -44,7 +49,7 @@ impl ModuleData {
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
-        is_struct: bool,
+        is_type: bool,
     ) -> ModuleData {
         let mut attributes = outer_attributes;
         attributes.extend(inner_attributes);
@@ -55,9 +60,10 @@ impl ModuleData {
             child_declaration_order: Vec::new(),
             scope: ItemScope::default(),
             definitions: ItemScope::default(),
+            traits_in_scope: HashMap::new(),
             location,
             is_contract,
-            is_struct,
+            is_type,
             attributes,
         }
     }
@@ -144,6 +150,8 @@ impl ModuleData {
         visibility: ItemVisibility,
         id: TraitId,
     ) -> Result<(), (Ident, Ident)> {
+        self.traits_in_scope.insert(id, name.clone());
+
         self.declare(name, visibility, ModuleDefId::TraitId(id), None)
     }
 
@@ -167,11 +175,21 @@ impl ModuleData {
         id: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
+        if let ModuleDefId::TraitId(trait_id) = id {
+            self.traits_in_scope.insert(trait_id, name.clone());
+        }
+
         self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {
         self.scope.find_name(name)
+    }
+
+    /// Finds a trait in scope and returns its name
+    /// (either the trait name, or a `use` alias if it was brought to scope like that)
+    pub fn find_trait_in_scope(&self, trait_id: TraitId) -> Option<&Ident> {
+        self.traits_in_scope.get(&trait_id)
     }
 
     pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {

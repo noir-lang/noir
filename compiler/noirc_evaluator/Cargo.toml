@@ -20,6 +20,7 @@ fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
+num-traits.workspace = true
 im.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -30,6 +31,7 @@ rayon.workspace = true
 cfg-if.workspace = true
 smallvec = { version = "1.13.2", features = ["serde"] }
 vec-collections = "0.4.3"
+petgraph.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

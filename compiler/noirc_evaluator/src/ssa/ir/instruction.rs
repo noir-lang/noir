@@ -1,16 +1,17 @@
+use binary::{truncate, truncate_field};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use acvm::{
-    acir::AcirField,
-    acir::{circuit::ErrorSelector, BlackBoxFunc},
     FieldElement,
+    acir::AcirField,
+    acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
+use crate::ssa::opt::{flatten_cfg::value_merger::ValueMerger, pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -156,6 +157,14 @@ impl Intrinsic {
     /// Intrinsics which only have a side effect due to the chance that
     /// they can fail a constraint can be deduplicated.
     pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
+        match self.purity() {
+            Purity::Pure => true,
+            Purity::PureWithPredicate => deduplicate_with_predicate,
+            Purity::Impure => false,
+        }
+    }
+
+    pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
             // if the inputs are the same. If they depend on a side effect variable (e.g. because
@@ -170,19 +179,20 @@ impl Intrinsic {
                 BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::EmbeddedCurveAdd
                 | BlackBoxFunc::RecursiveAggregation,
-            ) => deduplicate_with_predicate,
+            ) => Purity::PureWithPredicate,
 
             // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
             Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
-                deduplicate_with_predicate
+                Purity::PureWithPredicate
             }
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
-            | Intrinsic::AsWitness => deduplicate_with_predicate,
+            | Intrinsic::AsWitness => Purity::PureWithPredicate,
 
-            _ => !self.has_side_effects(),
+            _ if self.has_side_effects() => Purity::Impure,
+            _ => Purity::Pure,
         }
     }
 
@@ -405,6 +415,9 @@ impl Instruction {
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Functions known to be pure have no side effects.
+                // `PureWithPredicates` functions may still have side effects.
+                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
                 _ => true, // Be conservative and assume other functions can have side effects.
             },
 
@@ -472,6 +485,12 @@ impl Instruction {
                 Value::Intrinsic(intrinsic) => {
                     intrinsic.can_be_deduplicated(deduplicate_with_predicate)
                 }
+                Value::Function(id) => match function.dfg.purity_of(id) {
+                    Some(Purity::Pure) => true,
+                    Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
+                    Some(Purity::Impure) => false,
+                    None => false,
+                },
                 _ => false,
             },
 
@@ -506,6 +525,74 @@ impl Instruction {
         }
     }
 
+    /// Indicates if the instruction can be safely hoisted out of a loop.
+    /// If `hoist_with_predicate` is set, we assume we're hoisting the instruction
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
+    /// rely on predicates can be hoisted as well.
+    ///
+    /// Certain instructions can be hoisted because they implicitly depend on a predicate.
+    /// However, to avoid tight coupling between passes, we make the hoisting
+    /// conditional on whether the caller wants the predicate to be taken into account or not.
+    ///
+    /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
+    /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
+    /// unexpected failures if the instruction was never meant to be executed.
+    pub(crate) fn can_be_hoisted(&self, function: &Function, hoist_with_predicate: bool) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => false,
+
+            Call { func, .. } => match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.can_be_deduplicated(false),
+                Value::Function(id) => match function.dfg.purity_of(id) {
+                    Some(Purity::Pure) => true,
+                    Some(Purity::PureWithPredicate) => false,
+                    Some(Purity::Impure) => false,
+                    None => false,
+                },
+                _ => false,
+            },
+
+            // We cannot hoist these instructions, even if we know the predicate is the same.
+            // This is because an loop with dynamic bounds may never execute its loop body.
+            // If the instruction were to trigger a failure, our program may fail inadvertently.
+            // If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
+            // but we do not want to assume that the caller of this method has accounted
+            // for this case. Thus, we block hoisting on these instructions.
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => false,
+
+            // Noop instructions can always be hoisted, although they're more likely to be
+            // removed entirely.
+            Noop => true,
+
+            // Cast instructions can always be hoisted
+            Cast(_, _) => true,
+
+            // Arrays can be mutated in unconstrained code so code that handles this case must
+            // take care to track whether the array was possibly mutated or not before
+            // hoisted. Since we don't know if the containing pass checks for this, we
+            // can only assume these are safe to hoist in constrained code.
+            MakeArray { .. } => function.runtime().is_acir(),
+
+            // These can have different behavior depending on the predicate.
+            Binary(_)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => {
+                hoist_with_predicate || !self.requires_acir_gen_predicate(&function.dfg)
+            }
+        }
+    }
+
     pub(crate) fn can_eliminate_if_unused(&self, function: &Function, flattened: bool) -> bool {
         use Instruction::*;
         match self {
@@ -520,6 +607,7 @@ impl Instruction {
                     true
                 }
             }
+
             Cast(_, _)
             | Not(_)
             | Truncate { .. }
@@ -577,12 +665,16 @@ impl Instruction {
                 match binary.operator {
                     BinaryOp::Add { unchecked: false }
                     | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false }
-                    | BinaryOp::Div
-                    | BinaryOp::Mod => {
+                    | BinaryOp::Mul { unchecked: false } => {
                         // Some binary math can overflow or underflow, but this is only the case
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
+                    }
+                    BinaryOp::Div | BinaryOp::Mod => {
+                        // Div and Mod require a predicate if the RHS may be zero.
+                        dfg.get_numeric_constant(binary.rhs)
+                            .map(|rhs| rhs.is_zero())
+                            .unwrap_or(true)
                     }
                     BinaryOp::Add { unchecked: true }
                     | BinaryOp::Sub { unchecked: true }
@@ -605,7 +697,7 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(_) => true,
+                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
                 }
@@ -770,7 +862,9 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value } => *value = f(*value),
+            Instruction::DecrementRc { value } => {
+                *value = f(*value);
+            }
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
             }
@@ -879,8 +973,10 @@ impl Instruction {
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
-                        let value = !constant.to_u128() % (1 << typ.bit_size());
-                        SimplifiedTo(dfg.make_constant(value.into(), *typ))
+                        let bit_size = typ.bit_size();
+                        assert!(bit_size <= 128);
+                        let not_value: u128 = truncate(!constant.to_u128(), bit_size);
+                        SimplifiedTo(dfg.make_constant(not_value.into(), *typ))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
@@ -937,9 +1033,8 @@ impl Instruction {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    let integer_modulus = 2_u128.pow(*bit_size);
-                    let truncated = numeric_constant.to_u128() % integer_modulus;
-                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                    let truncated_field = truncate_field(numeric_constant, *bit_size);
+                    SimplifiedTo(dfg.make_constant(truncated_field, typ))
                 } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
                     match &dfg[*instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {
@@ -970,11 +1065,7 @@ impl Instruction {
                             //
                             // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
                             let max_quotient_bits = max_numerator_bits - divisor_bits;
-                            if max_quotient_bits < *bit_size {
-                                SimplifiedTo(*value)
-                            } else {
-                                None
-                            }
+                            if max_quotient_bits < *bit_size { SimplifiedTo(*value) } else { None }
                         }
 
                         _ => None,
@@ -1003,11 +1094,7 @@ impl Instruction {
             Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 let max_potential_bits = dfg.get_value_max_num_bits(*value);
-                if max_potential_bits < *max_bit_size {
-                    Remove
-                } else {
-                    None
-                }
+                if max_potential_bits <= *max_bit_size { Remove } else { None }
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 let then_condition = dfg.resolve(*then_condition);
@@ -1437,5 +1524,34 @@ impl SimplifyResult {
             SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn removes_range_constraints_on_constants() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check Field 0 to 1 bits
+            range_check Field 1 to 1 bits
+            range_check Field 255 to 8 bits
+            range_check Field 256 to 8 bits
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check Field 256 to 8 bits
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

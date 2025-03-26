@@ -16,17 +16,18 @@ pub mod workspace;
 
 pub use self::errors::NargoError;
 pub use self::foreign_calls::print::PrintOutput;
-
+pub use self::ops::FuzzExecutionConfig;
+pub use self::ops::FuzzFolderConfig;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
 
-use fm::{FileManager, FILE_EXTENSION};
+use fm::{FILE_EXTENSION, FileManager};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, ParsedFiles},
+    hir::{Context, ParsedFiles, def_map::parse_file},
 };
 use package::{Dependency, Package};
 use rayon::prelude::*;
@@ -106,7 +107,7 @@ fn insert_all_files_for_package_into_file_manager(
             continue;
         }
 
-        if !entry.path().extension().map_or(false, |ext| ext == FILE_EXTENSION) {
+        if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
             continue;
         };
 

@@ -5,10 +5,11 @@ use noirc_errors::{Location, Span};
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
-use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType, Visibility};
+use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
 use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
+use crate::shared::Visibility;
 
 use crate::{ResolvedGeneric, Type};
 
@@ -132,14 +133,17 @@ pub struct FuncMeta {
 
     pub trait_constraints: Vec<TraitConstraint>,
 
-    /// The struct this function belongs to, if any
-    pub struct_id: Option<TypeId>,
+    /// The type this method belongs to, if any
+    pub type_id: Option<TypeId>,
 
     // The trait this function belongs to, if any
     pub trait_id: Option<TraitId>,
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// If this function is the one related to an enum variant, this holds its index (relative to `type_id`)
+    pub enum_variant_index: Option<usize>,
 
     /// True if this function is an entry point to the program.
     /// For non-contracts, this means the function is `main`.
@@ -168,7 +172,7 @@ pub struct FuncMeta {
 
 #[derive(Debug, Clone)]
 pub enum FunctionBody {
-    Unresolved(FunctionKind, BlockExpression, Span),
+    Unresolved(FunctionKind, BlockExpression, Location),
     Resolving,
     Resolved,
 }

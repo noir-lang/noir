@@ -1,14 +1,16 @@
 use std::{
     fmt::{self, Debug, Formatter},
+    str::FromStr,
     sync::Arc,
 };
 
 use super::{
+    Ssa,
     ir::{
         instruction::BinaryOp,
         types::{NumericType, Type},
     },
-    Ssa,
+    opt::pure::Purity,
 };
 
 use acvm::{AcirField, FieldElement};
@@ -31,10 +33,18 @@ mod lexer;
 mod tests;
 mod token;
 
+impl FromStr for Ssa {
+    type Err = SsaErrorWithSource;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str_impl(s, false)
+    }
+}
+
 impl Ssa {
     /// Creates an Ssa object from the given string.
     pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, false)
+        FromStr::from_str(src)
     }
 
     /// Creates an Ssa object from the given string but trying to simplify
@@ -182,6 +192,8 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
+        let purity = self.parse_purity()?;
+
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
         let external_name = self.eat_ident_or_error()?;
@@ -193,7 +205,7 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, external_name, internal_name, blocks })
+        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, blocks })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -216,6 +228,18 @@ impl<'a> Parser<'a> {
             Ok(RuntimeType::Acir(inline_type))
         } else {
             Ok(RuntimeType::Brillig(inline_type))
+        }
+    }
+
+    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+        if self.eat_keyword(Keyword::Pure)? {
+            Ok(Some(Purity::Pure))
+        } else if self.eat_keyword(Keyword::PredicatePure)? {
+            Ok(Some(Purity::PureWithPredicate))
+        } else if self.eat_keyword(Keyword::Impure)? {
+            Ok(Some(Purity::Impure))
+        } else {
+            Ok(None)
         }
     }
 
@@ -359,7 +383,14 @@ impl<'a> Parser<'a> {
         }
 
         let lhs = self.parse_value_or_error()?;
-        self.eat_or_error(Token::Equal)?;
+        let equals = if self.eat(Token::Equal)? {
+            true
+        } else if self.eat(Token::NotEqual)? {
+            false
+        } else {
+            return self.expected_one_of_tokens(&[Token::Equal, Token::NotEqual]);
+        };
+
         let rhs = self.parse_value_or_error()?;
 
         let assert_message = if self.eat(Token::Comma)? {
@@ -374,7 +405,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Ok(Some(ParsedInstruction::Constrain { lhs, rhs, assert_message }))
+        Ok(Some(ParsedInstruction::Constrain { lhs, equals, rhs, assert_message }))
     }
 
     fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -661,11 +692,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_value_or_error(&mut self) -> ParseResult<ParsedValue> {
-        if let Some(value) = self.parse_value()? {
-            Ok(value)
-        } else {
-            self.expected_value()
-        }
+        if let Some(value) = self.parse_value()? { Ok(value) } else { self.expected_value() }
     }
 
     fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
@@ -804,7 +831,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_identifier(&mut self) -> ParseResult<Option<Identifier>> {
-        let span = self.token.to_span();
+        let span = self.token.span();
         if let Some(name) = self.eat_ident()? {
             Ok(Some(Identifier::new(name, span)))
         } else {
@@ -838,11 +865,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_ident_or_error(&mut self) -> ParseResult<String> {
-        if let Some(ident) = self.eat_ident()? {
-            Ok(ident)
-        } else {
-            self.expected_identifier()
-        }
+        if let Some(ident) = self.eat_ident()? { Ok(ident) } else { self.expected_identifier() }
     }
 
     fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
@@ -865,11 +888,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
-        if let Some(int) = self.eat_int()? {
-            Ok(int)
-        } else {
-            self.expected_int()
-        }
+        if let Some(int) = self.eat_int()? { Ok(int) } else { self.expected_int() }
     }
 
     fn eat_int_type(&mut self) -> ParseResult<Option<IntType>> {
@@ -919,11 +938,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
-        if self.eat(token.clone())? {
-            Ok(())
-        } else {
-            self.expected_token(token)
-        }
+        if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
     }
 
     fn at(&self, token: Token) -> bool {
@@ -946,56 +961,53 @@ impl<'a> Parser<'a> {
     fn expected_instruction_or_terminator<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedInstructionOrTerminator {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_string_or_data<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedStringOrData {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_byte_string<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedByteString {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_identifier<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_int<T>(&mut self) -> ParseResult<T> {
-        Err(ParserError::ExpectedInt {
-            found: self.token.token().clone(),
-            span: self.token.to_span(),
-        })
+        Err(ParserError::ExpectedInt { found: self.token.token().clone(), span: self.token.span() })
     }
 
     fn expected_type<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedType {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_value<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedValue {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_global_value<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedGlobalValue {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
@@ -1003,7 +1015,7 @@ impl<'a> Parser<'a> {
         Err(ParserError::ExpectedToken {
             token,
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
@@ -1011,7 +1023,7 @@ impl<'a> Parser<'a> {
         Err(ParserError::ExpectedOneOfTokens {
             tokens: tokens.to_vec(),
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 }

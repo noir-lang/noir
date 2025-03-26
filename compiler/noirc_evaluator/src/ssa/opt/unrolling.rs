@@ -20,14 +20,10 @@
 //! only used by Brillig bytecode.
 use std::collections::BTreeSet;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use im::HashSet;
 
 use crate::{
-    brillig::{
-        brillig_gen::{brillig_globals::convert_ssa_globals, convert_ssa_function},
-        brillig_ir::brillig_variable::BrilligVariable,
-    },
     errors::RuntimeError,
     ssa::{
         ir::{
@@ -60,8 +56,6 @@ impl Ssa {
         mut self,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Result<Ssa, RuntimeError> {
-        let mut global_cache = None;
-
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
 
@@ -78,19 +72,9 @@ impl Ssa {
             // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
             if has_unrolled && is_brillig {
                 if let Some(max_incr_pct) = max_bytecode_increase_percent {
-                    if global_cache.is_none() {
-                        // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
-                        let used_globals =
-                            &self.globals.dfg.values_iter().map(|(id, _)| id).collect();
-                        let (_, brillig_globals) =
-                            convert_ssa_globals(false, &self.globals, used_globals);
-                        global_cache = Some(brillig_globals);
-                    }
-                    let brillig_globals = global_cache.as_ref().unwrap();
-
                     let orig_function = orig_function.expect("took snapshot to compare");
-                    let new_size = brillig_bytecode_size(function, brillig_globals);
-                    let orig_size = brillig_bytecode_size(&orig_function, brillig_globals);
+                    let new_size = function.num_instructions();
+                    let orig_size = orig_function.num_instructions();
                     if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
                         *function = orig_function;
                     }
@@ -269,7 +253,7 @@ impl Loops {
 impl Loop {
     /// Return each block that is in a loop starting in the given header block.
     /// Expects back_edge_start -> header to be the back edge of the loop.
-    fn find_blocks_in_loop(
+    pub(crate) fn find_blocks_in_loop(
         header: BasicBlockId,
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,
@@ -315,9 +299,8 @@ impl Loop {
     fn get_const_lower_bound(
         &self,
         function: &Function,
-        cfg: &ControlFlowGraph,
+        pre_header: BasicBlockId,
     ) -> Option<FieldElement> {
-        let pre_header = self.get_pre_header(function, cfg).ok()?;
         let jump_value = get_induction_variable(function, pre_header).ok()?;
         function.dfg.get_numeric_constant(jump_value)
     }
@@ -336,7 +319,7 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    pub(super) fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
+    fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
@@ -367,12 +350,12 @@ impl Loop {
     }
 
     /// Get the lower and upper bounds of the loop if both are constant numeric values.
-    fn get_const_bounds(
+    pub(super) fn get_const_bounds(
         &self,
         function: &Function,
-        cfg: &ControlFlowGraph,
+        pre_header: BasicBlockId,
     ) -> Option<(FieldElement, FieldElement)> {
-        let lower = self.get_const_lower_bound(function, cfg)?;
+        let lower = self.get_const_lower_bound(function, pre_header)?;
         let upper = self.get_const_upper_bound(function)?;
         Some((lower, upper))
     }
@@ -507,9 +490,19 @@ impl Loop {
         context.inline_instructions_from_block();
         // Mutate the terminator if possible so that it points at the iteration block.
         match context.dfg()[fresh_block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
                 let condition = *condition;
-                let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, *call_stack);
+                let next_blocks = context.handle_jmpif(
+                    condition,
+                    *then_destination,
+                    *else_destination,
+                    *call_stack,
+                );
 
                 // If there is only 1 next block the jmpif evaluated to a single known block.
                 // This is the expected case and lets us know if we should loop again or not.
@@ -532,7 +525,9 @@ impl Loop {
                     Err(context.inserter.function.dfg.get_value_call_stack(condition))
                 }
             }
-            other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
+            other => unreachable!(
+                "Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"
+            ),
         }
     }
 
@@ -681,7 +676,8 @@ impl Loop {
         function: &Function,
         cfg: &ControlFlowGraph,
     ) -> Option<BoilerplateStats> {
-        let (lower, upper) = self.get_const_bounds(function, cfg)?;
+        let pre_header = self.get_pre_header(function, cfg).ok()?;
+        let (lower, upper) = self.get_const_bounds(function, pre_header)?;
         let lower = lower.try_to_u64()?;
         let upper = upper.try_to_u64()?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
@@ -1021,25 +1017,6 @@ fn simplify_between_unrolls(function: &mut Function) {
     function.mem2reg();
 }
 
-/// Convert the function to Brillig bytecode and return the resulting size.
-fn brillig_bytecode_size(
-    function: &Function,
-    globals: &HashMap<ValueId, BrilligVariable>,
-) -> usize {
-    // We need to do some SSA passes in order for the conversion to be able to go ahead,
-    // otherwise we can hit `unreachable!()` instructions in `convert_ssa_instruction`.
-    // Creating a clone so as not to modify the originals.
-    let mut temp = function.clone();
-
-    // Might as well give it the best chance.
-    simplify_between_unrolls(&mut temp);
-
-    // This is to try to prevent hitting ICE.
-    temp.dead_instruction_elimination(false, true);
-
-    convert_ssa_function(&temp, false, globals).byte_code.len()
-}
-
 /// Decide if the new bytecode size is acceptable, compared to the original.
 ///
 /// The maximum increase can be expressed as a negative value if we demand a decrease.
@@ -1056,9 +1033,9 @@ mod tests {
     use test_case::test_case;
 
     use crate::errors::RuntimeError;
-    use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{is_new_size_ok, BoilerplateStats, Loops};
+    use super::{BoilerplateStats, Loops, is_new_size_ok};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimisations.
@@ -1109,30 +1086,30 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
 
         let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                jmp b1()
-              b1():
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                jmp b2()
-              b2():
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                constrain u1 0 == Field 1
-                jmp b3()
-              b3():
-                jmp b4()
-              b4():
-                return Field 0
-            }
+        acir(inline) fn main f0 {
+          b0():
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            jmp b2()
+          b1():
+            return Field 0
+          b2():
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            jmp b3()
+          b3():
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            constrain u1 0 == Field 1
+            jmp b4()
+          b4():
+            jmp b1()
+        }
         ";
 
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
@@ -1178,9 +1155,11 @@ mod tests {
         let loops = Loops::find_all(function);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
-        let (lower, upper) = loops.yet_to_unroll[0]
-            .get_const_bounds(function, &loops.cfg)
-            .expect("bounds are numeric const");
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+        let (lower, upper) =
+            loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
 
         assert_eq!(lower, FieldElement::from(0u32));
         assert_eq!(upper, FieldElement::from(4u32));
@@ -1375,24 +1354,24 @@ mod tests {
             v7 = eq v0, u32 2
             jmpif v7 then: b7, else: b3
           b3():
-            v9 = eq v0, u32 5
-            jmpif v9 then: b5, else: b4
+            v11 = eq v0, u32 5
+            jmpif v11 then: b5, else: b4
           b4():
-            v10 = load v1 -> Field
-            v12 = add v10, Field 1
-            store v12 at v1
-            v14 = add v0, u32 1
-            jmp b1(v14)
+            v15 = load v1 -> Field
+            v17 = add v15, Field 1
+            store v17 at v1
+            v18 = add v0, u32 1
+            jmp b1(v18)
           b5():
             jmp b6()
           b6():
-            v15 = load v1 -> Field
-            v17 = eq v15, Field 4
-            constrain v15 == Field 4
+            v12 = load v1 -> Field
+            v14 = eq v12, Field 4
+            constrain v12 == Field 4
             return
           b7():
-            v18 = add v0, u32 1
-            jmp b1(v18)
+            v9 = add v0, u32 1
+            jmp b1(v9)
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();

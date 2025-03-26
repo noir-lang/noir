@@ -1,11 +1,13 @@
+use noirc_errors::Location;
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    ast::{NoirTrait, Param, Pattern, TraitItem, Visibility},
+    ast::{NoirTrait, Param, Pattern, TraitItem},
     token::{Attributes, Keyword, Token},
 };
 
-use super::{function::FunctionToFormat, Formatter};
+use super::{Formatter, function::FunctionToFormat};
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {
         self.format_secondary_attributes(noir_trait.attributes);
         self.write_indentation();
@@ -99,7 +101,7 @@ impl<'a> Formatter<'a> {
                         visibility: Visibility::Private,
                         pattern: Pattern::Identifier(name),
                         typ,
-                        span: Default::default(), // Doesn't matter
+                        location: Location::dummy(), // Doesn't matter
                     })
                     .collect();
 
@@ -293,6 +295,23 @@ mod tests {
         fn foo<T>()
         where
             T: Bar;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_with_function_with_multiple_where_clauses() {
+        let src = " mod moo { trait Foo { 
+            fn  foo<T> () where  A: B, C: D;
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        fn foo<T>()
+        where
+            A: B,
+            C: D;
     }
 }
 ";

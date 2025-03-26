@@ -1,8 +1,8 @@
-use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
-use acir::circuit::{opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
 use acir::AcirField;
+use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
+use acir::circuit::{Opcode as AcirOpcode, opcodes::BlackBoxFuncCall};
 
-fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
+fn format_blackbox_function<F: AcirField>(call: &BlackBoxFuncCall<F>) -> String {
     match call {
         BlackBoxFuncCall::AES128Encrypt { .. } => "aes128_encrypt".to_string(),
         BlackBoxFuncCall::AND { .. } => "and".to_string(),
@@ -49,7 +49,7 @@ fn format_blackbox_op(call: &BlackBoxOp) -> String {
     }
 }
 
-fn format_acir_opcode_kind<F>(opcode: &AcirOpcode<F>) -> String {
+fn format_acir_opcode_kind<F: AcirField>(opcode: &AcirOpcode<F>) -> String {
     match opcode {
         AcirOpcode::AssertZero(_) => "arithmetic".to_string(),
         AcirOpcode::BlackBoxFuncCall(call) => {

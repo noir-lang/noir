@@ -1,4 +1,4 @@
-comptime fn derive_default(typ: StructDefinition) -> Quoted {
+comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     let generics = typ.generics();
     assert_eq(
         generics.len(),

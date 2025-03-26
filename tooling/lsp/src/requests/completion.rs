@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{self, Future},
+    ops::Deref,
 };
 
 use async_lsp::ResponseError;
@@ -14,12 +15,13 @@ use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    DataType, Kind, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
         IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
-        MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Signedness, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
     },
@@ -33,18 +35,18 @@ use noirc_frontend::{
     hir_def::traits::Trait,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
+    shared::Signedness,
     token::{MetaAttribute, Token, Tokens},
-    DataType, Kind, ParsedModule, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
 
 use crate::{
-    requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
+    LspState, requests::to_lsp_location,
+    trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
     use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
-    LspState,
 };
 
-use super::{process_request, TraitReexport};
+use super::{TraitReexport, process_request};
 
 mod auto_import;
 mod builtins;
@@ -56,7 +58,7 @@ mod tests;
 pub(crate) fn on_completion_request(
     state: &mut LspState,
     params: CompletionParams,
-) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
     let uri = params.text_document_position.clone().text_document.uri;
 
     let result = process_request(state, params.text_document_position.clone(), |args| {
@@ -71,7 +73,7 @@ pub(crate) fn on_completion_request(
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
                 let byte = source.as_bytes().get(byte_index - 1).copied();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = NodeFinder::new(
                     args.files,
@@ -143,7 +145,7 @@ impl<'a> NodeFinder<'a> {
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
+            LocalModuleId::new(module_index)
         } else {
             def_map.root()
         };
@@ -195,32 +197,35 @@ impl<'a> NodeFinder<'a> {
         let span = if let UnresolvedTypeData::Named(path, _, _) = &constructor_expression.typ.typ {
             path.last_ident().span()
         } else {
-            constructor_expression.typ.span
+            constructor_expression.typ.location.span
         };
 
         let location = Location::new(span, self.file);
-        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+        let Some(ReferenceId::Type(type_id)) = self.interner.find_referenced(location) else {
             return;
         };
 
-        let struct_type = self.interner.get_type(struct_id);
-        let struct_type = struct_type.borrow();
+        let data_type = self.interner.get_type(type_id);
+        let data_type = data_type.borrow();
 
         // First get all of the struct's fields
-        let mut fields: Vec<_> =
-            struct_type.get_fields_as_written().into_iter().enumerate().collect();
+        let Some(fields) = data_type.get_fields_as_written() else {
+            return;
+        };
+
+        let mut fields = fields.into_iter().enumerate().collect::<Vec<_>>();
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
-            fields.retain(|(_, field)| field.name.0.contents != used_name.0.contents);
+            fields.retain(|(_, field)| field.name.as_str() != used_name.as_str());
         }
 
         let self_prefix = false;
         for (field_index, field) in &fields {
             self.completion_items.push(self.struct_field_completion_item(
-                &field.name.0.contents,
+                field.name.as_str(),
                 &field.typ,
-                struct_type.id,
+                data_type.id,
                 *field_index,
                 self_prefix,
             ));
@@ -237,7 +242,7 @@ impl<'a> NodeFinder<'a> {
         requested_items: RequestedItems,
         mut in_the_middle: bool,
     ) {
-        if !self.includes_span(path.span) {
+        if !self.includes_span(path.location.span) {
             return;
         }
 
@@ -261,10 +266,13 @@ impl<'a> NodeFinder<'a> {
                 // If so, take the substring and push that as the list of idents
                 // we'll do autocompletion for
                 let offset = self.byte_index - ident.span().start() as usize;
-                let substring = ident.0.contents[0..offset].to_string();
+                let substring = ident.as_str()[0..offset].to_string();
                 let ident = Ident::new(
                     substring,
-                    Span::from(ident.span().start()..ident.span().start() + offset as u32),
+                    Location::new(
+                        Span::from(ident.span().start()..ident.span().start() + offset as u32),
+                        ident.location().file,
+                    ),
                 );
                 idents.push(ident);
                 in_the_middle = true;
@@ -317,10 +325,11 @@ impl<'a> NodeFinder<'a> {
 
             match module_def_id {
                 ModuleDefId::ModuleId(id) => module_id = id,
-                ModuleDefId::TypeId(struct_id) => {
-                    let struct_type = self.interner.get_type(struct_id);
+                ModuleDefId::TypeId(type_id) => {
+                    let data_type = self.interner.get_type(type_id);
+                    self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
-                        &Type::DataType(struct_type, vec![]),
+                        &Type::DataType(data_type, vec![]),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,
@@ -571,7 +580,7 @@ impl<'a> NodeFinder<'a> {
             Type::DataType(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix, self_prefix);
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, _) => {
                 return self.complete_type_fields_and_methods(
                     typ,
                     prefix,
@@ -600,7 +609,7 @@ impl<'a> NodeFinder<'a> {
                 self.complete_tuple_fields(types, self_prefix);
             }
             Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-                if let TypeBinding::Bound(ref typ) = &*var.borrow() {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return self.complete_type_fields_and_methods(
                         typ,
                         prefix,
@@ -654,7 +663,7 @@ impl<'a> NodeFinder<'a> {
             return;
         };
 
-        let struct_id = get_type_struct_id(typ);
+        let type_id = get_type_type_id(typ);
         let is_primitive = typ.is_primitive();
         let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
 
@@ -666,15 +675,11 @@ impl<'a> NodeFinder<'a> {
             for (func_id, trait_id) in
                 methods.find_matching_methods(typ, has_self_param, self.interner)
             {
-                if let Some(struct_id) = struct_id {
+                if let Some(type_id) = type_id {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
-                    if !struct_member_is_visible(
-                        struct_id,
-                        visibility,
-                        self.module_id,
-                        self.def_maps,
-                    ) {
+                    if !struct_member_is_visible(type_id, visibility, self.module_id, self.def_maps)
+                    {
                         continue;
                     }
                 }
@@ -685,34 +690,30 @@ impl<'a> NodeFinder<'a> {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
                     let module_def_id = ModuleDefId::TraitId(trait_id);
-                    if !module_def_id_is_visible(
+                    let is_visible = self.module_def_id_is_visible(
                         module_def_id,
-                        self.module_id,
                         visibility,
                         None, // defining module
-                        self.interner,
-                        self.def_maps,
-                    ) {
+                    );
+                    if !is_visible {
                         // Try to find a visible reexport of the trait
                         // that is visible from the current module
-                        let Some((visible_module_id, name, _)) =
-                            self.interner.get_trait_reexports(trait_id).iter().find(
-                                |(module_id, _, visibility)| {
-                                    module_def_id_is_visible(
-                                        module_def_id,
-                                        self.module_id,
-                                        *visibility,
-                                        Some(*module_id),
-                                        self.interner,
-                                        self.def_maps,
-                                    )
-                                },
-                            )
+                        let Some(reexport) =
+                            self.interner.get_trait_reexports(trait_id).iter().find(|reexport| {
+                                self.module_def_id_is_visible(
+                                    module_def_id,
+                                    reexport.visibility,
+                                    Some(reexport.module_id),
+                                )
+                            })
                         else {
                             continue;
                         };
 
-                        trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
+                        trait_reexport = Some(TraitReexport {
+                            module_id: reexport.module_id,
+                            name: reexport.name.clone(),
+                        });
                     }
                 }
 
@@ -798,6 +799,23 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    fn complete_enum_variants_without_parameters(&mut self, data_type: &DataType, prefix: &str) {
+        let Some(variants) = data_type.get_variants_as_written() else {
+            return;
+        };
+
+        for (index, variant) in variants.iter().enumerate() {
+            // Variants with parameters are represented as functions and are suggested in `complete_type_methods`
+            if variant.is_function || !name_matches(variant.name.as_str(), prefix) {
+                continue;
+            }
+
+            let item =
+                self.enum_variant_completion_item(variant.name.to_string(), data_type.id, index);
+            self.completion_items.push(item);
+        }
+    }
+
     fn complete_struct_fields(
         &mut self,
         struct_type: &DataType,
@@ -805,9 +823,11 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, visibility, typ)) in
-            struct_type.get_fields_with_visibility(generics).iter().enumerate()
-        {
+        let Some(fields) = struct_type.get_fields_with_visibility(generics) else {
+            return;
+        };
+
+        for (field_index, (name, visibility, typ)) in fields.iter().enumerate() {
             if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
             {
                 continue;
@@ -845,14 +865,14 @@ impl<'a> NodeFinder<'a> {
         requested_items: RequestedItems,
     ) {
         let def_map = &self.def_maps[&module_id.krate];
-        let Some(mut module_data) = def_map.modules().get(module_id.local_id.0) else {
+        let Some(mut module_data) = def_map.get(module_id.local_id) else {
             return;
         };
 
         if at_root {
             match path_kind {
                 PathKind::Crate => {
-                    let Some(root_module_data) = def_map.modules().get(def_map.root().0) else {
+                    let Some(root_module_data) = def_map.get(def_map.root()) else {
                         return;
                     };
                     module_data = root_module_data;
@@ -861,7 +881,7 @@ impl<'a> NodeFinder<'a> {
                     let Some(parent) = module_data.parent else {
                         return;
                     };
-                    let Some(parent_module_data) = def_map.modules().get(parent.0) else {
+                    let Some(parent_module_data) = def_map.get(parent) else {
                         return;
                     };
                     module_data = parent_module_data;
@@ -874,7 +894,7 @@ impl<'a> NodeFinder<'a> {
         let function_kind = FunctionKind::Any;
 
         for ident in module_data.scope().names() {
-            let name = &ident.0.contents;
+            let name = ident.as_str();
 
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
@@ -887,7 +907,7 @@ impl<'a> NodeFinder<'a> {
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
-                            name.clone(),
+                            name.to_string(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
@@ -908,7 +928,7 @@ impl<'a> NodeFinder<'a> {
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
-                            name.clone(),
+                            name.to_string(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
@@ -1004,7 +1024,7 @@ impl<'a> NodeFinder<'a> {
         noir_function: &NoirFunction,
     ) {
         // First find the trait
-        let location = Location::new(noir_trait_impl.trait_name.span(), self.file);
+        let location = noir_trait_impl.r#trait.location;
         let Some(ReferenceId::Trait(trait_id)) = self.interner.find_referenced(location) else {
             return;
         };
@@ -1070,7 +1090,7 @@ impl<'a> NodeFinder<'a> {
     fn try_set_self_type(&mut self, pattern: &Pattern) {
         match pattern {
             Pattern::Identifier(ident) => {
-                if ident.0.contents == "self" {
+                if ident.as_str() == "self" {
                     let location = Location::new(ident.span(), self.file);
                     if let Some(ReferenceId::Local(definition_id)) =
                         self.interner.find_referenced(location)
@@ -1100,7 +1120,7 @@ impl<'a> NodeFinder<'a> {
             }
             LValue::MemberAccess { object, field_name, .. } => {
                 let typ = self.get_lvalue_type(object)?;
-                get_field_type(&typ, &field_name.0.contents)
+                get_field_type(&typ, field_name.as_str())
             }
             LValue::Index { array, .. } => {
                 let typ = self.get_lvalue_type(array)?;
@@ -1111,23 +1131,87 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    /// Determine where each segment in a `use` statement is located.
+    /// Try to suggest the name of a module to declare based on which
+    /// files exist in the filesystem, excluding modules that are already declared.
+    fn complete_module_declaration(&mut self, module: &ModuleDeclaration) -> Option<()> {
+        let filename = self.files.get_absolute_name(self.file).ok()?.into_path_buf();
+
+        let is_main_lib_or_mod = filename.ends_with("main.nr")
+            || filename.ends_with("lib.nr")
+            || filename.ends_with("mod.nr");
+
+        let paths = if is_main_lib_or_mod {
+            // For a "main" file we list sibling files
+            std::fs::read_dir(filename.parent()?)
+        } else {
+            // For a non-main files we list directory children
+            std::fs::read_dir(filename.with_extension(""))
+        };
+        let paths = paths.ok()?;
+
+        // See which modules are already defined via `mod ...;`
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+        let existing_children: HashSet<String> =
+            module_data.children.keys().map(|ident| ident.to_string()).collect();
+
+        for path in paths {
+            let Ok(path) = path else {
+                continue;
+            };
+            let file_name = path.file_name().to_string_lossy().to_string();
+            let Some(name) = file_name.strip_suffix(".nr") else {
+                continue;
+            };
+            if name == "main" || name == "mod" || name == "lib" {
+                continue;
+            }
+            if existing_children.contains(name) {
+                continue;
+            }
+
+            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            self.completion_items.push(simple_completion_item(
+                label,
+                CompletionItemKind::MODULE,
+                None,
+            ));
+        }
+
+        Some(())
+    }
+
+    fn module_def_id_is_visible(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+        defining_module: Option<ModuleId>,
+    ) -> bool {
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            defining_module,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        )
+    }
 
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
     }
 }
 
-impl<'a> Visitor for NodeFinder<'a> {
+impl Visitor for NodeFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         if let ItemKind::Import(use_tree, _) = &item.kind {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.location.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
             self.use_segment_positions.add(use_tree);
         }
 
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_import(
@@ -1146,7 +1230,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) else {
+        let Some(module_data) = def_map.get(self.module_id.local_id) else {
             return false;
         };
         if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
@@ -1218,7 +1302,11 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, _: Span) -> bool {
-        self.find_in_path(&noir_trait_impl.trait_name, RequestedItems::OnlyTypes);
+        let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ else {
+            return false;
+        };
+
+        self.find_in_path(trait_name, RequestedItems::OnlyTypes);
         noir_trait_impl.object_type.accept(self);
 
         self.type_parameters.clear();
@@ -1257,11 +1345,11 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&type_impl.generics);
 
-        for (method, span) in &type_impl.methods {
-            method.item.accept(*span, self);
+        for (method, location) in &type_impl.methods {
+            method.item.accept(location.span, self);
 
             // Optimization: stop looking in functions past the completion cursor
-            if span.end() as usize > self.byte_index {
+            if location.span.end() as usize > self.byte_index {
                 break;
             }
         }
@@ -1340,7 +1428,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
         if let ExpressionKind::Variable(path) = &call_expression.func.kind {
-            if self.includes_span(path.span) {
+            if self.includes_span(path.location.span) {
                 self.find_in_path_impl(path, RequestedItems::AnyItems, true);
                 return false;
             }
@@ -1354,13 +1442,13 @@ impl<'a> Visitor for NodeFinder<'a> {
         // as "foo(...)" but if we are at a dot right after "foo" it means it's
         // the above case and we want to suggest methods of foo's type.
         let after_dot = self.byte == Some(b'.');
-        if after_dot && call_expression.func.span.end() as usize == self.byte_index - 1 {
-            let location = Location::new(call_expression.func.span, self.file);
+        if after_dot && call_expression.func.location.span.end() as usize == self.byte_index - 1 {
+            let location = call_expression.func.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     prefix,
                     FunctionCompletionKind::Name,
                     self_prefix,
@@ -1385,7 +1473,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
         if self.includes_span(method_call_expression.method_name.span()) {
-            let location = Location::new(method_call_expression.object.span, self.file);
+            let location = method_call_expression.object.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = method_call_expression.method_name.to_string();
                 let offset =
@@ -1393,7 +1481,7 @@ impl<'a> Visitor for NodeFinder<'a> {
                 let prefix = prefix[0..offset].to_string();
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     &prefix,
                     FunctionCompletionKind::Name,
                     self_prefix,
@@ -1415,7 +1503,7 @@ impl<'a> Visitor for NodeFinder<'a> {
             statement.accept(self);
 
             // Optimization: stop looking in statements past the completion cursor
-            if statement.span.end() as usize > self.byte_index {
+            if statement.location.span.end() as usize > self.byte_index {
                 break;
             }
         }
@@ -1492,7 +1580,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         // then suggest methods of the resulting type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(object) {
-                if let Some(typ) = get_field_type(&typ, &field_name.0.contents) {
+                if let Some(typ) = get_field_type(&typ, field_name.as_str()) {
                     let prefix = "";
                     let self_prefix = false;
                     self.complete_type_fields_and_methods(
@@ -1563,14 +1651,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         // to complete for `bar`, not for `foo & bar`.
         if self.completion_items.is_empty()
             && self.byte == Some(b'.')
-            && expression.span.end() as usize == self.byte_index - 1
+            && expression.location.span.end() as usize == self.byte_index - 1
         {
-            let location = Location::new(expression.span, self.file);
+            let location = expression.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     prefix,
                     FunctionCompletionKind::NameAndParameters,
                     self_prefix,
@@ -1638,12 +1726,12 @@ impl<'a> Visitor for NodeFinder<'a> {
 
         if self.byte_index == ident.span().end() as usize {
             // Assuming member_access_expression is of the form `foo.bar`, we are right after `bar`
-            let location = Location::new(member_access_expression.lhs.span, self.file);
+            let location = member_access_expression.lhs.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = ident.to_string().to_case(Case::Snake);
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     &prefix,
                     FunctionCompletionKind::NameAndParameters,
                     self_prefix,
@@ -1695,7 +1783,7 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_unresolved_type(&mut self, unresolved_type: &UnresolvedType) -> bool {
-        self.includes_span(unresolved_type.span)
+        self.includes_span(unresolved_type.location.span)
     }
 
     fn visit_named_type(
@@ -1734,7 +1822,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         };
 
         if let Some(typ) = typ {
-            let prefix = &type_path.item.0.contents;
+            let prefix = type_path.item.as_str();
             self.complete_type_methods(
                 &typ,
                 prefix,
@@ -1748,7 +1836,7 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
-        if self.byte_index == attribute.name.span.end() as usize {
+        if self.byte_index == attribute.name.location.span.end() as usize {
             self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }
 
@@ -1761,7 +1849,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         let mut last_was_dollar = false;
 
         for token in &tokens.0 {
-            let span = token.to_span();
+            let span = token.span();
             if span.end() as usize > self.byte_index {
                 break;
             }
@@ -1795,6 +1883,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         trait_bound.trait_generics.accept(self);
         false
     }
+
+    fn visit_module_declaration(&mut self, module: &ModuleDeclaration, _: Span) {
+        if !self.includes_span(module.ident.span()) {
+            return;
+        }
+
+        self.complete_module_declaration(module);
+    }
 }
 
 fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
@@ -1810,13 +1906,10 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
             }
         }
         Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-            if let TypeBinding::Bound(ref typ) = &*var.borrow() {
-                get_field_type(typ, name)
-            } else {
-                None
-            }
-        }
+        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
+            TypeBinding::Bound(typ) => get_field_type(typ, name),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -1828,24 +1921,21 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)
         }
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-            if let TypeBinding::Bound(typ) = &*var.borrow() {
-                get_array_element_type(typ.clone())
-            } else {
-                None
-            }
-        }
+        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
+            TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
+            _ => None,
+        },
         _ => None,
     }
 }
 
-fn get_type_struct_id(typ: &Type) -> Option<TypeId> {
-    match typ {
+fn get_type_type_id(typ: &Type) -> Option<TypeId> {
+    match typ.follow_bindings_shallow().deref() {
         Type::DataType(struct_type, _) => Some(struct_type.borrow().id),
         Type::Alias(type_alias, generics) => {
             let type_alias = type_alias.borrow();
             let typ = type_alias.get_type(generics);
-            get_type_struct_id(&typ)
+            get_type_type_id(&typ)
         }
         _ => None,
     }
@@ -1897,8 +1987,7 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDefId> {
     match reference_id {
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
-        ReferenceId::Struct(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
-        ReferenceId::Enum(enum_id) => Some(ModuleDefId::TypeId(enum_id)),
+        ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),

@@ -1,11 +1,11 @@
 use acir::{
+    AcirField,
     circuit::{
+        Circuit, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlockId, FunctionInput},
-        Circuit, Opcode,
     },
     native_types::{Expression, Witness},
-    AcirField,
 };
 use std::collections::{BTreeSet, HashMap, HashSet};
 
@@ -215,10 +215,10 @@ mod tests {
 
     use crate::compiler::CircuitSimulator;
     use acir::{
+        FieldElement,
         acir_field::AcirField,
         circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs},
         native_types::{Expression, Witness},
-        FieldElement,
     };
 
     fn test_circuit(

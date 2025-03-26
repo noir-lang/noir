@@ -1,12 +1,15 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
-use noirc_frontend::monomorphization::ast::{FuncId, Program};
+use noirc_frontend::ast::BinaryOpKind;
+use noirc_frontend::monomorphization::ast::{
+    self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
+};
+use noirc_frontend::shared::Signedness;
+use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -19,8 +22,8 @@ use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
-use super::value::{Tree, Value, Values};
 use super::GlobalsGraph;
+use super::value::{Tree, Value, Values};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// The FunctionContext is the main context object for translating a
@@ -119,8 +122,8 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
-        builder.set_runtime(runtime);
         builder.set_globals(Arc::new(globals));
+        builder.set_runtime(runtime);
 
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
@@ -136,13 +139,11 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
 
-        let globals = self.builder.current_function.dfg.globals.clone();
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
-        self.builder.set_globals(globals);
 
         self.add_parameters_to_scope(&func.parameters);
     }
@@ -291,32 +292,30 @@ impl<'a> FunctionContext<'a> {
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: impl Into<FieldElement>,
-        negative: bool,
+        value: SignedField,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
-        let value = value.into();
-
-        if let Some(range) = numeric_type.value_is_outside_limits(value, negative) {
+        if let Some(range) = numeric_type.value_is_outside_limits(value) {
             let call_stack = self.builder.get_call_stack();
             return Err(RuntimeError::IntegerOutOfBounds {
-                value: if negative { -value } else { value },
+                value,
                 typ: numeric_type,
                 range,
                 call_stack,
             });
         }
 
-        let value = if negative {
+        let value = if value.is_negative {
             match numeric_type {
-                NumericType::NativeField => -value,
+                NumericType::NativeField => -value.field,
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                    assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value
+                    FieldElement::from(base) - value.field
                 }
             }
         } else {
-            value
+            value.field
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))
@@ -357,7 +356,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
     ///
-    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for bit-shifts, because we will convert them to field multiplication
+    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
+    /// bit-shifts, because we will convert them to field multiplication
     ///
     /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
     /// an unsigned value representing the signed integer.
@@ -599,7 +599,7 @@ impl<'a> FunctionContext<'a> {
     /// Inserts a call instruction at the end of the current block and returns the results
     /// of the call.
     ///
-    /// Compared to self.builder.insert_call, this version will reshape the returned Vec<ValueId>
+    /// Compared to self.builder.insert_call, this version will reshape the returned `Vec<ValueId>`
     /// back into a Values tree of the proper shape.
     pub(super) fn insert_call(
         &mut self,
@@ -730,10 +730,12 @@ impl<'a> FunctionContext<'a> {
     /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
     ///         value contained:
     ///
+    /// ```text
     /// v0 = foo.bar                 ; allocate instruction for bar
     /// v1 = load v0                 ; loading the bar array
     /// v2 = add i1, baz_index       ; field offset for index i1, field baz
     /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
+    /// ```
     ///
     /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
     ///                  construct the larger value as needed until we can `store` to the nearest
@@ -757,11 +759,7 @@ impl<'a> FunctionContext<'a> {
         Ok(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
-                if should_auto_deref {
-                    LValue::Dereference { reference }
-                } else {
-                    LValue::Ident
-                }
+                if should_auto_deref { LValue::Dereference { reference } } else { LValue::Ident }
             }
             ast::LValue::Index { array, index, location, .. } => {
                 self.index_lvalue(array, index, location)?.2
@@ -796,7 +794,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, Option<length>) where the lvalue_ref records the
+    /// This will return a triple of (array, index, lvalue_ref, `Option<length>`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
     /// The optional length is for indexing slices rather than arrays since slices
     /// are represented as a tuple in the form: (length, slice contents).
@@ -966,11 +964,13 @@ impl<'a> FunctionContext<'a> {
     ///
     /// This is done on parameters rather than call arguments so that we can optimize out
     /// paired inc/dec instructions within brillig functions more easily.
-    pub(crate) fn increment_parameter_rcs(&mut self) -> HashSet<ValueId> {
+    ///
+    /// Returns the list of parameters incremented, together with the value ID of the arrays they refer to.
+    pub(crate) fn increment_parameter_rcs(&mut self) -> Vec<(ValueId, ValueId)> {
         let entry = self.builder.current_function.entry_block();
         let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
 
-        let mut incremented = HashSet::default();
+        let mut incremented = Vec::default();
         let mut seen_array_types = HashSet::default();
 
         for parameter in parameters {
@@ -981,10 +981,11 @@ impl<'a> FunctionContext<'a> {
                 if element.contains_an_array() {
                     // If we haven't already seen this array type, the value may be possibly
                     // aliased, so issue an inc_rc for it.
-                    if !seen_array_types.insert(element.get_contained_array().clone())
-                        && self.builder.increment_array_reference_count(parameter)
-                    {
-                        incremented.insert(parameter);
+                    if seen_array_types.insert(element.get_contained_array().clone()) {
+                        continue;
+                    }
+                    if let Some(id) = self.builder.increment_array_reference_count(parameter) {
+                        incremented.push((parameter, id));
                     }
                 }
             }
@@ -999,14 +1000,18 @@ impl<'a> FunctionContext<'a> {
     /// ignored.
     pub(crate) fn end_scope(
         &mut self,
-        mut incremented_params: HashSet<ValueId>,
+        mut incremented_params: Vec<(ValueId, ValueId)>,
         terminator_args: &[ValueId],
     ) {
-        incremented_params.retain(|parameter| !terminator_args.contains(parameter));
+        // TODO: This check likely leads to unsoundness.
+        // It is here to avoid decrementing the RC of a parameter we're returning but we
+        // only check the exact ValueId which can be easily circumvented by storing to and
+        // loading from a temporary reference.
+        incremented_params.retain(|(parameter, _)| !terminator_args.contains(parameter));
 
-        for parameter in incremented_params {
+        for (parameter, original) in incremented_params {
             if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.decrement_array_reference_count(parameter);
+                self.builder.decrement_array_reference_count(original);
             }
         }
     }

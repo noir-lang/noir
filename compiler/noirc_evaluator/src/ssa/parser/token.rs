@@ -12,7 +12,7 @@ impl SpannedToken {
         SpannedToken(Spanned::from(span, token))
     }
 
-    pub(crate) fn to_span(&self) -> Span {
+    pub(crate) fn span(&self) -> Span {
         self.0.span()
     }
 
@@ -57,6 +57,8 @@ pub(crate) enum Token {
     Arrow,
     /// ==
     Equal,
+    /// !=
+    NotEqual,
     /// &
     Ampersand,
     /// -
@@ -95,6 +97,7 @@ impl Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Arrow => write!(f, "->"),
             Token::Equal => write!(f, "=="),
+            Token::NotEqual => write!(f, "!="),
             Token::Ampersand => write!(f, "&"),
             Token::Dash => write!(f, "-"),
             Token::Eof => write!(f, "(end of stream)"),
@@ -136,6 +139,7 @@ pub(crate) enum Keyword {
     Fold,
     Fn,
     Function,
+    Impure,
     IncRc,
     Index,
     Jmp,
@@ -151,6 +155,8 @@ pub(crate) enum Keyword {
     Not,
     Of,
     Or,
+    PredicatePure,
+    Pure,
     RangeCheck,
     Return,
     Shl,
@@ -190,6 +196,7 @@ impl Keyword {
             "else" => Keyword::Else,
             "enable_side_effects" => Keyword::EnableSideEffects,
             "eq" => Keyword::Eq,
+            "impure" => Keyword::Impure,
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,
             "Field" => Keyword::Field,
@@ -211,6 +218,8 @@ impl Keyword {
             "not" => Keyword::Not,
             "of" => Keyword::Of,
             "or" => Keyword::Or,
+            "predicate_pure" => Keyword::PredicatePure,
+            "pure" => Keyword::Pure,
             "range_check" => Keyword::RangeCheck,
             "return" => Keyword::Return,
             "shl" => Keyword::Shl,
@@ -258,6 +267,7 @@ impl Display for Keyword {
             Keyword::Fold => write!(f, "fold"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::Function => write!(f, "function"),
+            Keyword::Impure => write!(f, "impure"),
             Keyword::IncRc => write!(f, "inc_rc"),
             Keyword::Index => write!(f, "index"),
             Keyword::Inline => write!(f, "inline"),
@@ -275,6 +285,8 @@ impl Display for Keyword {
             Keyword::Not => write!(f, "not"),
             Keyword::Of => write!(f, "of"),
             Keyword::Or => write!(f, "or"),
+            Keyword::PredicatePure => write!(f, "predicate_pure"),
+            Keyword::Pure => write!(f, "pure"),
             Keyword::RangeCheck => write!(f, "range_check"),
             Keyword::Return => write!(f, "return"),
             Keyword::Shl => write!(f, "shl"),

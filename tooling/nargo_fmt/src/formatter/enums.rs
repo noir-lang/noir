@@ -6,7 +6,7 @@ use noirc_frontend::{
 use super::Formatter;
 use crate::chunks::ChunkGroup;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_enum(&mut self, noir_enum: NoirEnumeration) {
         self.format_secondary_attributes(noir_enum.attributes);
         self.write_indentation();
@@ -48,9 +48,9 @@ impl<'a> Formatter<'a> {
                 self.write_indentation();
                 self.write_identifier(variant.name);
 
-                if !variant.parameters.is_empty() {
+                if let Some(parameters) = variant.parameters {
                     self.write_token(Token::LeftParen);
-                    for (i, parameter) in variant.parameters.into_iter().enumerate() {
+                    for (i, parameter) in parameters.into_iter().enumerate() {
                         if i != 0 {
                             self.write_comma();
                             self.write_space();
@@ -118,6 +118,7 @@ mod tests {
   Variant  ( Field  ,  i32    )  ,
   // comment
  Another ( ),
+ Constant ,
         } }";
         let expected = "mod moo {
     enum Foo {
@@ -125,7 +126,8 @@ mod tests {
         /// comment
         Variant(Field, i32),
         // comment
-        Another,
+        Another(),
+        Constant,
     }
 }
 ";

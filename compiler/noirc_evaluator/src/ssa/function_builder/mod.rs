@@ -2,7 +2,7 @@ pub(crate) mod data_bus;
 
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
-use acvm::{acir::circuit::ErrorSelector, FieldElement};
+use acvm::{FieldElement, acir::circuit::ErrorSelector};
 use noirc_errors::Location;
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -24,6 +24,7 @@ use super::{
         instruction::{ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
+    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 
@@ -44,6 +45,9 @@ pub(crate) struct FunctionBuilder {
     /// Whether instructions are simplified as soon as they are inserted into this builder.
     /// This is true by default unless changed to false after constructing a builder.
     pub(crate) simplify: bool,
+
+    globals: Arc<GlobalsGraph>,
+    purities: Arc<FunctionPurities>,
 }
 
 impl FunctionBuilder {
@@ -53,7 +57,6 @@ impl FunctionBuilder {
     /// right after constructing a new FunctionBuilder.
     pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
         let new_function = Function::new(function_name, function_id);
-
         Self {
             current_block: new_function.entry_block(),
             current_function: new_function,
@@ -61,7 +64,20 @@ impl FunctionBuilder {
             call_stack: CallStackId::root(),
             error_types: BTreeMap::default(),
             simplify: true,
+            globals: Default::default(),
+            purities: Default::default(),
         }
+    }
+
+    /// Create a function builder with a new function created with the same
+    /// name, globals, and function purities taken from an existing function.
+    pub(crate) fn from_existing(function: &Function, function_id: FunctionId) -> Self {
+        let mut this = Self::new(function.name().to_owned(), function_id);
+        this.set_globals(function.dfg.globals.clone());
+        this.purities = function.dfg.function_purities.clone();
+        this.current_function.set_runtime(function.runtime());
+        this.current_function.dfg.set_function_purities(this.purities.clone());
+        this
     }
 
     /// Set the runtime of the initial function that is created internally after constructing
@@ -69,15 +85,29 @@ impl FunctionBuilder {
     /// This should only be used immediately following construction of a FunctionBuilder
     /// and will panic if there are any already finished functions.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
-        assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
+        assert_eq!(
+            self.finished_functions.len(),
+            0,
+            "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function"
+        );
         self.current_function.set_runtime(runtime);
     }
 
     pub(crate) fn set_globals(&mut self, globals: Arc<GlobalsGraph>) {
-        for (_, value) in globals.values_iter() {
+        self.globals = globals;
+        self.apply_globals();
+    }
+
+    fn apply_globals(&mut self) {
+        for (_, value) in self.globals.values_iter() {
             self.current_function.dfg.make_global(value.get_type().into_owned());
         }
-        self.current_function.set_globals(globals);
+        self.current_function.set_globals(self.globals.clone());
+    }
+
+    pub(crate) fn set_purities(&mut self, purities: Arc<FunctionPurities>) {
+        self.purities = purities.clone();
+        self.current_function.dfg.set_function_purities(purities);
     }
 
     /// Finish the current function and create a new function.
@@ -100,6 +130,9 @@ impl FunctionBuilder {
         self.call_stack =
             self.current_function.dfg.call_stack_data.get_or_insert_locations(call_stack);
         self.finished_functions.push(old_function);
+
+        self.current_function.dfg.set_function_purities(self.purities.clone());
+        self.apply_globals();
     }
 
     /// Finish the current function and create a new ACIR function.
@@ -462,8 +495,8 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     ///
-    /// Returns whether a reference count instruction was issued.
-    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) -> bool {
+    /// Returns the ID of the array that was affected, if any.
+    pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
         self.update_array_reference_count(value, true)
     }
 
@@ -471,8 +504,8 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     ///
-    /// Returns whether a reference count instruction was issued.
-    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> bool {
+    /// Returns the ID of the array that was affected, if any.
+    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
         self.update_array_reference_count(value, false)
     }
 
@@ -480,35 +513,37 @@ impl FunctionBuilder {
     /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
     /// are ignored outside of unconstrained code.
     ///
-    /// Returns whether a reference count instruction was issued.
-    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> bool {
-        if self.current_function.runtime().is_brillig() {
-            match self.type_of_value(value) {
-                Type::Numeric(_) => false,
-                Type::Function => false,
-                Type::Reference(element) => {
-                    if element.contains_an_array() {
-                        let reference = value;
-                        let value = self.insert_load(reference, element.as_ref().clone());
-                        self.update_array_reference_count(value, increment);
-                        true
-                    } else {
-                        false
-                    }
-                }
-                Type::Array(..) | Type::Slice(..) => {
-                    // If there are nested arrays or slices, we wait until ArrayGet
-                    // is issued to increment the count of that array.
-                    if increment {
-                        self.insert_inc_rc(value);
-                    } else {
-                        self.insert_dec_rc(value);
-                    }
-                    true
+    /// If there is an `original` value it indicates that we're now decrementing it,
+    /// but that should only happen if it hasn't been changed by an `array_set` in
+    /// the meantime, which in itself would make sure its RC is decremented.
+    ///
+    /// Returns the ID of the array that was affected, if any.
+    fn update_array_reference_count(&mut self, value: ValueId, increment: bool) -> Option<ValueId> {
+        if self.current_function.runtime().is_acir() {
+            return None;
+        }
+        match self.type_of_value(value) {
+            Type::Numeric(_) | Type::Function => None,
+            Type::Reference(element) => {
+                if element.contains_an_array() {
+                    let reference = value;
+                    let value = self.insert_load(reference, element.as_ref().clone());
+                    self.update_array_reference_count(value, increment);
+                    Some(value)
+                } else {
+                    None
                 }
             }
-        } else {
-            false
+            Type::Array(..) | Type::Slice(..) => {
+                // If there are nested arrays or slices, we wait until ArrayGet
+                // is issued to increment the count of that array.
+                if increment {
+                    self.insert_inc_rc(value);
+                } else {
+                    self.insert_dec_rc(value);
+                }
+                Some(value)
+            }
         }
     }
 
@@ -545,7 +580,7 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},

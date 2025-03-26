@@ -1,9 +1,9 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::ast::{Ident, Path, PathKind, UnresolvedType};
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
-use crate::hir::resolution::import::{resolve_path_kind, PathResolutionError};
+use crate::hir::resolution::import::{PathResolutionError, resolve_path_kind};
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
@@ -12,8 +12,8 @@ use crate::locations::ReferencesTracker;
 use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 use crate::{Shared, Type, TypeAlias};
 
-use super::types::SELF_TYPE_NAME;
 use super::Elaborator;
+use super::types::SELF_TYPE_NAME;
 
 #[derive(Debug)]
 pub(crate) struct PathResolution {
@@ -73,7 +73,7 @@ impl PathResolutionItem {
 #[derive(Debug, Clone)]
 pub struct Turbofish {
     pub generics: Vec<UnresolvedType>,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// Any item that can appear before the last segment in a path.
@@ -94,15 +94,15 @@ enum MethodLookupResult {
     /// Found a method.
     FoundMethod(PerNs),
     /// Found a trait method and it's currently in scope.
-    FoundTraitMethod(PerNs, TraitId),
+    FoundTraitMethod(PerNs, Ident),
     /// There's only one trait method that matches, but it's not in scope
     /// (we'll warn about this to avoid introducing a large breaking change)
     FoundOneTraitMethodButNotInScope(PerNs, TraitId),
     /// Multiple trait method matches were found and they are all in scope.
-    FoundMultipleTraitMethods(Vec<TraitId>),
+    FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
@@ -149,7 +149,7 @@ impl<'context> Elaborator<'context> {
         importing_module: ModuleId,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
-            Some(ReferencesTracker::new(self.interner, self.file))
+            Some(ReferencesTracker::new(self.interner))
         } else {
             None
         };
@@ -204,7 +204,7 @@ impl<'context> Elaborator<'context> {
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            let location = Location::new(last_segment.span, self.file);
+            let location = last_segment.location;
             self.interner.add_module_def_id_reference(
                 typ,
                 location,
@@ -218,34 +218,30 @@ impl<'context> Elaborator<'context> {
                     if last_segment_generics.is_some() {
                         errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
                             item: format!("module `{last_ident}`"),
-                            span: last_segment.turbofish_span(),
+                            location: last_segment.turbofish_location(),
                         });
                     }
 
                     (id, false, IntermediatePathResolutionItem::Module)
                 }
-                ModuleDefId::TypeId(id) => (
-                    id.module_id(),
-                    true,
-                    IntermediatePathResolutionItem::Type(id, last_segment.turbofish()),
-                ),
+                ModuleDefId::TypeId(id) => {
+                    let item = IntermediatePathResolutionItem::Type(id, last_segment.turbofish());
+                    (id.module_id(), true, item)
+                }
                 ModuleDefId::TypeAliasId(id) => {
                     let type_alias = self.interner.get_type_alias(id);
                     let Some(module_id) = get_type_alias_module_def_id(&type_alias) else {
                         return Err(PathResolutionError::Unresolved(last_ident.clone()));
                     };
 
-                    (
-                        module_id,
-                        true,
-                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish()),
-                    )
+                    let item =
+                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish());
+                    (module_id, true, item)
                 }
-                ModuleDefId::TraitId(id) => (
-                    id.0,
-                    false,
-                    IntermediatePathResolutionItem::Trait(id, last_segment.turbofish()),
-                ),
+                ModuleDefId::TraitId(id) => {
+                    let item = IntermediatePathResolutionItem::Trait(id, last_segment.turbofish());
+                    (id.0, false, item)
+                }
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
@@ -285,9 +281,8 @@ impl<'context> Elaborator<'context> {
                         }
                     }
                     MethodLookupResult::FoundMethod(per_ns) => per_ns,
-                    MethodLookupResult::FoundTraitMethod(per_ns, trait_id) => {
-                        let trait_ = self.interner.get_trait(trait_id);
-                        self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                    MethodLookupResult::FoundTraitMethod(per_ns, name) => {
+                        self.usage_tracker.mark_as_used(importing_module, &name);
                         per_ns
                     }
                     MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) => {
@@ -300,9 +295,9 @@ impl<'context> Elaborator<'context> {
                         per_ns
                     }
                     MethodLookupResult::FoundMultipleTraitMethods(vec) => {
-                        let traits = vecmap(vec, |trait_id| {
+                        let traits = vecmap(vec, |(trait_id, name)| {
                             let trait_ = self.interner.get_trait(trait_id);
-                            self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                            self.usage_tracker.mark_as_used(importing_module, &name);
                             self.fully_qualified_trait_path(trait_)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
@@ -328,7 +323,7 @@ impl<'context> Elaborator<'context> {
 
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
-        let location = Location::new(name.span(), self.file);
+        let location = name.location();
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
 
         let item = merge_intermediate_path_resolution_item_with_module_def_id(
@@ -384,16 +379,9 @@ impl<'context> Elaborator<'context> {
 
         for (trait_id, item) in values.iter() {
             let trait_id = trait_id.expect("The None option was already considered before");
-            let trait_ = self.interner.get_trait(trait_id);
-            let Some(map) = starting_module.scope().types().get(&trait_.name) else {
-                continue;
+            if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
+                results.push((trait_id, name, item));
             };
-            let Some(imported_item) = map.get(&None) else {
-                continue;
-            };
-            if imported_item.0 == ModuleDefId::TraitId(trait_id) {
-                results.push((trait_id, item));
-            }
         }
 
         if results.is_empty() {
@@ -412,13 +400,13 @@ impl<'context> Elaborator<'context> {
         }
 
         if results.len() > 1 {
-            let trait_ids = vecmap(results, |(trait_id, _)| trait_id);
+            let trait_ids = vecmap(results, |(trait_id, name, _)| (trait_id, name.clone()));
             return MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
         }
 
-        let (trait_id, item) = results.remove(0);
+        let (_, name, item) = results.remove(0);
         let per_ns = PerNs { types: None, values: Some(*item) };
-        MethodLookupResult::FoundTraitMethod(per_ns, trait_id)
+        MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 }
 

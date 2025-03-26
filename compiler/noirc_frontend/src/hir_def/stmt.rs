@@ -1,9 +1,8 @@
 use super::expr::HirIdent;
+use crate::Type;
 use crate::ast::Ident;
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
-use crate::Type;
-use fm::FileId;
 use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on
@@ -13,10 +12,10 @@ use noirc_errors::{Location, Span};
 #[derive(Debug, Clone)]
 pub enum HirStatement {
     Let(HirLetStatement),
-    Constrain(HirConstrainStatement),
     Assign(HirAssignStatement),
     For(HirForStatement),
     Loop(ExprId),
+    While(ExprId, ExprId),
     Break,
     Continue,
     Expression(ExprId),
@@ -47,6 +46,11 @@ impl HirLetStatement {
         Self { pattern, r#type, expression, attributes, comptime, is_global_let }
     }
 
+    /// Creates a new 'basic' let statement with no attributes and is not comptime nor global.
+    pub fn basic(pattern: HirPattern, r#type: Type, expression: ExprId) -> HirLetStatement {
+        Self::new(pattern, r#type, expression, Vec::new(), false, false)
+    }
+
     pub fn ident(&self) -> HirIdent {
         match &self.pattern {
             HirPattern::Identifier(ident) => ident.clone(),
@@ -74,13 +78,6 @@ pub struct HirAssignStatement {
     pub expression: ExprId,
 }
 
-/// Corresponds to `constrain expr;` in the source code.
-/// This node also contains the FileId of the file the constrain
-/// originates from. This is used later in the SSA pass to issue
-/// an error if a constrain is found to be always false.
-#[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<ExprId>);
-
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HirPattern {
     Identifier(HirIdent),
@@ -103,9 +100,9 @@ impl HirPattern {
     /// Panics if the type is not a struct or tuple.
     pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
         match self {
-            HirPattern::Struct(_, fields, _) => Box::new(
-                fields.iter().map(move |(name, pattern)| (name.0.contents.clone(), pattern)),
-            ),
+            HirPattern::Struct(_, fields, _) => {
+                Box::new(fields.iter().map(move |(name, pattern)| (name.to_string(), pattern)))
+            }
             HirPattern::Tuple(fields, _) => {
                 Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
             }

@@ -1,9 +1,10 @@
 use std::fmt::Display;
 
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{FunctionReturnType, Ident, Param, Visibility},
+    ast::{FunctionReturnType, Ident, Param},
+    shared::Visibility,
     token::{Attributes, FunctionAttribute, SecondaryAttribute},
 };
 
@@ -65,12 +66,14 @@ impl NoirFunction {
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
-            FunctionReturnType::Default(span) => UnresolvedTypeData::Unit.with_span(*span),
+            FunctionReturnType::Default(location) => {
+                UnresolvedTypeData::Unit.with_location(*location)
+            }
             FunctionReturnType::Ty(ty) => ty.clone(),
         }
     }
     pub fn name(&self) -> &str {
-        &self.name_ident().0.contents
+        self.name_ident().as_str()
     }
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
@@ -96,8 +99,11 @@ impl NoirFunction {
     pub fn number_of_statements(&self) -> usize {
         self.def.body.statements.len()
     }
+    pub fn location(&self) -> Location {
+        self.def.location
+    }
     pub fn span(&self) -> Span {
-        self.def.span
+        self.location().span
     }
 
     pub fn foreign(&self) -> Option<&FunctionDefinition> {
@@ -117,6 +123,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
             Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
+            Some(FunctionAttribute::FuzzingHarness { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
             Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,

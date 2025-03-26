@@ -12,11 +12,12 @@ use crate::ssa::{
         instruction::{ConstrainError, Instruction},
         value::ValueId,
     },
+    opt::pure::FunctionPurities,
 };
 
 use super::{
-    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
-    ParsedInstruction, ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError, Type,
+    Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue, ParsedInstruction,
+    ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError, Type, ast::AssertMessage,
 };
 
 impl ParsedSsa {
@@ -53,6 +54,7 @@ struct Translator {
     globals_graph: Arc<GlobalsGraph>,
 
     error_selector_counter: u64,
+    purities: Arc<FunctionPurities>,
 }
 
 impl Translator {
@@ -69,6 +71,8 @@ impl Translator {
     }
 
     fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
+        let mut purities = FunctionPurities::default();
+
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
@@ -76,6 +80,10 @@ impl Translator {
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
         builder.simplify = simplify;
+
+        if let Some(purity) = main_function.purity {
+            purities.insert(main_id, purity);
+        }
 
         // Map function names to their IDs so calls can be resolved
         let mut function_id_counter = 1;
@@ -85,10 +93,17 @@ impl Translator {
             function_id_counter += 1;
 
             functions.insert(function.internal_name.clone(), function_id);
+
+            if let Some(purity) = function.purity {
+                purities.insert(function_id, purity);
+            }
         }
 
         // Does not matter what ID we use here.
         let globals = Function::new("globals".to_owned(), main_id);
+
+        let purities = Arc::new(purities);
+        builder.set_purities(purities.clone());
 
         let mut translator = Self {
             builder,
@@ -100,6 +115,7 @@ impl Translator {
             global_values: HashMap::new(),
             globals_graph: Arc::new(GlobalsGraph::default()),
             error_selector_counter: 0,
+            purities,
         };
 
         translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
@@ -122,9 +138,11 @@ impl Translator {
             }
             RuntimeType::Brillig(inline_type) => {
                 self.builder.new_brillig_function(external_name, function_id, inline_type);
+                self.builder.set_globals(self.globals_graph.clone());
             }
         }
 
+        self.builder.set_purities(self.purities.clone());
         self.translate_function_body(function)
     }
 
@@ -246,7 +264,7 @@ impl Translator {
                 let value_id = self.builder.insert_cast(lhs, typ.unwrap_numeric());
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
+            ParsedInstruction::Constrain { lhs, equals, rhs, assert_message } => {
                 let lhs = self.translate_value(lhs)?;
                 let rhs = self.translate_value(rhs)?;
                 let assert_message = match assert_message {
@@ -264,7 +282,12 @@ impl Translator {
                     }
                     None => None,
                 };
-                self.builder.insert_constrain(lhs, rhs, assert_message);
+                if equals {
+                    self.builder.insert_constrain(lhs, rhs, assert_message);
+                } else {
+                    let instruction = Instruction::ConstrainNotEqual(lhs, rhs, assert_message);
+                    self.builder.insert_instruction(instruction, None);
+                }
             }
             ParsedInstruction::DecrementRc { value } => {
                 let value = self.translate_value(value)?;
@@ -448,7 +471,6 @@ impl Translator {
 
     fn finish(self) -> Ssa {
         let mut ssa = self.builder.finish();
-        ssa.globals = self.globals_function;
 
         // Normalize the IDs so we have a better chance of matching the SSA we parsed
         // after the step-by-step reconstruction done during translation. This assumes

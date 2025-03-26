@@ -13,6 +13,6 @@ impl Foo {
 fn main() {
     let foo = Foo { bar: &mut Bar { value: 0 } };
 
-    /// Safety: testing context
+    // Safety: testing context
     unsafe { foo.crash_fn() };
 }

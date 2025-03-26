@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::path::Path;
 
-use acvm::acir::native_types::WitnessStack;
 use acvm::FieldElement;
+use acvm::acir::native_types::WitnessStack;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -12,18 +12,17 @@ use nargo::ops::{compile_program, compile_program_with_debug_instrumenter, repor
 use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_abi::input_parser::{Format, InputValue};
+use nargo_toml::PackageSelection;
+use noir_artifact_cli::fs::inputs::read_inputs_from_file;
+use noir_artifact_cli::fs::witness::save_witness_to_dir;
 use noirc_abi::InputMap;
-use noirc_driver::{
-    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_abi::input_parser::InputValue;
+use noirc_driver::{CompileOptions, CompiledProgram, file_manager_with_stdlib};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 
 use super::compile_cmd::get_target_width;
-use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
-use super::NargoConfig;
+use super::{LockType, WorkspaceCommand};
 use crate::errors::CliError;
 
 /// Executes a circuit in debug mode
@@ -50,19 +49,30 @@ pub(crate) struct DebugCommand {
     /// Disable vars debug instrumentation (enabled by default)
     #[clap(long)]
     skip_instrumentation: Option<bool>,
+
+    /// Raw string printing of source for testing
+    #[clap(long, hide = true)]
+    raw_source_printing: Option<bool>,
 }
 
-pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliError> {
+impl WorkspaceCommand for DebugCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package
+            .as_ref()
+            .cloned()
+            .map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected)
+    }
+
+    fn lock_type(&self) -> LockType {
+        // Always compiles fresh in-memory in debug mode, doesn't read or write the compilation artifacts.
+        // Reads the Prover.toml file and writes the witness at the end, but shouldn't conflict with others.
+        LockType::None
+    }
+}
+
+pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliError> {
     let acir_mode = args.acir_mode;
     let skip_instrumentation = args.skip_instrumentation.unwrap_or(acir_mode);
-
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )?;
     let target_dir = &workspace.target_directory_path();
 
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
@@ -92,6 +102,7 @@ pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliErro
         &args.witness_name,
         target_dir,
         args.compile_options.pedantic_solving,
+        args.raw_source_printing.unwrap_or(false),
     )
 }
 
@@ -102,7 +113,7 @@ pub(crate) fn compile_bin_package_for_debugging(
     skip_instrumentation: bool,
     compile_options: CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
-    let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
+    let mut workspace_file_manager = file_manager_with_stdlib(Path::new(""));
     insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
     let mut parsed_files = parse_all(&workspace_file_manager);
 
@@ -165,7 +176,7 @@ fn instrument_package_files(
         for ancestor in file_path.ancestors() {
             if ancestor == entry_path_parent {
                 // file is in package
-                debug_instrumenter.instrument_module(&mut parsed_file.0);
+                debug_instrumenter.instrument_module(&mut parsed_file.0, *file_id);
             }
         }
     }
@@ -178,16 +189,22 @@ fn run_async(
     program: CompiledProgram,
     prover_name: &str,
     witness_name: &Option<String>,
-    target_dir: &PathBuf,
+    target_dir: &Path,
     pedantic_solving: bool,
+    raw_source_printing: bool,
 ) -> Result<(), CliError> {
     use tokio::runtime::Builder;
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
     runtime.block_on(async {
         println!("[{}] Starting debugger", package.name);
-        let (return_value, witness_stack) =
-            debug_program_and_decode(program, package, prover_name, pedantic_solving)?;
+        let (return_value, witness_stack) = debug_program_and_decode(
+            program,
+            package,
+            prover_name,
+            pedantic_solving,
+            raw_source_printing,
+        )?;
 
         if let Some(solved_witness_stack) = witness_stack {
             println!("[{}] Circuit witness successfully solved", package.name);
@@ -197,8 +214,15 @@ fn run_async(
             }
 
             if let Some(witness_name) = witness_name {
-                let witness_path =
-                    save_witness_to_dir(solved_witness_stack, witness_name, target_dir)?;
+                let mut witness_path =
+                    save_witness_to_dir(&solved_witness_stack, witness_name, target_dir)?;
+
+                // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
+                if let Ok(current_dir) = std::env::current_dir() {
+                    if let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
+                        witness_path = name_without_prefix.to_path_buf();
+                    }
+                }
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
@@ -215,12 +239,15 @@ fn debug_program_and_decode(
     package: &Package,
     prover_name: &str,
     pedantic_solving: bool,
+    raw_source_printing: bool,
 ) -> Result<(Option<InputValue>, Option<WitnessStack<FieldElement>>), CliError> {
     // Parse the initial witness values from Prover.toml
-    let (inputs_map, _) =
-        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
+    let (inputs_map, _) = read_inputs_from_file(
+        &package.root_dir.join(prover_name).with_extension("toml"),
+        &program.abi,
+    )?;
     let program_abi = program.abi.clone();
-    let witness_stack = debug_program(program, &inputs_map, pedantic_solving)?;
+    let witness_stack = debug_program(program, &inputs_map, pedantic_solving, raw_source_printing)?;
 
     match witness_stack {
         Some(witness_stack) => {
@@ -239,6 +266,7 @@ pub(crate) fn debug_program(
     compiled_program: CompiledProgram,
     inputs_map: &InputMap,
     pedantic_solving: bool,
+    raw_source_printing: bool,
 ) -> Result<Option<WitnessStack<FieldElement>>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
@@ -246,6 +274,7 @@ pub(crate) fn debug_program(
         &Bn254BlackBoxSolver(pedantic_solving),
         compiled_program,
         initial_witness,
+        raw_source_printing,
     )
     .map_err(CliError::from)
 }

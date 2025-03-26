@@ -16,29 +16,23 @@ mod completion_tests {
         },
         test_utils,
         tests::apply_text_edits,
+        utils::get_cursor_line_and_column,
     };
 
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
-        CompletionResponse, DidOpenTextDocumentParams, PartialResultParams, Position,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
+        CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
+        Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
         WorkDoneProgressParams,
     };
     use tokio::test;
 
-    async fn get_completions(src: &str) -> Vec<CompletionItem> {
+    /// Given a string with ">|<" (cursor) in it, returns all completions that are available
+    /// at that position together with the string with ">|<" removed.
+    async fn get_completions(src: &str) -> (Vec<CompletionItem>, String) {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
 
-        let (line, column) = src
-            .lines()
-            .enumerate()
-            .filter_map(|(line_index, line)| {
-                line.find(">|<").map(|char_index| (line_index, char_index))
-            })
-            .next()
-            .expect("Expected to find one >|< in the source code");
-
-        let src = src.replace(">|<", "");
+        let (line, column, src) = get_cursor_line_and_column(src);
 
         on_did_open_text_document(
             &mut state,
@@ -67,11 +61,9 @@ mod completion_tests {
         .await
         .expect("Could not execute on_completion_request");
 
-        if let Some(CompletionResponse::Array(items)) = response {
-            items
-        } else {
-            vec![]
-        }
+        let items =
+            if let Some(CompletionResponse::Array(items)) = response { items } else { vec![] };
+        (items, src)
     }
 
     fn assert_items_match(mut items: Vec<CompletionItem>, mut expected: Vec<CompletionItem>) {
@@ -94,12 +86,12 @@ mod completion_tests {
     }
 
     async fn assert_completion(src: &str, expected: Vec<CompletionItem>) {
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_items_match(items, expected);
     }
 
     async fn assert_completion_excluding_auto_import(src: &str, expected: Vec<CompletionItem>) {
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         let items = items.into_iter().filter(|item| item.additional_text_edits.is_none()).collect();
         assert_items_match(items, expected);
     }
@@ -764,7 +756,7 @@ mod completion_tests {
             fn foo(x: i>|<) {}
         "#;
 
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         let items = items.into_iter().filter(|item| item.label.starts_with('i')).collect();
 
         assert_items_match(
@@ -786,7 +778,7 @@ mod completion_tests {
             }
         "#;
 
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert!(items.iter().any(|item| item.label == "i8"));
     }
 
@@ -798,10 +790,12 @@ mod completion_tests {
             }
         "#;
 
-        let items = get_completions(src).await;
-        assert!(items
-            .iter()
-            .any(|item| item.label == "true" && item.kind == Some(CompletionItemKind::KEYWORD)));
+        let (items, _) = get_completions(src).await;
+        assert!(
+            items
+                .iter()
+                .any(|item| item.label == "true" && item.kind == Some(CompletionItemKind::KEYWORD))
+        );
     }
 
     #[test]
@@ -1343,7 +1337,7 @@ mod completion_tests {
             }
         "#;
 
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         let items = items.into_iter().filter(|item| item.kind == Some(CompletionItemKind::FIELD));
         let items = items.collect();
 
@@ -1433,7 +1427,7 @@ fn main() {
 }
         "#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
@@ -1446,8 +1440,7 @@ fn main() {
             })
         );
 
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1479,7 +1472,7 @@ mod foo {
     }
 }
         "#;
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
@@ -1492,8 +1485,7 @@ mod foo {
             })
         );
 
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1524,7 +1516,7 @@ mod foo {
         }
     }
 }"#;
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
@@ -1537,8 +1529,7 @@ mod foo {
             })
         );
 
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1576,13 +1567,12 @@ use foo::bar::hello_world;
 fn main() {
     hel
 }"#;
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
 
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1624,13 +1614,12 @@ mod other {
         hel
     }
 }"#;
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
 
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1650,7 +1639,7 @@ mod other {
                 hel>|<
             }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert!(items.is_empty());
     }
 
@@ -1669,7 +1658,7 @@ mod other {
                 hel>|<
             }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert!(items.is_empty());
     }
 
@@ -1686,7 +1675,7 @@ mod other {
                 hel>|<
             }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert!(items.is_empty());
     }
 
@@ -1705,7 +1694,7 @@ mod other {
                 hello_w>|<
             }
         "#;
-        let mut items = get_completions(src).await;
+        let (mut items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
@@ -1739,7 +1728,7 @@ mod foo {
     }
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
@@ -1753,8 +1742,7 @@ mod foo {
             })
         );
 
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
 
@@ -1786,12 +1774,11 @@ fn main() {
     two_hello_
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1824,12 +1811,11 @@ fn main() {
     two_hello_
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1864,12 +1850,11 @@ fn main() {
     two_hello_
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1910,12 +1895,11 @@ fn main() {
     two_hello_
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1948,12 +1932,11 @@ fn main() {
     two_hello_
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -1988,12 +1971,11 @@ fn main() {
     two_hello_
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -2024,12 +2006,11 @@ fn main() {
     two_hello_
 }"#;
 
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        let changed =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
         assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
@@ -2099,7 +2080,7 @@ fn main() {
                 }
             }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
@@ -2117,17 +2098,17 @@ fn main() {
     async fn test_auto_import_from_std() {
         let src = r#"
             fn main() {
-                compute_merkle_roo>|<
+                zeroe>|<
             }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
-        assert_eq!(item.label, "compute_merkle_root(…)");
+        assert_eq!(item.label, "zeroed()");
         assert_eq!(
             item.label_details.as_ref().unwrap().detail,
-            Some("(use std::merkle::compute_merkle_root)".to_string()),
+            Some("(use std::mem::zeroed)".to_string()),
         );
     }
 
@@ -2266,7 +2247,7 @@ fn main() {
                 x.>|<
             }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         if items.iter().any(|item| item.label == "__assert_max_bit_size") {
             panic!("Private method __assert_max_bit_size was suggested");
         }
@@ -2306,7 +2287,7 @@ fn main() {
             }
         "#;
 
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
@@ -2333,7 +2314,7 @@ fn main() {
             }
         "#;
 
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
@@ -2345,7 +2326,7 @@ fn main() {
     }
 
     #[test]
-    async fn test_auto_import_suggests_private_function_if_visibile() {
+    async fn test_auto_import_suggests_private_function_if_visible() {
         let src = r#"
             mod foo {
                 fn qux() {
@@ -2358,7 +2339,7 @@ fn main() {
             fn main() {}
         "#;
 
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
@@ -2659,8 +2640,8 @@ fn main() {
     }
 
     #[test]
-    async fn test_suggests_only_macro_call_if_comptime_function_returns_quoted_and_outside_comptime(
-    ) {
+    async fn test_suggests_only_macro_call_if_comptime_function_returns_quoted_and_outside_comptime()
+     {
         let src = r#"
         comptime fn foobar() -> Quoted {}
 
@@ -2686,9 +2667,9 @@ fn main() {
         }
         "#;
 
-        let completions = get_completions(src).await;
-        assert_eq!(completions.len(), 1);
-        assert_eq!(completions[0].label, "unquote!(…)");
+        let (items, _) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].label, "unquote!(…)");
     }
 
     #[test]
@@ -2857,7 +2838,7 @@ fn main() {
             foo.b>|<
         }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
         assert!(items[0].label == "bar_baz()");
     }
@@ -2876,7 +2857,7 @@ fn main() {
             x.fo>|<
         }
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
     }
 
@@ -2927,7 +2908,7 @@ fn main() {
         }
 
         "#;
-        let items = get_completions(src).await;
+        let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 2);
     }
 
@@ -2948,14 +2929,13 @@ fn main() {
     Field::fooba>|<
 }
         "#;
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
         assert_eq!(item.label_details.unwrap().detail, Some("(use moo::Foo)".to_string()));
 
-        let new_code =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let new_code = apply_text_edits(&src, &item.additional_text_edits.unwrap());
 
         let expected = r#"use moo::Foo;
 
@@ -2994,14 +2974,13 @@ fn main() {
     x.fooba>|<
 }
         "#;
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
         assert_eq!(item.label_details.unwrap().detail, Some("(use moo::Foo)".to_string()));
 
-        let new_code =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let new_code = apply_text_edits(&src, &item.additional_text_edits.unwrap());
 
         let expected = r#"use moo::Foo;
 
@@ -3045,14 +3024,13 @@ fn main() {
     x.fooba>|<
 }
         "#;
-        let mut items = get_completions(src).await;
+        let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
         assert_eq!(item.label_details.unwrap().detail, Some("(use moo::Bar)".to_string()));
 
-        let new_code =
-            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        let new_code = apply_text_edits(&src, &item.additional_text_edits.unwrap());
 
         let expected = r#"use moo::Bar;
 
@@ -3076,5 +3054,311 @@ fn main() {
 }
         "#;
         assert_eq!(new_code, expected);
+    }
+
+    #[test]
+    async fn test_suggests_enum_variant_differently_than_a_function_call() {
+        let src = r#"
+        enum Enum {
+            /// Some docs
+            Variant(Field, i32)
+        }
+
+        fn foo() {
+            Enum::Var>|<
+        }
+        "#;
+        let (items, _) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM_MEMBER));
+        assert_eq!(item.label, "Variant(…)".to_string());
+
+        let details = item.label_details.as_ref().unwrap();
+        assert_eq!(details.description, Some("Variant(Field, i32)".to_string()));
+
+        assert_eq!(item.detail, Some("Variant(Field, i32)".to_string()));
+
+        assert_eq!(item.insert_text, Some("Variant(${1:()}, ${2:()})".to_string()));
+
+        let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
+            panic!("Expected markdown docs");
+        };
+        assert!(markdown.value.contains("Some docs"));
+    }
+
+    #[test]
+    async fn test_suggests_enum_variant_without_parameters() {
+        let src = r#"
+        enum Enum {
+            /// Some docs
+            Variant
+        }
+
+        fn foo() {
+            Enum::Var>|<
+        }
+        "#;
+        let (items, _) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM_MEMBER));
+        assert_eq!(item.label, "Variant".to_string());
+
+        let details = item.label_details.as_ref().unwrap();
+        assert_eq!(details.description, Some("Variant".to_string()));
+
+        assert_eq!(item.detail, Some("Variant".to_string()));
+        assert_eq!(item.insert_text, None);
+
+        let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
+            panic!("Expected markdown docs");
+        };
+        assert!(markdown.value.contains("Some docs"));
+    }
+
+    #[test]
+    async fn test_suggests_enum_type() {
+        let src = r#"
+        enum ThisIsAnEnum {
+        }
+
+        fn foo() {
+            ThisIsA>|<
+        }
+        "#;
+        let (items, _) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM));
+    }
+
+    #[test]
+    async fn autocompletes_via_parent_module_reexport() {
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru>|<
+}"#;
+
+        let (mut items, src) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use aztec::protocol_types::SomeStruct)".to_string()),
+                description: Some("SomeStruct".to_string()),
+            })
+        );
+
+        let expected = r#"use aztec::protocol_types::SomeStruct;
+
+mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru
+}"#;
+
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+    }
+
+    #[test]
+    async fn autocompletes_via_renamed_parent_module_reexport() {
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types as export;
+}
+
+fn main() {
+    SomeStru>|<
+}"#;
+
+        let (mut items, src) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use aztec::export::SomeStruct)".to_string()),
+                description: Some("SomeStruct".to_string()),
+            })
+        );
+
+        let expected = r#"use aztec::export::SomeStruct;
+
+mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types as export;
+}
+
+fn main() {
+    SomeStru
+}"#;
+
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+    }
+
+    #[test]
+    async fn autocompletes_nested_type_via_parent_module_reexport() {
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod nested {
+                pub struct SomeStruct {}
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru>|<
+}"#;
+
+        let (mut items, src) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use aztec::protocol_types::nested::SomeStruct)".to_string()),
+                description: Some("SomeStruct".to_string()),
+            })
+        );
+
+        let expected = r#"use aztec::protocol_types::nested::SomeStruct;
+
+mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod nested {
+                pub struct SomeStruct {}
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru
+}"#;
+
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+    }
+
+    #[test]
+    async fn does_not_autocomplete_nested_type_via_parent_module_reexport_if_it_is_not_visible() {
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod nested {
+                struct SomeStruct {}
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru>|<
+}"#;
+
+        let (items, _) = get_completions(src).await;
+        assert_eq!(items.len(), 0);
+    }
+
+    #[test]
+    async fn autocompletes_deeply_nested_type_via_parent_module_reexport() {
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod deeply {
+                pub mod nested {
+                    pub struct SomeStruct {}
+                }
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru>|<
+}"#;
+
+        let (mut items, src) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use aztec::protocol_types::deeply::nested::SomeStruct)".to_string()),
+                description: Some("SomeStruct".to_string()),
+            })
+        );
+
+        let expected = r#"use aztec::protocol_types::deeply::nested::SomeStruct;
+
+mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod deeply {
+                pub mod nested {
+                    pub struct SomeStruct {}
+                }
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru
+}"#;
+
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
     }
 }

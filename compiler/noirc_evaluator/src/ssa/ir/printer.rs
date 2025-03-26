@@ -6,8 +6,8 @@ use im::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{
-    ir::types::{NumericType, Type},
     Ssa,
+    ir::types::{NumericType, Type},
 };
 
 use super::{
@@ -20,13 +20,16 @@ use super::{
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        for (id, global_value) in self.globals.dfg.values_iter() {
+        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
+        let globals_dfg = DataFlowGraph::from(globals);
+
+        for (id, global_value) in globals_dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
                     writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&self.globals.dfg, *instruction, true, f)?;
+                    display_instruction(&globals_dfg, *instruction, true, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
@@ -35,7 +38,7 @@ impl Display for Ssa {
             };
         }
 
-        if self.globals.dfg.values_iter().next().is_some() {
+        if globals_dfg.values_iter().next().is_some() {
             writeln!(f)?;
         }
 
@@ -54,7 +57,12 @@ impl Display for Function {
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    if let Some(purity) = function.dfg.purity_of(function.id()) {
+        writeln!(f, "{} {purity} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    } else {
+        writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    }
+
     for block_id in function.reachable_blocks() {
         display_block(&function.dfg, block_id, f)?;
     }
@@ -336,11 +344,7 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    if is_string_type && values.len() == 1 {
-        dfg.get_string(values[0])
-    } else {
-        None
-    }
+    if is_string_type && values.len() == 1 { dfg.get_string(values[0]) } else { None }
 }
 
 fn display_constrain_error(

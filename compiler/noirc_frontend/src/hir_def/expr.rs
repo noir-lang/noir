@@ -1,14 +1,15 @@
-use acvm::FieldElement;
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
 };
+use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
-use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
@@ -30,16 +31,17 @@ pub enum HirExpression {
     Infix(HirInfixExpression),
     Index(HirIndexExpression),
     Constructor(HirConstructorExpression),
+    EnumConstructor(HirEnumConstructorExpression),
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
-    MethodCall(HirMethodCallExpression),
+    Constrain(HirConstrainExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
+    Match(HirMatch),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Quote(Tokens),
     Unquote(Tokens),
-    Comptime(HirBlockExpression),
     Unsafe(HirBlockExpression),
     Error,
 }
@@ -112,7 +114,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Slice(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, bool), //true for negative integer and false for positive
+    Integer(SignedField),
     Str(String),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
@@ -199,6 +201,13 @@ pub struct HirMethodCallExpression {
     pub location: Location,
 }
 
+/// Corresponds to `assert` and `assert_eq` in the source code.
+/// This node also contains the FileId of the file the constrain
+/// originates from. This is used later in the SSA pass to issue
+/// an error if a constrain is found to be always false.
+#[derive(Debug, Clone)]
+pub struct HirConstrainExpression(pub ExprId, pub FileId, pub Option<ExprId>);
+
 #[derive(Debug, Clone)]
 pub enum HirMethodReference {
     /// A method can be defined in a regular `impl` block, in which case
@@ -239,13 +248,10 @@ impl HirMethodReference {
             }
             HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
                 let id = interner.trait_method_id(method_id);
+                let trait_id = method_id.trait_id;
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_bound: ResolvedTraitBound {
-                        trait_id: method_id.trait_id,
-                        trait_generics,
-                        span: location.span,
-                    },
+                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
                 (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
@@ -253,7 +259,7 @@ impl HirMethodReference {
         };
         let func_var = HirIdent { location, id, impl_kind };
         let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location.span, location.file);
+        interner.push_expr_location(func, location);
         (func, func_var)
     }
 }
@@ -282,6 +288,27 @@ pub struct HirConstructorExpression {
     //       arguments to be alphabetical rather than the ordering the user
     //       included in the source code.
     pub fields: Vec<(Ident, ExprId)>,
+}
+
+/// An enum constructor is an expression such as `Option::Some(foo)`
+/// to construct an enum. These are usually inserted by the compiler itself
+/// since `Some` is actually a function with the body implicitly being an
+/// enum constructor expression, but in the future these may be directly
+/// represented when using enums with named fields.
+///
+/// During monomorphization, these expressions are translated to tuples of
+/// (tag, variant0_fields, variant1_fields, ..) since we cannot actually
+/// make a true union in a circuit.
+#[derive(Debug, Clone)]
+pub struct HirEnumConstructorExpression {
+    pub r#type: Shared<DataType>,
+    pub variant_index: usize,
+
+    /// This refers to just the arguments that are passed. E.g. just
+    /// `foo` in `Foo::Bar(foo)`, even if other variants have their
+    /// "fields" defaulted to `std::mem::zeroed`, these aren't specified
+    /// at this step.
+    pub arguments: Vec<ExprId>,
 }
 
 /// Indexing, as in `array[index]`
@@ -323,4 +350,151 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirMatch {
+    /// Jump directly to ExprId
+    Success(ExprId),
+
+    /// A Failure node in the match. `missing_case` is true if this node is the result of a missing
+    /// case of the match for which we should later reconstruct an example of.
+    Failure { missing_case: bool },
+
+    /// Run `body` if the given expression is true.
+    /// Otherwise continue with the given decision tree.
+    Guard { cond: ExprId, body: ExprId, otherwise: Box<HirMatch> },
+
+    /// Switch on the given variable with the given cases to test.
+    /// The final argument is an optional match-all case to take if
+    /// none of the cases matched.
+    Switch(DefinitionId, Vec<Case>, Option<Box<HirMatch>>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Case {
+    pub constructor: Constructor,
+    pub arguments: Vec<DefinitionId>,
+    pub body: HirMatch,
+}
+
+impl Case {
+    pub fn new(constructor: Constructor, arguments: Vec<DefinitionId>, body: HirMatch) -> Self {
+        Self { constructor, arguments, body }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Constructor {
+    True,
+    False,
+    Unit,
+    Int(SignedField),
+    Tuple(Vec<Type>),
+    Variant(Type, usize),
+    Range(SignedField, SignedField),
+}
+
+impl Constructor {
+    pub fn variant_index(&self) -> usize {
+        match self {
+            Constructor::False
+            | Constructor::Int(_)
+            | Constructor::Unit
+            | Constructor::Tuple(_)
+            | Constructor::Range(_, _) => 0,
+            Constructor::True => 1,
+            Constructor::Variant(_, index) => *index,
+        }
+    }
+
+    /// True if this constructor constructs an enum value.
+    /// Enums contain a tag value and often have values to
+    /// unpack for each different variant index.
+    pub fn is_enum(&self) -> bool {
+        match self {
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_enum(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// True if this constructor constructs a tuple or struct value.
+    /// Tuples or structs will still have values to unpack but do not
+    /// store a tag value internally.
+    pub fn is_tuple_or_struct(&self) -> bool {
+        match self {
+            Constructor::Tuple(_) => true,
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_struct(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// Return all the constructors of this type from one constructor. Intended to be used
+    /// for error reporting in cases where there are at least 2 constructors.
+    pub(crate) fn all_constructors(&self) -> Vec<(Constructor, /*arg count:*/ usize)> {
+        match self {
+            Constructor::True | Constructor::False => {
+                vec![(Constructor::True, 0), (Constructor::False, 0)]
+            }
+            Constructor::Unit => vec![(Constructor::Unit, 0)],
+            Constructor::Tuple(args) => vec![(self.clone(), args.len())],
+            Constructor::Variant(typ, _) => {
+                let typ = typ.follow_bindings();
+                let Type::DataType(def, generics) = &typ else {
+                    unreachable!(
+                        "Constructor::Variant should have a DataType type, but found {typ:?}"
+                    );
+                };
+
+                let def_ref = def.borrow();
+                if let Some(variants) = def_ref.get_variants(generics) {
+                    vecmap(variants.into_iter().enumerate(), |(i, (_, fields))| {
+                        (Constructor::Variant(typ.clone(), i), fields.len())
+                    })
+                } else
+                /* def is a struct */
+                {
+                    let field_count = def_ref.fields_raw().map(|fields| fields.len()).unwrap_or(0);
+                    vec![(Constructor::Variant(typ.clone(), 0), field_count)]
+                }
+            }
+
+            // Nothing great to return for these
+            Constructor::Int(_) | Constructor::Range(..) => Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Display for Constructor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Constructor::True => write!(f, "true"),
+            Constructor::False => write!(f, "false"),
+            Constructor::Unit => write!(f, "()"),
+            Constructor::Int(x) => write!(f, "{x}"),
+            // We already print the arguments of a constructor after this in the format of `(x, y)`.
+            // In that case it is already in the format of a tuple so there's nothing more we need
+            // to do here. This is implicitly assuming we never display a constructor without also
+            // displaying its arguments though.
+            Constructor::Tuple(_) => Ok(()),
+            Constructor::Variant(typ, variant_index) => {
+                if let Type::DataType(def, _) = typ {
+                    let def = def.borrow();
+                    if let Some(variant) = def.get_variant_as_written(*variant_index) {
+                        write!(f, "{}", variant.name)?;
+                    } else if def.is_struct() {
+                        write!(f, "{}", def.name)?;
+                    }
+                }
+                Ok(())
+            }
+            Constructor::Range(start, end) => write!(f, "{start} .. {end}"),
+        }
+    }
 }

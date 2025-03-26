@@ -1,14 +1,17 @@
 use std::{collections::BTreeMap, fmt::Display};
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
+use crate::shared::Visibility;
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
+    ast::{BinaryOpKind, IntegerBitSize},
+    hir_def::expr::Constructor,
+    shared::Signedness,
+    signed_field::SignedField,
     token::{Attributes, FunctionAttribute},
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
@@ -37,7 +40,9 @@ pub enum Expression {
     Cast(Cast),
     For(For),
     Loop(Box<Expression>),
+    While(While),
     If(If),
+    Match(Match),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
@@ -111,10 +116,16 @@ pub struct For {
 }
 
 #[derive(Debug, Clone, Hash)]
+pub struct While {
+    pub condition: Box<Expression>,
+    pub body: Box<Expression>,
+}
+
+#[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
-    Integer(FieldElement, /*sign*/ bool, Type, Location), // false for positive integer and true for negative
+    Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
     Str(String),
@@ -151,6 +162,21 @@ pub struct If {
     pub consequence: Box<Expression>,
     pub alternative: Option<Box<Expression>>,
     pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct Match {
+    pub variable_to_match: LocalId,
+    pub cases: Vec<MatchCase>,
+    pub default_case: Option<Box<Expression>>,
+    pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct MatchCase {
+    pub constructor: Constructor,
+    pub arguments: Vec<LocalId>,
+    pub branch: Expression,
 }
 
 #[derive(Debug, Clone, Hash)]

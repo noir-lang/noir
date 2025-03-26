@@ -19,11 +19,13 @@ unconstrained fn convert(trigger: Trigger) -> ResultType {
 }
 impl Trigger {
     fn execute(self) -> ResultType {
-        /// Safety: testing context
+        // Safety: testing context
         let result = unsafe { convert(self) };
         assert(result.a == self.x + 1);
         assert(result.b == self.y - 1 + self.z[2]);
+        assert(result.c[0] == self.z[0]);
         assert(result.c[1] == 0);
+        assert(result.c[2] == self.z[1]);
         result
     }
 }
