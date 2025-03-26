@@ -69,7 +69,6 @@ where
                         .is_ok_and(|var| &var == "true");
 
                 let mut foreign_call_log = ForeignCallLog::from_env("NARGO_TEST_FOREIGN_CALL_LOG");
-
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
@@ -94,13 +93,13 @@ where
                     &circuit_execution,
                 );
 
-                let foreign_call_executor = foreign_call_executor.executor;
+                let encountered_unknown_foreign_call =
+                    foreign_call_executor.executor.encountered_unknown_foreign_call;
+                drop(foreign_call_executor);
                 foreign_call_log.write_log().expect("failed to write foreign call log");
 
                 if let TestStatus::Fail { .. } = status {
-                    if ignore_foreign_call_failures
-                        && foreign_call_executor.encountered_unknown_foreign_call
-                    {
+                    if ignore_foreign_call_failures && encountered_unknown_foreign_call {
                         TestStatus::Skipped
                     } else {
                         status
