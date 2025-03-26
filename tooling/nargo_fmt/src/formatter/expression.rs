@@ -2476,4 +2476,43 @@ global y = 1;
 }\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_last_assignment_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        x = 1
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_break_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        break
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_continue_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        continue
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
 }

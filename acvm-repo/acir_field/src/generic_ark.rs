@@ -59,6 +59,8 @@ pub trait AcirField:
 
     fn to_i128(self) -> i128;
 
+    fn try_into_i128(self) -> Option<i128>;
+
     fn try_to_u64(&self) -> Option<u64>;
 
     fn try_to_u32(&self) -> Option<u32>;
@@ -157,6 +159,10 @@ macro_rules! field_wrapper {
 
             fn try_into_u128(self) -> Option<u128> {
                 self.0.try_into_u128()
+            }
+
+            fn try_into_i128(self) -> Option<i128> {
+                self.0.try_into_i128()
             }
 
             fn to_i128(self) -> i128 {

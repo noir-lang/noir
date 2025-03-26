@@ -41,6 +41,8 @@ fn main() {
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 
+    generate_fuzzing_failure_tests(&mut test_file, &test_dir);
+
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
     generate_nargo_expand_compile_tests_with_ignore_list(
         "compile_success_empty",
@@ -298,6 +300,37 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     .expect("Could not write templated test file.");
 }
 
+/// Generate fuzzing tests, where the noir program is fuzzed with one thread for 120 seconds.
+/// We expect that a failure is found in that time
+fn generate_fuzzing_test_case(
+    test_file: &mut File,
+    test_name: &str,
+    test_dir: &std::path::Display,
+    test_content: &str,
+    timeout: usize,
+) {
+    let timeout_str = timeout.to_string();
+    write!(
+        test_file,
+        r#"
+#[test]
+fn test_{test_name}() {{
+
+    let corpus_dir = assert_fs::TempDir::new().unwrap();
+    let fuzzing_failure_dir = assert_fs::TempDir::new().unwrap();
+    let test_program_dir = PathBuf::from("{test_dir}");
+    let mut nargo = Command::cargo_bin("nargo").unwrap();
+    nargo.arg("--program-dir").arg(test_program_dir);
+    nargo.arg("fuzz").arg("--timeout").arg("{timeout_str}");
+    nargo.arg("--corpus-dir").arg(corpus_dir.path());
+    nargo.arg("--fuzzing-failure-dir").arg(fuzzing_failure_dir.path());
+
+    {test_content}
+}}
+"#
+    )
+    .expect("Could not write templated test file.");
+}
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
@@ -406,6 +439,34 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
             "#,
             &MatrixConfig::default(),
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Generate tests for fuzzing which find failures in the fuzzed program.
+fn generate_fuzzing_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "fuzzing_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_fuzzing_test_case(
+            test_file,
+            &test_name,
+            &test_dir,
+            r#"
+                nargo.assert().failure().stderr(predicate::str::contains("Failing input"));
+            "#,
+            240,
         );
     }
     writeln!(test_file, "}}").unwrap();
