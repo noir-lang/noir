@@ -123,17 +123,22 @@ where
 /// but fall back to the legacy `bincode` format if anything fails.
 pub(crate) fn deserialize_any_format<F, T, R>(buf: &[u8]) -> std::io::Result<T>
 where
-    T: for<'a> Deserialize<'a>,
+    T: for<'a> Deserialize<'a> + std::fmt::Debug,
     F: AcirField,
     R: prost::Message + Default,
     ProtoSchema<F>: ProtoCodec<T, R>,
 {
-    if !buf.is_empty() {
+    // Unfortunately as long as we have to deal with legacy bincode format we might be able
+    // to deserialize any other format as pure coincidence, when it was just legacy data.
+    // Since `bincode` is the least backwards compatible, let's try that first.
+    let bincode_result = bincode_deserialize(buf);
+
+    if bincode_result.is_err() && !buf.is_empty() {
         if let Ok(format) = Format::try_from(buf[0]) {
             match format {
                 Format::BincodeLegacy => {
                     // This is just a coincidence, as this format does not appear in the data,
-                    // but we know it's none of the other formats, so we can just return bincode.
+                    // but we know it's none of the other formats.
                 }
                 Format::Bincode => {
                     if let Ok(value) = bincode_deserialize(&buf[1..]) {
@@ -153,9 +158,8 @@ where
             }
         }
     }
-    // Try the default; as long as it's around, the match of the first byte
-    // to one of the `Format` could have been just a coincidence.
-    bincode_deserialize(buf)
+
+    bincode_result
 }
 
 pub(crate) fn serialize_with_format<F, T, R>(value: &T, format: Format) -> std::io::Result<Vec<u8>>

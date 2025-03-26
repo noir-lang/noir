@@ -17,7 +17,7 @@ use acir::{
         brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
     },
-    native_types::{Expression, Witness},
+    native_types::{Expression, Witness, WitnessMap, WitnessStack},
 };
 use acir_field::{AcirField, FieldElement};
 use brillig::{
@@ -559,4 +559,76 @@ fn nested_acir_call_circuit() {
 
     let program_de = Program::deserialize_program(&bytes).unwrap();
     assert_eq!(program_de, program);
+}
+
+#[test]
+fn legacy_witness_map() {
+    // This is from `witness_compression.ts`, and is actually a compressed `WitnessStack`.
+    // The `decompress_witness` function in `acvm_js` knows to decompress into a stack first.
+    let legacy_data: Vec<u8> = vec![
+        31, 139, 8, 0, 0, 0, 0, 0, 2, 255, 173, 206, 185, 13, 0, 48, 8, 67, 209, 144, 107, 30, 146,
+        44, 144, 253, 167, 162, 65, 130, 158, 239, 198, 174, 158, 44, 45, 178, 211, 254, 222, 90,
+        203, 17, 206, 186, 29, 252, 53, 64, 107, 114, 150, 46, 206, 122, 6, 24, 73, 44, 193, 220,
+        1, 0, 0,
+    ];
+
+    let witness = WitnessStack::<FieldElement>::deserialize(&legacy_data)
+        .expect("should figure out it's unmarked bincode")
+        .pop()
+        .expect("non-empty stack")
+        .witness;
+
+    let expected_witness = {
+        let mut w = WitnessMap::new();
+        for (i, f) in [1, 2, 1, 1, 0, 3].iter().enumerate() {
+            w.insert(Witness::new(i as u32), FieldElement::from(*f as u64));
+        }
+        w
+    };
+
+    assert_eq!(witness, expected_witness);
+
+    let expected_serialization: Vec<u8> = vec![
+        31, 139, 8, 0, 0, 0, 0, 0, 2, 255, 165, 206, 193, 13, 192, 16, 24, 134, 97, 213, 118, 31,
+        173, 5, 172, 34, 56, 136, 196, 229, 151, 112, 229, 224, 110, 8, 49, 147, 109, 12, 241, 189,
+        3, 60, 121, 121, 157, 148, 180, 9, 163, 77, 31, 173, 43, 108, 101, 159, 162, 35, 234, 108,
+        43, 129, 245, 93, 48, 241, 115, 252, 226, 198, 137, 7, 38, 196, 11, 19, 242, 0, 91, 126,
+        196, 195, 172, 1, 0, 0,
+    ];
+
+    let mut stack = WitnessStack::default();
+    stack.push(0, witness);
+
+    let bytes = stack.serialize().unwrap();
+    assert_eq!(bytes, expected_serialization);
+}
+
+#[test]
+fn legacy_witness_stack() {
+    let legacy_data: Vec<u8> = vec![
+        31, 139, 8, 0, 0, 0, 0, 0, 2, 255, 237, 145, 177, 13, 0, 32, 8, 4, 17, 117, 31, 75, 75, 87,
+        113, 255, 37, 44, 196, 5, 228, 42, 194, 39, 132, 238, 114, 249, 239, 114, 163, 118, 47,
+        203, 254, 240, 101, 23, 152, 213, 120, 199, 73, 58, 42, 200, 170, 176, 87, 238, 27, 119,
+        95, 201, 238, 190, 89, 7, 37, 195, 196, 176, 4, 5, 0, 0,
+    ];
+
+    let stack = WitnessStack::<FieldElement>::deserialize(&legacy_data)
+        .expect("should figure out it's unmarked bincode");
+
+    assert_eq!(stack.length(), 5);
+
+    let expected_serialization: Vec<u8> = vec![
+        31, 139, 8, 0, 0, 0, 0, 0, 2, 255, 237, 145, 177, 9, 192, 32, 16, 69, 245, 178, 80, 202,
+        148, 89, 69, 18, 11, 9, 216, 156, 16, 91, 197, 21, 28, 65, 156, 201, 109, 108, 180, 179,
+        59, 27, 193, 63, 192, 227, 241, 31, 184, 132, 70, 60, 95, 244, 73, 233, 87, 90, 200, 191,
+        50, 90, 34, 122, 86, 238, 147, 54, 193, 233, 136, 166, 197, 187, 86, 160, 107, 93, 19, 180,
+        128, 142, 56, 166, 157, 179, 155, 173, 215, 140, 237, 115, 6, 136, 10, 194, 76, 233, 151,
+        142, 4, 0, 0,
+    ];
+
+    let bytes = stack.serialize().unwrap();
+    assert_eq!(bytes, expected_serialization);
+
+    let stack_de = WitnessStack::deserialize(&bytes).unwrap();
+    assert_eq!(stack_de, stack);
 }
