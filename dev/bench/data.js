@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743021312302,
+  "lastUpdate": 1743021326180,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3c76878a71cac970f9e18b0956eeb4f32ac85d51",
-          "message": "chore(refactor): Move resolved error structures out of acir crate (#7734)",
-          "timestamp": "2025-03-18T12:32:39Z",
-          "tree_id": "d0586c8d8cad8648f13a39a3bdf48efaad39a1f4",
-          "url": "https://github.com/noir-lang/noir/commit/3c76878a71cac970f9e18b0956eeb4f32ac85d51"
-        },
-        "date": 1742302691745,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.37,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -14525,6 +14461,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-private",
             "value": 505.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.24,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8c71c77bc2e080e2232c58f0c54c289396e996d1",
+          "message": "chore: use functions inside of test generation (#7821)",
+          "timestamp": "2025-03-26T20:08:45Z",
+          "tree_id": "87b7e1f7e31968accb221d55fb2a4e8b9d26a1f8",
+          "url": "https://github.com/noir-lang/noir/commit/8c71c77bc2e080e2232c58f0c54c289396e996d1"
+        },
+        "date": 1743021321849,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.63,
             "unit": "MB"
           },
           {
