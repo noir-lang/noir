@@ -194,9 +194,7 @@ impl Elaborator<'_> {
             HirPattern::Identifier(identifier)
         };
 
-        let mark_datatypes_as_used = true;
-        let (struct_type, generics) = match self.lookup_type_or_error(name, mark_datatypes_as_used)
-        {
+        let (struct_type, generics) = match self.lookup_type_or_error(name) {
             Some(Type::DataType(struct_type, struct_generics))
                 if struct_type.borrow().is_struct() =>
             {
@@ -533,8 +531,7 @@ impl Elaborator<'_> {
     ) -> Vec<Type> {
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
         vecmap(kinds_with_types, |(kind, unresolved_type)| {
-            let mark_datatypes_as_used = true;
-            self.resolve_type_with_kind(unresolved_type, &kind, mark_datatypes_as_used)
+            self.use_type_with_kind(unresolved_type, &kind)
         })
     }
 
@@ -852,18 +849,17 @@ impl Elaborator<'_> {
         path: Path,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
         let location = Location::new(path.last_ident().span(), path.location.file);
-        let mark_datatypes_as_used = true;
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return (found, None),
             // Try to look it up as a global, but still issue the first error if we fail
-            Some(Err(error)) => match self.lookup_global(path, mark_datatypes_as_used) {
+            Some(Err(error)) => match self.lookup_global(path) {
                 Ok((id, item)) => {
                     return ((HirIdent::non_trait_method(id, location), 0), Some(item));
                 }
                 Err(_) => error,
             },
-            None => match self.lookup_global(path, mark_datatypes_as_used) {
+            None => match self.lookup_global(path) {
                 Ok((id, item)) => {
                     return ((HirIdent::non_trait_method(id, location), 0), Some(item));
                 }
@@ -878,8 +874,7 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let location = path.item.location();
         let object_location = path.typ.location;
-        let mark_datatypes_as_used = true;
-        let typ = self.resolve_type(path.typ, mark_datatypes_as_used);
+        let typ = self.use_type(path.typ);
         let check_self_param = false;
 
         let Some(method) = self.lookup_method(
@@ -897,9 +892,8 @@ impl Elaborator<'_> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
-        let generics = path.turbofish.map(|turbofish| {
-            self.resolve_type_args(turbofish, func_id, location, mark_datatypes_as_used).0
-        });
+        let generics =
+            path.turbofish.map(|turbofish| self.use_type_args(turbofish, func_id, location).0);
 
         let id = self.interner.function_definition_id(func_id);
 

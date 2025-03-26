@@ -629,8 +629,7 @@ impl<'context> Elaborator<'context> {
         let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
-        let mark_datatypes_as_used = false;
-        if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound, mark_datatypes_as_used) {
+        if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
             let new_constraint = TraitConstraint { typ: generic_type.clone(), trait_bound };
             trait_constraints.push(new_constraint);
         }
@@ -712,15 +711,13 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
-            let mark_datatypes_as_used = false;
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_with_kind(
                     unresolved_typ.clone(),
                     &Kind::numeric(Type::default_int_type()),
-                    mark_datatypes_as_used,
                 )
             } else {
-                self.resolve_type(unresolved_typ.clone(), mark_datatypes_as_used)
+                self.resolve_type(unresolved_typ.clone())
             };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
@@ -752,8 +749,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
-        let mark_datatypes_as_used = false;
-        match self.resolve_path(path.clone(), mark_datatypes_as_used) {
+        match self.resolve_path(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
                 if errors.is_empty() { Some(module_id) } else { None }
             }
@@ -762,8 +758,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let mark_datatypes_as_used = false;
-        let error = match self.resolve_path(path.clone(), mark_datatypes_as_used) {
+        let error = match self.resolve_path(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
                     self.push_err(error);
@@ -829,9 +824,7 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
-        let mark_datatypes_as_used = false;
-        let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone(), mark_datatypes_as_used)
-        else {
+        let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
             return Vec::new();
         };
 
@@ -882,11 +875,8 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
-        let mark_datatypes_as_used = false;
-        let typ = self.resolve_type(constraint.typ.clone(), mark_datatypes_as_used);
-        let mark_datatypes_as_used = false;
-        let trait_bound =
-            self.resolve_trait_bound(&constraint.trait_bound, mark_datatypes_as_used)?;
+        let typ = self.resolve_type(constraint.typ.clone());
+        let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
 
         self.add_trait_bound_to_scope(
             constraint.trait_bound.trait_path.location,
@@ -898,7 +888,15 @@ impl<'context> Elaborator<'context> {
         Some(TraitConstraint { typ, trait_bound })
     }
 
-    pub fn resolve_trait_bound(
+    pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
+        self.resolve_trait_bound_inner(bound, false)
+    }
+
+    pub fn use_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
+        self.resolve_trait_bound_inner(bound, true)
+    }
+
+    fn resolve_trait_bound_inner(
         &mut self,
         bound: &TraitBound,
         mark_datatypes_as_used: bool,
@@ -907,7 +905,7 @@ impl<'context> Elaborator<'context> {
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
 
-        let (ordered, named) = self.resolve_type_args(
+        let (ordered, named) = self.resolve_type_args_inner(
             bound.trait_generics.clone(),
             trait_id,
             location,
@@ -975,10 +973,7 @@ impl<'context> Elaborator<'context> {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
                 // Function parameters have Kind::Normal
-                _ => {
-                    let mark_datatypes_as_used = false;
-                    self.resolve_type_with_kind(typ, &Kind::Normal, mark_datatypes_as_used)
-                }
+                _ => self.resolve_type_with_kind(typ, &Kind::Normal),
             };
 
             self.check_if_type_is_valid_for_program_input(
@@ -1004,8 +999,7 @@ impl<'context> Elaborator<'context> {
             parameter_types.push(typ);
         }
 
-        let mark_datatypes_as_used = true;
-        let return_type = Box::new(self.resolve_type(func.return_type(), mark_datatypes_as_used));
+        let return_type = Box::new(self.use_type(func.return_type()));
 
         let mut typ = Type::Function(
             parameter_types,
@@ -1671,8 +1665,7 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let mark_datatypes_as_used = true;
-        let typ = self.resolve_type(alias.type_alias_def.typ, mark_datatypes_as_used);
+        let typ = self.use_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
@@ -1886,12 +1879,7 @@ impl<'context> Elaborator<'context> {
                 let ident = &field.item.name;
                 let typ = &field.item.typ;
                 let visibility = field.item.visibility;
-                let mark_datatypes_as_used = false;
-                StructField {
-                    visibility,
-                    name: ident.clone(),
-                    typ: this.resolve_type(typ.clone(), mark_datatypes_as_used),
-                }
+                StructField { visibility, name: ident.clone(), typ: this.resolve_type(typ.clone()) }
             });
 
             this.resolving_ids.remove(&struct_id);
@@ -1925,10 +1913,8 @@ impl<'context> Elaborator<'context> {
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let parameters = variant.item.parameters.as_ref();
-                let mark_datatypes_as_used = false;
-                let types = parameters.map(|params| {
-                    vecmap(params, |typ| self.resolve_type(typ.clone(), mark_datatypes_as_used))
-                });
+                let types =
+                    parameters.map(|params| vecmap(params, |typ| self.resolve_type(typ.clone())));
                 let name = variant.item.name.clone();
 
                 let is_function = types.is_some();
@@ -2054,8 +2040,7 @@ impl<'context> Elaborator<'context> {
 
             for (generics, _, function_set) in function_sets {
                 self.add_generics(generics);
-                let mark_datatypes_as_used = false;
-                let self_type = self.resolve_type(self_type.clone(), mark_datatypes_as_used);
+                let self_type = self.resolve_type(self_type.clone());
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
                 self.define_function_metas_for_functions(function_set);
@@ -2141,14 +2126,8 @@ impl<'context> Elaborator<'context> {
             let (ordered_generics, named_generics) = trait_impl
                 .trait_id
                 .map(|trait_id| {
-                    let mark_datatypes_as_used = false;
                     // Check for missing generics & associated types for the trait being implemented
-                    self.resolve_trait_args_from_trait_impl(
-                        trait_generics,
-                        trait_id,
-                        path_location,
-                        mark_datatypes_as_used,
-                    )
+                    self.resolve_trait_args_from_trait_impl(trait_generics, trait_id, path_location)
                 })
                 .unwrap_or_default();
 
@@ -2157,8 +2136,7 @@ impl<'context> Elaborator<'context> {
 
             self.remove_trait_constraints_from_scope(&constraints);
 
-            let mark_datatypes_as_used = false;
-            let self_type = self.resolve_type(unresolved_type, mark_datatypes_as_used);
+            let self_type = self.resolve_type(unresolved_type);
             self.self_type = Some(self_type.clone());
             trait_impl.methods.self_type = Some(self_type);
 

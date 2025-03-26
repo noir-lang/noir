@@ -106,9 +106,23 @@ impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        self.resolve_path_or_error_inner(path, false)
+    }
+
+    pub(super) fn use_path_or_error(
+        &mut self,
+        path: Path,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        self.resolve_path_or_error_inner(path, true)
+    }
+
+    pub(super) fn resolve_path_or_error_inner(
+        &mut self,
+        path: Path,
         mark_datatypes_as_used: bool,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let path_resolution = self.resolve_path(path, mark_datatypes_as_used)?;
+        let path_resolution = self.resolve_path_inner(path, mark_datatypes_as_used)?;
 
         for error in path_resolution.errors {
             self.push_err(error);
@@ -117,11 +131,19 @@ impl Elaborator<'_> {
         Ok(path_resolution.item)
     }
 
+    pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
+        self.resolve_path_inner(path, false)
+    }
+
+    pub(super) fn use_path(&mut self, path: Path) -> PathResolutionResult {
+        self.resolve_path_inner(path, true)
+    }
+
     /// Resolves a path in the current module.
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
     /// will be returned with a potential list of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
-    pub(super) fn resolve_path(
+    pub(super) fn resolve_path_inner(
         &mut self,
         mut path: Path,
         mark_datatypes_as_used: bool,

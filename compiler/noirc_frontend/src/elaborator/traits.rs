@@ -88,11 +88,7 @@ impl Elaborator<'_> {
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<ResolvedTraitBound> {
         let bounds = &unresolved_trait.trait_def.bounds;
-        let mark_datatypes_as_used = false;
-        bounds
-            .iter()
-            .filter_map(|bound| self.resolve_trait_bound(bound, mark_datatypes_as_used))
-            .collect()
+        bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
     }
 
     fn resolve_trait_methods(
