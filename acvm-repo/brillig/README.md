@@ -5,7 +5,7 @@ BRILLIG - Bytecode Runtime Interface for Liberated Language Implementation... G
 
 The G stands for whatever you like, like [Gabagool](https://en.wikipedia.org/wiki/Gabagool).
 
-Brillig is a general virtual machine architecture for usage with an NP complete circuit language that aims to incorporate unconstrained or non-deterministic functionality. For example, a language which compiles down to ACIR, can integrate unconstrained funtions into its circuits by also compiling down to Brillig bytecode.
+Brillig is a general virtual machine architecture for usage with an NP complete circuit language that aims to incorporate unconstrained or non-deterministic functionality. For example, a language which compiles down to ACIR, can integrate unconstrained functions into its circuits by also compiling down to Brillig bytecode.
 
 Why we need Brillig
 ---
