@@ -3,7 +3,7 @@ use crate::compiler::compile;
 use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 use crate::helpers;
 use acvm::FieldElement;
-use noirc_driver::{CompileError, CompileOptions, CompiledProgram};
+use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
@@ -13,6 +13,14 @@ use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::sync::Arc;
+use thiserror::Error;
+use std::panic::AssertUnwindSafe;
+
+#[derive(Debug, Error)]
+pub enum FuzzerBuilderError {
+    #[error("Compilation panicked")]
+    RuntimeError(String),
+}
 
 /// Builder for generating fuzzed SSA functions
 /// Contains a FunctionBuilder and tracks the current numeric type being used
@@ -48,8 +56,19 @@ impl FuzzerBuilder {
     }
 
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
-    pub fn compile(self) -> Result<CompiledProgram, CompileError> {
-        compile(self.builder, &CompileOptions::default())
+    pub fn compile(self) -> Result<CompiledProgram, FuzzerBuilderError> {
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            compile(self.builder, &CompileOptions::default())
+        }));
+        match result {
+            Ok(result) => {
+                match result {
+                    Ok(result) => Ok(result),
+                    Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation error".to_string())),
+                }
+            },
+            Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),
+        }
     }
 
     /// Inserts initial variables of the given type into the function
@@ -59,6 +78,18 @@ impl FuzzerBuilder {
         }
         self.type_ = variable_type.clone();
         match variable_type {
+            Type::Numeric(numeric_type) => {
+                self.numeric_type = numeric_type;
+            }
+            _ => {
+                panic!("Unsupported variable type");
+            }
+        }
+    }
+
+    pub fn set_type(&mut self, type_: Type) {
+        self.type_ = type_.clone();
+        match type_ {
             Type::Numeric(numeric_type) => {
                 self.numeric_type = numeric_type;
             }
@@ -127,9 +158,23 @@ impl FuzzerBuilder {
         self.builder.insert_not(lhs)
     }
 
+    /// Inserts a truncate instruction for the given value
+    pub fn insert_truncate(&mut self, value: Id<Value>, bit_size: u32, max_bit_size: u32) -> Id<Value> {
+        self.builder.insert_truncate(value, bit_size, max_bit_size)
+    }
+
     /// Inserts a cast instruction to the current numeric type
     pub fn insert_simple_cast(&mut self, value: Id<Value>) -> Id<Value> {
-        self.builder.insert_cast(value, self.numeric_type)
+        let v1 = self.builder.insert_cast(value, self.numeric_type);
+        match self.numeric_type {
+            NumericType::Signed { bit_size } => {
+                self.insert_truncate(v1, bit_size, bit_size)
+            }
+            NumericType::Unsigned { bit_size } => {
+                self.insert_truncate(v1, bit_size, bit_size)
+            }
+            _ => v1,
+        }
     }
 
     /// Inserts a cast to a larger bit size and back to original type
@@ -236,7 +281,7 @@ impl FuzzerBuilder {
         for elem in elements.clone() {
             elems.push(helpers::u32_to_id_value(elem));
         }
-        let types = vec![self.type_.clone(); elements.len()];
+        let types = vec![self.type_.clone()];
 
         self.builder.insert_make_array(
             im::Vector::from(elems),
@@ -250,6 +295,10 @@ impl FuzzerBuilder {
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
 
         self.builder.insert_array_get(array, index_var, self.type_.clone())
+    }
+
+    pub fn insert_constant(&mut self, value: impl Into<FieldElement>) -> Id<Value> {
+        self.builder.numeric_constant(value.into(), self.numeric_type)
     }
 
     /// Sets an element in an array at the given index

@@ -15,17 +15,25 @@ use thiserror::Error;
 /// Errors that can occur during execution of the program
 /// It can be NargoError or rust panic
 #[derive(Debug, Error)]
-pub enum RunnerErrors {
-    #[error("Nargo error: {0}")]
-    NargoError(NargoError<FieldElement>),
+pub enum RunnerError {
+    #[error("Execution failed: {0}")]
+    ExecutionFailed(NargoError<FieldElement>),
     #[error("Execution panicked: {0}")]
     ExecutionPanicked(String),
+}
+
+
+pub enum CompareResults {
+    Agree(FieldElement),
+    Disagree(FieldElement, FieldElement),
+    BothFailed(String, String),
+    AcirFailed(String, FieldElement),
+    BrilligFailed(String, FieldElement),
 }
 
 /// Low level function to execute the given program with the given initial witness
 /// It uses nargo execute_program to run the program
 fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
-    _foreign_call_resolver_url: Option<&str>,
     program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
 ) -> Result<WitnessStack<FieldElement>, NargoError<FieldElement>> {
@@ -45,24 +53,25 @@ pub fn execute_single(
     program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
     return_witness: Witness,
-) -> Result<FieldElement, RunnerErrors> {
-    let result =
-        std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(None, program, initial_witness))
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Execution panicked"));
+) -> Result<FieldElement, RunnerError> {
+    let result = std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(program, initial_witness));
 
     match result {
-        Ok(result) => match result {
-            Ok(result) => {
-                let witness = result.peek().expect("Should have at least one witness on the stack");
-                Ok(witness.witness[&return_witness])
+        Ok(result) => {
+            match result {
+                Ok(result) => Ok(result.peek().expect("Should have at least one witness on the stack").witness[&return_witness]),
+                Err(e) => Err(RunnerError::ExecutionFailed(e)),
             }
-            Err(e) => Err(RunnerErrors::NargoError(e)),
         },
         Err(e) => {
-            // execution panicked case
-            Err(RunnerErrors::ExecutionPanicked(e.to_string()))
+            if let Some(message) = e.downcast_ref::<&str>() {
+                Err(RunnerError::ExecutionPanicked(message.to_string()))
+            } else {
+                Err(RunnerError::ExecutionPanicked("Unknown error".to_string()))
+            }
         }
     }
+    
 }
 
 /// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -74,15 +83,9 @@ pub fn run_and_compare(
     initial_witness: WitnessMap<FieldElement>,
     return_witness_acir: Witness,
     return_witness_brillig: Witness,
-) -> (bool, FieldElement, FieldElement) {
-    let acir_result = std::panic::catch_unwind(|| {
-        execute_single(acir_program, initial_witness.clone(), return_witness_acir)
-    })
-    .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "ACIR execution panicked"));
-    let brillig_result = std::panic::catch_unwind(|| {
-        execute_single(brillig_program, initial_witness, return_witness_brillig)
-    })
-    .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Brillig execution panicked"));
+) -> CompareResults {
+    let acir_result = execute_single(acir_program, initial_witness.clone(), return_witness_acir);
+    let brillig_result = execute_single(brillig_program, initial_witness, return_witness_brillig);
 
     // we found bug in case of
     // 1) acir_result != brillig_result
@@ -91,62 +94,14 @@ pub fn run_and_compare(
     // it has depth 2, because nargo can panic or return NargoError
     match (acir_result, brillig_result) {
         (Ok(acir_result), Ok(brillig_result)) => {
-            match (acir_result, brillig_result) {
-                (Ok(acir_result), Ok(brillig_result)) => {
-                    if acir_result != brillig_result {
-                        panic!(
-                            "ACIR and Brillig results do not match. ACIR result: {:?}, Brillig result: {:?}",
-                            acir_result, brillig_result
-                        );
-                    }
-                    (true, acir_result, brillig_result)
-                }
-                (Err(e), Ok(brillig_result)) => {
-                    panic!(
-                        "Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}",
-                        e, brillig_result
-                    );
-                }
-                (Ok(acir_result), Err(e)) => {
-                    panic!(
-                        "Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}",
-                        e, acir_result
-                    );
-                }
-                (Err(_e), Err(_e2)) => {
-                    // both failed, okay
-                    (true, FieldElement::from(0_u32), FieldElement::from(0_u32))
-                }
+            if acir_result == brillig_result {
+                CompareResults::Agree(acir_result)
+            } else {
+                CompareResults::Disagree(acir_result, brillig_result)
             }
         }
-        (Ok(acir_result), Err(e)) => {
-            log::debug!(
-                "Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}",
-                e,
-                acir_result
-            );
-            panic!(
-                "Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}",
-                e, acir_result
-            );
-        }
-        (Err(e), Ok(brillig_result)) => {
-            log::debug!(
-                "Failed to execute acir program: {:?}, brillig program succeeded with value {:?}",
-                e,
-                brillig_result
-            );
-            panic!(
-                "Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}",
-                e, brillig_result
-            );
-        }
-        (Err(e), Err(e2)) => {
-            // both failed, constructed program unsolvable
-            log::debug!("Failed to execute acir program: {:?}", e);
-            log::debug!("Failed to execute brillig program: {:?}", e2);
-            // we dont care about the result, we have similar behavior in both cases
-            (true, FieldElement::from(0_u32), FieldElement::from(0_u32))
-        }
+        (Err(acir_error), Ok(brillig_result)) => CompareResults::AcirFailed(acir_error.to_string(), brillig_result),
+        (Ok(acir_result), Err(brillig_error)) => CompareResults::BrilligFailed(brillig_error.to_string(), acir_result),
+        (Err(acir_error), Err(brillig_error)) => CompareResults::BothFailed(acir_error.to_string(), brillig_error.to_string()),
     }
 }
