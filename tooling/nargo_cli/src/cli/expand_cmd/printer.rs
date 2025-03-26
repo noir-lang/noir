@@ -548,6 +548,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                         self.push_str(" {}");
                     }
                     FunctionAttribute::Test(..)
+                    | FunctionAttribute::FuzzingHarness(..)
                     | FunctionAttribute::Fold
                     | FunctionAttribute::NoPredicates
                     | FunctionAttribute::InlineAlways => {
