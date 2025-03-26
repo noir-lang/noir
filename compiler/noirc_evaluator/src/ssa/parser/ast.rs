@@ -111,6 +111,7 @@ pub(crate) enum ParsedInstruction {
     },
     Constrain {
         lhs: ParsedValue,
+        equals: bool,
         rhs: ParsedValue,
         assert_message: Option<AssertMessage>,
     },

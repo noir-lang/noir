@@ -1,5 +1,5 @@
 [package]
-name = "unsigned_to_signed_cast"
+name = "signed_truncation"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.20.0"
