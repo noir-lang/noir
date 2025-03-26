@@ -41,10 +41,11 @@ use crate::{
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{Instruction, InstructionId},
+            instruction::{BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId},
         },
+        opt::pure::Purity,
         ssa_gen::Ssa,
     },
 };
@@ -462,7 +463,7 @@ impl<'brillig> Context<'brillig> {
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
         let can_be_deduplicated =
-            instruction.can_be_deduplicated(function, self.use_constraint_info);
+            can_be_deduplicated(&instruction, function, self.use_constraint_info);
 
         // We also allow deduplicating MakeArray instructions that we have tracked which haven't
         // been mutated.
@@ -513,7 +514,7 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        results_for_instruction.get(&predicate)?.get(block, dom, has_side_effects(instruction, dfg))
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -800,6 +801,134 @@ fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId,
         (Value::Param { .. }, Value::Instruction { .. }) => Some((rhs, lhs)),
         (Value::Instruction { .. }, Value::Param { .. }) => Some((lhs, rhs)),
         (_, _) => None,
+    }
+}
+
+/// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+///
+/// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
+/// constraints into account, because it might not use it to isolate the side effects across branches.
+pub(crate) fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
+    use Instruction::*;
+
+    match instruction {
+        // These either have side-effects or interact with memory
+        EnableSideEffectsIf { .. }
+        | Allocate
+        | Load { .. }
+        | Store { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. } => true,
+
+        Call { func, .. } => match dfg[*func] {
+            Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+            // Functions known to be pure have no side effects.
+            // `PureWithPredicates` functions may still have side effects.
+            Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+            _ => true, // Be conservative and assume other functions can have side effects.
+        },
+
+        // These can fail.
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
+
+        // This should never be side-effectful
+        MakeArray { .. } | Noop => false,
+
+        // Some binary math can overflow or underflow
+        Binary(binary) => match binary.operator {
+            BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false }
+            | BinaryOp::Div
+            | BinaryOp::Mod => true,
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Sub { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => false,
+        },
+
+        // These can have different behavior depending on the EnableSideEffectsIf context.
+        Cast(_, _)
+        | Not(_)
+        | Truncate { .. }
+        | IfElse { .. }
+        | ArrayGet { .. }
+        | ArraySet { .. } => instruction.requires_acir_gen_predicate(dfg),
+    }
+}
+
+/// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+/// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+/// and its predicate, rather than just the instruction. Setting this means instructions that
+/// rely on predicates can be deduplicated as well.
+///
+/// Some instructions get the predicate attached to their inputs by `handle_instruction_side_effects` in `flatten_cfg`.
+/// These can be deduplicated because they implicitly depend on the predicate, not only when the caller uses the
+/// predicate variable as a key to cache results. However, to avoid tight coupling between passes, we make the deduplication
+/// conditional on whether the caller wants the predicate to be taken into account or not.
+pub(crate) fn can_be_deduplicated(
+    instruction: &Instruction,
+    function: &Function,
+    deduplicate_with_predicate: bool,
+) -> bool {
+    use Instruction::*;
+
+    match instruction {
+        // These either have side-effects or interact with memory
+        EnableSideEffectsIf { .. }
+        | Allocate
+        | Load { .. }
+        | Store { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. } => false,
+
+        Call { func, .. } => match function.dfg[*func] {
+            Value::Intrinsic(intrinsic) => {
+                intrinsic.can_be_deduplicated(deduplicate_with_predicate)
+            }
+            Value::Function(id) => match function.dfg.purity_of(id) {
+                Some(Purity::Pure) => true,
+                Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
+                Some(Purity::Impure) => false,
+                None => false,
+            },
+            _ => false,
+        },
+
+        // We can deduplicate these instructions if we know the predicate is also the same.
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => deduplicate_with_predicate,
+
+        // Noop instructions can always be deduplicated, although they're more likely to be
+        // removed entirely.
+        Noop => true,
+
+        // Cast instructions can always be deduplicated
+        Cast(_, _) => true,
+
+        // Arrays can be mutated in unconstrained code so code that handles this case must
+        // take care to track whether the array was possibly mutated or not before
+        // deduplicating. Since we don't know if the containing pass checks for this, we
+        // can only assume these are safe to deduplicate in constrained code.
+        MakeArray { .. } => function.runtime().is_acir(),
+
+        // These can have different behavior depending on the EnableSideEffectsIf context.
+        // Replacing them with a similar instruction potentially enables replacing an instruction
+        // with one that was disabled. See
+        // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+        Binary(_)
+        | Not(_)
+        | Truncate { .. }
+        | IfElse { .. }
+        | ArrayGet { .. }
+        | ArraySet { .. } => {
+            deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
+        }
     }
 }
 
