@@ -142,7 +142,13 @@ pub fn embedded_curve_add(
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
     if crate::runtime::is_unconstrained() {
-        embedded_curve_add_unsafe(point1, point2)
+        if point1.is_infinite {
+            point2
+        } else if point2.is_infinite {
+            point1
+        } else {
+            embedded_curve_add_unsafe(point1, point2)
+        }
     } else {
         // In a constrained context we need to do some black magic in order to satisfy the backend's
         // expectations about the inputs to an `embedded_curve_add` opcode.
