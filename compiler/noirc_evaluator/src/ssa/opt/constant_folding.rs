@@ -1,12 +1,12 @@
 //! The goal of the constant folding optimization pass is to propagate any constants forwards into
-//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][Instruction::simplify()].
+//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
 //! - Re-insert each instruction in order to apply the instruction simplification performed
 //!   by the [`DataFlowGraph`] automatically as new instructions are pushed.
 //! - Check whether any input values have been constrained to be equal to a value of a simpler form
 //!   by a [constrain instruction][Instruction::Constrain]. If so, replace the input value with the simpler form.
-//! - Check whether the instruction [can_be_deduplicated][Instruction::can_be_deduplicated()]
+//! - Check whether the instruction [`can_be_deduplicated`]
 //!   by duplicate instruction earlier in the same block.
 //!
 //! These operations are done in parallel so that they can each benefit from each other
