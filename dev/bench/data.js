@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743001468309,
+  "lastUpdate": 1743003071220,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "51c68c89d88860be931301334a182e809aa629e0",
-          "message": "chore: Resolve various rustdoc warnings (#7724)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-03-14T20:45:33Z",
-          "tree_id": "ddfd3abc219dea495d5898a79b70bb6ae1255d30",
-          "url": "https://github.com/noir-lang/noir/commit/51c68c89d88860be931301334a182e809aa629e0"
-        },
-        "date": 1741986295937,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.285,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.733,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.488,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.027,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a9429907114fb027e8f11d67ec7c26f9b7dcaf12",
+          "message": "fix: implicit associated types come before explicit types (#7813)",
+          "timestamp": "2025-03-26T15:07:22Z",
+          "tree_id": "90d9fee3d8169e73f70ed734a52c8a6c1c55e0f0",
+          "url": "https://github.com/noir-lang/noir/commit/a9429907114fb027e8f11d67ec7c26f9b7dcaf12"
+        },
+        "date": 1743003067443,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.075,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.306,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.792,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.535,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
             "unit": "s"
           }
         ]
