@@ -13,6 +13,11 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 
 ## Development
 
+### Prerequisites
+
+- Node.js (tested and working with v21.6.1)
+- Yarn (tested and working with v4.5.2)
+
 ### Installation
 
 This project requires recent versions of Rust and Cargo to be installed.

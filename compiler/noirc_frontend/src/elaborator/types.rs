@@ -1433,6 +1433,7 @@ impl Elaborator<'_> {
         object_type: &Type,
         method_name: &str,
         location: Location,
+        object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
         match object_type.follow_bindings() {
@@ -1446,14 +1447,21 @@ impl Elaborator<'_> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => {
-                self.lookup_method_in_trait_constraints(object_type, method_name, location)
-            }
+            Type::NamedGeneric(_, _) => self.lookup_method_in_trait_constraints(
+                object_type,
+                method_name,
+                location,
+                object_location,
+            ),
             // References to another type should resolve to methods of their element type.
             // This may be a data type or a primitive type.
-            Type::Reference(element, _mutable) => {
-                self.lookup_method(&element, method_name, location, check_self_param)
-            }
+            Type::Reference(element, _mutable) => self.lookup_method(
+                &element,
+                method_name,
+                location,
+                object_location,
+                check_self_param,
+            ),
 
             // If we fail to resolve the object to a data type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
@@ -1469,6 +1477,7 @@ impl Elaborator<'_> {
                 &other,
                 method_name,
                 location,
+                object_location,
                 check_self_param,
             ),
         }
@@ -1479,6 +1488,7 @@ impl Elaborator<'_> {
         object_type: &Type,
         method_name: &str,
         location: Location,
+        object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
         // First search in the type methods. If there is one, that's the one.
@@ -1533,7 +1543,12 @@ impl Elaborator<'_> {
             // It could be that this type is a composite type that is bound to a trait,
             // for example `x: (T, U) ... where (T, U): SomeTrait`
             // (so this case is a generalization of the NamedGeneric case)
-            self.lookup_method_in_trait_constraints(object_type, method_name, location)
+            self.lookup_method_in_trait_constraints(
+                object_type,
+                method_name,
+                location,
+                object_location,
+            )
         }
     }
 
@@ -1649,6 +1664,7 @@ impl Elaborator<'_> {
         object_type: &Type,
         method_name: &str,
         location: Location,
+        object_location: Location,
     ) -> Option<HirMethodReference> {
         let func_id = match self.current_item {
             Some(DependencyId::Function(id)) => id,
@@ -1692,11 +1708,17 @@ impl Elaborator<'_> {
             }
         }
 
-        self.push_err(TypeCheckError::UnresolvedMethodCall {
-            method_name: method_name.to_string(),
-            object_type: object_type.clone(),
-            location,
-        });
+        if object_type.is_bindable() {
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
+                location: object_location,
+            });
+        } else {
+            self.push_err(TypeCheckError::UnresolvedMethodCall {
+                method_name: method_name.to_string(),
+                object_type: object_type.clone(),
+                location,
+            });
+        }
 
         None
     }

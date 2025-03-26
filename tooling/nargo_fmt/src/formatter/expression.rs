@@ -2478,6 +2478,45 @@ global y = 1;
     }
 
     #[test]
+    fn format_last_assignment_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        x = 1
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_break_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        break
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_continue_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        continue
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
     fn does_not_add_extra_spaces_to_fmtstr() {
         let src = r#"fn main() {
     let multiline_string: str<22> = "{
