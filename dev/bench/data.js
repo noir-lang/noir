@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743007843917,
+  "lastUpdate": 1743008075984,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11366,70 +11366,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "45ad637273cef317eba42feaf2be0e59d34065ed",
-          "message": "chore(docs): Brillig opcodes (#7722)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-03-17T19:19:37Z",
-          "tree_id": "c40cd76872407e51cd9d575ad055de65b46c3d7e",
-          "url": "https://github.com/noir-lang/noir/commit/45ad637273cef317eba42feaf2be0e59d34065ed"
-        },
-        "date": 1742240918424,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.37,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "5a414418a670f66208903e60d9b184a9d8def97e",
           "message": "chore(ci): private-kernel-inner timeout bump (#7732)",
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/162ef86508404c365abdc8559c0843c896c357a5"
         },
         "date": 1743007289771,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.24,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86ca5590557683f59f9a3e238256e84bf7a0ba7c",
+          "message": "chore: move brillig docs into noir repo (#7817)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-03-26T16:29:44Z",
+          "tree_id": "73adc0e1fe1ca8a7cd5152f919e4a3693173b762",
+          "url": "https://github.com/noir-lang/noir/commit/86ca5590557683f59f9a3e238256e84bf7a0ba7c"
+        },
+        "date": 1743008072495,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
