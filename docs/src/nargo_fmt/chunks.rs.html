@@ -1034,14 +1034,7 @@
 <a href="#1033" id="1033">1033</a>
 <a href="#1034" id="1034">1034</a>
 <a href="#1035" id="1035">1035</a>
-<a href="#1036" id="1036">1036</a>
-<a href="#1037" id="1037">1037</a>
-<a href="#1038" id="1038">1038</a>
-<a href="#1039" id="1039">1039</a>
-<a href="#1040" id="1040">1040</a>
-<a href="#1041" id="1041">1041</a>
-<a href="#1042" id="1042">1042</a>
-<a href="#1043" id="1043">1043</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
+<a href="#1036" id="1036">1036</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
 //! that we (almost always) never exceed the configurable maximum line width.
 //!
 //! It's heavily inspired by this excellent blog post:
@@ -1078,9 +1071,7 @@
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Chunk {
     <span class="doccomment">/// A text chunk. It might contain leading comments.
-    </span>Text(TextChunk),
-    <span class="doccomment">/// A text chunk that should be printed unmodified (used for `quote { ... }` contents).
-    </span>Verbatim(TextChunk),
+    </span>Text(TextChunk, bool <span class="comment">/* verbatim */</span>),
     <span class="doccomment">/// A trailing comma that's only written if we decide to format chunks in multiple lines
     /// (for example for a call we'll add a trailing comma to the last argument).
     </span>TrailingComma,
@@ -1108,8 +1099,7 @@
 <span class="kw">impl </span>Chunk {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>width(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">match </span><span class="self">self </span>{
-            Chunk::Text(chunk)
-            | Chunk::Verbatim(chunk)
+            Chunk::Text(chunk, <span class="kw">_</span>)
             | Chunk::TrailingComment(chunk)
             | Chunk::LeadingComment(chunk) =&gt; chunk.width,
             Chunk::Group(group) =&gt; group.width(),
@@ -1139,8 +1129,7 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_newlines(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
-            Chunk::Text(chunk)
-            | Chunk::Verbatim(chunk)
+            Chunk::Text(chunk, <span class="kw">_</span>)
             | Chunk::TrailingComment(chunk)
             | Chunk::LeadingComment(chunk) =&gt; chunk.has_newlines,
             Chunk::Group(group) =&gt; group.has_newlines(),
@@ -1228,29 +1217,29 @@
     }
 
     <span class="doccomment">/// Appends a text to this group.
-    /// If the last chunk in this group is a text, no new chunk is inserted and
-    /// instead the last text chunk is extended.
+    /// If the last chunk in this group is a text or verbatim,
+    /// no new chunk is inserted and instead the last text chunk is extended.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>text(<span class="kw-2">&amp;mut </span><span class="self">self</span>, chunk: TextChunk) {
-        <span class="kw">if </span>chunk.width == <span class="number">0 </span>{
-            <span class="kw">return</span>;
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(Chunk::Text(text_chunk)) = <span class="self">self</span>.chunks.last_mut() {
-            text_chunk.string.push_str(<span class="kw-2">&amp;</span>chunk.string);
-            text_chunk.width += chunk.width;
-            text_chunk.has_newlines |= chunk.has_newlines;
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.push(Chunk::Text(chunk));
-        }
+        <span class="self">self</span>.text_impl(chunk, <span class="bool-val">false </span><span class="comment">/* verbatim */</span>);
     }
 
     <span class="doccomment">/// Appends a verbatim text chunk to this group.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>verbatim(<span class="kw-2">&amp;mut </span><span class="self">self</span>, chunk: TextChunk) {
+        <span class="self">self</span>.text_impl(chunk, <span class="bool-val">true </span><span class="comment">/* verbatim */</span>);
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>text_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, chunk: TextChunk, verbatim: bool) {
         <span class="kw">if </span>chunk.width == <span class="number">0 </span>{
             <span class="kw">return</span>;
         }
 
-        <span class="self">self</span>.push(Chunk::Verbatim(chunk));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(Chunk::Text(text_chunk, <span class="kw">_</span>)) = <span class="self">self</span>.chunks.last_mut() {
+            text_chunk.string.push_str(<span class="kw-2">&amp;</span>chunk.string);
+            text_chunk.width += chunk.width;
+            text_chunk.has_newlines |= chunk.has_newlines;
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.push(Chunk::Text(chunk, verbatim));
+        }
     }
 
     <span class="doccomment">/// Appends a single space to this group by reading it from the given formatter.
@@ -1402,8 +1391,7 @@
 
         <span class="kw">for </span>chunk <span class="kw">in </span><span class="self">self</span>.chunks {
             <span class="kw">match </span>chunk {
-                Chunk::Text(chunk) =&gt; group.text(chunk),
-                Chunk::Verbatim(chunk) =&gt; group.verbatim(chunk),
+                Chunk::Text(chunk, verbatim) =&gt; group.text_impl(chunk, verbatim),
                 Chunk::TrailingComma =&gt; {
                     <span class="comment">// If there's a trailing comma after a group, append the text to that group
                     // so that it glues with the last text present there (if any)
@@ -1437,8 +1425,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>width = <span class="number">0</span>;
         <span class="kw">for </span>chunk <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.chunks {
             <span class="kw">match </span>chunk {
-                Chunk::Text(text_chunk)
-                | Chunk::Verbatim(text_chunk)
+                Chunk::Text(text_chunk, <span class="kw">_</span>)
                 | Chunk::TrailingComment(text_chunk)
                 | Chunk::LeadingComment(text_chunk) =&gt; {
                     width += text_chunk.width;
@@ -1883,7 +1870,7 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>format_chunk_group_in_one_line(<span class="kw-2">&amp;mut </span><span class="self">self</span>, group: ChunkGroup) {
         <span class="kw">for </span>chunk <span class="kw">in </span>group.chunks {
             <span class="kw">match </span>chunk {
-                Chunk::Text(text_chunk) | Chunk::Verbatim(text_chunk) =&gt; {
+                Chunk::Text(text_chunk, <span class="kw">_</span>) =&gt; {
                     <span class="self">self</span>.write(<span class="kw-2">&amp;</span>text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) =&gt; {
@@ -1925,8 +1912,10 @@
             last_was_space_or_line = <span class="bool-val">false</span>;
 
             <span class="kw">match </span>chunk {
-                Chunk::Text(text_chunk) =&gt; {
-                    <span class="kw">if </span>text_chunk.has_newlines {
+                Chunk::Text(text_chunk, verbatim) =&gt; {
+                    <span class="kw">if </span>verbatim {
+                        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>text_chunk.string);
+                    } <span class="kw">else if </span>text_chunk.has_newlines {
                         <span class="self">self</span>.write_chunk_lines(<span class="kw-2">&amp;</span>text_chunk.string);
                     } <span class="kw">else </span>{
                         <span class="comment">// If we didn't exceed the max width, but this chunk will, insert a newline,
@@ -1944,9 +1933,6 @@
                         }
                         <span class="self">self</span>.write(<span class="kw-2">&amp;</span>text_chunk.string);
                     }
-                }
-                Chunk::Verbatim(text_chunk) =&gt; {
-                    <span class="self">self</span>.write(<span class="kw-2">&amp;</span>text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk) =&gt; {
                     <span class="self">self</span>.write_chunk_lines(<span class="kw-2">&amp;</span>text_chunk.string);
