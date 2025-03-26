@@ -123,7 +123,7 @@ where
 /// but fall back to the legacy `bincode` format if anything fails.
 pub(crate) fn deserialize_any_format<F, T, R>(buf: &[u8]) -> std::io::Result<T>
 where
-    T: for<'a> Deserialize<'a>,
+    T: for<'a> Deserialize<'a> + std::fmt::Debug,
     F: AcirField,
     R: prost::Message + Default,
     ProtoSchema<F>: ProtoCodec<T, R>,
@@ -138,7 +138,7 @@ where
             match format {
                 Format::BincodeLegacy => {
                     // This is just a coincidence, as this format does not appear in the data,
-                    // but we know it's none of the other formats, so we can just return bincode.
+                    // but we know it's none of the other formats.
                 }
                 Format::Bincode => {
                     if let Ok(value) = bincode_deserialize(&buf[1..]) {
