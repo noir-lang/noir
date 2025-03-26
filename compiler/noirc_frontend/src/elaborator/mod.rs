@@ -68,7 +68,7 @@ use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{PathResolution, PathResolutionItem};
+use path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -889,24 +889,24 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
-        self.resolve_trait_bound_inner(bound, false)
+        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
     }
 
     pub fn use_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
-        self.resolve_trait_bound_inner(bound, true)
+        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
     }
 
     fn resolve_trait_bound_inner(
         &mut self,
         bound: &TraitBound,
-        r#use: bool,
+        mode: PathResolutionMode,
     ) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
 
         let (ordered, named) =
-            self.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, r#use);
+            self.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, mode);
 
         let trait_generics = TraitGenerics { ordered, named };
         Some(ResolvedTraitBound { trait_id, trait_generics, location })

@@ -102,27 +102,35 @@ enum MethodLookupResult {
     FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
+/// Determines whether datatypes found along a path are to be marked as referenced
+/// or used (see UsageTracker::mark_as_referenced and UsageTracker::marke_as_used)
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(super) enum PathResolutionMode {
+    MarkAsReferenced,
+    MarkAsUsed,
+}
+
 impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
     ) -> Result<PathResolutionItem, ResolverError> {
-        self.resolve_path_or_error_inner(path, false)
+        self.resolve_path_or_error_inner(path, PathResolutionMode::MarkAsReferenced)
     }
 
     pub(super) fn use_path_or_error(
         &mut self,
         path: Path,
     ) -> Result<PathResolutionItem, ResolverError> {
-        self.resolve_path_or_error_inner(path, true)
+        self.resolve_path_or_error_inner(path, PathResolutionMode::MarkAsUsed)
     }
 
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
         path: Path,
-        r#use: bool,
+        mode: PathResolutionMode,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let path_resolution = self.resolve_path_inner(path, r#use)?;
+        let path_resolution = self.resolve_path_inner(path, mode)?;
 
         for error in path_resolution.errors {
             self.push_err(error);
@@ -132,11 +140,11 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
-        self.resolve_path_inner(path, false)
+        self.resolve_path_inner(path, PathResolutionMode::MarkAsReferenced)
     }
 
     pub(super) fn use_path(&mut self, path: Path) -> PathResolutionResult {
-        self.resolve_path_inner(path, true)
+        self.resolve_path_inner(path, PathResolutionMode::MarkAsUsed)
     }
 
     /// Resolves a path in the current module.
@@ -146,7 +154,7 @@ impl Elaborator<'_> {
     pub(super) fn resolve_path_inner(
         &mut self,
         mut path: Path,
-        r#use: bool,
+        mode: PathResolutionMode,
     ) -> PathResolutionResult {
         let mut module_id = self.module_id();
 
@@ -165,7 +173,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.resolve_path_in_module(path, module_id, r#use)
+        self.resolve_path_in_module(path, module_id, mode)
     }
 
     /// Resolves a path in `current_module`.
@@ -174,7 +182,7 @@ impl Elaborator<'_> {
         &mut self,
         path: Path,
         importing_module: ModuleId,
-        r#use: bool,
+        mode: PathResolutionMode,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
             Some(ReferencesTracker::new(self.interner))
@@ -183,7 +191,7 @@ impl Elaborator<'_> {
         };
         let (path, module_id, _) =
             resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(path, module_id, importing_module, r#use)
+        self.resolve_name_in_module(path, module_id, importing_module, mode)
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -193,7 +201,7 @@ impl Elaborator<'_> {
         path: Path,
         starting_module: ModuleId,
         importing_module: ModuleId,
-        r#use: bool,
+        mode: PathResolutionMode,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
@@ -218,10 +226,13 @@ impl Elaborator<'_> {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        if r#use {
-            self.usage_tracker.mark_as_used(current_module_id, first_segment);
-        } else {
-            self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+        match mode {
+            PathResolutionMode::MarkAsReferenced => {
+                self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+            }
+            PathResolutionMode::MarkAsUsed => {
+                self.usage_tracker.mark_as_used(current_module_id, first_segment);
+            }
         }
 
         let mut errors = Vec::new();
@@ -346,10 +357,13 @@ impl Elaborator<'_> {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            if r#use {
-                self.usage_tracker.mark_as_used(current_module_id, current_ident);
-            } else {
-                self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+            match mode {
+                PathResolutionMode::MarkAsReferenced => {
+                    self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+                }
+                PathResolutionMode::MarkAsUsed => {
+                    self.usage_tracker.mark_as_used(current_module_id, current_ident);
+                }
             }
 
             current_ns = found_ns;

@@ -13,7 +13,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::PathResolutionItem;
+use super::path_resolution::{PathResolutionItem, PathResolutionMode};
 use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, ResolverMeta};
 
@@ -161,10 +161,10 @@ impl Elaborator<'_> {
     pub(super) fn lookup_datatype_or_error(
         &mut self,
         path: Path,
-        r#use: bool,
+        mode: PathResolutionMode,
     ) -> Option<Shared<DataType>> {
         let location = path.location;
-        match self.resolve_path_or_error_inner(path, r#use) {
+        match self.resolve_path_or_error_inner(path, mode) {
             Ok(item) => {
                 if let PathResolutionItem::Type(struct_id) = item {
                     Some(self.get_type(struct_id))
@@ -224,9 +224,9 @@ impl Elaborator<'_> {
     pub(super) fn lookup_type_alias(
         &mut self,
         path: Path,
-        r#use: bool,
+        mode: PathResolutionMode,
     ) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error_inner(path, r#use) {
+        match self.resolve_path_or_error_inner(path, mode) {
             Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
                 Some(self.interner.get_type_alias(type_alias_id))
             }
