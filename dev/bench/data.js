@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743006970359,
+  "lastUpdate": 1743006972726,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1bfced827e878ca8e964258d3f8c93eb2bd8948d",
-          "message": "chore: add lambda calculus test (#7646)",
-          "timestamp": "2025-03-17T18:58:56Z",
-          "tree_id": "40a399411344b617f66b1cfef6c8f58e03c599aa",
-          "url": "https://github.com/noir-lang/noir/commit/1bfced827e878ca8e964258d3f8c93eb2bd8948d"
-        },
-        "date": 1742239240203,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.716,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.508,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.232,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.118,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 11.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.951,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.929,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.602,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.478,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "isennovskiy@gmail.com",
+            "name": "Innokentii Sennovskii",
+            "username": "Rumata888"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "162ef86508404c365abdc8559c0843c896c357a5",
+          "message": "fix: Fixes signed integer mutations in the fuzzers (#7815)",
+          "timestamp": "2025-03-26T16:05:11Z",
+          "tree_id": "a6a595c19384512c7c66299c763bdc5ebc411dd2",
+          "url": "https://github.com/noir-lang/noir/commit/162ef86508404c365abdc8559c0843c896c357a5"
+        },
+        "date": 1743006966306,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.717,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 15.3,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.521,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.204,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.994,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.098,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.914,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.47,
             "unit": "s"
           }
         ]
