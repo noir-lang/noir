@@ -164,7 +164,7 @@ impl Elaborator<'_> {
         match resolved_type {
             Type::DataType(ref data_type, _) => {
                 // Record the location of the type reference
-                self.interner.push_type_ref_location(resolved_type.clone(), location);
+                self.interner.push_type_ref_location(&resolved_type, location);
                 if !is_synthetic {
                     self.interner.add_type_reference(
                         data_type.borrow().id,
