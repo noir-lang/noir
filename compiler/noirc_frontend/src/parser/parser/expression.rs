@@ -286,7 +286,7 @@ impl Parser<'_> {
     ///     | ComptimeExpression
     ///     | UnquoteExpression
     ///     | TypePathExpression
-    ///     | BracketedTypePathExpression
+    ///     | NamelessTypePathExpression
     ///     | AsTraitPath
     ///     | ResolvedExpression
     ///     | InternedExpression
@@ -354,7 +354,7 @@ impl Parser<'_> {
             return Some(kind);
         }
 
-        if let Some(kind) = self.parse_bracketed_type_path_or_as_trait_path_type_expression() {
+        if let Some(kind) = self.parse_nameless_type_path_or_as_trait_path_type_expression() {
             return Some(kind);
         }
 
@@ -373,8 +373,8 @@ impl Parser<'_> {
         None
     }
 
-    /// BracketedTypePathExpression = '<' Type '>' '::' identifier ( '::' GenericTypeArgs )?
-    fn parse_bracketed_type_path_or_as_trait_path_type_expression(
+    /// NamelessTypePathExpression = '<' Type '>' '::' identifier ( '::' GenericTypeArgs )?
+    fn parse_nameless_type_path_or_as_trait_path_type_expression(
         &mut self,
     ) -> Option<ExpressionKind> {
         if !self.eat_less() {
