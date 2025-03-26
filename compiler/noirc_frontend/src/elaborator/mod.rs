@@ -935,10 +935,15 @@ impl<'context> Elaborator<'context> {
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
         let is_pub_allowed = self.pub_allowed(func, in_contract);
         self.add_generics(&func.def.generics);
-        let mut generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-        let new_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
-        generics.extend(new_generics.into_iter().map(|generic| generic.type_var));
+        let func_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+
+        let associated_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
+        let mut generics = vecmap(associated_generics, |generic| generic.type_var);
+
+        // We put associated generics first, as they are implicit and implicit generics
+        // come before explicit generics (see `Type::instantiate_with`).
+        generics.extend(func_generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
 
