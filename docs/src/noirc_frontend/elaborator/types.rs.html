@@ -2158,7 +2158,14 @@
 <a href="#2157" id="2157">2157</a>
 <a href="#2158" id="2158">2158</a>
 <a href="#2159" id="2159">2159</a>
-<a href="#2160" id="2160">2160</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2160" id="2160">2160</a>
+<a href="#2161" id="2161">2161</a>
+<a href="#2162" id="2162">2162</a>
+<a href="#2163" id="2163">2163</a>
+<a href="#2164" id="2164">2164</a>
+<a href="#2165" id="2165">2165</a>
+<a href="#2166" id="2166">2166</a>
+<a href="#2167" id="2167">2167</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2200,7 +2207,9 @@
     token::SecondaryAttribute,
 };
 
-<span class="kw">use super</span>::{Elaborator, UnsafeBlockStatus, lints, path_resolution::PathResolutionItem};
+<span class="kw">use super</span>::{
+    Elaborator, FunctionContext, UnsafeBlockStatus, lints, path_resolution::PathResolutionItem,
+};
 
 <span class="kw">pub const </span>SELF_TYPE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"Self"</span>;
 
@@ -4210,9 +4219,7 @@
     <span class="doccomment">/// Push a type variable into the current FunctionContext to be defaulted if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
     </span><span class="kw">fn </span>push_type_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type) {
-        <span class="kw">let </span>context = <span class="self">self</span>.function_context.last_mut();
-        <span class="kw">let </span>context = context.expect(<span class="string">"The function_context stack should always be non-empty"</span>);
-        context.type_variables.push(typ);
+        <span class="self">self</span>.get_function_context().type_variables.push(typ);
     }
 
     <span class="doccomment">/// Push a trait constraint into the current FunctionContext to be solved if needed
@@ -4223,9 +4230,16 @@
         expr_id: ExprId,
         select_impl: bool,
     ) {
+        <span class="self">self</span>.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_index_to_check(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: ExprId) {
+        <span class="self">self</span>.get_function_context().indexes_to_check.push(index);
+    }
+
+    <span class="kw">fn </span>get_function_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>FunctionContext {
         <span class="kw">let </span>context = <span class="self">self</span>.function_context.last_mut();
-        <span class="kw">let </span>context = context.expect(<span class="string">"The function_context stack should always be non-empty"</span>);
-        context.trait_constraints.push((constraint, expr_id, select_impl));
+        context.expect(<span class="string">"The function_context stack should always be non-empty"</span>)
     }
 
     <span class="kw">pub fn </span>bind_generics_from_trait_constraint(

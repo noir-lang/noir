@@ -1414,7 +1414,9 @@
 <a href="#1413" id="1413">1413</a>
 <a href="#1414" id="1414">1414</a>
 <a href="#1415" id="1415">1415</a>
-<a href="#1416" id="1416">1416</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1829,6 +1831,8 @@
         <span class="kw">let </span>location = index_expr.index.location;
 
         <span class="kw">let </span>(index, index_type) = <span class="self">self</span>.elaborate_expression(index_expr.index);
+
+        <span class="self">self</span>.push_index_to_check(index);
 
         <span class="kw">let </span>expected = <span class="self">self</span>.polymorphic_integer_or_field();
         <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>index_type, <span class="kw-2">&amp;</span>expected, || TypeCheckError::TypeMismatch {

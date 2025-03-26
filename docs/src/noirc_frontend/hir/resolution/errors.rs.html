@@ -804,7 +804,17 @@
 <a href="#803" id="803">803</a>
 <a href="#804" id="804">804</a>
 <a href="#805" id="805">805</a>
-<a href="#806" id="806">806</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -998,6 +1008,10 @@
     </span>UnexpectedItemInPattern { location: Location, item: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
     <span class="attr">#[error(<span class="string">"Trait `{trait_name}` doesn't have a method named `{method_name}`"</span>)]
     </span>NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
+    <span class="attr">#[error(
+        <span class="string">"Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+    </span>)]
+    </span>NonU32Index { location: Location },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1061,9 +1075,8 @@
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
-            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } =&gt; {
-                <span class="kw-2">*</span>location
-            }
+            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
+            | ResolverError::NonU32Index { location } =&gt; <span class="kw-2">*</span>location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -1603,6 +1616,13 @@
             ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } =&gt; {
                 Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"Trait `{trait_name}` has no method named `{method_name}`"</span>), 
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
+            ResolverError::NonU32Index { location } =&gt; {
+                Diagnostic::simple_warning(
+                    <span class="string">"Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"</span>.to_string(), 
                     String::new(),
                     <span class="kw-2">*</span>location,
                 )
