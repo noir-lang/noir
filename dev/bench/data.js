@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743003250910,
+  "lastUpdate": 1743003455121,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "51c68c89d88860be931301334a182e809aa629e0",
-          "message": "chore: Resolve various rustdoc warnings (#7724)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-03-14T20:45:33Z",
-          "tree_id": "ddfd3abc219dea495d5898a79b70bb6ae1255d30",
-          "url": "https://github.com/noir-lang/noir/commit/51c68c89d88860be931301334a182e809aa629e0"
-        },
-        "date": 1741986626232,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.36,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14545,6 +14481,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 294.13,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a9429907114fb027e8f11d67ec7c26f9b7dcaf12",
+          "message": "fix: implicit associated types come before explicit types (#7813)",
+          "timestamp": "2025-03-26T15:07:22Z",
+          "tree_id": "90d9fee3d8169e73f70ed734a52c8a6c1c55e0f0",
+          "url": "https://github.com/noir-lang/noir/commit/a9429907114fb027e8f11d67ec7c26f9b7dcaf12"
+        },
+        "date": 1743003451451,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.29,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.8,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.13,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.15,
             "unit": "MB"
           }
         ]
