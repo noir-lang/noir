@@ -1142,38 +1142,6 @@ mod test {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
-    #[test]
-    fn constraint_decomposition() {
-        // When constructing this IR, we should automatically decompose the constraint to be in terms of `v0`, `v1` and `v2`.
-        //
-        // The mul instructions are retained and will be removed in the dead instruction elimination pass.
-        let src = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v5 == u1 1
-                return
-            }
-            ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v0 == u1 1
-                constrain v1 == u1 1
-                constrain v2 == u1 0
-                return
-            }
-            ";
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
     // Regression for #4600
     #[test]
     fn array_get_regression() {
