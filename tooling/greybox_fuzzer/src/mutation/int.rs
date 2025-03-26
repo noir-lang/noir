@@ -393,42 +393,10 @@ impl<'a> IntMutator<'a> {
             FixedIntSubstitutionOptions::Pow2 => 2i128.pow(self.prng.gen_range(0..(width - 1))),
         };
         let checked_value = match width {
-            8 => {
-                if value < i8::MIN as i128 {
-                    i8::MIN as i128
-                } else if value > i8::MAX as i128 {
-                    i8::MAX as i128
-                } else {
-                    value
-                }
-            }
-            16 => {
-                if value < i16::MIN as i128 {
-                    i16::MIN as i128
-                } else if value > i16::MAX as i128 {
-                    i16::MAX as i128
-                } else {
-                    value
-                }
-            }
-            32 => {
-                if value < i32::MIN as i128 {
-                    i32::MIN as i128
-                } else if value > i32::MAX as i128 {
-                    i32::MAX as i128
-                } else {
-                    value
-                }
-            }
-            64 => {
-                if value < i64::MIN as i128 {
-                    i64::MIN as i128
-                } else if value > i64::MAX as i128 {
-                    i64::MAX as i128
-                } else {
-                    value
-                }
-            }
+            8 => value.clamp(i8::MIN as i128, i8::MAX as i128),
+            16 => value.clamp(i16::MIN as i128, i16::MAX as i128),
+            32 => value.clamp(i32::MIN as i128, i32::MAX as i128),
+            64 => value.clamp(i64::MIN as i128, i64::MAX as i128),
             128 => value,
             _ => {
                 panic!("Shouldn't be reachable")
