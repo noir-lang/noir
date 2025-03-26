@@ -4,8 +4,6 @@ set -e
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "overlapping_dep_and_mod" "overlapping_dep_and_mod_fix" "workspace_default_member" "workspace_reexport_bug")
 
-# These tests cause failures in CI with a stack overflow for some reason.
-ci_excluded_dirs=("eddsa")
 
 current_dir=$(pwd)
 
@@ -18,10 +16,6 @@ function collect_dirs {
 
   for dir in $test_dirs; do
     if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
-      continue
-    fi
-
-    if [[ ${CI-false} = "true" ]] && [[ " ${ci_excluded_dirs[@]} " =~ " ${dir} " ]]; then
       continue
     fi
 
@@ -44,6 +38,7 @@ collect_dirs compile_success_no_bug
 collect_dirs compile_success_with_bug
 collect_dirs execution_success
 collect_dirs noir_test_success
+collect_dirs fuzzing_failure
 
 echo "]" >> Nargo.toml
 

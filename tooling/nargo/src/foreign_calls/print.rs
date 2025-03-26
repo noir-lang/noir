@@ -41,6 +41,22 @@ impl<'a> PrintForeignCallExecutor<'a> {
 }
 
 impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
+    /// Print has certain information encoded in the call arguments.
+    /// Below we outline the expected inputs.
+    ///
+    /// For regular printing:
+    /// [print_newline][ForeignCallParam::Single]: 0 for print, 1 for println
+    /// [value_to_print][ForeignCallParam::Array]: The field values representing the actual value to print
+    /// [type_metadata][ForeignCallParam::Array]: Field values representing the JSON encoded type, which tells us how to print the above value
+    /// [is_fmt_str][ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
+    ///
+    /// For printing a format string:
+    /// [print_newline][ForeignCallParam::Single]: 0 for print, 1 for println
+    /// [message][ForeignCallParam::Array]: The fmtstr as a regular string
+    /// [num_values][ForeignCallParam::Single]: Number of values in the fmtstr
+    /// [[value_to_print][ForeignCallParam::Array]; N]: Array of the field values for each value in the fmtstr
+    /// [[type_metadata][ForeignCallParam::Array]; N]: Array of field values representing the JSON encoded types
+    /// [is_fmt_str][ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
@@ -126,6 +142,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
     let num_values = num_values.unwrap_field().to_u128() as usize;
 
     let types_start_at = input_and_printable_types.len() - num_values;
+
     let mut input_iter =
         input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {

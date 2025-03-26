@@ -24,17 +24,23 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
     let a = lhs.expect_field().map_err(|err| {
-        let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
-        BrilligArithmeticError::MismatchedLhsBitSize {
-            lhs_bit_size: value_bit_size,
-            op_bit_size: expected_bit_size,
+        if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+            BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: value_bit_size,
+                op_bit_size: expected_bit_size,
+            }
+        } else {
+            unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
         }
     })?;
     let b = rhs.expect_field().map_err(|err| {
-        let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
-        BrilligArithmeticError::MismatchedRhsBitSize {
-            rhs_bit_size: value_bit_size,
-            op_bit_size: expected_bit_size,
+        if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+            BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: value_bit_size,
+                op_bit_size: expected_bit_size,
+            }
+        } else {
+            unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
         }
     })?;
 
@@ -152,14 +158,15 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
         }
 
         BinaryIntOp::Shl | BinaryIntOp::Shr => {
-            let rhs = rhs.expect_u8().map_err(
-                |MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size }| {
+            let rhs = rhs.expect_u8().map_err(|error| match error {
+                MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
                     BrilligArithmeticError::MismatchedRhsBitSize {
                         rhs_bit_size: value_bit_size,
                         op_bit_size: expected_bit_size,
                     }
-                },
-            )?;
+                }
+                _ => unreachable!("MemoryTypeError NotInteger is only produced by to_u128"),
+            })?;
 
             match (lhs, bit_size) {
                 (MemoryValue::U1(lhs), IntegerBitSize::U1) => {

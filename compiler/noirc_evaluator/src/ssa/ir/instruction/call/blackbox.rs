@@ -52,10 +52,9 @@ pub(super) fn simplify_ec_add(
 
             let result_x = dfg.make_constant(result_x, NumericType::NativeField);
             let result_y = dfg.make_constant(result_y, NumericType::NativeField);
-            let result_is_infinity =
-                dfg.make_constant(result_is_infinity, NumericType::NativeField);
+            let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
 
-            let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
+            let typ = Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
 
             let elements = im::vector![result_x, result_y, result_is_infinity];
             let instruction = Instruction::MakeArray { elements, typ };
@@ -148,11 +147,11 @@ pub(super) fn simplify_msm(
             if var_scalars.is_empty() {
                 let result_x = dfg.make_constant(result_x, NumericType::NativeField);
                 let result_y = dfg.make_constant(result_y, NumericType::NativeField);
-                let result_is_infinity =
-                    dfg.make_constant(result_is_infinity, NumericType::NativeField);
+                let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
 
                 let elements = im::vector![result_x, result_y, result_is_infinity];
-                let typ = Type::Array(Arc::new(vec![Type::field()]), 3);
+                let typ =
+                    Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
                 let instruction = Instruction::MakeArray { elements, typ };
                 let result_array =
                     dfg.insert_instruction_and_results(instruction, block, None, call_stack);
@@ -370,7 +369,7 @@ mod multi_scalar_mul {
               b0():
                 v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
                 v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
-                v2 = call multi_scalar_mul (v1, v0) -> [Field; 3]
+                v2 = call multi_scalar_mul (v1, v0) -> [(Field, Field, u1); 1]
                 return v2
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -380,7 +379,7 @@ mod multi_scalar_mul {
               b0():
                 v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
                 v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
-                v10 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, Field 0] : [Field; 3]
+                v10 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, u1 0] : [(Field, Field, u1); 1]
                 return v10
             }
             "#;

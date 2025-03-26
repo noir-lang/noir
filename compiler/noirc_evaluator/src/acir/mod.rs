@@ -2188,7 +2188,7 @@ impl<'a> Context<'a> {
                 let inputs = vecmap(&arguments_no_slice_len, |arg| self.convert_value(*arg, dfg));
 
                 let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
-                    sum + dfg.try_get_array_length(*result_id).unwrap_or(1) as usize
+                    sum + dfg.type_of_value(*result_id).flattened_size() as usize
                 });
 
                 let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;

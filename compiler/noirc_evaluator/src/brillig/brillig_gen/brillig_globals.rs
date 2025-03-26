@@ -100,6 +100,10 @@ impl BrilligGlobals {
         }
     }
 
+    pub(crate) fn entry_points(&self) -> &BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+        &self.brillig_entry_points
+    }
+
     /// Helper for marking that a constant was instantiated in a given function.
     /// For a given entry point, we want to determine which constants are shared across multiple functions.
     fn mark_globals_for_hoisting(

@@ -106,6 +106,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
+        // Using the end of the global memory space adds more complexity as we
+        // have to account for possible register de-allocations as part of regular global compilation.
+        // Thus, we want to allocate any reserved global slots first.
+        //
+        // If this flag is set, compile the array copy counter as a global
+        if self.brillig_context.count_array_copies() {
+            let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
+            self.brillig_context
+                .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
+        }
+
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
                 continue;
@@ -133,6 +144,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
             }
         }
+
         new_hoisted_constants
     }
 
@@ -153,6 +165,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Process the block's terminator instruction
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
+
+        if self.brillig_context.count_array_copies()
+            && matches!(terminator_instruction, TerminatorInstruction::Return { .. })
+            && self.function_context.is_entry_point
+        {
+            self.brillig_context.emit_println_of_array_copy_counter();
+        }
 
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
