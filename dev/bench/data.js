@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743003941237,
+  "lastUpdate": 1743004100064,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11366,70 +11366,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "d587fcc198ebaf5d7a65cf5fac628b1a41c7f112",
-          "message": "chore: add timeouts to CI (#7725)",
-          "timestamp": "2025-03-14T22:06:53Z",
-          "tree_id": "a0bd3f488842ee4513953f831f8efbced448dbcf",
-          "url": "https://github.com/noir-lang/noir/commit/d587fcc198ebaf5d7a65cf5fac628b1a41c7f112"
-        },
-        "date": 1741991468397,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.36,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "cae4216d70dbe04358eac4b29ea9719fff715bef",
           "message": "chore: pull most logic from `get_all_contracts` up out of the `CrateDefMap` (#7715)",
@@ -14545,6 +14481,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 294.15,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9f47761dd66a3f6837c2aab0962084220fc2c61e",
+          "message": "fix: proper use of add_unsafe in unconstrained (#7816)",
+          "timestamp": "2025-03-26T15:18:29Z",
+          "tree_id": "dfe58521024a4c053e34b08fe794ff5d7d121aaa",
+          "url": "https://github.com/noir-lang/noir/commit/9f47761dd66a3f6837c2aab0962084220fc2c61e"
+        },
+        "date": 1743004096685,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.16,
             "unit": "MB"
           }
         ]
