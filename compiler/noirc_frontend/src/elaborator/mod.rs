@@ -714,7 +714,7 @@ impl<'context> Elaborator<'context> {
             let unresolved_typ = typ.clone();
             let mark_datatypes_as_used = false;
             let typ = if unresolved_typ.is_type_expression() {
-                self.resolve_type_inner(
+                self.resolve_type_with_kind(
                     unresolved_typ.clone(),
                     &Kind::numeric(Type::default_int_type()),
                     mark_datatypes_as_used,
@@ -977,7 +977,7 @@ impl<'context> Elaborator<'context> {
                 // Function parameters have Kind::Normal
                 _ => {
                     let mark_datatypes_as_used = false;
-                    self.resolve_type_inner(typ, &Kind::Normal, mark_datatypes_as_used)
+                    self.resolve_type_with_kind(typ, &Kind::Normal, mark_datatypes_as_used)
                 }
             };
 

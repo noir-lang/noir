@@ -534,7 +534,7 @@ impl Elaborator<'_> {
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
         vecmap(kinds_with_types, |(kind, unresolved_type)| {
             let mark_datatypes_as_used = true;
-            self.resolve_type_inner(unresolved_type, &kind, mark_datatypes_as_used)
+            self.resolve_type_with_kind(unresolved_type, &kind, mark_datatypes_as_used)
         })
     }
 

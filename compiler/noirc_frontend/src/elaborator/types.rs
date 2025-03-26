@@ -58,7 +58,7 @@ impl Elaborator<'_> {
         mark_datatypes_as_used: bool,
     ) -> Type {
         let location = typ.location;
-        let resolved_type = self.resolve_type_inner(typ, &Kind::Normal, mark_datatypes_as_used);
+        let resolved_type = self.resolve_type_with_kind(typ, &Kind::Normal, mark_datatypes_as_used);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
@@ -67,7 +67,7 @@ impl Elaborator<'_> {
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    pub fn resolve_type_inner(
+    pub fn resolve_type_with_kind(
         &mut self,
         typ: UnresolvedType,
         kind: &Kind,
@@ -90,12 +90,14 @@ impl Elaborator<'_> {
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, kind, mark_datatypes_as_used));
+                let elem =
+                    Box::new(self.resolve_type_with_kind(*elem, kind, mark_datatypes_as_used));
                 let size = self.convert_expression_type(size, &Kind::u32(), location);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, kind, mark_datatypes_as_used));
+                let elem =
+                    Box::new(self.resolve_type_with_kind(*elem, kind, mark_datatypes_as_used));
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr, kind, location),
@@ -107,7 +109,7 @@ impl Elaborator<'_> {
             }
             FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                let fields = self.resolve_type_inner(*fields, kind, mark_datatypes_as_used);
+                let fields = self.resolve_type_with_kind(*fields, kind, mark_datatypes_as_used);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Quoted(quoted) => {
@@ -132,15 +134,16 @@ impl Elaborator<'_> {
             }
 
             Tuple(fields) => Type::Tuple(vecmap(fields, |field| {
-                self.resolve_type_inner(field, kind, mark_datatypes_as_used)
+                self.resolve_type_with_kind(field, kind, mark_datatypes_as_used)
             })),
             Function(args, ret, env, unconstrained) => {
-                let args =
-                    vecmap(args, |arg| self.resolve_type_inner(arg, kind, mark_datatypes_as_used));
-                let ret = Box::new(self.resolve_type_inner(*ret, kind, mark_datatypes_as_used));
+                let args = vecmap(args, |arg| {
+                    self.resolve_type_with_kind(arg, kind, mark_datatypes_as_used)
+                });
+                let ret = Box::new(self.resolve_type_with_kind(*ret, kind, mark_datatypes_as_used));
                 let env_location = env.location;
 
-                let env = Box::new(self.resolve_type_inner(*env, kind, mark_datatypes_as_used));
+                let env = Box::new(self.resolve_type_with_kind(*env, kind, mark_datatypes_as_used));
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
@@ -160,16 +163,16 @@ impl Elaborator<'_> {
                     self.use_unstable_feature(UnstableFeature::Ownership, location);
                 }
                 Type::Reference(
-                    Box::new(self.resolve_type_inner(*element, kind, mark_datatypes_as_used)),
+                    Box::new(self.resolve_type_with_kind(*element, kind, mark_datatypes_as_used)),
                     mutable,
                 )
             }
-            Parenthesized(typ) => self.resolve_type_inner(*typ, kind, mark_datatypes_as_used),
+            Parenthesized(typ) => self.resolve_type_with_kind(*typ, kind, mark_datatypes_as_used),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
             AsTraitPath(path) => self.resolve_as_trait_path(*path),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
-                return self.resolve_type_inner(
+                return self.resolve_type_with_kind(
                     UnresolvedType { typ, location },
                     kind,
                     mark_datatypes_as_used,
@@ -398,7 +401,7 @@ impl Elaborator<'_> {
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
         let ordered = vecmap(ordered_args, |(generic, typ)| {
-            self.resolve_type_inner(typ, &generic.kind(), mark_datatypes_as_used)
+            self.resolve_type_with_kind(typ, &generic.kind(), mark_datatypes_as_used)
         });
 
         let mut associated = Vec::new();
@@ -450,7 +453,7 @@ impl Elaborator<'_> {
             let expected = required_args.remove(index);
             seen_args.insert(name.to_string(), name.location());
 
-            let typ = self.resolve_type_inner(typ, &expected.kind(), mark_datatypes_as_used);
+            let typ = self.resolve_type_with_kind(typ, &expected.kind(), mark_datatypes_as_used);
             resolved.push(NamedType { name, typ });
         }
 
