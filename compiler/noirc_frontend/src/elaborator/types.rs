@@ -2068,6 +2068,12 @@ impl Elaborator<'_> {
         context.trait_constraints.push((constraint, expr_id, select_impl));
     }
 
+    pub(super) fn push_index_to_check(&mut self, index: ExprId) {
+        let context = self.function_context.last_mut();
+        let context = context.expect("The function_context stack should always be non-empty");
+        context.indexes_to_check.push(index);
+    }
+
     pub fn bind_generics_from_trait_constraint(
         &self,
         constraint: &TraitConstraint,
