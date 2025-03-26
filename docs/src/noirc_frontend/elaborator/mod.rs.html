@@ -2182,7 +2182,12 @@
 <a href="#2181" id="2181">2181</a>
 <a href="#2182" id="2182">2182</a>
 <a href="#2183" id="2183">2183</a>
-<a href="#2184" id="2184">2184</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2184" id="2184">2184</a>
+<a href="#2185" id="2185">2185</a>
+<a href="#2186" id="2186">2186</a>
+<a href="#2187" id="2187">2187</a>
+<a href="#2188" id="2188">2188</a>
+<a href="#2189" id="2189">2189</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -3119,10 +3124,15 @@
         <span class="kw">let </span>has_inline_attribute = has_no_predicates_attribute || should_fold;
         <span class="kw">let </span>is_pub_allowed = <span class="self">self</span>.pub_allowed(func, in_contract);
         <span class="self">self</span>.add_generics(<span class="kw-2">&amp;</span>func.def.generics);
-        <span class="kw">let </span><span class="kw-2">mut </span>generics = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.type_var.clone());
 
-        <span class="kw">let </span>new_generics = <span class="self">self</span>.desugar_trait_constraints(<span class="kw-2">&amp;mut </span>func.def.where_clause);
-        generics.extend(new_generics.into_iter().map(|generic| generic.type_var));
+        <span class="kw">let </span>func_generics = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.type_var.clone());
+
+        <span class="kw">let </span>associated_generics = <span class="self">self</span>.desugar_trait_constraints(<span class="kw-2">&amp;mut </span>func.def.where_clause);
+        <span class="kw">let </span><span class="kw-2">mut </span>generics = vecmap(associated_generics, |generic| generic.type_var);
+
+        <span class="comment">// We put associated generics first, as they are implicit and implicit generics
+        // come before explicit generics (see `Type::instantiate_with`).
+        </span>generics.extend(func_generics);
 
         <span class="kw">let </span><span class="kw-2">mut </span>trait_constraints = <span class="self">self</span>.resolve_trait_constraints(<span class="kw-2">&amp;</span>func.def.where_clause);
 
