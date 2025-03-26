@@ -244,8 +244,10 @@ struct FunctionContext {
 
     /// List of expressions that are at an index position:
     ///
+    /// ```noir
     /// foo[index]
     ///     ^^^^^
+    /// ```
     ///
     /// After each function we'll check that the type of those indexes
     /// is u32 and, if not, produce a deprecation warning.
