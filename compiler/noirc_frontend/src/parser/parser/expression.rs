@@ -286,6 +286,7 @@ impl Parser<'_> {
     ///     | ComptimeExpression
     ///     | UnquoteExpression
     ///     | TypePathExpression
+    ///     | BracketedTypePathExpression
     ///     | AsTraitPath
     ///     | ResolvedExpression
     ///     | InternedExpression
@@ -353,8 +354,8 @@ impl Parser<'_> {
             return Some(kind);
         }
 
-        if let Some(as_trait_path) = self.parse_as_trait_path() {
-            return Some(ExpressionKind::AsTraitPath(as_trait_path));
+        if let Some(kind) = self.parse_bracketed_type_path_or_as_trait_path_type_expression() {
+            return Some(kind);
         }
 
         if let Some(kind) = self.parse_resolved_expr() {
@@ -370,6 +371,25 @@ impl Parser<'_> {
         }
 
         None
+    }
+
+    /// BracketedTypePathExpression = '<' Type '>' '::' identifier ( '::' GenericTypeArgs )?
+    fn parse_bracketed_type_path_or_as_trait_path_type_expression(
+        &mut self,
+    ) -> Option<ExpressionKind> {
+        if !self.eat_less() {
+            return None;
+        }
+
+        let typ = self.parse_type_or_error();
+        if self.eat_keyword(Keyword::As) {
+            let as_trait_path = self.parse_as_trait_path_for_type_after_as_keyword(typ);
+            Some(ExpressionKind::AsTraitPath(as_trait_path))
+        } else {
+            self.eat_or_error(Token::Greater);
+            let type_path = self.parse_type_path_expr_for_type(typ);
+            Some(ExpressionKind::TypePath(type_path))
+        }
     }
 
     /// ResolvedExpression = unquote_marker
@@ -628,6 +648,10 @@ impl Parser<'_> {
         let typ = self.parse_primitive_type()?;
         let typ = UnresolvedType { typ, location: self.location_since(start_location) };
 
+        Some(ExpressionKind::TypePath(self.parse_type_path_expr_for_type(typ)))
+    }
+
+    fn parse_type_path_expr_for_type(&mut self, typ: UnresolvedType) -> TypePath {
         self.eat_or_error(Token::DoubleColon);
 
         let item = if let Some(ident) = self.eat_ident() {
@@ -645,7 +669,7 @@ impl Parser<'_> {
             generics
         });
 
-        Some(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
+        TypePath { typ, item, turbofish }
     }
 
     /// Literal
@@ -1825,6 +1849,30 @@ mod tests {
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_some());
+    }
+
+    #[test]
+    fn parses_type_path_with_tuple() {
+        let src = "<()>::foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "()");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+    }
+
+    #[test]
+    fn parses_type_path_with_array_type() {
+        let src = "<[i32; 3]>::foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "[i32; 3]");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
     }
 
     #[test]
