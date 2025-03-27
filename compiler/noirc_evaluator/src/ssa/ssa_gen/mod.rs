@@ -473,6 +473,7 @@ impl FunctionContext<'_> {
             _ => unreachable!("must have array or slice but got {array_type}"),
         }
 
+        // This shouldn't overflow because the initial index is within array bounds
         let base_index = self.builder.set_location(location).insert_binary(
             index,
             BinaryOp::Mul { unchecked: true },
