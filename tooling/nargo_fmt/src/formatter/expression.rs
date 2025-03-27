@@ -124,7 +124,7 @@ impl ChunkFormatter<'_, '_> {
                 formatter.write_right_paren();
             })),
             Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_, _) | Literal::RawStr(..) => {
-                group.text(self.chunk(|formatter| {
+                group.verbatim(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
                 }));
@@ -2514,5 +2514,35 @@ global y = 1;
 }
 ";
         assert_format(src, src);
+    }
+
+    #[test]
+    fn does_not_add_extra_spaces_to_fmtstr() {
+        let src = r#"fn main() {
+    let multiline_string: str<22> = "{
+        \"key\": \"value\"
+}";
+}
+"#;
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn joins_comma_with_verbatim() {
+        let src = r#"fn main() {
+    foo(1, ["(", "I", " ", "x" , "b"]);
+}
+"#;
+        let expected = r#"fn main() {
+    foo(
+        1,
+        [
+            "(", "I", " ",
+            "x", "b",
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, expected, 30);
     }
 }

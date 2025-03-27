@@ -41,7 +41,7 @@ use crate::{
 };
 
 use super::{
-    Elaborator, UnsafeBlockStatus, lints,
+    Elaborator, FunctionContext, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode},
 };
 
@@ -2112,9 +2112,7 @@ impl Elaborator<'_> {
     /// Push a type variable into the current FunctionContext to be defaulted if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
     fn push_type_variable(&mut self, typ: Type) {
-        let context = self.function_context.last_mut();
-        let context = context.expect("The function_context stack should always be non-empty");
-        context.type_variables.push(typ);
+        self.get_function_context().type_variables.push(typ);
     }
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
@@ -2125,9 +2123,16 @@ impl Elaborator<'_> {
         expr_id: ExprId,
         select_impl: bool,
     ) {
+        self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
+    }
+
+    pub(super) fn push_index_to_check(&mut self, index: ExprId) {
+        self.get_function_context().indexes_to_check.push(index);
+    }
+
+    fn get_function_context(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
-        let context = context.expect("The function_context stack should always be non-empty");
-        context.trait_constraints.push((constraint, expr_id, select_impl));
+        context.expect("The function_context stack should always be non-empty")
     }
 
     pub fn bind_generics_from_trait_constraint(
