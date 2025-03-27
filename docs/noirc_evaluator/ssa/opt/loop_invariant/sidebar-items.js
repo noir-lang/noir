@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["LoopInvariantContext"]};
+window.SIDEBAR_ITEMS = {"fn":["can_be_hoisted"],"struct":["LoopInvariantContext"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ConstrainError","Endian","ErrorType","Hint","Instruction","InstructionResultType","Intrinsic","SimplifyResult","TerminatorInstruction"],"fn":["try_optimize_array_get_from_previous_set","try_optimize_array_set_from_previous_get"],"mod":["binary","call","cast","constrain"],"type":["InstructionId"]};
+window.SIDEBAR_ITEMS = {"enum":["ConstrainError","Endian","ErrorType","Hint","Instruction","InstructionResultType","Intrinsic","TerminatorInstruction"],"mod":["binary"],"type":["InstructionId"]};

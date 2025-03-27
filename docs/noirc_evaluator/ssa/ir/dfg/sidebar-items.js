@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["InsertInstructionResult"],"struct":["DataFlowGraph","GlobalsGraph"]};
+window.SIDEBAR_ITEMS = {"enum":["InsertInstructionResult"],"mod":["simplify"],"struct":["DataFlowGraph","GlobalsGraph"]};

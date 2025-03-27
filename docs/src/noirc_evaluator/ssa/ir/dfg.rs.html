@@ -940,11 +940,12 @@
 <a href="#939" id="939">939</a>
 <a href="#940" id="940">940</a>
 <a href="#941" id="941">941</a>
-<a href="#942" id="942">942</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
-    ir::instruction::SimplifyResult,
     opt::pure::{FunctionPurities, Purity},
 };
 
@@ -966,6 +967,9 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>serde_with::DisplayFromStr;
 <span class="kw">use </span>serde_with::serde_as;
+<span class="kw">use </span>simplify::{SimplifyResult, simplify};
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>simplify;
 
 <span class="doccomment">/// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -1256,7 +1260,7 @@
             </span><span class="kw">return </span>InsertInstructionResult::InstructionRemoved;
         }
 
-        <span class="kw">match </span>instruction.simplify(<span class="self">self</span>, block, ctrl_typevars.clone(), call_stack) {
+        <span class="kw">match </span>simplify(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) =&gt; {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }

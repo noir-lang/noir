@@ -1843,15 +1843,112 @@
 <a href="#1842" id="1842">1842</a>
 <a href="#1843" id="1843">1843</a>
 <a href="#1844" id="1844">1844</a>
-<a href="#1845" id="1845">1845</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
-//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][Instruction::simplify()].
+<a href="#1845" id="1845">1845</a>
+<a href="#1846" id="1846">1846</a>
+<a href="#1847" id="1847">1847</a>
+<a href="#1848" id="1848">1848</a>
+<a href="#1849" id="1849">1849</a>
+<a href="#1850" id="1850">1850</a>
+<a href="#1851" id="1851">1851</a>
+<a href="#1852" id="1852">1852</a>
+<a href="#1853" id="1853">1853</a>
+<a href="#1854" id="1854">1854</a>
+<a href="#1855" id="1855">1855</a>
+<a href="#1856" id="1856">1856</a>
+<a href="#1857" id="1857">1857</a>
+<a href="#1858" id="1858">1858</a>
+<a href="#1859" id="1859">1859</a>
+<a href="#1860" id="1860">1860</a>
+<a href="#1861" id="1861">1861</a>
+<a href="#1862" id="1862">1862</a>
+<a href="#1863" id="1863">1863</a>
+<a href="#1864" id="1864">1864</a>
+<a href="#1865" id="1865">1865</a>
+<a href="#1866" id="1866">1866</a>
+<a href="#1867" id="1867">1867</a>
+<a href="#1868" id="1868">1868</a>
+<a href="#1869" id="1869">1869</a>
+<a href="#1870" id="1870">1870</a>
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a>
+<a href="#1873" id="1873">1873</a>
+<a href="#1874" id="1874">1874</a>
+<a href="#1875" id="1875">1875</a>
+<a href="#1876" id="1876">1876</a>
+<a href="#1877" id="1877">1877</a>
+<a href="#1878" id="1878">1878</a>
+<a href="#1879" id="1879">1879</a>
+<a href="#1880" id="1880">1880</a>
+<a href="#1881" id="1881">1881</a>
+<a href="#1882" id="1882">1882</a>
+<a href="#1883" id="1883">1883</a>
+<a href="#1884" id="1884">1884</a>
+<a href="#1885" id="1885">1885</a>
+<a href="#1886" id="1886">1886</a>
+<a href="#1887" id="1887">1887</a>
+<a href="#1888" id="1888">1888</a>
+<a href="#1889" id="1889">1889</a>
+<a href="#1890" id="1890">1890</a>
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
 //! - Re-insert each instruction in order to apply the instruction simplification performed
 //!   by the [`DataFlowGraph`] automatically as new instructions are pushed.
 //! - Check whether any input values have been constrained to be equal to a value of a simpler form
 //!   by a [constrain instruction][Instruction::Constrain]. If so, replace the input value with the simpler form.
-//! - Check whether the instruction [can_be_deduplicated][Instruction::can_be_deduplicated()]
+//! - Check whether the instruction [`can_be_deduplicated`]
 //!   by duplicate instruction earlier in the same block.
 //!
 //! These operations are done in parallel so that they can each benefit from each other
@@ -1886,10 +1983,11 @@
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{Instruction, InstructionId},
+            instruction::{BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId},
         },
+        opt::pure::Purity,
         ssa_gen::Ssa,
     },
 };
@@ -2307,7 +2405,7 @@
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
         </span><span class="kw">let </span>can_be_deduplicated =
-            instruction.can_be_deduplicated(function, <span class="self">self</span>.use_constraint_info);
+            can_be_deduplicated(<span class="kw-2">&amp;</span>instruction, function, <span class="self">self</span>.use_constraint_info);
 
         <span class="comment">// We also allow deduplicating MakeArray instructions that we have tracked which haven't
         // been mutated.
@@ -2358,7 +2456,7 @@
         <span class="kw">let </span>predicate = <span class="self">self</span>.use_constraint_info &amp;&amp; instruction.requires_acir_gen_predicate(dfg);
         <span class="kw">let </span>predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(<span class="kw-2">&amp;</span>predicate)<span class="question-mark">?</span>.get(block, dom, instruction.has_side_effects(dfg))
+        results_for_instruction.get(<span class="kw-2">&amp;</span>predicate)<span class="question-mark">?</span>.get(block, dom, has_side_effects(instruction, dfg))
     }
 
     <span class="doccomment">/// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -2648,6 +2746,134 @@
     }
 }
 
+<span class="doccomment">/// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+///
+/// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
+/// constraints into account, because it might not use it to isolate the side effects across branches.
+</span><span class="kw">fn </span>has_side_effects(instruction: <span class="kw-2">&amp;</span>Instruction, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
+    <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
+
+    <span class="kw">match </span>instruction {
+        <span class="comment">// These either have side-effects or interact with memory
+        </span>EnableSideEffectsIf { .. }
+        | Allocate
+        | Load { .. }
+        | Store { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. } =&gt; <span class="bool-val">true</span>,
+
+        Call { func, .. } =&gt; <span class="kw">match </span>dfg[<span class="kw-2">*</span>func] {
+            Value::Intrinsic(intrinsic) =&gt; intrinsic.has_side_effects(),
+            <span class="comment">// Functions known to be pure have no side effects.
+            // `PureWithPredicates` functions may still have side effects.
+            </span>Value::Function(function) =&gt; dfg.purity_of(function) != <span class="prelude-val">Some</span>(Purity::Pure),
+            <span class="kw">_ </span>=&gt; <span class="bool-val">true</span>, <span class="comment">// Be conservative and assume other functions can have side effects.
+        </span>},
+
+        <span class="comment">// These can fail.
+        </span>Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } =&gt; <span class="bool-val">true</span>,
+
+        <span class="comment">// This should never be side-effectful
+        </span>MakeArray { .. } | Noop =&gt; <span class="bool-val">false</span>,
+
+        <span class="comment">// Some binary math can overflow or underflow
+        </span>Binary(binary) =&gt; <span class="kw">match </span>binary.operator {
+            BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
+            | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
+            | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
+            | BinaryOp::Div
+            | BinaryOp::Mod =&gt; <span class="bool-val">true</span>,
+            BinaryOp::Add { unchecked: <span class="bool-val">true </span>}
+            | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}
+            | BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr =&gt; <span class="bool-val">false</span>,
+        },
+
+        <span class="comment">// These can have different behavior depending on the EnableSideEffectsIf context.
+        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>)
+        | Not(<span class="kw">_</span>)
+        | Truncate { .. }
+        | IfElse { .. }
+        | ArrayGet { .. }
+        | ArraySet { .. } =&gt; instruction.requires_acir_gen_predicate(dfg),
+    }
+}
+
+<span class="doccomment">/// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+/// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+/// and its predicate, rather than just the instruction. Setting this means instructions that
+/// rely on predicates can be deduplicated as well.
+///
+/// Some instructions get the predicate attached to their inputs by `handle_instruction_side_effects` in `flatten_cfg`.
+/// These can be deduplicated because they implicitly depend on the predicate, not only when the caller uses the
+/// predicate variable as a key to cache results. However, to avoid tight coupling between passes, we make the deduplication
+/// conditional on whether the caller wants the predicate to be taken into account or not.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_be_deduplicated(
+    instruction: <span class="kw-2">&amp;</span>Instruction,
+    function: <span class="kw-2">&amp;</span>Function,
+    deduplicate_with_predicate: bool,
+) -&gt; bool {
+    <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
+
+    <span class="kw">match </span>instruction {
+        <span class="comment">// These either have side-effects or interact with memory
+        </span>EnableSideEffectsIf { .. }
+        | Allocate
+        | Load { .. }
+        | Store { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. } =&gt; <span class="bool-val">false</span>,
+
+        Call { func, .. } =&gt; <span class="kw">match </span>function.dfg[<span class="kw-2">*</span>func] {
+            Value::Intrinsic(intrinsic) =&gt; {
+                intrinsic.can_be_deduplicated(deduplicate_with_predicate)
+            }
+            Value::Function(id) =&gt; <span class="kw">match </span>function.dfg.purity_of(id) {
+                <span class="prelude-val">Some</span>(Purity::Pure) =&gt; <span class="bool-val">true</span>,
+                <span class="prelude-val">Some</span>(Purity::PureWithPredicate) =&gt; deduplicate_with_predicate,
+                <span class="prelude-val">Some</span>(Purity::Impure) =&gt; <span class="bool-val">false</span>,
+                <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
+            },
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        },
+
+        <span class="comment">// We can deduplicate these instructions if we know the predicate is also the same.
+        </span>Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } =&gt; deduplicate_with_predicate,
+
+        <span class="comment">// Noop instructions can always be deduplicated, although they're more likely to be
+        // removed entirely.
+        </span>Noop =&gt; <span class="bool-val">true</span>,
+
+        <span class="comment">// Cast instructions can always be deduplicated
+        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+
+        <span class="comment">// Arrays can be mutated in unconstrained code so code that handles this case must
+        // take care to track whether the array was possibly mutated or not before
+        // deduplicating. Since we don't know if the containing pass checks for this, we
+        // can only assume these are safe to deduplicate in constrained code.
+        </span>MakeArray { .. } =&gt; function.runtime().is_acir(),
+
+        <span class="comment">// These can have different behavior depending on the EnableSideEffectsIf context.
+        // Replacing them with a similar instruction potentially enables replacing an instruction
+        // with one that was disabled. See
+        // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+        </span>Binary(<span class="kw">_</span>)
+        | Not(<span class="kw">_</span>)
+        | Truncate { .. }
+        | IfElse { .. }
+        | ArrayGet { .. }
+        | ArraySet { .. } =&gt; {
+            deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>function.dfg)
+        }
+    }
+}
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span>std::sync::Arc;
@@ -2855,38 +3081,6 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>constraint_decomposition() {
-        <span class="comment">// When constructing this IR, we should automatically decompose the constraint to be in terms of `v0`, `v1` and `v2`.
-        //
-        // The mul instructions are retained and will be removed in the dead instruction elimination pass.
-        </span><span class="kw">let </span>src = <span class="string">"
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v5 == u1 1
-                return
-            }
-            "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v0 == u1 1
-                constrain v1 == u1 1
-                constrain v2 == u1 0
-                return
-            }
-            "</span>;
         assert_normalized_ssa_equals(ssa, expected);
     }
 
