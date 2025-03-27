@@ -162,7 +162,6 @@ mod reflection {
         let mut source = String::from_utf8(source).expect("not a UTF-8 string");
         replace_throw(&mut source);
         MsgPackCodeGenerator::add_preamble(&mut source);
-        MsgPackCodeGenerator::add_helpers(&mut source, namespace);
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
@@ -226,60 +225,6 @@ mod reflection {
             source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
         }
 
-        /// Add helper functions to cut down repetition in the generated code.
-        fn add_helpers(source: &mut String, namespace: &str) {
-            // Based on https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L75
-            // Using a `struct Helpers` with `static` methods, because top level functions turn up as duplicates in `wasm-ld`.
-            let helpers = r#"
-struct Helpers {
-    static std::map<std::string, msgpack::object const*> make_kvmap(
-        msgpack::object const& o,
-        std::string const& name
-    ) {
-        if(o.type != msgpack::type::MAP) {
-            std::cerr << o << std::endl;
-            throw_or_abort("expected MAP for " + name);
-        }
-        std::map<std::string, msgpack::object const*> kvmap;
-        for (uint32_t i = 0; i < o.via.map.size; ++i) {
-            if (o.via.map.ptr[i].key.type != msgpack::type::STR) {
-                std::cerr << o << std::endl;
-                throw_or_abort("expected STR for keys of " + name);
-            }
-            kvmap.emplace(
-                std::string(
-                    o.via.map.ptr[i].key.via.str.ptr,
-                    o.via.map.ptr[i].key.via.str.size),
-                &o.via.map.ptr[i].val);
-        }
-        return kvmap;
-    }
-
-    template<typename T>
-    static void conv_fld_from_kvmap(
-        std::map<std::string, msgpack::object const*> const& kvmap,
-        std::string const& struct_name,
-        std::string const& field_name,
-        T& field
-    ) {
-        auto it = kvmap.find(field_name);
-        if (it != kvmap.end()) {
-            try {
-                it->second->convert(field);
-            } catch (const msgpack::type_error&) {
-                std::cerr << *it->second << std::endl;
-                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
-            }
-        } else {
-            throw_or_abort("missing field: " + struct_name + "::" + field_name);
-        }
-    }
-};
-"#;
-            let pos = source.find(&format!("namespace {namespace}")).expect("namespace");
-            source.insert_str(pos, &format!("namespace {namespace} {{{helpers}}}\n\n"));
-        }
-
         fn generate(namespace: &str, registry: &Registry, code: CustomCode) -> CustomCode {
             let mut g = Self { namespace: vec![namespace.to_string()], code };
             for (name, container) in registry {
@@ -332,49 +277,11 @@ struct Helpers {
 
         /// Regular structs pack into a map.
         fn generate_struct(&mut self, name: &str, fields: &[Named<Format>]) {
-            // We can use the `MSGPACK_FIELDS` macro with the following:
-            // self.msgpack_fields(name, fields.iter().map(|f| f.name.clone()));
-
-            // Or we can generate code for individual fields, which relies on
-            // the `add_helpers` to add some utility functions. This way the
-            // code is more verbose, but also easier to control, e.g. we can
-            // raise errors telling specifically which field was wrong,
-            // or we could reject the data if there was a new field we could
-            // not recognise, or we could even handle aliases.
-
-            self.msgpack_pack(name, &{
-                let mut body = format!(
-                    "
-    packer.pack_map({});",
-                    fields.len()
-                );
-                for field in fields {
-                    let field_name = &field.name;
-                    body.push_str(&format!(
-                        r#"
-    packer.pack(std::make_pair("{field_name}", {field_name}));"#
-                    ));
-                }
-                body
-            });
-
-            self.msgpack_unpack(name, &{
-                // Turn the MAP into a `std::map<string, msgpack::object>`,
-                // then look up each field, returning error if one isn't found.
-                let mut body = format!(
-                    r#"
-    auto name = "{name}";
-    auto kvmap = Helpers::make_kvmap(o, name);"#
-                );
-                for field in fields {
-                    let field_name = &field.name;
-                    body.push_str(&format!(
-                        r#"
-    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name});"#
-                    ));
-                }
-                body
-            });
+            // We can use the `MSGPACK_FIELDS` macro with the following.
+            // I think it ignores extra fields. Should we want to take more control over that
+            // we can generate code for individual fields; see the original msgpack PR commits
+            // for such an approach, which has ultimately been discarded for simpler C++ code.
+            self.msgpack_fields(name, fields.iter().map(|f| f.name.clone()));
         }
 
         /// Newtypes serialize as their underlying `value` that the C++ generator creates.
