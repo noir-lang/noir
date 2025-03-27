@@ -505,16 +505,19 @@ fn can_be_hoisted(
         | IncrementRc { .. }
         | DecrementRc { .. } => false,
 
-        Call { func, .. } => match function.dfg[*func] {
-            Value::Intrinsic(intrinsic) => intrinsic.purity() == Purity::Pure,
-            Value::Function(id) => match function.dfg.purity_of(id) {
+        Call { func, .. } => {
+            let purity = match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
+                Value::Function(id) => function.dfg.purity_of(id),
+                _ => None,
+            };
+            match purity {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => false,
                 Some(Purity::Impure) => false,
                 None => false,
-            },
-            _ => false,
-        },
+            }
+        }
 
         // We cannot hoist these instructions, even if we know the predicate is the same.
         // This is because an loop with dynamic bounds may never execute its loop body.
