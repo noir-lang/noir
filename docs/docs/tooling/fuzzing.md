@@ -85,7 +85,7 @@ It is recommended to use `--skip-underconstrained-check` to increase compilation
 
 ## Fuzzing more complex programs
 
-### Using only_fail_with
+### Using `only_fail_with`
 A lot of the time, the program will already have many expected assertions that would lead to a failing test case, for example:
 
 ```rust
