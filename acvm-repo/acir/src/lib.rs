@@ -234,7 +234,7 @@ mod reflection {
 struct Helpers {
     static std::map<std::string, msgpack::object const*> make_kvmap(
         msgpack::object const& o,
-        std::string name
+        std::string const& name
     ) {
         if(o.type != msgpack::type::MAP) {
             std::cerr << o << std::endl;
@@ -258,8 +258,8 @@ struct Helpers {
     template<typename T>
     static void conv_fld_from_kvmap(
         std::map<std::string, msgpack::object const*> const& kvmap,
-        std::string struct_name,
-        std::string field_name,
+        std::string const& struct_name,
+        std::string const& field_name,
         T& field
     ) {
         auto it = kvmap.find(field_name);
