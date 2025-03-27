@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743081416987,
+  "lastUpdate": 1743081419618,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d9714db484554d85706877d9e96e4b360782873a",
-          "message": "fix: handle predicate value reduction in array get also for the databus (#7730)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
-          "timestamp": "2025-03-18T13:33:36Z",
-          "tree_id": "7d5533e823d88ff648c533661d78ba8ec218d974",
-          "url": "https://github.com/noir-lang/noir/commit/d9714db484554d85706877d9e96e4b360782873a"
-        },
-        "date": 1742306306179,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.698,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 15,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.495,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.442,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.972,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.956,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.046,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.664,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.466,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "14488e5f0476fff0a957e8509a9be64165c7a329",
+          "message": "chore: move Instruction::has_side_effects and similar functions into their relevant SSA passes (#7822)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-03-27T12:56:47Z",
+          "tree_id": "d430ef68e3b8b4917e297e416d46498d52981f48",
+          "url": "https://github.com/noir-lang/noir/commit/14488e5f0476fff0a957e8509a9be64165c7a329"
+        },
+        "date": 1743081412404,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.742,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 15.2,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.532,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.6,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.104,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 134,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.912,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.51,
             "unit": "s"
           }
         ]
