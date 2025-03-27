@@ -506,7 +506,7 @@ fn can_be_hoisted(
         | DecrementRc { .. } => false,
 
         Call { func, .. } => match function.dfg[*func] {
-            Value::Intrinsic(intrinsic) => intrinsic.can_be_deduplicated(false),
+            Value::Intrinsic(intrinsic) => intrinsic.purity() == Purity::Pure,
             Value::Function(id) => match function.dfg.purity_of(id) {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => false,

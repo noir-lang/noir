@@ -889,18 +889,19 @@ pub(crate) fn can_be_deduplicated(
         | IncrementRc { .. }
         | DecrementRc { .. } => false,
 
-        Call { func, .. } => match function.dfg[*func] {
-            Value::Intrinsic(intrinsic) => {
-                intrinsic.can_be_deduplicated(deduplicate_with_predicate)
-            }
-            Value::Function(id) => match function.dfg.purity_of(id) {
+        Call { func, .. } => {
+            let purity = match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
+                Value::Function(id) => function.dfg.purity_of(id),
+                _ => None,
+            };
+            match purity {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
                 Some(Purity::Impure) => false,
                 None => false,
-            },
-            _ => false,
-        },
+            }
+        }
 
         // We can deduplicate these instructions if we know the predicate is also the same.
         Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => deduplicate_with_predicate,

@@ -145,16 +145,6 @@ impl Intrinsic {
         }
     }
 
-    /// Intrinsics which only have a side effect due to the chance that
-    /// they can fail a constraint can be deduplicated.
-    pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
-        match self.purity() {
-            Purity::Pure => true,
-            Purity::PureWithPredicate => deduplicate_with_predicate,
-            Purity::Impure => false,
-        }
-    }
-
     pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
