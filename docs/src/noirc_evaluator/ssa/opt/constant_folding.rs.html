@@ -1935,12 +1935,7 @@
 <a href="#1934" id="1934">1934</a>
 <a href="#1935" id="1935">1935</a>
 <a href="#1936" id="1936">1936</a>
-<a href="#1937" id="1937">1937</a>
-<a href="#1938" id="1938">1938</a>
-<a href="#1939" id="1939">1939</a>
-<a href="#1940" id="1940">1940</a>
-<a href="#1941" id="1941">1941</a>
-<a href="#1942" id="1942">1942</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#1937" id="1937">1937</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2385,9 +2380,7 @@
         // Thus, even if the index is dynamic (meaning the array get would have side effects),
         // we can simplify the operation when we take into account the predicate.
         </span><span class="kw">if let </span>Instruction::ArraySet { index, value, .. } = <span class="kw-2">&amp;</span>instruction {
-            <span class="kw">let </span>use_predicate =
-                <span class="self">self</span>.use_constraint_info &amp;&amp; instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>function.dfg);
-            <span class="kw">let </span>predicate = use_predicate.then_some(side_effects_enabled_var);
+            <span class="kw">let </span>predicate = <span class="self">self</span>.use_constraint_info.then_some(side_effects_enabled_var);
 
             <span class="kw">let </span>array_get = Instruction::ArrayGet { array: instruction_results[<span class="number">0</span>], index: <span class="kw-2">*</span>index };
 
@@ -2795,13 +2788,14 @@
             | BinaryOp::Shr =&gt; <span class="bool-val">false</span>,
         },
 
-        <span class="comment">// These can have different behavior depending on the EnableSideEffectsIf context.
-        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>)
-        | Not(<span class="kw">_</span>)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } =&gt; instruction.requires_acir_gen_predicate(dfg),
+        <span class="comment">// These don't have side effects
+        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) | Not(<span class="kw">_</span>) | Truncate { .. } | IfElse { .. } =&gt; <span class="bool-val">false</span>,
+
+        <span class="comment">// `ArrayGet`s which read from "known good" indices from an array have no side effects
+        </span>ArrayGet { array, index } =&gt; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array),
+
+        <span class="comment">// ArraySet has side effects
+        </span>ArraySet { .. } =&gt; <span class="bool-val">true</span>,
     }
 }
 
@@ -2830,18 +2824,19 @@
         | IncrementRc { .. }
         | DecrementRc { .. } =&gt; <span class="bool-val">false</span>,
 
-        Call { func, .. } =&gt; <span class="kw">match </span>function.dfg[<span class="kw-2">*</span>func] {
-            Value::Intrinsic(intrinsic) =&gt; {
-                intrinsic.can_be_deduplicated(deduplicate_with_predicate)
-            }
-            Value::Function(id) =&gt; <span class="kw">match </span>function.dfg.purity_of(id) {
+        Call { func, .. } =&gt; {
+            <span class="kw">let </span>purity = <span class="kw">match </span>function.dfg[<span class="kw-2">*</span>func] {
+                Value::Intrinsic(intrinsic) =&gt; <span class="prelude-val">Some</span>(intrinsic.purity()),
+                Value::Function(id) =&gt; function.dfg.purity_of(id),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            };
+            <span class="kw">match </span>purity {
                 <span class="prelude-val">Some</span>(Purity::Pure) =&gt; <span class="bool-val">true</span>,
                 <span class="prelude-val">Some</span>(Purity::PureWithPredicate) =&gt; deduplicate_with_predicate,
                 <span class="prelude-val">Some</span>(Purity::Impure) =&gt; <span class="bool-val">false</span>,
                 <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
-            },
-            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-        },
+            }
+        }
 
         <span class="comment">// We can deduplicate these instructions if we know the predicate is also the same.
         </span>Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } =&gt; deduplicate_with_predicate,
@@ -2850,8 +2845,8 @@
         // removed entirely.
         </span>Noop =&gt; <span class="bool-val">true</span>,
 
-        <span class="comment">// Cast instructions can always be deduplicated
-        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+        <span class="comment">// These instructions can always be deduplicated
+        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) | Not(<span class="kw">_</span>) | Truncate { .. } | IfElse { .. } =&gt; <span class="bool-val">true</span>,
 
         <span class="comment">// Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
@@ -2863,12 +2858,7 @@
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-        </span>Binary(<span class="kw">_</span>)
-        | Not(<span class="kw">_</span>)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } =&gt; {
+        </span>Binary(<span class="kw">_</span>) | ArrayGet { .. } | ArraySet { .. } =&gt; {
             deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>function.dfg)
         }
     }

@@ -1522,9 +1522,7 @@
 <a href="#1521" id="1521">1521</a>
 <a href="#1522" id="1522">1522</a>
 <a href="#1523" id="1523">1523</a>
-<a href="#1524" id="1524">1524</a>
-<a href="#1525" id="1525">1525</a>
-<a href="#1526" id="1526">1526</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
+<a href="#1524" id="1524">1524</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -2031,16 +2029,19 @@
         | IncrementRc { .. }
         | DecrementRc { .. } =&gt; <span class="bool-val">false</span>,
 
-        Call { func, .. } =&gt; <span class="kw">match </span>function.dfg[<span class="kw-2">*</span>func] {
-            Value::Intrinsic(intrinsic) =&gt; intrinsic.can_be_deduplicated(<span class="bool-val">false</span>),
-            Value::Function(id) =&gt; <span class="kw">match </span>function.dfg.purity_of(id) {
+        Call { func, .. } =&gt; {
+            <span class="kw">let </span>purity = <span class="kw">match </span>function.dfg[<span class="kw-2">*</span>func] {
+                Value::Intrinsic(intrinsic) =&gt; <span class="prelude-val">Some</span>(intrinsic.purity()),
+                Value::Function(id) =&gt; function.dfg.purity_of(id),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            };
+            <span class="kw">match </span>purity {
                 <span class="prelude-val">Some</span>(Purity::Pure) =&gt; <span class="bool-val">true</span>,
                 <span class="prelude-val">Some</span>(Purity::PureWithPredicate) =&gt; <span class="bool-val">false</span>,
                 <span class="prelude-val">Some</span>(Purity::Impure) =&gt; <span class="bool-val">false</span>,
                 <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
-            },
-            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-        },
+            }
+        }
 
         <span class="comment">// We cannot hoist these instructions, even if we know the predicate is the same.
         // This is because an loop with dynamic bounds may never execute its loop body.
@@ -2054,8 +2055,8 @@
         // removed entirely.
         </span>Noop =&gt; <span class="bool-val">true</span>,
 
-        <span class="comment">// Cast instructions can always be hoisted
-        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+        <span class="comment">// These instructions can always be hoisted
+        </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) | Not(<span class="kw">_</span>) | Truncate { .. } | IfElse { .. } =&gt; <span class="bool-val">true</span>,
 
         <span class="comment">// Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
@@ -2064,12 +2065,7 @@
         </span>MakeArray { .. } =&gt; function.runtime().is_acir(),
 
         <span class="comment">// These can have different behavior depending on the predicate.
-        </span>Binary(<span class="kw">_</span>)
-        | Not(<span class="kw">_</span>)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } =&gt; {
+        </span>Binary(<span class="kw">_</span>) | ArrayGet { .. } | ArraySet { .. } =&gt; {
             hoist_with_predicate || !instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>function.dfg)
         }
     }
