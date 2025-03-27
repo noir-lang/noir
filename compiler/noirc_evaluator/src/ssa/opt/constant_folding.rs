@@ -908,8 +908,8 @@ pub(crate) fn can_be_deduplicated(
         // removed entirely.
         Noop => true,
 
-        // Cast instructions can always be deduplicated
-        Cast(_, _) => true,
+        // These instructions can always be deduplicated
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => true,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
@@ -921,12 +921,7 @@ pub(crate) fn can_be_deduplicated(
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-        Binary(_)
-        | Not(_)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } => {
+        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
     }
