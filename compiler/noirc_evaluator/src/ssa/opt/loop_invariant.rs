@@ -503,10 +503,7 @@ fn can_be_hoisted(
         | Load { .. }
         | Store { .. }
         | IncrementRc { .. }
-        | DecrementRc { .. }
-        | Not(_)
-        | Truncate { .. }
-        | IfElse { .. } => false,
+        | DecrementRc { .. } => false,
 
         Call { func, .. } => match function.dfg[*func] {
             Value::Intrinsic(intrinsic) => intrinsic.purity() == Purity::Pure,
@@ -531,8 +528,8 @@ fn can_be_hoisted(
         // removed entirely.
         Noop => true,
 
-        // Cast instructions can always be hoisted
-        Cast(_, _) => true,
+        // These instructions can always be hoisted
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => true,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
