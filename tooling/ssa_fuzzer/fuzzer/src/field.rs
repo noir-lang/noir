@@ -13,15 +13,16 @@ use crate::fuzzer::Fuzzer;
 
 impl Instructions {
     fn is_supported(&self) -> bool {
-        match self {
+        !matches!(
+            self,
             Instructions::Shl { .. }
             | Instructions::Shr { .. }
             | Instructions::And { .. }
             | Instructions::Or { .. }
             | Instructions::Xor { .. }
-            | Instructions::Not { .. } => false,
-            _ => true,
-        }
+            | Instructions::Not { .. } 
+            | Instructions::Mod { .. }
+        )
     }
 }
 
