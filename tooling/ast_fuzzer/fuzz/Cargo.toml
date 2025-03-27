@@ -17,8 +17,22 @@ libfuzzer-sys.workspace = true
 noir_ast_fuzzer = { path = ".." }
 
 [[bin]]
-name = "ast"
-path = "fuzz_targets/ast.rs"
+name = "initial_vs_final"
+path = "fuzz_targets/initial_vs_final.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "acir_vs_brillig"
+path = "fuzz_targets/acir_vs_brillig.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mutation"
+path = "fuzz_targets/mutation.rs"
 test = false
 doc = false
 bench = false
