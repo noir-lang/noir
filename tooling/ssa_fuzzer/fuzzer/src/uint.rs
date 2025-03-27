@@ -11,7 +11,6 @@ use crate::base_context::Instructions;
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
-
 /// Represents the data for the fuzzer
 /// `methods` - sequence of instructions to be added to the program
 #[derive(Arbitrary, Debug, Clone, Hash)]
@@ -27,7 +26,6 @@ impl Fuzzer {
     }
 }
 
-
 // main fuzz loop
 libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     // init logger and initialize witness map
@@ -35,7 +33,9 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     let type_ = Type::unsigned(64);
     let mut witness_map = WitnessMap::new();
     let mut values = vec![];
-    for (i, witness_value) in data.initial_witness.iter().map(|x| FieldElement::from(*x)).enumerate() {
+    for (i, witness_value) in
+        data.initial_witness.iter().map(|x| FieldElement::from(*x)).enumerate()
+    {
         witness_map.insert(Witness(i as u32), witness_value);
         values.push(witness_value);
     }

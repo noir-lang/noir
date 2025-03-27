@@ -1,5 +1,5 @@
 [package]
-name = "fuzz"
+name = "ssa_fuzzer_fuzz"
 version = "0.0.1"
 publish = false
 edition = "2021"

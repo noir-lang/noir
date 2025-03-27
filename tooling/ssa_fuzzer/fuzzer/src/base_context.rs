@@ -135,11 +135,15 @@ impl FuzzerContext {
         }
         let acir_array = self.acir_builder.insert_make_array(acir_values_ids);
         let brillig_array = self.brillig_builder.insert_make_array(brillig_values_ids);
-        self.arrays.push(Array { acir_id: acir_array, brillig_id: brillig_array, length: elements.len() as u32 });
+        self.arrays.push(Array {
+            acir_id: acir_array,
+            brillig_id: brillig_array,
+            length: elements.len() as u32,
+        });
     }
 
-     /// Gets an element from an array at the given index
-     pub(crate) fn insert_array_get(&mut self, array_idx: u32, index: u32) {
+    /// Gets an element from an array at the given index
+    pub(crate) fn insert_array_get(&mut self, array_idx: u32, index: u32) {
         if self.arrays.is_empty() {
             // no arrays created
             return;
@@ -177,7 +181,11 @@ impl FuzzerContext {
         let acir_return_id = self.acir_builder.insert_array_set(acir_array_id, acir_id, acir_value);
         let brillig_return_id =
             self.brillig_builder.insert_array_set(brillig_array_id, brillig_id, brillig_value);
-        self.arrays.push(Array { acir_id: acir_return_id, brillig_id: brillig_return_id, length: array.length });
+        self.arrays.push(Array {
+            acir_id: acir_return_id,
+            brillig_id: brillig_return_id,
+            length: array.length,
+        });
     }
 
     /// Inserts an instruction that takes a single argument

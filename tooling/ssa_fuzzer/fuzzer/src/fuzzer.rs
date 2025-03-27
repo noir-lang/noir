@@ -127,9 +127,7 @@ impl Fuzzer {
         log::debug!("ACIR program: {:?}", acir_program);
         log::debug!("Brillig program: {:?}", brillig_program);
         match comparison_result {
-            CompareResults::Agree(result) => {
-                return Some(result);
-            }
+            CompareResults::Agree(result) => Some(result),
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
                 panic!(
                     "ACIR and Brillig programs returned different results: ACIR returned {:?}, Brillig returned {:?}",
@@ -151,7 +149,7 @@ impl Fuzzer {
             CompareResults::BothFailed(acir_error, brillig_error) => {
                 log::debug!("ACIR execution error: {:?}", acir_error);
                 log::debug!("Brillig execution error: {:?}", brillig_error);
-                return None;
+                None
             }
         }
     }
