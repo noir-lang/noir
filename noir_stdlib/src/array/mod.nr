@@ -37,6 +37,42 @@ pub fn range(size: u32) -> [u32] {
     from_fn(size, |i| i)
 }
 
+/// Creates a new fixed-size array by applying a function to each index.
+/// This is a utility function to create arrays with custom initialization.
+/// The size parameter can be less than N to partially fill the array.
+///
+/// Example:
+/// ```noir
+/// fn main() {
+///     let arr: [Field; 5] = std::array::from_fn_fixed(5, |i| i as Field);
+///     assert(arr == [0, 1, 2, 3, 4]);
+/// }
+/// ```
+pub fn from_fn_fixed<T, let N: u32>(size: u32, f: fn(u32) -> T) -> [T; N] {
+    assert(size <= N, "Size cannot exceed array capacity N");
+    
+    let mut result = [crate::mem::zeroed(); N];
+    for i in 0..size {
+        result[i] = f(i);
+    }
+    result
+}
+
+/// Creates a new fixed-size array containing numbers from 0 to size-1.
+/// This is a utility function to create arrays from ranges.
+/// The size parameter can be less than N to partially fill the array.
+///
+/// Example:
+/// ```noir
+/// fn main() {
+///     let arr: [u32; 5] = std::array::range_fixed(5);
+///     assert(arr == [0, 1, 2, 3, 4]);
+/// }
+/// ```
+pub fn range_fixed<let N: u32>(size: u32) -> [u32; N] {
+    from_fn_fixed(size, |i| i)
+}
+
 impl<T, let N: u32> [T; N] {
     /// Returns the length of this array.
     ///
@@ -304,6 +340,34 @@ mod test {
 
         let field_arr = from_fn(3, |i| i as Field);
         assert_eq(field_arr, [0_Field, 1_Field, 2_Field]);
+    }
+    
+    #[test]
+    fn test_range_fixed() {
+        let arr: [u32; 5] = range_fixed(5);
+        assert_eq(arr, [0_u32, 1_u32, 2_u32, 3_u32, 4_u32]);
+        
+        // Partial filling test
+        let arr2: [u32; 5] = range_fixed(3);
+        assert_eq(arr2[0], 0_u32);
+        assert_eq(arr2[1], 1_u32);
+        assert_eq(arr2[2], 2_u32);
+    }
+    
+    #[test]
+    fn test_from_fn_fixed() {
+        let arr: [u32; 5] = from_fn_fixed(5, |i| i * 2);
+        assert_eq(arr, [0_u32, 2_u32, 4_u32, 6_u32, 8_u32]);
+        
+        // Test with Field type
+        let field_arr: [Field; 3] = from_fn_fixed(3, |i| i as Field);
+        assert_eq(field_arr, [0_Field, 1_Field, 2_Field]);
+        
+        // Partial filling test
+        let arr2: [u32; 5] = from_fn_fixed(3, |i| i * 3);
+        assert_eq(arr2[0], 0_u32);
+        assert_eq(arr2[1], 3_u32);
+        assert_eq(arr2[2], 6_u32);
     }
 
     #[test]
