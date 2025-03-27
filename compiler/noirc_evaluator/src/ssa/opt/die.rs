@@ -463,7 +463,7 @@ impl Context {
     }
 }
 
-pub(crate) fn can_be_eliminated_if_unused(
+fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     flattened: bool,

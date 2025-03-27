@@ -489,7 +489,7 @@ impl<'f> LoopInvariantContext<'f> {
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-pub(crate) fn can_be_hoisted(
+fn can_be_hoisted(
     instruction: &Instruction,
     function: &Function,
     hoist_with_predicate: bool,

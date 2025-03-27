@@ -808,7 +808,7 @@ fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId,
 ///
 /// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
 /// constraints into account, because it might not use it to isolate the side effects across branches.
-pub(crate) fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
+fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
     use Instruction::*;
 
     match instruction {
