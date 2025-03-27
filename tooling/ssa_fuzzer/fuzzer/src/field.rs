@@ -16,12 +16,12 @@ impl Instructions {
         !matches!(
             self,
             Instructions::Shl { .. }
-            | Instructions::Shr { .. }
-            | Instructions::And { .. }
-            | Instructions::Or { .. }
-            | Instructions::Xor { .. }
-            | Instructions::Not { .. } 
-            | Instructions::Mod { .. }
+                | Instructions::Shr { .. }
+                | Instructions::And { .. }
+                | Instructions::Or { .. }
+                | Instructions::Xor { .. }
+                | Instructions::Not { .. }
+                | Instructions::Mod { .. }
         )
     }
 }
