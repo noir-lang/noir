@@ -46,7 +46,7 @@
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{
-        Definition, Expression, Function, Ident, Parameters, Program, Type, Unary,
+        Definition, Expression, Function, Ident, Literal, Parameters, Program, Type, Unary,
     },
 };
 
@@ -73,11 +73,21 @@ impl Context {
             return;
         }
 
-        self.increment_parameter_rcs(&function.parameters);
+        let mut new_clones = self.increment_parameter_rcs(&function.parameters);
         self.handle_expression(&mut function.body);
+
+        // Prepend new_clones to the function body
+        if !new_clones.is_empty() {
+            let unit = Expression::Literal(Literal::Unit);
+            let old_body = std::mem::replace(&mut function.body, unit);
+            new_clones.push(old_body);
+            function.body = Expression::Block(new_clones);
+        }
     }
 
-    fn increment_parameter_rcs(&mut self, parameters: &Parameters) {
+    /// Increment any parameter reference counts necessary. Returns a vector of new
+    /// clones to prepend to a function - if any.
+    fn increment_parameter_rcs(&mut self, parameters: &Parameters) -> Vec<Expression> {
         let mut seen_array_types = HashSet::default();
         let mut new_clones = Vec::new();
 
@@ -96,6 +106,8 @@ impl Context {
                 &mut new_clones,
             );
         }
+
+        new_clones
     }
 
     fn recur_on_parameter<'typ>(
@@ -168,7 +180,9 @@ impl Context {
         match expr {
             Expression::Ident(_) => (),
             Expression::Literal(literal) => todo!(),
-            Expression::Block(vec) => todo!(),
+            Expression::Block(exprs) => {
+                exprs.iter_mut().for_each(|expr| self.handle_expression(expr))
+            }
             Expression::Unary(unary) => todo!(),
             Expression::Binary(binary) => todo!(),
             Expression::Index(index) => todo!(),
@@ -184,10 +198,10 @@ impl Context {
             Expression::Let(_) => todo!(),
             Expression::Constrain(expression, location, _) => todo!(),
             Expression::Assign(assign) => todo!(),
-            Expression::Semi(expression) => todo!(),
-            Expression::Clone(expression) => todo!(),
-            Expression::Break => todo!(),
-            Expression::Continue => todo!(),
+            Expression::Semi(expr) => self.handle_expression(expr),
+            Expression::Clone(_) => unreachable!("Explicit clones are only inserted by this pass"),
+            Expression::Break => (),
+            Expression::Continue => (),
         }
     }
 }
