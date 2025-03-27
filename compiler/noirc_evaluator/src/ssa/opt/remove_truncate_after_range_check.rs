@@ -52,7 +52,7 @@ impl Function {
                             // we need to remove the `truncate` and all references to `v1` should now be `v0`.
                             let result =
                                 self.dfg.instruction_results(instruction_id).first().unwrap();
-                            self.dfg.set_value_from_id(*value, *result);
+                            self.dfg.set_value_from_id(*result, *value);
                             continue;
                         }
                     }
