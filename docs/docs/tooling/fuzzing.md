@@ -117,7 +117,7 @@ Now, when we run the fuzzer, we'll see the following output:
 
 ### Using an oracle
 
-You can use an oracle to perform differential fuzzing against a known good implementation in another language. To do this you need to specify an oracle in the code, and run the fuzzer with the `--oracle-resolver <ORACLE_RESOLVER>` option.
+You can use an oracle to perform differential fuzzing against a known good implementation in another language. To do this you need to specify an oracle in the code, and run the fuzzer with the `--oracle-resolver <ORACLE_RESOLVER_URL>` option.
 
 For this example, we'll use the following noir program:
 ```rust
