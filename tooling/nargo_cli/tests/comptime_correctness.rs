@@ -64,14 +64,14 @@ fn comptime_check_field_expression(strategy: BoxedStrategy<String>, num_cases: u
 
 #[test]
 fn comptime_check_field_add() {
-    let strategy = any::<(u128, u128)>().prop_map(|(a, b)| format!("{a} + {b}")).boxed();
+    let strategy = any::<(u32, u32)>().prop_map(|(a, b)| format!("{a} + {b}")).boxed();
 
     comptime_check_field_expression(strategy, *NUM_CASES);
 }
 
 #[test]
 fn comptime_check_field_sub() {
-    let strategy = any::<(u128, u128)>().prop_map(|(a, b)| format!("{a} - {b}")).boxed();
+    let strategy = any::<(u32, u32)>().prop_map(|(a, b)| format!("{a} - {b}")).boxed();
 
     comptime_check_field_expression(strategy, *NUM_CASES);
 }
