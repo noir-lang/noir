@@ -192,6 +192,10 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: &'static str },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
+    #[error(
+        "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+    )]
+    NonU32Index { location: Location },
 }
 
 impl ResolverError {
@@ -255,9 +259,8 @@ impl ResolverError {
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
-            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
-                *location
-            }
+            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
+            | ResolverError::NonU32Index { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -797,6 +800,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } => {
                 Diagnostic::simple_error(
                     format!("Trait `{trait_name}` has no method named `{method_name}`"), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::NonU32Index { location } => {
+                Diagnostic::simple_warning(
+                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(), 
                     String::new(),
                     *location,
                 )
