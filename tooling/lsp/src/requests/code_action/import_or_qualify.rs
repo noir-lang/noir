@@ -33,7 +33,7 @@ impl CodeActionFinder<'_> {
         // The Path doesn't resolve to anything so it means it's an error and maybe we
         // can suggest an import or to fully-qualify the path.
         for (name, entries) in self.interner.get_auto_import_names() {
-            if name != &ident.0.contents {
+            if name != ident.as_str() {
                 continue;
             }
 

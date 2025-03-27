@@ -414,6 +414,8 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
+        self.push_index_to_check(index);
+
         let expected = self.polymorphic_integer_or_field();
         self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
             expected_typ: "an integer".to_owned(),
@@ -519,9 +521,15 @@ impl Elaborator<'_> {
         object_type = object_type.follow_bindings();
 
         let method_name_location = method_call.method_name.location();
-        let method_name = method_call.method_name.0.contents.as_str();
+        let method_name = method_call.method_name.as_str();
         let check_self_param = true;
-        match self.lookup_method(&object_type, method_name, location, check_self_param) {
+        match self.lookup_method(
+            &object_type,
+            method_name,
+            location,
+            object_location,
+            check_self_param,
+        ) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
@@ -856,7 +864,7 @@ impl Elaborator<'_> {
             let expected_field_with_index = field_types
                 .iter()
                 .enumerate()
-                .find(|(_, (name, _, _))| name == &field_name.0.contents);
+                .find(|(_, (name, _, _))| name == field_name.as_str());
             let expected_index_and_visibility =
                 expected_field_with_index.map(|(index, (_, visibility, _))| (index, visibility));
             let expected_type =
@@ -894,7 +902,7 @@ impl Elaborator<'_> {
             if let Some((index, visibility)) = expected_index_and_visibility {
                 let struct_type = struct_type.borrow();
                 let field_location = field_name.location();
-                let field_name = &field_name.0.contents;
+                let field_name = field_name.as_str();
                 self.check_struct_field_visibility(
                     &struct_type,
                     field_name,
@@ -1380,7 +1388,7 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let Some(method) = the_trait.find_method(&path.impl_item.0.contents) else {
+        let Some(method) = the_trait.find_method(path.impl_item.as_str()) else {
             let trait_name = the_trait.name.to_string();
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();

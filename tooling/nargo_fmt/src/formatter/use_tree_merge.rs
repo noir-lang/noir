@@ -279,7 +279,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
                 if let Some(alias) = alias {
                     tree = tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
                     tree.insert(Segment::SelfReference);
-                } else if ident.0.contents == "self" {
+                } else if ident.as_str() == "self" {
                     tree.insert(Segment::SelfReference);
                 } else {
                     tree = tree.insert(Segment::Plain(ident.to_string()));

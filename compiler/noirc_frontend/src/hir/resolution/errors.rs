@@ -192,6 +192,10 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: &'static str },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
+    #[error(
+        "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+    )]
+    NonU32Index { location: Location },
 }
 
 impl ResolverError {
@@ -255,9 +259,8 @@ impl ResolverError {
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
-            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
-                *location
-            }
+            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
+            | ResolverError::NonU32Index { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -297,10 +300,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag
             }
             ResolverError::UnusedVariable { ident } => {
-                let name = &ident.0.contents;
-
                 let mut diagnostic = Diagnostic::simple_warning(
-                    format!("unused variable {name}"),
+                    format!("unused variable {ident}"),
                     "unused variable".to_string(),
                     ident.location(),
                 );
@@ -308,19 +309,18 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic
             }
             ResolverError::UnusedItem { ident, item} => {
-                let name = &ident.0.contents;
                 let item_type = item.item_type();
 
                 let mut diagnostic =
                     if let UnusedItem::Struct(..) = item {
                         Diagnostic::simple_warning(
-                            format!("{item_type} `{name}` is never constructed"),
+                            format!("{item_type} `{ident}` is never constructed"),
                             format!("{item_type} is never constructed"),
                             ident.location(),
                         )
                     } else {
                         Diagnostic::simple_warning(
-                            format!("unused {item_type} {name}"),
+                            format!("unused {item_type} {ident}"),
                             format!("unused {item_type}"),
                             ident.location(),
                         )
@@ -408,24 +408,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 error
             }
             ResolverError::UnnecessaryPub { ident, position } => {
-                let name = &ident.0.contents;
-
                 let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary pub keyword on {position} for function {name}"),
+                    format!("unnecessary pub keyword on {position} for function {ident}"),
                     format!("unnecessary pub {position}"),
-                    ident.0.location(),
+                    ident.location(),
                 );
 
                 diag.add_note("The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
                 diag
             }
             ResolverError::NecessaryPub { ident } => {
-                let name = &ident.0.contents;
-
                 let mut diag = Diagnostic::simple_error(
-                    format!("missing pub keyword on return type of function {name}"),
+                    format!("missing pub keyword on return type of function {ident}"),
                     "missing pub on return type".to_string(),
-                    ident.0.location(),
+                    ident.location(),
                 );
 
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
@@ -610,24 +606,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 )
             },
             ResolverError::NoPredicatesAttributeOnUnconstrained { ident } => {
-                let name = &ident.0.contents;
-
                 let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[no_predicates] attribute on unconstrained function {name}. Only allowed on constrained functions"),
+                    format!("misplaced #[no_predicates] attribute on unconstrained function {ident}. Only allowed on constrained functions"),
                     "misplaced #[no_predicates] attribute".to_string(),
-                    ident.0.location(),
+                    ident.location(),
                 );
 
                 diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
                 diag
             }
             ResolverError::FoldAttributeOnUnconstrained { ident } => {
-                let name = &ident.0.contents;
-
                 let mut diag = Diagnostic::simple_error(
-                    format!("misplaced #[fold] attribute on unconstrained function {name}. Only allowed on constrained functions"),
+                    format!("misplaced #[fold] attribute on unconstrained function {ident}. Only allowed on constrained functions"),
                     "misplaced #[fold] attribute".to_string(),
-                    ident.0.location(),
+                    ident.location(),
                 );
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
@@ -808,6 +800,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } => {
                 Diagnostic::simple_error(
                     format!("Trait `{trait_name}` has no method named `{method_name}`"), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::NonU32Index { location } => {
+                Diagnostic::simple_warning(
+                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(), 
                     String::new(),
                     *location,
                 )

@@ -111,12 +111,12 @@ pub(crate) enum ParsedInstruction {
     },
     Constrain {
         lhs: ParsedValue,
+        equals: bool,
         rhs: ParsedValue,
         assert_message: Option<AssertMessage>,
     },
     DecrementRc {
         value: ParsedValue,
-        original: ParsedValue,
     },
     EnableSideEffectsIf {
         condition: ParsedValue,

@@ -1056,8 +1056,8 @@ mod test {
             v19 = call f1(v5) -> u32
             v20 = add v8, v19
             constrain v6 == v20
-            dec_rc v4 v4
-            dec_rc v5 v5
+            dec_rc v4
+            dec_rc v5
             return
         }
 

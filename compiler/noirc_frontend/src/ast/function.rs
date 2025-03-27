@@ -3,7 +3,8 @@ use std::fmt::Display;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{FunctionReturnType, Ident, Param, Visibility},
+    ast::{FunctionReturnType, Ident, Param},
+    shared::Visibility,
     token::{Attributes, FunctionAttribute, SecondaryAttribute},
 };
 
@@ -72,7 +73,7 @@ impl NoirFunction {
         }
     }
     pub fn name(&self) -> &str {
-        &self.name_ident().0.contents
+        self.name_ident().as_str()
     }
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
@@ -122,6 +123,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
             Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
+            Some(FunctionAttribute::FuzzingHarness { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
             Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,

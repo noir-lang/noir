@@ -5,9 +5,10 @@ use thiserror::Error;
 
 use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    UnresolvedType, UnresolvedTypeData,
 };
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::shared::Visibility;
 use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
@@ -88,7 +89,7 @@ pub struct UnsupportedNumericGenericType {
 impl UnresolvedGeneric {
     pub fn location(&self) -> Location {
         match self {
-            UnresolvedGeneric::Variable(ident) => ident.0.location(),
+            UnresolvedGeneric::Variable(ident) => ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
             UnresolvedGeneric::Resolved(_, location) => *location,
         }

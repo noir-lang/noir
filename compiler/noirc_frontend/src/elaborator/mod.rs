@@ -5,10 +5,11 @@ use std::{
 
 use crate::{
     DataType, StructField, TypeBindings,
-    ast::{ItemVisibility, UnresolvedType},
+    ast::{IntegerBitSize, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
+    shared::Signedness,
     usage_tracker::UsageTracker,
 };
 use crate::{
@@ -240,6 +241,21 @@ struct FunctionContext {
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
     trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
+
+    /// List of expressions that are at an index position:
+    ///
+    /// ```noir
+    /// foo[index]
+    ///     ^^^^^
+    /// ```
+    ///
+    /// After each function we'll check that the type of those indexes
+    /// is u32 and, if not, produce a deprecation warning.
+    ///
+    /// NOTE: this list should be removed once the deprecation warning is turned
+    /// into an error, because doing that involves a completely different approach
+    /// (just unifying indexes with u32).
+    indexes_to_check: Vec<ExprId>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -478,10 +494,10 @@ impl<'context> Elaborator<'context> {
 
         // Check arg and return-value visibility of standalone functions.
         if self.should_check_function_visibility(&func_meta, &modifiers) {
-            let name = Ident(Located::from(
-                func_meta.name.location,
+            let name = Ident::new(
                 self.interner.definition_name(func_meta.name.id).to_string(),
-            ));
+                func_meta.name.location,
+            );
             for (_, typ, _) in func_meta.parameters.iter() {
                 self.check_type_is_not_more_private_then_item(
                     &name,
@@ -579,6 +595,22 @@ impl<'context> Elaborator<'context> {
     fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
 
+        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        for expr_id in context.indexes_to_check {
+            let typ = self.interner.id_type(expr_id).follow_bindings();
+
+            // If the type is still a type variable after follow_bindings it means it'll
+            // be turned into Field or, eventually, into u32, so this is fine.
+            if let Type::TypeVariable(..) = typ {
+                continue;
+            };
+
+            if typ != u32 {
+                let location = self.interner.expr_location(&expr_id);
+                self.push_err(ResolverError::NonU32Index { location });
+            }
+        }
+
         for typ in context.type_variables {
             if let Type::TypeVariable(variable) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
@@ -638,7 +670,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Add the given generics to scope.
-    /// Each generic will have a fresh Shared<TypeBinding> associated with it.
+    /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             let mut is_error = false;
@@ -688,7 +720,7 @@ impl<'context> Elaborator<'context> {
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
                 let ident = generic.ident();
-                let name = Rc::new(ident.0.contents.clone());
+                let name = Rc::new(ident.to_string());
                 Ok((typevar, name))
             }
             // An already-resolved generic is only possible if it is the result of a
@@ -842,7 +874,7 @@ impl<'context> Elaborator<'context> {
                     .trait_generics
                     .named_args
                     .iter()
-                    .any(|(name, _)| name.0.contents == *associated_type.name.as_ref())
+                    .any(|(name, _)| name.as_str() == *associated_type.name.as_ref())
                 {
                     // This generic isn't contained in the bound's named arguments,
                     // so add it by creating a fresh type variable.
@@ -935,10 +967,15 @@ impl<'context> Elaborator<'context> {
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
         let is_pub_allowed = self.pub_allowed(func, in_contract);
         self.add_generics(&func.def.generics);
-        let mut generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-        let new_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
-        generics.extend(new_generics.into_iter().map(|generic| generic.type_var));
+        let func_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+
+        let associated_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
+        let mut generics = vecmap(associated_generics, |generic| generic.type_var);
+
+        // We put associated generics first, as they are implicit and implicit generics
+        // come before explicit generics (see `Type::instantiate_with`).
+        generics.extend(func_generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
 
@@ -1000,7 +1037,7 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
+            .filter_map(|generic| self.find_generic(generic.ident().as_str()).cloned())
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
@@ -1544,12 +1581,12 @@ impl<'context> Elaborator<'context> {
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+        &self.def_maps.get(&module.krate).expect(message)[module.local_id]
     }
 
     fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
+        &mut def_maps.get_mut(&module.krate).expect(message)[module.local_id]
     }
 
     fn declare_methods_on_struct(
