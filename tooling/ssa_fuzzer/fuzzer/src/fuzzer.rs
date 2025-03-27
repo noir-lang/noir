@@ -15,8 +15,8 @@
 
 use crate::base_context::FuzzerContext;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::runner::{execute_single, run_and_compare, CompareResults};
-use acvm::acir::native_types::{WitnessMap, Witness};
+use acvm::acir::native_types::{Witness, WitnessMap};
+use noir_ssa_fuzzer::runner::{CompareResults, execute_single, run_and_compare};
 use noirc_evaluator::ssa::ir::types::Type;
 
 pub(crate) struct Fuzzer {
@@ -37,20 +37,40 @@ impl Fuzzer {
         self.context_non_constant.finalize_function();
         self.context_constant.finalize_function();
 
-        let (acir_return_witness, brillig_return_witness) = self.context_non_constant.get_return_witnesses();
-        let non_constant_result = Self::execute_and_compare(self.context_non_constant, initial_witness.clone(), acir_return_witness, brillig_return_witness);
+        let (acir_return_witness, brillig_return_witness) =
+            self.context_non_constant.get_return_witnesses();
+        let non_constant_result = Self::execute_and_compare(
+            self.context_non_constant,
+            initial_witness.clone(),
+            acir_return_witness,
+            brillig_return_witness,
+        );
         log::debug!("Non-constant result: {:?}", non_constant_result);
 
-        let (acir_return_witness, brillig_return_witness) = self.context_constant.get_return_witnesses();
-        let constant_result = Self::execute_and_compare(self.context_constant, WitnessMap::new(), acir_return_witness, brillig_return_witness);
+        let (acir_return_witness, brillig_return_witness) =
+            self.context_constant.get_return_witnesses();
+        let constant_result = Self::execute_and_compare(
+            self.context_constant,
+            WitnessMap::new(),
+            acir_return_witness,
+            brillig_return_witness,
+        );
         log::debug!("Constant result: {:?}", constant_result);
-        
+
         if non_constant_result != constant_result {
-            panic!("Constant and non-constant results are different for the same program: {:?} != {:?}", non_constant_result, constant_result);
+            panic!(
+                "Constant and non-constant results are different for the same program: {:?} != {:?}",
+                non_constant_result, constant_result
+            );
         }
     }
 
-    fn execute_and_compare(context: FuzzerContext, initial_witness: WitnessMap<FieldElement>, acir_return_witness: Witness, brillig_return_witness: Witness) -> Option<FieldElement> {
+    fn execute_and_compare(
+        context: FuzzerContext,
+        initial_witness: WitnessMap<FieldElement>,
+        acir_return_witness: Witness,
+        brillig_return_witness: Witness,
+    ) -> Option<FieldElement> {
         let (acir_program, brillig_program) = context.get_programs();
         let (acir_program, brillig_program) = match (acir_program, brillig_program) {
             (Ok(acir), Ok(brillig)) => (acir, brillig),
@@ -60,18 +80,18 @@ impl Fuzzer {
                 return None;
             }
             (Ok(acir), Err(brillig_error)) => {
-                let acir_result = execute_single(&acir.program, initial_witness, acir_return_witness);
+                let acir_result =
+                    execute_single(&acir.program, initial_witness, acir_return_witness);
                 match acir_result {
                     Ok(acir_result) => {
                         panic!(
                             "ACIR compiled and successfully executed, 
                             but brillig compilation failed. Execution result of 
                             acir only {:?}. Brillig compilation failed with: {:?}",
-                            acir_result, 
-                            brillig_error
+                            acir_result, brillig_error
                         );
                     }
-                    Err(acir_error ) => {
+                    Err(acir_error) => {
                         log::debug!("ACIR execution error: {:?}", acir_error);
                         log::debug!("Brillig compilation error: {:?}", brillig_error);
                         return None;
@@ -79,10 +99,14 @@ impl Fuzzer {
                 }
             }
             (Err(acir_error), Ok(brillig)) => {
-                let brillig_result = execute_single(&brillig.program, initial_witness, brillig_return_witness);
+                let brillig_result =
+                    execute_single(&brillig.program, initial_witness, brillig_return_witness);
                 match brillig_result {
                     Ok(brillig_result) => {
-                        panic!("Brillig compiled and successfully executed, but ACIR compilation failed. Execution result of brillig only {:?}. ACIR compilation failed with: {:?}", brillig_result, acir_error);
+                        panic!(
+                            "Brillig compiled and successfully executed, but ACIR compilation failed. Execution result of brillig only {:?}. ACIR compilation failed with: {:?}",
+                            brillig_result, acir_error
+                        );
                     }
                     Err(brillig_error) => {
                         log::debug!("Brillig execution error: {:?}", brillig_error);
@@ -92,7 +116,13 @@ impl Fuzzer {
                 }
             }
         };
-        let comparison_result = run_and_compare(&acir_program.program, &brillig_program.program, initial_witness, acir_return_witness, brillig_return_witness);
+        let comparison_result = run_and_compare(
+            &acir_program.program,
+            &brillig_program.program,
+            initial_witness,
+            acir_return_witness,
+            brillig_return_witness,
+        );
         log::debug!("Comparison result: {:?}", comparison_result);
         log::debug!("ACIR program: {:?}", acir_program);
         log::debug!("Brillig program: {:?}", brillig_program);
@@ -101,13 +131,22 @@ impl Fuzzer {
                 return Some(result);
             }
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
-                panic!("ACIR and Brillig programs returned different results: ACIR returned {:?}, Brillig returned {:?}", acir_return_value, brillig_return_value);
+                panic!(
+                    "ACIR and Brillig programs returned different results: ACIR returned {:?}, Brillig returned {:?}",
+                    acir_return_value, brillig_return_value
+                );
             }
             CompareResults::AcirFailed(acir_error, brillig_return_value) => {
-                panic!("ACIR execution failed with error: {:?}, Brillig returned {:?}", acir_error, brillig_return_value);
+                panic!(
+                    "ACIR execution failed with error: {:?}, Brillig returned {:?}",
+                    acir_error, brillig_return_value
+                );
             }
             CompareResults::BrilligFailed(brillig_error, acir_return_value) => {
-                panic!("Brillig execution failed with error: {:?}, ACIR returned {:?}", brillig_error, acir_return_value);
+                panic!(
+                    "Brillig execution failed with error: {:?}, ACIR returned {:?}",
+                    brillig_error, acir_return_value
+                );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
                 log::debug!("ACIR execution error: {:?}", acir_error);

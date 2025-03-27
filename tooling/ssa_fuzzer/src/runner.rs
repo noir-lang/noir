@@ -54,14 +54,16 @@ pub fn execute_single(
     initial_witness: WitnessMap<FieldElement>,
     return_witness: Witness,
 ) -> Result<FieldElement, RunnerError> {
-    let result = std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(program, initial_witness));
+    let result =
+        std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(program, initial_witness));
 
     match result {
-        Ok(result) => {
-            match result {
-                Ok(result) => Ok(result.peek().expect("Should have at least one witness on the stack").witness[&return_witness]),
-                Err(e) => Err(RunnerError::ExecutionFailed(e)),
+        Ok(result) => match result {
+            Ok(result) => {
+                Ok(result.peek().expect("Should have at least one witness on the stack").witness
+                    [&return_witness])
             }
+            Err(e) => Err(RunnerError::ExecutionFailed(e)),
         },
         Err(e) => {
             if let Some(message) = e.downcast_ref::<&str>() {
@@ -71,7 +73,6 @@ pub fn execute_single(
             }
         }
     }
-    
 }
 
 /// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -100,8 +101,14 @@ pub fn run_and_compare(
                 CompareResults::Disagree(acir_result, brillig_result)
             }
         }
-        (Err(acir_error), Ok(brillig_result)) => CompareResults::AcirFailed(acir_error.to_string(), brillig_result),
-        (Ok(acir_result), Err(brillig_error)) => CompareResults::BrilligFailed(brillig_error.to_string(), acir_result),
-        (Err(acir_error), Err(brillig_error)) => CompareResults::BothFailed(acir_error.to_string(), brillig_error.to_string()),
+        (Err(acir_error), Ok(brillig_result)) => {
+            CompareResults::AcirFailed(acir_error.to_string(), brillig_result)
+        }
+        (Ok(acir_result), Err(brillig_error)) => {
+            CompareResults::BrilligFailed(brillig_error.to_string(), acir_result)
+        }
+        (Err(acir_error), Err(brillig_error)) => {
+            CompareResults::BothFailed(acir_error.to_string(), brillig_error.to_string())
+        }
     }
 }

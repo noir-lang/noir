@@ -365,7 +365,10 @@ impl FuzzerContext {
     }
 
     /// Returns programs for ACIR and Brillig
-    pub(crate) fn get_programs(self) -> (Result<CompiledProgram, FuzzerBuilderError>, Result<CompiledProgram, FuzzerBuilderError>) {
+    pub(crate) fn get_programs(
+        self,
+    ) -> (Result<CompiledProgram, FuzzerBuilderError>, Result<CompiledProgram, FuzzerBuilderError>)
+    {
         (self.acir_builder.compile(), self.brillig_builder.compile())
     }
 }

@@ -12,9 +12,9 @@ use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use thiserror::Error;
-use std::panic::AssertUnwindSafe;
 
 #[derive(Debug, Error)]
 pub enum FuzzerBuilderError {
@@ -69,11 +69,9 @@ impl FuzzerBuilder {
             compile(self.builder, &CompileOptions::default())
         }));
         match result {
-            Ok(result) => {
-                match result {
-                    Ok(result) => Ok(result),
-                    Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation error".to_string())),
-                }
+            Ok(result) => match result {
+                Ok(result) => Ok(result),
+                Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation error".to_string())),
             },
             Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),
         }
@@ -167,7 +165,12 @@ impl FuzzerBuilder {
     }
 
     /// Inserts a truncate instruction for the given value
-    pub fn insert_truncate(&mut self, value: Id<Value>, bit_size: u32, max_bit_size: u32) -> Id<Value> {
+    pub fn insert_truncate(
+        &mut self,
+        value: Id<Value>,
+        bit_size: u32,
+        max_bit_size: u32,
+    ) -> Id<Value> {
         self.builder.insert_truncate(value, bit_size, max_bit_size)
     }
 
@@ -175,12 +178,8 @@ impl FuzzerBuilder {
     pub fn insert_simple_cast(&mut self, value: Id<Value>) -> Id<Value> {
         let v1 = self.builder.insert_cast(value, self.numeric_type);
         match self.numeric_type {
-            NumericType::Signed { bit_size } => {
-                self.insert_truncate(v1, bit_size, bit_size)
-            }
-            NumericType::Unsigned { bit_size } => {
-                self.insert_truncate(v1, bit_size, bit_size)
-            }
+            NumericType::Signed { bit_size } => self.insert_truncate(v1, bit_size, bit_size),
+            NumericType::Unsigned { bit_size } => self.insert_truncate(v1, bit_size, bit_size),
             _ => v1,
         }
     }

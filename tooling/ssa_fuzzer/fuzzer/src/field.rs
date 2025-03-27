@@ -25,7 +25,6 @@ impl Instructions {
     }
 }
 
-
 impl Fuzzer {
     fn insert_instruction(&mut self, instruction: Instructions) {
         // Check if instruction is unsupported for field type

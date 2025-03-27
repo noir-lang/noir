@@ -26,7 +26,6 @@ use crate::base_context::Instructions;
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
-
 /// Represents the data for the fuzzer
 /// `methods` - sequence of instructions to be added to the program
 #[derive(Arbitrary, Debug, Clone, Hash)]

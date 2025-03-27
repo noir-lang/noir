@@ -9,7 +9,7 @@ pub mod runner;
 mod tests {
     use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
     use crate::config;
-    use crate::runner::{run_and_compare, CompareResults};
+    use crate::runner::{CompareResults, run_and_compare};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
     use noirc_evaluator::ssa::ir::{map::Id, types::Type, value::Value};
@@ -66,10 +66,7 @@ mod tests {
         witness_map
     }
 
-    fn compare_results(
-        computed_rust: u64,
-        computed_noir: FieldElement,
-    ) {
+    fn compare_results(computed_rust: u64, computed_noir: FieldElement) {
         let computed_rust = FieldElement::from(computed_rust);
         assert_eq!(computed_rust, computed_noir, "Noir doesn't match Rust");
     }
@@ -103,16 +100,34 @@ mod tests {
         match compare_results {
             CompareResults::Agree(result) => result,
             CompareResults::Disagree(acir_result, brillig_result) => {
-                panic!("ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}", acir_result, brillig_result, values.clone());
+                panic!(
+                    "ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}",
+                    acir_result,
+                    brillig_result,
+                    values.clone()
+                );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
-                panic!("Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}", acir_error, brillig_error, values.clone());
+                panic!(
+                    "Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}",
+                    acir_error,
+                    brillig_error,
+                    values.clone()
+                );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
-                panic!("ACIR failed: ACIR: {}, Brillig: {}, values: {:?}", acir_error, brillig_result, values.clone());
+                panic!(
+                    "ACIR failed: ACIR: {}, Brillig: {}, values: {:?}",
+                    acir_error,
+                    brillig_result,
+                    values.clone()
+                );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) => {
-                panic!("Brillig failed: Brillig: {}, ACIR: {}, values: {:?}", brillig_error, acir_result, values);
+                panic!(
+                    "Brillig failed: Brillig: {}, ACIR: {}, values: {:?}",
+                    brillig_error, acir_result, values
+                );
             }
         }
     }
@@ -162,60 +177,48 @@ mod tests {
         if values[1] == 0 {
             values[1] = 1;
         }
-        let noir_res     = run_instruction_double_arg(
-            FuzzerBuilder::insert_div_instruction,
-            values.clone(),
-        );
+        let noir_res =
+            run_instruction_double_arg(FuzzerBuilder::insert_div_instruction, values.clone());
         compare_results(values[0] / values[1], noir_res);
     }
 
     #[test]
     fn test_mod() {
         let values = generate_values();
-        let noir_res = run_instruction_double_arg(
-            FuzzerBuilder::insert_mod_instruction,
-            values.clone(),
-        );
+        let noir_res =
+            run_instruction_double_arg(FuzzerBuilder::insert_mod_instruction, values.clone());
         compare_results(values[0] % values[1], noir_res);
     }
 
     #[test]
     fn test_and() {
         let values = generate_values();
-        let noir_res = run_instruction_double_arg(
-            FuzzerBuilder::insert_and_instruction,
-            values.clone(),
-        );
+        let noir_res =
+            run_instruction_double_arg(FuzzerBuilder::insert_and_instruction, values.clone());
         compare_results(values[0] & values[1], noir_res);
     }
 
     #[test]
     fn test_or() {
         let values = generate_values();
-        let noir_res = run_instruction_double_arg(
-            FuzzerBuilder::insert_or_instruction,
-            values.clone(),
-        );
+        let noir_res =
+            run_instruction_double_arg(FuzzerBuilder::insert_or_instruction, values.clone());
         compare_results(values[0] | values[1], noir_res);
     }
 
     #[test]
     fn test_xor() {
         let values = generate_values();
-        let noir_res = run_instruction_double_arg(
-            FuzzerBuilder::insert_xor_instruction,
-            values.clone(),
-        );
+        let noir_res =
+            run_instruction_double_arg(FuzzerBuilder::insert_xor_instruction, values.clone());
         compare_results(values[0] ^ values[1], noir_res);
     }
     #[test]
     fn test_shr() {
         let mut values = generate_values();
         values[1] %= 64;
-        let noir_res = run_instruction_double_arg(
-            FuzzerBuilder::insert_shr_instruction,
-            values.clone(),
-        );
+        let noir_res =
+            run_instruction_double_arg(FuzzerBuilder::insert_shr_instruction, values.clone());
         compare_results(values[0] >> values[1], noir_res);
     }
 }
