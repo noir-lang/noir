@@ -3375,6 +3375,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_ssa_fuzzer"
+version = "1.0.0-beta.3"
+dependencies = [
+ "acvm",
+ "bn254_blackbox_solver",
+ "cfg-if",
+ "chrono",
+ "env_logger",
+ "fxhash",
+ "im",
+ "iter-extended",
+ "log",
+ "nargo",
+ "noirc_abi",
+ "noirc_driver",
+ "noirc_errors",
+ "noirc_evaluator",
+ "noirc_frontend",
+ "num-bigint",
+ "num-traits",
+ "proptest",
+ "rand",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "similar-asserts",
+ "smallvec",
+ "test-case",
+ "thiserror",
+ "tracing",
+ "tracing-test",
+ "vec-collections",
+]
+
+[[package]]
 name = "noir_wasm"
 version = "1.0.0-beta.3"
 dependencies = [
@@ -5062,52 +5098,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "ssa_fuzzer"
-version = "1.0.0-beta.3"
-dependencies = [
- "acvm",
- "bn254_blackbox_solver",
- "cfg-if",
- "chrono",
- "env_logger",
- "fxhash",
- "im",
- "iter-extended",
- "log",
- "nargo",
- "noirc_abi",
- "noirc_driver",
- "noirc_errors",
- "noirc_evaluator",
- "noirc_frontend",
- "num-bigint",
- "num-traits",
- "proptest",
- "rand",
- "rayon",
- "serde",
- "serde_json",
- "serde_with",
- "similar-asserts",
- "smallvec",
- "test-case",
- "thiserror",
- "tracing",
- "tracing-test",
- "vec-collections",
-]
-
-[[package]]
-name = "ssa_fuzzer-fuzz"
+name = "ssa_fuzzer_fuzz"
 version = "0.0.1"
 dependencies = [
  "acvm",
  "env_logger",
  "libfuzzer-sys",
  "log",
+ "noir_ssa_fuzzer",
  "noirc_driver",
  "noirc_evaluator",
- "ssa_fuzzer",
 ]
 
 [[package]]
