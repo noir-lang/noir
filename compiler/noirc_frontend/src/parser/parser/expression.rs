@@ -646,9 +646,16 @@ impl Parser<'_> {
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let typ = self.parse_primitive_type()?;
-        let typ = UnresolvedType { typ, location: self.location_since(start_location) };
+        let location = self.location_since(start_location);
+        let typ = UnresolvedType { typ, location };
 
-        Some(ExpressionKind::TypePath(self.parse_type_path_expr_for_type(typ)))
+        if self.at(Token::DoubleColon) {
+            Some(ExpressionKind::TypePath(self.parse_type_path_expr_for_type(typ)))
+        } else {
+            // This is the case when we find `Field` or `i32` but `::` doesn't follow it.
+            self.push_error(ParserErrorReason::ExpectedValueFoundBuiltInType { typ }, location);
+            Some(ExpressionKind::Error)
+        }
     }
 
     fn parse_type_path_expr_for_type(&mut self, typ: UnresolvedType) -> TypePath {
@@ -754,9 +761,6 @@ impl Parser<'_> {
         }
 
         let first_expr = self.parse_expression_or_error();
-        if first_expr.kind == ExpressionKind::Error {
-            return Some(ArrayLiteral::Standard(Vec::new()));
-        }
 
         if self.eat_semicolon() {
             let length = self.parse_expression_or_error();
@@ -1923,6 +1927,22 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
+    }
+
+    #[test]
+    fn parses_primitive_type_errors() {
+        let src = "
+        Field
+        ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+        let ExpressionKind::Error = expr.kind else {
+            panic!("Expected error");
+        };
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert_eq!(reason.to_string(), "Expected value, found built-in type `Field`");
     }
 
     #[test]

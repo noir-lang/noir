@@ -1,4 +1,4 @@
-use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
+use crate::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
@@ -121,6 +121,8 @@ pub enum ParserErrorReason {
     StructDefinitionDeprecated,
     #[error("Missing angle brackets surrounding type")]
     MissingAngleBrackets,
+    #[error("Expected value, found built-in type `{typ}`")]
+    ExpectedValueFoundBuiltInType { typ: UnresolvedType },
 }
 
 /// Represents a parsing error, or a parsing error in the making.
