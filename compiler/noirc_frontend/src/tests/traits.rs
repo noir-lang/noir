@@ -1344,6 +1344,7 @@ fn renaming_trait_avoids_name_collisions() {
     assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
     let src = "
@@ -1366,9 +1367,10 @@ fn passes_trait_with_associated_number_to_generic_function() {
         T: Trait,
     {}
     ";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() {
     let src = "
@@ -1395,5 +1397,5 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
         bar.bar::<Foo>();
     }
     ";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }

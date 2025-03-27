@@ -4677,6 +4677,7 @@ fn object_type_must_be_known_in_method_call() {
     check_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
     let src = r#"
@@ -4686,9 +4687,10 @@ fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
         let _ = array[index];
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_u32_does_not_produce_a_warning() {
     let src = r#"
@@ -4698,9 +4700,10 @@ fn indexing_array_with_u32_does_not_produce_a_warning() {
         let _ = array[index];
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_non_u32_produces_a_warning() {
     let src = r#"
@@ -4711,9 +4714,10 @@ fn indexing_array_with_non_u32_produces_a_warning() {
                       ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
     let src = r#"
@@ -4724,5 +4728,5 @@ fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
               ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
