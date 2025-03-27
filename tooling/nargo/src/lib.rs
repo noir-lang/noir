@@ -16,7 +16,8 @@ pub mod workspace;
 
 pub use self::errors::NargoError;
 pub use self::foreign_calls::print::PrintOutput;
-
+pub use self::ops::FuzzExecutionConfig;
+pub use self::ops::FuzzFolderConfig;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,

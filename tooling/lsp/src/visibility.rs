@@ -48,7 +48,7 @@ pub(super) fn module_def_id_is_visible(
         }
 
         target_module_id = std::mem::take(&mut defining_module).or_else(|| {
-            let module_data = &def_maps[&module_id.krate].modules()[module_id.local_id.0];
+            let module_data = &def_maps[&module_id.krate][module_id.local_id];
             let parent_local_id = module_data.parent;
             parent_local_id.map(|local_id| ModuleId { krate: module_id.krate, local_id })
         });

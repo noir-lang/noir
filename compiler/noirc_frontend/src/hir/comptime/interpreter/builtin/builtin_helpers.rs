@@ -16,8 +16,8 @@ use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
-        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
-        StatementKind, UnresolvedTypeData,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind,
+        UnresolvedTypeData,
     },
     hir::{
         comptime::{
@@ -33,6 +33,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
+    shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -448,7 +449,7 @@ fn gather_hir_pattern_tokens(
                     tokens.push(Token::Comma);
                 }
 
-                let field_name = &field_name.0.contents;
+                let field_name = field_name.as_str();
                 tokens.push(Token::Ident(field_name.to_string()));
 
                 // If we have a pattern like `Foo { x }`, that's internally represented as `Foo { x: x }` so
@@ -591,7 +592,7 @@ pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {
 }
 
 fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
-    let token = Token::Ident(ident.0.contents.clone());
+    let token = Token::Ident(ident.to_string());
     let token = LocatedToken::new(token, location);
     Rc::new(vec![token])
 }
@@ -642,15 +643,6 @@ pub(crate) fn to_byte_array(values: &[u8]) -> Value {
 /// Create a `Value::Slice` from bytes.
 pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
     Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
-}
-
-/// Create a `Value::Array` from fields.
-pub(crate) fn to_field_array(values: &[FieldElement]) -> Value {
-    let typ = Type::Array(
-        Box::new(Type::Constant(values.len().into(), Kind::u32())),
-        Box::new(Type::FieldElement),
-    );
-    Value::Array(values.iter().copied().map(Value::Field).collect(), typ)
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.

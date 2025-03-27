@@ -8,10 +8,11 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
+use crate::ast::{FunctionKind, IntegerBitSize, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
+use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
 use crate::{
@@ -450,8 +451,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let struct_field_types = unwrap_struct_type(typ, *location)?;
                 assert_eq!(struct_field_types.len(), fields.len());
 
-                let mut fields =
-                    btree_map(fields, |(name, field)| (name.0.contents.clone(), field));
+                let mut fields = btree_map(fields, |(name, field)| (name.to_string(), field));
 
                 // Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
@@ -606,18 +606,10 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
-            HirExpression::MethodCall(hir_method_call) => {
-                unreachable!(
-                    "Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}"
-                )
-            }
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
             HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
             HirExpression::Unquote(_) => {
                 unreachable!("unquote expression remaining in runtime code")
-            }
-            HirExpression::Comptime(_) => {
-                unreachable!("comptime expression remaining in runtime code")
             }
             HirExpression::EnumConstructor(constructor) => {
                 self.enum_constructor(constructor, expr)?
@@ -758,17 +750,17 @@ impl<'interner> Monomorphizer<'interner> {
 
         for (field_name, expr_id) in constructor.fields {
             let new_id = self.next_local_id();
-            let field_type = field_type_map.get(&field_name.0.contents).unwrap();
+            let field_type = field_type_map.get(field_name.as_str()).unwrap();
             let location = self.interner.expr_location(&expr_id);
             let typ = Self::convert_type(field_type, location)?;
 
-            field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
+            field_vars.insert(field_name.to_string(), (new_id, typ));
             let expression = Box::new(self.expr(expr_id)?);
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
                 mutable: false,
-                name: field_name.0.contents,
+                name: field_name.into_string(),
                 expression,
             }));
         }
@@ -870,7 +862,7 @@ impl<'interner> Monomorphizer<'interner> {
                 assert_eq!(patterns.len(), fields.len());
 
                 let mut patterns =
-                    btree_map(patterns, |(name, pattern)| (name.0.contents, pattern));
+                    btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
 
                 // We iterate through the type's fields to match the order defined in the struct type
                 let patterns_iter = fields.into_iter().map(|(field_name, field_type)| {
@@ -1508,7 +1500,7 @@ impl<'interner> Monomorphizer<'interner> {
             definition: Definition::Function(func_id),
             mutable: false,
             location: None,
-            name: the_trait.methods[method.method_index].name.0.contents.clone(),
+            name: the_trait.methods[method.method_index].name.to_string(),
             typ: Self::convert_type(&function_type, location)?,
         }))
     }
@@ -1735,7 +1727,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         use ast::*;
 
-        let int_type = Type::Integer(crate::ast::Signedness::Unsigned, arr_elem_bits);
+        let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
             let value = SignedField::positive(byte as u32);
@@ -2140,7 +2132,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
             ast::Type::MutableReference(element) => {
-                use crate::ast::UnaryOp::Reference;
+                use UnaryOp::Reference;
                 let rhs = Box::new(self.zeroed_value_of_type(element, location));
                 let result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary {

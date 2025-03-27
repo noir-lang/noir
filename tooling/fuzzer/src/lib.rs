@@ -1,5 +1,5 @@
 //! This module has been adapted from Foundry's fuzzing implementation for the EVM.
-//! https://github.com/foundry-rs/foundry/blob/6a85dbaa62f1c305f31cab37781232913055ae28/crates/evm/evm/src/executors/fuzz/mod.rs#L40
+//! <https://github.com/foundry-rs/foundry/blob/6a85dbaa62f1c305f31cab37781232913055ae28/crates/evm/evm/src/executors/fuzz/mod.rs#L40>
 //!
 //! Code is used under the MIT license.
 
@@ -14,7 +14,7 @@ use dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
 
-mod dictionary;
+pub mod dictionary;
 mod strategies;
 mod types;
 

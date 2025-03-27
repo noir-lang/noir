@@ -1,6 +1,7 @@
 use acvm::{
     FieldElement,
-    acir::circuit::{OpcodeLocation, RawAssertionPayload, brillig::BrilligFunctionId},
+    acir::circuit::{OpcodeLocation, brillig::BrilligFunctionId},
+    pwg::RawAssertionPayload,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{Array, Error, JsString, Reflect};

@@ -21,8 +21,8 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
-        Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
-        UnsafeExpression, Visibility,
+        Pattern, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        UnsafeExpression,
     },
     elaborator::{ElaborateReason, Elaborator},
     hir::{
@@ -44,6 +44,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
+    shared::{Signedness, Visibility},
     token::{Attribute, LocatedToken, Token},
 };
 
@@ -471,7 +472,7 @@ fn type_def_as_type(
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
-/// fn generics(self) -> [(Type, Option<Type>)]
+/// fn generics(self) -> [(Type, `Option<Type>`)]
 fn type_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1790,7 +1791,7 @@ fn expr_as_for(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Array(array) = for_statement.range {
-                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let array = Value::expression(array.kind);
@@ -1816,7 +1817,7 @@ fn expr_as_for_range(
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
                 let (from, to) = bounds.into_half_open();
-                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let from = Value::expression(from.kind);
@@ -2912,7 +2913,7 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
 
-    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::One);
+    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bits_vector, typ))
 }
@@ -2923,7 +2924,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     let bytes = FieldElement::modulus().to_bytes_be();
     let bytes_vector = bytes.into_iter().map(Value::U8).collect();
 
-    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
+    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bytes_vector, typ))
 }
@@ -3002,14 +3003,14 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location
     Value::Struct(fields, option_type)
 }
 
-/// Given a type, assert that it's an Option<T> and return the Type for T
+/// Given a type, assert that it's an `Option<T>` and return the Type for T
 pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     let Type::DataType(struct_type, mut generics) = typ else {
         panic!("Expected type to be a struct");
     };
 
     let struct_type = struct_type.borrow();
-    assert_eq!(struct_type.name.0.contents, "Option");
+    assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
 }

@@ -4,11 +4,11 @@ use acvm::{
     blackbox_solver::{BigIntSolverWithId, BlackBoxFunctionSolver},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
-use im::Vector;
+use im::{Vector, vector};
 use noirc_errors::Location;
 
 use crate::{
-    Type,
+    Kind, Type,
     hir::comptime::{
         InterpreterError, Value, errors::IResult,
         interpreter::builtin::builtin_helpers::to_byte_array,
@@ -21,7 +21,7 @@ use super::{
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
         get_array_map, get_bool, get_field, get_fixed_array_map, get_slice_map, get_struct_field,
-        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_field_array, to_struct,
+        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_struct,
     },
 };
 
@@ -81,8 +81,10 @@ fn call_foreign(
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-        "embedded_curve_add" => embedded_curve_add(args, location, pedantic_solving),
-        "multi_scalar_mul" => multi_scalar_mul(interner, args, location, pedantic_solving),
+        "embedded_curve_add" => embedded_curve_add(args, return_type, location, pedantic_solving),
+        "multi_scalar_mul" => {
+            multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
+        }
         "poseidon2_permutation" => {
             poseidon2_permutation(interner, args, location, pedantic_solving)
         }
@@ -271,14 +273,17 @@ fn ecdsa_secp256_verify(
 /// fn embedded_curve_add(
 ///     point1: EmbeddedCurvePoint,
 ///     point2: EmbeddedCurvePoint,
-/// ) -> [Field; 3]
+/// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn embedded_curve_add(
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
     let (point1, point2) = check_two_arguments(arguments, location)?;
+
+    let embedded_curve_point_typ = point1.0.get_type().into_owned();
 
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
@@ -287,18 +292,22 @@ fn embedded_curve_add(
         .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(to_field_array(&[x, y, inf]))
+    Ok(Value::Array(
+        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
+        return_type,
+    ))
 }
 
 /// ```text
 /// pub fn multi_scalar_mul<let N: u32>(
 ///     points: [EmbeddedCurvePoint; N],
 ///     scalars: [EmbeddedCurveScalar; N],
-/// ) -> [Field; 3]
+/// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn multi_scalar_mul(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
@@ -319,7 +328,24 @@ fn multi_scalar_mul(
         .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(to_field_array(&[x, y, inf]))
+    let embedded_curve_point_typ = match &return_type {
+        Type::Array(_, item_type) => item_type.as_ref().clone(),
+        _ => {
+            return Err(InterpreterError::TypeMismatch {
+                expected: Type::Array(
+                    Box::new(Type::Constant(1_usize.into(), Kind::u32())),
+                    Box::new(interner.next_type_variable()), // EmbeddedCurvePoint
+                ),
+                actual: return_type.clone(),
+                location,
+            });
+        }
+    };
+
+    Ok(Value::Array(
+        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
+        return_type,
+    ))
 }
 
 /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
@@ -414,6 +440,18 @@ fn get_embedded_curve_scalar(
 
 fn to_bigint(id: u32, typ: Type) -> Value {
     to_struct([("pointer", Value::U32(id)), ("modulus", Value::U32(id))], typ)
+}
+
+fn to_embedded_curve_point(
+    x: FieldElement,
+    y: FieldElement,
+    is_infinite: bool,
+    typ: Type,
+) -> Value {
+    to_struct(
+        [("x", Value::Field(x)), ("y", Value::Field(y)), ("is_infinite", Value::Bool(is_infinite))],
+        typ,
+    )
 }
 
 #[cfg(test)]

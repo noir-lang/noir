@@ -102,7 +102,6 @@ dependencies = [
  "const_format",
  "nargo",
  "noir_artifact_cli",
- "paste",
  "proptest",
  "rand",
  "toml",
@@ -3026,6 +3025,7 @@ dependencies = [
  "iter-extended",
  "jsonrpsee",
  "noir_fuzzer",
+ "noir_greybox_fuzzer",
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
@@ -3243,6 +3243,27 @@ dependencies = [
  "noirc_artifacts",
  "proptest",
  "rand",
+]
+
+[[package]]
+name = "noir_greybox_fuzzer"
+version = "1.0.0-beta.3"
+dependencies = [
+ "acvm",
+ "build-data",
+ "fm",
+ "noir_fuzzer",
+ "noirc_abi",
+ "noirc_artifacts",
+ "num-bigint",
+ "num-traits",
+ "proptest",
+ "rand",
+ "rand_xorshift",
+ "rayon",
+ "sha256",
+ "termcolor",
+ "walkdir",
 ]
 
 [[package]]
@@ -4843,6 +4864,18 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "sha256"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f880fc8562bdeb709793f00eb42a2ad0e672c4f883bbe59122b926eca935c8f6"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "hex",
+ "sha2",
 ]
 
 [[package]]

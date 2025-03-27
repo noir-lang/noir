@@ -1,3 +1,5 @@
+//! Low-level native types used within the [crate::circuit] module for representing ACIR.
+
 mod expression;
 mod witness;
 mod witness_map;

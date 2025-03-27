@@ -10,6 +10,7 @@ use super::{
         instruction::BinaryOp,
         types::{NumericType, Type},
     },
+    opt::pure::Purity,
 };
 
 use acvm::{AcirField, FieldElement};
@@ -191,9 +192,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
-
-        // Ignore function purity if it is in the input
-        self.eat_identifier().ok();
+        let purity = self.parse_purity()?;
 
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
@@ -206,7 +205,7 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, external_name, internal_name, blocks })
+        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, blocks })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -229,6 +228,18 @@ impl<'a> Parser<'a> {
             Ok(RuntimeType::Acir(inline_type))
         } else {
             Ok(RuntimeType::Brillig(inline_type))
+        }
+    }
+
+    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+        if self.eat_keyword(Keyword::Pure)? {
+            Ok(Some(Purity::Pure))
+        } else if self.eat_keyword(Keyword::PredicatePure)? {
+            Ok(Some(Purity::PureWithPredicate))
+        } else if self.eat_keyword(Keyword::Impure)? {
+            Ok(Some(Purity::Impure))
+        } else {
+            Ok(None)
         }
     }
 
@@ -372,7 +383,14 @@ impl<'a> Parser<'a> {
         }
 
         let lhs = self.parse_value_or_error()?;
-        self.eat_or_error(Token::Equal)?;
+        let equals = if self.eat(Token::Equal)? {
+            true
+        } else if self.eat(Token::NotEqual)? {
+            false
+        } else {
+            return self.expected_one_of_tokens(&[Token::Equal, Token::NotEqual]);
+        };
+
         let rhs = self.parse_value_or_error()?;
 
         let assert_message = if self.eat(Token::Comma)? {
@@ -387,7 +405,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Ok(Some(ParsedInstruction::Constrain { lhs, rhs, assert_message }))
+        Ok(Some(ParsedInstruction::Constrain { lhs, equals, rhs, assert_message }))
     }
 
     fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -396,8 +414,7 @@ impl<'a> Parser<'a> {
         }
 
         let value = self.parse_value_or_error()?;
-        let original = self.parse_value_or_error()?;
-        Ok(Some(ParsedInstruction::DecrementRc { value, original }))
+        Ok(Some(ParsedInstruction::DecrementRc { value }))
     }
 
     fn parse_enable_side_effects(&mut self) -> ParseResult<Option<ParsedInstruction>> {

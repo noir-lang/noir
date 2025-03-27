@@ -81,13 +81,19 @@ impl ChunkFormatter<'_, '_> {
             StatementKind::Break => {
                 group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Break);
-                    formatter.write_semicolon();
+                    formatter.skip_comments_and_whitespace();
+                    if formatter.is_at(Token::Semicolon) {
+                        formatter.write_semicolon();
+                    }
                 }));
             }
             StatementKind::Continue => {
                 group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Continue);
-                    formatter.write_semicolon();
+                    formatter.skip_comments_and_whitespace();
+                    if formatter.is_at(Token::Semicolon) {
+                        formatter.write_semicolon();
+                    }
                 }));
             }
             StatementKind::Comptime(statement) => {
@@ -135,17 +141,38 @@ impl ChunkFormatter<'_, '_> {
         }));
 
         if let Some(value) = value {
+            // If there's a line comment right before the value we'll put
+            // the comment and the value in the next line, both indented.
+            let mut has_comment_before_value = false;
+
             group.text(self.chunk(|formatter| {
                 formatter.write_space();
                 formatter.write_token(Token::Assign);
-                formatter.write_space();
+                formatter.skip_whitespace();
+                if matches!(formatter.token, Token::LineComment(..)) {
+                    has_comment_before_value = true;
+                } else {
+                    formatter.write_space();
+                }
             }));
+
+            if has_comment_before_value {
+                group.increase_indentation();
+                group.line();
+                group.trailing_comment(self.chunk(|formatter| {
+                    formatter.skip_comments_and_whitespace();
+                }));
+            }
 
             let mut value_group = ChunkGroup::new();
             value_group.kind = GroupKind::AssignValue;
             self.format_expression(value, &mut value_group);
             value_group.semicolon(self);
             group.group(value_group);
+
+            if has_comment_before_value {
+                group.decrease_indentation();
+            }
         } else {
             group.semicolon(self);
         }
@@ -188,7 +215,13 @@ impl ChunkFormatter<'_, '_> {
         } else {
             self.format_expression(assign_statement.expression, &mut value_group);
         }
-        value_group.semicolon(self);
+
+        value_group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        }));
+        if self.is_at(Token::Semicolon) {
+            value_group.semicolon(self);
+        }
         group.group(value_group);
 
         group
@@ -428,6 +461,21 @@ mod tests {
         let expected = "fn foo() {
     // Safety: some comment
     let x = unsafe { 1 };
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_unsafe_comment_right_before_unsafe() {
+        let src = " fn foo() { 
+        
+        let  x  =  // Safety: some comment
+        unsafe { 1 } ; } ";
+        let expected = "fn foo() {
+    let x =
+        // Safety: some comment
+        unsafe { 1 };
 }
 ";
         assert_format(src, expected);
