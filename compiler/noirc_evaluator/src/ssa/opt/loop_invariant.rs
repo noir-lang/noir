@@ -503,7 +503,10 @@ fn can_be_hoisted(
         | Load { .. }
         | Store { .. }
         | IncrementRc { .. }
-        | DecrementRc { .. } => false,
+        | DecrementRc { .. }
+        | Not(_)
+        | Truncate { .. }
+        | IfElse { .. } => false,
 
         Call { func, .. } => match function.dfg[*func] {
             Value::Intrinsic(intrinsic) => intrinsic.purity() == Purity::Pure,
@@ -538,12 +541,7 @@ fn can_be_hoisted(
         MakeArray { .. } => function.runtime().is_acir(),
 
         // These can have different behavior depending on the predicate.
-        Binary(_)
-        | Not(_)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } => {
+        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             hoist_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
     }
