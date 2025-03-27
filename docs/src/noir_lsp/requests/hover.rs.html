@@ -479,7 +479,19 @@
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>fm::PathString;
@@ -628,6 +640,18 @@
             Position { line: <span class="number">15</span>, character: <span class="number">25 </span>},
             <span class="string">r#"    one::subone
     global some_global: Field = 2"#</span>,
+        )
+        .<span class="kw">await</span>;
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>hover_on_global_array() {
+        assert_hover(
+            <span class="string">"workspace"</span>,
+            <span class="string">"two/src/lib.nr"</span>,
+            Position { line: <span class="number">116</span>, character: <span class="number">9 </span>},
+            <span class="string">r#"    two
+    global array: [Field; 3] = [1, 5, 4]"#</span>,
         )
         .<span class="kw">await</span>;
     }

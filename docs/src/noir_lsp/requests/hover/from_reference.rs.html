@@ -901,22 +901,44 @@
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
 <a href="#902" id="902">902</a>
-<a href="#903" id="903">903</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::{FileId, FileMap};
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
+<span class="kw">use </span>noirc_frontend::hir::comptime::Value;
+<span class="kw">use </span>noirc_frontend::node_interner::GlobalValue;
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
-    hir_def::{
-        expr::{HirArrayLiteral, HirExpression, HirLiteral},
-        function::FuncMeta,
-        stmt::HirPattern,
-        traits::Trait,
-    },
+    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
+        DefinitionId, DefinitionKind, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,
     },
 };
@@ -1180,12 +1202,9 @@
     }
 
     <span class="kw">let </span><span class="kw-2">mut </span>print_comptime = definition.comptime;
-    <span class="kw">let </span><span class="kw-2">mut </span>opt_value = <span class="prelude-val">None</span>;
 
-    <span class="comment">// See if we can figure out what's the global's value
-    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(stmt) = args.interner.get_global_let_statement(id) {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(stmt) = args.interner.get_global_let_statement(id) {
         print_comptime = stmt.comptime;
-        opt_value = get_global_value(args.interner, stmt.expression);
     }
 
     string.push_str(<span class="string">"    "</span>);
@@ -1200,9 +1219,11 @@
     string.push_str(<span class="string">": "</span>);
     string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, typ));
 
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = opt_value {
-        string.push_str(<span class="string">" = "</span>);
-        string.push_str(<span class="kw-2">&amp;</span>value);
+    <span class="kw">if let </span>GlobalValue::Resolved(value) = <span class="kw-2">&amp;</span>global_info.value {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = value_to_string(value) {
+            string.push_str(<span class="string">" = "</span>);
+            string.push_str(<span class="kw-2">&amp;</span>value);
+        }
     }
 
     string.push_str(<span class="kw-2">&amp;</span>go_to_type_links(<span class="kw-2">&amp;</span>typ, args.interner, args.files));
@@ -1210,57 +1231,6 @@
     append_doc_comments(args.interner, ReferenceId::Global(id), <span class="kw-2">&amp;mut </span>string);
 
     string
-}
-
-<span class="kw">fn </span>get_global_value(interner: <span class="kw-2">&amp;</span>NodeInterner, expr: ExprId) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-    <span class="kw">match </span>interner.expression(<span class="kw-2">&amp;</span>expr) {
-        HirExpression::Literal(literal) =&gt; <span class="kw">match </span>literal {
-            HirLiteral::Array(hir_array_literal) =&gt; {
-                get_global_array_value(interner, hir_array_literal, <span class="bool-val">false</span>)
-            }
-            HirLiteral::Slice(hir_array_literal) =&gt; {
-                get_global_array_value(interner, hir_array_literal, <span class="bool-val">true</span>)
-            }
-            HirLiteral::Bool(value) =&gt; <span class="prelude-val">Some</span>(value.to_string()),
-            HirLiteral::Integer(value) =&gt; <span class="prelude-val">Some</span>(value.to_string()),
-            HirLiteral::Str(string) =&gt; <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"{:?}"</span>, string)),
-            HirLiteral::FmtStr(..) =&gt; <span class="prelude-val">None</span>,
-            HirLiteral::Unit =&gt; <span class="prelude-val">Some</span>(<span class="string">"()"</span>.to_string()),
-        },
-        HirExpression::Tuple(values) =&gt; {
-            get_exprs_global_value(interner, <span class="kw-2">&amp;</span>values).map(|value| <span class="macro">format!</span>(<span class="string">"({})"</span>, value))
-        }
-        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-    }
-}
-
-<span class="kw">fn </span>get_global_array_value(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    literal: HirArrayLiteral,
-    is_slice: bool,
-) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-    <span class="kw">match </span>literal {
-        HirArrayLiteral::Standard(values) =&gt; {
-            get_exprs_global_value(interner, <span class="kw-2">&amp;</span>values).map(|value| {
-                <span class="kw">if </span>is_slice { <span class="macro">format!</span>(<span class="string">"&amp;[{}]"</span>, value) } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"[{}]"</span>, value) }
-            })
-        }
-        HirArrayLiteral::Repeated { repeated_element, length } =&gt; {
-            get_global_value(interner, repeated_element).map(|value| {
-                <span class="kw">if </span>is_slice {
-                    <span class="macro">format!</span>(<span class="string">"&amp;[{}; {}]"</span>, value, length)
-                } <span class="kw">else </span>{
-                    <span class="macro">format!</span>(<span class="string">"[{}; {}]"</span>, value, length)
-                }
-            })
-        }
-    }
-}
-
-<span class="kw">fn </span>get_exprs_global_value(interner: <span class="kw-2">&amp;</span>NodeInterner, exprs: <span class="kw-2">&amp;</span>[ExprId]) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-    <span class="kw">let </span>strings: Vec&lt;String&gt; =
-        exprs.iter().filter_map(|value| get_global_value(interner, <span class="kw-2">*</span>value)).collect();
-    <span class="kw">if </span>strings.len() == exprs.len() { <span class="prelude-val">Some</span>(strings.join(<span class="string">", "</span>)) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
 }
 
 <span class="kw">fn </span>format_function(id: FuncId, args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs) -&gt; String {
@@ -1803,5 +1773,85 @@
     </span>} <span class="kw">else </span>{
         <span class="bool-val">false
     </span>}
+}
+
+<span class="kw">fn </span>value_to_string(value: <span class="kw-2">&amp;</span>Value) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
+    append_value_to_string(value, <span class="kw-2">&amp;mut </span>string)<span class="question-mark">?</span>;
+    <span class="prelude-val">Some</span>(string)
+}
+
+<span class="kw">fn </span>append_value_to_string(value: <span class="kw-2">&amp;</span>Value, string: <span class="kw-2">&amp;mut </span>String) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; {
+    <span class="kw">match </span>value {
+        Value::Unit =&gt; string.push_str(<span class="string">"()"</span>),
+        Value::Bool(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::Field(field_element) =&gt; string.push_str(<span class="kw-2">&amp;</span>field_element.to_string()),
+        Value::I8(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::I16(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::I32(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::I64(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::U1(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::U8(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::U16(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::U32(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::U64(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::U128(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::String(value) | Value::CtString(value) =&gt; string.push_str(<span class="kw-2">&amp;</span>value.to_string()),
+        Value::Tuple(values) =&gt; {
+            <span class="kw">let </span>len = values.iter().len();
+            string.push(<span class="string">'('</span>);
+            <span class="kw">for </span>(index, value) <span class="kw">in </span>values.iter().enumerate() {
+                <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+                    string.push_str(<span class="string">", "</span>);
+                }
+                append_value_to_string(value, string)<span class="question-mark">?</span>;
+            }
+            <span class="kw">if </span>len == <span class="number">1 </span>{
+                string.push(<span class="string">','</span>);
+            }
+            string.push(<span class="string">')'</span>);
+        }
+        Value::Array(values, <span class="kw">_</span>) =&gt; {
+            string.push(<span class="string">'['</span>);
+            <span class="kw">for </span>(index, value) <span class="kw">in </span>values.iter().enumerate() {
+                <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+                    string.push_str(<span class="string">", "</span>);
+                }
+                append_value_to_string(value, string)<span class="question-mark">?</span>;
+            }
+            string.push(<span class="string">']'</span>);
+        }
+        Value::Slice(values, <span class="kw">_</span>) =&gt; {
+            string.push_str(<span class="string">"&amp;["</span>);
+            <span class="kw">for </span>(index, value) <span class="kw">in </span>values.iter().enumerate() {
+                <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+                    string.push_str(<span class="string">", "</span>);
+                }
+                append_value_to_string(value, string)<span class="question-mark">?</span>;
+            }
+            string.push(<span class="string">']'</span>);
+        }
+        <span class="comment">// We could turn these into strings but the output wouldn't be very useful to users
+        </span>Value::FormatString(..)
+        | Value::Function(..)
+        | Value::Closure(..)
+        | Value::Struct(..)
+        | Value::Enum(..)
+        | Value::Pointer(..)
+        | Value::Quoted(..)
+        | Value::TypeDefinition(..)
+        | Value::TraitConstraint(..)
+        | Value::TraitDefinition(..)
+        | Value::TraitImpl(..)
+        | Value::FunctionDefinition(..)
+        | Value::ModuleDefinition(..)
+        | Value::Type(..)
+        | Value::Zeroed(..)
+        | Value::Expr(..)
+        | Value::TypedExpr(..)
+        | Value::UnresolvedType(..) =&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
+    }
+
+    <span class="prelude-val">Some</span>(())
 }
 </code></pre></div></section></main></body></html>
