@@ -52,7 +52,7 @@ The output is streamed to the console, and shows key metrics like:
 - `CRPS` - Number of active test cases in the corpus
 - `AB_NEW` - Number of test cases added to the corpus with ACIR/Brillig hybrid execution
 - `B_NEW` - Number of test cases added to the corpus with Brillig
-- `RMVD` - Number of test cases removed from the corpus, because they other test cases have been found that have the same coverage
+- `RMVD` - Number of test cases removed from the corpus, because other test cases have been found that have the same coverage
 - `A_TIME` - Time spent fuzzing with ACIR (cumulative from all threads)
 - `B_TIME` - Time spent fuzzing with Brillig (cumulative from all threads)
 - `M_TIME` - Time spend mutating test cases (cumulative from all threads)
