@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743021326180,
+  "lastUpdate": 1743081416987,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d9714db484554d85706877d9e96e4b360782873a",
-          "message": "fix: handle predicate value reduction in array get also for the databus (#7730)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
-          "timestamp": "2025-03-18T13:33:36Z",
-          "tree_id": "7d5533e823d88ff648c533661d78ba8ec218d974",
-          "url": "https://github.com/noir-lang/noir/commit/d9714db484554d85706877d9e96e4b360782873a"
-        },
-        "date": 1742306309794,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.07,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.284,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.728,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.494,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 17.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "14488e5f0476fff0a957e8509a9be64165c7a329",
+          "message": "chore: move Instruction::has_side_effects and similar functions into their relevant SSA passes (#7822)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-03-27T12:56:47Z",
+          "tree_id": "d430ef68e3b8b4917e297e416d46498d52981f48",
+          "url": "https://github.com/noir-lang/noir/commit/14488e5f0476fff0a957e8509a9be64165c7a329"
+        },
+        "date": 1743081413331,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.076,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.305,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.798,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.533,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.028,
             "unit": "s"
           }
         ]
