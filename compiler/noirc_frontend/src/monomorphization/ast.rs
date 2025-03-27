@@ -50,6 +50,7 @@ pub enum Expression {
     Constrain(Box<Expression>, Location, Option<Box<(Expression, HirType)>>),
     Assign(Assign),
     Semi(Box<Expression>),
+    Clone(Box<Expression>),
     Break,
     Continue,
 }
@@ -338,7 +339,7 @@ pub enum Type {
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
-    MutableReference(Box<Type>),
+    Reference(Box<Type>),
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -352,6 +353,18 @@ impl Type {
         match self {
             Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
             _ => vec![self.clone()],
+        }
+    }
+
+    /// Similar to flatten but avoids allocating a new Vec
+    pub fn flatten_for_each<'a>(&'a self, mut f: impl FnMut(&'a Type)) {
+        self.flatten_for_each_helper(&mut f)
+    }
+
+    fn flatten_for_each_helper<'a>(&'a self, f: &mut impl FnMut(&'a Type)) {
+        match self {
+            Type::Tuple(fields) => fields.iter().for_each(|typ| typ.flatten_for_each_helper(f)),
+            _ => f(self),
         }
     }
 }
@@ -490,7 +503,7 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
             Type::Slice(element) => write!(f, "[{element}]"),
-            Type::MutableReference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element) => write!(f, "&mut {element}"),
         }
     }
 }

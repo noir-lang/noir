@@ -78,6 +78,10 @@ impl AstPrinter {
             }
             Expression::Break => write!(f, "break"),
             Expression::Continue => write!(f, "continue"),
+            Expression::Clone(expr) => {
+                self.print_expr(expr, f)?;
+                write!(f, ".clone()")
+            }
         }
     }
 

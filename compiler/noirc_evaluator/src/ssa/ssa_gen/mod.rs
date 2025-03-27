@@ -172,6 +172,7 @@ impl FunctionContext<'_> {
             Expression::Semi(semi) => self.codegen_semi(semi),
             Expression::Break => Ok(self.codegen_break()),
             Expression::Continue => Ok(self.codegen_continue()),
+            Expression::Clone(expr) => self.codegen_clone(expr),
         }
     }
 
@@ -1139,5 +1140,16 @@ impl FunctionContext<'_> {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
         Self::unit_value()
+    }
+
+    /// Evaluate the given expression, increment the reference count of each array within,
+    /// and return the evaluated expression.
+    fn codegen_clone(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        let values = self.codegen_expression(expr)?;
+        Ok(values.map(|value| {
+            let value = value.eval(self);
+            self.builder.increment_array_reference_count(value);
+            Values::from(value)
+        }))
     }
 }
