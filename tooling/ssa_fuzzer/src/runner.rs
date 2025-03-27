@@ -22,7 +22,7 @@ pub enum RunnerError {
     ExecutionPanicked(String),
 }
 
-
+#[derive(Debug)]
 pub enum CompareResults {
     Agree(FieldElement),
     Disagree(FieldElement, FieldElement),

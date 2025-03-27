@@ -44,8 +44,8 @@ fn optimize_into_acir(
     .finish();
 
     // to triage ssa after optimizations, when crash found
-    //let formatted_ssa = format!("{}", ssa);
-    //println!("formatted_ssa: {:?}", formatted_ssa);
+    let formatted_ssa = format!("{}", ssa);
+    log::debug!("formatted_ssa: {:?}", formatted_ssa);
     match ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width) {
         Ok(artifacts) => Ok(ArtifactsAndWarnings(artifacts, vec![])),
         Err(e) => Err(e),

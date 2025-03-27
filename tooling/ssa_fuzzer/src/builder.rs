@@ -22,6 +22,14 @@ pub enum FuzzerBuilderError {
     RuntimeError(String),
 }
 
+/// Inserts binary instruction with two arguments and returns Id of the result
+/// eg add, sub, mul
+pub type InstructionWithTwoArgs = fn(&mut FuzzerBuilder, Id<Value>, Id<Value>) -> Id<Value>;
+
+/// Inserts unary instruction with one argument and returns Id of the result
+/// eg not, SimpleCast(casts variable to current numeric type)
+pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, Id<Value>) -> Id<Value>;
+
 /// Builder for generating fuzzed SSA functions
 /// Contains a FunctionBuilder and tracks the current numeric type being used
 pub struct FuzzerBuilder {

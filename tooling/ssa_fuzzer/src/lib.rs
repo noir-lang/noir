@@ -7,7 +7,7 @@ pub mod runner;
 
 #[cfg(test)]
 mod tests {
-    use crate::builder::FuzzerBuilder;
+    use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
     use crate::config;
     use crate::runner::{run_and_compare, CompareResults};
     use acvm::FieldElement;
@@ -31,7 +31,7 @@ mod tests {
 
         fn insert_instruction_double_arg(
             &mut self,
-            instruction: fn(&mut FuzzerBuilder, Id<Value>, Id<Value>) -> Id<Value>,
+            instruction: InstructionWithTwoArgs,
             first_arg: Id<Value>,
             second_arg: Id<Value>,
         ) -> (Id<Value>, Id<Value>) {
@@ -77,13 +77,13 @@ mod tests {
     /// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
     /// Instruction runned with first and second witness given
     fn run_instruction_double_arg(
-        instruction: fn(&mut FuzzerBuilder, Id<Value>, Id<Value>) -> Id<Value>,
+        instruction: InstructionWithTwoArgs,
         values: Vec<u64>,
     ) -> FieldElement {
         let lhs = Id::new(0);
         let rhs = Id::new(1);
         let mut test_helper = TestHelper::new(Type::unsigned(128));
-        let witness_map = get_witness_map(values);
+        let witness_map = get_witness_map(values.clone());
         let initial_witness = witness_map;
         let (acir_result, brillig_result) =
             test_helper.insert_instruction_double_arg(instruction, lhs, rhs);
@@ -103,16 +103,16 @@ mod tests {
         match compare_results {
             CompareResults::Agree(result) => result,
             CompareResults::Disagree(acir_result, brillig_result) => {
-                panic!("ACIR and Brillig results disagree: ACIR: {}, Brillig: {}", acir_result, brillig_result);
+                panic!("ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}", acir_result, brillig_result, values.clone());
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
-                panic!("Both ACIR and Brillig failed: ACIR: {}, Brillig: {}", acir_error, brillig_error);
+                panic!("Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}", acir_error, brillig_error, values.clone());
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
-                panic!("ACIR failed: ACIR: {}, Brillig: {}", acir_error, brillig_result);
+                panic!("ACIR failed: ACIR: {}, Brillig: {}, values: {:?}", acir_error, brillig_result, values.clone());
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) => {
-                panic!("Brillig failed: Brillig: {}, ACIR: {}", brillig_error, acir_result);
+                panic!("Brillig failed: Brillig: {}, ACIR: {}, values: {:?}", brillig_error, acir_result, values);
             }
         }
     }
@@ -158,7 +158,10 @@ mod tests {
 
     #[test]
     fn test_div() {
-        let values = generate_values();
+        let mut values = generate_values();
+        if values[1] == 0 {
+            values[1] = 1;
+        }
         let noir_res     = run_instruction_double_arg(
             FuzzerBuilder::insert_div_instruction,
             values.clone(),

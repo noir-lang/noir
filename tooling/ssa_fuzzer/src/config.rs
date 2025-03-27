@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 /// The initial number of variables to create when generating a random SSA function.
 pub const NUMBER_OF_VARIABLES_INITIAL: u32 = 7;
 
