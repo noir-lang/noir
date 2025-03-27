@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743081750635,
+  "lastUpdate": 1743092406853,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8164,70 +8164,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "f4660bf4c5d7dd0f043b3c18dd8a74a76c5a4bb6",
-          "message": "chore: bump bb (#7726)",
-          "timestamp": "2025-03-18T13:43:42Z",
-          "tree_id": "58f85e9d92b7bf5b659d294201d9df992aa80403",
-          "url": "https://github.com/noir-lang/noir/commit/f4660bf4c5d7dd0f043b3c18dd8a74a76c5a4bb6"
-        },
-        "date": 1742306769301,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.08,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.29,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.728,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.488,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.025,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "ed6414038a94e8b8b9d6fcd68335a9e8664cef45",
           "message": "chore(ci): enforce rustdoc lints (#7738)",
@@ -11338,6 +11274,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.028,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "isennovskiy@gmail.com",
+            "name": "Innokentii Sennovskii",
+            "username": "Rumata888"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "425e10290cc14cfa4edb87202a71fe5f10bfac54",
+          "message": "chore: Added fuzzer usage docs to the website (#7819)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-03-27T15:57:26Z",
+          "tree_id": "b6095a6365e81a9f3d60427464b724073653b940",
+          "url": "https://github.com/noir-lang/noir/commit/425e10290cc14cfa4edb87202a71fe5f10bfac54"
+        },
+        "date": 1743092403376,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.075,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.304,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.029,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.787,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.531,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18.2,
             "unit": "s"
           },
           {
