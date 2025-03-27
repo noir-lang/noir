@@ -119,7 +119,7 @@ pub enum ParserErrorReason {
     MissingParametersForFunctionDefinition,
     #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
     StructDefinitionDeprecated,
-    #[error("Missing angle brackets surrounding type")]
+    #[error("Missing angle brackets surrounding type in associated item path")]
     MissingAngleBrackets,
     #[error("Expected value, found built-in type `{typ}`")]
     ExpectedValueFoundBuiltInType { typ: UnresolvedType },
