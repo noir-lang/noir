@@ -1,6 +1,6 @@
 # SSA Fuzzer
 
-A fuzzing tool for testing and comparing ACIR and Brillig implementations.
+A fuzzing tool for testing and comparing ACIR and Brillig implementations based on [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).
 
 ## Overview
 
