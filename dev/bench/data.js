@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743107187472,
+  "lastUpdate": 1743107189333,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "cbbfc384d2e70de7246d0161478e9c3962a955e5",
-          "message": "fix: Fix stdout testing when running test programs (#7741)",
-          "timestamp": "2025-03-18T15:05:42Z",
-          "tree_id": "8cacc8afffd947736be582e72bb09f50f9638a78",
-          "url": "https://github.com/noir-lang/noir/commit/cbbfc384d2e70de7246d0161478e9c3962a955e5"
-        },
-        "date": 1742311941021,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.069,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.284,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.73,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.49,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11333,6 +11269,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 0.529,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a511b50c9a58c7b8271fc40e1e0b2f3a415f639e",
+          "message": "fix(LSP): bring back global values on hover (#7829)",
+          "timestamp": "2025-03-27T20:05:34Z",
+          "tree_id": "07f347f9f8d22f21974bad0181b37a6d87223fa3",
+          "url": "https://github.com/noir-lang/noir/commit/a511b50c9a58c7b8271fc40e1e0b2f3a415f639e"
+        },
+        "date": 1743107185186,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.076,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.304,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.794,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.527,
             "unit": "s"
           },
           {
