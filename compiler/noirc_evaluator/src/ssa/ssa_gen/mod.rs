@@ -458,8 +458,21 @@ impl FunctionContext<'_> {
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size =
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
-        // This shouldn't overflow as we are reaching for an initial array offset
-        // (otherwise it would have overflowed when creating the array)
+
+        let array_type = &self.builder.type_of_value(array);
+
+        // Checks for index Out-of-bounds
+        match array_type {
+            Type::Slice(_) => {
+                self.codegen_access_check(index, length);
+            }
+            Type::Array(_, len) => {
+                let len = self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                self.codegen_access_check(index, Some(len));
+            }
+            _ => unreachable!("must have array or slice but got {array_type}"),
+        }
+
         let base_index = self.builder.set_location(location).insert_binary(
             index,
             BinaryOp::Mul { unchecked: true },
@@ -470,17 +483,6 @@ impl FunctionContext<'_> {
         Ok(Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
-
-            let array_type = &self.builder.type_of_value(array);
-            match array_type {
-                Type::Slice(_) => {
-                    self.codegen_slice_access_check(index, length);
-                }
-                Type::Array(..) => {
-                    // Nothing needs to done to prepare an array access on an array
-                }
-                _ => unreachable!("must have array or slice but got {array_type}"),
-            }
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
@@ -494,11 +496,11 @@ impl FunctionContext<'_> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
+    fn codegen_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self
-            .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
+            .make_array_index(length.expect("ICE: a length must be supplied for checking index"));
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, NumericType::bool());
@@ -1010,10 +1012,10 @@ impl FunctionContext<'_> {
                         one,
                     );
 
-                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                    self.codegen_access_check(arguments[2], Some(len_plus_one));
                 }
                 Intrinsic::SliceRemove => {
-                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                    self.codegen_access_check(arguments[2], Some(arguments[0]));
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
