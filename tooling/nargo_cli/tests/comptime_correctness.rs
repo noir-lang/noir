@@ -47,7 +47,10 @@ pub(crate) fn run_snippet(
     return_value.expect("should decode a return value")
 }
 
-fn comptime_check_field_expression(strategy: BoxedStrategy<(String, &str, u32, u32)>, num_cases: u32) {
+fn comptime_check_field_expression(
+    strategy: BoxedStrategy<(String, &str, u32, u32)>,
+    num_cases: u32,
+) {
     proptest!(ProptestConfig::with_cases(num_cases), |((comptime_expr, runtime_expr, a, b) in strategy)| {
         let program = format!("
         comptime fn comptime_code() -> Field {{
@@ -146,8 +149,9 @@ fn comptime_check_field_and() {
 #[test]
 #[ignore]
 fn comptime_check_field_shl() {
-    let strategy =
-        any::<(u32, u8)>().prop_map(|(a, b)| (format!("{a} << {b}"), "a << b", a, b as u32)).boxed();
+    let strategy = any::<(u32, u8)>()
+        .prop_map(|(a, b)| (format!("{a} << {b}"), "a << b", a, b as u32))
+        .boxed();
 
     comptime_check_field_expression(strategy, *NUM_CASES);
 }
@@ -155,8 +159,9 @@ fn comptime_check_field_shl() {
 #[test]
 #[ignore]
 fn comptime_check_field_shr() {
-    let strategy =
-        any::<(u32, u8)>().prop_map(|(a, b)| (format!("{a} >> {b}"), "a >> b", a, b as u32)).boxed();
+    let strategy = any::<(u32, u8)>()
+        .prop_map(|(a, b)| (format!("{a} >> {b}"), "a >> b", a, b as u32))
+        .boxed();
 
     comptime_check_field_expression(strategy, *NUM_CASES);
 }
