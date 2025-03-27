@@ -853,13 +853,14 @@ fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
             | BinaryOp::Shr => false,
         },
 
-        // These can have different behavior depending on the EnableSideEffectsIf context.
-        Cast(_, _)
-        | Not(_)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } => instruction.requires_acir_gen_predicate(dfg),
+        // These don't have side effects
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+        // `ArrayGet`s which read from "known good" indices from an array have no side effects
+        ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
+
+        // ArraySet has side effects
+        ArraySet { .. } => true,
     }
 }
 
