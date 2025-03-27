@@ -50,6 +50,7 @@ pub(crate) fn run_snippet(
 fn comptime_check_field_expression(
     strategy: BoxedStrategy<(String, &str, u32, u32)>,
     num_cases: u32,
+    force_brillig: bool,
 ) {
     proptest!(ProptestConfig::with_cases(num_cases), |((comptime_expr, runtime_expr, a, b) in strategy)| {
         let program = format!("
@@ -73,7 +74,7 @@ fn comptime_check_field_expression(
 
         let inputs: BTreeMap<String, InputValue> = inputs.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
 
-        let return_value = run_snippet(program.to_string(), inputs, true);
+        let return_value = run_snippet(program.to_string(), inputs, force_brillig);
         prop_assert_eq!(return_value, InputValue::Field(1u32.into()));
     });
 }
@@ -83,7 +84,15 @@ fn comptime_check_field_add() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} + {b}"), "a + b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
+}
+
+#[test]
+fn comptime_check_field_add_brillig() {
+    let strategy =
+        any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} + {b}"), "a + b", a, b)).boxed();
+
+    comptime_check_field_expression(strategy, *NUM_CASES, true);
 }
 
 #[test]
@@ -91,7 +100,15 @@ fn comptime_check_field_sub() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} - {b}"), "a - b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
+}
+
+#[test]
+fn comptime_check_field_sub_brillig() {
+    let strategy =
+        any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} - {b}"), "a - b", a, b)).boxed();
+
+    comptime_check_field_expression(strategy, *NUM_CASES, true);
 }
 
 #[test]
@@ -99,7 +116,15 @@ fn comptime_check_field_div() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} / {b}"), "a / b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
+}
+
+#[test]
+fn comptime_check_field_div_brillig() {
+    let strategy =
+        any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} / {b}"), "a / b", a, b)).boxed();
+
+    comptime_check_field_expression(strategy, *NUM_CASES, true);
 }
 
 #[test]
@@ -107,7 +132,15 @@ fn comptime_check_field_mul() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} * {b}"), "a * b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
+}
+
+#[test]
+fn comptime_check_field_mul_brillig() {
+    let strategy =
+        any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} * {b}"), "a * b", a, b)).boxed();
+
+    comptime_check_field_expression(strategy, *NUM_CASES, true);
 }
 
 #[test]
@@ -116,7 +149,7 @@ fn comptime_check_field_mod() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} % {b}"), "a % b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
 }
 
 #[test]
@@ -125,7 +158,7 @@ fn comptime_check_field_xor() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} ^ {b}"), "a ^ b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
 }
 
 #[test]
@@ -134,7 +167,7 @@ fn comptime_check_field_or() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} | {b}"), "a | b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
 }
 
 #[test]
@@ -143,7 +176,7 @@ fn comptime_check_field_and() {
     let strategy =
         any::<(u32, u32)>().prop_map(|(a, b)| (format!("{a} & {b}"), "a & b", a, b)).boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
 }
 
 #[test]
@@ -153,7 +186,7 @@ fn comptime_check_field_shl() {
         .prop_map(|(a, b)| (format!("{a} << {b}"), "a << b", a, b as u32))
         .boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
 }
 
 #[test]
@@ -163,5 +196,5 @@ fn comptime_check_field_shr() {
         .prop_map(|(a, b)| (format!("{a} >> {b}"), "a >> b", a, b as u32))
         .boxed();
 
-    comptime_check_field_expression(strategy, *NUM_CASES);
+    comptime_check_field_expression(strategy, *NUM_CASES, false);
 }
