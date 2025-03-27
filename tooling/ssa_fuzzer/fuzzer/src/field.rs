@@ -68,11 +68,9 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     let type_ = Type::field();
     let mut witness_map = WitnessMap::new();
     let mut values = vec![];
-    for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
-        let witness = Witness(i);
-        let value = FieldElement::from(data.initial_witness.get(i as usize).unwrap());
-        witness_map.insert(witness, value);
-        values.push(value);
+    for (i, witness_value) in data.initial_witness.iter().map(FieldElement::from).enumerate() {
+        witness_map.insert(Witness(i as u32), witness_value);
+        values.push(witness_value);
     }
     let initial_witness = witness_map;
     log::debug!("instructions: {:?}", data.methods.clone());
