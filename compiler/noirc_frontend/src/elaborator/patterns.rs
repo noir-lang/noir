@@ -599,11 +599,10 @@ impl Elaborator<'_> {
 
     /// Solve any generics that are part of the path before the function, for example:
     ///
-    /// ```rust
-    /// foo::Bar::<i32>::baz
-    ///           ^^^^^
-    ///         solve these
+    /// ```noir
+    /// foo::Bar::<i32>::baz   
     /// ```
+    /// Solve `<i32>` above
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
@@ -874,11 +873,17 @@ impl Elaborator<'_> {
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let location = path.item.location();
+        let object_location = path.typ.location;
         let typ = self.resolve_type(path.typ);
         let check_self_param = false;
 
-        let Some(method) = self.lookup_method(&typ, path.item.as_str(), location, check_self_param)
-        else {
+        let Some(method) = self.lookup_method(
+            &typ,
+            path.item.as_str(),
+            location,
+            object_location,
+            check_self_param,
+        ) else {
             let error = Expression::new(ExpressionKind::Error, location);
             return self.elaborate_expression(error);
         };

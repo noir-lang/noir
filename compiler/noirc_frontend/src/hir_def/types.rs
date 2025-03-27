@@ -20,10 +20,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 
-use crate::{
-    ast::{Ident, Signedness},
-    node_interner::TypeId,
-};
+use crate::shared::Signedness;
+use crate::{ast::Ident, node_interner::TypeId};
 
 use super::{
     expr::{HirCallExpression, HirExpression, HirIdent},
