@@ -119,6 +119,8 @@ pub enum ParserErrorReason {
     MissingParametersForFunctionDefinition,
     #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
     StructDefinitionDeprecated,
+    #[error("Missing angle brackets surrounding type")]
+    MissingAngleBrackets,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -312,6 +314,10 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 }
                 ParserErrorReason::StructDefinitionDeprecated => {
                     Diagnostic::simple_warning(format!("{reason}"), String::new(), error.location())
+                }
+                ParserErrorReason::MissingAngleBrackets => {
+                    let secondary = "Types that don't start with an identifier need to be surrounded with angle brackets: `<`, `>`".to_string();
+                    Diagnostic::simple_error(format!("{reason}"), secondary, error.location())
                 }
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())

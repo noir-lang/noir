@@ -6,7 +6,7 @@ use crate::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
         ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
         IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
+        Statement, TypePath, UnaryOp, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel, parser::parse_many::separated_by_comma},
     token::{Keyword, Token, TokenKind},
@@ -743,6 +743,8 @@ impl Parser<'_> {
     ///
     /// RepeatedArrayLiteral = '[' Expression ';' TypeExpression ']'
     fn parse_array_literal(&mut self) -> Option<ArrayLiteral> {
+        let start_location = self.current_token_location;
+
         if !self.eat_left_bracket() {
             return None;
         }
@@ -759,6 +761,13 @@ impl Parser<'_> {
         if self.eat_semicolon() {
             let length = self.parse_expression_or_error();
             self.eat_or_error(Token::RightBracket);
+
+            // If it's `[expr; length]::ident`, give an error that it's missing `<...>`
+            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+                let location = self.location_since(start_location);
+                self.push_error(ParserErrorReason::MissingAngleBrackets, location);
+            }
+
             return Some(ArrayLiteral::Repeated {
                 repeated_element: Box::new(first_expr),
                 length: Box::new(length),
@@ -804,11 +813,25 @@ impl Parser<'_> {
     ///
     /// TupleExpression = '(' Expression ( ',' Expression )+ ','? ')'
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
+        let start_location = self.current_token_location;
+
         if !self.eat_left_paren() {
             return None;
         }
 
         if self.eat_right_paren() {
+            // If it's `()::ident`, parse it as a type path but produce an error saying it should be `<()>::ident`.
+            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+                let location = self.location_since(start_location);
+                let typ = UnresolvedTypeData::Unit;
+                let typ = UnresolvedType { typ, location };
+                let type_path = self.parse_type_path_expr_for_type(typ);
+
+                self.push_error(ParserErrorReason::MissingAngleBrackets, location);
+
+                return Some(ExpressionKind::TypePath(type_path));
+            }
+
             return Some(ExpressionKind::Literal(Literal::Unit));
         }
 
@@ -817,6 +840,12 @@ impl Parser<'_> {
             separated_by_comma_until_right_paren(),
             Self::parse_expression_in_list,
         );
+
+        // If it's `(..)::ident`, give an error that it's missing `<...>`
+        if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+            let location = self.location_since(start_location);
+            self.push_error(ParserErrorReason::MissingAngleBrackets, location);
+        }
 
         Some(if exprs.len() == 1 && !trailing_comma {
             ExpressionKind::Parenthesized(Box::new(exprs.remove(0)))
@@ -1873,6 +1902,27 @@ mod tests {
         assert_eq!(type_path.typ.to_string(), "[i32; 3]");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_none());
+    }
+
+    #[test]
+    fn parses_type_path_with_empty_tuple_missing_angle_brackets() {
+        let src = "
+          ()::foo
+          ^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "()");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
     }
 
     #[test]
