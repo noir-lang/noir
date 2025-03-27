@@ -35,9 +35,7 @@ impl TextChunk {
 #[derive(Debug)]
 pub(crate) enum Chunk {
     /// A text chunk. It might contain leading comments.
-    Text(TextChunk),
-    /// A text chunk that should be printed unmodified (used for `quote { ... }` contents).
-    Verbatim(TextChunk),
+    Text(TextChunk, bool /* verbatim */),
     /// A trailing comma that's only written if we decide to format chunks in multiple lines
     /// (for example for a call we'll add a trailing comma to the last argument).
     TrailingComma,
@@ -65,8 +63,7 @@ pub(crate) enum Chunk {
 impl Chunk {
     pub(crate) fn width(&self) -> usize {
         match self {
-            Chunk::Text(chunk)
-            | Chunk::Verbatim(chunk)
+            Chunk::Text(chunk, _)
             | Chunk::TrailingComment(chunk)
             | Chunk::LeadingComment(chunk) => chunk.width,
             Chunk::Group(group) => group.width(),
@@ -96,8 +93,7 @@ impl Chunk {
 
     pub(crate) fn has_newlines(&self) -> bool {
         match self {
-            Chunk::Text(chunk)
-            | Chunk::Verbatim(chunk)
+            Chunk::Text(chunk, _)
             | Chunk::TrailingComment(chunk)
             | Chunk::LeadingComment(chunk) => chunk.has_newlines,
             Chunk::Group(group) => group.has_newlines(),
@@ -185,29 +181,29 @@ impl ChunkGroup {
     }
 
     /// Appends a text to this group.
-    /// If the last chunk in this group is a text, no new chunk is inserted and
-    /// instead the last text chunk is extended.
+    /// If the last chunk in this group is a text or verbatim,
+    /// no new chunk is inserted and instead the last text chunk is extended.
     pub(crate) fn text(&mut self, chunk: TextChunk) {
-        if chunk.width == 0 {
-            return;
-        }
-
-        if let Some(Chunk::Text(text_chunk)) = self.chunks.last_mut() {
-            text_chunk.string.push_str(&chunk.string);
-            text_chunk.width += chunk.width;
-            text_chunk.has_newlines |= chunk.has_newlines;
-        } else {
-            self.push(Chunk::Text(chunk));
-        }
+        self.text_impl(chunk, false /* verbatim */);
     }
 
     /// Appends a verbatim text chunk to this group.
     pub(crate) fn verbatim(&mut self, chunk: TextChunk) {
+        self.text_impl(chunk, true /* verbatim */);
+    }
+
+    pub(crate) fn text_impl(&mut self, chunk: TextChunk, verbatim: bool) {
         if chunk.width == 0 {
             return;
         }
 
-        self.push(Chunk::Verbatim(chunk));
+        if let Some(Chunk::Text(text_chunk, _)) = self.chunks.last_mut() {
+            text_chunk.string.push_str(&chunk.string);
+            text_chunk.width += chunk.width;
+            text_chunk.has_newlines |= chunk.has_newlines;
+        } else {
+            self.push(Chunk::Text(chunk, verbatim));
+        }
     }
 
     /// Appends a single space to this group by reading it from the given formatter.
@@ -359,8 +355,7 @@ impl ChunkGroup {
 
         for chunk in self.chunks {
             match chunk {
-                Chunk::Text(chunk) => group.text(chunk),
-                Chunk::Verbatim(chunk) => group.verbatim(chunk),
+                Chunk::Text(chunk, verbatim) => group.text_impl(chunk, verbatim),
                 Chunk::TrailingComma => {
                     // If there's a trailing comma after a group, append the text to that group
                     // so that it glues with the last text present there (if any)
@@ -394,8 +389,7 @@ impl ChunkGroup {
         let mut width = 0;
         for chunk in &self.chunks {
             match chunk {
-                Chunk::Text(text_chunk)
-                | Chunk::Verbatim(text_chunk)
+                Chunk::Text(text_chunk, _)
                 | Chunk::TrailingComment(text_chunk)
                 | Chunk::LeadingComment(text_chunk) => {
                     width += text_chunk.width;
@@ -840,7 +834,7 @@ impl<'a> Formatter<'a> {
     pub(super) fn format_chunk_group_in_one_line(&mut self, group: ChunkGroup) {
         for chunk in group.chunks {
             match chunk {
-                Chunk::Text(text_chunk) | Chunk::Verbatim(text_chunk) => {
+                Chunk::Text(text_chunk, _) => {
                     self.write(&text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
@@ -882,8 +876,10 @@ impl<'a> Formatter<'a> {
             last_was_space_or_line = false;
 
             match chunk {
-                Chunk::Text(text_chunk) => {
-                    if text_chunk.has_newlines {
+                Chunk::Text(text_chunk, verbatim) => {
+                    if verbatim {
+                        self.write(&text_chunk.string);
+                    } else if text_chunk.has_newlines {
                         self.write_chunk_lines(&text_chunk.string);
                     } else {
                         // If we didn't exceed the max width, but this chunk will, insert a newline,
@@ -901,9 +897,6 @@ impl<'a> Formatter<'a> {
                         }
                         self.write(&text_chunk.string);
                     }
-                }
-                Chunk::Verbatim(text_chunk) => {
-                    self.write(&text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk) => {
                     self.write_chunk_lines(&text_chunk.string);

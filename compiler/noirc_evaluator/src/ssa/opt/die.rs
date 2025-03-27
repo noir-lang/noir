@@ -1,5 +1,6 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
+use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
@@ -187,6 +188,14 @@ impl Context {
                 {
                     possible_index_out_of_bounds_indexes
                         .push(instructions_len - instruction_index - 1);
+
+                    // We need to still mark the array index as used as we refer to it in the inserted bounds check.
+                    let (Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. }) =
+                        instruction
+                    else {
+                        unreachable!("Only enter this branch on array gets/sets")
+                    };
+                    self.mark_used_instruction_results(&function.dfg, *index);
                 }
             } else {
                 // We can't remove rc instructions if they're loaded from a reference
@@ -234,7 +243,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.can_eliminate_if_unused(function, self.flattened) {
+        if can_be_eliminated_if_unused(instruction, function, self.flattened) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -451,6 +460,75 @@ impl Context {
             };
         }
         false
+    }
+}
+
+fn can_be_eliminated_if_unused(
+    instruction: &Instruction,
+    function: &Function,
+    flattened: bool,
+) -> bool {
+    use Instruction::*;
+    match instruction {
+        Binary(binary) => {
+            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
+                    rhs != FieldElement::zero()
+                } else {
+                    false
+                }
+            } else {
+                true
+            }
+        }
+
+        Cast(_, _)
+        | Not(_)
+        | Truncate { .. }
+        | Allocate
+        | Load { .. }
+        | ArrayGet { .. }
+        | IfElse { .. }
+        | ArraySet { .. }
+        | Noop
+        | MakeArray { .. } => true,
+
+        // Store instructions must be removed by DIE in acir code, any load
+        // instructions should already be unused by that point.
+        //
+        // Note that this check assumes that it is being performed after the flattening
+        // pass and after the last mem2reg pass. This is currently the case for the DIE
+        // pass where this check is done, but does mean that we cannot perform mem2reg
+        // after the DIE pass.
+        Store { .. } => {
+            flattened && function.runtime().is_acir() && function.reachable_blocks().len() == 1
+        }
+
+        Constrain(..)
+        | ConstrainNotEqual(..)
+        | EnableSideEffectsIf { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. }
+        | RangeCheck { .. } => false,
+
+        // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+        Call { func, .. } => match function.dfg[*func] {
+            // Explicitly allows removal of unused ec operations, even if they can fail
+            Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+            | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+
+            Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+
+            // All foreign functions are treated as having side effects.
+            // This is because they can be used to pass information
+            // from the ACVM to the external world during execution.
+            Value::ForeignFunction(_) => false,
+
+            // We must assume that functions contain a side effect as we cannot inspect more deeply.
+            Value::Function(_) => false,
+
+            _ => false,
+        },
     }
 }
 
@@ -838,7 +916,7 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_get v0, index u32 0 -> Field
-                dec_rc v0 v0
+                dec_rc v0
                 return v2
             }
             ";
@@ -862,7 +940,7 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_set v0, index u32 0, value u32 0
-                dec_rc v0 v0
+                dec_rc v0
                 return v2
             }
             ";
@@ -970,7 +1048,7 @@ mod test {
                 v3 = load v0 -> [Field; 3]
                 v6 = array_set v3, index u32 0, value Field 5
                 store v6 at v0
-                dec_rc v6 v1
+                dec_rc v6
                 return
             }
             ";
@@ -1157,5 +1235,64 @@ mod test {
         ";
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn correctly_handles_chains_of_array_gets() {
+        //! This test checks that if there's a chain of `array_get` instructions which use the result of the previous
+        //! read as the index of the next `array_get`, we only replace the final `array_get` and do not propagate
+        //! up the chain. Otherwise we remove instructions for which the instructions are still used.
+
+        // SSA generated from `compile_success_empty/regression_7785` (slightly modified)
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = call f1() -> u32
+            v3 = make_array [u32 0, u32 0] : [u32; 2]
+            v4 = array_get v3, index v1 -> u32
+            v5 = array_get v3, index v4 -> u32
+            return
+        }
+        brillig(inline) predicate_pure fn inject_value f1 {
+          b0():
+            return u32 0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.dead_instruction_elimination();
+
+        // Previously this would produce the SSA:
+        //
+        // acir(inline) predicate_pure fn main f0 {
+        //   b0():
+        //     v1 = call f1() -> u32
+        //     v3 = lt v1, u32 2
+        //     constrain v3 == u1 1, "Index out of bounds"
+        //     v5 = lt v4, u32 2  <-- Notice that `v4` has now been orphaned
+        //     constrain v5 == u1 1, "Index out of bounds"
+        //     return
+        //   }
+        // brillig(inline) predicate_pure fn inject_value f1 {
+        //   b0():
+        //     return u32 0
+        // }
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = call f1() -> u32
+            v3 = make_array [u32 0, u32 0] : [u32; 2]
+            v4 = array_get v3, index v1 -> u32
+            v6 = lt v4, u32 2
+            constrain v6 == u1 1, \"Index out of bounds\"
+            return
+        }
+        brillig(inline) predicate_pure fn inject_value f1 {
+          b0():
+            return u32 0
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

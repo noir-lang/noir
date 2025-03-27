@@ -1,7 +1,8 @@
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     ast::{
         BlockExpression, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
-        UnresolvedGenerics, UnresolvedTraitConstraint, Visibility,
+        UnresolvedGenerics, UnresolvedTraitConstraint,
     },
     token::{Attributes, Keyword, Token},
 };

@@ -10,8 +10,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -24,6 +24,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    shared::Signedness,
     signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
 };

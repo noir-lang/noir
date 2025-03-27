@@ -124,7 +124,7 @@ impl ChunkFormatter<'_, '_> {
                 formatter.write_right_paren();
             })),
             Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_, _) | Literal::RawStr(..) => {
-                group.text(self.chunk(|formatter| {
+                group.verbatim(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
                 }));
@@ -2475,5 +2475,74 @@ global y = 1;
     }
 }\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_last_assignment_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        x = 1
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_break_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        break
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_continue_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        continue
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn does_not_add_extra_spaces_to_fmtstr() {
+        let src = r#"fn main() {
+    let multiline_string: str<22> = "{
+        \"key\": \"value\"
+}";
+}
+"#;
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn joins_comma_with_verbatim() {
+        let src = r#"fn main() {
+    foo(1, ["(", "I", " ", "x" , "b"]);
+}
+"#;
+        let expected = r#"fn main() {
+    foo(
+        1,
+        [
+            "(", "I", " ",
+            "x", "b",
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, expected, 30);
     }
 }

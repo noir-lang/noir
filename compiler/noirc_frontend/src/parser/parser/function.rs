@@ -2,12 +2,13 @@ use crate::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
+use crate::shared::Visibility;
 use crate::token::{Attribute, Attributes, Keyword, Token};
 use crate::{ast::UnresolvedGenerics, parser::labels::ParsingRuleLabel};
 use crate::{
     ast::{
         FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
-        UnresolvedTypeData, Visibility,
+        UnresolvedTypeData,
     },
     parser::ParserErrorReason,
 };
@@ -326,8 +327,8 @@ fn empty_body() -> BlockExpression {
 mod tests {
     use crate::{
         ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, Signedness,
-            StatementKind, UnresolvedTypeData, Visibility,
+            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
+            UnresolvedTypeData,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -337,6 +338,7 @@ mod tests {
                 get_source_with_error_span,
             },
         },
+        shared::{Signedness, Visibility},
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
