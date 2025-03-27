@@ -40,7 +40,6 @@ pub(crate) fn run_snippet(source: String, force_brillig: bool) -> InputValue {
     return_value.expect("should decode a return value")
 }
 
-#[cfg(test)]
 fn comptime_check_field_expression(strategy: BoxedStrategy<String>, num_cases: u32) {
     proptest!(ProptestConfig::with_cases(num_cases), |(expr in strategy)| {
         let program = format!("
