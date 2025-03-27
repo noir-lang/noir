@@ -9,7 +9,7 @@ use noirc_abi::input_parser::InputValue;
 use proptest::prelude::*;
 
 static NUM_CASES: LazyLock<u32> = LazyLock::new(|| {
-    std::env::var("COMPTIME_CORRECTNESS_TEST_NUM_CASES").unwrap_or("1".into()).parse().unwrap_or(1)
+    std::env::var("NOIR_COMPTIME_CORRECTNESS_TEST_NUM_CASES").unwrap_or("1".into()).parse().unwrap_or(1)
 });
 
 pub(crate) fn run_snippet(source: String, force_brillig: bool) -> InputValue {
