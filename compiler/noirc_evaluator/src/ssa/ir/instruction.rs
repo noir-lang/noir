@@ -24,7 +24,6 @@ pub mod binary;
 
 pub use binary::{Binary, BinaryOp};
 
-
 /// Reference to an instruction
 ///
 /// Note that InstructionIds are not unique. That is, two InstructionIds
