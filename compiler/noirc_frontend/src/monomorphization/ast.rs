@@ -367,6 +367,14 @@ impl Type {
             _ => f(self),
         }
     }
+
+    /// Returns the element type of this array or slice
+    pub fn array_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Default)]

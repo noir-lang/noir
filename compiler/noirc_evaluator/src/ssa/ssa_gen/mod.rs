@@ -136,10 +136,10 @@ impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
-        let incremented_params = self.increment_parameter_rcs();
+        // let incremented_params = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
-        self.end_scope(incremented_params, &results);
+        // self.end_scope(incremented_params, &results);
 
         self.builder.terminate_with_return(results);
         Ok(())
@@ -336,7 +336,7 @@ impl FunctionContext<'_> {
                 // which is important for Brillig's copy on write optimization. This has no
                 // effect in ACIR code.
                 if !is_array_constant {
-                    self.builder.increment_array_reference_count(element);
+                    // self.builder.increment_array_reference_count(element);
                 }
 
                 array.push_back(element);
@@ -487,7 +487,7 @@ impl FunctionContext<'_> {
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
             let result = self.builder.insert_array_get(array, offset, typ);
-            self.builder.increment_array_reference_count(result);
+            // self.builder.increment_array_reference_count(result);
             result.into()
         }))
     }
@@ -1044,7 +1044,7 @@ impl FunctionContext<'_> {
                 // `new_mutable_variable` increments rcs internally so we have to
                 // handle it separately for the immutable case
                 if should_inc_rc {
-                    self.builder.increment_array_reference_count(value);
+                    // self.builder.increment_array_reference_count(value);
                 }
                 value::Value::Normal(value)
             })
@@ -1107,10 +1107,10 @@ impl FunctionContext<'_> {
         let should_inc_rc = !assign.expression.is_array_or_slice_literal();
 
         rhs.clone().for_each(|value| {
-            let value = value.eval(self);
+            let _value = value.eval(self);
 
             if should_inc_rc {
-                self.builder.increment_array_reference_count(value);
+                // self.builder.increment_array_reference_count(value);
             }
         });
 
