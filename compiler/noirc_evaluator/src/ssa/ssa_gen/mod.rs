@@ -173,6 +173,7 @@ impl FunctionContext<'_> {
             Expression::Break => Ok(self.codegen_break()),
             Expression::Continue => Ok(self.codegen_continue()),
             Expression::Clone(expr) => self.codegen_clone(expr),
+            Expression::Drop(expr) => self.codegen_drop(expr),
         }
     }
 
@@ -1118,5 +1119,16 @@ impl FunctionContext<'_> {
             self.builder.increment_array_reference_count(value);
             Values::from(value)
         }))
+    }
+
+    /// Evaluate the given expression, decrement the reference count of each array within,
+    /// and return unit.
+    fn codegen_drop(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        let values = self.codegen_expression(expr)?;
+        values.for_each(|value| {
+            let value = value.eval(self);
+            self.builder.decrement_array_reference_count(value);
+        });
+        Ok(Self::unit_value())
     }
 }

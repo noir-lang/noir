@@ -201,7 +201,7 @@ pub fn monomorphize_debug(
         debug_functions,
         debug_types,
     );
-    Ok(program.handle_ownership())
+    Ok(program.handle_ownership(monomorphizer.next_local_id))
 }
 
 impl<'interner> Monomorphizer<'interner> {

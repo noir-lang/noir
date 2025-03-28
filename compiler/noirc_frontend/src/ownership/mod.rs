@@ -46,7 +46,8 @@
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{
-        Definition, Expression, Function, Ident, LValue, Literal, Parameters, Program, Type, Unary,
+        Definition, Expression, Function, Ident, LValue, Let, Literal, LocalId, Parameters,
+        Program, Type, Unary,
     },
 };
 
@@ -54,37 +55,101 @@ use fxhash::FxHashSet as HashSet;
 use noirc_errors::Location;
 
 impl Program {
-    pub(crate) fn handle_ownership(mut self) -> Self {
+    pub(crate) fn handle_ownership(mut self, mut next_local_id: u32) -> Self {
         for function in self.functions.iter_mut() {
-            handle_ownership_in_function(function);
+            handle_ownership_in_function(function, &mut next_local_id);
         }
 
         self
     }
 }
 
-fn handle_ownership_in_function(function: &mut Function) {
+fn handle_ownership_in_function(function: &mut Function, local_id: &mut u32) {
     if !function.unconstrained {
         return;
     }
 
-    let mut new_clones = increment_parameter_rcs(&function.parameters);
+    let new_bindings = increment_parameter_rcs(&function.parameters);
     handle_expression(&mut function.body);
 
-    // Prepend new_clones to the function body
-    if !new_clones.is_empty() {
+    // Prepend new_clones to the function body and insert drops for them at the end.
+    if !new_bindings.is_empty() {
         let unit = Expression::Literal(Literal::Unit);
         let old_body = std::mem::replace(&mut function.body, unit);
-        new_clones.push(old_body);
-        function.body = Expression::Block(new_clones);
+
+        // Store anything we want to clone in let bindings first so when we later drop
+        // them we know we're dropping the same instance rather than a fresh copy.
+        let (mut new_body, new_idents) = create_let_bindings(new_bindings, local_id);
+
+        // Now push the clones for each parameter
+        for new_ident in &new_idents {
+            new_body.push(Expression::Clone(Box::new(new_ident.clone())));
+        }
+
+        // Insert a `let` for the returned value so we can insert drops after it
+        let return_id = next_local_id(local_id);
+        let return_let = Expression::Let(Let {
+            id: return_id,
+            mutable: false,
+            name: "return".to_string(),
+            expression: Box::new(old_body),
+        });
+
+        new_body.push(return_let);
+
+        // Now drop each parameter we cloned
+        for new_ident in new_idents {
+            new_body.push(Expression::Drop(Box::new(new_ident)));
+        }
+
+        // Finally, return the original return value we held on to
+        new_body.push(Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Local(return_id),
+            mutable: false,
+            name: "return".to_string(),
+            typ: function.return_type.clone(),
+        }));
+
+        function.body = Expression::Block(new_body);
     }
+}
+
+fn create_let_bindings(
+    bindings_to_create: Vec<(String, Type, Expression)>,
+    current_local_id: &mut u32,
+) -> (Vec<Expression>, Vec<Expression>) {
+    let mut bindings = Vec::with_capacity(bindings_to_create.len());
+    let mut idents = Vec::with_capacity(bindings_to_create.len());
+
+    for (name, typ, expression) in bindings_to_create {
+        let id = next_local_id(current_local_id);
+        let expression = Box::new(expression);
+        bindings.push(Expression::Let(Let { id, mutable: false, name: String::new(), expression }));
+
+        idents.push(Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Local(id),
+            mutable: false,
+            name,
+            typ,
+        }));
+    }
+
+    (bindings, idents)
+}
+
+fn next_local_id(current_local_id: &mut u32) -> LocalId {
+    let next = *current_local_id;
+    *current_local_id += 1;
+    LocalId(next)
 }
 
 /// Increment any parameter reference counts necessary. Returns a vector of new
 /// clones to prepend to a function - if any.
-fn increment_parameter_rcs(parameters: &Parameters) -> Vec<Expression> {
+fn increment_parameter_rcs(parameters: &Parameters) -> Vec<(String, Type, Expression)> {
     let mut seen_array_types = HashSet::default();
-    let mut new_clones = Vec::new();
+    let mut new_bindings = Vec::new();
 
     for (parameter_id, mutable, name, parameter_type) in parameters {
         let parameter = Expression::Ident(Ident {
@@ -98,17 +163,31 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<Expression> {
         // (by-value) Mutable parameters are always cloned. Otherwise, we have to recur on the type
         // to find a duplicate array types behind mutable references.
         let parameter = if *mutable {
-            new_clones.push(Expression::Clone(Box::new(parameter)));
+            let expr = Expression::Unary(Unary {
+                operator: UnaryOp::Dereference { implicitly_added: true },
+                rhs: Box::new(parameter),
+                result_type: parameter_type.clone(),
+                location: Location::dummy(), // TODO
+            });
+
+            let name = name.clone();
+            new_bindings.push((name, parameter_type.clone(), expr));
             // disable cloning in recur_on_parameter, we already cloned
             None
         } else {
             Some(parameter)
         };
 
-        recur_on_parameter(parameter, parameter_type, &mut seen_array_types, &mut new_clones);
+        recur_on_parameter(
+            parameter,
+            parameter_type,
+            name,
+            &mut seen_array_types,
+            &mut new_bindings,
+        );
     }
 
-    new_clones
+    new_bindings
 }
 
 /// Recur on a parameter's type, digging into any struct fields, looking for references to arrays.
@@ -125,8 +204,9 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<Expression> {
 fn recur_on_parameter<'typ>(
     parameter: Option<Expression>,
     parameter_type: &'typ Type,
+    parameter_name: &str,
     seen_array_types: &mut HashSet<&'typ Type>,
-    new_clones: &mut Vec<Expression>,
+    new_bindings: &mut Vec<(String, Type, Expression)>,
 ) {
     match parameter_type {
         // These types never contain arrays
@@ -135,7 +215,7 @@ fn recur_on_parameter<'typ>(
         Type::Array(_, element_type) | Type::Slice(element_type) => {
             seen_array_types.insert(parameter_type);
             // Don't clone inside arrays, but still look for more array types
-            recur_on_parameter(None, element_type, seen_array_types, new_clones);
+            recur_on_parameter(None, element_type, parameter_name, seen_array_types, new_bindings);
         }
         Type::String(_) | Type::FmtString(..) => {
             seen_array_types.insert(parameter_type);
@@ -144,7 +224,7 @@ fn recur_on_parameter<'typ>(
         Type::Tuple(fields) => {
             for (i, field) in fields.iter().enumerate() {
                 let expr = parameter.clone().map(|p| Expression::ExtractTupleField(Box::new(p), i));
-                recur_on_parameter(expr, field, seen_array_types, new_clones);
+                recur_on_parameter(expr, field, parameter_name, seen_array_types, new_bindings);
             }
         }
 
@@ -153,13 +233,14 @@ fn recur_on_parameter<'typ>(
                 if let Some(parameter) = parameter {
                     // Check if the parameter type has been seen before
                     if !seen_array_types.insert(array) {
+                        let typ = element_type.as_ref().clone();
                         let expr = Expression::Unary(Unary {
                             operator: UnaryOp::Dereference { implicitly_added: true },
                             rhs: Box::new(parameter),
-                            result_type: element_type.as_ref().clone(),
+                            result_type: typ.clone(),
                             location: Location::dummy(), // TODO
                         });
-                        new_clones.push(Expression::Clone(Box::new(expr)));
+                        new_bindings.push((parameter_name.to_string(), typ, expr));
                     }
                 }
             }
@@ -213,9 +294,10 @@ fn handle_expression(expr: &mut Expression) {
         Expression::Constrain(boolean, _location, msg) => handle_constrain(boolean, msg),
         Expression::Assign(assign) => handle_assign(assign),
         Expression::Semi(expr) => handle_expression(expr),
-        // Clones are only inserted by this pass so we can assume any code they contain is
-        // already handled
+        // Clones & Drops are only inserted by this pass so we can assume any code they
+        // contain is already handled
         Expression::Clone(_) => (),
+        Expression::Drop(_) => (),
         Expression::Break => (),
         Expression::Continue => (),
     }
@@ -409,6 +491,7 @@ fn is_array_or_str_literal(expr: &Expression) -> bool {
         | Expression::Assign(_)
         | Expression::Semi(_)
         | Expression::Clone(_)
+        | Expression::Drop(_)
         | Expression::Break
         | Expression::Continue => false,
     }

@@ -51,6 +51,7 @@ pub enum Expression {
     Assign(Assign),
     Semi(Box<Expression>),
     Clone(Box<Expression>),
+    Drop(Box<Expression>),
     Break,
     Continue,
 }
