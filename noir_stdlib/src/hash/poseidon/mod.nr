@@ -1,4 +1,5 @@
 pub mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
+use crate::convert::AssertInto;
 use crate::default::Default;
 use crate::hash::Hasher;
 
@@ -139,7 +140,7 @@ fn absorb<let T: u32, let N: u32, let X: u32, let O: u32>(
 
     for k in 0..msg.len() {
         // Add current block to state
-        state[capacity + i] += msg[k];
+        state[(capacity + i).assert_into()] += msg[k];
         i = i + 1;
         // Enough to absorb
         if i == rate {

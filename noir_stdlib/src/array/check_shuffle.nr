@@ -1,4 +1,4 @@
-use crate::cmp::Eq;
+use crate::{cmp::Eq, convert::AssertInto};
 
 unconstrained fn __get_shuffle_indices<T, let N: u32>(lhs: [T; N], rhs: [T; N]) -> [Field; N]
 where
@@ -49,11 +49,11 @@ where
 
         for i in 0..N {
             let idx = __get_index(shuffle_indices, i as Field);
-            assert_eq(shuffle_indices[idx], i as Field);
+            assert_eq(shuffle_indices[idx.assert_into()], i as Field);
         }
         for i in 0..N {
             let idx = shuffle_indices[i];
-            let expected = rhs[idx];
+            let expected = rhs[idx.assert_into()];
             let result = lhs[i];
             assert_eq(expected, result);
         }
