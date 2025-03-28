@@ -240,13 +240,13 @@ Runtime
 In a Noir program, you can have normal functions, which will be compiled into ACIR, but also unconstrained functions, which will be compiled into Brillig bytecode.
 The functions have a 'runtime' which specifies whether they are unconstrained or not. Because it is possible to call a normal function from an unconstrained one, and because this call is expected to be unconstrained, functions that are called within the two runtime environments are duplicated under the hood by the monomorphization pass into two different functions, one for each runtime.
 
-The optimizations performed by the various SSA passes will be specialized for each function's runtime. In particular inlining and unrolling will be much less aggressive for Brillig runtime in order to minimize the bytecode size.
+The optimizations performed by the various SSA passes will be specialized for each function's runtime. In particular inlining and unrolling will be much less aggressive for the Brillig runtime in order to minimize the bytecode size.
 
 Bytecode
 ---
 After the SSA passes, the generation of the bytecode for a Brillig function is done in a standard way by converting each SSA instruction into its equivalent Brillig operations. Arrays are mapped to the Brillig memory, SSA virtual registers are translated into memory addresses, and the CFG into jumps and conditional jumps over the bytecode.
 A specific handling for global variables allocates them in a special section of the Brillig memory, for each entry point function. Constants shared across functions can also be hoisted to the global memory.
-A liveness analysis is performed in order to re-use as much as possible the Brillig memory and limit its growth.
+A liveness analysis is performed in order to re-use as much of the Brillig memory as possible and limit its growth.
 Finally, the Brillig bytecode as well as the ACIR opcodes of the main function are serialized into a Noir compilation artifact.
 
 Execution
