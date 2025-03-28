@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743183391025,
+  "lastUpdate": 1743183527499,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b059fd1e5c0eaab0b55804acbd8c65b079c143bd",
-          "message": "fix: Experiment with `DecrementRc` (#7629)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-03-18T17:31:55Z",
-          "tree_id": "ffb8a6c9f942a87b9deff9b7600eb59f994f1ef3",
-          "url": "https://github.com/noir-lang/noir/commit/b059fd1e5c0eaab0b55804acbd8c65b079c143bd"
-        },
-        "date": 1742320356532,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.696,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.485,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.608,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.946,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.202,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 11.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.925,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.935,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.492,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.478,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e7a159af34c04c65e888a343a0c4fb4561e16982",
+          "message": "chore: deduplicate 'double_generic_alias_in_path' (#7840)",
+          "timestamp": "2025-03-28T16:55:00Z",
+          "tree_id": "88d5cf3461a036650c9abdc669136f58e2109bbb",
+          "url": "https://github.com/noir-lang/noir/commit/e7a159af34c04c65e888a343a0c4fb4561e16982"
+        },
+        "date": 1743183523718,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.688,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.9,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.524,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.238,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.682,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.148,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.946,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.908,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.488,
             "unit": "s"
           }
         ]
