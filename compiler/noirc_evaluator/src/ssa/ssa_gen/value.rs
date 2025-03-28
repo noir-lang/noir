@@ -155,23 +155,6 @@ impl<T> Tree<T> {
             Tree::Leaf(value) => value,
         }
     }
-
-    pub(super) fn into_branch(self) -> Vec<Tree<T>> {
-        match self {
-            Tree::Branch(value) => value,
-            Tree::Leaf(value) => {
-                panic!("into_branch called on a Tree::Branch")
-                // vec![Tree::Leaf(value)]
-            }
-        }
-    }
-
-    pub(super) fn is_branch(&self) -> bool {
-        match self {
-            Tree::Branch(_) => true,
-            Tree::Leaf(_) => false,
-        }
-    }
 }
 
 impl From<IrValueId> for Values {

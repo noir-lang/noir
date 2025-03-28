@@ -181,7 +181,7 @@ impl<'a> FunctionContext<'a> {
             let value = self.builder.add_parameter(typ);
 
             // TODO: test accessing a on mutable composite array
-            self.insert_composite_array_typ(value, &old_typ);
+            self.insert_composite_array_typ(value, old_typ);
 
             if mutable {
                 // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
@@ -225,15 +225,8 @@ impl<'a> FunctionContext<'a> {
     /// This is used for determining the appropriate offsets when indexing
     /// into an array containing composite types
     pub(super) fn insert_composite_array_typ(&mut self, value: ValueId, typ: &ast::Type) {
-        // self.composite_array_types.insert(value, typ.clone());
-
         match typ {
             ast::Type::Array(_, element) | ast::Type::Slice(element) => {
-                // let element_types = Self::convert_type(element);
-                // // if element_types.is_branch() {
-                //     self.composite_array_types.insert(value, element_types);
-                // // }
-
                 self.composite_array_types.insert(value, *element.clone());
             }
             ast::Type::Tuple(elements) => {
@@ -340,37 +333,6 @@ impl<'a> FunctionContext<'a> {
         // convert_non_tuple_type internally.
         Self::map_type_helper(typ, &mut |x| x)
     }
-
-    /// Converts a non-tuple type into an SSA code generation specific type. Panics if a tuple type is passed.
-    ///
-    /// This function is needed since this SSA IR has no concept of tuples and thus no type for
-    /// them. Use `convert_type` if tuple types need to be handled correctly.
-    // pub(super) fn convert_non_tuple_frontend_type(typ: &ast::Type) -> Type {
-    //     match typ {
-    //         ast::Type::Field => Type::field(),
-    //         ast::Type::Array(len, element) => {
-    //             let element_types = Self::convert_type(element);
-    //             let element_types = element_types.clone().flatten();
-    //             Type::Array(Arc::new(element_types), *len)
-    //         }
-    //         ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
-    //         ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
-    //         ast::Type::Bool => Type::unsigned(1),
-    //         ast::Type::String(len) => Type::str(*len),
-    //         ast::Type::FmtString(_, _) => {
-    //             panic!("convert_non_tuple_type called on a fmt string: {typ}")
-    //         }
-    //         ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
-    //         ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
-    //         ast::Type::Function(_, _, _, _) => Type::Function,
-    //         ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
-    //         ast::Type::MutableReference(element) => {
-    //             // Recursive call to panic if element is a tuple
-    //             let element = Self::convert_non_tuple_type(element);
-    //             Type::Reference(Arc::new(element))
-    //         }
-    //     }
-    // }
 
     /// Converts a non-tuple type into an SSA type. Panics if a tuple type is passed.
     ///
@@ -1059,14 +1021,6 @@ impl<'a> FunctionContext<'a> {
 
                 let element = if *nested_indexing == 1 {
                     if array_values.len() > 1 {
-                        // TODO: Do not NEED this
-                        // let element = self.codegen_array_index(
-                        //     array_values[1],
-                        //     index_value,
-                        //     element_type,
-                        //     *location,
-                        //     Some(array_values[0]),
-                        // )?;
                         let array_lvalue = Box::new(array_lvalue);
                         let indices = std::mem::take(indices);
                         let index_lvalue = LValue::SliceIndexNestedArray {
@@ -1090,10 +1044,6 @@ impl<'a> FunctionContext<'a> {
                     })
                 } else {
                     old_array.clone()
-                    // Self::map_type(element_type, |_| {
-                    //     let dummy = self.builder.numeric_constant(0u128, NumericType::NativeField);
-                    //     dummy.into()
-                    // })
                 };
 
                 let array_lvalue = Box::new(array_lvalue);
@@ -1152,8 +1102,6 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         lvalue: LValue,
         new_value: Values,
-        // TODO: should be able to remove
-        _already_assigned_nested: u32,
         original_value: Values,
     ) {
         match lvalue {
@@ -1163,13 +1111,12 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(
                     *array_lvalue,
                     array,
-                    _already_assigned_nested,
                     original_value,
                 );
             }
             LValue::NestedArrayIndex { old_array, array_lvalue, location, mut indices } => {
                 if indices.is_empty() {
-                    self.assign_new_value(*array_lvalue, new_value, 2, original_value);
+                    self.assign_new_value(*array_lvalue, new_value, original_value);
                     return;
                 }
 
@@ -1185,7 +1132,7 @@ impl<'a> FunctionContext<'a> {
                     )
                     .into();
 
-                self.assign_new_value(*array_lvalue, array, 1, original_value);
+                self.assign_new_value(*array_lvalue, array, original_value);
             }
             LValue::SliceIndexNestedArray {
                 old_slice: slice,
@@ -1195,8 +1142,7 @@ impl<'a> FunctionContext<'a> {
             } => {
                 if indices.is_empty() {
                     // The size of the slice does not change in a slice index assignment so we can reuse the same length value
-                    // let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
-                    self.assign_new_value(*slice_lvalue, new_value, 2, original_value);
+                    self.assign_new_value(*slice_lvalue, new_value, original_value);
                     return;
                 }
 
@@ -1217,7 +1163,6 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(
                     *slice_lvalue,
                     new_slice,
-                    _already_assigned_nested,
                     original_value,
                 );
             }
@@ -1232,14 +1177,13 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(
                     *slice_lvalue,
                     new_slice,
-                    _already_assigned_nested,
                     original_value,
                 );
             }
             LValue::MemberAccess { old_object, index, object_lvalue, skip_extraction } => {
                 // Having this if block commented is necessary for lvalue assignment that starts with a member access.
                 if skip_extraction {
-                    self.assign_new_value(*object_lvalue, new_value, 1, original_value);
+                    self.assign_new_value(*object_lvalue, new_value, original_value);
                     return;
                 }
 
@@ -1247,8 +1191,6 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(
                     *object_lvalue,
                     new_object,
-                    // TODO: get rid of this field
-                    1,
                     original_value,
                 );
             }
@@ -1293,28 +1235,6 @@ impl<'a> FunctionContext<'a> {
         array
     }
 
-    // pub(super) fn assign_lvalue_index_no_offset(
-    //     &mut self,
-    //     new_value: Values,
-    //     mut array: ValueId,
-    //     index: ValueId,
-    //     _location: Location,
-    // ) -> ValueId {
-    //     let mut index = self.make_array_index(index);
-    //     new_value.for_each(|value| {
-    //         let value = value.eval(self);
-    //         let typ = self.builder.current_function.dfg.type_of_value(value);
-    //         let old_array = array;
-    //         array = self.builder.insert_array_set(old_array, index, value);
-    //         if let Some(array_typ) = self.composite_array_types.get(&old_array) {
-    //             self.composite_array_types.insert(array, array_typ.clone());
-    //         }
-    //         let offset =
-    //             self.builder.numeric_constant(typ.flattened_size(), NumericType::length_type());
-    //         index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
-    //     });
-    //     array
-    // }
     pub(super) fn assign_lvalue_index_no_offset(
         &mut self,
         new_value: Values,
@@ -1333,6 +1253,7 @@ impl<'a> FunctionContext<'a> {
             if value_typ.contains_an_array() {
                 // TODO: test setting a struct with array and primitive fields where primitives come after
                 // the array fields. This test should help us check whether we are updating the index appropriately
+                // TODO: Move this logic to a helper
                 let flat_typ = value_typ.clone().flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {
                     let read_index = self
@@ -1345,13 +1266,8 @@ impl<'a> FunctionContext<'a> {
                     let write_index = self.make_offset(index, my_index as u128);
                     array = self.builder.insert_array_set(array, write_index, res);
                 }
-                // index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, typ.len());
             } else {
                 array = self.builder.insert_array_set(array, index, value);
-
-                // let offset =
-                // self.builder.numeric_constant(value_typ.flattened_size(), NumericType::length_type());
-                // index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
             }
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
         });

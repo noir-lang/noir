@@ -2,8 +2,6 @@ pub(crate) mod context;
 mod program;
 mod value;
 
-use std::sync::Arc;
-
 use acvm::AcirField;
 use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
@@ -157,7 +155,6 @@ impl FunctionContext<'_> {
             Expression::Index(index) => {
                 if self.builder.current_function.runtime().is_acir() {
                     self.codegen_index_acir(index)
-                    // self.codegen_index(index)
                 } else {
                     self.codegen_index(index)
                 }
@@ -179,7 +176,6 @@ impl FunctionContext<'_> {
             }
             Expression::Assign(assign) => {
                 if self.builder.current_function.runtime().is_acir() {
-                    // self.codegen_assign_acir_new(assign)
                     self.codegen_assign_acir(assign)
                 } else {
                     self.codegen_assign(assign)
@@ -496,23 +492,14 @@ impl FunctionContext<'_> {
         let extracted_values = self.extract_ident_from_expr(&index.collection, &mut indices)?;
         let array_or_slice = extracted_values.clone().into_value_list(self);
 
+        // TODO: add a test that has a tuple with (field, array) to make sure we do not conflict
+        // with the slice object
         for value in array_or_slice.iter() {
             let typ = self.builder.current_function.dfg.type_of_value(*value);
             if matches!(typ, Type::Slice(_)) {
                 indices.insert(1, NestedArrayIndex::Constant(1));
             }
         }
-
-        // TODO: add a test that has a tuple with (field, array) to make sure we do not conflict
-        // with the slice object
-        // TODO: fix escaping from slice indexing as we can have an extracted ident that is a tuple
-        // Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, slices require two value ids for their representation.
-        // let array = if array_or_slice.len() > 1 {
-        //     array_or_slice[1]
-        // } else {
-        //     array_or_slice[0]
-        // };
 
         let (flattened_index, new_array) =
             self.build_nested_lvalue_index(extracted_values, false, &mut indices);
@@ -852,7 +839,7 @@ impl FunctionContext<'_> {
             // with our then and else value.
             result = Self::map_type_with_ast_type(&if_expr.typ, |ast_typ, typ| {
                 let result = self.builder.add_block_parameter(end_block, typ);
-                self.insert_composite_array_typ(result, &ast_typ);
+                self.insert_composite_array_typ(result, ast_typ);
                 result.into()
             });
 
@@ -1244,7 +1231,7 @@ impl FunctionContext<'_> {
             }
         });
 
-        self.assign_new_value(lhs, rhs.clone(), 0, rhs);
+        self.assign_new_value(lhs, rhs.clone(), rhs);
         Ok(Self::unit_value())
     }
 
@@ -1261,7 +1248,7 @@ impl FunctionContext<'_> {
             self.builder.increment_array_reference_count(value);
         });
 
-        self.assign_new_value(lhs_new, rhs.clone(), 0, rhs);
+        self.assign_new_value(lhs_new, rhs.clone(), rhs);
         Ok(Self::unit_value())
     }
 
