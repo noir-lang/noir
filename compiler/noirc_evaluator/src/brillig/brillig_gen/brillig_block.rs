@@ -784,7 +784,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
 
                 let array_variable = self.convert_ssa_value(*array, dfg);
-
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
                 // Slice access checks are generated separately against the slice's dynamic length field.

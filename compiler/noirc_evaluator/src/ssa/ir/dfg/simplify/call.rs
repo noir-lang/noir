@@ -135,7 +135,32 @@ pub(super) fn simplify_call(
                 if element_type.element_size() != 1 {
                     // Old code before implementing multiple slice mergers
                     for elem in &arguments[2..] {
-                        slice.push_back(*elem);
+                        // TODO: Need to handle appropriately pushing back a nested array
+                        let typ = dfg.type_of_value(*elem);
+                        let is_acir = dfg.runtime().is_acir();
+                        match (&typ, is_acir) {
+                            (Type::Array(_, _), true) => {
+                                // let mut flat_elements = im::Vector::new();
+                                let flat_typ = typ.clone().flatten();
+                                for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                                    let index =
+                                        dfg.make_constant(my_index.into(), typ.unwrap_numeric());
+                                    assert!(matches!(typ, Type::Numeric(_)));
+                                    let get = Instruction::ArrayGet { array: *elem, index };
+                                    // let res = self.builder.insert_array_get(element, index, typ);
+                                    let typevars = Some(vec![typ]);
+                                    let res = dfg
+                                        .insert_instruction_and_results(
+                                            get, block, typevars, call_stack,
+                                        )
+                                        .first();
+                                    slice.push_back(res);
+                                }
+                            }
+                            _ => {
+                                slice.push_back(*elem);
+                            }
+                        };
                     }
 
                     let new_slice_length = increment_slice_length(arguments[0], dfg, block);

@@ -2,6 +2,7 @@ struct Bar {
     inner: [Field; 3],
 }
 
+// 7 values
 struct Foo {
     a: Field,
     b: [Field; 3],
