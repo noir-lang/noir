@@ -563,7 +563,8 @@
 <a href="#562" id="562">562</a>
 <a href="#563" id="563">563</a>
 <a href="#564" id="564">564</a>
-<a href="#565" id="565">565</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -789,6 +790,7 @@
         </span>.run_pass(Ssa::brillig_entry_point_analysis, <span class="string">"Brillig Entry Point Analysis"</span>)
         <span class="comment">// Remove any potentially unnecessary duplication from the Brillig entry point analysis.
         </span>.run_pass(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions (3rd)"</span>)
+        .run_pass(Ssa::remove_truncate_after_range_check, <span class="string">"Removing Truncate after RangeCheck"</span>)
         <span class="comment">// This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
