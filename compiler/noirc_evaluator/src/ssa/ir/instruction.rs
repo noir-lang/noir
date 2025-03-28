@@ -380,12 +380,7 @@ impl Instruction {
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
                     }
-                    BinaryOp::Div | BinaryOp::Mod => {
-                        // Div and Mod require a predicate if the RHS may be zero.
-                        dfg.get_numeric_constant(binary.rhs)
-                            .map(|rhs| rhs.is_zero())
-                            .unwrap_or(true)
-                    }
+                    BinaryOp::Div | BinaryOp::Mod => true,
                     BinaryOp::Add { unchecked: true }
                     | BinaryOp::Sub { unchecked: true }
                     | BinaryOp::Mul { unchecked: true }
