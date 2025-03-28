@@ -167,6 +167,10 @@ pub fn embedded_curve_add(
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
     if crate::runtime::is_unconstrained() {
+        // `embedded_curve_add_unsafe` requires the inputs not to be the infinity point, so we check it here.
+        // This is because `embedded_curve_add_unsafe` uses the `embedded_curve_add` opcode.
+        // For efficiency, the backend does not check the inputs for the infinity point, but it assumes that they are not the infinity point
+        // so that it can apply the ec addition formula directly.
         if point1.is_infinite {
             point2
         } else if point2.is_infinite {
@@ -175,36 +179,51 @@ pub fn embedded_curve_add(
             embedded_curve_add_unsafe(point1, point2)
         }
     } else {
-        // In a constrained context we need to do some black magic in order to satisfy the backend's
-        // expectations about the inputs to an `embedded_curve_add` opcode.
-        //
-        // TODO: document this better.
+        // In a constrained context, we also need to check the inputs are not the infinity point because we also use `embedded_curve_add_unsafe`
+        // However we also need to identify the case where the two inputs are the same, because then
+        // the addition formula does not work and we need to use the doubling formula instead.
+        // In unconstrained context, we can check directly if the input values are the same when solving the opcode, so it is not an issue.
+
+        // x_coordinates_match is true if both abscissae are the same
         let x_coordinates_match = point1.x == point2.x;
+        // y_coordinates_match is true if both ordinates are the same
         let y_coordinates_match = point1.y == point2.y;
+        // double_predicate is true if both abscissae and ordinates are the same
         let double_predicate = (x_coordinates_match & y_coordinates_match);
+        // If the abscissae are the same, but not the ordinates, then one point is the opposite of the other
         let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
         let point1_1 = EmbeddedCurvePoint {
             x: point1.x + (x_coordinates_match as Field),
             y: point1.y,
             is_infinite: x_coordinates_match,
         };
-        // point1_1 is guaranteed to have a different abscissa than point2
+        // point1_1 is guaranteed to have a different abscissa than point2:
+        // - if x_coordinates_match is 0, that means point1.x != point2.x, and point1_1.x = point1.x + 0
+        // - if x_coordinates_match is 1, that means point1.x = point2.x, but point1_1.x = point1.x + 1 in this case
+        // Because the abscissa is different, the addition formula is guaranteed to succeed, so we can safely use `embedded_curve_add_unsafe`
+        // Note that this computation may be garbage: if x_coordinates_match is 1, or if one of the input is the point at infinity.
         let mut result = embedded_curve_add_unsafe(point1_1, point2);
-        result.is_infinite = x_coordinates_match;
 
-        // dbl if x_match, y_match
+        // `embedded_curve_add_unsafe` is doing a doubling if the input is the same variable, because in this case it is guaranteed (at 'compile time') that the input is the same.
         let double = embedded_curve_add_unsafe(point1, point1);
+        // `embedded_curve_add_unsafe` would not perform doubling, even if the inputs point1 and point2 are the same, because it cannot know this without adding some logic (and some constraints)
+        // However we did this logic when we computed `double_predicate`, so we set the result to 2*point1 if point1 and point2 are the same
         result = if double_predicate { double } else { result };
 
-        // infinity if x_match, !y_match
+        // Same logic as above for unconstrained context, we set the proper result when one of the inputs is the infinity point
         if point1.is_infinite {
             result = point2;
         }
         if point2.is_infinite {
             result = point1;
         }
+
+        // Finally, we set the is_infinity flag of the result:
+        // Opposite points should sum into the infinity point, however, if one of them is point at infinity, their coordinates are not meaningful
+        // so we should not use the fact that the inputs are opposite in this case:
         let mut result_is_infinity =
             infinity_predicate & (!point1.is_infinite & !point2.is_infinite);
+        // However, if both of them are at infinity, then the result is also at infinity
         result.is_infinite = result_is_infinity | (point1.is_infinite & point2.is_infinite);
         result
     }
