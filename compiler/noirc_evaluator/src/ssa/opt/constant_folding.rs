@@ -1,12 +1,12 @@
 //! The goal of the constant folding optimization pass is to propagate any constants forwards into
-//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][Instruction::simplify()].
+//! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
 //! - Re-insert each instruction in order to apply the instruction simplification performed
 //!   by the [`DataFlowGraph`] automatically as new instructions are pushed.
 //! - Check whether any input values have been constrained to be equal to a value of a simpler form
 //!   by a [constrain instruction][Instruction::Constrain]. If so, replace the input value with the simpler form.
-//! - Check whether the instruction [can_be_deduplicated][Instruction::can_be_deduplicated()]
+//! - Check whether the instruction [`can_be_deduplicated`]
 //!   by duplicate instruction earlier in the same block.
 //!
 //! These operations are done in parallel so that they can each benefit from each other
@@ -41,10 +41,11 @@ use crate::{
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{Instruction, InstructionId},
+            instruction::{BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId},
         },
+        opt::pure::Purity,
         ssa_gen::Ssa,
     },
 };
@@ -442,9 +443,7 @@ impl<'brillig> Context<'brillig> {
         // Thus, even if the index is dynamic (meaning the array get would have side effects),
         // we can simplify the operation when we take into account the predicate.
         if let Instruction::ArraySet { index, value, .. } = &instruction {
-            let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
-            let predicate = use_predicate.then_some(side_effects_enabled_var);
+            let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
@@ -462,7 +461,7 @@ impl<'brillig> Context<'brillig> {
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
         let can_be_deduplicated =
-            instruction.can_be_deduplicated(function, self.use_constraint_info);
+            can_be_deduplicated(&instruction, function, self.use_constraint_info);
 
         // We also allow deduplicating MakeArray instructions that we have tracked which haven't
         // been mutated.
@@ -513,7 +512,7 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        results_for_instruction.get(&predicate)?.get(block, dom, has_side_effects(instruction, dfg))
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -803,6 +802,131 @@ fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId,
     }
 }
 
+/// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+///
+/// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
+/// constraints into account, because it might not use it to isolate the side effects across branches.
+fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
+    use Instruction::*;
+
+    match instruction {
+        // These either have side-effects or interact with memory
+        EnableSideEffectsIf { .. }
+        | Allocate
+        | Load { .. }
+        | Store { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. } => true,
+
+        Call { func, .. } => match dfg[*func] {
+            Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+            // Functions known to be pure have no side effects.
+            // `PureWithPredicates` functions may still have side effects.
+            Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+            _ => true, // Be conservative and assume other functions can have side effects.
+        },
+
+        // These can fail.
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
+
+        // This should never be side-effectful
+        MakeArray { .. } | Noop => false,
+
+        // Some binary math can overflow or underflow
+        Binary(binary) => match binary.operator {
+            BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false }
+            | BinaryOp::Div
+            | BinaryOp::Mod => true,
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Sub { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => false,
+        },
+
+        // These don't have side effects
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+        // `ArrayGet`s which read from "known good" indices from an array have no side effects
+        ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
+
+        // ArraySet has side effects
+        ArraySet { .. } => true,
+    }
+}
+
+/// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+/// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+/// and its predicate, rather than just the instruction. Setting this means instructions that
+/// rely on predicates can be deduplicated as well.
+///
+/// Some instructions get the predicate attached to their inputs by `handle_instruction_side_effects` in `flatten_cfg`.
+/// These can be deduplicated because they implicitly depend on the predicate, not only when the caller uses the
+/// predicate variable as a key to cache results. However, to avoid tight coupling between passes, we make the deduplication
+/// conditional on whether the caller wants the predicate to be taken into account or not.
+pub(crate) fn can_be_deduplicated(
+    instruction: &Instruction,
+    function: &Function,
+    deduplicate_with_predicate: bool,
+) -> bool {
+    use Instruction::*;
+
+    match instruction {
+        // These either have side-effects or interact with memory
+        EnableSideEffectsIf { .. }
+        | Allocate
+        | Load { .. }
+        | Store { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. } => false,
+
+        Call { func, .. } => {
+            let purity = match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
+                Value::Function(id) => function.dfg.purity_of(id),
+                _ => None,
+            };
+            match purity {
+                Some(Purity::Pure) => true,
+                Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
+                Some(Purity::Impure) => false,
+                None => false,
+            }
+        }
+
+        // We can deduplicate these instructions if we know the predicate is also the same.
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => deduplicate_with_predicate,
+
+        // Noop instructions can always be deduplicated, although they're more likely to be
+        // removed entirely.
+        Noop => true,
+
+        // These instructions can always be deduplicated
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => true,
+
+        // Arrays can be mutated in unconstrained code so code that handles this case must
+        // take care to track whether the array was possibly mutated or not before
+        // deduplicating. Since we don't know if the containing pass checks for this, we
+        // can only assume these are safe to deduplicate in constrained code.
+        MakeArray { .. } => function.runtime().is_acir(),
+
+        // These can have different behavior depending on the EnableSideEffectsIf context.
+        // Replacing them with a similar instruction potentially enables replacing an instruction
+        // with one that was disabled. See
+        // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
+            deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
@@ -1010,38 +1134,6 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    #[test]
-    fn constraint_decomposition() {
-        // When constructing this IR, we should automatically decompose the constraint to be in terms of `v0`, `v1` and `v2`.
-        //
-        // The mul instructions are retained and will be removed in the dead instruction elimination pass.
-        let src = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v5 == u1 1
-                return
-            }
-            ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v0 == u1 1
-                constrain v1 == u1 1
-                constrain v2 == u1 0
-                return
-            }
-            ";
         assert_normalized_ssa_equals(ssa, expected);
     }
 

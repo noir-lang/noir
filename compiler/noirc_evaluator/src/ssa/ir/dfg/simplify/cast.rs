@@ -1,7 +1,12 @@
 use acvm::{FieldElement, acir::AcirField};
 use num_bigint::BigUint;
 
-use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value, ValueId};
+use crate::ssa::ir::{
+    dfg::{DataFlowGraph, simplify::SimplifyResult},
+    instruction::Instruction,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
+};
 
 /// Try to simplify this cast instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.

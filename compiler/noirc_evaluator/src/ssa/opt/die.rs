@@ -1,5 +1,6 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
+use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
@@ -242,7 +243,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.can_eliminate_if_unused(function, self.flattened) {
+        if can_be_eliminated_if_unused(instruction, function, self.flattened) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -459,6 +460,75 @@ impl Context {
             };
         }
         false
+    }
+}
+
+fn can_be_eliminated_if_unused(
+    instruction: &Instruction,
+    function: &Function,
+    flattened: bool,
+) -> bool {
+    use Instruction::*;
+    match instruction {
+        Binary(binary) => {
+            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
+                    rhs != FieldElement::zero()
+                } else {
+                    false
+                }
+            } else {
+                true
+            }
+        }
+
+        Cast(_, _)
+        | Not(_)
+        | Truncate { .. }
+        | Allocate
+        | Load { .. }
+        | ArrayGet { .. }
+        | IfElse { .. }
+        | ArraySet { .. }
+        | Noop
+        | MakeArray { .. } => true,
+
+        // Store instructions must be removed by DIE in acir code, any load
+        // instructions should already be unused by that point.
+        //
+        // Note that this check assumes that it is being performed after the flattening
+        // pass and after the last mem2reg pass. This is currently the case for the DIE
+        // pass where this check is done, but does mean that we cannot perform mem2reg
+        // after the DIE pass.
+        Store { .. } => {
+            flattened && function.runtime().is_acir() && function.reachable_blocks().len() == 1
+        }
+
+        Constrain(..)
+        | ConstrainNotEqual(..)
+        | EnableSideEffectsIf { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. }
+        | RangeCheck { .. } => false,
+
+        // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+        Call { func, .. } => match function.dfg[*func] {
+            // Explicitly allows removal of unused ec operations, even if they can fail
+            Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+            | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+
+            Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+
+            // All foreign functions are treated as having side effects.
+            // This is because they can be used to pass information
+            // from the ACVM to the external world during execution.
+            Value::ForeignFunction(_) => false,
+
+            // We must assume that functions contain a side effect as we cannot inspect more deeply.
+            Value::Function(_) => false,
+
+            _ => false,
+        },
     }
 }
 
