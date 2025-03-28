@@ -16,13 +16,12 @@ use noirc_frontend::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
         resolution::import::resolve_import,
     },
+    modules::module_def_id_to_reference_id,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
     token::MetaAttribute,
     usage_tracker::UsageTracker,
 };
-
-use crate::modules::module_def_id_to_reference_id;
 
 pub(crate) struct AttributeReferenceFinder<'a> {
     byte_index: usize,
