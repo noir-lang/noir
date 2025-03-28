@@ -1990,6 +1990,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
+                         ^^^^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
             self.len += 1;
         }
     }
@@ -4197,6 +4198,56 @@ fn object_type_must_be_known_in_method_call() {
     }
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
+    let src = r#"
+    fn main() {
+        let index = 0;
+        let array = [1, 2, 3];
+        let _ = array[index];
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn indexing_array_with_u32_does_not_produce_a_warning() {
+    let src = r#"
+    fn main() {
+        let index: u32 = 0;
+        let array = [1, 2, 3];
+        let _ = array[index];
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn indexing_array_with_non_u32_produces_a_warning() {
+    let src = r#"
+    fn main() {
+        let index: Field = 0;
+        let array = [1, 2, 3];
+        let _ = array[index];
+                      ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
+    let src = r#"
+    fn main() {
+        let index: Field = 0;
+        let mut array = [1, 2, 3];
+        array[index] = 0;
+              ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    }
     "#;
     check_errors(src);
 }
