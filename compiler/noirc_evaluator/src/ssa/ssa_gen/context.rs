@@ -1110,11 +1110,7 @@ impl<'a> FunctionContext<'a> {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: array, index, array_lvalue, location } => {
                 let array = self.assign_lvalue_index(new_value, array, index, location).into();
-                self.assign_new_value(
-                    *array_lvalue,
-                    array,
-                    original_value,
-                );
+                self.assign_new_value(*array_lvalue, array, original_value);
             }
             LValue::NestedArrayIndex { old_array, array_lvalue, location, mut indices } => {
                 if indices.is_empty() {
@@ -1162,11 +1158,7 @@ impl<'a> FunctionContext<'a> {
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), new_slice_values]);
-                self.assign_new_value(
-                    *slice_lvalue,
-                    new_slice,
-                    original_value,
-                );
+                self.assign_new_value(*slice_lvalue, new_slice, original_value);
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
@@ -1176,11 +1168,7 @@ impl<'a> FunctionContext<'a> {
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
-                self.assign_new_value(
-                    *slice_lvalue,
-                    new_slice,
-                    original_value,
-                );
+                self.assign_new_value(*slice_lvalue, new_slice, original_value);
             }
             LValue::MemberAccess { old_object, index, object_lvalue, skip_extraction } => {
                 // Having this if block commented is necessary for lvalue assignment that starts with a member access.
@@ -1190,11 +1178,7 @@ impl<'a> FunctionContext<'a> {
                 }
 
                 let new_object = Self::replace_field(old_object, index, new_value);
-                self.assign_new_value(
-                    *object_lvalue,
-                    new_object,
-                    original_value,
-                );
+                self.assign_new_value(*object_lvalue, new_object, original_value);
             }
             LValue::Dereference { reference } => {
                 self.assign(reference, new_value);

@@ -111,14 +111,7 @@ pub(crate) fn simplify(
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                try_optimize_array_get_from_previous_set(
-                    dfg,
-                    *array,
-                    index,
-                    ctrl_typevars.unwrap(),
-                    block,
-                    call_stack,
-                )
+                try_optimize_array_get_from_previous_set(dfg, *array, index)
             } else {
                 None
             }
@@ -311,12 +304,9 @@ pub(crate) fn simplify(
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
-    dfg: &mut DataFlowGraph,
+    dfg: &DataFlowGraph,
     mut array_id: ValueId,
     target_index: FieldElement,
-    result_type: Vec<Type>,
-    block: BasicBlockId,
-    call_stack: CallStackId,
 ) -> SimplifyResult {
     let mut elements = None;
 
