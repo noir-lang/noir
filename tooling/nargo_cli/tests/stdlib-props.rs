@@ -181,9 +181,9 @@ fn fuzz_poseidon_equivalence() {
             use std::hash::{{Hash, Hasher}};
 
             fn main(input: [Field; {len}]) -> pub Field {{
-                let h1 = std::hash::poseidon::bn254::hash_{len}(input);
+                let h1 = poseidon::poseidon::bn254::hash_{len}(input);
                 let h2 = {{
-                    let mut hasher = std::hash::poseidon::PoseidonHasher::default();
+                    let mut hasher = poseidon::PoseidonHasher::default();
                     input.hash(&mut hasher);
                     hasher.finish()
                 }};

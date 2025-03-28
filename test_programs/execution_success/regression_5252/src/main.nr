@@ -16,7 +16,7 @@ fn main(
         let enable = enable[i];
         let to_hash = to_hash[i];
         if enable {
-            result[i] = poseidon_hash(to_hash) +   poseidon::poseidon::bn254::sponge(to_hash);
+            result[i] = poseidon_hash(to_hash) + poseidon::poseidon::bn254::sponge(to_hash);
         }
     }
     result
