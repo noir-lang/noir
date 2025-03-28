@@ -505,6 +505,7 @@ impl FunctionBuilder {
     /// any arrays, this does nothing.
     ///
     /// Returns the ID of the array that was affected, if any.
+    #[allow(unused)]
     pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) -> Option<ValueId> {
         self.update_array_reference_count(value, false)
     }
