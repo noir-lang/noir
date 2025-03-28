@@ -901,11 +901,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // and become usize::MAX, and then return to 1, then it will indicate
                 // an array as mutable when it probably shouldn't be.
                 if self.brillig_context.enable_debug_assertions() {
-                    let min_addr = ReservedRegisters::usize_one();
+                    let zero =
+                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
+
+                    self.brillig_context.const_instruction(zero, FieldElement::zero());
+
                     let condition =
                         SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+
                     self.brillig_context.memory_op_instruction(
-                        min_addr,
+                        zero.address,
                         rc_register,
                         condition.address,
                         BrilligBinaryOp::LessThan,
