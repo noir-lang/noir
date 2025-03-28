@@ -33,7 +33,8 @@ namespace Acir {
             std::map<std::string, msgpack::object const*> const& kvmap,
             std::string const& struct_name,
             std::string const& field_name,
-            T& field
+            T& field,
+            bool is_optional
         ) {
             auto it = kvmap.find(field_name);
             if (it != kvmap.end()) {
@@ -43,7 +44,7 @@ namespace Acir {
                     std::cerr << *it->second << std::endl;
                     throw_or_abort("error converting into field " + struct_name + "::" + field_name);
                 }
-            } else {
+            } else if (!is_optional) {
                 throw_or_abort("missing field: " + struct_name + "::" + field_name);
             }
         }
@@ -900,8 +901,8 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "HeapArray";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
         }
     };
 
@@ -922,8 +923,8 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "HeapVector";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
         }
     };
 
@@ -950,10 +951,10 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "AES128Encrypt";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "key", key);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -974,8 +975,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Blake2s";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -996,8 +997,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Blake3";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1018,8 +1019,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Keccakf1600";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1046,11 +1047,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "EcdsaSecp256k1";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
             }
         };
 
@@ -1077,11 +1078,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "EcdsaSecp256r1";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
             }
         };
 
@@ -1104,9 +1105,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "MultiScalarMul";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "points", points);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -1137,13 +1138,13 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "EmbeddedCurveAdd";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
             }
         };
 
@@ -1166,9 +1167,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntAdd";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1191,9 +1192,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntSub";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1216,9 +1217,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntMul";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1241,9 +1242,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntDiv";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1266,9 +1267,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntFromLeBytes";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "modulus", modulus);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "modulus", modulus, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1289,8 +1290,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntToLeBytes";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1313,9 +1314,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Poseidon2Permutation";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len, false);
             }
         };
 
@@ -1338,9 +1339,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Sha256Compression";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -1367,11 +1368,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "ToRadix";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "radix", radix);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output_pointer", output_pointer);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "num_limbs", num_limbs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output_bits", output_bits);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "radix", radix, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output_pointer", output_pointer, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "num_limbs", num_limbs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output_bits", output_bits, false);
             }
         };
 
@@ -1722,8 +1723,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Array";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
             }
         };
 
@@ -1742,7 +1743,7 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Vector";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
             }
         };
 
@@ -2022,10 +2023,10 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BinaryFieldOp";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
             }
         };
 
@@ -2052,11 +2053,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BinaryIntOp";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
             }
         };
 
@@ -2079,9 +2080,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Not";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
             }
         };
 
@@ -2104,9 +2105,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Cast";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
             }
         };
 
@@ -2127,8 +2128,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "JumpIfNot";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
             }
         };
 
@@ -2149,8 +2150,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "JumpIf";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
             }
         };
 
@@ -2169,7 +2170,7 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Jump";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
             }
         };
 
@@ -2192,9 +2193,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "CalldataCopy";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_address", destination_address);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size_address", size_address);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "offset_address", offset_address);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_address", destination_address, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "size_address", size_address, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "offset_address", offset_address, false);
             }
         };
 
@@ -2213,7 +2214,7 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Call";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
             }
         };
 
@@ -2236,9 +2237,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Const";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
             }
         };
 
@@ -2261,9 +2262,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "IndirectConst";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
             }
         };
 
@@ -2299,11 +2300,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "ForeignCall";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "function", function);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destinations", destinations);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_value_types", destination_value_types);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input_value_types", input_value_types);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "function", function, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destinations", destinations, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_value_types", destination_value_types, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input_value_types", input_value_types, false);
             }
         };
 
@@ -2324,8 +2325,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Mov";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
             }
         };
 
@@ -2350,10 +2351,10 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "ConditionalMov";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source_a", source_a);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source_b", source_b);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "source_a", source_a, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "source_b", source_b, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
             }
         };
 
@@ -2374,8 +2375,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Load";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source_pointer", source_pointer);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "source_pointer", source_pointer, false);
             }
         };
 
@@ -2396,8 +2397,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Store";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
             }
         };
 
@@ -2435,7 +2436,7 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Trap";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "revert_data", revert_data);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "revert_data", revert_data, false);
             }
         };
 
@@ -2454,7 +2455,7 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Stop";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "return_data", return_data);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "return_data", return_data, false);
             }
         };
 
@@ -2961,8 +2962,8 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "FunctionInput";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "input", input);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
         }
     };
 
@@ -2989,10 +2990,10 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "AES128Encrypt";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "key", key);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3015,9 +3016,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "AND";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3040,9 +3041,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "XOR";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3061,7 +3062,7 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "RANGE";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
             }
         };
 
@@ -3082,8 +3083,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Blake2s";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3104,8 +3105,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Blake3";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3132,11 +3133,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "EcdsaSecp256k1";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3163,11 +3164,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "EcdsaSecp256r1";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3190,9 +3191,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "MultiScalarMul";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "points", points);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3215,9 +3216,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "EmbeddedCurveAdd";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3238,8 +3239,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Keccakf1600";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3266,11 +3267,11 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "RecursiveAggregation";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "verification_key", verification_key);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "proof", proof);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_inputs", public_inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "key_hash", key_hash);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "proof_type", proof_type);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "verification_key", verification_key, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "proof", proof, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "public_inputs", public_inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "key_hash", key_hash, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "proof_type", proof_type, false);
             }
         };
 
@@ -3293,9 +3294,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntAdd";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3318,9 +3319,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntSub";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3343,9 +3344,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntMul";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3368,9 +3369,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntDiv";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3393,9 +3394,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntFromLeBytes";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "modulus", modulus);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "modulus", modulus, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
@@ -3416,8 +3417,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BigIntToLeBytes";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3440,9 +3441,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Poseidon2Permutation";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len, false);
             }
         };
 
@@ -3465,9 +3466,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Sha256Compression";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -3983,9 +3984,9 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "Expression";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "mul_terms", mul_terms);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "linear_combinations", linear_combinations);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "q_c", q_c);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "mul_terms", mul_terms, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "linear_combinations", linear_combinations, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "q_c", q_c, false);
         }
     };
 
@@ -4286,9 +4287,9 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "MemOp";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "index", index);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "value", value);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
         }
     };
 
@@ -4351,9 +4352,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "MemoryOp";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
             }
         };
 
@@ -4376,9 +4377,9 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "MemoryInit";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "init", init);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "block_type", block_type);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "init", init, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "block_type", block_type, false);
             }
         };
 
@@ -4403,10 +4404,10 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "BrilligCall";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "id", id);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
             }
         };
 
@@ -4431,10 +4432,10 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Call";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "id", id);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
             }
         };
 
@@ -4719,8 +4720,8 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "AssertionPayload";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "error_selector", error_selector);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "payload", payload);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "error_selector", error_selector, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "payload", payload, false);
         }
     };
 
@@ -4750,7 +4751,7 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Bounded";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "width", width);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "width", width, false);
             }
         };
 
@@ -4867,8 +4868,8 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "Brillig";
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "acir_index", acir_index);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "brillig_index", brillig_index);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "acir_index", acir_index, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "brillig_index", brillig_index, false);
             }
         };
 
@@ -5000,13 +5001,13 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "Circuit";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "expression_width", expression_width);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "return_values", return_values);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "assert_messages", assert_messages);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "expression_width", expression_width, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "return_values", return_values, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "assert_messages", assert_messages, false);
         }
     };
 
@@ -5025,7 +5026,7 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "BrilligBytecode";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "bytecode", bytecode);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "bytecode", bytecode, false);
         }
     };
 
@@ -5046,8 +5047,8 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "Program";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_functions", unconstrained_functions);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_functions", unconstrained_functions, false);
         }
     };
 
@@ -5066,7 +5067,7 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "ProgramWithoutBrillig";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
         }
     };
 

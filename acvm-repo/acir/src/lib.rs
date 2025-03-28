@@ -259,7 +259,8 @@ mod reflection {
             std::map<std::string, msgpack::object const*> const& kvmap,
             std::string const& struct_name,
             std::string const& field_name,
-            T& field
+            T& field,
+            bool is_optional
         ) {
             auto it = kvmap.find(field_name);
             if (it != kvmap.end()) {
@@ -269,7 +270,7 @@ mod reflection {
                     std::cerr << *it->second << std::endl;
                     throw_or_abort("error converting into field " + struct_name + "::" + field_name);
                 }
-            } else {
+            } else if (!is_optional) {
                 throw_or_abort("missing field: " + struct_name + "::" + field_name);
             }
         }
@@ -370,9 +371,10 @@ mod reflection {
                 );
                 for field in fields {
                     let field_name = &field.name;
+                    let is_optional = matches!(field.value, Format::Option(_));
                     body.push_str(&format!(
                         r#"
-    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name});"#
+    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
                     ));
                 }
                 body

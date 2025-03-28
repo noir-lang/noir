@@ -33,7 +33,8 @@ namespace Witnesses {
             std::map<std::string, msgpack::object const*> const& kvmap,
             std::string const& struct_name,
             std::string const& field_name,
-            T& field
+            T& field,
+            bool is_optional
         ) {
             auto it = kvmap.find(field_name);
             if (it != kvmap.end()) {
@@ -43,7 +44,7 @@ namespace Witnesses {
                     std::cerr << *it->second << std::endl;
                     throw_or_abort("error converting into field " + struct_name + "::" + field_name);
                 }
-            } else {
+            } else if (!is_optional) {
                 throw_or_abort("missing field: " + struct_name + "::" + field_name);
             }
         }
@@ -107,8 +108,8 @@ namespace Witnesses {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "StackItem";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "index", index);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
         }
     };
 
@@ -127,7 +128,7 @@ namespace Witnesses {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "WitnessStack";
             auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
         }
     };
 
