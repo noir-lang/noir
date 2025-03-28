@@ -187,7 +187,7 @@ mod tests {
         FieldElement,
         circuit::{
             Circuit, ExpressionWidth, Opcode, PublicInputs,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
     };
@@ -310,5 +310,31 @@ mod tests {
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 1);
         assert_eq!(optimized_circuit.opcodes[0], Opcode::AssertZero(Witness(1).into()));
+    }
+
+    #[test]
+    fn array_implied_ranges() {
+        // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
+        let mut circuit = test_circuit(vec![(Witness(1), 16)]);
+
+        let mem_init = Opcode::MemoryInit {
+            block_id: BlockId(0),
+            init: vec![Witness(0); 8],
+            block_type: BlockType::Memory,
+        };
+        let mem_op = Opcode::MemoryOp {
+            block_id: BlockId(0),
+            op: MemOp::read_at_mem_index(Witness(1).into(), Witness(2)),
+            predicate: None,
+        };
+
+        circuit.opcodes.push(mem_init.clone());
+        circuit.opcodes.push(mem_op.clone());
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let optimizer = RangeOptimizer::new(circuit);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert_eq!(optimized_circuit.opcodes.len(), 2);
+        assert_eq!(optimized_circuit.opcodes[0], mem_init);
+        assert_eq!(optimized_circuit.opcodes[1], mem_op);
     }
 }
