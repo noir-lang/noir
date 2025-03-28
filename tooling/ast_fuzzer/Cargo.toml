@@ -24,3 +24,6 @@ proptest.workspace = true
 noirc_abi.workspace = true
 noirc_frontend.workspace = true
 noir_fuzzer.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
