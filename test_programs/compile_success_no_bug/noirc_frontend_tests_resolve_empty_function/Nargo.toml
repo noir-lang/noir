@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_resolve_empty_function"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

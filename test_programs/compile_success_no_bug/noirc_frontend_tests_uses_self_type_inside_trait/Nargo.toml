@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_uses_self_type_inside_trait"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

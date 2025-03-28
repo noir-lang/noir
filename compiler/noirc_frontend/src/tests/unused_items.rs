@@ -1,5 +1,6 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::{assert_no_errors, check_errors};
 
+#[named]
 #[test]
 fn errors_on_unused_private_import() {
     let src = r#"
@@ -24,9 +25,10 @@ fn errors_on_unused_private_import() {
         baz();
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unused_pub_crate_import() {
     let src = r#"
@@ -51,9 +53,10 @@ fn errors_on_unused_pub_crate_import() {
         baz();
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unused_function() {
     let src = r#"
@@ -74,9 +77,10 @@ fn errors_on_unused_function() {
 
     fn bar() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unused_struct() {
     let src = r#"
@@ -89,9 +93,10 @@ fn errors_on_unused_struct() {
         let _ = Bar {};
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unused_trait() {
     let src = r#"
@@ -108,9 +113,10 @@ fn errors_on_unused_trait() {
     fn main() {
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn silences_unused_variable_warning() {
     let src = r#"
@@ -119,9 +125,10 @@ fn silences_unused_variable_warning() {
         let x = 1;
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unused_type_alias() {
     let src = r#"
@@ -132,9 +139,10 @@ fn errors_on_unused_type_alias() {
     pub fn bar(_: Bar) {}
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_on_unused_global() {
     let src = r#"
@@ -147,9 +155,10 @@ fn warns_on_unused_global() {
         let _ = bar;
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
     let src = r#"
@@ -160,9 +169,10 @@ fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
     let src = r#"
@@ -171,9 +181,10 @@ fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_warn_on_unused_function_if_it_has_an_export_attribute() {
     let src = r#"
@@ -182,9 +193,10 @@ fn does_not_warn_on_unused_function_if_it_has_an_export_attribute() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn no_warning_on_inner_struct_when_parent_is_used() {
     let src = r#"
@@ -201,9 +213,10 @@ fn no_warning_on_inner_struct_when_parent_is_used() {
         assert_eq(foos[0].a, 10);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     let src = r#"
@@ -214,9 +227,10 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     let src = r#"
@@ -231,9 +245,10 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn no_warning_on_self_in_trait_impl() {
     let src = r#"
@@ -251,9 +266,10 @@ fn no_warning_on_self_in_trait_impl() {
         let _ = Bar {};
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolves_trait_where_clause_in_the_correct_module() {
     // This is a regression test for https://github.com/noir-lang/noir/issues/6479
@@ -271,5 +287,5 @@ fn resolves_trait_where_clause_in_the_correct_module() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }

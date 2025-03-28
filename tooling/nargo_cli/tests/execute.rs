@@ -33,8 +33,9 @@ mod tests {
         // Allow more bytecode in exchange to catch illegal states.
         nargo.arg("--enable-brillig-debug-assertions");
 
-        // Enable enums as an unstable feature
+        // Enable enums and ownership as unstable features
         nargo.arg("-Zenums");
+        nargo.arg("-Zownership");
 
         if force_brillig.0 {
             {

@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_u32_globals_as_sizes_in_types"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

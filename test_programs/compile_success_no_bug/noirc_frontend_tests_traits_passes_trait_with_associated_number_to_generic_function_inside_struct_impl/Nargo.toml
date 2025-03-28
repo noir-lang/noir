@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_passes_trait_with_associated_number_to_generic_function_inside_struct_impl"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

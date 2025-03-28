@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_as_trait_path_syntax_resolves_outside_impl"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

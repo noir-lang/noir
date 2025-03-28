@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_allow_capturing_mut_variable_only_used_immutably"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]
