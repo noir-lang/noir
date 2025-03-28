@@ -188,3 +188,14 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
     }
     impls.join(quote {})
 }
+
+pub trait AssertInto<T> {
+    fn assert_into(self) -> T;
+}
+
+impl AssertInto<u32> for Field {
+    fn assert_into(self) -> u32 {
+        self.assert_max_bit_size::<32>();
+        self as u32
+    }
+}
