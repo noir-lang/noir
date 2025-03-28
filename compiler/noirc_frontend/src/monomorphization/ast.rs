@@ -356,6 +356,55 @@ impl Type {
     pub fn is_slice(&self) -> bool {
         matches!(self, Type::Slice(_))
     }
+
+    pub fn is_u128(&self) -> bool {
+        matches!(self, Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight))
+    }
+
+    pub fn is_field(&self) -> bool {
+        matches!(self, Type::Field)
+    }
+
+    pub fn element_types(self) -> Vec<Type> {
+        match self {
+            Type::Array(_, elements) => {
+                vec![*elements]
+            }
+            Type::Slice(elements) => {
+                vec![*elements]
+            }
+            Type::Tuple(elements) => elements,
+            Type::MutableReference(element) => {
+                vec![*element]
+            }
+            _ => {
+                panic!("expected array slice or tuple type but got {self}")
+            }
+        }
+    }
+
+    /// Returns the flattened size of a Type
+    ///
+    /// TODO: might want to move this to SSA gen context
+    pub fn flattened_size(&self) -> u32 {
+        match self {
+            Type::Array(len, elements) => elements.flattened_size() * len,
+            Type::Tuple(elements) => {
+                elements.iter().fold(0, |sum, elem| sum + elem.flattened_size())
+            }
+            // TODO: test using strings
+            Type::String(len) => *len,
+            Type::FmtString(len, fields) => {
+                *len // The actual fmt string field
+                + 1 // The number of fields to be formatted
+                + fields.flattened_size() // The encapsulated fields themselves
+            }
+            Type::Slice(_) => {
+                unimplemented!("ICE: cannot fetch flattened slice size");
+            }
+            _ => 1,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Default)]

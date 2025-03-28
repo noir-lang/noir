@@ -41,7 +41,13 @@ impl Value {
     pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
             Value::Normal(value) => value,
-            Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
+            Value::Mutable(address, typ) => {
+                let result = ctx.builder.insert_load(address, typ);
+                if let Some(array_typ) = ctx.composite_array_types.get(&address) {
+                    ctx.composite_array_types.insert(result, array_typ.clone());
+                }
+                result
+            }
         }
     }
 
@@ -149,6 +155,23 @@ impl<T> Tree<T> {
             Tree::Leaf(value) => value,
         }
     }
+
+    pub(super) fn into_branch(self) -> Vec<Tree<T>> {
+        match self {
+            Tree::Branch(value) => value,
+            Tree::Leaf(value) => {
+                panic!("into_branch called on a Tree::Branch")
+                // vec![Tree::Leaf(value)]
+            }
+        }
+    }
+
+    pub(super) fn is_branch(&self) -> bool {
+        match self {
+            Tree::Branch(_) => true,
+            Tree::Leaf(_) => false,
+        }
+    }
 }
 
 impl From<IrValueId> for Values {
@@ -171,6 +194,11 @@ impl Tree<Type> {
         self.count_leaves()
     }
 }
+
+// pub(crate) enum CodeGenType {
+//     Type(Type),
+//     Array(Arc<Tree<CodeGenType>>),
+// }
 
 impl Tree<Value> {
     /// Flattens and evaluates this `Tree<Value>` into a list of ir values

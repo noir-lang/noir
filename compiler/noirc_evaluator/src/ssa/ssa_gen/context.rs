@@ -45,6 +45,10 @@ pub(super) struct FunctionContext<'a> {
     /// These are ordered such that an inner loop is at the end of the vector and
     /// outer loops are at the beginning. When a loop is finished, it is popped.
     loops: Vec<Loop>,
+
+    /// We need to maintain the original nested array structure
+    /// Thus, we can just use the frontend Type which still has tuples
+    pub(super) composite_array_types: HashMap<ValueId, ast::Type>,
 }
 
 /// Shared context for all functions during ssa codegen. This is the only
@@ -124,7 +128,13 @@ impl<'a> FunctionContext<'a> {
         builder.set_runtime(runtime);
 
         let definitions = HashMap::default();
-        let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
+        let mut this = Self {
+            definitions,
+            builder,
+            shared_context,
+            loops: Vec::new(),
+            composite_array_types: HashMap::default(),
+        };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -167,11 +177,15 @@ impl<'a> FunctionContext<'a> {
         mutable: bool,
     ) {
         // Add a separate parameter for each field type in 'parameter_type'
-        let parameter_value = Self::map_type(parameter_type, |typ| {
+        let parameter_value = Self::map_type_with_ast_type(parameter_type, |old_typ, typ| {
             let value = self.builder.add_parameter(typ);
+
+            // TODO: test accessing a on mutable composite array
+            self.insert_composite_array_typ(value, &old_typ);
+
             if mutable {
                 // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
-                self.new_mutable_variable(value, true)
+                self.new_mutable_variable(value, true, Some(old_typ))
             } else {
                 value.into()
             }
@@ -186,6 +200,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         value_to_store: ValueId,
         increment_array_rc: bool,
+        ast_typ: Option<&ast::Type>,
     ) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
 
@@ -194,9 +209,41 @@ impl<'a> FunctionContext<'a> {
         }
 
         let alloc = self.builder.insert_allocate(element_type);
+        if let Some(ast_typ) = ast_typ {
+            self.insert_composite_array_typ(alloc, ast_typ);
+        } else if let Some(array_typ) = self.composite_array_types.get(&value_to_store) {
+            // If we do not have a supplied frontend type, the frontend type is associated with an already generated expression
+            self.composite_array_types.insert(alloc, array_typ.clone());
+        }
+
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
+    }
+
+    /// Stores the internal nested type structure for nested arrays
+    /// This is used for determining the appropriate offsets when indexing
+    /// into an array containing composite types
+    pub(super) fn insert_composite_array_typ(&mut self, value: ValueId, typ: &ast::Type) {
+        // self.composite_array_types.insert(value, typ.clone());
+
+        match typ {
+            ast::Type::Array(_, element) | ast::Type::Slice(element) => {
+                // let element_types = Self::convert_type(element);
+                // // if element_types.is_branch() {
+                //     self.composite_array_types.insert(value, element_types);
+                // // }
+
+                self.composite_array_types.insert(value, *element.clone());
+            }
+            ast::Type::Tuple(elements) => {
+                elements.iter().for_each(|element| self.insert_composite_array_typ(value, element));
+            }
+            ast::Type::MutableReference(element) => self.insert_composite_array_typ(value, element),
+            _ => {
+                // Otherwise, do nothing
+            }
+        }
     }
 
     /// Maps the given type to a Tree of the result type.
@@ -240,6 +287,52 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    pub(super) fn map_type_with_ast_type<T>(
+        typ: &ast::Type,
+        mut f: impl FnMut(&ast::Type, Type) -> T,
+    ) -> Tree<T> {
+        Self::map_type_with_ast_type_helper(typ, &mut f)
+    }
+
+    // This helper is the same as `map_type_helper` except we also pass the original `ast::Type`
+    // along with the new SSA `Type`. This enables being able to run operations on the original
+    // structured type information.
+    fn map_type_with_ast_type_helper<T>(
+        typ: &ast::Type,
+        f: &mut dyn FnMut(&ast::Type, Type) -> T,
+    ) -> Tree<T> {
+        match typ {
+            ast::Type::Tuple(fields) => {
+                Tree::Branch(vecmap(fields, |field| Self::map_type_with_ast_type_helper(field, f)))
+            }
+            ast::Type::Unit => Tree::empty(),
+            // A mutable reference wraps each element into a reference.
+            // This can be multiple values if the element type is a tuple.
+            ast::Type::MutableReference(element) => {
+                Self::map_type_with_ast_type_helper(element, &mut |old_typ, new_typ| {
+                    f(old_typ, Type::Reference(Arc::new(new_typ)))
+                })
+            }
+            ast::Type::FmtString(len, fields) => {
+                // A format string is represented by multiple values
+                // The message string, the number of fields to be formatted, and
+                // then the encapsulated fields themselves
+                let final_fmt_str_fields =
+                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
+                Self::map_type_with_ast_type_helper(&fmt_str_tuple, f)
+            }
+            ast::Type::Slice(elements) => {
+                let element_types = Self::convert_type(elements).flatten();
+                Tree::Branch(vec![
+                    Tree::Leaf(f(typ, Type::length_type())),
+                    Tree::Leaf(f(typ, Type::Slice(Arc::new(element_types)))),
+                ])
+            }
+            other => Tree::Leaf(f(typ, Self::convert_non_tuple_type(other))),
+        }
+    }
+
     /// Convert a monomorphized type to an SSA type, preserving the structure
     /// of any tuples within.
     pub(super) fn convert_type(typ: &ast::Type) -> Tree<Type> {
@@ -247,6 +340,37 @@ impl<'a> FunctionContext<'a> {
         // convert_non_tuple_type internally.
         Self::map_type_helper(typ, &mut |x| x)
     }
+
+    /// Converts a non-tuple type into an SSA code generation specific type. Panics if a tuple type is passed.
+    ///
+    /// This function is needed since this SSA IR has no concept of tuples and thus no type for
+    /// them. Use `convert_type` if tuple types need to be handled correctly.
+    // pub(super) fn convert_non_tuple_frontend_type(typ: &ast::Type) -> Type {
+    //     match typ {
+    //         ast::Type::Field => Type::field(),
+    //         ast::Type::Array(len, element) => {
+    //             let element_types = Self::convert_type(element);
+    //             let element_types = element_types.clone().flatten();
+    //             Type::Array(Arc::new(element_types), *len)
+    //         }
+    //         ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
+    //         ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
+    //         ast::Type::Bool => Type::unsigned(1),
+    //         ast::Type::String(len) => Type::str(*len),
+    //         ast::Type::FmtString(_, _) => {
+    //             panic!("convert_non_tuple_type called on a fmt string: {typ}")
+    //         }
+    //         ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
+    //         ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
+    //         ast::Type::Function(_, _, _, _) => Type::Function,
+    //         ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
+    //         ast::Type::MutableReference(element) => {
+    //             // Recursive call to panic if element is a tuple
+    //             let element = Self::convert_non_tuple_type(element);
+    //             Type::Reference(Arc::new(element))
+    //         }
+    //     }
+    // }
 
     /// Converts a non-tuple type into an SSA type. Panics if a tuple type is passed.
     ///
@@ -256,7 +380,8 @@ impl<'a> FunctionContext<'a> {
         match typ {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
-                let element_types = Self::convert_type(element).flatten();
+                let element_types = Self::convert_type(element);
+                let element_types = element_types.clone().flatten();
                 Type::Array(Arc::new(element_types), *len)
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
@@ -607,14 +732,18 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
-        let results =
-            self.builder.set_location(location).insert_call(function, arguments, result_types);
+        let results = self
+            .builder
+            .set_location(location)
+            .insert_call(function, arguments, result_types)
+            .to_vec();
 
         let mut i = 0;
-        let reshaped_return_values = Self::map_type(result_type, |_| {
-            let result = results[i].into();
+        let reshaped_return_values = Self::map_type_with_ast_type(result_type, |ast_typ, _| {
+            let result = results[i];
+            self.insert_composite_array_typ(result, ast_typ);
             i += 1;
-            result
+            result.into()
         });
         assert_eq!(i, results.len());
         reshaped_return_values
@@ -754,7 +883,6 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         lvalue: &ast::LValue,
     ) -> Result<LValue, RuntimeError> {
-        // dbg!(lvalue.clone());
         Ok(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
@@ -784,7 +912,11 @@ impl<'a> FunctionContext<'a> {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
-            self.builder.insert_load(reference, element_type).into()
+            let result = self.builder.insert_load(reference, element_type);
+            if let Some(array_typ) = self.composite_array_types.get(&reference) {
+                self.composite_array_types.insert(result, array_typ.clone());
+            }
+            result.into()
         })
     }
 
@@ -836,7 +968,6 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         lvalue: &ast::LValue,
     ) -> Result<(Values, LValue), RuntimeError> {
-        // dbg!(lvalue.clone());
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
@@ -848,7 +979,6 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                dbg!("got index");
                 let (old_array, index, index_lvalue, max_length) =
                     self.index_lvalue(array, index, location)?;
                 let element = self.codegen_array_index(
@@ -885,7 +1015,6 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn extract_current_value_recursive_new(
         &mut self,
         lvalue: &ast::LValue,
-        started_nested_indexing: u32,
         indices: &mut Vec<NestedArrayIndex>,
         // TODO: this state should be converted to an enum
         nested_indexing: &mut u32,
@@ -901,26 +1030,14 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                // let mut indices = Vec::new();
-                // dbg!(*nested_indexing);
-
                 let index_value = self.codegen_non_tuple_expression(index)?;
                 indices.push(NestedArrayIndex::Value(index_value));
 
-                // let (old_array, array_lvalue) = self.extract_current_value_recursive_new(array, 2, indices, nested_indexing)?;
-
                 if *nested_indexing == 1 {
                     *nested_indexing = 2;
-                    // dbg!("have seen nested index before");
-                    assert_eq!(started_nested_indexing, 1);
-                    let (old_array, array_lvalue) = self.extract_current_value_recursive_new(
-                        array,
-                        2,
-                        indices,
-                        nested_indexing,
-                    )?;
-                    // dbg!(old_array.clone());
-                    // dbg!(array_lvalue.clone());
+                    let (old_array, array_lvalue) =
+                        self.extract_current_value_recursive_new(array, indices, nested_indexing)?;
+
                     let array_lvalue = Box::new(array_lvalue);
                     let array_values = old_array.clone().into_value_list(self);
                     let index_lvalue = LValue::NestedArrayIndex {
@@ -929,13 +1046,14 @@ impl<'a> FunctionContext<'a> {
                         location: *location,
                         indices: vec![],
                     };
+
                     return Ok((old_array, index_lvalue));
-                } else {
-                    *nested_indexing = 1;
                 }
 
                 let (old_array, array_lvalue) =
-                    self.extract_current_value_recursive_new(array, 1, indices, nested_indexing)?;
+                    self.extract_current_value_recursive_new(array, indices, nested_indexing)?;
+
+                *nested_indexing = 1;
 
                 let array_values = old_array.clone().into_value_list(self);
 
@@ -972,6 +1090,10 @@ impl<'a> FunctionContext<'a> {
                     })
                 } else {
                     old_array.clone()
+                    // Self::map_type(element_type, |_| {
+                    //     let dummy = self.builder.numeric_constant(0u128, NumericType::NativeField);
+                    //     dummy.into()
+                    // })
                 };
 
                 let array_lvalue = Box::new(array_lvalue);
@@ -986,12 +1108,8 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
                 indices.push(NestedArrayIndex::Constant(*index));
-                let (old_object, object_lvalue) = self.extract_current_value_recursive_new(
-                    object,
-                    started_nested_indexing,
-                    indices,
-                    nested_indexing,
-                )?;
+                let (old_object, object_lvalue) =
+                    self.extract_current_value_recursive_new(object, indices, nested_indexing)?;
                 let object_lvalue = Box::new(object_lvalue);
                 if *nested_indexing > 1 {
                     return Ok((
@@ -1003,9 +1121,6 @@ impl<'a> FunctionContext<'a> {
                             skip_extraction: true,
                         },
                     ));
-                // } else if *nested_indexing == 1 {
-                } else if *nested_indexing == 1 && started_nested_indexing == 2 {
-                    *nested_indexing = 2;
                 }
 
                 let element = Self::get_field_ref(&old_object, *index).clone();
@@ -1020,12 +1135,8 @@ impl<'a> FunctionContext<'a> {
                 ))
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_current_value_recursive_new(
-                    reference,
-                    started_nested_indexing,
-                    indices,
-                    nested_indexing,
-                )?;
+                let (reference, _) =
+                    self.extract_current_value_recursive_new(reference, indices, nested_indexing)?;
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
                 Ok((dereferenced, LValue::Dereference { reference }))
             }
@@ -1064,8 +1175,7 @@ impl<'a> FunctionContext<'a> {
 
                 // Should already have extracted the appropriate array value from any tuples
                 let (flattened_index, _) =
-                    self.build_nested_lvalue_index(old_array.into(), true, false, &mut indices);
-                // dbg!(new_array.clone());
+                    self.build_nested_lvalue_index(old_array.into(), true, &mut indices);
                 let array = self
                     .assign_lvalue_index_no_offset(
                         original_value.clone(),
@@ -1075,9 +1185,6 @@ impl<'a> FunctionContext<'a> {
                     )
                     .into();
 
-                // dbg!(array_lvalue.clone());
-                // TODO: can probably assign directly
-                // self.assign_new_value(extracted_ident, array, true, original_value);
                 self.assign_new_value(*array_lvalue, array, 1, original_value);
             }
             LValue::SliceIndexNestedArray {
@@ -1094,12 +1201,8 @@ impl<'a> FunctionContext<'a> {
                 }
 
                 let slice_values = slice.into_value_list(self);
-                let (flattened_index, _) = self.build_nested_lvalue_index(
-                    slice_values[1].into(),
-                    true,
-                    false,
-                    &mut indices,
-                );
+                let (flattened_index, _) =
+                    self.build_nested_lvalue_index(slice_values[1].into(), true, &mut indices);
                 let new_slice_values = self
                     .assign_lvalue_index_no_offset(
                         original_value.clone(),
@@ -1139,11 +1242,12 @@ impl<'a> FunctionContext<'a> {
                     self.assign_new_value(*object_lvalue, new_value, 1, original_value);
                     return;
                 }
+
                 let new_object = Self::replace_field(old_object, index, new_value);
                 self.assign_new_value(
                     *object_lvalue,
                     new_object,
-                    // TODO: I'm using this to say we already extracted the value
+                    // TODO: get rid of this field
                     1,
                     original_value,
                 );
@@ -1177,13 +1281,40 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
+
+            let old_array = array;
             array = self.builder.insert_array_set(array, index, value);
+            if let Some(array_typ) = self.composite_array_types.get(&old_array) {
+                self.composite_array_types.insert(array, array_typ.clone());
+            }
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
         array
     }
 
+    // pub(super) fn assign_lvalue_index_no_offset(
+    //     &mut self,
+    //     new_value: Values,
+    //     mut array: ValueId,
+    //     index: ValueId,
+    //     _location: Location,
+    // ) -> ValueId {
+    //     let mut index = self.make_array_index(index);
+    //     new_value.for_each(|value| {
+    //         let value = value.eval(self);
+    //         let typ = self.builder.current_function.dfg.type_of_value(value);
+    //         let old_array = array;
+    //         array = self.builder.insert_array_set(old_array, index, value);
+    //         if let Some(array_typ) = self.composite_array_types.get(&old_array) {
+    //             self.composite_array_types.insert(array, array_typ.clone());
+    //         }
+    //         let offset =
+    //             self.builder.numeric_constant(typ.flattened_size(), NumericType::length_type());
+    //         index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
+    //     });
+    //     array
+    // }
     pub(super) fn assign_lvalue_index_no_offset(
         &mut self,
         new_value: Values,
@@ -1195,12 +1326,33 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            let typ = self.builder.current_function.dfg.type_of_value(value);
+            let value_typ = self.builder.current_function.dfg.type_of_value(value);
 
-            array = self.builder.insert_array_set(array, index, value);
+            let flat_typ = value_typ.clone().flatten();
+            let offset = self.builder.numeric_constant(flat_typ.len(), NumericType::length_type());
+            if value_typ.contains_an_array() {
+                // TODO: test setting a struct with array and primitive fields where primitives come after
+                // the array fields. This test should help us check whether we are updating the index appropriately
+                let flat_typ = value_typ.clone().flatten();
+                for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                    let read_index = self
+                        .builder
+                        .current_function
+                        .dfg
+                        .make_constant(my_index.into(), typ.unwrap_numeric());
+                    assert!(matches!(typ, Type::Numeric(_)));
+                    let res = self.builder.insert_array_get(value, read_index, typ);
+                    let write_index = self.make_offset(index, my_index as u128);
+                    array = self.builder.insert_array_set(array, write_index, res);
+                }
+                // index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, typ.len());
+            } else {
+                array = self.builder.insert_array_set(array, index, value);
 
-            let offset =
-                self.builder.numeric_constant(typ.flattened_size(), NumericType::length_type());
+                // let offset =
+                // self.builder.numeric_constant(value_typ.flattened_size(), NumericType::length_type());
+                // index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
+            }
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
         });
 
@@ -1224,12 +1376,14 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
-                // dbg!(lhs.clone());
-                // dbg!(rhs.clone());
                 let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
+                // if let Some(array_typ) = self.composite_array_types.get(&rhs) {
+                //     self.composite_array_types.insert(lhs, array_typ.clone());
+                // }
                 self.builder.insert_store(lhs, rhs);
             }
             (lhs, rhs) => {
+                println!("{}", self.builder.current_function);
                 unreachable!(
                     "assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
                 )
@@ -1259,14 +1413,6 @@ impl<'a> FunctionContext<'a> {
                 self.extract_ident_from_expr(&index.collection, indices)?
             }
             ast::Expression::ExtractTupleField(tuple, field_index) => {
-                // dbg!(field_index);
-                // let x = self.codegen_expression(tuple)?;
-                // dbg!(x.clone());
-                // if let Some(NestedArrayIndex::Constant(top_index)) = indices.last_mut() {
-                //     // dbg!(indices.clone());
-                //     dbg!("GOT previous constant index");
-                // *top_index += *field_index;
-                // }
                 indices.push(NestedArrayIndex::Constant(*field_index));
                 self.extract_ident_from_expr(tuple, indices)?
             }
