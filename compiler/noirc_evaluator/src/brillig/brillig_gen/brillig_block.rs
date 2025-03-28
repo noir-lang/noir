@@ -1043,13 +1043,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
-        let zero =
-            SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
+        let zero = SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
 
         self.brillig_context.const_instruction(zero, FieldElement::zero());
 
-        let condition =
-            SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
 
         self.brillig_context.memory_op_instruction(
             zero.address,
@@ -1058,10 +1056,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             BrilligBinaryOp::Equals,
         );
         self.brillig_context.not_instruction(condition, condition);
-        self.brillig_context.codegen_constrain(
-            condition,
-            Some("array ref-count underflow detected".to_owned()),
-        );
+        self.brillig_context
+            .codegen_constrain(condition, Some("array ref-count underflow detected".to_owned()));
         self.brillig_context.deallocate_single_addr(condition);
     }
 
