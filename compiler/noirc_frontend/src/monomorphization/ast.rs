@@ -150,12 +150,6 @@ pub struct Binary {
     pub location: Location,
 }
 
-#[derive(Debug, Clone)]
-pub struct Lambda {
-    pub function: Ident,
-    pub env: Ident,
-}
-
 #[derive(Debug, Clone, Hash)]
 pub struct If {
     pub condition: Box<Expression>,
