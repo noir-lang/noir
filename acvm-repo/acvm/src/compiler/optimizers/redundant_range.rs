@@ -2,11 +2,11 @@ use acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
+        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
     },
     native_types::Witness,
 };
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// `RangeOptimizer` will remove redundant range constraints.
 ///
@@ -49,6 +49,7 @@ impl<F: AcirField> RangeOptimizer<F> {
     /// be 16 bits.
     fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, u32> {
         let mut witness_to_bit_sizes: BTreeMap<Witness, u32> = BTreeMap::new();
+        let mut memory_block_lengths_bit_size: HashMap<BlockId, u32> = HashMap::new();
 
         for opcode in &circuit.opcodes {
             let Some((witness, num_bits)) = (match opcode {
@@ -79,6 +80,22 @@ impl<F: AcirField> RangeOptimizer<F> {
                     } else {
                         None
                     }
+                }
+
+                Opcode::MemoryInit { block_id, init, .. } => {
+                    memory_block_lengths_bit_size.insert(*block_id, size_of_memory_block(init));
+                    None
+                }
+
+                Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
+                    index.to_witness().map(|witness| {
+                        (
+                            witness,
+                            *memory_block_lengths_bit_size
+                                .get(block_id)
+                                .expect("memory must be initialized before any reads/writes"),
+                        )
+                    })
                 }
 
                 _ => None,
@@ -157,11 +174,15 @@ impl<F: AcirField> RangeOptimizer<F> {
     }
 }
 
+fn size_of_memory_block(init: &[Witness]) -> u32 {
+    8 * size_of::<usize>() as u32 - init.len().leading_zeros()
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
-    use crate::compiler::optimizers::redundant_range::RangeOptimizer;
+    use crate::compiler::optimizers::redundant_range::{RangeOptimizer, size_of_memory_block};
     use acir::{
         FieldElement,
         circuit::{
@@ -170,6 +191,18 @@ mod tests {
         },
         native_types::{Expression, Witness},
     };
+
+    #[test]
+    fn correctly_calculates_bit_size_of_memory_block_length() {
+        assert_eq!(size_of_memory_block(&[]), 0);
+        assert_eq!(size_of_memory_block(&[Witness(0); 1]), 1);
+        assert_eq!(size_of_memory_block(&[Witness(0); 2]), 2);
+        assert_eq!(size_of_memory_block(&[Witness(0); 3]), 2);
+        assert_eq!(size_of_memory_block(&[Witness(0); 4]), 3);
+        assert_eq!(size_of_memory_block(&[Witness(0); 8]), 4);
+        assert_eq!(size_of_memory_block(&[Witness(0); u8::MAX as usize]), 8);
+        assert_eq!(size_of_memory_block(&[Witness(0); u16::MAX as usize]), 16);
+    }
 
     fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
         fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode<FieldElement> {
