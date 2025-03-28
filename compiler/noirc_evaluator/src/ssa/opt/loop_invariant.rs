@@ -505,16 +505,19 @@ fn can_be_hoisted(
         | IncrementRc { .. }
         | DecrementRc { .. } => false,
 
-        Call { func, .. } => match function.dfg[*func] {
-            Value::Intrinsic(intrinsic) => intrinsic.can_be_deduplicated(false),
-            Value::Function(id) => match function.dfg.purity_of(id) {
+        Call { func, .. } => {
+            let purity = match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
+                Value::Function(id) => function.dfg.purity_of(id),
+                _ => None,
+            };
+            match purity {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => false,
                 Some(Purity::Impure) => false,
                 None => false,
-            },
-            _ => false,
-        },
+            }
+        }
 
         // We cannot hoist these instructions, even if we know the predicate is the same.
         // This is because an loop with dynamic bounds may never execute its loop body.
@@ -528,8 +531,8 @@ fn can_be_hoisted(
         // removed entirely.
         Noop => true,
 
-        // Cast instructions can always be hoisted
-        Cast(_, _) => true,
+        // These instructions can always be hoisted
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => true,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
@@ -538,12 +541,7 @@ fn can_be_hoisted(
         MakeArray { .. } => function.runtime().is_acir(),
 
         // These can have different behavior depending on the predicate.
-        Binary(_)
-        | Not(_)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } => {
+        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             hoist_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
     }
