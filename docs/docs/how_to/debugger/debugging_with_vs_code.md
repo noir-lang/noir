@@ -13,7 +13,7 @@ keywords:
 sidebar_position: 0
 ---
 
-This guide will show you how to use VS Code with the vscode-noir extension to debug a Noir project. 
+This guide will show you how to use VS Code with the vscode-noir extension to debug a Noir project.
 
 #### Pre-requisites
 
@@ -23,7 +23,15 @@ This guide will show you how to use VS Code with the vscode-noir extension to de
 
 ## Running the debugger
 
-The easiest way to start debugging is to open the file you want to debug, and press `F5`. This will cause the debugger to launch, using your `Prover.toml` file as input.
+The easiest way to start debugging is to open the file you want to debug, and click on `Debug` codelens over main functions or `Debug test` over `#[test]` functions
+
+If you don't see the codelens options `Compile|Info|..|Debug` over the `main` function or `Run test| Debug test` over a test function then you probably have the codelens feature disabled. To enable it open the extension configuration page and check the `Enable Code Lens` setting.
+
+![Debugger codelens](@site/static/img/debugger/debugger-codelens.png)
+
+Another way of starting the debugger is to press `F5` on the file you want to debug. This will cause the debugger to launch, using your `Prover.toml` file as input.
+
+Once the debugger has started you should see something like this:
 
 You should see something like this:
 
@@ -37,11 +45,11 @@ You will now see two categories of variables: Locals and Witness Map.
 
 ![Debug pane expanded](@site/static/img/debugger/3-debug-pane.png)
 
-1. **Locals**: variables of your program. At this point in execution this section is empty, but as we step through the code it will get populated by `x`, `result`, `digest`, etc. 
+1. **Locals**: variables of your program. At this point in execution this section is empty, but as we step through the code it will get populated by `x`, `result`, `digest`, etc.
 
 2. **Witness map**: these are initially populated from your project's `Prover.toml` file. In this example, they will be used to populate `x` and `result` at the beginning of the `main` function.
 
-Most of the time you will probably be focusing mostly on locals, as they represent the high level state of your program. 
+Most of the time you will probably be focusing mostly on locals, as they represent the high level state of your program.
 
 You might be interested in inspecting the witness map in case you are trying to solve a really low level issue in the compiler or runtime itself, so this concerns mostly advanced or niche users.
 
@@ -57,7 +65,7 @@ We can also inspect the values of variables by directly hovering on them on the 
 
 ![Hover locals](@site/static/img/debugger/6-hover.png)
 
-Let's set a break point at the `keccak256` function, so we can continue execution up to the point when it's first invoked without having to go one step at a time. 
+Let's set a break point at the `keccak256` function, so we can continue execution up to the point when it's first invoked without having to go one step at a time.
 
 We just need to click to the right of the line number 18. Once the breakpoint appears, we can click the `continue` button or use its corresponding keyboard shortcut (`F5` by default).
 

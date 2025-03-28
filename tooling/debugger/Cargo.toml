@@ -16,7 +16,7 @@ build-data.workspace = true
 [dependencies]
 acvm.workspace = true
 fm.workspace = true
-nargo.workspace = true
+nargo = { workspace = true, features = ["rpc"] }
 noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
@@ -28,6 +28,8 @@ dap.workspace = true
 easy-repl = "0.2.1"
 owo-colors = "3"
 serde_json.workspace = true
+bn254_blackbox_solver.workspace = true
+
 
 [dev-dependencies]
 assert_cmd = "2.0.12"
