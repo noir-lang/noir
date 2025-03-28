@@ -83,7 +83,8 @@ impl<F: AcirField> RangeOptimizer<F> {
                 }
 
                 Opcode::MemoryInit { block_id, init, .. } => {
-                    memory_block_lengths_bit_size.insert(*block_id, size_of_memory_block(init));
+                    memory_block_lengths_bit_size
+                        .insert(*block_id, memory_block_implied_max_bits(init));
                     None
                 }
 
@@ -174,7 +175,7 @@ impl<F: AcirField> RangeOptimizer<F> {
     }
 }
 
-fn size_of_memory_block(init: &[Witness]) -> u32 {
+fn memory_block_implied_max_bits(init: &[Witness]) -> u32 {
     8 * size_of::<usize>() as u32 - init.len().leading_zeros()
 }
 
@@ -182,7 +183,9 @@ fn size_of_memory_block(init: &[Witness]) -> u32 {
 mod tests {
     use std::collections::BTreeSet;
 
-    use crate::compiler::optimizers::redundant_range::{RangeOptimizer, size_of_memory_block};
+    use crate::compiler::optimizers::redundant_range::{
+        RangeOptimizer, memory_block_implied_max_bits,
+    };
     use acir::{
         FieldElement,
         circuit::{
@@ -193,15 +196,15 @@ mod tests {
     };
 
     #[test]
-    fn correctly_calculates_bit_size_of_memory_block_length() {
-        assert_eq!(size_of_memory_block(&[]), 0);
-        assert_eq!(size_of_memory_block(&[Witness(0); 1]), 1);
-        assert_eq!(size_of_memory_block(&[Witness(0); 2]), 2);
-        assert_eq!(size_of_memory_block(&[Witness(0); 3]), 2);
-        assert_eq!(size_of_memory_block(&[Witness(0); 4]), 3);
-        assert_eq!(size_of_memory_block(&[Witness(0); 8]), 4);
-        assert_eq!(size_of_memory_block(&[Witness(0); u8::MAX as usize]), 8);
-        assert_eq!(size_of_memory_block(&[Witness(0); u16::MAX as usize]), 16);
+    fn correctly_calculates_memory_block_implied_max_bits() {
+        assert_eq!(memory_block_implied_max_bits(&[]), 0);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 1]), 1);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 2]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 3]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 4]), 3);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 8]), 4);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); u8::MAX as usize]), 8);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); u16::MAX as usize]), 16);
     }
 
     fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
