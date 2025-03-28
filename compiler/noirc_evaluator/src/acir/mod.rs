@@ -51,7 +51,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use acir_variable::{AcirContext, AcirType, AcirVar, power_of_two};
+use acir_variable::{AcirContext, AcirType, AcirVar};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -2117,29 +2117,7 @@ impl<'a> Context<'a> {
             "Attempted to generate a truncation into size larger than max input"
         );
 
-        let mut var = self.convert_numeric_value(value_id, dfg)?;
-        match &dfg[value_id] {
-            Value::Instruction { instruction, .. } => {
-                if matches!(
-                    &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
-                ) {
-                    // Subtractions must first have the integer modulus added before truncation can be
-                    // applied. This is done in order to prevent underflow.
-                    let integer_modulus = power_of_two::<FieldElement>(bit_size);
-                    let integer_modulus = self.acir_context.add_constant(integer_modulus);
-                    var = self.acir_context.add_var(var, integer_modulus)?;
-                }
-            }
-            Value::Param { .. } => {
-                // Binary operations on params may have been entirely simplified if the operation
-                // results in the identity of the parameter
-            }
-            _ => unreachable!(
-                "ICE: Truncates are only ever applied to the result of a binary op or a param"
-            ),
-        };
-
+        let var = self.convert_numeric_value(value_id, dfg)?;
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
 
@@ -2901,15 +2879,17 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 mod test {
 
     use acvm::{
-        FieldElement,
+        AcirField, FieldElement,
         acir::{
             circuit::{
                 ExpressionWidth, Opcode, OpcodeLocation,
                 brillig::BrilligFunctionId,
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
             },
-            native_types::Witness,
+            native_types::{Witness, WitnessMap},
         },
+        blackbox_solver::StubbedBlackBoxSolver,
+        pwg::{ACVM, ACVMStatus},
     };
     use noirc_errors::Location;
     use noirc_frontend::monomorphization::ast::InlineType;
@@ -3743,5 +3723,44 @@ mod test {
         // Check that no memory opcodes were emitted.
         let main = &acir_functions[0];
         assert!(!main.opcodes().iter().any(|opcode| matches!(opcode, Opcode::MemoryOp { .. })));
+    }
+
+    #[test]
+    fn truncates_fields_as_expected() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = sub v0, v1
+            v3 = truncate v0 to 8 bits, max_bit_size: 254
+            return v3
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
+
+        let (acir_functions, brillig_functions, _, _) = ssa
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+
+        // Check that no memory opcodes were emitted.
+        let opcodes = &acir_functions[0].opcodes();
+
+        let mut acvm = ACVM::new(
+            &StubbedBlackBoxSolver(true),
+            opcodes,
+            WitnessMap::from(BTreeMap::from([
+                (Witness(0), FieldElement::zero()),
+                (Witness(1), FieldElement::one()),
+            ])),
+            &brillig_functions,
+            &[],
+        );
+
+        assert_eq!(acvm.solve(), ACVMStatus::Solved);
+
+        let witness_map = acvm.finalize();
+        let result = witness_map.get(&Witness(2)).unwrap();
+        assert_eq!(*result, FieldElement::zero());
     }
 }
