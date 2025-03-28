@@ -173,7 +173,7 @@ impl<'a> FunctionContext<'a> {
             let value = self.builder.add_parameter(typ);
             if mutable {
                 // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
-                self.new_mutable_variable(value, true)
+                self.new_mutable_variable(value)
             } else {
                 value.into()
             }
@@ -184,16 +184,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(
-        &mut self,
-        value_to_store: ValueId,
-        increment_array_rc: bool,
-    ) -> Value {
+    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
-
-        if increment_array_rc {
-            self.builder.increment_array_reference_count(value_to_store);
-        }
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
