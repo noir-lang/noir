@@ -96,21 +96,9 @@ impl<T> Tree<T> {
         }
     }
 
-    /// Map mutably over this tree, mutating each leaf value within using the given function
-    pub(super) fn map_mut(&mut self, mut f: impl FnMut(&T) -> Tree<T>) {
-        self.map_mut_helper(&mut f);
-    }
-
-    fn map_mut_helper(&mut self, f: &mut impl FnMut(&T) -> Tree<T>) {
-        match self {
-            Tree::Branch(trees) => trees.iter_mut().for_each(|tree| tree.map_mut_helper(f)),
-            Tree::Leaf(value) => *self = f(value),
-        }
-    }
-
     /// Calls the given function on each leaf node, mapping this tree into a new one.
     ///
-    /// Because the given function returns a Tree<U> rather than a U, it is possible
+    /// Because the given function returns a `Tree<U>` rather than a U, it is possible
     /// to use this function to turn Leaf nodes into either other Leaf nodes or even Branch nodes.
     pub(super) fn map<U>(self, mut f: impl FnMut(T) -> Tree<U>) -> Tree<U> {
         self.map_helper(&mut f)
@@ -185,7 +173,7 @@ impl Tree<Type> {
 }
 
 impl Tree<Value> {
-    /// Flattens and evaluates this Tree<Value> into a list of ir values
+    /// Flattens and evaluates this `Tree<Value>` into a list of ir values
     /// for return statements, branching instructions, or function parameters.
     pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
         vecmap(self.flatten(), |value| value.eval(ctx))

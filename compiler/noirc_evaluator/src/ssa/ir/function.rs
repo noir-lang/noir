@@ -1,17 +1,18 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
-use super::dfg::DataFlowGraph;
+use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir(InlineType),
@@ -46,6 +47,20 @@ impl RuntimeType {
                 | RuntimeType::Brillig(InlineType::NoPredicates)
         )
     }
+
+    pub(crate) fn is_brillig(&self) -> bool {
+        matches!(self, RuntimeType::Brillig(_))
+    }
+
+    pub(crate) fn is_acir(&self) -> bool {
+        matches!(self, RuntimeType::Acir(_))
+    }
+}
+
+impl Default for RuntimeType {
+    fn default() -> Self {
+        RuntimeType::Acir(InlineType::default())
+    }
 }
 
 /// A function holds a list of instructions.
@@ -62,9 +77,7 @@ pub(crate) struct Function {
     /// Name of the function for debugging only
     name: String,
 
-    id: FunctionId,
-
-    runtime: RuntimeType,
+    id: Option<FunctionId>,
 
     /// The DataFlowGraph holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
@@ -78,20 +91,30 @@ impl Function {
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir(InlineType::default()) }
+        Self { name, id: Some(id), entry_block, dfg }
+    }
+
+    /// Globals are generated using the same codegen process as functions.
+    /// To avoid a recursive global context we should create a pseudo function to mock a globals context.
+    pub(crate) fn new_for_globals() -> Self {
+        let mut dfg = DataFlowGraph::default();
+        let entry_block = dfg.make_block();
+        Self { name: "globals".to_owned(), id: None, entry_block, dfg }
     }
 
     /// Creates a new function as a clone of the one passed in with the passed in id.
     pub(crate) fn clone_with_id(id: FunctionId, another: &Function) -> Self {
         let dfg = another.dfg.clone();
         let entry_block = another.entry_block;
-        Self { name: another.name.clone(), id, entry_block, dfg, runtime: another.runtime }
+        Self { name: another.name.clone(), id: Some(id), entry_block, dfg }
     }
 
     /// Takes the signature (function name & runtime) from a function but does not copy the body.
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
-        new_function.runtime = another.runtime;
+        new_function.set_runtime(another.runtime());
+        new_function.set_globals(another.dfg.globals.clone());
+        new_function.dfg.set_function_purities(another.dfg.function_purities.clone());
         new_function
     }
 
@@ -103,24 +126,25 @@ impl Function {
 
     /// The id of the function.
     pub(crate) fn id(&self) -> FunctionId {
-        self.id
+        self.id.expect("FunctionId should be initialized")
     }
 
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
-        self.runtime
+        self.dfg.runtime()
     }
 
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
-        self.runtime = runtime;
+        self.dfg.set_runtime(runtime);
+    }
+
+    pub(crate) fn set_globals(&mut self, globals: Arc<GlobalsGraph>) {
+        self.dfg.globals = globals;
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {
-        match self.runtime() {
-            RuntimeType::Acir(inline_type) => matches!(inline_type, InlineType::NoPredicates),
-            RuntimeType::Brillig(_) => false,
-        }
+        self.runtime().is_no_predicates()
     }
 
     /// Retrieves the entry block of a function.
@@ -141,17 +165,13 @@ impl Function {
 
     /// Returns the return types of this function.
     pub(crate) fn returns(&self) -> &[ValueId] {
-        let blocks = self.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
+        for block in self.reachable_blocks() {
             let terminator = self.dfg[block].terminator();
             if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                function_return_values = Some(return_values);
-                break;
+                return return_values;
             }
         }
-        function_return_values
-            .expect("Expected a return instruction, as function construction is finished")
+        &[]
     }
 
     /// Collects all the reachable blocks of this function.
@@ -187,6 +207,22 @@ impl Function {
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
     }
+
+    pub(crate) fn num_instructions(&self) -> usize {
+        self.reachable_blocks()
+            .iter()
+            .map(|block| {
+                let block = &self.dfg[*block];
+                block.instructions().len() + block.terminator().is_some() as usize
+            })
+            .sum()
+    }
+}
+
+impl Clone for Function {
+    fn clone(&self) -> Self {
+        Function::clone_with_id(self.id(), self)
+    }
 }
 
 impl std::fmt::Display for RuntimeType {
@@ -208,12 +244,6 @@ pub(crate) type FunctionId = Id<Function>;
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
-}
-
-impl std::fmt::Display for Function {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::display_function(self, f)
-    }
 }
 
 #[test]

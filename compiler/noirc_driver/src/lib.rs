@@ -10,18 +10,21 @@ use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
-use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind};
+use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::SsaProgramArtifact;
+use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
-use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
+use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
+use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttribute;
+use std::collections::HashMap;
 use std::path::Path;
 use tracing::info;
 
@@ -70,6 +73,15 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa: bool,
 
+    /// Only show SSA passes whose name contains the provided string.
+    /// This setting takes precedence over `show_ssa` if it's not empty.
+    #[arg(long, hide = true)]
+    pub show_ssa_pass: Option<String>,
+
+    /// Only show the SSA and ACIR for the contract function with a given name.
+    #[arg(long, hide = true)]
+    pub show_contract_fn: Option<String>,
+
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
     /// under `[compiled-package].ssa.json`.
@@ -94,10 +106,6 @@ pub struct CompileOptions {
     /// Suppress warnings
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
-
-    /// Disables the builtin Aztec macros being used in the compiler
-    #[arg(long, hide = true)]
-    pub disable_macros: bool,
 
     /// Outputs the monomorphized IR to stdout for debugging
     #[arg(long, hide = true)]
@@ -126,11 +134,58 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
-    /// Setting to decide on an inlining strategy for brillig functions.
+    /// Flag to turn off the compiler check for missing Brillig call constraints.
+    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// This check should always be run on production code.
+    #[arg(long)]
+    pub skip_brillig_constraints_check: bool,
+
+    /// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
+    #[arg(long, hide = true)]
+    pub enable_brillig_debug_assertions: bool,
+
+    /// Count the number of arrays that are copied in an unconstrained context for performance debugging
+    #[arg(long)]
+    pub count_array_copies: bool,
+
+    /// Flag to turn on the lookback feature of the Brillig call constraints
+    /// check, allowing tracking argument values before the call happens preventing
+    /// certain rare false positives (leads to a slowdown on large rollout functions)
+    #[arg(long)]
+    pub enable_brillig_constraints_check_lookback: bool,
+
+    /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
+
+    /// Setting the maximum acceptable increase in Brillig bytecode size due to
+    /// unrolling small loops. When left empty, any change is accepted as long
+    /// as it required fewer SSA instructions.
+    /// A higher value results in fewer jumps but a larger program.
+    /// A lower value keeps the original program if it was smaller, even if it has more jumps.
+    #[arg(long, hide = true, allow_hyphen_values = true)]
+    pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Use pedantic ACVM solving, i.e. double-check some black-box function
+    /// assumptions when solving.
+    /// This is disabled by default.
+    #[arg(long, default_value = "false")]
+    pub pedantic_solving: bool,
+
+    /// Used internally to test for non-determinism in the compiler.
+    #[clap(long, hide = true)]
+    pub check_non_determinism: bool,
+
+    /// Unstable features to enable for this current build
+    #[arg(value_parser = clap::value_parser!(UnstableFeature))]
+    #[clap(long, short = 'Z', value_delimiter = ',')]
+    pub unstable_features: Vec<UnstableFeature>,
+
+    /// Used internally to avoid comptime println from producing output
+    #[arg(long, hide = true)]
+    pub disable_comptime_printing: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -146,6 +201,16 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
             ErrorKind::InvalidInput,
             format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
         )),
+    }
+}
+
+impl CompileOptions {
+    pub fn frontend_options(&self) -> FrontendOptions {
+        FrontendOptions {
+            debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
+            pedantic_solving: self.pedantic_solving,
+            enabled_unstable_features: &self.unstable_features,
+        }
     }
 }
 
@@ -167,8 +232,8 @@ impl From<RuntimeError> for CompileError {
     }
 }
 
-impl From<CompileError> for FileDiagnostic {
-    fn from(error: CompileError) -> FileDiagnostic {
+impl From<CompileError> for CustomDiagnostic {
+    fn from(error: CompileError) -> CustomDiagnostic {
         match error {
             CompileError::RuntimeError(err) => err.into(),
             CompileError::MonomorphizationError(err) => err.into(),
@@ -177,10 +242,10 @@ impl From<CompileError> for FileDiagnostic {
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
-pub type Warnings = Vec<FileDiagnostic>;
+pub type Warnings = Vec<CustomDiagnostic>;
 
 /// Helper type used to signify where errors or warnings are expected in file diagnostics
-pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
+pub type ErrorsAndWarnings = Vec<CustomDiagnostic>;
 
 /// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
@@ -282,29 +347,31 @@ pub fn add_dep(
 ///
 /// This returns a (possibly empty) vector of any warnings found on success.
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-#[tracing::instrument(level = "trace", skip(context))]
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let mut errors = vec![];
-    let error_on_unused_imports = true;
-    let diagnostics = CrateDefMap::collect_defs(
-        crate_id,
-        context,
-        options.debug_comptime_in_file.as_deref(),
-        error_on_unused_imports,
-    );
-    errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
-        let diagnostic = CustomDiagnostic::from(&error);
-        diagnostic.in_file(file_id)
-    }));
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
+    let crate_files = context.crate_files(&crate_id);
+    let warnings_and_errors: Vec<CustomDiagnostic> = diagnostics
+        .iter()
+        .map(CustomDiagnostic::from)
+        .filter(|diagnostic| {
+            // We filter out any warnings if they're going to be ignored later on to free up memory.
+            !options.silence_warnings || diagnostic.kind != DiagnosticKind::Warning
+        })
+        .filter(|error| {
+            // Only keep warnings from the crate we are checking
+            if error.is_warning() { crate_files.contains(&error.file) } else { true }
+        })
+        .collect();
 
-    if has_errors(&errors, options.deny_warnings) {
-        Err(errors)
+    if has_errors(&warnings_and_errors, options.deny_warnings) {
+        Err(warnings_and_errors)
     } else {
-        Ok(((), errors))
+        Ok(((), warnings_and_errors))
     }
 }
 
@@ -321,6 +388,8 @@ pub fn compute_function_abi(
 ///
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
+///
+/// See [compile_no_check] for further information about the use of `cached_program`.
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
@@ -333,16 +402,16 @@ pub fn compile_main(
         // TODO(#2155): This error might be a better to exist in Nargo
         let err = CustomDiagnostic::from_message(
             "cannot compile crate into a program as it does not contain a `main` function",
-        )
-        .in_file(FileId::default());
+            FileId::default(),
+        );
         vec![err]
     })?;
 
     let compiled_program =
         compile_no_check(context, options, main, cached_program, options.force_compile)
-            .map_err(FileDiagnostic::from)?;
+            .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
-    let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
+    let compilation_warnings = vecmap(compiled_program.warnings.clone(), CustomDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
@@ -364,39 +433,49 @@ pub fn compile_contract(
 ) -> CompilationResult<CompiledContract> {
     let (_, warnings) = check_crate(context, crate_id, options)?;
 
-    // TODO: We probably want to error if contracts is empty
-    let contracts = context.get_all_contracts(&crate_id);
+    let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
+    let mut contracts = def_map.get_all_contracts();
 
-    let mut compiled_contracts = vec![];
-    let mut errors = warnings;
-
-    if contracts.len() > 1 {
-        let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
-            .in_file(FileId::default());
-        return Err(vec![err]);
-    } else if contracts.is_empty() {
+    let Some((module_id, name)) = contracts.next() else {
         let err = CustomDiagnostic::from_message(
             "cannot compile crate into a contract as it does not contain any contracts",
-        )
-        .in_file(FileId::default());
+            FileId::default(),
+        );
         return Err(vec![err]);
     };
 
-    for contract in contracts {
-        match compile_contract_inner(context, contract, options) {
-            Ok(contract) => compiled_contracts.push(contract),
-            Err(mut more_errors) => errors.append(&mut more_errors),
-        }
+    if contracts.next().is_some() {
+        let err = CustomDiagnostic::from_message(
+            "Packages are limited to a single contract",
+            FileId::default(),
+        );
+        return Err(vec![err]);
     }
+    drop(contracts);
+
+    let module_id = ModuleId { krate: crate_id, local_id: module_id };
+    let contract = read_contract(context, module_id, name);
+
+    let mut errors = warnings;
+
+    let compiled_contract = match compile_contract_inner(context, contract, options) {
+        Ok(contract) => contract,
+        Err(mut more_errors) => {
+            errors.append(&mut more_errors);
+            return Err(errors);
+        }
+    };
 
     if has_errors(&errors, options.deny_warnings) {
         Err(errors)
     } else {
-        assert_eq!(compiled_contracts.len(), 1);
-        let compiled_contract = compiled_contracts.remove(0);
-
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
+                if let Some(ref name) = options.show_contract_fn {
+                    if name != &contract_function.name {
+                        continue;
+                    }
+                }
                 println!(
                     "Compiled ACIR for {}::{} (unoptimized):",
                     compiled_contract.name, contract_function.name
@@ -409,13 +488,55 @@ pub fn compile_contract(
     }
 }
 
+/// Return a Vec of all `contract` declarations in the source code and the functions they contain
+fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contract {
+    let module = context.module(module_id);
+
+    let functions = module
+        .value_definitions()
+        .filter_map(|id| {
+            id.as_function().map(|function_id| {
+                let attrs = context.def_interner.function_attributes(&function_id);
+                let is_entry_point = attrs.is_contract_entry_point();
+                ContractFunctionMeta { function_id, is_entry_point }
+            })
+        })
+        .collect();
+
+    let mut outputs = ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
+
+    context.def_interner.get_all_globals().iter().for_each(|global_info| {
+        context.def_interner.global_attributes(&global_info.id).iter().for_each(|attr| {
+            if let SecondaryAttribute::Abi(tag) = attr {
+                if let Some(tagged) = outputs.globals.get_mut(tag) {
+                    tagged.push(global_info.id);
+                } else {
+                    outputs.globals.insert(tag.to_string(), vec![global_info.id]);
+                }
+            }
+        });
+    });
+
+    module.type_definitions().for_each(|id| {
+        if let ModuleDefId::TypeId(struct_id) = id {
+            context.def_interner.type_attributes(&struct_id).iter().for_each(|attr| {
+                if let SecondaryAttribute::Abi(tag) = attr {
+                    if let Some(tagged) = outputs.structs.get_mut(tag) {
+                        tagged.push(struct_id);
+                    } else {
+                        outputs.structs.insert(tag.to_string(), vec![struct_id]);
+                    }
+                }
+            });
+        }
+    });
+
+    Contract { name, functions, outputs }
+}
+
 /// True if there are (non-warning) errors present and we should halt compilation
-fn has_errors(errors: &[FileDiagnostic], deny_warnings: bool) -> bool {
-    if deny_warnings {
-        !errors.is_empty()
-    } else {
-        errors.iter().any(|error| error.diagnostic.is_error())
-    }
+fn has_errors(errors: &[CustomDiagnostic], deny_warnings: bool) -> bool {
+    if deny_warnings { !errors.is_empty() } else { errors.iter().any(|error| error.is_error()) }
 }
 
 /// Compile all of the functions associated with a Noir contract.
@@ -441,10 +562,18 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None, true) {
+        let mut options = options.clone();
+
+        if let Some(ref name_filter) = options.show_contract_fn {
+            let show = name == *name_filter;
+            options.show_ssa &= show;
+            options.show_ssa_pass = options.show_ssa_pass.filter(|_| show);
+        };
+
+        let function = match compile_no_check(context, &options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
-                errors.push(FileDiagnostic::from(new_error));
+                errors.push(new_error.into());
                 continue;
             }
         };
@@ -456,15 +585,15 @@ fn compile_contract_inner(
             .secondary
             .iter()
             .filter_map(|attr| match attr {
-                SecondaryAttribute::Tag(attribute) | SecondaryAttribute::Meta(attribute) => {
-                    Some(attribute.contents.clone())
-                }
+                SecondaryAttribute::Tag(attribute) => Some(attribute.contents.clone()),
+                SecondaryAttribute::Meta(attribute) => Some(attribute.to_string()),
                 _ => None,
             })
             .collect();
 
         functions.push(ContractFunction {
             name,
+            hash: function.hash,
             custom_attributes,
             abi: function.abi,
             bytecode: function.program,
@@ -488,11 +617,12 @@ fn compile_contract_inner(
                 let structs = structs
                     .into_iter()
                     .map(|struct_id| {
-                        let typ = context.def_interner.get_struct(struct_id);
+                        let typ = context.def_interner.get_type(struct_id);
                         let typ = typ.borrow();
-                        let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
-                            (name, abi_type_from_hir_type(context, &typ))
-                        });
+                        let fields =
+                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ)| {
+                                (name, abi_type_from_hir_type(context, &typ))
+                            });
                         let path =
                             context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
                         AbiType::Struct { path, fields }
@@ -543,6 +673,15 @@ pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded {
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
+///
+/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
+/// pass before usage in proof generation; if it's returned from cache these transformations might have
+/// already been applied.
+///
+/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
+/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
+/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
+/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 pub fn compile_no_check(
     context: &mut Context,
@@ -551,14 +690,19 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    let force_unconstrained = options.force_brillig;
+
     let program = if options.instrument_debug {
-        monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
+        monomorphize_debug(
+            main_function,
+            &mut context.def_interner,
+            &context.debug_instrumenter,
+            force_unconstrained,
+        )?
     } else {
-        monomorphize(main_function, &mut context.def_interner)?
+        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
     };
 
-    let hash = fxhash::hash64(&program);
-    let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
     if options.show_monomorphized {
         println!("{program}");
     }
@@ -570,17 +714,36 @@ pub fn compile_no_check(
         || options.show_brillig
         || options.force_brillig
         || options.show_ssa
+        || options.show_ssa_pass.is_some()
         || options.emit_ssa;
 
-    if !force_compile && hashes_match {
-        info!("Program matches existing artifact, returning early");
-        return Ok(cached_program.expect("cache must exist for hashes to match"));
+    // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
+    let hash = fxhash::hash64(&program);
+
+    if let Some(cached_program) = cached_program {
+        if !force_compile && cached_program.hash == hash {
+            info!("Program matches existing artifact, returning early");
+            return Ok(cached_program);
+        }
     }
+
     let return_visibility = program.return_visibility;
     let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
-        enable_ssa_logging: options.show_ssa,
-        enable_brillig_logging: options.show_brillig,
-        force_brillig_output: options.force_brillig,
+        ssa_logging: match &options.show_ssa_pass {
+            Some(string) => SsaLogging::Contains(string.clone()),
+            None => {
+                if options.show_ssa {
+                    SsaLogging::All
+                } else {
+                    SsaLogging::None
+                }
+            }
+        },
+        brillig_options: BrilligOptions {
+            enable_debug_trace: options.show_brillig,
+            enable_debug_assertions: options.enable_brillig_debug_assertions,
+            enable_array_copy_counter: options.count_array_copies,
+        },
         print_codegen_timings: options.benchmark_codegen,
         expression_width: if options.bounded_codegen {
             options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
@@ -589,7 +752,11 @@ pub fn compile_no_check(
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
+        enable_brillig_constraints_check_lookback: options
+            .enable_brillig_constraints_check_lookback,
+        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
+        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
@@ -609,4 +776,30 @@ pub fn compile_no_check(
         names,
         brillig_names,
     })
+}
+
+/// Specifies a contract function and extra metadata that
+/// one can use when processing a contract function.
+///
+/// One of these is whether the contract function is an entry point.
+/// The caller should only type-check these functions and not attempt
+/// to create a circuit for them.
+struct ContractFunctionMeta {
+    function_id: FuncId,
+    /// Indicates whether the function is an entry point
+    is_entry_point: bool,
+}
+
+struct ContractOutputs {
+    structs: HashMap<String, Vec<TypeId>>,
+    globals: HashMap<String, Vec<GlobalId>>,
+}
+
+/// A 'contract' in Noir source code with a given name, functions and events.
+/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+struct Contract {
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    name: String,
+    functions: Vec<ContractFunctionMeta>,
+    outputs: ContractOutputs,
 }

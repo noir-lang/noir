@@ -1,6 +1,6 @@
-use acvm::{acir::circuit::Program, FieldElement};
+use acvm::{FieldElement, acir::circuit::Program};
 use noirc_abi::{Abi, AbiType, AbiValue};
-use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
+use noirc_driver::{CompiledContract, CompiledContractOutputs, CompiledProgram, ContractFunction};
 use serde::{Deserialize, Serialize};
 
 use noirc_driver::DebugFile;
@@ -9,7 +9,9 @@ use std::collections::{BTreeMap, HashMap};
 
 use fm::FileId;
 
-#[derive(Clone, Serialize, Deserialize)]
+use super::{deserialize_hash, serialize_hash};
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractOutputsArtifact {
     pub structs: HashMap<String, Vec<AbiType>>,
     pub globals: HashMap<String, Vec<AbiValue>>,
@@ -21,7 +23,7 @@ impl From<CompiledContractOutputs> for ContractOutputsArtifact {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractArtifact {
     /// Version of noir used to compile this contract
     pub noir_version: String,
@@ -47,6 +49,14 @@ impl From<CompiledContract> for ContractArtifact {
     }
 }
 
+impl ContractArtifact {
+    pub fn function_as_compiled_program(&self, function_name: &str) -> Option<CompiledProgram> {
+        self.functions.iter().find(|f| f.name == function_name).map(|f| {
+            f.clone().into_compiled_program(self.noir_version.clone(), self.file_map.clone())
+        })
+    }
+}
+
 /// Each function in the contract will be compiled as a separate noir program.
 ///
 /// A contract function unlike a regular Noir program however can have additional properties.
@@ -54,6 +64,11 @@ impl From<CompiledContract> for ContractArtifact {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractFunctionArtifact {
     pub name: String,
+
+    /// Hash of the monomorphized program from which the [`ContractFunction`] was compiled.
+    #[serde(default)] // For backwards compatibility (it was missing).
+    #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
+    pub hash: u64,
 
     pub is_unconstrained: bool,
 
@@ -72,18 +87,41 @@ pub struct ContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
-
+    #[serde(default)] // For backwards compatibility (it was missing).
+    pub names: Vec<String>,
     pub brillig_names: Vec<String>,
+}
+
+impl ContractFunctionArtifact {
+    pub fn into_compiled_program(
+        self,
+        noir_version: String,
+        file_map: BTreeMap<FileId, DebugFile>,
+    ) -> CompiledProgram {
+        CompiledProgram {
+            noir_version,
+            hash: self.hash,
+            program: self.bytecode,
+            abi: self.abi,
+            debug: self.debug_symbols.debug_infos,
+            file_map,
+            warnings: Vec::new(),
+            names: self.names,
+            brillig_names: self.brillig_names,
+        }
+    }
 }
 
 impl From<ContractFunction> for ContractFunctionArtifact {
     fn from(func: ContractFunction) -> Self {
         ContractFunctionArtifact {
             name: func.name,
+            hash: func.hash,
             is_unconstrained: func.is_unconstrained,
             custom_attributes: func.custom_attributes,
             abi: func.abi,
             bytecode: func.bytecode,
+            names: func.names,
             brillig_names: func.brillig_names,
             debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
         }

@@ -1,4 +1,4 @@
-// This circuit aggregates one proof from `assert_statement_recursive`.
+// This circuit aggregates one proof from `assert_statement`.
 fn main(
     verification_key: [Field; 114],
     // This is the proof without public inputs attached.

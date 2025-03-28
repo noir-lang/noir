@@ -1,5 +1,5 @@
 // Test global string literals
-global HELLO_WORLD = "hello world";
+global HELLO_WORLD: str<11> = "hello world";
 
 fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Field) {
     let mut bad_message = "hello world";

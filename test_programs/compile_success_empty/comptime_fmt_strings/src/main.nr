@@ -6,7 +6,7 @@ fn main() {
 
         // Can't print these at compile-time here since printing to stdout while
         // compiling breaks the test runner.
-        let s1 = f"x is {x}, fake interpolation: \{y}, y is {y}";
+        let s1 = f"x is {x}, fake interpolation: {{y}}, y is {y}";
         let s2 = std::mem::zeroed::<fmtstr<4, ()>>();
         (s1, s2)
     };
@@ -26,4 +26,3 @@ fn hello_world() {}
 comptime fn call(x: Quoted) -> Quoted {
     quote { $x() }
 }
-

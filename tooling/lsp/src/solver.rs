@@ -6,14 +6,8 @@ use acvm::BlackBoxFunctionSolver;
 pub(super) struct WrapperSolver(pub(super) Box<dyn BlackBoxFunctionSolver<acvm::FieldElement>>);
 
 impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
-    fn schnorr_verify(
-        &self,
-        public_key_x: &acvm::FieldElement,
-        public_key_y: &acvm::FieldElement,
-        signature: &[u8; 64],
-        message: &[u8],
-    ) -> Result<bool, acvm::BlackBoxResolutionError> {
-        self.0.schnorr_verify(public_key_x, public_key_y, signature, message)
+    fn pedantic_solving(&self) -> bool {
+        self.0.pedantic_solving()
     }
 
     fn multi_scalar_mul(

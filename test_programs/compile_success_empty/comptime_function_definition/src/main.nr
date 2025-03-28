@@ -105,3 +105,136 @@ mod foo {
         assert(!f.is_unconstrained());
     }
 }
+
+mod test_as_typed_expr_1 {
+    #![foo]
+
+    pub fn method<T>(x: T) -> T {
+        x
+    }
+
+    comptime fn foo(module: Module) -> Quoted {
+        let method = module.functions().filter(|f| f.name() == quote { method })[0];
+        let func = method.as_typed_expr();
+        quote { 
+            pub fn bar() -> i32 {
+                $func(1)
+            }
+        }
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(bar(), 1);
+        }
+    }
+}
+
+mod test_as_typed_expr_2 {
+    #![foo]
+
+    unconstrained fn method<T, let N: u32>(xs: [T; N]) -> u32 {
+        xs.len()
+    }
+
+    comptime fn foo(module: Module) -> Quoted {
+        let method = module.functions().filter(|f| f.name() == quote { method })[0];
+        let func = method.as_typed_expr();
+        quote { 
+            pub fn bar() -> u32 {
+                // Safety: test program
+                unsafe { $func([1, 2, 3, 0]) }
+            }
+        }
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(bar(), 4);
+        }
+    }
+}
+
+mod test_as_typed_expr_3 {
+    #![foo]
+
+    pub comptime fn method<T, U, let N: u32>(xs_ys: ([T; N], U)) -> u32 {
+        let (xs, _ys) = xs_ys;
+        xs.len()
+    }
+
+    comptime fn foo(module: Module) -> Quoted {
+        let method = module.functions().filter(|f| f.name() == quote { method })[0];
+        let func = method.as_typed_expr();
+        quote { 
+            pub fn bar() -> u32 {
+                // Safety: test program
+                comptime { $func(([1, 2, 3, 0], "a")) }
+            }
+        }
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(bar(), 4);
+        }
+    }
+}
+
+mod test_as_typed_expr_4 {
+    comptime fn foo(f: TypedExpr) -> Quoted {
+        quote {
+        $f()
+    }
+    }
+
+    fn bar() -> Field {
+        1
+    }
+
+    fn baz() -> Field {
+        let x: Field = comptime {
+            let bar_q = quote {
+            bar
+        };
+            foo(bar_q.as_expr().unwrap().resolve(Option::none()))
+        };
+        x
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(baz(), 1);
+        }
+    }
+}
+
+mod test_as_typed_expr_5 {
+    trait Trait {}
+
+    impl Trait for i32 {}
+
+    trait Packable<let N: u32> {
+        fn pack(self);
+    }
+
+    pub struct Foo<T> {}
+
+    impl<T> Packable<10> for Foo<T>
+    where
+        T: Trait,
+    {
+        fn pack(self) {}
+    }
+
+    fn foo() {
+        comptime {
+            let foo = quote { Foo<i32> }.as_type();
+            let t = quote { Packable<10> }.as_trait_constraint();
+            let _ = foo.get_trait_impl(t).unwrap().methods().filter(|method| {
+                method.name() == quote { pack }
+            })[0]
+                .as_typed_expr();
+        }
+    }
+}

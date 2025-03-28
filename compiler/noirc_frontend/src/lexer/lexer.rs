@@ -1,11 +1,12 @@
-use crate::token::{Attribute, DocStyle};
+use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, IntType, Keyword, LocatedToken, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
-use noirc_errors::{Position, Span};
+use fm::FileId;
+use noirc_errors::{Location, Position, Span};
 use num_bigint::BigInt;
 use num_traits::{Num, One};
 use std::str::{CharIndices, FromStr};
@@ -14,6 +15,7 @@ use std::str::{CharIndices, FromStr};
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
 /// Tokens are tagged with their location in the source file (a `Span`) for use in error reporting.
 pub struct Lexer<'a> {
+    file_id: FileId,
     chars: CharIndices<'a>,
     position: Position,
     done: bool,
@@ -24,11 +26,13 @@ pub struct Lexer<'a> {
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 
+pub type LocatedTokenResult = Result<LocatedToken, LexerErrorKind>;
+
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
     /// in order, along with any lexing errors that occurred.
-    pub fn lex(source: &'a str) -> (Tokens, Vec<LexerErrorKind>) {
-        let lexer = Lexer::new(source);
+    pub fn lex(source: &'a str, file_id: FileId) -> (Tokens, Vec<LexerErrorKind>) {
+        let lexer = Lexer::new(source, file_id);
         let mut tokens = vec![];
         let mut errors = vec![];
         for result in lexer {
@@ -40,8 +44,9 @@ impl<'a> Lexer<'a> {
         (Tokens(tokens), errors)
     }
 
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str, file_id: FileId) -> Self {
         Lexer {
+            file_id,
             chars: source.char_indices(),
             position: 0,
             done: false,
@@ -50,6 +55,10 @@ impl<'a> Lexer<'a> {
             max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
                 - BigInt::one(),
         }
+    }
+
+    pub fn new_with_dummy_file(source: &'a str) -> Self {
+        Self::new(source, FileId::dummy())
     }
 
     pub fn skip_comments(mut self, flag: bool) -> Self {
@@ -96,18 +105,44 @@ impl<'a> Lexer<'a> {
             // When we issue this error the first '&' will already be consumed
             // and the next token issued will be the next '&'.
             let span = Span::inclusive(self.position, self.position + 1);
-            Err(LexerErrorKind::LogicalAnd { span })
+            Err(LexerErrorKind::LogicalAnd { location: self.location(span) })
+        } else if self.peek_char_is('[') {
+            self.single_char_token(Token::SliceStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
     }
 
-    fn next_token(&mut self) -> SpannedTokenResult {
+    fn next_token(&mut self) -> LocatedTokenResult {
+        self.next_spanned_token().map(|token| {
+            let span = token.span();
+            LocatedToken::new(token.into_token(), Location::new(span, self.file_id))
+        })
+    }
+
+    fn next_spanned_token(&mut self) -> SpannedTokenResult {
+        if !self.skip_comments {
+            return self.next_spanned_token_without_checking_comments();
+        }
+
+        // Read tokens and skip comments. This is done like this to avoid recursion
+        // and hitting stack overflow when there are many comments in a row.
+        loop {
+            let token = self.next_spanned_token_without_checking_comments()?;
+            if matches!(token.token(), Token::LineComment(_, None) | Token::BlockComment(_, None)) {
+                continue;
+            }
+            return Ok(token);
+        }
+    }
+
+    /// Reads the next token, which might be a comment token (these aren't skipped in this method)
+    fn next_spanned_token_without_checking_comments(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if Self::is_code_whitespace(x) => {
                 let spanned = self.eat_whitespace(x);
                 if self.skip_whitespaces {
-                    self.next_token()
+                    self.next_spanned_token_without_checking_comments()
                 } else {
                     Ok(spanned)
                 }
@@ -139,7 +174,7 @@ impl<'a> Lexer<'a> {
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
-            Some('#') => self.eat_attribute(),
+            Some('#') => self.eat_attribute_start(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 // We don't report invalid tokens in the source as errors until parsing to
@@ -215,8 +250,19 @@ impl<'a> Lexer<'a> {
                     Ok(prev_token.into_single_span(start))
                 }
             }
+            Token::Assign => {
+                let start = self.position;
+                if self.peek_char_is('=') {
+                    self.next_char();
+                    Ok(Token::Equal.into_span(start, start + 1))
+                } else if self.peek_char_is('>') {
+                    self.next_char();
+                    Ok(Token::FatArrow.into_span(start, start + 1))
+                } else {
+                    Ok(prev_token.into_single_span(start))
+                }
+            }
             Token::Bang => self.single_double_peek_token('=', prev_token, Token::NotEqual),
-            Token::Assign => self.single_double_peek_token('=', prev_token, Token::Equal),
             Token::Minus => self.single_double_peek_token('>', prev_token, Token::Arrow),
             Token::Colon => self.single_double_peek_token(':', prev_token, Token::DoubleColon),
             Token::Slash => {
@@ -233,7 +279,7 @@ impl<'a> Lexer<'a> {
                 Ok(prev_token.into_single_span(start))
             }
             _ => Err(LexerErrorKind::NotADoubleChar {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: prev_token,
             }),
         }
@@ -275,14 +321,14 @@ impl<'a> Lexer<'a> {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
             '0'..='9' => self.eat_digit(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: initial_char.into(),
                 expected: "an alpha numeric character".to_owned(),
             }),
         }
     }
 
-    fn eat_attribute(&mut self) -> SpannedTokenResult {
+    fn eat_attribute_start(&mut self) -> SpannedTokenResult {
         let start = self.position;
 
         let is_inner = if self.peek_char_is('!') {
@@ -294,7 +340,7 @@ impl<'a> Lexer<'a> {
 
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: self.next_char(),
                 expected: "[".to_owned(),
             });
@@ -306,40 +352,9 @@ impl<'a> Lexer<'a> {
             self.next_char();
         }
 
-        let contents_start = self.position + 1;
-
-        let word = self.eat_while(None, |ch| ch != ']');
-
-        let contents_end = self.position;
-
-        if !self.peek_char_is(']') {
-            return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
-                expected: "]".to_owned(),
-                found: self.next_char(),
-            });
-        }
-        self.next_char();
-
         let end = self.position;
 
-        let span = Span::inclusive(start, end);
-        let contents_span = Span::inclusive(contents_start, contents_end);
-
-        let attribute = Attribute::lookup_attribute(&word, span, contents_span, is_tag)?;
-        if is_inner {
-            match attribute {
-                Attribute::Function(attribute) => Err(LexerErrorKind::InvalidInnerAttribute {
-                    span: Span::from(start..end),
-                    found: attribute.to_string(),
-                }),
-                Attribute::Secondary(attribute) => {
-                    Ok(Token::InnerAttribute(attribute).into_span(start, end))
-                }
-            }
-        } else {
-            Ok(Token::Attribute(attribute).into_span(start, end))
-        }
+        Ok(Token::AttributeStart { is_inner, is_tag }.into_span(start, end))
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
@@ -371,11 +386,11 @@ impl<'a> Lexer<'a> {
 
         // Check if word an int type
         // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word)?;
+        let parsed_token = IntType::lookup_int_type(&word);
 
         // Check if it is an int type
-        if let Some(int_type_token) = parsed_token {
-            return Ok(int_type_token.into_span(start, end));
+        if let Some(int_type) = parsed_token {
+            return Ok(Token::IntType(int_type).into_span(start, end));
         }
 
         // Else it is just an identifier
@@ -402,7 +417,7 @@ impl<'a> Lexer<'a> {
         let consecutive_underscores = integer_str.contains("__");
         if invalid_underscore_location || consecutive_underscores {
             return Err(LexerErrorKind::InvalidIntegerLiteral {
-                span: Span::inclusive(start, end),
+                location: self.location(Span::inclusive(start, end)),
                 found: integer_str,
             });
         }
@@ -419,7 +434,7 @@ impl<'a> Lexer<'a> {
             Ok(bigint) => {
                 if bigint > self.max_integer {
                     return Err(LexerErrorKind::IntegerLiteralTooLarge {
-                        span: Span::inclusive(start, end),
+                        location: self.location(Span::inclusive(start, end)),
                         limit: self.max_integer.to_string(),
                     });
                 }
@@ -428,9 +443,9 @@ impl<'a> Lexer<'a> {
             }
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
-                    span: Span::inclusive(start, end),
+                    location: self.location(Span::inclusive(start, end)),
                     found: integer_str,
-                })
+                });
             }
         };
 
@@ -442,59 +457,217 @@ impl<'a> Lexer<'a> {
         let start = self.position;
         let mut string = String::new();
 
-        while let Some(next) = self.next_char() {
-            let char = match next {
-                '"' => break,
-                '\\' => match self.next_char() {
-                    Some('r') => '\r',
-                    Some('n') => '\n',
-                    Some('t') => '\t',
-                    Some('0') => '\0',
-                    Some('"') => '"',
-                    Some('\\') => '\\',
-                    Some(escaped) => {
-                        let span = Span::inclusive(start, self.position);
-                        return Err(LexerErrorKind::InvalidEscape { escaped, span });
-                    }
-                    None => {
-                        let span = Span::inclusive(start, self.position);
-                        return Err(LexerErrorKind::UnterminatedStringLiteral { span });
-                    }
-                },
-                other => other,
-            };
+        loop {
+            if let Some(next) = self.next_char() {
+                let char = match next {
+                    '"' => break,
+                    '\\' => match self.next_char() {
+                        Some('r') => '\r',
+                        Some('n') => '\n',
+                        Some('t') => '\t',
+                        Some('0') => '\0',
+                        Some('"') => '"',
+                        Some('\\') => '\\',
+                        Some(escaped) => {
+                            let span = Span::inclusive(start, self.position);
+                            return Err(LexerErrorKind::InvalidEscape {
+                                escaped,
+                                location: self.location(span),
+                            });
+                        }
+                        None => {
+                            let span = Span::inclusive(start, self.position);
+                            return Err(LexerErrorKind::UnterminatedStringLiteral {
+                                location: self.location(span),
+                            });
+                        }
+                    },
+                    other => other,
+                };
 
-            string.push(char);
+                string.push(char);
+            } else {
+                let span = Span::inclusive(start, self.position);
+                return Err(LexerErrorKind::UnterminatedStringLiteral {
+                    location: self.location(span),
+                });
+            }
         }
 
         let str_literal_token = Token::Str(string);
-
         let end = self.position;
         Ok(str_literal_token.into_span(start, end))
     }
 
-    // This differs from `eat_string_literal` in that we want the leading `f` to be captured in the Span
     fn eat_fmt_string(&mut self) -> SpannedTokenResult {
         let start = self.position;
-
         self.next_char();
 
-        let str_literal = self.eat_while(None, |ch| ch != '"');
+        let mut fragments = Vec::new();
+        let mut length = 0;
 
-        let str_literal_token = Token::FmtStr(str_literal);
+        loop {
+            // String fragment until '{' or '"'
+            let mut string = String::new();
+            let mut found_curly = false;
 
-        self.next_char(); // Advance past the closing quote
+            loop {
+                if let Some(next) = self.next_char() {
+                    let char = match next {
+                        '"' => break,
+                        '\\' => match self.next_char() {
+                            Some('r') => '\r',
+                            Some('n') => '\n',
+                            Some('t') => '\t',
+                            Some('0') => '\0',
+                            Some('"') => '"',
+                            Some('\\') => '\\',
+                            Some(escaped) => {
+                                let span = Span::inclusive(start, self.position);
+                                return Err(LexerErrorKind::InvalidEscape {
+                                    escaped,
+                                    location: self.location(span),
+                                });
+                            }
+                            None => {
+                                let span = Span::inclusive(start, self.position);
+                                return Err(LexerErrorKind::UnterminatedStringLiteral {
+                                    location: self.location(span),
+                                });
+                            }
+                        },
+                        '{' if self.peek_char_is('{') => {
+                            self.next_char();
+                            '{'
+                        }
+                        '}' if self.peek_char_is('}') => {
+                            self.next_char();
+                            '}'
+                        }
+                        '}' => {
+                            let error_position = self.position;
 
+                            // Keep consuming chars until we find the closing double quote
+                            self.skip_until_string_end();
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::InvalidFormatString {
+                                found: '}',
+                                location: self.location(span),
+                            });
+                        }
+                        '{' => {
+                            found_curly = true;
+                            break;
+                        }
+                        other => other,
+                    };
+
+                    string.push(char);
+                    length += 1;
+
+                    if char == '{' || char == '}' {
+                        // This might look a bit strange, but if there's `{{` or `}}` in the format string
+                        // then it will be `{` and `}` in the string fragment respectively, but on the codegen
+                        // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
+                        // thus the actual length of the codegen'd string will be one more than what we get here.
+                        //
+                        // We could just make the fragment include the double curly braces, but then the interpreter
+                        // would need to undo the curly braces, so it's simpler to add them during codegen.
+                        length += 1;
+                    }
+                } else {
+                    let span = Span::inclusive(start, self.position);
+                    return Err(LexerErrorKind::UnterminatedStringLiteral {
+                        location: self.location(span),
+                    });
+                }
+            }
+
+            if !string.is_empty() {
+                fragments.push(FmtStrFragment::String(string));
+            }
+
+            if !found_curly {
+                break;
+            }
+
+            length += 1; // for the curly brace
+
+            // Interpolation fragment until '}' or '"'
+            let mut string = String::new();
+            let interpolation_start = self.position + 1; // + 1 because we are at '{'
+            let mut first_char = true;
+            while let Some(next) = self.next_char() {
+                let char = match next {
+                    '}' => {
+                        if string.is_empty() {
+                            let error_position = self.position;
+
+                            // Keep consuming chars until we find the closing double quote
+                            self.skip_until_string_end();
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::EmptyFormatStringInterpolation {
+                                location: self.location(span),
+                            });
+                        }
+
+                        break;
+                    }
+                    other => {
+                        let is_valid_char = if first_char {
+                            other.is_ascii_alphabetic() || other == '_'
+                        } else {
+                            other.is_ascii_alphanumeric() || other == '_'
+                        };
+                        if !is_valid_char {
+                            let error_position = self.position;
+
+                            // Keep consuming chars until we find the closing double quote
+                            // (unless we bumped into a double quote now, in which case we are done)
+                            if other != '"' {
+                                self.skip_until_string_end();
+                            }
+
+                            let span = Span::inclusive(error_position, error_position);
+                            return Err(LexerErrorKind::InvalidFormatString {
+                                found: other,
+                                location: self.location(span),
+                            });
+                        }
+                        first_char = false;
+                        other
+                    }
+                };
+                length += 1;
+                string.push(char);
+            }
+
+            length += 1; // for the closing curly brace
+
+            let span = Span::from(interpolation_start..self.position);
+            let location = Location::new(span, self.file_id);
+            fragments.push(FmtStrFragment::Interpolation(string, location));
+        }
+
+        let token = Token::FmtStr(fragments, length);
         let end = self.position;
-        Ok(str_literal_token.into_span(start, end))
+        Ok(token.into_span(start, end))
+    }
+
+    fn skip_until_string_end(&mut self) {
+        while let Some(next) = self.next_char() {
+            if next == '\'' && self.peek_char_is('"') {
+                self.next_char();
+            } else if next == '"' {
+                break;
+            }
+        }
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('"') {
-            self.eat_fmt_string()
-        } else {
-            self.eat_alpha_numeric('f')
-        }
+        if self.peek_char_is('"') { self.eat_fmt_string() } else { self.eat_alpha_numeric('f') }
     }
 
     fn eat_raw_string(&mut self) -> SpannedTokenResult {
@@ -506,7 +679,7 @@ impl<'a> Lexer<'a> {
             // too many hashes (unlikely in practice)
             // also, Rust disallows 256+ hashes as well
             return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(start + 255),
+                location: self.location(Span::single_char(start + 255)),
                 found: Some('#'),
                 expected: "\"".to_owned(),
             });
@@ -514,7 +687,7 @@ impl<'a> Lexer<'a> {
 
         if !self.peek_char_is('"') {
             return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: self.next_char(),
                 expected: "\"".to_owned(),
             });
@@ -527,7 +700,7 @@ impl<'a> Lexer<'a> {
             str_literal.push_str(&chars[..]);
             if !self.peek_char_is('"') {
                 return Err(LexerErrorKind::UnexpectedCharacter {
-                    span: Span::single_char(self.position),
+                    location: self.location(Span::single_char(self.position)),
                     found: self.next_char(),
                     expected: "\"".to_owned(),
                 });
@@ -633,11 +806,7 @@ impl<'a> Lexer<'a> {
 
         if !comment.is_ascii() {
             let span = Span::from(start..self.position);
-            return Err(LexerErrorKind::NonAsciiComment { span });
-        }
-
-        if doc_style.is_none() && self.skip_comments {
-            return self.next_token();
+            return Err(LexerErrorKind::NonAsciiComment { location: self.location(span) });
         }
 
         Ok(Token::LineComment(comment, doc_style).into_span(start, self.position))
@@ -679,20 +848,16 @@ impl<'a> Lexer<'a> {
                 ch => content.push(ch),
             }
         }
-
         if depth == 0 {
             if !content.is_ascii() {
                 let span = Span::from(start..self.position);
-                return Err(LexerErrorKind::NonAsciiComment { span });
+                return Err(LexerErrorKind::NonAsciiComment { location: self.location(span) });
             }
 
-            if doc_style.is_none() && self.skip_comments {
-                return self.next_token();
-            }
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
-            Err(LexerErrorKind::UnterminatedBlockComment { span })
+            Err(LexerErrorKind::UnterminatedBlockComment { location: self.location(span) })
         }
     }
 
@@ -706,17 +871,17 @@ impl<'a> Lexer<'a> {
         let whitespace = self.eat_while(initial_char.into(), Self::is_code_whitespace);
         SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
+
+    fn location(&self, span: Span) -> Location {
+        Location::new(span, self.file_id)
+    }
 }
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = SpannedTokenResult;
+impl Iterator for Lexer<'_> {
+    type Item = LocatedTokenResult;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else {
-            Some(self.next_token())
-        }
+        if self.done { None } else { Some(self.next_token()) }
     }
 }
 
@@ -725,7 +890,6 @@ mod tests {
     use iter_extended::vecmap;
 
     use super::*;
-    use crate::token::{CustomAttribute, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_multi_char() {
@@ -767,7 +931,7 @@ mod tests {
             Token::EOF,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -778,186 +942,46 @@ mod tests {
     #[test]
     fn invalid_attribute() {
         let input = "#";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next().unwrap();
         assert!(token.is_err());
     }
 
     #[test]
-    fn deprecated_attribute() {
-        let input = r#"#[deprecated]"#;
-        let mut lexer = Lexer::new(input);
+    fn test_attribute_start() {
+        let input = r#"#[something]"#;
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Deprecated(None)))
-        );
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: false });
     }
 
     #[test]
-    fn test_attribute_with_common_punctuation() {
-        let input =
-            r#"#[test(should_fail_with = "stmt. q? exclaim! & symbols, 1% shouldn't fail")]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap().token().clone();
-        assert_eq!(
-            token,
-            Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith {
-                    reason: "stmt. q? exclaim! & symbols, 1% shouldn't fail".to_owned().into()
-                }
-            )))
-        );
-    }
-
-    #[test]
-    fn deprecated_attribute_with_note() {
-        let input = r#"#[deprecated("hello")]"#;
-        let mut lexer = Lexer::new(input);
+    fn test_attribute_start_with_tag() {
+        let input = r#"#['something]"#;
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(crate::token::SecondaryAttribute::Deprecated(
-                "hello".to_string().into()
-            )))
-        );
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: true });
     }
 
     #[test]
-    fn test_custom_gate_syntax() {
-        let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
-
-        let expected = vec![
-            Token::Attribute(Attribute::Function(FunctionAttribute::Foreign("sha256".to_string()))),
-            Token::Attribute(Attribute::Function(FunctionAttribute::Foreign(
-                "blake2s".to_string(),
-            ))),
-            Token::Attribute(Attribute::Function(FunctionAttribute::Builtin("sum".to_string()))),
-        ];
-
-        let mut lexer = Lexer::new(input);
-        for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
-        }
-    }
-
-    #[test]
-    fn tag_attribute() {
-        let input = r#"#['custom(hello)]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::Tag(CustomAttribute {
-                contents: "custom(hello)".to_string(),
-                span: Span::from(0..17),
-                contents_span: Span::from(3..16)
-            })))
-        );
-    }
-
-    #[test]
-    fn test_attribute() {
-        let input = r#"#[test]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(TestScope::None)))
-        );
-    }
-
-    #[test]
-    fn fold_attribute() {
-        let input = r#"#[fold]"#;
-
-        let mut lexer = Lexer::new(input);
-        let token = lexer.next_token().unwrap();
-
-        assert_eq!(token.token(), &Token::Attribute(Attribute::Function(FunctionAttribute::Fold)));
-    }
-
-    #[test]
-    fn contract_library_method_attribute() {
-        let input = r#"#[contract_library_method]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod))
-        );
-    }
-
-    #[test]
-    fn test_attribute_with_valid_scope() {
-        let input = r#"#[test(should_fail)]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith { reason: None }
-            )))
-        );
-    }
-
-    #[test]
-    fn test_attribute_with_valid_scope_should_fail_with() {
-        let input = r#"#[test(should_fail_with = "hello")]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::Attribute(Attribute::Function(FunctionAttribute::Test(
-                TestScope::ShouldFailWith { reason: Some("hello".to_owned()) }
-            )))
-        );
-    }
-
-    #[test]
-    fn test_attribute_with_invalid_scope() {
-        let input = r#"#[test(invalid_scope)]"#;
-        let mut lexer = Lexer::new(input);
-
-        let token = lexer.next().unwrap();
-        let err = match token {
-            Ok(_) => panic!("test has an invalid scope, so expected an error"),
-            Err(err) => err,
-        };
-
-        // Check if error is MalformedFuncAttribute and found is "foo"
-        let sub_string = match err {
-            LexerErrorKind::MalformedFuncAttribute { found, .. } => found,
-            _ => panic!("expected malformed func attribute error"),
-        };
-
-        assert_eq!(sub_string, "test(invalid_scope)");
-    }
-
-    #[test]
-    fn test_inner_attribute() {
+    fn test_inner_attribute_start() {
         let input = r#"#![something]"#;
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(
-            token.token(),
-            &Token::InnerAttribute(SecondaryAttribute::Meta(CustomAttribute {
-                contents: "something".to_string(),
-                span: Span::from(0..13),
-                contents_span: Span::from(3..12),
-            }))
-        );
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: false });
+    }
+
+    #[test]
+    fn test_inner_attribute_start_with_tag() {
+        let input = r#"#!['something]"#;
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: true });
     }
 
     #[test]
@@ -973,7 +997,7 @@ mod tests {
             Token::Int(5_i128.into()),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
@@ -985,7 +1009,7 @@ mod tests {
         let modulus = FieldElement::modulus();
         let input = modulus.to_string();
 
-        let mut lexer = Lexer::new(&input);
+        let mut lexer = Lexer::new_with_dummy_file(&input);
         let token = lexer.next_token();
         assert!(
             matches!(token, Err(LexerErrorKind::IntegerLiteralTooLarge { .. })),
@@ -1010,7 +1034,7 @@ mod tests {
             Token::Assign,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
@@ -1021,7 +1045,7 @@ mod tests {
     fn unterminated_block_comment() {
         let input = "/*/";
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         let token = lexer.next().unwrap();
 
         assert!(token.is_err());
@@ -1040,7 +1064,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -1062,7 +1086,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -1088,7 +1112,7 @@ mod tests {
             Token::BlockComment(" inner doc block ".into(), DocStyle::Inner.into()),
         ];
 
-        let mut lexer = Lexer::new(input).skip_comments(false);
+        let mut lexer = Lexer::new_with_dummy_file(input).skip_comments(false);
         for token in expected {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(token, first_lexer_output);
@@ -1110,7 +1134,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -1126,12 +1150,171 @@ mod tests {
             Token::Assign,
             Token::Str("hello".to_string()),
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
+    }
+
+    #[test]
+    fn test_eat_string_literal_with_escapes() {
+        let input = "let _word = \"hello\\n\\t\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::Str("hello\n\t".to_string()),
+        ];
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_string_literal_missing_double_quote() {
+        let input = "\"hello";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnterminatedStringLiteral { .. })
+        ));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_without_interpolations() {
+        let input = "let _word = f\"hello\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr(vec![FmtStrFragment::String("hello".to_string())], 5),
+        ];
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_with_escapes_without_interpolations() {
+        let input = "let _word = f\"hello\\n\\t{{x}}\"";
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr(vec![FmtStrFragment::String("hello\n\t{x}".to_string())], 12),
+        ];
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_with_interpolations() {
+        let input = "let _word = f\"hello {world} and {_another} {vAr_123}\"";
+        let file = FileId::dummy();
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("_word".to_string()),
+            Token::Assign,
+            Token::FmtStr(
+                vec![
+                    FmtStrFragment::String("hello ".to_string()),
+                    FmtStrFragment::Interpolation(
+                        "world".to_string(),
+                        Location::new(Span::from(21..26), file),
+                    ),
+                    FmtStrFragment::String(" and ".to_string()),
+                    FmtStrFragment::Interpolation(
+                        "_another".to_string(),
+                        Location::new(Span::from(33..41), file),
+                    ),
+                    FmtStrFragment::String(" ".to_string()),
+                    FmtStrFragment::Interpolation(
+                        "vAr_123".to_string(),
+                        Location::new(Span::from(44..51), file),
+                    ),
+                ],
+                38,
+            ),
+        ];
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap().into_token();
+            assert_eq!(got, token);
+        }
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_missing_double_quote() {
+        let input = "f\"hello";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnterminatedStringLiteral { .. })
+        ));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_invalid_char_in_interpolation() {
+        let input = "f\"hello {foo.bar}\" true";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer went past the ending double quote for better recovery
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_double_quote_inside_interpolation() {
+        let input = "f\"hello {world\" true";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer stopped parsing the string literal when it found \" inside the interpolation
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_unmatched_closing_curly() {
+        let input = "f\"hello }\" true";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
+
+        // Make sure the lexer went past the ending double quote for better recovery
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
+    }
+
+    #[test]
+    fn test_eat_fmt_string_literal_empty_interpolation() {
+        let input = "f\"{}\" true";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::EmptyFormatStringInterpolation { .. })
+        ));
+
+        // Make sure the lexer went past the ending double quote for better recovery
+        let token = lexer.next_token().unwrap().into_token();
+        assert!(matches!(token, Token::Bool(true)));
     }
 
     #[test]
@@ -1145,7 +1328,7 @@ mod tests {
         ];
 
         for (input, expected_token) in test_cases {
-            let mut lexer = Lexer::new(input);
+            let mut lexer = Lexer::new_with_dummy_file(input);
             let got = lexer.next_token().unwrap();
             assert_eq!(got.token(), &expected_token);
         }
@@ -1156,7 +1339,7 @@ mod tests {
         let test_cases: Vec<&str> = vec!["0x05_", "5_", "5__5", "0x5__5"];
 
         for input in test_cases {
-            let mut lexer = Lexer::new(input);
+            let mut lexer = Lexer::new_with_dummy_file(input);
             let token = lexer.next_token();
             assert!(
                 matches!(token, Err(LexerErrorKind::InvalidIntegerLiteral { .. })),
@@ -1196,12 +1379,12 @@ mod tests {
         let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
 
         let expected = vec![let_token, ident_token, assign_token, int_token];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for spanned_token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
-            assert_eq!(got.to_span(), spanned_token.to_span());
-            assert_eq!(got, spanned_token);
+            assert_eq!(got.span(), spanned_token.span());
+            assert_eq!(got.into_spanned_token(), spanned_token);
         }
     }
 
@@ -1267,7 +1450,7 @@ mod tests {
             Token::Semicolon,
             Token::EOF,
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1323,7 +1506,7 @@ mod tests {
                     format!("let s = r#####\"{s}\"#####;"),
                 ],
             ),
-            (Some(Token::FmtStr("".to_string())), vec![format!("assert(x == y, f\"{s}\");")]),
+            (Some(Token::FmtStr(vec![], 0)), vec![format!("assert(x == y, f\"{s}\");")]),
             // expected token not found
             // (Some(Token::LineComment("".to_string(), None)), vec![
             (None, vec![format!("//{s}"), format!("// {s}")]),
@@ -1345,7 +1528,7 @@ mod tests {
             for (token_discriminator_opt, blns_program_strs) in statements {
                 for blns_program_str in blns_program_strs {
                     let mut expected_token_found = false;
-                    let mut lexer = Lexer::new(&blns_program_str);
+                    let mut lexer = Lexer::new_with_dummy_file(&blns_program_str);
                     let mut result_tokens = Vec::new();
                     loop {
                         match lexer.next_token() {
@@ -1368,11 +1551,16 @@ mod tests {
                             Err(LexerErrorKind::InvalidIntegerLiteral { .. })
                             | Err(LexerErrorKind::UnexpectedCharacter { .. })
                             | Err(LexerErrorKind::NonAsciiComment { .. })
-                            | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                            | Err(LexerErrorKind::UnterminatedBlockComment { .. })
+                            | Err(LexerErrorKind::UnterminatedStringLiteral { .. })
+                            | Err(LexerErrorKind::InvalidFormatString { .. }) => {
                                 expected_token_found = true;
                             }
                             Err(err) => {
-                                panic!("Unexpected lexer error found: {:?}", err)
+                                panic!(
+                                    "Unexpected lexer error found {:?} for input string {:?}",
+                                    err, blns_program_str
+                                )
                             }
                         }
                     }
@@ -1401,7 +1589,8 @@ mod tests {
         ];
 
         for (source, expected_stream_length) in cases {
-            let mut tokens = vecmap(Lexer::new(source), |result| result.unwrap().into_token());
+            let mut tokens =
+                vecmap(Lexer::new_with_dummy_file(source), |result| result.unwrap().into_token());
 
             // All examples should be a single TokenStream token followed by an EOF token.
             assert_eq!(tokens.len(), 2, "Unexpected token count: {tokens:?}");
@@ -1409,7 +1598,9 @@ mod tests {
             tokens.pop();
             match tokens.pop().unwrap() {
                 Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
-                other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
+                other => panic!(
+                    "test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`"
+                ),
             }
         }
     }
@@ -1421,7 +1612,7 @@ mod tests {
         for source in cases {
             // `quote` is not itself a keyword so if the token stream fails to
             // parse we don't expect any valid tokens from the quote construct
-            for token in Lexer::new(source) {
+            for token in Lexer::new_with_dummy_file(source) {
                 assert!(token.is_err(), "Expected Err, found {token:?}");
             }
         }
@@ -1432,7 +1623,7 @@ mod tests {
         let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
 
         for source in cases {
-            let mut lexer = Lexer::new(source);
+            let mut lexer = Lexer::new_with_dummy_file(source);
             assert!(
                 lexer.any(|token| matches!(token, Err(LexerErrorKind::NonAsciiComment { .. }))),
                 "Expected NonAsciiComment error"

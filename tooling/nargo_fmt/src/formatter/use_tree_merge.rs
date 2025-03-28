@@ -1,8 +1,4 @@
-use std::{
-    cmp::Ordering,
-    collections::BTreeMap,
-    fmt::{self, Display},
-};
+use std::{cmp::Ordering, collections::BTreeMap, fmt::Display};
 
 use noirc_frontend::ast::{ItemVisibility, PathKind, UseTree, UseTreeKind};
 
@@ -13,7 +9,7 @@ use crate::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn merge_and_format_imports(
         &mut self,
         imports: Vec<UseTree>,
@@ -157,7 +153,7 @@ impl Segment {
 }
 
 impl Display for Segment {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Segment::Crate => write!(f, "crate"),
             Segment::Super => write!(f, "super"),
@@ -183,7 +179,8 @@ impl Ord for Segment {
 
         if let (Segment::Plain(self_string), Segment::Plain(other_string)) = (self, other) {
             // Case-insensitive comparison for plain segments
-            self_string.to_lowercase().cmp(&other_string.to_lowercase())
+            let ordering = self_string.to_lowercase().cmp(&other_string.to_lowercase());
+            if ordering == Ordering::Equal { self_string.cmp(other_string) } else { ordering }
         } else {
             order_number_ordering
         }
@@ -282,7 +279,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
                 if let Some(alias) = alias {
                     tree = tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
                     tree.insert(Segment::SelfReference);
-                } else if ident.0.contents == "self" {
+                } else if ident.as_str() == "self" {
                     tree.insert(Segment::SelfReference);
                 } else {
                     tree = tree.insert(Segment::Plain(ident.to_string()));
@@ -298,7 +295,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format_with_config, config::ImportsGranularity, Config};
+    use crate::{Config, assert_format_with_config, config::ImportsGranularity};
 
     fn assert_format(src: &str, expected: &str) {
         let config = Config {
@@ -623,5 +620,11 @@ use std::merkle::compute_merkle_root;
         let src = "use std::{as_witness, merkle::compute_merkle_root};";
         let expected = "use std::{as_witness, merkle::compute_merkle_root};\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_merge_same_identifiers_if_equal_case_insensitive() {
+        let src = "use bigint::{BigNum, bignum::BigNumTrait};\n";
+        assert_format(src, src);
     }
 }

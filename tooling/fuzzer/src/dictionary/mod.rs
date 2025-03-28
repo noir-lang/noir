@@ -6,22 +6,21 @@
 use std::collections::HashSet;
 
 use acvm::{
+    AcirField,
     acir::{
         circuit::{
-            brillig::{BrilligBytecode, BrilligInputs},
-            directives::Directive,
-            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
             Circuit, Opcode, Program,
+            brillig::{BrilligBytecode, BrilligInputs},
+            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
         },
         native_types::Expression,
     },
     brillig_vm::brillig::Opcode as BrilligOpcode,
-    AcirField,
 };
 
-/// Constructs a [HashSet<F>] of values pulled from a [Program<F>] which are likely to be correspond
+/// Constructs a [`HashSet<F>`] of values pulled from a [`Program<F>`] which are likely to be correspond
 /// to significant inputs during fuzzing.
-pub(super) fn build_dictionary_from_program<F: AcirField>(program: &Program<F>) -> HashSet<F> {
+pub fn build_dictionary_from_program<F: AcirField>(program: &Program<F>) -> HashSet<F> {
     let constrained_dictionaries = program.functions.iter().map(build_dictionary_from_circuit);
     let unconstrained_dictionaries =
         program.unconstrained_functions.iter().map(build_dictionary_from_unconstrained_function);
@@ -34,9 +33,11 @@ pub(super) fn build_dictionary_from_program<F: AcirField>(program: &Program<F>) 
     constants
 }
 
+/// Collect `Field` values used in the opcodes of an ACIR circuit.
 fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<F> {
     let mut constants: HashSet<F> = HashSet::new();
 
+    /// Pull out all the fields from an expression.
     fn insert_expr<F: AcirField>(dictionary: &mut HashSet<F>, expr: &Expression<F>) {
         let quad_coefficients = expr.mul_terms.iter().map(|(k, _, _)| *k);
         let linear_coefficients = expr.linear_combinations.iter().map(|(k, _)| *k);
@@ -60,10 +61,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
         match opcode {
             Opcode::AssertZero(expr)
             | Opcode::Call { predicate: Some(expr), .. }
-            | Opcode::MemoryOp { predicate: Some(expr), .. }
-            | Opcode::Directive(Directive::ToLeRadix { a: expr, .. }) => {
-                insert_expr(&mut constants, expr)
-            }
+            | Opcode::MemoryOp { predicate: Some(expr), .. } => insert_expr(&mut constants, expr),
 
             Opcode::MemoryInit { init, .. } => insert_array_len(&mut constants, init),
 
@@ -108,6 +106,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
     constants
 }
 
+/// Collect `Field` values used in the opcodes of a Brillig function.
 fn build_dictionary_from_unconstrained_function<F: AcirField>(
     function: &BrilligBytecode<F>,
 ) -> HashSet<F> {

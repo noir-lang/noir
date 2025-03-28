@@ -7,5 +7,4 @@
 //! will have the same DefinitionId.
 pub mod errors;
 pub mod import;
-pub mod path_resolver;
 pub mod visibility;

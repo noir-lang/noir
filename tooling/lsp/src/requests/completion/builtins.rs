@@ -3,15 +3,16 @@ use noirc_frontend::{ast::AttributeTarget, token::Keyword};
 use strum::IntoEnumIterator;
 
 use super::{
+    NodeFinder,
     completion_items::{
         completion_item_with_trigger_parameter_hints_command, simple_completion_item,
         snippet_completion_item,
     },
     kinds::FunctionCompletionKind,
-    name_matches, NodeFinder,
+    name_matches,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn builtin_functions_completion(
         &mut self,
         prefix: &str,
@@ -91,6 +92,9 @@ impl<'a> NodeFinder<'a> {
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
             }
+            AttributeTarget::Enum => {
+                self.suggest_one_argument_attributes(prefix, &["abi"]);
+            }
             AttributeTarget::Function => {
                 let no_arguments_attributes = &[
                     "contract_library_method",
@@ -100,6 +104,7 @@ impl<'a> NodeFinder<'a> {
                     "no_predicates",
                     "recursive",
                     "test",
+                    "fuzz",
                     "varargs",
                 ];
                 self.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
@@ -107,11 +112,38 @@ impl<'a> NodeFinder<'a> {
                 let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
                 self.suggest_one_argument_attributes(prefix, one_argument_attributes);
 
+                if name_matches("deprecated", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "deprecated(\"...\")",
+                        CompletionItemKind::METHOD,
+                        "deprecated(\"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                if name_matches("test", prefix) || name_matches("should_fail", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "test(should_fail)",
+                        CompletionItemKind::METHOD,
+                        "test(should_fail)",
+                        None,
+                    ));
+                }
+
                 if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
                     self.completion_items.push(snippet_completion_item(
                         "test(should_fail_with = \"...\")",
                         CompletionItemKind::METHOD,
                         "test(should_fail_with = \"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                if name_matches("fuzz", prefix) || name_matches("only_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(only_fail_with = \"...\")",
+                        CompletionItemKind::METHOD,
+                        "fuzz(only_fail_with = \"${1:message}\")",
                         None,
                     ));
                 }
@@ -129,8 +161,8 @@ impl<'a> NodeFinder<'a> {
     }
 }
 
-pub(super) fn builtin_integer_types() -> [&'static str; 8] {
-    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"]
+pub(super) fn builtin_integer_types() -> [&'static str; 9] {
+    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "u128"]
 }
 
 /// If a keyword corresponds to a built-in type, returns that type's name.
@@ -138,15 +170,17 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
     match keyword {
         Keyword::Bool => Some("bool"),
         Keyword::CtString => Some("CtString"),
+        Keyword::EnumDefinition => Some("EnumDefinition"),
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
         Keyword::Module => Some("Module"),
         Keyword::Quoted => Some("Quoted"),
-        Keyword::StructDefinition => Some("StructDefinition"),
+        Keyword::StructDefinition => Some("TypeDefinition"),
         Keyword::TraitConstraint => Some("TraitConstraint"),
         Keyword::TraitDefinition => Some("TraitDefinition"),
         Keyword::TraitImpl => Some("TraitImpl"),
+        Keyword::TypeDefinition => Some("TypeDefinition"),
         Keyword::TypedExpr => Some("TypedExpr"),
         Keyword::TypeType => Some("Type"),
         Keyword::UnresolvedType => Some("UnresolvedType"),
@@ -164,6 +198,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Crate
         | Keyword::Dep
         | Keyword::Else
+        | Keyword::Enum
         | Keyword::Fn
         | Keyword::For
         | Keyword::FormatString
@@ -172,6 +207,8 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Loop
+        | Keyword::Match
         | Keyword::Mod
         | Keyword::Mut
         | Keyword::Pub
@@ -225,6 +262,8 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::CtString
         | Keyword::Dep
         | Keyword::Else
+        | Keyword::Enum
+        | Keyword::EnumDefinition
         | Keyword::Expr
         | Keyword::Field
         | Keyword::Fn
@@ -236,6 +275,8 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Loop
+        | Keyword::Match
         | Keyword::Mod
         | Keyword::Module
         | Keyword::Mut
@@ -253,6 +294,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::TraitDefinition
         | Keyword::TraitImpl
         | Keyword::Type
+        | Keyword::TypeDefinition
         | Keyword::TypedExpr
         | Keyword::TypeType
         | Keyword::Unchecked

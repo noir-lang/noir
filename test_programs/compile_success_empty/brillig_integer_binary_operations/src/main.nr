@@ -3,6 +3,7 @@ fn main() {
     let x: u32 = 6;
     let y: u32 = 2;
 
+    // Safety: testing context
     unsafe {
         assert((x + y) == add(x, y));
 
@@ -76,4 +77,3 @@ unconstrained fn shr(x: u32, y: u8) -> u32 {
 unconstrained fn shl(x: u32, y: u8) -> u32 {
     x << y
 }
-

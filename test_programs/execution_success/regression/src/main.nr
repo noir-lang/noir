@@ -94,7 +94,7 @@ fn bitshift_variable(idx: u8) -> u64 {
     bits
 }
 
-fn main(x: [u8; 5], z: Field) {
+fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
     //Issue 1144
     let (nib, len) = compact_decode(x, z);
     assert(len == 5);
@@ -130,4 +130,12 @@ fn main(x: [u8; 5], z: Field) {
     assert(result_0 == 1);
     let result_4 = bitshift_variable(4);
     assert(result_4 == 16);
+
+    // Issue 6609
+    assert(u % -13 == 0);
+    assert(u % v == 0);
+    assert(u % -11 == 4);
+    assert(-u % -11 == -4);
+    assert(u % -11 == u % (v + 2));
+    assert(-u % -11 == -u % (v + 2));
 }

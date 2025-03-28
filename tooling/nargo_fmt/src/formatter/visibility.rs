@@ -1,10 +1,8 @@
 use super::Formatter;
-use noirc_frontend::{
-    ast::{ItemVisibility, Visibility},
-    token::Keyword,
-};
+use noirc_frontend::shared::Visibility;
+use noirc_frontend::{ast::ItemVisibility, token::Keyword};
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_item_visibility(&mut self, visibility: ItemVisibility) {
         self.skip_comments_and_whitespace();
 
@@ -37,8 +35,7 @@ impl<'a> Formatter<'a> {
                 self.write_keyword(Keyword::CallData);
                 self.write_left_paren();
                 self.skip_comments_and_whitespace();
-                self.write_current_token();
-                self.bump();
+                self.write_current_token_and_bump();
                 self.skip_comments_and_whitespace();
                 self.write_right_paren();
                 self.write_space();

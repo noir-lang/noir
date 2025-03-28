@@ -346,6 +346,7 @@ impl Hasher for PoseidonHasher {
         result
     }
 
+    #[inline_always]
     fn write(&mut self, input: Field) {
         self._state = self._state.push_back(input);
     }

@@ -18,7 +18,7 @@ mod hash;
 mod logic;
 
 pub use aes128::aes128_encrypt;
-pub use bigint::BigIntSolver;
+pub use bigint::{BigIntSolver, BigIntSolverWithId};
 pub use curve_specific_solver::{BlackBoxFunctionSolver, StubbedBlackBoxSolver};
 pub use ecdsa::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
 pub use hash::{blake2s, blake3, keccakf1600, sha256_compression};

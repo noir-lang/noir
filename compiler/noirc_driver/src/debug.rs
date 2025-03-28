@@ -8,7 +8,7 @@ use std::{
 
 /// For a given file, we store the source code and the path to the file
 /// so consumers of the debug artifact can reconstruct the original source code structure.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct DebugFile {
     pub source: String,
     pub path: PathBuf,

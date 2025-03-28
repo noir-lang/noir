@@ -87,7 +87,7 @@ impl FromStr for CrateName {
 
 #[cfg(test)]
 mod crate_name {
-    use super::{CrateName, CHARACTER_BLACK_LIST};
+    use super::{CHARACTER_BLACK_LIST, CrateName};
 
     #[test]
     fn it_rejects_empty_string() {
@@ -111,6 +111,41 @@ mod crate_name {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrateGraph {
     arena: FxHashMap<CrateId, CrateData>,
+}
+
+impl CrateGraph {
+    /// Tries to find the requested crate in the current one's dependencies,
+    /// otherwise walks down the crate dependency graph from crate_id until we reach it.
+    /// This is needed in case a library (`lib1`) re-export a structure defined in another library (`lib2`)
+    /// In that case, we will get `[lib1,lib2]` when looking for a struct defined in lib2,
+    /// re-exported by lib1 and used by the main crate.
+    /// Returns the path from crate_id to target_crate_id
+    pub(crate) fn find_dependencies(
+        &self,
+        crate_id: &CrateId,
+        target_crate_id: &CrateId,
+    ) -> Option<Vec<String>> {
+        self[crate_id]
+            .dependencies
+            .iter()
+            .find_map(|dep| {
+                if &dep.crate_id == target_crate_id {
+                    Some(vec![dep.name.to_string()])
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                self[crate_id].dependencies.iter().find_map(|dep| {
+                    if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
+                        path.insert(0, dep.name.to_string());
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+            })
+    }
 }
 
 /// List of characters that are not allowed in a crate name
@@ -344,7 +379,7 @@ mod tests {
     use super::{CrateGraph, FileId};
 
     fn dummy_file_ids(n: usize) -> Vec<FileId> {
-        use fm::{FileMap, FILE_EXTENSION};
+        use fm::{FILE_EXTENSION, FileMap};
         let mut fm = FileMap::default();
 
         let mut vec_ids = Vec::with_capacity(n);

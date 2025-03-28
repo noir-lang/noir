@@ -9,26 +9,29 @@
 
 pub mod constants;
 pub mod errors;
+pub mod foreign_calls;
 pub mod ops;
 pub mod package;
 pub mod workspace;
 
+pub use self::errors::NargoError;
+pub use self::foreign_calls::print::PrintOutput;
+pub use self::ops::FuzzExecutionConfig;
+pub use self::ops::FuzzFolderConfig;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
 
-use fm::{FileManager, FILE_EXTENSION};
+use fm::{FILE_EXTENSION, FileManager};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, ParsedFiles},
+    hir::{Context, ParsedFiles, def_map::parse_file},
 };
 use package::{Dependency, Package};
 use rayon::prelude::*;
 use walkdir::WalkDir;
-
-pub use self::errors::NargoError;
 
 pub fn prepare_dependencies(
     context: &mut Context,
@@ -95,7 +98,7 @@ fn insert_all_files_for_package_into_file_manager(
         .parent()
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
-    for entry in WalkDir::new(entry_path_parent) {
+    for entry in WalkDir::new(entry_path_parent).sort_by_file_name() {
         let Ok(entry) = entry else {
             continue;
         };
@@ -104,7 +107,7 @@ fn insert_all_files_for_package_into_file_manager(
             continue;
         }
 
-        if !entry.path().extension().map_or(false, |ext| ext == FILE_EXTENSION) {
+        if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
             continue;
         };
 
@@ -170,6 +173,7 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
         .collect()
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn prepare_package<'file_manager, 'parsed_files>(
     file_manager: &'file_manager FileManager,
     parsed_files: &'parsed_files ParsedFiles,

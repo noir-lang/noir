@@ -1,7 +1,8 @@
+use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
@@ -30,31 +31,48 @@ impl NumericType {
         }
     }
 
+    /// Creates a NumericType::Signed type
+    pub(crate) fn signed(bit_size: u32) -> NumericType {
+        NumericType::Signed { bit_size }
+    }
+
+    /// Creates a NumericType::Unsigned type
+    pub(crate) fn unsigned(bit_size: u32) -> NumericType {
+        NumericType::Unsigned { bit_size }
+    }
+
+    /// Creates the u1 type
+    pub(crate) fn bool() -> NumericType {
+        NumericType::Unsigned { bit_size: 1 }
+    }
+
+    /// Creates the char type, represented as u8.
+    pub(crate) fn char() -> NumericType {
+        NumericType::Unsigned { bit_size: 8 }
+    }
+
+    /// Creates the type of an array's length.
+    pub(crate) fn length_type() -> NumericType {
+        NumericType::Unsigned { bit_size: SSA_WORD_SIZE }
+    }
+
     /// Returns None if the given Field value is within the numeric limits
     /// for the current NumericType. Otherwise returns a string describing
     /// the limits, as a range.
-    pub(crate) fn value_is_outside_limits(
-        self,
-        field: FieldElement,
-        negative: bool,
-    ) -> Option<String> {
+    pub(crate) fn value_is_outside_limits(self, value: SignedField) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
-                let max = 2u128.pow(bit_size) - 1;
-                if negative {
+                let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
+                if value.is_negative {
                     return Some(format!("0..={}", max));
                 }
-                if field <= max.into() {
-                    None
-                } else {
-                    Some(format!("0..={}", max))
-                }
+                if value.field <= max.into() { None } else { Some(format!("0..={}", max)) }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
-                let target_max = if negative { min } else { max };
-                if field <= target_max.into() {
+                let target_max = if value.is_negative { min } else { max };
+                if value.field <= target_max.into() {
                     None
                 } else {
                     Some(format!("-{}..={}", min, max))
@@ -62,6 +80,10 @@ impl NumericType {
             }
             NumericType::NativeField => None,
         }
+    }
+
+    pub(crate) fn is_unsigned(&self) -> bool {
+        matches!(self, NumericType::Unsigned { .. })
     }
 }
 
@@ -75,7 +97,7 @@ pub(crate) enum Type {
     Reference(Arc<Type>),
 
     /// An immutable array value with the given element type and length
-    Array(Arc<CompositeType>, usize),
+    Array(Arc<CompositeType>, u32),
 
     /// An immutable slice value with a given element type
     Slice(Arc<CompositeType>),
@@ -110,8 +132,8 @@ impl Type {
         Type::unsigned(8)
     }
 
-    /// Creates the str<N> type, of the given length N
-    pub(crate) fn str(length: usize) -> Type {
+    /// Creates the `str<N>` type, of the given length N
+    pub(crate) fn str(length: u32) -> Type {
         Type::Array(Arc::new(vec![Type::char()]), length)
     }
 
@@ -123,6 +145,14 @@ impl Type {
     /// Creates the type of an array's length.
     pub(crate) fn length_type() -> Type {
         Type::unsigned(SSA_WORD_SIZE)
+    }
+
+    /// Returns the inner NumericType if this is one, or panics otherwise
+    pub(crate) fn unwrap_numeric(&self) -> NumericType {
+        match self {
+            Type::Numeric(numeric) => *numeric,
+            other => panic!("Expected NumericType, found {other}"),
+        }
     }
 
     /// Returns the bit size of the provided numeric type.
@@ -161,7 +191,7 @@ impl Type {
     }
 
     /// Returns the flattened size of a Type
-    pub(crate) fn flattened_size(&self) -> usize {
+    pub(crate) fn flattened_size(&self) -> u32 {
         match self {
             Type::Array(elements, len) => {
                 elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size() * len))
@@ -190,6 +220,15 @@ impl Type {
         }
     }
 
+    /// Retrieves the array or slice type within this type, or panics if there is none.
+    pub(crate) fn get_contained_array(&self) -> &Type {
+        match self {
+            Type::Numeric(_) | Type::Function => panic!("Expected an array type"),
+            Type::Array(_, _) | Type::Slice(_) => self,
+            Type::Reference(element) => element.get_contained_array(),
+        }
+    }
+
     pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
         match self {
             Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
@@ -202,6 +241,17 @@ impl Type {
             Type::Numeric(_) | Type::Function => self.clone(),
             Type::Reference(typ) => typ.first(),
             Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
+        }
+    }
+
+    /// True if this is a reference type or if it is a composite type which contains a reference.
+    pub(crate) fn contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(_) => true,
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(elements, _) | Type::Slice(elements) => {
+                elements.iter().any(|elem| elem.contains_reference())
+            }
         }
     }
 }
@@ -218,7 +268,11 @@ impl std::fmt::Display for Type {
             Type::Reference(element) => write!(f, "&mut {element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
-                write!(f, "[{}; {length}]", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "[{}; {length}]", elements.join(", "))
+                } else {
+                    write!(f, "[({}); {length}]", elements.join(", "))
+                }
             }
             Type::Slice(element) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
@@ -246,19 +300,19 @@ mod tests {
     #[test]
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
-        assert!(u8.value_is_outside_limits(FieldElement::from(1_i128), true).is_some());
-        assert!(u8.value_is_outside_limits(FieldElement::from(0_i128), false).is_none());
-        assert!(u8.value_is_outside_limits(FieldElement::from(255_i128), false).is_none());
-        assert!(u8.value_is_outside_limits(FieldElement::from(256_i128), false).is_some());
+        assert!(u8.value_is_outside_limits(SignedField::negative(1_i128)).is_some());
+        assert!(u8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedField::positive(255_i128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedField::positive(256_i128)).is_some());
     }
 
     #[test]
     fn test_i8_value_is_outside_limits() {
         let i8 = NumericType::Signed { bit_size: 8 };
-        assert!(i8.value_is_outside_limits(FieldElement::from(129_i128), true).is_some());
-        assert!(i8.value_is_outside_limits(FieldElement::from(128_i128), true).is_none());
-        assert!(i8.value_is_outside_limits(FieldElement::from(0_i128), false).is_none());
-        assert!(i8.value_is_outside_limits(FieldElement::from(127_i128), false).is_none());
-        assert!(i8.value_is_outside_limits(FieldElement::from(128_i128), false).is_some());
+        assert!(i8.value_is_outside_limits(SignedField::negative(129_i128)).is_some());
+        assert!(i8.value_is_outside_limits(SignedField::negative(128_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
     }
 }

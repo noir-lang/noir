@@ -5,22 +5,22 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
-    ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
-    OpcodeNotSolvable, StepResult, ACVM,
+    ACVM, ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
+    OpcodeNotSolvable, StepResult,
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
-use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
+use nargo::errors::{ExecutionError, Location};
 use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use noirc_driver::DebugFile;
 
 use thiserror::Error;
 
 use std::collections::BTreeMap;
-use std::collections::{hash_set::Iter, HashSet};
+use std::collections::{HashSet, hash_set::Iter};
 
 /// A Noir program is composed by
 /// `n` ACIR circuits
@@ -233,7 +233,7 @@ pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
-    acvm: ACVM<'a, FieldElement, B>,
+    pub(crate) acvm: ACVM<'a, FieldElement, B>,
     current_circuit_id: u32,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
 
@@ -427,6 +427,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             .as_ref()
             .map(|debug_location| self.get_source_location_for_debug_location(debug_location))
             .filter(|v: &Vec<Location>| !v.is_empty())
+    }
+
+    /// Returns the `FileId` of the file associated with the innermost function on the call stack.
+    pub(super) fn get_current_file(&mut self) -> Option<FileId> {
+        self.get_current_source_location()
+            .and_then(|locations| locations.last().map(|location| location.file))
     }
 
     /// Returns the (possible) stack of source locations corresponding to the
@@ -788,11 +794,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     pub(super) fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
-        return self.foreign_call_executor.get_variables();
+        self.foreign_call_executor.get_variables()
     }
 
     pub(super) fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
-        return self.foreign_call_executor.current_stack_frame();
+        self.foreign_call_executor.current_stack_frame()
     }
 
     fn breakpoint_reached(&self) -> bool {
@@ -954,47 +960,43 @@ mod tests {
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
         acir::{
-            brillig::IntegerBitSize,
+            AcirField,
+            brillig::{HeapVector, IntegerBitSize},
             circuit::{
                 brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
                 opcodes::{AcirFunctionId, BlockId, BlockType},
             },
             native_types::Expression,
-            AcirField,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
             BinaryFieldOp, HeapValueType, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
     };
+    use nargo::PrintOutput;
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
-        let fe_0 = FieldElement::zero();
+        let solver = StubbedBlackBoxSolver::default();
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
 
         let brillig_bytecode = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::Const {
-                    destination: MemoryAddress::direct(0),
+                    destination: MemoryAddress::direct(1),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                     value: FieldElement::from(1u64),
                 },
                 BrilligOpcode::Const {
-                    destination: MemoryAddress::direct(1),
+                    destination: MemoryAddress::direct(2),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                     value: FieldElement::from(0u64),
                 },
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress::direct(0),
-                    size_address: MemoryAddress::direct(0),
-                    offset_address: MemoryAddress::direct(1),
-                },
-                BrilligOpcode::Const {
-                    destination: MemoryAddress::direct(1),
-                    value: fe_0,
-                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    size_address: MemoryAddress::direct(1),
+                    offset_address: MemoryAddress::direct(2),
                 },
                 BrilligOpcode::ForeignCall {
                     function: "clear_mock".into(),
@@ -1003,7 +1005,12 @@ mod tests {
                     inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::direct(0))],
                     input_value_types: vec![HeapValueType::field()],
                 },
-                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
+                BrilligOpcode::Stop {
+                    return_data: HeapVector {
+                        pointer: MemoryAddress::direct(2),
+                        size: MemoryAddress::direct(2),
+                    },
+                },
             ],
         };
         let opcodes = vec![Opcode::BrilligCall {
@@ -1015,10 +1022,10 @@ mod tests {
             outputs: vec![],
             predicate: None,
         }];
-        let brillig_funcs = &vec![brillig_bytecode];
+        let brillig_funcs = &[brillig_bytecode];
         let current_witness_index = 2;
         let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
-        let circuits = &vec![circuit];
+        let circuits = &[circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -1026,10 +1033,12 @@ mod tests {
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
-        let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
+        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+            PrintOutput::Stdout,
+            debug_artifact,
+        ));
         let mut context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             circuits,
             debug_artifact,
             initial_witness,
@@ -1082,18 +1091,6 @@ mod tests {
             })
         );
 
-        // Const
-        let result = context.step_into_opcode();
-        assert!(matches!(result, DebugCommandResult::Ok));
-        assert_eq!(
-            context.get_current_debug_location(),
-            Some(DebugLocation {
-                circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 4 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
-            })
-        );
-
         // try to execute the Brillig opcode (and resolve the foreign call)
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
@@ -1101,7 +1098,7 @@ mod tests {
             context.get_current_debug_location(),
             Some(DebugLocation {
                 circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 4 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1113,7 +1110,7 @@ mod tests {
             context.get_current_debug_location(),
             Some(DebugLocation {
                 circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 5 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 4 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1126,11 +1123,15 @@ mod tests {
 
     #[test]
     fn test_break_brillig_block_while_stepping_acir_opcodes() {
+        let solver = StubbedBlackBoxSolver::default();
         let fe_0 = FieldElement::zero();
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
         let w_y = Witness(2);
         let w_z = Witness(3);
+
+        let zero_usize = MemoryAddress::direct(2);
+        let one_usize = MemoryAddress::direct(3);
 
         // This Brillig block is equivalent to: z = x + y
         let brillig_bytecode = BrilligBytecode {
@@ -1141,14 +1142,19 @@ mod tests {
                     value: FieldElement::from(2u64),
                 },
                 BrilligOpcode::Const {
-                    destination: MemoryAddress::direct(1),
+                    destination: zero_usize,
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
                     value: FieldElement::from(0u64),
+                },
+                BrilligOpcode::Const {
+                    destination: one_usize,
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(1u64),
                 },
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress::direct(0),
                     size_address: MemoryAddress::direct(0),
-                    offset_address: MemoryAddress::direct(1),
+                    offset_address: zero_usize,
                 },
                 BrilligOpcode::BinaryFieldOp {
                     destination: MemoryAddress::direct(0),
@@ -1156,7 +1162,9 @@ mod tests {
                     lhs: MemoryAddress::direct(0),
                     rhs: MemoryAddress::direct(1),
                 },
-                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 1 },
+                BrilligOpcode::Stop {
+                    return_data: HeapVector { pointer: zero_usize, size: one_usize },
+                },
             ],
         };
         let opcodes = vec![
@@ -1185,7 +1193,7 @@ mod tests {
         ];
         let current_witness_index = 3;
         let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
-        let circuits = &vec![circuit];
+        let circuits = &[circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -1193,11 +1201,13 @@ mod tests {
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
-        let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
-        let brillig_funcs = &vec![brillig_bytecode];
+        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+            PrintOutput::Stdout,
+            debug_artifact,
+        ));
+        let brillig_funcs = &[brillig_bytecode];
         let mut context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             circuits,
             debug_artifact,
             initial_witness,
@@ -1238,18 +1248,11 @@ mod tests {
 
     #[test]
     fn test_address_debug_location_mapping() {
-        let brillig_one = BrilligBytecode {
-            bytecode: vec![
-                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-            ],
-        };
+        let solver = StubbedBlackBoxSolver::default();
+        let brillig_one =
+            BrilligBytecode { bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return] };
         let brillig_two = BrilligBytecode {
-            bytecode: vec![
-                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
-            ],
+            bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return, BrilligOpcode::Return],
         };
 
         let circuit_one = Circuit {
@@ -1289,14 +1292,14 @@ mod tests {
         };
         let circuits = vec![circuit_one, circuit_two];
         let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
-        let brillig_funcs = &vec![brillig_one, brillig_two];
+        let brillig_funcs = &[brillig_one, brillig_two];
 
         let context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             &circuits,
             &debug_artifact,
             WitnessMap::new(),
-            Box::new(DefaultDebugForeignCallExecutor::new(true)),
+            Box::new(DefaultDebugForeignCallExecutor::new(PrintOutput::Stdout)),
             brillig_funcs,
         );
 

@@ -1,13 +1,13 @@
 use crate::{ast::Expression, token::Token};
 
-use super::{parse_many::separated_by_comma_until_right_paren, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_paren};
 
 pub(crate) struct CallArguments {
     pub(crate) arguments: Vec<Expression>,
     pub(crate) is_macro_call: bool,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Arguments = '(' ArgumentsList? ')'
     ///
     /// ArgumentsList = Expression ( ',' Expression )? ','?

@@ -57,7 +57,7 @@ View the corresponding test file [here][test-file].
 
 ### push_front
 
-Returns a new array with the specified element inserted at index 0. The existing elements indexes are incremented by 1.
+Returns a new slice with the specified element inserted at index 0. The existing elements indexes are incremented by 1.
 
 ```rust
 fn push_front(_self: Self, _elem: T) -> Self
@@ -75,7 +75,7 @@ View the corresponding test file [here][test-file].
 
 ### pop_front
 
-Returns a tuple of two items, the first element of the array and the rest of the array.
+Returns a tuple of two items, the first element of the slice and the rest of the slice.
 
 ```rust
 fn pop_front(_self: Self) -> (T, Self)
@@ -91,7 +91,7 @@ View the corresponding test file [here][test-file].
 
 ### pop_back
 
-Returns a tuple of two items, the beginning of the array with the last element omitted and the last element.
+Returns a tuple of two items, the beginning of the slice with the last element omitted and the last element.
 
 ```rust
 fn pop_back(_self: Self) -> (Self, T)
@@ -205,6 +205,65 @@ example
 ```rust
 let a = &[1, 2, 3];
 let b = a.map(|a| a * 2); // b is now &[2, 4, 6]
+```
+
+### mapi
+
+Applies a function to each element of the slice, along with its index in the
+slice, returning a new slice containing the mapped elements.
+
+```rust
+fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U]
+```
+
+example
+
+```rust
+let a = &[1, 2, 3];
+let b = a.mapi(|i, a| i + a * 2); // b is now &[2, 5, 8]
+```
+
+### for_each
+
+Applies a function to each element of the slice.
+
+```rust
+fn for_each<Env>(self, f: fn[Env](T) -> ())
+```
+
+example
+
+```rust
+let a = &[1, 2, 3];
+a.for_each(|x| {
+    println(f"{x}");
+});
+// prints:
+// 1
+// 2
+// 3
+```
+
+### for_eachi
+
+Applies a function to each element of the slice, along with its index in the
+slice.
+
+```rust
+fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ())
+```
+
+example
+
+```rust
+let a = &[1, 2, 3];
+a.for_eachi(|i, x| {
+    println(f"{i}, {x}");
+});
+// prints:
+// 0, 1
+// 1, 2
+// 2, 3
 ```
 
 ### fold

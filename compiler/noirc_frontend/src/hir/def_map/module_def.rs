@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 
 use super::ModuleId;
 
@@ -7,7 +7,7 @@ use super::ModuleId;
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
-    TypeId(StructId),
+    TypeId(TypeId),
     TypeAliasId(TypeAliasId),
     TraitId(TraitId),
     GlobalId(GlobalId),
@@ -21,7 +21,7 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_type(&self) -> Option<StructId> {
+    pub fn as_type(&self) -> Option<TypeId> {
         match self {
             ModuleDefId::TypeId(type_id) => Some(*type_id),
             _ => None,
@@ -97,81 +97,5 @@ impl From<GlobalId> for ModuleDefId {
 impl From<TraitId> for ModuleDefId {
     fn from(trait_id: TraitId) -> Self {
         ModuleDefId::TraitId(trait_id)
-    }
-}
-
-pub trait TryFromModuleDefId: Sized {
-    fn try_from(id: ModuleDefId) -> Option<Self>;
-    fn dummy_id() -> Self;
-    fn description() -> String;
-}
-
-impl TryFromModuleDefId for FuncId {
-    fn try_from(id: ModuleDefId) -> Option<Self> {
-        id.as_function()
-    }
-
-    fn dummy_id() -> Self {
-        FuncId::dummy_id()
-    }
-
-    fn description() -> String {
-        "function".to_string()
-    }
-}
-
-impl TryFromModuleDefId for StructId {
-    fn try_from(id: ModuleDefId) -> Option<Self> {
-        id.as_type()
-    }
-
-    fn dummy_id() -> Self {
-        StructId::dummy_id()
-    }
-
-    fn description() -> String {
-        "type".to_string()
-    }
-}
-
-impl TryFromModuleDefId for TypeAliasId {
-    fn try_from(id: ModuleDefId) -> Option<Self> {
-        id.as_type_alias()
-    }
-
-    fn dummy_id() -> Self {
-        TypeAliasId::dummy_id()
-    }
-
-    fn description() -> String {
-        "type alias".to_string()
-    }
-}
-
-impl TryFromModuleDefId for TraitId {
-    fn try_from(id: ModuleDefId) -> Option<Self> {
-        id.as_trait()
-    }
-
-    fn dummy_id() -> Self {
-        TraitId::dummy_id()
-    }
-
-    fn description() -> String {
-        "trait".to_string()
-    }
-}
-
-impl TryFromModuleDefId for GlobalId {
-    fn try_from(id: ModuleDefId) -> Option<Self> {
-        id.as_global()
-    }
-
-    fn dummy_id() -> Self {
-        GlobalId::dummy_id()
-    }
-
-    fn description() -> String {
-        "global".to_string()
     }
 }

@@ -81,9 +81,9 @@ If this is a slice type, return the element type of the slice.
 
 If this is a `str<N>` type, returns the length `N` as a type.
 
-### as_struct
+### as_data_type
 
-#include_code as_struct noir_stdlib/src/meta/typ.nr rust
+#include_code as_data_type noir_stdlib/src/meta/typ.nr rust
 
 If this is a struct type, returns the struct in addition to
 any generic arguments on this type.
@@ -101,7 +101,7 @@ If this is a tuple type, returns each element type of the tuple.
 Retrieves the trait implementation that implements the given
 trait constraint for this type. If the trait constraint is not
 found, `None` is returned. Note that since the concrete trait implementation
-for a trait constraint specified from a `where` clause is unknown,
+for a trait constraint specified in a `where` clause is unknown,
 this function will return `None` in these cases. If you only want to know
 whether a type implements a trait, use `implements` instead.
 

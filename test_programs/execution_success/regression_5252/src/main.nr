@@ -1,7 +1,7 @@
-use std::hash::{mimc, poseidon, poseidon2::Poseidon2};
+use std::hash::{poseidon, poseidon2::Poseidon2};
 
-global NUM_HASHES = 3;
-global HASH_LENGTH = 20;
+global NUM_HASHES: u32 = 3;
+global HASH_LENGTH: u32 = 20;
 
 pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
     Poseidon2::hash(inputs, inputs.len())
@@ -16,9 +16,7 @@ fn main(
         let enable = enable[i];
         let to_hash = to_hash[i];
         if enable {
-            result[i] = poseidon_hash(to_hash)
-                + poseidon::bn254::sponge(to_hash)
-                + mimc::mimc_bn254(to_hash);
+            result[i] = poseidon_hash(to_hash) + poseidon::bn254::sponge(to_hash);
         }
     }
     result

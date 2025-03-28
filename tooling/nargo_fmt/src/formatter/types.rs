@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_type(&mut self, typ: UnresolvedType) {
         self.skip_comments_and_whitespace();
 
@@ -18,8 +18,7 @@ impl<'a> Formatter<'a> {
                 self.write_keyword(Keyword::Bool);
             }
             UnresolvedTypeData::Integer(..) | UnresolvedTypeData::FieldElement => {
-                self.write_current_token();
-                self.bump();
+                self.write_current_token_and_bump();
             }
             UnresolvedTypeData::Array(type_expr, typ) => {
                 self.write_left_bracket();
@@ -76,10 +75,12 @@ impl<'a> Formatter<'a> {
                 self.format_path(path);
                 self.format_generic_type_args(generic_type_args);
             }
-            UnresolvedTypeData::MutableReference(typ) => {
+            UnresolvedTypeData::Reference(typ, mutable) => {
                 self.write_token(Token::Ampersand);
-                self.write_keyword(Keyword::Mut);
-                self.write_space();
+                if mutable {
+                    self.write_keyword(Keyword::Mut);
+                    self.write_space();
+                }
                 self.format_type(*typ);
             }
             UnresolvedTypeData::Tuple(types) => {
@@ -145,8 +146,7 @@ impl<'a> Formatter<'a> {
                 }
             }
             UnresolvedTypeData::Quoted(..) => {
-                self.write_current_token();
-                self.bump();
+                self.write_current_token_and_bump();
             }
             UnresolvedTypeData::AsTraitPath(as_trait_path) => {
                 self.format_as_trait_path(*as_trait_path);
@@ -180,7 +180,7 @@ mod tests {
 
     fn assert_format_type(src: &str, expected: &str) {
         let module_src = format!("type X = {};", src);
-        let (parsed_module, errors) = parser::parse_program(&module_src);
+        let (parsed_module, errors) = parser::parse_program_with_dummy_file(&module_src);
         if !errors.is_empty() {
             panic!("Expected no errors, got: {:?}", errors);
         }
@@ -189,7 +189,7 @@ mod tests {
         let type_result = &type_result[..type_result.len() - 2];
         similar_asserts::assert_eq!(type_result, expected);
 
-        let (parsed_module, errors) = parser::parse_program(&result);
+        let (parsed_module, errors) = parser::parse_program_with_dummy_file(&result);
         if !errors.is_empty() {
             panic!("Expected no errors in idempotent check, got: {:?}", errors);
         }
@@ -301,6 +301,13 @@ mod tests {
     fn format_function_type_with_env() {
         let src = "  fn  [ Env ] ( ) -> Field ";
         let expected = "fn[Env]() -> Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_function_type_without_return_type() {
+        let src = "  fn   ( )  ";
+        let expected = "fn()";
         assert_format_type(src, expected);
     }
 

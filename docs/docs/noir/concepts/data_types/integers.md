@@ -7,13 +7,13 @@ sidebar_position: 1
 
 An integer type is a range constrained field type.
 The Noir frontend supports both unsigned and signed integer types.
-The allowed sizes are 1, 8, 16, 32 and 64 bits.
+The allowed sizes are 1, 8, 16, 32, 64 and 128 bits. ([currently only unsigned integers for 128 bits](https://github.com/noir-lang/noir/issues/7591))
 
 :::info
 
 When an integer is defined in Noir without a specific type, it will default to `Field`.
 
-The one exception is for loop indices which default to `u64` since comparisons on `Field`s are not possible.
+The one exception is for loop indices which default to `u32` since comparisons on `Field`s are not possible.
 
 :::
 
@@ -47,61 +47,25 @@ fn main() {
 
 The bit size determines the maximum and minimum range of value the integer type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
-## 128 bits Unsigned Integers
-
-The built-in structure `U128` allows you to use 128-bit unsigned integers almost like a native integer type. However, there are some differences to keep in mind:
-- You cannot cast between a native integer and `U128`
-- There is a higher performance cost when using `U128`, compared to a native type.
-
-Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions. `from_integer` also accepts the `Field` type as input.
 
 ```rust
-fn main() {
-    let x = U128::from_integer(23);
-    let y = U128::from_hex("0x7");
-    let z = x + y;
-    assert(z.to_integer() == 30);
+fn main(x: i16, y: i16) {
+    // modulo
+    let c = x % y;
+    let c = x % -13;
 }
 ```
 
-`U128` is implemented with two 64 bits limbs, representing the low and high bits, which explains the performance cost. You should expect `U128` to be twice more costly for addition and four times more costly for multiplication.
-You can construct a U128 from its limbs:
-```rust
-fn main(x: u64, y: u64) {
-    let x = U128::from_u64s_be(x,y);
-    assert(z.hi == x as Field);
-    assert(z.lo == y as Field);
-}
-```
-
-Note that the limbs are stored as Field elements in order to avoid unnecessary conversions.
-Apart from this, most operations will work as usual:
-
-```rust
-fn main(x: U128, y: U128) {
-    // multiplication
-    let c = x * y;
-    // addition and subtraction
-    let c = c - x + y;
-    // division
-    let c = x / y;
-    // bit operation;
-    let c = x & y | y;
-    // bit shift
-    let c = x << y;
-    // comparisons;
-    let c = x < y;
-    let c = x == y;
-}
-```
+Modulo operation is defined for negative integers thanks to integer division, so that the equality `x = (x/y)*y + (x%y)` holds.
 
 ## Overflows
 
 Computations that exceed the type boundaries will result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
 
 ```rust
-fn main(x: u8, y: u8) {
+fn main(x: u8, y: u8) -> pub u8 {
     let z = x + y;
+    z
 }
 ```
 
@@ -129,10 +93,20 @@ error: Assertion failed: 'attempt to add with overflow'
 A similar error would happen with signed integers:
 
 ```rust
-fn main() {
+fn main() -> i8 {
     let x: i8 = -118;
     let y: i8 = -11;
     let z = x + y;
+    z
+}
+```
+
+Note that if a computation ends up being unused the compiler might remove it and it won't end up producing an overflow:
+
+```rust
+fn main() {
+    // "255 + 1" would overflow, but `z` is unused so no computation happens
+    let z: u8 = 255 + 1;
 }
 ```
 

@@ -15,34 +15,35 @@ use std::{
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use async_lsp::{
-    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService,
-    ResponseError,
+    AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
+    router::Router,
 };
-use fm::{codespan_files as files, FileManager};
+use fm::{FileManager, codespan_files as files};
 use fxhash::FxHashSet;
 use lsp_types::{
+    CodeLens,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
         PrepareRenameRequest, References, Rename, SignatureHelpRequest,
     },
-    CodeLens,
 };
 use nargo::{
     package::{Package, PackageType},
     parse_all,
     workspace::Workspace,
 };
-use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
+use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
+use noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, file_manager_with_stdlib, prepare_crate};
 use noirc_frontend::{
+    ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
     hir::{
-        def_map::{parse_file, CrateDefMap},
         Context, FunctionNameMatch, ParsedFiles,
+        def_map::{CrateDefMap, parse_file},
     },
     node_interner::NodeInterner,
     parser::ParserError,
-    ParsedModule,
+    usage_tracker::UsageTracker,
 };
 use rayon::prelude::*;
 
@@ -51,12 +52,11 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_action_request, on_code_lens_request, on_completion_request,
+    LspInitializationOptions, on_code_action_request, on_code_lens_request, on_completion_request,
     on_document_symbol_request, on_formatting, on_goto_declaration_request,
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
-    on_inlay_hint_request, on_prepare_rename_request, on_profile_run_request,
-    on_references_request, on_rename_request, on_shutdown, on_signature_help_request,
-    on_test_run_request, on_tests_request, LspInitializationOptions,
+    on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
+    on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -73,12 +73,14 @@ mod types;
 mod use_segment_positions;
 mod utils;
 mod visibility;
+mod with_file;
 
 #[cfg(test)]
 mod test_utils;
 
 use solver::WrapperSolver;
-use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
+use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request};
+use with_file::parsed_module_with_file;
 
 #[derive(Debug, Error)]
 pub enum LspError {
@@ -113,6 +115,7 @@ struct PackageCacheData {
     crate_graph: CrateGraph,
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
+    usage_tracker: UsageTracker,
 }
 
 impl LspState {
@@ -154,7 +157,6 @@ impl NargoLspService {
             .request::<request::CodeLens, _>(on_code_lens_request)
             .request::<request::NargoTests, _>(on_tests_request)
             .request::<request::NargoTestRun, _>(on_test_run_request)
-            .request::<request::NargoProfileRun, _>(on_profile_run_request)
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
@@ -214,7 +216,7 @@ fn get_package_tests_in_crate(
     let fm = &context.file_manager;
     let files = fm.as_file_map();
     let tests =
-        context.get_all_test_functions_in_crate_matching(crate_id, FunctionNameMatch::Anything);
+        context.get_all_test_functions_in_crate_matching(crate_id, &FunctionNameMatch::Anything);
 
     let package_tests: Vec<_> = tests
         .into_iter()
@@ -236,11 +238,7 @@ fn get_package_tests_in_crate(
         })
         .collect();
 
-    if package_tests.is_empty() {
-        None
-    } else {
-        Some(package_tests)
-    }
+    if package_tests.is_empty() { None } else { Some(package_tests) }
 }
 
 fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
@@ -315,6 +313,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         members: vec![assumed_package],
         selected_package_index: Some(0),
         is_assumed: true,
+        target_dir: None,
     };
     Ok(workspace)
 }
@@ -386,18 +385,22 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
             })
             .collect();
 
-        let cache_hits: Vec<_> = noir_file_hashes
+        let cache_hits = noir_file_hashes
             .par_iter()
             .filter_map(|(file_id, file_path, current_hash)| {
                 let cached_version = state.cached_parsed_files.get(file_path);
-                if let Some((hash, cached_parsing)) = cached_version {
+                if let Some((hash, (parsed_module, errors))) = cached_version {
                     if hash == current_hash {
-                        return Some((*file_id, cached_parsing.clone()));
+                        // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
+                        // so we must replace all of those FileIDs with the one here.
+                        let parsed_module =
+                            parsed_module_with_file(parsed_module.clone(), *file_id);
+                        return Some((*file_id, (parsed_module, errors.clone())));
                     }
                 }
                 None
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         let cache_hits_ids: FxHashSet<_> = cache_hits.iter().map(|(file_id, _)| *file_id).collect();
 
@@ -451,7 +454,7 @@ fn prepare_package_from_source_string() {
     "#;
 
     let client = ClientSocket::new_closed();
-    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
+    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver::default());
 
     let (mut context, crate_id) = prepare_source(source.to_string(), &mut state);
     let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());

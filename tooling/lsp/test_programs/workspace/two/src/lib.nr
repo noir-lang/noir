@@ -7,7 +7,7 @@ pub fn function_two() {
 use one::subone;
 
 fn use_struct() {
-    let _ = subone::SubOneStruct { some_field: 0, some_other_field: 2 };
+    let _ = subone::SubOneStruct { some_field: 0, some_other_field: 123 };
 }
 
 use one::subone::SomeTrait;
@@ -84,3 +84,34 @@ fn bar_stuff() {
     foo.bar_stuff();
 }
 
+trait TraitWithDocs {
+    /// Some docs
+    fn foo();
+}
+
+impl TraitWithDocs for Field {
+    fn foo() {}
+}
+
+impl<U> Foo<U> {
+    fn mut_self(&mut self) {}
+}
+
+/// Red, blue, etc.
+enum EmptyColor {}
+
+/// Red, blue, etc.
+enum Color {
+    /// Like a tomato
+    Red(Field),
+}
+
+fn test_enum() -> Color {
+    Color::Red(1)
+}
+
+fn negative_integer() -> i32 {
+    -8
+}
+
+global array: [Field; 3] = [1, 2 + 3, 4];

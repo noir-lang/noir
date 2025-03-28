@@ -2,7 +2,7 @@ use super::ModuleDefId;
 use crate::ast::ItemVisibility;
 
 // This works exactly the same as in r-a, just simplified
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
 pub struct PerNs {
     pub types: Option<(ModuleDefId, ItemVisibility, bool)>,
     pub values: Option<(ModuleDefId, ItemVisibility, bool)>,
@@ -11,14 +11,6 @@ pub struct PerNs {
 impl PerNs {
     pub fn types(t: ModuleDefId) -> PerNs {
         PerNs { types: Some((t, ItemVisibility::Public, false)), values: None }
-    }
-
-    pub fn take_types(self) -> Option<ModuleDefId> {
-        self.types.map(|it| it.0)
-    }
-
-    pub fn take_values(self) -> Option<ModuleDefId> {
-        self.values.map(|it| it.0)
     }
 
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {

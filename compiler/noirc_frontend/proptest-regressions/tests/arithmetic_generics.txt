@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc fc27f4091dfa5f938973048209b5fcf22aefa1cfaffaaa3e349f30e9b1f93f49 # shrinks to infix_and_bindings = (((0: numeric bool) % (Numeric(Shared(RefCell { value: Unbound('2, Numeric(bool)) }): bool) + Numeric(Shared(RefCell { value: Unbound('0, Numeric(bool)) }): bool))), [('0, (0: numeric bool)), ('1, (0: numeric bool)), ('2, (0: numeric bool))])

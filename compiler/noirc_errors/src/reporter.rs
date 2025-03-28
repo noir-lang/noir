@@ -1,6 +1,6 @@
 use std::io::IsTerminal;
 
-use crate::{FileDiagnostic, Location, Span};
+use crate::{Location, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
@@ -8,6 +8,7 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
+    pub file: fm::FileId,
     pub message: String,
     pub secondaries: Vec<CustomLabel>,
     pub notes: Vec<String>,
@@ -35,8 +36,9 @@ pub struct ReportedErrors {
 }
 
 impl CustomDiagnostic {
-    pub fn from_message(msg: &str) -> CustomDiagnostic {
+    pub fn from_message(msg: &str, file: fm::FileId) -> CustomDiagnostic {
         Self {
+            file,
             message: msg.to_owned(),
             secondaries: Vec::new(),
             notes: Vec::new(),
@@ -50,12 +52,13 @@ impl CustomDiagnostic {
     fn simple_with_kind(
         primary_message: String,
         secondary_message: String,
-        secondary_span: Span,
+        secondary_location: Location,
         kind: DiagnosticKind,
     ) -> CustomDiagnostic {
         CustomDiagnostic {
+            file: secondary_location.file,
             message: primary_message,
-            secondaries: vec![CustomLabel::new(secondary_message, secondary_span, None)],
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
             notes: Vec::new(),
             kind,
             deprecated: false,
@@ -67,12 +70,12 @@ impl CustomDiagnostic {
     pub fn simple_error(
         primary_message: String,
         secondary_message: String,
-        secondary_span: Span,
+        secondary_location: Location,
     ) -> CustomDiagnostic {
         Self::simple_with_kind(
             primary_message,
             secondary_message,
-            secondary_span,
+            secondary_location,
             DiagnosticKind::Error,
         )
     }
@@ -80,12 +83,12 @@ impl CustomDiagnostic {
     pub fn simple_warning(
         primary_message: String,
         secondary_message: String,
-        secondary_span: Span,
+        secondary_location: Location,
     ) -> CustomDiagnostic {
         Self::simple_with_kind(
             primary_message,
             secondary_message,
-            secondary_span,
+            secondary_location,
             DiagnosticKind::Warning,
         )
     }
@@ -93,12 +96,12 @@ impl CustomDiagnostic {
     pub fn simple_info(
         primary_message: String,
         secondary_message: String,
-        secondary_span: Span,
+        secondary_location: Location,
     ) -> CustomDiagnostic {
         Self::simple_with_kind(
             primary_message,
             secondary_message,
-            secondary_span,
+            secondary_location,
             DiagnosticKind::Info,
         )
     }
@@ -106,21 +109,18 @@ impl CustomDiagnostic {
     pub fn simple_bug(
         primary_message: String,
         secondary_message: String,
-        secondary_span: Span,
+        secondary_location: Location,
     ) -> CustomDiagnostic {
         CustomDiagnostic {
+            file: secondary_location.file,
             message: primary_message,
-            secondaries: vec![CustomLabel::new(secondary_message, secondary_span, None)],
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
             notes: Vec::new(),
             kind: DiagnosticKind::Bug,
             deprecated: false,
             unnecessary: false,
             call_stack: Default::default(),
         }
-    }
-
-    pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {
-        FileDiagnostic::new(file_id, self)
     }
 
     pub fn with_call_stack(mut self, call_stack: Vec<Location>) -> Self {
@@ -132,12 +132,8 @@ impl CustomDiagnostic {
         self.notes.push(message);
     }
 
-    pub fn add_secondary(&mut self, message: String, span: Span) {
-        self.secondaries.push(CustomLabel::new(message, span, None));
-    }
-
-    pub fn add_secondary_with_file(&mut self, message: String, span: Span, file: fm::FileId) {
-        self.secondaries.push(CustomLabel::new(message, span, Some(file)));
+    pub fn add_secondary(&mut self, message: String, location: Location) {
+        self.secondaries.push(CustomLabel::new(message, location));
     }
 
     pub fn is_error(&self) -> bool {
@@ -176,13 +172,12 @@ impl std::fmt::Display for CustomDiagnostic {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomLabel {
     pub message: String,
-    pub span: Span,
-    pub file: Option<fm::FileId>,
+    pub location: Location,
 }
 
 impl CustomLabel {
-    fn new(message: String, span: Span, file: Option<fm::FileId>) -> CustomLabel {
-        CustomLabel { message, span, file }
+    fn new(message: String, location: Location) -> CustomLabel {
+        CustomLabel { message, location }
     }
 }
 
@@ -190,16 +185,16 @@ impl CustomLabel {
 /// of diagnostics that were errors.
 pub fn report_all<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
-    diagnostics: &[FileDiagnostic],
+    diagnostics: &[CustomDiagnostic],
     deny_warnings: bool,
     silence_warnings: bool,
 ) -> ReportedErrors {
     // Report warnings before any errors
     let (warnings_and_bugs, mut errors): (Vec<_>, _) =
-        diagnostics.iter().partition(|item| !item.diagnostic.is_error());
+        diagnostics.iter().partition(|item| !item.is_error());
 
     let (warnings, mut bugs): (Vec<_>, _) =
-        warnings_and_bugs.iter().partition(|item| item.diagnostic.is_warning());
+        warnings_and_bugs.iter().partition(|item| item.is_warning());
     let mut diagnostics = if silence_warnings { Vec::new() } else { warnings };
     diagnostics.append(&mut bugs);
     diagnostics.append(&mut errors);
@@ -210,13 +205,14 @@ pub fn report_all<'files>(
     ReportedErrors { error_count }
 }
 
-impl FileDiagnostic {
+impl CustomDiagnostic {
+    /// Print the report; return true if it was an error.
     pub fn report<'files>(
         &self,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         deny_warnings: bool,
     ) -> bool {
-        report(files, &self.diagnostic, Some(self.file_id), deny_warnings)
+        report(files, self, deny_warnings)
     }
 }
 
@@ -224,16 +220,15 @@ impl FileDiagnostic {
 pub fn report<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
     custom_diagnostic: &CustomDiagnostic,
-    file: Option<fm::FileId>,
     deny_warnings: bool,
 ) -> bool {
     let color_choice =
         if std::io::stderr().is_terminal() { ColorChoice::Auto } else { ColorChoice::Never };
     let writer = StandardStream::stderr(color_choice);
-    let config = codespan_reporting::term::Config::default();
+    let config = term::Config::default();
 
     let stack_trace = stack_trace(files, &custom_diagnostic.call_stack);
-    let diagnostic = convert_diagnostic(custom_diagnostic, file, stack_trace, deny_warnings);
+    let diagnostic = convert_diagnostic(custom_diagnostic, stack_trace, deny_warnings);
     term::emit(&mut writer.lock(), &config, files, &diagnostic).unwrap();
 
     deny_warnings || custom_diagnostic.is_error()
@@ -241,7 +236,6 @@ pub fn report<'files>(
 
 fn convert_diagnostic(
     cd: &CustomDiagnostic,
-    file: Option<fm::FileId>,
     stack_trace: String,
     deny_warnings: bool,
 ) -> Diagnostic<fm::FileId> {
@@ -252,19 +246,18 @@ fn convert_diagnostic(
         _ => Diagnostic::error(),
     };
 
-    let secondary_labels = if let Some(file_id) = file {
-        cd.secondaries
-            .iter()
-            .map(|sl| {
-                let start_span = sl.span.start() as usize;
-                let end_span = sl.span.end() as usize;
-                let file = sl.file.unwrap_or(file_id);
-                Label::secondary(file, start_span..end_span).with_message(&sl.message)
-            })
-            .collect()
-    } else {
-        vec![]
-    };
+    let secondary_labels = cd
+        .secondaries
+        .iter()
+        .map(|custom_label| {
+            let location = custom_label.location;
+            let span = location.span;
+            let start_span = span.start() as usize;
+            let end_span = span.end() as usize;
+            let file = location.file;
+            Label::secondary(file, start_span..end_span).with_message(&custom_label.message)
+        })
+        .collect();
 
     let mut notes = cd.notes.clone();
     notes.push(stack_trace);
@@ -272,7 +265,7 @@ fn convert_diagnostic(
     diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(notes)
 }
 
-fn stack_trace<'files>(
+pub fn stack_trace<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
     call_stack: &[Location],
 ) -> String {

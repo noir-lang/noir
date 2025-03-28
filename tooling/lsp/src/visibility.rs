@@ -2,38 +2,15 @@ use std::collections::BTreeMap;
 
 use noirc_frontend::{
     ast::ItemVisibility,
-    graph::CrateId,
+    graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
-        resolution::visibility::can_reference_module_id,
+        resolution::visibility::item_in_module_is_visible,
     },
     node_interner::NodeInterner,
 };
 
 use crate::modules::get_parent_module;
-
-/// Returns true if an item with the given visibility in the target module
-/// is visible from the current module. For example:
-///
-/// mod foo {
-///     ^^^ <-- target module
-///   pub(crate) fn bar() {}
-///   ^^^^^^^^^^ <- visibility
-/// }
-pub(super) fn item_in_module_is_visible(
-    target_module_id: ModuleId,
-    current_module_id: ModuleId,
-    visibility: ItemVisibility,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> bool {
-    can_reference_module_id(
-        def_maps,
-        current_module_id.krate,
-        current_module_id.local_id,
-        target_module_id,
-        visibility,
-    )
-}
 
 /// Returns true if the given ModuleDefId is visible from the current module, given its visibility.
 /// This will in turn check if the ModuleDefId parent modules are visible from the current module.
@@ -46,6 +23,7 @@ pub(super) fn module_def_id_is_visible(
     mut defining_module: Option<ModuleId>,
     interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    dependencies: &[Dependency],
 ) -> bool {
     // First find out which module we need to check.
     // If a module is trying to be referenced, it's that module. Otherwise it's the module that contains the item.
@@ -57,12 +35,20 @@ pub(super) fn module_def_id_is_visible(
 
     // Then check if it's visible, and upwards
     while let Some(module_id) = target_module_id {
-        if !item_in_module_is_visible(module_id, current_module_id, visibility, def_maps) {
+        if !item_in_module_is_visible(def_maps, current_module_id, module_id, visibility) {
+            return false;
+        }
+
+        // If the target module isn't in the same crate as `module_id` or isn't in one of its
+        // dependencies, then it's not visible.
+        if module_id.krate != current_module_id.krate
+            && dependencies.iter().all(|dep| dep.crate_id != module_id.krate)
+        {
             return false;
         }
 
         target_module_id = std::mem::take(&mut defining_module).or_else(|| {
-            let module_data = &def_maps[&module_id.krate].modules()[module_id.local_id.0];
+            let module_data = &def_maps[&module_id.krate][module_id.local_id];
             let parent_local_id = module_data.parent;
             parent_local_id.map(|local_id| ModuleId { krate: module_id.krate, local_id })
         });

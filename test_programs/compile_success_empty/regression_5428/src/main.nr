@@ -1,3 +1,5 @@
+use std::append::Append;
+
 fn main() {
     assert_true!();
 }

@@ -1,7 +1,7 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::{debug_show::DebugToString, registers::RegisterAllocator, BrilligContext};
+use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// This function moves values from a set of registers to another set of registers.
@@ -47,6 +47,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let destinations_of_temp = movements_map.remove(first_source).unwrap();
             movements_map.insert(temp_register, destinations_of_temp);
         }
+
         // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
         // Now we should be able to move the registers just by performing a DFS on the movements map
         let heads: Vec<_> = movements_map
@@ -54,6 +55,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             .filter(|source| !destinations_set.contains(source))
             .copied()
             .collect();
+
         for head in heads {
             self.perform_movements(&movements_map, head);
         }
@@ -124,13 +126,16 @@ impl LoopDetector {
 #[cfg(test)]
 mod tests {
     use acvm::{
-        acir::brillig::{MemoryAddress, Opcode},
         FieldElement,
+        acir::brillig::{MemoryAddress, Opcode},
     };
     use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
     use crate::{
-        brillig::brillig_ir::{artifact::Label, registers::Stack, BrilligContext},
+        brillig::{
+            BrilligOptions,
+            brillig_ir::{BrilligContext, artifact::Label, registers::Stack},
+        },
         ssa::ir::function::FunctionId,
     };
 
@@ -202,7 +207,12 @@ mod tests {
     }
 
     pub(crate) fn create_context() -> BrilligContext<FieldElement, Stack> {
-        let mut context = BrilligContext::new(true);
+        let options = BrilligOptions {
+            enable_debug_trace: true,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+        };
+        let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context
     }

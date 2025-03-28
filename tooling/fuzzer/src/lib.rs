@@ -1,20 +1,20 @@
 //! This module has been adapted from Foundry's fuzzing implementation for the EVM.
-//! https://github.com/foundry-rs/foundry/blob/6a85dbaa62f1c305f31cab37781232913055ae28/crates/evm/evm/src/executors/fuzz/mod.rs#L40
+//! <https://github.com/foundry-rs/foundry/blob/6a85dbaa62f1c305f31cab37781232913055ae28/crates/evm/evm/src/executors/fuzz/mod.rs#L40>
 //!
 //! Code is used under the MIT license.
 
 use acvm::{
+    FieldElement,
     acir::{
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
-    FieldElement,
 };
 use dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
 
-mod dictionary;
+pub mod dictionary;
 mod strategies;
 mod types;
 
@@ -22,7 +22,7 @@ use types::{CaseOutcome, CounterExampleOutcome, FuzzOutcome, FuzzTestResult};
 
 use noirc_artifacts::program::ProgramArtifact;
 
-/// An executor for Noir programs which which provides fuzzing support using [`proptest`].
+/// An executor for Noir programs which provides fuzzing support using [`proptest`].
 ///
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
 /// inputs, until it finds a counterexample. The provided [`TestRunner`] contains all the
@@ -38,14 +38,14 @@ pub struct FuzzedExecutor<E> {
     runner: TestRunner,
 }
 
-impl<
-        E: Fn(
-            &Program<FieldElement>,
-            WitnessMap<FieldElement>,
-        ) -> Result<WitnessStack<FieldElement>, String>,
-    > FuzzedExecutor<E>
+impl<E> FuzzedExecutor<E>
+where
+    E: Fn(
+        &Program<FieldElement>,
+        WitnessMap<FieldElement>,
+    ) -> Result<WitnessStack<FieldElement>, String>,
 {
-    /// Instantiates a fuzzed executor given a testrunner
+    /// Instantiates a fuzzed executor given a [TestRunner].
     pub fn new(program: ProgramArtifact, executor: E, runner: TestRunner) -> Self {
         Self { program, executor, runner }
     }
@@ -53,7 +53,7 @@ impl<
     /// Fuzzes the provided program.
     pub fn fuzz(&self) -> FuzzTestResult {
         let dictionary = build_dictionary_from_program(&self.program.bytecode);
-        let strategy = strategies::arb_input_map(&self.program.abi, dictionary);
+        let strategy = strategies::arb_input_map(&self.program.abi, &dictionary);
 
         let run_result: Result<(), TestError<InputMap>> =
             self.runner.clone().run(&strategy, |input_map| {

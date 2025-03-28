@@ -1,4 +1,4 @@
-global N = 10;
+global N: u32 = 10;
 
 unconstrained fn main() {
     let mut arr = [0; N];

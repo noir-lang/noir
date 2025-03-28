@@ -1,7 +1,7 @@
 ---
 title: Using the REPL Debugger
 description:
-  Step by step guide on how to debug your Noir circuits with the REPL Debugger. 
+  Step-by-step guide on how to debug your Noir circuits with the REPL Debugger. 
 keywords:
   [
     Nargo,

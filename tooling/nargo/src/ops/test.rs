@@ -1,41 +1,55 @@
-use std::path::PathBuf;
-
 use acvm::{
-    acir::native_types::{WitnessMap, WitnessStack},
-    BlackBoxFunctionSolver, FieldElement,
+    AcirField, BlackBoxFunctionSolver, FieldElement,
+    acir::{
+        brillig::ForeignCallResult,
+        native_types::{WitnessMap, WitnessStack},
+    },
+    pwg::ForeignCallWaitInfo,
 };
 use noirc_abi::Abi;
-use noirc_driver::{compile_no_check, CompileError, CompileOptions};
-use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
-use noirc_frontend::hir::{def_map::TestFunction, Context};
+use noirc_driver::{CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH, compile_no_check};
+use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
+use noirc_frontend::hir::{Context, def_map::TestFunction};
 
-use crate::{errors::try_to_diagnose_runtime_error, NargoError};
+use crate::{
+    NargoError,
+    errors::try_to_diagnose_runtime_error,
+    foreign_calls::{
+        ForeignCallError, ForeignCallExecutor, layers,
+        print::PrintOutput,
+        transcript::{ForeignCallLog, LoggingForeignCallExecutor},
+    },
+};
 
-use super::{execute_program, DefaultForeignCallExecutor};
+use super::execute_program;
 
+#[derive(Debug)]
 pub enum TestStatus {
     Pass,
-    Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
-    CompileError(FileDiagnostic),
+    Fail { message: String, error_diagnostic: Option<CustomDiagnostic> },
+    Skipped,
+    CompileError(CustomDiagnostic),
 }
 
 impl TestStatus {
     pub fn failed(&self) -> bool {
-        !matches!(self, TestStatus::Pass)
+        !matches!(self, TestStatus::Pass | TestStatus::Skipped)
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
+pub fn run_test<'a, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    show_output: bool,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
+    output: PrintOutput<'a>,
     config: &CompileOptions,
-) -> TestStatus {
+    build_foreign_call_executor: F,
+) -> TestStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement>,
+    F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    E: ForeignCallExecutor<FieldElement>,
+{
     let test_function_has_no_arguments = context
         .def_interner
         .function_meta(&test_function.get_id())
@@ -45,70 +59,108 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
+            // Do the same optimizations as `compile_cmd`.
+            let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+            let compiled_program = crate::ops::transform_program(compiled_program, target_width);
+
             if test_function_has_no_arguments {
+                let ignore_foreign_call_failures =
+                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+                        .is_ok_and(|var| &var == "true");
+
+                let mut foreign_call_log = ForeignCallLog::from_env("NARGO_TEST_FOREIGN_CALL_LOG");
+
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
+                // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                let foreign_call_executor = build_foreign_call_executor(output, layers::Unhandled);
+                let foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
+                let mut foreign_call_executor = LoggingForeignCallExecutor::new(
+                    foreign_call_executor,
+                    foreign_call_log.print_output(),
+                );
+
                 let circuit_execution = execute_program(
                     &compiled_program.program,
                     WitnessMap::new(),
                     blackbox_solver,
-                    &mut DefaultForeignCallExecutor::new(
-                        show_output,
-                        foreign_call_resolver_url,
-                        root_path,
-                        package_name,
-                    ),
+                    &mut foreign_call_executor,
                 );
-                test_status_program_compile_pass(
+
+                let status = test_status_program_compile_pass(
                     test_function,
-                    compiled_program.abi,
-                    compiled_program.debug,
-                    circuit_execution,
-                )
-            } else {
-                #[cfg(target_arch = "wasm32")]
-                {
-                    // We currently don't support fuzz testing on wasm32 as the u128 strategies do not exist on this platform.
-                    TestStatus::Fail {
-                        message: "Fuzz tests are not supported on wasm32".to_string(),
-                        error_diagnostic: None,
-                    }
-                }
+                    &compiled_program.abi,
+                    &compiled_program.debug,
+                    &circuit_execution,
+                );
 
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    use acvm::acir::circuit::Program;
-                    use noir_fuzzer::FuzzedExecutor;
-                    use proptest::test_runner::TestRunner;
-                    let runner = TestRunner::default();
+                let foreign_call_executor = foreign_call_executor.executor;
+                foreign_call_log.write_log().expect("failed to write foreign call log");
 
-                    let executor =
-                        |program: &Program<FieldElement>,
-                         initial_witness: WitnessMap<FieldElement>|
-                         -> Result<WitnessStack<FieldElement>, String> {
-                            execute_program(
-                                program,
-                                initial_witness,
-                                blackbox_solver,
-                                &mut DefaultForeignCallExecutor::<FieldElement>::new(
-                                    false,
-                                    foreign_call_resolver_url,
-                                    root_path.clone(),
-                                    package_name.clone(),
-                                ),
-                            )
-                            .map_err(|err| err.to_string())
-                        };
-                    let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-
-                    let result = fuzzer.fuzz();
-                    if result.success {
-                        TestStatus::Pass
+                if let TestStatus::Fail { .. } = status {
+                    if ignore_foreign_call_failures
+                        && foreign_call_executor.encountered_unknown_foreign_call
+                    {
+                        TestStatus::Skipped
                     } else {
-                        TestStatus::Fail {
-                            message: result.reason.unwrap_or_default(),
-                            error_diagnostic: None,
-                        }
+                        status
+                    }
+                } else {
+                    status
+                }
+            } else {
+                use acvm::acir::circuit::Program;
+                use noir_fuzzer::FuzzedExecutor;
+                use proptest::test_runner::Config;
+                use proptest::test_runner::TestRunner;
+
+                let runner =
+                    TestRunner::new(Config { failure_persistence: None, ..Config::default() });
+
+                let abi = compiled_program.abi.clone();
+                let debug = compiled_program.debug.clone();
+
+                let executor = |program: &Program<FieldElement>,
+                                initial_witness: WitnessMap<FieldElement>|
+                 -> Result<WitnessStack<FieldElement>, String> {
+                    // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                    let inner_executor =
+                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+
+                    let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
+
+                    let circuit_execution = execute_program(
+                        program,
+                        initial_witness,
+                        blackbox_solver,
+                        &mut foreign_call_executor,
+                    );
+
+                    // Check if a failure was actually expected.
+                    let status = test_status_program_compile_pass(
+                        test_function,
+                        &abi,
+                        &debug,
+                        &circuit_execution,
+                    );
+
+                    if let TestStatus::Fail { message, error_diagnostic: _ } = status {
+                        Err(message)
+                    } else {
+                        // The fuzzer doesn't care about the actual result.
+                        Ok(WitnessStack::default())
+                    }
+                };
+
+                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+
+                let result = fuzzer.fuzz();
+                if result.success {
+                    TestStatus::Pass
+                } else {
+                    TestStatus::Fail {
+                        message: result.reason.unwrap_or_default(),
+                        error_diagnostic: None,
                     }
                 }
             }
@@ -138,9 +190,9 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
     test_function: &TestFunction,
-    abi: Abi,
-    debug: Vec<DebugInfo>,
-    circuit_execution: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
+    abi: &Abi,
+    debug: &[DebugInfo],
+    circuit_execution: &Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
@@ -160,7 +212,7 @@ fn test_status_program_compile_pass(
     // If we reach here, then the circuit execution failed.
     //
     // Check if the function should have passed
-    let diagnostic = try_to_diagnose_runtime_error(&circuit_execution_err, &abi, &debug);
+    let diagnostic = try_to_diagnose_runtime_error(circuit_execution_err, abi, debug);
     let test_should_have_passed = !test_function.should_fail();
     if test_should_have_passed {
         return TestStatus::Fail {
@@ -179,7 +231,7 @@ fn test_status_program_compile_pass(
 fn check_expected_failure_message(
     test_function: &TestFunction,
     failed_assertion: Option<String>,
-    error_diagnostic: Option<FileDiagnostic>,
+    error_diagnostic: Option<CustomDiagnostic>,
 ) -> TestStatus {
     // Extract the expected failure message, if there was one
     //
@@ -196,9 +248,7 @@ fn check_expected_failure_message(
     // expected_failure_message
     let expected_failure_message_matches = failed_assertion
         .as_ref()
-        .or_else(|| {
-            error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.diagnostic.message)
-        })
+        .or_else(|| error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.message))
         .map(|message| message.contains(expected_failure_message))
         .unwrap_or(false);
     if expected_failure_message_matches {
@@ -213,5 +263,40 @@ fn check_expected_failure_message(
             failed_assertion.unwrap_or_default().trim_matches('\'')
         ),
         error_diagnostic,
+    }
+}
+
+/// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
+pub(crate) struct TestForeignCallExecutor<E> {
+    executor: E,
+    encountered_unknown_foreign_call: bool,
+}
+
+impl<E> TestForeignCallExecutor<E> {
+    pub(crate) fn new(executor: E) -> Self {
+        Self { executor, encountered_unknown_foreign_call: false }
+    }
+}
+
+impl<E, F> ForeignCallExecutor<F> for TestForeignCallExecutor<E>
+where
+    F: AcirField,
+    E: ForeignCallExecutor<F>,
+{
+    fn execute(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        // If the circuit has reached a new foreign call opcode then it can't have failed from any previous unknown foreign calls.
+        self.encountered_unknown_foreign_call = false;
+        match self.executor.execute(foreign_call) {
+            Err(ForeignCallError::NoHandler(_)) => {
+                self.encountered_unknown_foreign_call = true;
+                // If the inner executor cannot handle this foreign call, then it's very likely that this is a custom
+                // foreign call. We then return an empty response in case the foreign call doesn't need return values.
+                layers::Empty.execute(foreign_call)
+            }
+            other => other,
+        }
     }
 }

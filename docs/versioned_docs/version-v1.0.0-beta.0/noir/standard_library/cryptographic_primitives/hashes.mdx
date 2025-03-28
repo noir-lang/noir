@@ -1,0 +1,227 @@
+---
+title: Hash methods
+description:
+  Learn about the cryptographic primitives ready to use for any Noir project, including sha256,
+  blake2s and pedersen
+keywords:
+  [cryptographic primitives, Noir project, sha256, blake2s, pedersen, hash]
+sidebar_position: 0
+---
+
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
+
+## sha256
+
+Given an array of bytes, returns the resulting sha256 hash.
+Specify a message_size to hash only the first `message_size` bytes of the input.
+
+```rust title="sha256" showLineNumbers 
+pub fn sha256<let N: u32>(input: [u8; N]) -> HASH
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/sha256.nr#L47-L49" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/sha256.nr#L47-L49</a></sub></sup>
+
+
+example:
+```rust title="sha256_var" showLineNumbers 
+let digest = std::hash::sha256_var([x as u8], 1);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/sha256/src/main.nr#L15-L17" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/sha256/src/main.nr#L15-L17</a></sub></sup>
+
+
+```rust
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::sha256::sha256_var(x, 4);
+}
+```
+
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## blake2s
+
+Given an array of bytes, returns an array with the Blake2 hash
+
+```rust title="blake2s" showLineNumbers 
+pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L18-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L18-L20</a></sub></sup>
+
+
+example:
+
+```rust
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::hash::blake2s(x);
+}
+```
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## blake3
+
+Given an array of bytes, returns an array with the Blake3 hash
+
+```rust title="blake3" showLineNumbers 
+pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L24-L26" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L24-L26</a></sub></sup>
+
+
+example:
+
+```rust
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::hash::blake3(x);
+}
+```
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## pedersen_hash
+
+Given an array of Fields, returns the Pedersen hash.
+
+```rust title="pedersen_hash" showLineNumbers 
+pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L49-L51" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L49-L51</a></sub></sup>
+
+
+example:
+
+```rust title="pedersen-hash" showLineNumbers 
+fn main(x: Field, y: Field, expected_hash: Field) {
+    let hash = std::hash::pedersen_hash([x, y]);
+    assert_eq(hash, expected_hash);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/pedersen_hash/src/main.nr#L1-L6" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/pedersen_hash/src/main.nr#L1-L6</a></sub></sup>
+
+
+<BlackBoxInfo to="../black_box_fns" />
+
+## pedersen_commitment
+
+Given an array of Fields, returns the Pedersen commitment.
+
+```rust title="pedersen_commitment" showLineNumbers 
+pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L29-L31</a></sub></sup>
+
+
+example:
+
+```rust title="pedersen-commitment" showLineNumbers 
+fn main(x: Field, y: Field, expected_commitment: std::embedded_curve_ops::EmbeddedCurvePoint) {
+    let commitment = std::hash::pedersen_commitment([x, y]);
+    assert_eq(commitment.x, expected_commitment.x);
+    assert_eq(commitment.y, expected_commitment.y);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/pedersen_commitment/src/main.nr#L1-L7" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/pedersen_commitment/src/main.nr#L1-L7</a></sub></sup>
+
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## keccak256
+
+Given an array of bytes (`u8`), returns the resulting keccak hash as an array of
+32 bytes (`[u8; 32]`). Specify a message_size to hash only the first
+`message_size` bytes of the input.
+
+```rust title="keccak256" showLineNumbers 
+pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L116-L118" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L116-L118</a></sub></sup>
+
+
+example:
+
+```rust title="keccak256" showLineNumbers 
+fn main(x: Field, result: [u8; 32]) {
+    // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Field
+    // The padding is taken care of by the program
+    let digest = std::hash::keccak256([x as u8], 1);
+    assert(digest == result);
+
+    //#1399: variable message size
+    let message_size = 4;
+    let hash_a = std::hash::keccak256([1, 2, 3, 4], message_size);
+    let hash_b = std::hash::keccak256([1, 2, 3, 4, 0, 0, 0, 0], message_size);
+
+    assert(hash_a == hash_b);
+
+    let message_size_big = 8;
+    let hash_c = std::hash::keccak256([1, 2, 3, 4, 0, 0, 0, 0], message_size_big);
+
+    assert(hash_a != hash_c);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/keccak256/src/main.nr#L1-L20" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/keccak256/src/main.nr#L1-L20</a></sub></sup>
+
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## poseidon
+
+Given an array of Fields, returns a new Field with the Poseidon Hash. Mind that you need to specify
+how many inputs are there to your Poseidon function.
+
+```rust
+// example for hash_1, hash_2 accepts an array of length 2, etc
+fn hash_1(input: [Field; 1]) -> Field
+```
+
+example:
+
+```rust title="poseidon" showLineNumbers 
+use std::hash::poseidon;
+
+fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field) {
+    let hash1 = poseidon::bn254::hash_2(x1);
+    assert(hash1 == y1);
+
+    let hash2 = poseidon::bn254::hash_4(x2);
+    assert(hash2 == y2);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/poseidon_bn254_hash/src/main.nr#L1-L11" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/poseidon_bn254_hash/src/main.nr#L1-L11</a></sub></sup>
+
+
+## poseidon 2
+
+Given an array of Fields, returns a new Field with the Poseidon2 Hash. Contrary to the Poseidon
+function, there is only one hash and you can specify a message_size to hash only the first 
+`message_size` bytes of the input,
+
+```rust
+// example for hashing the first three elements of the input
+Poseidon2::hash(input, 3);
+```
+
+example:
+
+```rust title="poseidon2" showLineNumbers 
+use std::hash::poseidon2;
+
+fn main(inputs: [Field; 4], expected_hash: Field) {
+    let hash = poseidon2::Poseidon2::hash(inputs, inputs.len());
+    assert_eq(hash, expected_hash);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/poseidon2/src/main.nr#L1-L8" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/poseidon2/src/main.nr#L1-L8</a></sub></sup>
+
+
+## hash_to_field
+
+```rust
+fn hash_to_field(_input : [Field]) -> Field {}
+```
+
+Calculates the `blake2s` hash of the inputs and returns the hash modulo the field modulus to return
+a value which can be represented as a `Field`.
+

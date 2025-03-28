@@ -96,7 +96,7 @@ impl UseSegmentPositions {
                     kind_string,
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
-                            segment.ident.span().start()..use_tree.span.end() - 1,
+                            segment.ident.span().start()..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -111,7 +111,7 @@ impl UseSegmentPositions {
             if !prefix.is_empty() {
                 prefix.push_str("::");
             };
-            prefix.push_str(&ident.0.contents);
+            prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {
                 self.insert_use_segment_position(
@@ -119,7 +119,7 @@ impl UseSegmentPositions {
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
                             use_tree.prefix.segments[index + 1].ident.span().start()
-                                ..use_tree.span.end() - 1,
+                                ..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -133,7 +133,7 @@ impl UseSegmentPositions {
                 if !prefix.is_empty() {
                     prefix.push_str("::");
                 }
-                prefix.push_str(&ident.0.contents);
+                prefix.push_str(ident.as_str());
 
                 if alias.is_none() {
                     self.insert_use_segment_position(
@@ -163,7 +163,7 @@ impl UseSegmentPositions {
                     prefix,
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
-                            ident.span().start()..use_tree.span.end() - 1,
+                            ident.span().start()..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -182,7 +182,7 @@ impl UseSegmentPositions {
                         prefix,
                         UseSegmentPosition::BeforeList {
                             first_entry_span: Span::from(
-                                use_tree.span.end() - 1..use_tree.span.end() - 1,
+                                use_tree.location.span.end() - 1..use_tree.location.span.end() - 1,
                             ),
                             list_is_empty: true,
                         },
@@ -193,10 +193,13 @@ impl UseSegmentPositions {
     }
 
     fn insert_use_segment_position(&mut self, segment: String, position: UseSegmentPosition) {
-        if self.use_segment_positions.get(&segment).is_none() {
-            self.use_segment_positions.insert(segment, position);
-        } else {
-            self.use_segment_positions.insert(segment, UseSegmentPosition::NoneOrMultiple);
+        match self.use_segment_positions.entry(segment) {
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(position);
+            }
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                e.insert(UseSegmentPosition::NoneOrMultiple);
+            }
         }
     }
 }
@@ -318,7 +321,7 @@ fn new_use_completion_item_additional_text_edits(
     request: UseCompletionItemAdditionTextEditsRequest,
 ) -> Vec<TextEdit> {
     let line = request.auto_import_line as u32;
-    let character = (request.nesting * 4) as u32;
+    let character = 0;
     let indent = " ".repeat(request.nesting * 4);
     let mut newlines = "\n";
 
@@ -331,6 +334,6 @@ fn new_use_completion_item_additional_text_edits(
 
     vec![TextEdit {
         range: Range { start: Position { line, character }, end: Position { line, character } },
-        new_text: format!("use {};{}{}", request.full_path, newlines, indent),
+        new_text: format!("{}use {};{}", indent, request.full_path, newlines),
     }]
 }

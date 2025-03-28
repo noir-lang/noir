@@ -1,6 +1,6 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
-use noirc_errors::{debug_info::DebugInfo, Location};
+use noirc_errors::{Location, debug_info::DebugInfo};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -177,7 +177,18 @@ impl<'a> Files<'a> for DebugArtifact {
     type Source = &'a str;
 
     fn name(&self, file_id: Self::FileId) -> Result<Self::Name, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).map(|file| file.path.clone().into())
+        let name = self.file_map.get(&file_id).ok_or(Error::FileMissing);
+        let name: Self::Name = name.map(|file| file.path.clone().into())?;
+
+        // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
+        if let Ok(current_dir) = std::env::current_dir() {
+            if let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
+            {
+                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
+            }
+        }
+
+        Ok(name)
     }
 
     fn source(&'a self, file_id: Self::FileId) -> Result<Self::Source, Error> {
@@ -204,12 +215,12 @@ mod tests {
     use crate::debug::DebugArtifact;
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::{Location, Span, debug_info::DebugInfo};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;
     use std::path::PathBuf;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     // Returns the absolute path to the file
     fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
@@ -260,6 +271,7 @@ mod tests {
 
         let debug_symbols = vec![DebugInfo::new(
             opcode_locations,
+            BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

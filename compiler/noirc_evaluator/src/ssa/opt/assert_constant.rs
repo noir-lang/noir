@@ -92,7 +92,7 @@ fn evaluate_assert_constant(
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else {
-        let call_stack = function.dfg.get_call_stack(instruction);
+        let call_stack = function.dfg.get_instruction_call_stack(instruction);
         Err(RuntimeError::AssertConstantFailed { call_stack })
     }
 }
@@ -113,16 +113,20 @@ fn evaluate_static_assert(
     }
 
     if !function.dfg.is_constant(arguments[1]) {
-        let call_stack = function.dfg.get_call_stack(instruction);
+        let call_stack = function.dfg.get_instruction_call_stack(instruction);
         return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
     }
 
     if function.dfg.is_constant_true(arguments[0]) {
         Ok(false)
     } else {
-        let call_stack = function.dfg.get_call_stack(instruction);
+        let call_stack = function.dfg.get_instruction_call_stack(instruction);
         if function.dfg.is_constant(arguments[0]) {
-            Err(RuntimeError::StaticAssertFailed { call_stack })
+            let message = function
+                .dfg
+                .get_string(arguments[1])
+                .expect("Expected second argument to be a string");
+            Err(RuntimeError::StaticAssertFailed { message, call_stack })
         } else {
             Err(RuntimeError::StaticAssertDynamicPredicate { call_stack })
         }

@@ -45,7 +45,7 @@ comptime {
 
 #include_code derive noir_stdlib/src/meta/mod.nr rust
 
-Attribute placed on struct definitions.
+Attribute placed on type definitions.
 
 Creates a trait impl for each trait passed in as an argument.
 To do this, the trait must have a derive handler registered
@@ -79,7 +79,7 @@ this to register their own functions to enable their traits
 to be derived by `derive`.
 
 Because this function requires a function as an argument which
-should produce a trait impl for any given struct, users may find
+should produce a trait impl for any given type definition, users may find
 it helpful to use a function like `std::meta::make_trait_impl` to
 help creating these impls.
 
@@ -90,7 +90,7 @@ trait DoNothing {
     fn do_nothing(self);
 }
 
-comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
+comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
     let typ = s.as_type();
     quote {
         impl DoNothing for $typ {
@@ -103,7 +103,7 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
 ```
 
 As another example, `derive_eq` in the stdlib is used to derive the `Eq`
-trait for any struct. It makes use of `make_trait_impl` to do this:
+trait for any type definition. It makes use of `make_trait_impl` to do this:
 
 #include_code derive_eq noir_stdlib/src/cmp.nr rust
 
@@ -122,13 +122,13 @@ Note that this function only works for traits which:
 If your trait fits these criteria then `make_trait_impl` is likely the easiest
 way to write your derive handler. The arguments are as follows:
 
-- `s`: The struct to make the impl for
+- `s`: The type definition to make the impl for
 - `trait_name`: The name of the trait to derive. E.g. `quote { Eq }`.
 - `function_signature`: The signature of the trait method to derive. E.g. `fn eq(self, other: Self) -> bool`.
 - `for_each_field`: An operation to be performed on each field. E.g. `|name| quote { (self.$name == other.$name) }`.
 - `join_fields_with`: A separator to join each result of `for_each_field` with.
   E.g. `quote { & }`. You can also use an empty `quote {}` for no separator.
-- `body`: The result of the field operations are passed into this function for any final processing.
+- `body`: The result of the field operations is passed into this function for any final processing.
   This is the place to insert any setup/teardown code the trait requires. If the trait doesn't require
   any such code, you can return the body as-is: `|body| body`.
 

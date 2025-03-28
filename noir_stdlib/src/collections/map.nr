@@ -7,8 +7,8 @@ use crate::option::Option;
 // We use load factor alpha_max = 0.75.
 // Upon exceeding it, assert will fail in order to inform the user
 // about performance degradation, so that he can adjust the capacity.
-global MAX_LOAD_FACTOR_NUMERATOR = 3;
-global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
+global MAX_LOAD_FACTOR_NUMERATOR: u32 = 3;
+global MAX_LOAD_FACTOR_DEN0MINATOR: u32 = 4;
 
 /// `HashMap<Key, Value, MaxLen, Hasher>` is used to efficiently store and look up key-value pairs.
 ///
@@ -201,7 +201,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {entries.len()}.";
+        let self_len = self._len;
+        let entries_len = entries.len();
+        let msg =
+            f"Amount of valid elements should have been {self_len} times, but got {entries_len}.";
         assert(entries.len() == self._len, msg);
 
         entries
@@ -236,8 +239,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
             }
         }
 
+        let self_len = self._len;
+        let keys_len = keys.len();
         let msg =
-            f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
+            f"Amount of valid elements should have been {self_len} times, but got {keys_len}.";
         assert(keys.len() == self._len, msg);
 
         keys
@@ -266,13 +271,15 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
         for slot in self._table {
             if slot.is_valid() {
-                let (_, value) = unsafe { slot.key_value_unchecked() };
+                let (_, value) = slot.key_value_unchecked();
                 values.push(value);
             }
         }
 
+        let self_len = self._len;
+        let values_len = values.len();
         let msg =
-            f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
+            f"Amount of valid elements should have been {self_len} times, but got {values_len}.";
         assert(values.len() == self._len, msg);
 
         values

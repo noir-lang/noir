@@ -77,16 +77,14 @@ use lib_a;
 You can also import only the specific parts of dependency that you want to use, like so:
 
 ```rust
-use std::hash::sha256;
+use std::hash::blake3;
 use std::scalar_mul::fixed_base_embedded_curve;
 ```
 
-Lastly, as demonstrated in the
-[elliptic curve example](../standard_library/cryptographic_primitives/ec_primitives.md#examples), you
-can import multiple items in the same line by enclosing them in curly braces:
+Lastly, You can import multiple items in the same line by enclosing them in curly braces:
 
 ```rust
-use std::ec::tecurve::affine::{Curve, Point};
+use std::hash::{blake2s, blake3};
 ```
 
 We don't have a way to consume libraries from inside a [workspace](./workspaces.md) as external dependencies right now.

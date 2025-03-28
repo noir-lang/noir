@@ -13,9 +13,11 @@ The easiest way to develop with Noir is using Nargo the CLI tool. It provides yo
 You can use `noirup` the installation script to quickly install and update Nargo:
 
 ```bash
-curl -L noirup.dev | bash
+curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash
 noirup
 ```
+
+Once installed, you can [set up shell completions for the `nargo` command](setting_up_shell_completions).
 
 ### Proving backend
 
@@ -30,7 +32,7 @@ You can use the `bbup` installation script to quickly install and update BB, Bar
 You can find the full list of proving backends compatible with Noir in Awesome Noir.
 
 ```bash
-curl -L bbup.dev | bash
+curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/master/barretenberg/bbup/install | bash
 bbup
 ```
 
@@ -66,6 +68,7 @@ We can now use `nargo` to generate a _Prover.toml_ file, where our input values 
 ```sh
 cd hello_world
 nargo check
+```
 
 Let's feed some valid values into this file:
 
@@ -87,37 +90,28 @@ The command also automatically compiles your Noir program if it was not already 
 With circuit compiled and witness generated, we're ready to prove.
 
 ## Proving backend
- 
+
 Different proving backends may provide different tools and commands to work with Noir programs. Here Barretenberg's `bb` CLI tool is used as an example:
 
 ```sh
-bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target/proof
+bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target
 ```
 
 :::tip
 
-Naming can be confusing, specially as you pass them to the `bb` commands. If unsure, it won't hurt to delete the target folder and start anew to make sure you're using the most recent versions of the compiled circuit and witness.
+Naming can be confusing, specially as you pass them to the `bb` commands. If unsure, it won't hurt to delete the target folder and start fresh to make sure you're using the most recent versions of the compiled circuit and witness.
 
 :::
 
 The proof is now generated in the `target` folder. To verify it we first need to compute the verification key from the compiled circuit, and use it to verify:
 
 ```sh
-bb write_vk -b ./target/hello_world.json -o ./target/vk
+# Generate the verification key and save to ./target/vk
+bb write_vk -b ./target/hello_world.json -o ./target
+
+# Verify the proof
 bb verify -k ./target/vk -p ./target/proof
 ```
-
-:::info
-
-Notice that in order to verify a proof, the verifier knows nothing but the circuit, which is compiled and used to generate the verification key. This is obviously quite important: private inputs remain private.
-
-As for the public inputs, you may have noticed they haven't been specified. This behavior varies with each particular backend, but barretenberg typically attaches them to the proof. You can see them by parsing and splitting it. For example for if your public inputs are 32 bytes:
-
-```bash
-head -c 32 ./target/proof | od -An -v -t x1 | tr -d $' \n'
-```
-
-:::
 
 Congratulations, you have now created and verified a proof for your very first Noir program!
 

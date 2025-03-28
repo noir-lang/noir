@@ -1,12 +1,12 @@
-#![forbid(unsafe_code)]
+#![cfg_attr(not(test), forbid(unsafe_code))] // `std::env::set_var` is used in tests.
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-// Arbitrary Circuit Intermediate Representation
-
+#[doc = include_str!("../README.md")]
 pub mod circuit;
 pub mod native_types;
+mod proto;
 
 pub use acir_field;
 pub use acir_field::{AcirField, FieldElement};
@@ -41,11 +41,10 @@ mod reflection {
 
     use crate::{
         circuit::{
-            brillig::{BrilligInputs, BrilligOutputs},
-            directives::Directive,
-            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
+            brillig::{BrilligInputs, BrilligOutputs},
+            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
         },
         native_types::{Witness, WitnessMap, WitnessStack},
     };
@@ -77,7 +76,6 @@ mod reflection {
         tracer.trace_simple_type::<BrilligOpcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BinaryIntOp>().unwrap();
         tracer.trace_simple_type::<BlackBoxOp>().unwrap();
-        tracer.trace_simple_type::<Directive<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ValueOrArray>().unwrap();
         tracer.trace_simple_type::<HeapValueType>().unwrap();
         tracer.trace_simple_type::<AssertionPayload<FieldElement>>().unwrap();

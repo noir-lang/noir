@@ -1,10 +1,10 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::{collections::BTreeSet, time::Duration};
 
 use acir::{
+    FieldElement,
     circuit::{Circuit, ExpressionWidth, Opcode, Program, PublicInputs},
     native_types::{Expression, Witness},
-    FieldElement,
 };
 
 use pprof::criterion::{Output, PProfProfiler};
@@ -38,7 +38,6 @@ fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
             public_parameters: PublicInputs(BTreeSet::from([Witness(5)])),
             return_values: PublicInputs(BTreeSet::from([Witness(6)])),
             assert_messages: Vec::new(),
-            recursive: false,
         }],
         unconstrained_functions: Vec::new(),
     }

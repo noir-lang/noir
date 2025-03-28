@@ -24,7 +24,7 @@ mod yet_another_module {
 #[outer_attribute_separate_module]
 mod separate_module;
 
-comptime mut global counter = 0;
+comptime mut global counter: u32 = 0;
 
 comptime fn increment_counter() {
     counter += 1;

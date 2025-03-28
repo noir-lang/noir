@@ -1,17 +1,20 @@
-use std::fmt::Display;
+use std::{collections::BTreeMap, fmt::Display};
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
-use crate::hir_def::function::FunctionSignature;
+use crate::shared::Visibility;
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
+    ast::{BinaryOpKind, IntegerBitSize},
+    hir_def::expr::Constructor,
+    shared::Signedness,
+    signed_field::SignedField,
     token::{Attributes, FunctionAttribute},
 };
+use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -36,7 +39,10 @@ pub enum Expression {
     Index(Index),
     Cast(Cast),
     For(For),
+    Loop(Box<Expression>),
+    While(While),
     If(If),
+    Match(Match),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
@@ -48,11 +54,18 @@ pub enum Expression {
     Continue,
 }
 
+impl Expression {
+    pub fn is_array_or_slice_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
+}
+
 /// A definition is either a local (variable), function, or is a built-in
 /// function that will be generated or referenced by the compiler later.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Definition {
     Local(LocalId),
+    Global(GlobalId),
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
@@ -64,6 +77,10 @@ pub enum Definition {
 /// function parameter that should be compiled before it is referenced.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
+
+/// A function ID corresponds directly to an index of `Program::globals`
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct GlobalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -99,14 +116,20 @@ pub struct For {
 }
 
 #[derive(Debug, Clone, Hash)]
+pub struct While {
+    pub condition: Box<Expression>,
+    pub body: Box<Expression>,
+}
+
+#[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
-    Integer(FieldElement, /*sign*/ bool, Type, Location), // false for positive integer and true for negative
+    Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(String, u64, Box<Expression>),
+    FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -139,6 +162,21 @@ pub struct If {
     pub consequence: Box<Expression>,
     pub alternative: Option<Box<Expression>>,
     pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct Match {
+    pub variable_to_match: LocalId,
+    pub cases: Vec<MatchCase>,
+    pub default_case: Option<Box<Expression>>,
+    pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct MatchCase {
+    pub constructor: Constructor,
+    pub arguments: Vec<LocalId>,
+    pub branch: Expression,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -216,7 +254,9 @@ pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
+#[derive(
+    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -237,13 +277,11 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function.as_ref().map_or(InlineType::default(), |func_attribute| {
-            match func_attribute {
-                FunctionAttribute::Fold => InlineType::Fold,
-                FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-                FunctionAttribute::InlineAlways => InlineType::InlineAlways,
-                _ => InlineType::default(),
-            }
+        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
+            FunctionAttribute::Fold => InlineType::Fold,
+            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
+            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+            _ => InlineType::default(),
         })
     }
 }
@@ -318,15 +356,14 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Default)]
 pub struct Program {
     pub functions: Vec<Function>,
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    /// Indicates to a backend whether a SNARK-friendly prover should be used.
-    pub recursive: bool,
+    pub globals: BTreeMap<GlobalId, Expression>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -340,7 +377,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        recursive: bool,
+        globals: BTreeMap<GlobalId, Expression>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -351,7 +388,7 @@ impl Program {
             main_function_signature,
             return_location,
             return_visibility,
-            recursive,
+            globals,
             debug_variables,
             debug_functions,
             debug_types,
@@ -367,6 +404,13 @@ impl Program {
     }
 
     pub fn main_id() -> FuncId {
+        FuncId(0)
+    }
+
+    /// Globals are expected to be generated within a different context than
+    /// all other functions in the program. Thus, the globals space has the same
+    /// ID as `main`, although we should never expect a clash in these IDs.
+    pub fn global_space_id() -> FuncId {
         FuncId(0)
     }
 

@@ -28,7 +28,6 @@ export class Package {
   #packagePath: string;
   #srcPath: string;
   #config: PackageConfig;
-  #version: string | null = null;
 
   public constructor(path: string, srcDir: string, config: PackageConfig) {
     this.#packagePath = path;

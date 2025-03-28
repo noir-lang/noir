@@ -2,23 +2,24 @@
 //! instructions such that they cover the minimum number of instructions possible.
 //!
 //! The pass works as follows:
-//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this [InstructionId].
+//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this [InstructionId][crate::ssa::ir::instruction::InstructionId].
 //! - Continue inserting instructions until either
-//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous [InstructionId] in favour
+//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous [InstructionId][crate::ssa::ir::instruction::InstructionId] in favour
 //!       of this one.
 //!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffectsIf]
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
+//!
 use std::collections::HashSet;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
-        instruction::{BinaryOp, Instruction, Intrinsic},
-        types::Type,
+        instruction::{BinaryOp, Hint, Instruction, Intrinsic},
+        types::NumericType,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -70,7 +71,8 @@ impl Context {
     ) {
         let instructions = function.dfg[block].take_instructions();
 
-        let mut active_condition = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
         let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());
@@ -91,7 +93,7 @@ impl Context {
                 let condition_is_one = function
                     .dfg
                     .get_numeric_constant(*condition)
-                    .map_or(false, |condition| condition.is_one());
+                    .is_some_and(|condition| condition.is_one());
                 if condition_is_one {
                     new_instructions.push(instruction_id);
                     last_side_effects_enabled_instruction = None;
@@ -125,7 +127,7 @@ impl Context {
         use Instruction::*;
         match instruction {
             Binary(binary) => match binary.operator {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => {
+                BinaryOp::Add { .. } | BinaryOp::Sub { .. } | BinaryOp::Mul { .. } => {
                     dfg.type_of_value(binary.lhs).is_unsigned()
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
@@ -142,10 +144,13 @@ impl Context {
             | Not(_)
             | Truncate { .. }
             | Constrain(..)
+            | ConstrainNotEqual(..)
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. } => false,
+            | DecrementRc { .. }
+            | Noop
+            | MakeArray { .. } => false,
 
             EnableSideEffectsIf { .. }
             | ArrayGet { .. }
@@ -173,12 +178,14 @@ impl Context {
                     | Intrinsic::ToBits(_)
                     | Intrinsic::ToRadix(_)
                     | Intrinsic::BlackBox(_)
-                    | Intrinsic::FromField
-                    | Intrinsic::AsField
+                    | Intrinsic::Hint(Hint::BlackBox)
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators => false,
+                    | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::ArrayRefCount
+                    | Intrinsic::SliceRefCount
+                    | Intrinsic::FieldLessThan => false,
                 },
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
@@ -198,7 +205,7 @@ mod test {
         ir::{
             instruction::{BinaryOp, Instruction},
             map::Id,
-            types::Type,
+            types::{NumericType, Type},
         },
     };
 
@@ -229,18 +236,18 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
 
-        let one = builder.numeric_constant(1u128, Type::bool());
+        let one = builder.numeric_constant(1u128, NumericType::bool());
 
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
 
         let ssa = builder.finish();
@@ -270,7 +277,10 @@ mod test {
 
         assert_eq!(instructions.len(), 4);
         for instruction in instructions.iter().take(4) {
-            assert_eq!(&main.dfg[*instruction], &Instruction::binary(BinaryOp::Mul, v0, two));
+            assert_eq!(
+                &main.dfg[*instruction],
+                &Instruction::binary(BinaryOp::Mul { unchecked: false }, v0, two)
+            );
         }
     }
 }

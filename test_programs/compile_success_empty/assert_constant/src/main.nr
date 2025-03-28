@@ -1,13 +1,13 @@
 use std::static_assert;
 
-global GLOBAL_ONE = 1;
-global GLOBAL_TWO = 2;
-global GLOBAL_THREE = GLOBAL_ONE + GLOBAL_TWO;
+global GLOBAL_ONE: Field = 1;
+global GLOBAL_TWO: Field = 2;
+global GLOBAL_THREE: Field = GLOBAL_ONE + GLOBAL_TWO;
 
 // contents known at compile time
 // length known at compile time
-global GLOBAL_ARRAY_PAIR = [GLOBAL_ONE, GLOBAL_TWO];
-global GLOBAL_SLICE_PAIR = &[GLOBAL_ONE, GLOBAL_TWO];
+global GLOBAL_ARRAY_PAIR: [Field; 2] = [GLOBAL_ONE, GLOBAL_TWO];
+global GLOBAL_SLICE_PAIR: [Field] = &[GLOBAL_ONE, GLOBAL_TWO];
 
 struct Foo {
     field: Field,

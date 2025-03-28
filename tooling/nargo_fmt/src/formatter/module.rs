@@ -1,14 +1,12 @@
 use noirc_frontend::{
-    ast::ModuleDeclaration, parser::ParsedSubModule, token::Keyword, ParsedModule,
+    ParsedModule, ast::ModuleDeclaration, parser::ParsedSubModule, token::Keyword,
 };
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_module_declaration(&mut self, module_declaration: ModuleDeclaration) {
-        if !module_declaration.outer_attributes.is_empty() {
-            self.format_attributes();
-        }
+        self.format_secondary_attributes(module_declaration.outer_attributes);
         self.write_indentation();
         self.format_item_visibility(module_declaration.visibility);
         self.write_keyword(Keyword::Mod);
@@ -18,9 +16,7 @@ impl<'a> Formatter<'a> {
     }
 
     pub(super) fn format_submodule(&mut self, submodule: ParsedSubModule) {
-        if !submodule.outer_attributes.is_empty() {
-            self.format_attributes();
-        }
+        self.format_secondary_attributes(submodule.outer_attributes);
         self.write_indentation();
         self.format_item_visibility(submodule.visibility);
         if submodule.is_contract {
@@ -51,7 +47,7 @@ fn parsed_module_is_empty(parsed_module: &ParsedModule) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_config, Config};
+    use crate::{Config, assert_format, assert_format_with_config};
 
     #[test]
     fn format_module_declaration() {
