@@ -87,5 +87,5 @@ fn double_generic_alias_in_path() {
         let _ = FooAlias2::new();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
