@@ -84,12 +84,12 @@ The decision to have Brillig operate over finite fields simplifies SNARK proving
 
 Bytecode Structure and Function
 ---
-Brillig bytecode acts as an alternate compilation target for a domain specific circuit language. It will be explored in more detail in another section of this document. The bytecode is available both standalone and as part of ACIR in the form of the Brillig opcode. Because the bytecode is designed to be operated by virtual machines, physical registers are meaningless and as a result, it
+Brillig bytecode acts as an alternate compilation target for a domain specific circuit language. The bytecode is available standalone and can be invoked from an ACIR program. Because the bytecode is designed to be operated by virtual machines, physical registers are meaningless and as a result, it
 primarily operates with dedicated memory access operations. For convenience, virtual registers, representing a simple value, are emulated using memory. The bytecode supports conditional jumps, a lightweight callstack, and can access a flat memory array of field element cells, thereby fulfilling the core requirements of a low-level VM.
 
 Interfacing with Provers
 ---
-During execution, when a backend integrated with ACVM encounters the Brillig opcode, it is expected to trust the outputs of the opcode. In the ACIR context, the Brillig opcode is intended for unconstrained functions, hence the assumption of not needing to prove execution. However, the Brillig opcode might be processed by a prover backend for reasons outlined in the "Attributing incorrectness" section. The specifics of this interaction reflect the inherent trust requirements and complexity of operating within a blockchain environment. In this case, a zkVM approach would be needed to prove execution.
+During execution, when a backend integrated with ACVM calls a Brillig function, it is expected to trust the outputs of the opcode. In the ACIR context, Brillig bytecode is intended for unconstrained functions, hence the assumption of not needing to prove execution. However, the bytecode might be processed by a prover backend for reasons outlined in the "Attributing incorrectness" section. The specifics of this interaction reflect the inherent trust requirements and complexity of operating within a blockchain environment. In this case, a zkVM approach would be needed to prove execution.
 
 Execution Model
 ---
@@ -107,7 +107,7 @@ If the VM reaches a foreign call instruction it will first fetch the call's inpu
 
 Error and Exception Handling
 ---
-Failed asserts, represented by the TRAP opcode, during the execution of an unconstrained function, result in an error in the Brillig opcode, accompanied by data detailing the failure. In a hedged trust blockchain environment, a prover might still want to generate a 'valid' proof of an error result so that incorrectness can be correctly attributed. This emphasizes the importance of handling errors and exceptions within the context of a blockchain-based VM.
+Failed asserts, represented by the TRAP opcode, during the execution of an unconstrained function, result in an error in Brillig bytecode, accompanied by data detailing the failure. In a hedged trust blockchain environment, a prover might still want to generate a 'valid' proof of an error result so that incorrectness can be correctly attributed. This emphasizes the importance of handling errors and exceptions within the context of a blockchain-based VM.
 
 Conclusion
 ---
@@ -240,11 +240,11 @@ Runtime
 In a Noir program, you can have normal functions, which will be compiled into ACIR, but also unconstrained functions, which will be compiled into Brillig bytecode.
 The functions have a 'runtime' which specifies whether they are unconstrained or not. Because it is possible to call a normal function from an unconstrained one, and because this call is expected to be unconstrained, functions that are called within the two runtime environments are duplicated under the hood by the monomorphization pass into two different functions, one for each runtime.
 
-The optimizations performed by the various SSA passes will be specialized for each function's runtime. In particular inlining and unrolling will be much less aggressive for brillig runtime in order to minimize the bytecode size.
+The optimizations performed by the various SSA passes will be specialized for each function's runtime. In particular inlining and unrolling will be much less aggressive for Brillig runtime in order to minimize the bytecode size.
 
 Bytecode
 ---
-After the SSA passes, the generation of the bytecode for a brillig function is done in a standard way by converting each SSA instruction into its equivalent brillig operations. Arrays are mapped to the Brillig memory, SSA virtual registers are translated into memory addresses, and the CFG into jumps and conditional jumps over the bytecode.
+After the SSA passes, the generation of the bytecode for a Brillig function is done in a standard way by converting each SSA instruction into its equivalent Brillig operations. Arrays are mapped to the Brillig memory, SSA virtual registers are translated into memory addresses, and the CFG into jumps and conditional jumps over the bytecode.
 A specific handling for global variables allocates them in a special section of the Brillig memory, for each entry point function. Constants shared across functions can also be hoisted to the global memory.
 A liveness analysis is performed in order to re-use as much as possible the Brillig memory and limit its growth.
 Finally, the Brillig bytecode as well as the ACIR opcodes of the main function are serialized into a Noir compilation artifact.
@@ -256,5 +256,5 @@ Calling an unconstrained function from a (normal) function becomes a call opcode
 
 Blockchain
 ---
-Another use case for Brillig bytecode is for public execution of a smart contract in a blockchain environment. In that case, the public function has Brillig runtime and is compiled into Brillig bytecode. This bytecode can then be executed by a dedicated zkVM, which results into a new state of the blockchain along with a proof that this state is the result of applying the public function.
+Another use case for Brillig bytecode is for public execution of a smart contract in a blockchain environment. In that case, the public function has a Brillig runtime and is compiled into Brillig bytecode. This bytecode can then be executed by a dedicated zkVM, which results into a new state of the blockchain along with a proof that this state is the result of applying the public function.
 The blockchain can now be updated upon proof verification by the blockchain nodes.
