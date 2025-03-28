@@ -446,6 +446,30 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_complete_type_path_for_nameless_type() {
+        let src = r#"
+          trait One {
+              fn some_method() -> Self;
+          }
+
+          impl One for () {
+              fn some_method() -> Self {
+                  1
+              }
+          }
+
+          fn main() {
+            <()>::some_meth>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![function_completion_item("some_method()", "some_method()", "fn()")],
+        )
+        .await;
+    }
+
+    #[test]
     async fn test_complete_function_without_arguments() {
         let src = r#"
           fn hello() { }

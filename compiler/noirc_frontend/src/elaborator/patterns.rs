@@ -877,6 +877,8 @@ impl Elaborator<'_> {
         let typ = self.resolve_type(path.typ);
         let check_self_param = false;
 
+        self.interner.push_type_ref_location(&typ, object_location);
+
         let Some(method) = self.lookup_method(
             &typ,
             path.item.as_str(),

@@ -15,15 +15,14 @@ use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    DataType, Kind, ParsedModule, Type, TypeBinding,
+    DataType, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
-        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
-        UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
+        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
+        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
+        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -35,7 +34,6 @@ use noirc_frontend::{
     hir_def::traits::Trait,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
-    shared::Signedness,
     token::{MetaAttribute, Token, Tokens},
 };
 use sort_text::underscore_sort_text;
@@ -1802,35 +1800,19 @@ impl Visitor for NodeFinder<'_> {
             return true;
         }
 
-        let typ = match &type_path.typ.typ {
-            UnresolvedTypeData::FieldElement => Some(Type::FieldElement),
-            UnresolvedTypeData::Integer(signedness, integer_bit_size) => {
-                Some(Type::Integer(*signedness, *integer_bit_size))
-            }
-            UnresolvedTypeData::Bool => Some(Type::Bool),
-            UnresolvedTypeData::String(UnresolvedTypeExpression::Constant(value, _)) => {
-                Some(Type::String(Box::new(Type::Constant(
-                    *value,
-                    Kind::Numeric(Box::new(Type::Integer(
-                        Signedness::Unsigned,
-                        IntegerBitSize::ThirtyTwo,
-                    ))),
-                ))))
-            }
-            UnresolvedTypeData::Quoted(quoted_type) => Some(Type::Quoted(*quoted_type)),
-            _ => None,
+        let location = type_path.typ.location;
+        let Some(typ) = self.interner.try_type_ref_at_location(location) else {
+            return true;
         };
 
-        if let Some(typ) = typ {
-            let prefix = type_path.item.as_str();
-            self.complete_type_methods(
-                &typ,
-                prefix,
-                FunctionKind::Any,
-                FunctionCompletionKind::NameAndParameters,
-                false, // self_prefix
-            );
-        }
+        let prefix = type_path.item.as_str();
+        self.complete_type_methods(
+            &typ,
+            prefix,
+            FunctionKind::Any,
+            FunctionCompletionKind::NameAndParameters,
+            false, // self_prefix
+        );
 
         false
     }

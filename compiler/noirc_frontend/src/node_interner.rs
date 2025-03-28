@@ -876,8 +876,12 @@ impl NodeInterner {
     }
 
     /// Store [Location] of [Type] reference
-    pub fn push_type_ref_location(&mut self, typ: Type, location: Location) {
-        self.type_ref_locations.push((typ, location));
+    pub fn push_type_ref_location(&mut self, typ: &Type, location: Location) {
+        if !self.is_in_lsp_mode() {
+            return;
+        }
+
+        self.type_ref_locations.push((typ.clone(), location));
     }
 
     #[allow(clippy::too_many_arguments)]
