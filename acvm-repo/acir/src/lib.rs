@@ -232,51 +232,51 @@ mod reflection {
             // Based on https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L75
             // Using a `struct Helpers` with `static` methods, because top level functions turn up as duplicates in `wasm-ld`.
             let helpers = r#"
-struct Helpers {
-    static std::map<std::string, msgpack::object const*> make_kvmap(
-        msgpack::object const& o,
-        std::string name
-    ) {
-        if(o.type != msgpack::type::MAP) {
-            std::cerr << o << std::endl;
-            throw_or_abort("expected MAP for " + name);
-        }
-        std::map<std::string, msgpack::object const*> kvmap;
-        for (uint32_t i = 0; i < o.via.map.size; ++i) {
-            if (o.via.map.ptr[i].key.type != msgpack::type::STR) {
+    struct Helpers {
+        static std::map<std::string, msgpack::object const*> make_kvmap(
+            msgpack::object const& o,
+            std::string const& name
+        ) {
+            if(o.type != msgpack::type::MAP) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected STR for keys of " + name);
+                throw_or_abort("expected MAP for " + name);
             }
-            kvmap.emplace(
-                std::string(
-                    o.via.map.ptr[i].key.via.str.ptr,
-                    o.via.map.ptr[i].key.via.str.size),
-                &o.via.map.ptr[i].val);
-        }
-        return kvmap;
-    }
-
-    template<typename T>
-    static void conv_fld_from_kvmap(
-        std::map<std::string, msgpack::object const*> const& kvmap,
-        std::string struct_name,
-        std::string field_name,
-        T& field
-    ) {
-        auto it = kvmap.find(field_name);
-        if (it != kvmap.end()) {
-            try {
-                it->second->convert(field);
-            } catch (const msgpack::type_error&) {
-                std::cerr << *it->second << std::endl;
-                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+            std::map<std::string, msgpack::object const*> kvmap;
+            for (uint32_t i = 0; i < o.via.map.size; ++i) {
+                if (o.via.map.ptr[i].key.type != msgpack::type::STR) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("expected STR for keys of " + name);
+                }
+                kvmap.emplace(
+                    std::string(
+                        o.via.map.ptr[i].key.via.str.ptr,
+                        o.via.map.ptr[i].key.via.str.size),
+                    &o.via.map.ptr[i].val);
             }
-        } else {
-            throw_or_abort("missing field: " + struct_name + "::" + field_name);
+            return kvmap;
         }
-    }
-};
-"#;
+        template<typename T>
+        static void conv_fld_from_kvmap(
+            std::map<std::string, msgpack::object const*> const& kvmap,
+            std::string const& struct_name,
+            std::string const& field_name,
+            T& field,
+            bool is_optional
+        ) {
+            auto it = kvmap.find(field_name);
+            if (it != kvmap.end()) {
+                try {
+                    it->second->convert(field);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << *it->second << std::endl;
+                    throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+                }
+            } else if (!is_optional) {
+                throw_or_abort("missing field: " + struct_name + "::" + field_name);
+            }
+        }
+    };
+    "#;
             let pos = source.find(&format!("namespace {namespace}")).expect("namespace");
             source.insert_str(pos, &format!("namespace {namespace} {{{helpers}}}\n\n"));
         }
@@ -333,8 +333,11 @@ struct Helpers {
 
         /// Regular structs pack into a map.
         fn generate_struct(&mut self, name: &str, fields: &[Named<Format>]) {
-            // We can use the `MSGPACK_FIELDS` macro with the following:
+            // We could use the `MSGPACK_FIELDS` macro with the following:
             // self.msgpack_fields(name, fields.iter().map(|f| f.name.clone()));
+            // Unfortunately it doesn't seem to deal with missing optional fields,
+            // which would mean we can't delete fields even if they were optional:
+            // https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L33-L45
 
             // Or we can generate code for individual fields, which relies on
             // the `add_helpers` to add some utility functions. This way the
@@ -369,9 +372,10 @@ struct Helpers {
                 );
                 for field in fields {
                     let field_name = &field.name;
+                    let is_optional = matches!(field.value, Format::Option(_));
                     body.push_str(&format!(
                         r#"
-    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name});"#
+    Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
                     ));
                 }
                 body
