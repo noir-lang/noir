@@ -134,7 +134,8 @@ fn recur_on_parameter<'typ>(
 
         Type::Array(_, element_type) | Type::Slice(element_type) => {
             seen_array_types.insert(parameter_type);
-            recur_on_parameter(parameter, &element_type, seen_array_types, new_clones);
+            // Don't clone inside arrays, but still look for more array types
+            recur_on_parameter(None, element_type, seen_array_types, new_clones);
         }
         Type::String(_) | Type::FmtString(..) => {
             seen_array_types.insert(parameter_type);
