@@ -109,10 +109,12 @@ fn regression_7297() {
         );
         assert_eq(refcount_1, 1, "borrow_mut_two should create a fresh array with an RC of 1");
         // XXX: This assertion is here to demonstrate that this is happening, not because it must be like this
+        println(refcount_2);
+        println(refcount_1);
+
         assert_eq(
             refcount_2,
-            refcount_1 + 1,
-            "not ideal, but original RC permanently increased by copy_mut",
+            refcount_1,
         );
     }
 }

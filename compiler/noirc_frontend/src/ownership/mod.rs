@@ -163,15 +163,8 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<(String, Type, Expres
         // (by-value) Mutable parameters are always cloned. Otherwise, we have to recur on the type
         // to find a duplicate array types behind mutable references.
         let parameter = if *mutable {
-            let expr = Expression::Unary(Unary {
-                operator: UnaryOp::Dereference { implicitly_added: true },
-                rhs: Box::new(parameter),
-                result_type: parameter_type.clone(),
-                location: Location::dummy(), // TODO
-            });
-
             let name = name.clone();
-            new_bindings.push((name, parameter_type.clone(), expr));
+            new_bindings.push((name, parameter_type.clone(), parameter));
             // disable cloning in recur_on_parameter, we already cloned
             None
         } else {
