@@ -103,7 +103,8 @@ enum MethodLookupResult {
 }
 
 /// Determines whether datatypes found along a path are to be marked as referenced
-/// or used (see UsageTracker::mark_as_referenced and UsageTracker::marke_as_used)
+/// or used (see [`crate::usage_tracker::UsageTracker::mark_as_referenced`]
+/// and [`crate::usage_tracker::UsageTracker::mark_as_used`])
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum PathResolutionMode {
     MarkAsReferenced,
