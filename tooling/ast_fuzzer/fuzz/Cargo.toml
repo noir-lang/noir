@@ -12,8 +12,13 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
+color-eyre.workspace = true
 libfuzzer-sys.workspace = true
 
+acir.workspace = true
+bn254_blackbox_solver.workspace = true
+nargo.workspace = true
+noirc_evaluator.workspace = true
 noir_ast_fuzzer = { path = ".." }
 
 [[bin]]

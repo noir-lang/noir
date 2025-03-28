@@ -3241,10 +3241,12 @@ dependencies = [
 name = "noir_ast_fuzzer"
 version = "1.0.0-beta.3"
 dependencies = [
+ "acir",
  "arbitrary",
  "build-data",
  "noir_fuzzer",
  "noirc_abi",
+ "noirc_frontend",
  "proptest",
 ]
 
@@ -3252,8 +3254,13 @@ dependencies = [
 name = "noir_ast_fuzzer_fuzz"
 version = "1.0.0-beta.3"
 dependencies = [
+ "acir",
+ "bn254_blackbox_solver",
+ "color-eyre",
  "libfuzzer-sys",
+ "nargo",
  "noir_ast_fuzzer",
+ "noirc_evaluator",
 ]
 
 [[package]]

@@ -17,7 +17,10 @@ build-data.workspace = true
 [dependencies]
 arbitrary.workspace = true
 
+acir.workspace = true
+
 # For generating arbitrary ABI inputs.
 proptest.workspace = true
 noirc_abi.workspace = true
+noirc_frontend.workspace = true
 noir_fuzzer.workspace = true
