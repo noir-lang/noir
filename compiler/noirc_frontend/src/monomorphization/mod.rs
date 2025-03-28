@@ -1419,7 +1419,7 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
             HirType::Constant(_value, kind) => {
-                if kind.is_error() || kind.default_type().is_none() {
+                if kind.is_error() {
                     Err(MonomorphizationError::UnknownConstant { location })
                 } else {
                     Ok(())
