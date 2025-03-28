@@ -363,7 +363,7 @@ mod tests {
             Type::unsigned(1),
         ];
         for (got, expected) in flat_typ.into_iter().zip(expected) {
-            assert_eq!(got, expected)
+            assert_eq!(got, expected);
         }
     }
 }

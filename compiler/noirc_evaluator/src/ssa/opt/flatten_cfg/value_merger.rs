@@ -25,8 +25,6 @@ pub(crate) struct ValueMerger<'a> {
     array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
 
     call_stack: CallStackId,
-
-    merging_slices: bool,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -45,7 +43,6 @@ impl<'a> ValueMerger<'a> {
             array_set_conditionals,
             current_condition,
             call_stack,
-            merging_slices: false,
         }
     }
 
@@ -216,8 +213,6 @@ impl<'a> ValueMerger<'a> {
         then_value_id: ValueId,
         else_value_id: ValueId,
     ) -> ValueId {
-        self.merging_slices = true;
-
         let mut merged = im::Vector::new();
 
         let element_types = match &typ {
