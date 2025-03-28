@@ -1,4 +1,3 @@
-
 // 3 values
 struct Bar {
     inner: [Field; 3],

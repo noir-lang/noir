@@ -1,4 +1,3 @@
-
 // 3 values
 struct Bar {
     inner: [Field; 3],
@@ -29,7 +28,7 @@ fn main(mut x: [Foo; 1], y: pub Field) {
 
     if y == 3 {
         foo_parents[y - 2].foos[y - 3].b[y - 1] = 5000;
-    } 
+    }
 
     // println(foo_parents[1].foos[0].b[2]);
     assert(foo_parents[1].foos[0].b[2] == 5000);
@@ -45,7 +44,7 @@ fn main(mut x: [Foo; 1], y: pub Field) {
 //     let index_foo_parent = ((y - 2) * 10);
 //     // Add 3 to skip `array` in FooParent
 //     let index_foos = index_foo_parent + 3;
-//     // Add 1 to skip `a` in Foo. 
+//     // Add 1 to skip `a` in Foo.
 //     let index_foo_b = index_foos + 3;
 //     if y == 3 {
 //         foo_parents[index_foo_b] = 5000;
