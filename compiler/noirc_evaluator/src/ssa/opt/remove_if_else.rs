@@ -152,10 +152,7 @@ impl Context {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
-                if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    // let length = array.len() / typ.element_types().len();
-                    // dbg!(array.len());
-                    // dbg!(typ.element_types().len());
+                if let Some((array, _)) = dfg.get_array_constant(value) {
                     let length = array.len();
                     return *entry.insert(length as u32);
                 }

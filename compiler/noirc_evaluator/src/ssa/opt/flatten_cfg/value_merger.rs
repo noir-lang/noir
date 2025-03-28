@@ -38,7 +38,6 @@ impl<'a> ValueMerger<'a> {
         current_condition: Option<ValueId>,
         call_stack: CallStackId,
     ) -> Self {
-        // dbg!(slice_sizes.clone());
         ValueMerger {
             dfg,
             block,
@@ -71,7 +70,7 @@ impl<'a> ValueMerger<'a> {
         if then_value == else_value {
             return then_value;
         }
-        // dbg!(self.dfg.type_of_value(then_value).clone());
+
         match self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Self::merge_numeric_values(
                 self.dfg,
@@ -106,10 +105,9 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
-        // dbg!(then_value);
         let then_type = dfg.type_of_value(then_value).unwrap_numeric();
-        // dbg!(else_value);
         let else_type = dfg.type_of_value(else_value).unwrap_numeric();
+
         assert_eq!(
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
@@ -182,20 +180,16 @@ impl<'a> ValueMerger<'a> {
             let typevars = Some(vec![typ]);
             let mut get_element = |array, typevars: Option<Vec<Type>>| {
                 let get = Instruction::ArrayGet { array, index };
-                // self.dfg
-                //     .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
-                //     .first()
                 let res = self
                     .dfg
                     .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                     .first();
                 let res = self.dfg.resolve(res);
                 let res_typ = self.dfg.type_of_value(res);
-                if !matches!(res_typ, Type::Numeric(_)) {
-                    dbg!(array);
-                    dbg!(res);
-                    panic!("why?! fix this");
-                }
+                assert!(
+                    !matches!(res_typ, Type::Numeric(_)),
+                    "ICE: Array get is returning a non-numeric type after SSA gen. This is most likely an error in how SSA gen handles array accesses"
+                );
                 res
             };
             let then_element = get_element(then_value, typevars.clone());
@@ -391,7 +385,6 @@ impl<'a> ValueMerger<'a> {
         }
 
         let mut array = then_value;
-        // dbg!(changed_indices.clone());
         for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
 

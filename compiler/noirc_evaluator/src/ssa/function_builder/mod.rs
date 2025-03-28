@@ -536,9 +536,6 @@ impl FunctionBuilder {
                 if element.contains_an_array() {
                     let reference = value;
                     let value = self.insert_load(reference, element.as_ref().clone());
-                    if value.to_u32() == 41 {
-                        dbg!("got here");
-                    }
                     self.update_array_reference_count(value, original);
                     Some(value)
                 } else {

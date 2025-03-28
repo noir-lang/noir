@@ -51,7 +51,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
     }
 
     fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
-        // dbg!(self.block_value.clone());
         self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
             index: F::from(index as u128),
@@ -87,16 +86,16 @@ impl<F: AcirField> MemoryOpSolver<F> {
         // Find the memory index associated with this memory operation.
         let index = get_value(&op.index, initial_witness)?;
         let memory_index = self.index_from_field(index)?;
-        // dbg!(memory_index);
+
         // Calculate the value associated with this memory operation.
         //
         // In read operations, this corresponds to the witness index at which the value from memory will be written.
         // In write operations, this corresponds to the expression which will be written to memory.
         let value = ExpressionSolver::evaluate(&op.value, initial_witness);
-        // dbg!(value.clone());
+
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();
-        // dbg!(is_read_operation);
+
         // Fetch whether or not the predicate is false (e.g. equal to zero)
         let opcode_location = ErrorLocation::Unresolved;
         let skip_operation =
@@ -115,7 +114,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
             // and zero out the operation's output.
             let value_in_array =
                 if skip_operation { F::zero() } else { self.read_memory_index(memory_index)? };
-            // dbg!(value_in_array.clone());
             insert_value(&value_read_witness, value_in_array, initial_witness)
         } else {
             // `arr[memory_index] = value_write`

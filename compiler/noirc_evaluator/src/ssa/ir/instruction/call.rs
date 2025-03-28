@@ -134,8 +134,6 @@ pub(super) fn simplify_call(
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((mut slice, element_type)) = slice {
-                // dbg!(slice.clone());
-                // dbg!(element_type.clone());
                 // TODO(#2752): We need to handle the element_type size to appropriately handle slices of complex types.
                 // This is reliant on dynamic indices of non-homogenous slices also being implemented.
                 if element_type.element_size() != 1 {
@@ -143,7 +141,6 @@ pub(super) fn simplify_call(
                     for elem in &arguments[2..] {
                         // TODO: Need to handle appropriately pushing back a nested array
                         let typ = dfg.type_of_value(*elem);
-                        dbg!(typ.clone());
                         let is_acir = dfg.runtime().is_acir();
                         match (&typ, is_acir) {
                             (Type::Array(_, _), true) => {
@@ -175,7 +172,7 @@ pub(super) fn simplify_call(
                     let new_slice = make_array(dfg, slice, element_type, block, call_stack);
                     return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
                 }
-                dbg!(slice.clone());
+
                 simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
@@ -439,7 +436,6 @@ fn simplify_slice_push_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    dbg!("inside slice push back");
     // The capacity must be an integer so that we can compare it against the slice length
     let capacity = dfg.make_constant((slice.len() as u128).into(), NumericType::length_type());
     let len_equals_capacity_instr =
@@ -457,7 +453,6 @@ fn simplify_slice_push_back(
     for elem in &arguments[2..] {
         slice.push_back(*elem);
     }
-    // dbg!(slice.clone());
     let slice_size = slice.len() as u32;
     let element_size = element_type.element_size() as u32;
     let new_slice = make_array(dfg, slice, element_type, block, call_stack);
