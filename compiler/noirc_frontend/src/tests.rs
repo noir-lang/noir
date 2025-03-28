@@ -3931,9 +3931,7 @@ fn int_min_global() {
             let _x = MIN;
         }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -4301,4 +4299,20 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
     "#;
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features(src, &features);
+}
+
+#[test]
+fn unconstrained_type_parameter_in_impl() {
+    let src = r#"
+        pub struct Foo<T> {}
+
+        impl<T, U> Foo<T> {}
+                ^ The type parameter `U` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `U` type parameter
+
+        fn main() {
+            let _ = Foo {};
+        }
+        "#;
+    check_errors(src);
 }
