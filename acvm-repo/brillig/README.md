@@ -249,6 +249,15 @@ A specific handling for global variables allocates them in a special section of 
 A liveness analysis is performed in order to re-use as much of the Brillig memory as possible and limit its growth.
 Finally, the Brillig bytecode as well as the ACIR opcodes of the main function are serialized into a Noir compilation artifact.
 
+Arithmetic
+---
+- Brillig integer arithmetic is 'wrapping' over the integer bitsize
+- ACIR has no integer handling and is purely over a finite field
+- Noir Integer arithmetic is 'checked' and errors in case of overflow.
+
+When a Noir program is compiled, integer checked arithmetic is 'emulated' (i.e checks are added to check for overflow) both in ACIR and Brillig bytecode.
+
+
 Execution
 ---
 Calling an unconstrained function from a (normal) function becomes a call opcode inside the ACIR bytecode, referencing the brillig bytecode. The execution of a Noir program, will instantiate a [Brillig VM](../brillig_vm/README.md) and execute the bytecode, providing the results in the witnesses specified in the ACIR call opcode.
