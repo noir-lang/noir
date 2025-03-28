@@ -1,4 +1,5 @@
 use crate::cmp::Eq;
+use crate::hash::Hash;
 use crate::ops::arith::{Add, Neg, Sub};
 
 /// A point on the embedded elliptic curve
@@ -63,6 +64,20 @@ impl Eq for EmbeddedCurvePoint {
     }
 }
 
+impl Hash for EmbeddedCurvePoint {
+    fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
+        if self.is_infinite {
+            self.is_infinite.hash(state);
+        } else {
+            self.x.hash(state);
+            self.y.hash(state);
+        }
+    }
+}
+
 /// Scalar for the embedded curve represented as low and high limbs
 /// By definition, the scalar field of the embedded curve is base field of the proving system curve.
 /// It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.
@@ -104,6 +119,16 @@ impl Eq for EmbeddedCurveScalar {
     }
 }
 
+impl Hash for EmbeddedCurveScalar {
+    fn hash<H>(self, state: &mut H)
+    where
+        H: crate::hash::Hasher,
+    {
+        self.hi.hash(state);
+        self.lo.hash(state);
+    }
+}
+
 // Computes a multi scalar multiplication over the embedded curve.
 // For bn254, We have Grumpkin and Baby JubJub.
 // For bls12-381, we have JubJub and Bandersnatch.
@@ -142,7 +167,13 @@ pub fn embedded_curve_add(
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
     if crate::runtime::is_unconstrained() {
-        embedded_curve_add_unsafe(point1, point2)
+        if point1.is_infinite {
+            point2
+        } else if point2.is_infinite {
+            point1
+        } else {
+            embedded_curve_add_unsafe(point1, point2)
+        }
     } else {
         // In a constrained context we need to do some black magic in order to satisfy the backend's
         // expectations about the inputs to an `embedded_curve_add` opcode.

@@ -1,11 +1,8 @@
-use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
-use acvm::{
-    FieldElement,
-    acir::{AcirField, BlackBoxFunc},
-};
+use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
 use bn254_blackbox_solver::derive_generators;
+use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -14,15 +11,14 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
         dfg::DataFlowGraph,
-        instruction::Intrinsic,
-        map::Id,
+        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
 
-use super::{Binary, BinaryOp, Endian, Hint, Instruction, SimplifyResult};
+use super::SimplifyResult;
 
 mod blackbox;
 
@@ -368,6 +364,68 @@ pub(super) fn simplify_call(
     simplified_result
 }
 
+/// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
+fn constant_to_radix(
+    endian: Endian,
+    field: FieldElement,
+    radix: u32,
+    limb_count: u32,
+    mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
+) -> SimplifyResult {
+    let bit_size = u32::BITS - (radix - 1).leading_zeros();
+    let radix_big = BigUint::from(radix);
+    let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
+    if !radix_range.contains(&radix_big) || BigUint::from(2u128).pow(bit_size) != radix_big {
+        // NOTE: expect an error to be thrown later in
+        // acir::generated_acir::radix_le_decompose
+        return SimplifyResult::None;
+    }
+    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+
+    // Decompose the integer into its radix digits in little endian form.
+    let decomposed_integer = big_integer.to_radix_le(radix);
+    if limb_count < decomposed_integer.len() as u32 {
+        // `field` cannot be represented as `limb_count` bits.
+        // defer error to acir_gen.
+        SimplifyResult::None
+    } else {
+        let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
+            Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
+            None => FieldElement::zero(),
+        });
+        if endian == Endian::Big {
+            limbs.reverse();
+        }
+        let result_array = make_array(limbs);
+        SimplifyResult::SimplifiedTo(result_array)
+    }
+}
+
+fn make_constant_array(
+    dfg: &mut DataFlowGraph,
+    results: impl Iterator<Item = FieldElement>,
+    typ: NumericType,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> ValueId {
+    let result_constants: im::Vector<_> =
+        results.map(|element| dfg.make_constant(element, typ)).collect();
+
+    let typ = Type::Array(Arc::new(vec![Type::Numeric(typ)]), result_constants.len() as u32);
+    make_array(dfg, result_constants, typ, block, call_stack)
+}
+
+fn make_array(
+    dfg: &mut DataFlowGraph,
+    elements: im::Vector<ValueId>,
+    typ: Type,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> ValueId {
+    let instruction = Instruction::MakeArray { elements, typ };
+    dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+}
+
 /// Slices have a tuple structure (slice length, slice contents) to enable logic
 /// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
 /// This method codegens an update to the slice length.
@@ -617,69 +675,7 @@ fn simplify_black_box_func(
     }
 }
 
-fn make_constant_array(
-    dfg: &mut DataFlowGraph,
-    results: impl Iterator<Item = FieldElement>,
-    typ: NumericType,
-    block: BasicBlockId,
-    call_stack: CallStackId,
-) -> ValueId {
-    let result_constants: im::Vector<_> =
-        results.map(|element| dfg.make_constant(element, typ)).collect();
-
-    let typ = Type::Array(Arc::new(vec![Type::Numeric(typ)]), result_constants.len() as u32);
-    make_array(dfg, result_constants, typ, block, call_stack)
-}
-
-fn make_array(
-    dfg: &mut DataFlowGraph,
-    elements: im::Vector<ValueId>,
-    typ: Type,
-    block: BasicBlockId,
-    call_stack: CallStackId,
-) -> ValueId {
-    let instruction = Instruction::MakeArray { elements, typ };
-    dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
-}
-
-/// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
-fn constant_to_radix(
-    endian: Endian,
-    field: FieldElement,
-    radix: u32,
-    limb_count: u32,
-    mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
-) -> SimplifyResult {
-    let bit_size = u32::BITS - (radix - 1).leading_zeros();
-    let radix_big = BigUint::from(radix);
-    let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
-    if !radix_range.contains(&radix_big) || BigUint::from(2u128).pow(bit_size) != radix_big {
-        // NOTE: expect an error to be thrown later in
-        // acir::generated_acir::radix_le_decompose
-        return SimplifyResult::None;
-    }
-    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
-
-    // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = big_integer.to_radix_le(radix);
-    if limb_count < decomposed_integer.len() as u32 {
-        // `field` cannot be represented as `limb_count` bits.
-        // defer error to acir_gen.
-        SimplifyResult::None
-    } else {
-        let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
-            Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
-            None => FieldElement::zero(),
-        });
-        if endian == Endian::Big {
-            limbs.reverse();
-        }
-        let result_array = make_array(limbs);
-        SimplifyResult::SimplifiedTo(result_array)
-    }
-}
-
-fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
+fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<ValueId>) -> Vec<u8> {
     values
         .iter()
         .map(|id| {
@@ -691,7 +687,7 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
         .collect()
 }
 
-fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
+fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<ValueId>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 

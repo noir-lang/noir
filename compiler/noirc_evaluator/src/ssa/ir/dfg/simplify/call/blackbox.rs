@@ -1,20 +1,20 @@
 use std::sync::Arc;
 
+use acvm::acir::BlackBoxFunc;
 use acvm::blackbox_solver::sha256_compression;
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
 
 use crate::ssa::ir::call_stack::CallStackId;
-use crate::ssa::ir::instruction::BlackBoxFunc;
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
-    instruction::{Instruction, Intrinsic, SimplifyResult},
+    instruction::{Instruction, Intrinsic},
     types::Type,
     value::ValueId,
 };
 
-use super::{array_is_constant, make_constant_array, to_u8_vec};
+use super::{SimplifyResult, array_is_constant, make_constant_array, to_u8_vec};
 
 pub(super) fn simplify_ec_add(
     dfg: &mut DataFlowGraph,

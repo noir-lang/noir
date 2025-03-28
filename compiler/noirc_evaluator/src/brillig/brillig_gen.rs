@@ -29,10 +29,10 @@ pub(crate) fn convert_ssa_function(
     options: &BrilligOptions,
     globals: &HashMap<ValueId, BrilligVariable>,
     hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
+    is_entry_point: bool,
 ) -> BrilligArtifact<FieldElement> {
     let mut brillig_context = BrilligContext::new(options);
-
-    let mut function_context = FunctionContext::new(func);
+    let mut function_context = FunctionContext::new(func, is_entry_point);
 
     brillig_context.enter_context(Label::function(func.id()));
 

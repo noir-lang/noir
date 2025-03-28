@@ -1,0 +1,3 @@
+[package]
+name = "comparison_i8"
+type = "bin"

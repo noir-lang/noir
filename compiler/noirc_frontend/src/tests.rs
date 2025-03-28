@@ -1990,6 +1990,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
+                         ^^^^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
             self.len += 1;
         }
     }
@@ -4179,6 +4180,73 @@ fn mutable_reference_to_array_element_as_func_arg() {
                  ^^^^^^^^ Mutable references to array elements are currently unsupported
                  ~~~~~~~~ Try storing the element in a fresh variable first
         assert_eq(state[0], 2); // expect:2 got:1
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn object_type_must_be_known_in_method_call() {
+    let src = r#"
+    pub fn foo<let N: u32>() -> [Field; N] {
+        let array = [];
+        let mut bar = array[0];
+        let _ = bar.len();
+                ^^^ Object type is unknown in method call
+                ~~~ Type must be known by this point to know which method to call
+        bar
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
+    let src = r#"
+    fn main() {
+        let index = 0;
+        let array = [1, 2, 3];
+        let _ = array[index];
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn indexing_array_with_u32_does_not_produce_a_warning() {
+    let src = r#"
+    fn main() {
+        let index: u32 = 0;
+        let array = [1, 2, 3];
+        let _ = array[index];
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn indexing_array_with_non_u32_produces_a_warning() {
+    let src = r#"
+    fn main() {
+        let index: Field = 0;
+        let array = [1, 2, 3];
+        let _ = array[index];
+                      ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
+    let src = r#"
+    fn main() {
+        let index: Field = 0;
+        let mut array = [1, 2, 3];
+        array[index] = 0;
+              ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
     }
     "#;
     check_errors(src);

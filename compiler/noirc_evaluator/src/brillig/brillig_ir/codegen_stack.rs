@@ -207,7 +207,11 @@ mod tests {
     }
 
     pub(crate) fn create_context() -> BrilligContext<FieldElement, Stack> {
-        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let options = BrilligOptions {
+            enable_debug_trace: true,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+        };
         let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context
