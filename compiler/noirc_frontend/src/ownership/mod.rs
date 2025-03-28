@@ -94,6 +94,17 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<Expression> {
             name: name.clone(),
             typ: parameter_type.clone(),
         });
+
+        // (by-value) Mutable parameters are always cloned. Otherwise, we have to recur on the type
+        // to find a duplicate array types behind mutable references.
+        let parameter = if *mutable {
+            new_clones.push(Expression::Clone(Box::new(parameter)));
+            // disable cloning in recur_on_parameter, we already cloned
+            None
+        } else {
+            Some(parameter)
+        };
+
         recur_on_parameter(parameter, parameter_type, &mut seen_array_types, &mut new_clones);
     }
 
@@ -106,42 +117,49 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<Expression> {
 ///
 /// This function inserts a .clone() expression to any parameter arrays behind references with
 /// repeated types since these may potentially be aliased by other parameters.
+///
+/// If `parameter` is `None` we'll still traverse the type to find any array types mentioned but we
+/// will not issue any clones. This is required e.g. on a mutable by-value parameter like `mut x: ...`
+/// since `x` may contain arrays internally that we'll need to remember in case there is another
+/// parameter which uses them. E.g. `mut x: [Field; 2], y: &mut [Field; 2]`.
 fn recur_on_parameter<'typ>(
-    parameter: Expression,
+    parameter: Option<Expression>,
     parameter_type: &'typ Type,
     seen_array_types: &mut HashSet<&'typ Type>,
     new_clones: &mut Vec<Expression>,
 ) {
     match parameter_type {
         // These types never contain arrays
-        Type::Field
-        | Type::Integer(..)
-        | Type::Bool
-        | Type::Unit
-        | Type::Function(..)
-        | Type::Array(..)
-        | Type::String(_)
-        | Type::FmtString(..)
-        | Type::Slice(_) => (),
+        Type::Field | Type::Integer(..) | Type::Bool | Type::Unit | Type::Function(..) => (),
+
+        Type::Array(_, element_type) | Type::Slice(element_type) => {
+            seen_array_types.insert(parameter_type);
+            recur_on_parameter(parameter, &element_type, seen_array_types, new_clones);
+        }
+        Type::String(_) | Type::FmtString(..) => {
+            seen_array_types.insert(parameter_type);
+        }
 
         Type::Tuple(fields) => {
             for (i, field) in fields.iter().enumerate() {
-                let expr = Expression::ExtractTupleField(Box::new(parameter.clone()), i);
+                let expr = parameter.clone().map(|p| Expression::ExtractTupleField(Box::new(p), i));
                 recur_on_parameter(expr, field, seen_array_types, new_clones);
             }
         }
 
         Type::Reference(element_type) => {
             if let Some(array) = inner_array_or_slice_type(element_type) {
-                // Check if the parameter type has been seen before
-                if !seen_array_types.insert(array) {
-                    let expr = Expression::Unary(Unary {
-                        operator: UnaryOp::Dereference { implicitly_added: true },
-                        rhs: Box::new(parameter),
-                        result_type: element_type.as_ref().clone(),
-                        location: Location::dummy(), // TODO
-                    });
-                    new_clones.push(Expression::Clone(Box::new(expr)));
+                if let Some(parameter) = parameter {
+                    // Check if the parameter type has been seen before
+                    if !seen_array_types.insert(array) {
+                        let expr = Expression::Unary(Unary {
+                            operator: UnaryOp::Dereference { implicitly_added: true },
+                            rhs: Box::new(parameter),
+                            result_type: element_type.as_ref().clone(),
+                            location: Location::dummy(), // TODO
+                        });
+                        new_clones.push(Expression::Clone(Box::new(expr)));
+                    }
                 }
             }
         }
