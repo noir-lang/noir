@@ -4323,7 +4323,7 @@ fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numer
     fn main() {
         let _ = foo();
                 ^^^ Type annotation needed
-                ~~~ Could not determine the type of the generic argument `N` declared on the function `foo`
+                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
     }
     "#;
     let features = vec![UnstableFeature::Enums];

@@ -1360,11 +1360,13 @@ impl<'interner> Monomorphizer<'interner> {
                 for generic in &meta.direct_generics {
                     if generic.type_var.id() == id {
                         let item_name = self.interner.definition_name(ident.id).to_string();
+                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                         return Err(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: "function",
                             item_name,
+                            is_numeric,
                         });
                     }
                 }
@@ -1386,11 +1388,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let def = def.borrow();
                 for generic in &def.generics {
                     if generic.type_var.id() == id {
+                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                         return Err(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: "enum",
                             item_name: def.name.to_string(),
+                            is_numeric,
                         });
                     }
                 }
@@ -2411,11 +2415,13 @@ fn check_struct_generic_type(
 
     let def = def.borrow();
     if let Some(generic) = def.generics.get(index) {
+        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
         return Err(MonomorphizationError::NoDefaultTypeInItem {
             location,
             generic_name: generic.name.to_string(),
             item_kind: "struct",
             item_name: def.name.to_string(),
+            is_numeric,
         });
     }
 
