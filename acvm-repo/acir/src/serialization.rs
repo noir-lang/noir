@@ -15,10 +15,16 @@ const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub(crate) enum Format {
-    Bincode = 0,
-    Protobuf = 1,
+    /// Bincode without format marker.
+    /// This does not actually appear in the data.
+    BincodeLegacy = 0,
+    /// Bincode with format marker.
+    Bincode = 1,
+    /// Msgpack with named structs.
     Msgpack = 2,
+    /// Msgpack with tuple structs.
     MsgpackCompact = 3,
+    Protobuf = 4,
 }
 
 impl Format {
@@ -116,9 +122,18 @@ where
     R: prost::Message + Default,
     ProtoSchema<F>: ProtoCodec<T, R>,
 {
-    if !buf.is_empty() {
+    // Unfortunately as long as we have to deal with legacy bincode format we might be able
+    // to deserialize any other format as pure coincidence, when it was just legacy data.
+    // Since `bincode` is the least backwards compatible, let's try that first.
+    let bincode_result = bincode_deserialize(buf);
+
+    if bincode_result.is_err() && !buf.is_empty() {
         if let Ok(format) = Format::try_from(buf[0]) {
             match format {
+                Format::BincodeLegacy => {
+                    // This is just a coincidence, as this format does not appear in the data,
+                    // but we know it's none of the other formats.
+                }
                 Format::Bincode => {
                     if let Ok(value) = bincode_deserialize(&buf[1..]) {
                         return Ok(value);
@@ -137,9 +152,8 @@ where
             }
         }
     }
-    // Try the default; as long as it's around, the match of the first byte
-    // to one of the `Format` could have been just a coincidence.
-    bincode_deserialize(buf)
+
+    bincode_result
 }
 
 pub(crate) fn serialize_with_format<F, T, R>(value: &T, format: Format) -> std::io::Result<Vec<u8>>
@@ -151,6 +165,7 @@ where
 {
     // It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     let mut buf = match format {
+        Format::BincodeLegacy => return bincode_serialize(value),
         Format::Bincode => bincode_serialize(value)?,
         Format::Protobuf => proto_serialize(value),
         Format::Msgpack => msgpack_serialize(value, false)?,
@@ -183,10 +198,12 @@ where
 
 #[cfg(test)]
 mod tests {
+    use acir_field::FieldElement;
     use brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray};
     use std::str::FromStr;
 
     use crate::{
+        circuit::{Opcode, brillig::BrilligFunctionId},
         native_types::Witness,
         serialization::{Format, msgpack_deserialize, msgpack_serialize},
     };
@@ -382,6 +399,31 @@ mod tests {
         let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
 
         assert!(matches!(msg, Value::Integer(_)));
+    }
+
+    /// Test to show that optional fields, when empty, are still in the map.
+    /// The Rust library handles deserializing them as `None` if they are not present,
+    /// but the `msgpack-c` library does not.
+    #[test]
+    fn msgpack_optional() {
+        use rmpv::Value;
+
+        let value: Opcode<FieldElement> = Opcode::BrilligCall {
+            id: BrilligFunctionId(1),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            predicate: None,
+        };
+        let bz = msgpack_serialize(&value, false).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+
+        let fields = msg.as_map().expect("enum is a map");
+        let fields = &fields.first().expect("enum is non-empty").1;
+        let fields = fields.as_map().expect("fields are map");
+
+        let (k, v) = fields.last().expect("fields are not empty");
+        assert_eq!(k.as_str().expect("names are str"), "predicate");
+        assert!(matches!(v, Value::Nil));
     }
 
     #[test]
