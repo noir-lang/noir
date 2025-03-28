@@ -42,7 +42,7 @@ for dir in ${tests_to_profile[@]}; do
     TOTAL_TIME=0
 
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --silence-warnings $FLAGS
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp nargo compile --force --pedantic-solving --silence-warnings $FLAGS
     done
 
     TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' ./tmp/*))
