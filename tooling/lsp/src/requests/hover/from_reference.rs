@@ -1,19 +1,16 @@
 use fm::{FileId, FileMap};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
+use noirc_frontend::hir::comptime::Value;
+use noirc_frontend::node_interner::GlobalValue;
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
-    hir_def::{
-        expr::{HirArrayLiteral, HirExpression, HirLiteral},
-        function::FuncMeta,
-        stmt::HirPattern,
-        traits::Trait,
-    },
+    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
+        DefinitionId, DefinitionKind, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,
     },
 };
@@ -277,12 +274,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     }
 
     let mut print_comptime = definition.comptime;
-    let mut opt_value = None;
 
-    // See if we can figure out what's the global's value
     if let Some(stmt) = args.interner.get_global_let_statement(id) {
         print_comptime = stmt.comptime;
-        opt_value = get_global_value(args.interner, stmt.expression);
     }
 
     string.push_str("    ");
@@ -297,9 +291,11 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
 
-    if let Some(value) = opt_value {
-        string.push_str(" = ");
-        string.push_str(&value);
+    if let GlobalValue::Resolved(value) = &global_info.value {
+        if let Some(value) = value_to_string(value) {
+            string.push_str(" = ");
+            string.push_str(&value);
+        }
     }
 
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
@@ -307,57 +303,6 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     append_doc_comments(args.interner, ReferenceId::Global(id), &mut string);
 
     string
-}
-
-fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
-    match interner.expression(&expr) {
-        HirExpression::Literal(literal) => match literal {
-            HirLiteral::Array(hir_array_literal) => {
-                get_global_array_value(interner, hir_array_literal, false)
-            }
-            HirLiteral::Slice(hir_array_literal) => {
-                get_global_array_value(interner, hir_array_literal, true)
-            }
-            HirLiteral::Bool(value) => Some(value.to_string()),
-            HirLiteral::Integer(value) => Some(value.to_string()),
-            HirLiteral::Str(string) => Some(format!("{:?}", string)),
-            HirLiteral::FmtStr(..) => None,
-            HirLiteral::Unit => Some("()".to_string()),
-        },
-        HirExpression::Tuple(values) => {
-            get_exprs_global_value(interner, &values).map(|value| format!("({})", value))
-        }
-        _ => None,
-    }
-}
-
-fn get_global_array_value(
-    interner: &NodeInterner,
-    literal: HirArrayLiteral,
-    is_slice: bool,
-) -> Option<String> {
-    match literal {
-        HirArrayLiteral::Standard(values) => {
-            get_exprs_global_value(interner, &values).map(|value| {
-                if is_slice { format!("&[{}]", value) } else { format!("[{}]", value) }
-            })
-        }
-        HirArrayLiteral::Repeated { repeated_element, length } => {
-            get_global_value(interner, repeated_element).map(|value| {
-                if is_slice {
-                    format!("&[{}; {}]", value, length)
-                } else {
-                    format!("[{}; {}]", value, length)
-                }
-            })
-        }
-    }
-}
-
-fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<String> {
-    let strings: Vec<String> =
-        exprs.iter().filter_map(|value| get_global_value(interner, *value)).collect();
-    if strings.len() == exprs.len() { Some(strings.join(", ")) } else { None }
 }
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
@@ -900,4 +845,84 @@ fn append_doc_comments(interner: &NodeInterner, id: ReferenceId, string: &mut St
     } else {
         false
     }
+}
+
+fn value_to_string(value: &Value) -> Option<String> {
+    let mut string = String::new();
+    append_value_to_string(value, &mut string)?;
+    Some(string)
+}
+
+fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
+    match value {
+        Value::Unit => string.push_str("()"),
+        Value::Bool(value) => string.push_str(&value.to_string()),
+        Value::Field(field_element) => string.push_str(&field_element.to_string()),
+        Value::I8(value) => string.push_str(&value.to_string()),
+        Value::I16(value) => string.push_str(&value.to_string()),
+        Value::I32(value) => string.push_str(&value.to_string()),
+        Value::I64(value) => string.push_str(&value.to_string()),
+        Value::U1(value) => string.push_str(&value.to_string()),
+        Value::U8(value) => string.push_str(&value.to_string()),
+        Value::U16(value) => string.push_str(&value.to_string()),
+        Value::U32(value) => string.push_str(&value.to_string()),
+        Value::U64(value) => string.push_str(&value.to_string()),
+        Value::U128(value) => string.push_str(&value.to_string()),
+        Value::String(value) | Value::CtString(value) => string.push_str(&value.to_string()),
+        Value::Tuple(values) => {
+            let len = values.iter().len();
+            string.push('(');
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                append_value_to_string(value, string)?;
+            }
+            if len == 1 {
+                string.push(',');
+            }
+            string.push(')');
+        }
+        Value::Array(values, _) => {
+            string.push('[');
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                append_value_to_string(value, string)?;
+            }
+            string.push(']');
+        }
+        Value::Slice(values, _) => {
+            string.push_str("&[");
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                append_value_to_string(value, string)?;
+            }
+            string.push(']');
+        }
+        // We could turn these into strings but the output wouldn't be very useful to users
+        Value::FormatString(..)
+        | Value::Function(..)
+        | Value::Closure(..)
+        | Value::Struct(..)
+        | Value::Enum(..)
+        | Value::Pointer(..)
+        | Value::Quoted(..)
+        | Value::TypeDefinition(..)
+        | Value::TraitConstraint(..)
+        | Value::TraitDefinition(..)
+        | Value::TraitImpl(..)
+        | Value::FunctionDefinition(..)
+        | Value::ModuleDefinition(..)
+        | Value::Type(..)
+        | Value::Zeroed(..)
+        | Value::Expr(..)
+        | Value::TypedExpr(..)
+        | Value::UnresolvedType(..) => return None,
+    }
+
+    Some(())
 }
