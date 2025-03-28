@@ -100,6 +100,12 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<Expression> {
     new_clones
 }
 
+/// Recur on a parameter's type, digging into any struct fields, looking for references to arrays.
+/// This will build up an Expression of the current parameter access we're doing, e.g. `*foo.bar`
+/// would correspond to a parameter `foo` with struct field `bar` that is a reference to an array.
+///
+/// This function inserts a .clone() expression to any parameter arrays behind references with
+/// repeated types since these may potentially be aliased by other parameters.
 fn recur_on_parameter<'typ>(
     parameter: Expression,
     parameter_type: &'typ Type,
