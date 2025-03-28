@@ -17,13 +17,13 @@ use super::ValueId;
 /// Contains the entire SSA representation of the program.
 #[serde_as]
 #[derive(Serialize, Deserialize)]
-pub(crate) struct Ssa {
+pub struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
-    pub(crate) functions: BTreeMap<FunctionId, Function>,
-    pub(crate) used_globals: HashMap<FunctionId, HashSet<ValueId>>,
-    pub(crate) main_id: FunctionId,
+    pub functions: BTreeMap<FunctionId, Function>,
+    pub used_globals: HashMap<FunctionId, HashSet<ValueId>>,
+    pub main_id: FunctionId,
     #[serde(skip)]
-    pub(crate) next_id: AtomicCounter<Function>,
+    pub next_id: AtomicCounter<Function>,
     /// Maps SSA entry point function ID -> Final generated ACIR artifact index.
     /// There can be functions specified in SSA which do not act as ACIR entry points.
     /// This mapping is necessary to use the correct function pointer for an ACIR call,
@@ -33,7 +33,7 @@ pub(crate) struct Ssa {
     // We can skip serializing this field as the error selector types end up as part of the
     // ABI not the actual SSA IR.
     #[serde(skip)]
-    pub(crate) error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
+    pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
 }
 
 impl Ssa {

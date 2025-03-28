@@ -33,7 +33,7 @@ pub(crate) struct GeneratedBrillig<F> {
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
-pub(crate) struct BrilligArtifact<F> {
+pub struct BrilligArtifact<F> {
     pub(crate) byte_code: Vec<BrilligOpcode<F>>,
     pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
     /// The set of jumps that need to have their locations

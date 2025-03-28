@@ -23,7 +23,7 @@ mod big_int;
 mod black_box;
 mod brillig_call;
 mod brillig_directive;
-mod generated_acir;
+pub mod generated_acir;
 
 use crate::brillig::BrilligOptions;
 use crate::brillig::brillig_gen::gen_brillig_for;
@@ -299,7 +299,7 @@ impl AcirValue {
     }
 }
 
-pub(crate) type Artifacts = (
+pub type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
     Vec<String>,
@@ -308,7 +308,7 @@ pub(crate) type Artifacts = (
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(
+    pub fn into_acir(
         self,
         brillig: &Brillig,
         brillig_options: &BrilligOptions,
