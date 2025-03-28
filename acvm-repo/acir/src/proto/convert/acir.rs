@@ -182,11 +182,10 @@ where
             circuit::Opcode::BlackBoxFuncCall(black_box_func_call) => {
                 Value::BlackboxFuncCall(Self::encode(black_box_func_call))
             }
-            circuit::Opcode::MemoryOp { block_id, op, predicate } => Value::MemoryOp(MemoryOp {
-                block_id: block_id.0,
-                op: Self::encode_some(op),
-                predicate: predicate.as_ref().map(Self::encode),
-            }),
+            circuit::Opcode::MemoryOp { block_id, op } => Value::MemoryOp(
+                #[allow(deprecated)]
+                MemoryOp { block_id: block_id.0, op: Self::encode_some(op), predicate: None },
+            ),
             circuit::Opcode::MemoryInit { block_id, init, block_type } => {
                 Value::MemoryInit(MemoryInit {
                     block_id: block_id.0,
@@ -224,7 +223,6 @@ where
             Value::MemoryOp(memory_op) => Ok(circuit::Opcode::MemoryOp {
                 block_id: BlockId(memory_op.block_id),
                 op: Self::decode_some_wrap(&memory_op.op, "op")?,
-                predicate: Self::decode_opt_wrap(&memory_op.predicate, "predicate")?,
             }),
             Value::MemoryInit(memory_init) => Ok(circuit::Opcode::MemoryInit {
                 block_id: BlockId(memory_init.block_id),

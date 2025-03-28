@@ -59,9 +59,9 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
 
     for opcode in &circuit.opcodes {
         match opcode {
-            Opcode::AssertZero(expr)
-            | Opcode::Call { predicate: Some(expr), .. }
-            | Opcode::MemoryOp { predicate: Some(expr), .. } => insert_expr(&mut constants, expr),
+            Opcode::AssertZero(expr) | Opcode::Call { predicate: Some(expr), .. } => {
+                insert_expr(&mut constants, expr)
+            }
 
             Opcode::MemoryInit { init, .. } => insert_array_len(&mut constants, init),
 
