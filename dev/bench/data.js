@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743183824431,
+  "lastUpdate": 1743183836762,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b059fd1e5c0eaab0b55804acbd8c65b079c143bd",
-          "message": "fix: Experiment with `DecrementRc` (#7629)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-03-18T17:31:55Z",
-          "tree_id": "ffb8a6c9f942a87b9deff9b7600eb59f994f1ef3",
-          "url": "https://github.com/noir-lang/noir/commit/b059fd1e5c0eaab0b55804acbd8c65b079c143bd"
-        },
-        "date": 1742320684219,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 508.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 297.37,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/891c5aa80718ce7049f226b828232976001fbcb8"
         },
         "date": 1743183689464,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.24,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e7a159af34c04c65e888a343a0c4fb4561e16982",
+          "message": "chore: deduplicate 'double_generic_alias_in_path' (#7840)",
+          "timestamp": "2025-03-28T16:55:00Z",
+          "tree_id": "88d5cf3461a036650c9abdc669136f58e2109bbb",
+          "url": "https://github.com/noir-lang/noir/commit/e7a159af34c04c65e888a343a0c4fb4561e16982"
+        },
+        "date": 1743183832391,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
