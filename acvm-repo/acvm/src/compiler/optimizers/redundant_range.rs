@@ -2,11 +2,11 @@ use acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
+        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
     },
     native_types::Witness,
 };
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// `RangeOptimizer` will remove redundant range constraints.
 ///
@@ -49,6 +49,7 @@ impl<F: AcirField> RangeOptimizer<F> {
     /// be 16 bits.
     fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, u32> {
         let mut witness_to_bit_sizes: BTreeMap<Witness, u32> = BTreeMap::new();
+        let mut memory_block_lengths_bit_size: HashMap<BlockId, u32> = HashMap::new();
 
         for opcode in &circuit.opcodes {
             let Some((witness, num_bits)) = (match opcode {
@@ -79,6 +80,23 @@ impl<F: AcirField> RangeOptimizer<F> {
                     } else {
                         None
                     }
+                }
+
+                Opcode::MemoryInit { block_id, init, .. } => {
+                    memory_block_lengths_bit_size
+                        .insert(*block_id, memory_block_implied_max_bits(init));
+                    None
+                }
+
+                Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
+                    index.to_witness().map(|witness| {
+                        (
+                            witness,
+                            *memory_block_lengths_bit_size
+                                .get(block_id)
+                                .expect("memory must be initialized before any reads/writes"),
+                        )
+                    })
                 }
 
                 _ => None,
@@ -157,19 +175,37 @@ impl<F: AcirField> RangeOptimizer<F> {
     }
 }
 
+fn memory_block_implied_max_bits(init: &[Witness]) -> u32 {
+    8 * size_of::<usize>() as u32 - init.len().leading_zeros()
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
-    use crate::compiler::optimizers::redundant_range::RangeOptimizer;
+    use crate::compiler::optimizers::redundant_range::{
+        RangeOptimizer, memory_block_implied_max_bits,
+    };
     use acir::{
         FieldElement,
         circuit::{
             Circuit, ExpressionWidth, Opcode, PublicInputs,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
     };
+
+    #[test]
+    fn correctly_calculates_memory_block_implied_max_bits() {
+        assert_eq!(memory_block_implied_max_bits(&[]), 0);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 1]), 1);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 2]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 3]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 4]), 3);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 8]), 4);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); u8::MAX as usize]), 8);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); u16::MAX as usize]), 16);
+    }
 
     fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
         fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode<FieldElement> {
@@ -277,5 +313,31 @@ mod tests {
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 1);
         assert_eq!(optimized_circuit.opcodes[0], Opcode::AssertZero(Witness(1).into()));
+    }
+
+    #[test]
+    fn array_implied_ranges() {
+        // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
+        let mut circuit = test_circuit(vec![(Witness(1), 16)]);
+
+        let mem_init = Opcode::MemoryInit {
+            block_id: BlockId(0),
+            init: vec![Witness(0); 8],
+            block_type: BlockType::Memory,
+        };
+        let mem_op = Opcode::MemoryOp {
+            block_id: BlockId(0),
+            op: MemOp::read_at_mem_index(Witness(1).into(), Witness(2)),
+            predicate: None,
+        };
+
+        circuit.opcodes.push(mem_init.clone());
+        circuit.opcodes.push(mem_op.clone());
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let optimizer = RangeOptimizer::new(circuit);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert_eq!(optimized_circuit.opcodes.len(), 2);
+        assert_eq!(optimized_circuit.opcodes[0], mem_init);
+        assert_eq!(optimized_circuit.opcodes[1], mem_op);
     }
 }
