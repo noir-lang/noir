@@ -144,6 +144,14 @@ fn register_value(
                 panic!("type-value mismatch: value: {:?} does not match type Bool", value)
             }
         }
+        PrintableType::String { length: _ } => {
+            if let PrintableValue::String(s) = value {
+                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::String, "String");
+                ValueRecord::String { text: s.clone(), type_id }
+            } else {
+                panic!("type-value mismatch: value: {:?} does not match type String", value);
+            }
+        }
         _ => {
             // TODO(stanm): cover all types and remove `warn!`.
             warn!("not implemented yet: type that is not Field: {:?}", typ);
