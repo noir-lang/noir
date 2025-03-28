@@ -152,6 +152,20 @@ fn register_value(
                 panic!("type-value mismatch: value: {:?} does not match type String", value);
             }
         }
+        PrintableType::Struct { name, fields } => {
+            if let PrintableValue::Struct(struc) = value {
+                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Struct, &name);
+                let mut field_values = vec![];
+                for (field_name, field_type) in fields {
+                    let field_value =
+                        struc.get(field_name).expect(&format!("field value missing: {field_name}"));
+                    field_values.push(register_value(tracer, field_value, field_type));
+                }
+                ValueRecord::Struct { field_values, type_id }
+            } else {
+                panic!("type-value mismatch: value: {:?} does not match type Struct", value);
+            }
+        }
         _ => {
             // TODO(stanm): cover all types and remove `warn!`.
             warn!("not implemented yet: type that is not Field: {:?}", typ);
