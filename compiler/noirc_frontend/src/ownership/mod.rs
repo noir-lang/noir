@@ -98,9 +98,9 @@ fn handle_ownership_in_function(function: &mut Function, local_id: &mut u32) {
         new_body.push(return_let);
 
         // Now drop each parameter we cloned
-        for new_ident in new_idents {
-            new_body.push(Expression::Drop(Box::new(new_ident)));
-        }
+        // for new_ident in new_idents {
+        //     new_body.push(Expression::Drop(Box::new(new_ident)));
+        // }
 
         // Finally, return the original return value we held on to
         new_body.push(Expression::Ident(Ident {
