@@ -2029,7 +2029,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, dfg)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, dfg, predicate)?;
         }
 
         Ok(result)
@@ -2042,12 +2042,13 @@ impl<'a> Context<'a> {
         bit_size: u32,
         binary: &Binary,
         dfg: &DataFlowGraph,
+        predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
         let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
             return Ok(());
         };
 
-        let with_pred = self.acir_context.mul_var(result, self.current_side_effects_enabled_var)?;
+        let with_pred = self.acir_context.mul_var(result, predicate)?;
         self.acir_context.range_constrain_var(
             with_pred,
             &NumericType::Unsigned { bit_size },
