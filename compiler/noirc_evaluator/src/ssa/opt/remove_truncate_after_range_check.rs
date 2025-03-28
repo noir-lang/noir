@@ -1,4 +1,4 @@
-use im::HashMap;
+use im::{HashMap, HashSet};
 
 use crate::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},
@@ -23,42 +23,55 @@ impl Function {
         for block in self.reachable_blocks() {
             // Keeps the minimum bit size a value was range-checked against
             let mut range_checks: HashMap<ValueId, u32> = HashMap::new();
+            let mut instructions_to_remove = HashSet::new();
+            let mut values_to_replace = HashMap::<ValueId, ValueId>::new();
 
-            let instructions = self.dfg[block].take_instructions();
-            for instruction_id in instructions {
-                let instruction = &self.dfg[instruction_id];
+            for instruction_id in self.dfg[block].instructions() {
+                let instruction = &self.dfg[*instruction_id];
 
-                // If this is a range_check instruction, associate the max bit size with the value
-                if let Instruction::RangeCheck { value, max_bit_size, .. } = instruction {
-                    range_checks
-                        .entry(*value)
-                        .and_modify(|current_max| {
-                            if *max_bit_size < *current_max {
-                                *current_max = *max_bit_size;
+                match instruction {
+                    // If this is a range_check instruction, associate the max bit size with the value
+                    Instruction::RangeCheck { value, max_bit_size, .. } => {
+                        range_checks
+                            .entry(*value)
+                            .and_modify(|current_max| {
+                                if *max_bit_size < *current_max {
+                                    *current_max = *max_bit_size;
+                                }
+                            })
+                            .or_insert(*max_bit_size);
+                    }
+                    // If this is a truncate instruction, check if there's a range check for that same value
+                    Instruction::Truncate { value, bit_size, .. } => {
+                        if let Some(range_check_bit_size) = range_checks.get(value) {
+                            if range_check_bit_size <= bit_size {
+                                // We need to replace the truncated value with the original one. That is, in:
+                                //
+                                // range_check v0 to 32 bits
+                                // v1 = truncate v0 to 32 bits, max_bit_size: 254
+                                //
+                                // we need to remove the `truncate` and all references to `v1` should now be `v0`.
+                                let result =
+                                    self.dfg.instruction_results(*instruction_id).first().unwrap();
+                                values_to_replace.insert(*result, *value);
+                                instructions_to_remove.insert(*instruction_id);
                             }
-                        })
-                        .or_insert(*max_bit_size);
-                }
-
-                // If this is a truncate instruction, check if there's a range check for that same value
-                if let Instruction::Truncate { value, bit_size, .. } = instruction {
-                    if let Some(range_check_bit_size) = range_checks.get(value) {
-                        if range_check_bit_size <= bit_size {
-                            // We need to replace the truncated value with the original one. That is, in:
-                            //
-                            // range_check v0 to 32 bits
-                            // v1 = truncate v0 to 32 bits, max_bit_size: 254
-                            //
-                            // we need to remove the `truncate` and all references to `v1` should now be `v0`.
-                            let result =
-                                self.dfg.instruction_results(instruction_id).first().unwrap();
-                            self.dfg.set_value_from_id(*result, *value);
-                            continue;
                         }
                     }
+                    _ => (),
                 }
+            }
 
-                self.dfg[block].insert_instruction(instruction_id);
+            if instructions_to_remove.is_empty() {
+                continue;
+            }
+
+            self.dfg[block]
+                .instructions_mut()
+                .retain(|instruction| !instructions_to_remove.contains(instruction));
+
+            for (old_value, new_value) in values_to_replace {
+                self.dfg.set_value_from_id(old_value, new_value);
             }
         }
     }
