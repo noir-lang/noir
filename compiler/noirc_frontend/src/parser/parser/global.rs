@@ -75,7 +75,7 @@ mod tests {
     use crate::{
         ast::{
             ExpressionKind, IntegerBitSize, ItemVisibility, LetStatement, Literal, Pattern,
-            Signedness, UnresolvedTypeData,
+            UnresolvedTypeData,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -85,6 +85,7 @@ mod tests {
                 get_source_with_error_span,
             },
         },
+        shared::Signedness,
     };
 
     fn parse_global_no_errors(src: &str) -> (LetStatement, ItemVisibility) {

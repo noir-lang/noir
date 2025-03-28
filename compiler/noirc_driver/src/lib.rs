@@ -144,6 +144,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub enable_brillig_debug_assertions: bool,
 
+    /// Count the number of arrays that are copied in an unconstrained context for performance debugging
+    #[arg(long)]
+    pub count_array_copies: bool,
+
     /// Flag to turn on the lookback feature of the Brillig call constraints
     /// check, allowing tracking argument values before the call happens preventing
     /// certain rare false positives (leads to a slowdown on large rollout functions)
@@ -710,6 +714,7 @@ pub fn compile_no_check(
         || options.show_brillig
         || options.force_brillig
         || options.show_ssa
+        || options.show_ssa_pass.is_some()
         || options.emit_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
@@ -737,6 +742,7 @@ pub fn compile_no_check(
         brillig_options: BrilligOptions {
             enable_debug_trace: options.show_brillig,
             enable_debug_assertions: options.enable_brillig_debug_assertions,
+            enable_array_copy_counter: options.count_array_copies,
         },
         print_codegen_timings: options.benchmark_codegen,
         expression_width: if options.bounded_codegen {

@@ -6,9 +6,11 @@ use noirc_errors::{
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
+use crate::shared::Visibility;
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
+    ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
+    shared::Signedness,
     signed_field::SignedField,
     token::{Attributes, FunctionAttribute},
 };

@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::ir::{function::RuntimeType, types::Type, value::ValueId};
 use fxhash::FxHashMap as HashMap;
-use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
+use noirc_frontend::shared::Visibility;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
@@ -43,9 +43,9 @@ impl DataBusBuilder {
 
         for param in &main_signature.0 {
             let is_databus = match param.2 {
-                ast::Visibility::Public | ast::Visibility::Private => DatabusVisibility::None,
-                ast::Visibility::CallData(id) => DatabusVisibility::CallData(id),
-                ast::Visibility::ReturnData => DatabusVisibility::ReturnData,
+                Visibility::Public | Visibility::Private => DatabusVisibility::None,
+                Visibility::CallData(id) => DatabusVisibility::CallData(id),
+                Visibility::ReturnData => DatabusVisibility::ReturnData,
             };
             let len = param.1.field_count(&param.0.location()) as usize;
             params_is_databus.extend(vec![is_databus; len]);

@@ -187,8 +187,8 @@ impl<'a> ValueMerger<'a> {
                 let res = self.dfg.resolve(res);
                 let res_typ = self.dfg.type_of_value(res);
                 assert!(
-                    !matches!(res_typ, Type::Numeric(_)),
-                    "ICE: Array get is returning a non-numeric type after SSA gen. This is most likely an error in how SSA gen handles array accesses"
+                    matches!(res_typ, Type::Numeric(_)),
+                    "ICE: Array get is returning a non-numeric type. All arrays in ACIR work upon flat memory. Got {res_typ}"
                 );
                 res
             };

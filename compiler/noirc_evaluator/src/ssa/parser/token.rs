@@ -57,6 +57,8 @@ pub(crate) enum Token {
     Arrow,
     /// ==
     Equal,
+    /// !=
+    NotEqual,
     /// &
     Ampersand,
     /// -
@@ -95,6 +97,7 @@ impl Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Arrow => write!(f, "->"),
             Token::Equal => write!(f, "=="),
+            Token::NotEqual => write!(f, "!="),
             Token::Ampersand => write!(f, "&"),
             Token::Dash => write!(f, "-"),
             Token::Eof => write!(f, "(end of stream)"),

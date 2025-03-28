@@ -49,6 +49,7 @@ impl<'a> Lexer<'a> {
             }
             Some('=') if self.peek_char() == Some('=') => self.double_char_token(Token::Equal),
             Some('=') => self.single_char_token(Token::Assign),
+            Some('!') if self.peek_char() == Some('=') => self.double_char_token(Token::NotEqual),
             Some(',') => self.single_char_token(Token::Comma),
             Some(':') => self.single_char_token(Token::Colon),
             Some(';') => self.single_char_token(Token::Semicolon),
