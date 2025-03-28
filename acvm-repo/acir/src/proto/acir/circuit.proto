@@ -63,7 +63,6 @@ message Opcode {
   message MemoryOp {
     uint32 block_id = 1;
     MemOp op = 2;
-    optional native.Expression predicate = 3;
   }
   message MemoryInit {
     uint32 block_id = 1;

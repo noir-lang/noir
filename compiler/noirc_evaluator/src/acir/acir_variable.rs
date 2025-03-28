@@ -1438,7 +1438,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
     }
@@ -1460,7 +1460,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(())
     }

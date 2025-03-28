@@ -83,14 +83,9 @@ impl CircuitSimulator {
                 }
                 true
             }
-            Opcode::MemoryOp { block_id, op, predicate } => {
+            Opcode::MemoryOp { block_id, op } => {
                 if !self.can_solve_expression(&op.index) {
                     return false;
-                }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
                 }
                 if op.operation.is_zero() {
                     let w = op.value.to_witness().unwrap();
