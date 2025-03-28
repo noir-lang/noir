@@ -85,8 +85,7 @@ In the above image we searched for the ACIR opcodes due to `i > ptr` in the sour
 
 ### Generate a backend gates flamegraph
 
-Unfortunately, ACIR opcodes do not give us a full picture of where the cost of this program lies.
-The `gates` command also accepts a backend binary. In the [quick start guide](../getting_started/quick_start.md#proving-backend) you can see how to get started with the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg).
+Unfortunately, ACIR opcodes do not give us a full picture of where the cost of this program lies. The `gates` command also accepts a backend binary. For example, you can pass the [Barretenberg binary]().
 
 Run the following command:
 ```sh
