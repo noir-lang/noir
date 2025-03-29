@@ -1,22 +1,20 @@
-use std::{cell::RefCell, collections::BTreeMap, path::Path};
+mod common;
+
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 
 use acvm::{AcirField, FieldElement, acir::native_types::WitnessStack};
 use iter_extended::vecmap;
-use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program, parse_all};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
-use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
-};
-use noirc_frontend::hir::Context;
 use proptest::prelude::*;
 
 /// Inputs and expected output of a snippet encoded in ABI format.
 #[derive(Debug)]
 struct SnippetInputOutput {
-    description: String,
-    inputs: BTreeMap<String, InputValue>,
-    expected_output: InputValue,
+    pub description: String,
+    pub inputs: BTreeMap<String, InputValue>,
+    pub expected_output: InputValue,
 }
 impl SnippetInputOutput {
     fn new(inputs: Vec<(&str, InputValue)>, output: InputValue) -> Self {
@@ -34,36 +32,6 @@ impl SnippetInputOutput {
     }
 }
 
-/// Prepare a code snippet.
-fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
-    let root = Path::new("");
-    let file_name = Path::new("main.nr");
-    let mut file_manager = file_manager_with_stdlib(root);
-    file_manager.add_file_with_source(file_name, source).expect(
-        "Adding source buffer to file manager should never fail when file manager is empty",
-    );
-    let parsed_files = parse_all(&file_manager);
-
-    let mut context = Context::new(file_manager, parsed_files);
-    let root_crate_id = prepare_crate(&mut context, file_name);
-
-    (context, root_crate_id)
-}
-
-/// Compile the main function in a code snippet.
-///
-/// Use `force_brillig` to test it as an unconstrained function without having to change the code.
-/// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
-fn prepare_and_compile_snippet(
-    source: String,
-    force_brillig: bool,
-) -> CompilationResult<CompiledProgram> {
-    let (mut context, root_crate_id) = prepare_snippet(source);
-    let options = CompileOptions { force_brillig, ..Default::default() };
-    // TODO: Run nargo::ops::transform_program?
-    compile_main(&mut context, root_crate_id, &options, None)
-}
-
 /// Compile a snippet and run property tests against it by generating random input/output pairs
 /// according to the strategy, executing the snippet with the input, and asserting that the
 /// output it returns is the one we expect.
@@ -72,7 +40,7 @@ fn run_snippet_proptest(
     force_brillig: bool,
     strategy: BoxedStrategy<SnippetInputOutput>,
 ) {
-    let program = match prepare_and_compile_snippet(source.clone(), force_brillig) {
+    let program = match common::prepare_and_compile_snippet(source.clone(), force_brillig) {
         Ok((program, _)) => program,
         Err(e) => panic!("failed to compile program; brillig = {force_brillig}:\n{source}\n{e:?}"),
     };
