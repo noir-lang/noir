@@ -859,8 +859,13 @@ mod test {
             instruction::{Instruction, TerminatorInstruction},
             value::{Value, ValueId},
         },
-        opt::assert_normalized_ssa_equals,
+        opt::{assert_normalized_ssa_equals, run_snapshots},
     };
+
+    #[test]
+    fn flatten_cfg_snapshots() {
+        run_snapshots("flattening", Ssa::flatten_cfg);
+    }
 
     #[test]
     fn basic_jmpif() {

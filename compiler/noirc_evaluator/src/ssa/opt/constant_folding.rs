@@ -943,9 +943,19 @@ mod test {
                 map::Id,
                 types::{NumericType, Type},
             },
-            opt::assert_normalized_ssa_equals,
+            opt::{assert_normalized_ssa_equals, run_snapshots},
         },
     };
+
+    #[test]
+    fn fold_constants_snapshots() {
+        run_snapshots("constant_folding", Ssa::fold_constants);
+    }
+
+    #[test]
+    fn fold_constraints_snapshots() {
+        run_snapshots("constraint_folding", Ssa::fold_constants_using_constraints);
+    }
 
     #[test]
     fn simple_constant_fold() {

@@ -296,9 +296,14 @@ pub(crate) fn build_inner_call_to_entry_points(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::opt::{assert_normalized_ssa_equals, run_snapshots};
 
     use super::Ssa;
+
+    #[test]
+    fn brillig_entry_point_analysis_snapshots() {
+        run_snapshots("brillig_entry_point_analysis", Ssa::brillig_entry_point_analysis);
+    }
 
     #[test]
     fn duplicate_inner_call_with_multiple_entry_points() {

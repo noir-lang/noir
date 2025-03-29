@@ -1033,9 +1033,15 @@ mod tests {
     use test_case::test_case;
 
     use crate::errors::RuntimeError;
+    use crate::ssa::opt::run_snapshots;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{BoilerplateStats, Loops, is_new_size_ok};
+
+    #[test]
+    fn unrolling_snapshots() {
+        run_snapshots("unrolling", |ssa| ssa.unroll_loops_iteratively(None).unwrap());
+    }
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimisations.

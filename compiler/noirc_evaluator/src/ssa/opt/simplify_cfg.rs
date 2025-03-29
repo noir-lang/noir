@@ -302,9 +302,14 @@ mod test {
             map::Id,
             types::Type,
         },
-        opt::assert_normalized_ssa_equals,
+        opt::{assert_normalized_ssa_equals, run_snapshots},
     };
     use acvm::acir::AcirField;
+
+    #[test]
+    fn simplify_cfg_snapshots() {
+        run_snapshots("simplifying", Ssa::simplify_cfg);
+    }
 
     #[test]
     fn inline_blocks() {

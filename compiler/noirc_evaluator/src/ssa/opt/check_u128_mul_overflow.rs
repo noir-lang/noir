@@ -134,7 +134,15 @@ fn check_u128_mul_overflow(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::ssa::{
+        opt::{assert_normalized_ssa_equals, run_snapshots},
+        ssa_gen::Ssa,
+    };
+
+    #[test]
+    fn check_u128_mul_overflow_snapshots() {
+        run_snapshots("check_u128_mul_overflow", Ssa::check_u128_mul_overflow);
+    }
 
     #[test]
     fn does_not_insert_check_if_lhs_is_less_than_two_pow_64() {

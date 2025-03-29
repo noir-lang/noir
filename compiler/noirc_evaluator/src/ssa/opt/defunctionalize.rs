@@ -439,9 +439,15 @@ fn build_return_block(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use crate::ssa::opt::{assert_normalized_ssa_equals, run_snapshots};
 
     use super::Ssa;
+
+    #[test]
+    fn defunctionalize_snapshots() {
+        run_snapshots("defunctionalization", Ssa::defunctionalize);
+    }
 
     #[test]
     fn apply_inherits_caller_runtime() {

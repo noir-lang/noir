@@ -85,9 +85,14 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::opt::{assert_normalized_ssa_equals, run_snapshots};
 
     use super::Ssa;
+
+    #[test]
+    fn remove_unreachable_functions_snapshots() {
+        run_snapshots("removing_unreachable_functions", Ssa::remove_unreachable_functions);
+    }
 
     #[test]
     fn remove_unused_brillig() {

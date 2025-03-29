@@ -132,3 +132,15 @@ fn evaluate_static_assert(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::opt::run_snapshots;
+
+    #[test]
+    fn assert_constant_snapshots() {
+        run_snapshots("static_assert_and_assert_constant", |ssa| {
+            ssa.evaluate_static_assert_and_assert_constant().unwrap()
+        });
+    }
+}

@@ -797,8 +797,16 @@ mod test {
             map::Id,
             types::{NumericType, Type},
         },
-        opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
+        opt::{
+            assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order,
+            run_snapshots,
+        },
     };
+
+    #[test]
+    fn inlining_snapshots() {
+        run_snapshots("inlining", |ssa| ssa.inline_functions(i64::MAX));
+    }
 
     #[test]
     fn basic_inlining() {

@@ -1,0 +1,136 @@
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u128, v1: u128, v2: u8):
+    v3 = add v0, v1
+    v5 = eq v3, u128 2358023
+    constrain v3 == u128 2358023
+    v6 = sub v1, v0
+    v8 = eq v6, u128 2333333
+    constrain v6 == u128 2333333
+    v9 = mul v0, v1
+    v11 = div v0, u128 18446744073709551616
+    v12 = div v1, u128 18446744073709551616
+    v13 = unchecked_mul v11, v12
+    constrain v13 == u128 0, "attempt to multiply with overflow"
+    v16 = eq v9, u128 28957394910
+    constrain v9 == u128 28957394910
+    v17 = div v1, v0
+    v19 = eq v17, u128 190
+    constrain v17 == u128 190
+    v20 = mod v1, v0
+    v22 = eq v20, u128 128
+    constrain v20 == u128 128
+    v23 = not v0
+    v25 = eq v23, u128 340282366920938463463374607431768199110
+    constrain v23 == u128 340282366920938463463374607431768199110
+    v26 = xor v0, v1
+    v28 = eq v26, u128 2358007
+    constrain v26 == u128 2358007
+    v29 = and v0, v1
+    v31 = eq v29, u128 8
+    constrain v29 == u128 8
+    v32 = or v0, v1
+    v34 = eq v32, u128 2358015
+    constrain v32 == u128 2358015
+    v36 = call to_le_bits(v2) -> [u1; 8]
+    v38 = array_get v36, index Field 7 -> u1
+    v39 = not v38
+    v40 = cast v38 as Field
+    v41 = cast v39 as Field
+    v43 = mul Field 2, v40
+    v44 = add v43, v41
+    v45 = mul v44, v44
+    v46 = mul v45, Field 2
+    v48 = array_get v36, index Field 6 -> u1
+    v49 = not v48
+    v50 = cast v48 as Field
+    v51 = cast v49 as Field
+    v52 = mul v46, v50
+    v53 = mul v45, v51
+    v54 = add v52, v53
+    v55 = mul v54, v54
+    v56 = mul v55, Field 2
+    v58 = array_get v36, index Field 5 -> u1
+    v59 = not v58
+    v60 = cast v58 as Field
+    v61 = cast v59 as Field
+    v62 = mul v56, v60
+    v63 = mul v55, v61
+    v64 = add v62, v63
+    v65 = mul v64, v64
+    v66 = mul v65, Field 2
+    v68 = array_get v36, index Field 4 -> u1
+    v69 = not v68
+    v70 = cast v68 as Field
+    v71 = cast v69 as Field
+    v72 = mul v66, v70
+    v73 = mul v65, v71
+    v74 = add v72, v73
+    v75 = mul v74, v74
+    v76 = mul v75, Field 2
+    v78 = array_get v36, index Field 3 -> u1
+    v79 = not v78
+    v80 = cast v78 as Field
+    v81 = cast v79 as Field
+    v82 = mul v76, v80
+    v83 = mul v75, v81
+    v84 = add v82, v83
+    v85 = mul v84, v84
+    v86 = mul v85, Field 2
+    v87 = array_get v36, index Field 2 -> u1
+    v88 = not v87
+    v89 = cast v87 as Field
+    v90 = cast v88 as Field
+    v91 = mul v86, v89
+    v92 = mul v85, v90
+    v93 = add v91, v92
+    v94 = mul v93, v93
+    v95 = mul v94, Field 2
+    v97 = array_get v36, index Field 1 -> u1
+    v98 = not v97
+    v99 = cast v97 as Field
+    v100 = cast v98 as Field
+    v101 = mul v95, v99
+    v102 = mul v94, v100
+    v103 = add v101, v102
+    v104 = mul v103, v103
+    v105 = mul v104, Field 2
+    v107 = array_get v36, index Field 0 -> u1
+    v108 = not v107
+    v109 = cast v107 as Field
+    v110 = cast v108 as Field
+    v111 = mul v105, v109
+    v112 = mul v104, v110
+    v113 = add v111, v112
+    v115 = lt v2, u8 128
+    v116 = not v115
+    v117 = cast v115 as Field
+    v118 = cast v116 as Field
+    v119 = mul v117, v113
+    v121 = mul v118, Field 340282366920938463463374607431768211455
+    v122 = add v119, v121
+    v123 = cast v122 as u128
+    v124 = div v0, v123
+    v126 = eq v124, u128 3086
+    constrain v124 == u128 3086
+    v127 = cast v115 as u128
+    v128 = cast v113 as u128
+    v129 = unchecked_mul v127, v128
+    v130 = cast v0 as Field
+    v131 = cast v129 as Field
+    v132 = mul v130, v131
+    v133 = truncate v132 to 128 bits, max_bit_size: 254
+    v134 = cast v133 as u128
+    constrain v115 == u1 1, "attempt to bit-shift with overflow"
+    v136 = truncate v134 to 128 bits, max_bit_size: 129
+    v138 = eq v134, u128 49380
+    constrain v134 == u128 49380
+    v139 = lt v0, v1
+    constrain v139 == u1 1
+    v140 = lt v1, v0
+    v141 = not v140
+    constrain v140 == u1 0
+    v143 = eq v0, v1
+    v144 = not v143
+    constrain v0 != v1
+    return
+}
