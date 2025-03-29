@@ -4251,3 +4251,54 @@ fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn cannot_determine_type_of_generic_argument_in_function_call() {
+    let src = r#"
+    fn foo<T>() {}
+
+    fn main()
+    {
+        foo();
+        ^^^ Type annotation needed
+        ~~~ Could not determine the type of the generic argument `T` declared on the function `foo`
+    }
+
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
+    let src = r#"
+    struct Foo<T> {}
+
+    fn main()
+    {
+        let _ = Foo {};
+                ^^^^^^ Type annotation needed
+                ~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+    }
+
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
+    let src = r#"
+    enum Foo<T> {
+        Bar,
+    }
+
+    fn main()
+    {
+        let _ = Foo::Bar;
+                     ^^^ Type annotation needed
+                     ~~~ Could not determine the type of the generic argument `T` declared on the enum `Foo`
+    }
+
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features(src, &features);
+}
