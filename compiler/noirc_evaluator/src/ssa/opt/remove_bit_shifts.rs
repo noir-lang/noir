@@ -381,3 +381,13 @@ impl Context<'_> {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::run_snapshots, ssa_gen::Ssa};
+
+    #[test]
+    fn remove_bit_shifts_snapshots() {
+        run_snapshots("removing_bit_shifts", Ssa::remove_bit_shifts);
+    }
+}

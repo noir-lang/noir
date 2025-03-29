@@ -279,7 +279,16 @@ fn build_call_graph(
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa};
+    use crate::ssa::{
+        ir::function::FunctionId,
+        opt::{pure::Purity, run_snapshots},
+        ssa_gen::Ssa,
+    };
+
+    #[test]
+    fn purity_analysis_snapshots() {
+        run_snapshots("purity_analysis", Ssa::purity_analysis);
+    }
 
     #[test]
     fn classify_functions() {

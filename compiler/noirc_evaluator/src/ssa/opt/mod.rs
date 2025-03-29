@@ -79,3 +79,35 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     println!("Got:\n~~~\n{ssa}\n~~~");
     similar_asserts::assert_eq!(expected_ssa, ssa);
 }
+
+#[cfg(test)]
+fn run_snapshots(snapshot_title: &str, f: fn(super::ssa_gen::Ssa) -> super::ssa_gen::Ssa) {
+    use super::ssa_gen::Ssa;
+
+    let inputs = glob::glob(&format!("src/ssa/opt/snapshots/**/[0-9][0-9]_{snapshot_title}*"))
+        .expect("Failed to read glob pattern");
+
+    let mut empty_glob = true;
+    for path in inputs {
+        empty_glob = false;
+        let path = path.unwrap();
+
+        let index = &path.file_name().unwrap().to_str().unwrap()[0..2];
+        let next_index = index.parse::<u32>().unwrap() + 1;
+        let glob_pattern = format!("{}/{next_index:02}_*", path.parent().unwrap().display());
+        let output_file = glob::glob(&glob_pattern)
+            .expect("Failed to read glob pattern")
+            .next()
+            .unwrap()
+            .unwrap();
+
+        let src = std::fs::read_to_string(&path).unwrap();
+        let expected = std::fs::read_to_string(&output_file).unwrap();
+
+        let ssa = Ssa::from_str(&src).unwrap();
+
+        let ssa = f(ssa);
+        assert_normalized_ssa_equals(ssa, &expected);
+    }
+    assert!(!empty_glob, "Glob was empty");
+}

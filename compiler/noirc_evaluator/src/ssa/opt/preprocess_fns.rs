@@ -69,3 +69,14 @@ impl Ssa {
         self.remove_unreachable_functions()
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::ssa::opt::run_snapshots;
+
+    #[test]
+    fn preprocess_fns_snapshots() {
+        run_snapshots("preprocessing_functions", |ssa| ssa.preprocess_functions(i64::MAX));
+    }
+}

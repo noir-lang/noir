@@ -79,7 +79,15 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::ssa::{
+        opt::{assert_normalized_ssa_equals, run_snapshots},
+        ssa_gen::Ssa,
+    };
+
+    #[test]
+    fn remove_truncate_after_range_check_snapshots() {
+        run_snapshots("removing_truncate_after_rangecheck", Ssa::remove_truncate_after_range_check);
+    }
 
     #[test]
     fn removes_truncate_after_range_check_with_same_bit_size() {

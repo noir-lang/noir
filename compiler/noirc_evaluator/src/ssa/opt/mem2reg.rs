@@ -681,8 +681,13 @@ mod tests {
             map::Id,
             types::Type,
         },
-        opt::assert_normalized_ssa_equals,
+        opt::{assert_normalized_ssa_equals, run_snapshots},
     };
+
+    #[test]
+    fn mem2reg_snapshots() {
+        run_snapshots("mem2reg", Ssa::mem2reg);
+    }
 
     #[test]
     fn test_simple() {

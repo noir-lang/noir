@@ -241,3 +241,13 @@ fn slice_capacity_change(
         | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::run_snapshots, ssa_gen::Ssa};
+
+    #[test]
+    fn remove_if_else_snapshots() {
+        run_snapshots("remove_ifelse", Ssa::remove_if_else);
+    }
+}

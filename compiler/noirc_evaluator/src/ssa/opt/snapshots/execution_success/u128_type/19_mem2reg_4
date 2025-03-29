@@ -1,0 +1,209 @@
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: u128, v1: u128, v2: u8):
+    v3 = add v0, v1
+    v5 = eq v3, u128 2358023
+    constrain v3 == u128 2358023
+    v6 = sub v1, v0
+    v8 = eq v6, u128 2333333
+    constrain v6 == u128 2333333
+    v9 = mul v0, v1
+    v11 = eq v9, u128 28957394910
+    constrain v9 == u128 28957394910
+    v12 = div v1, v0
+    v14 = eq v12, u128 190
+    constrain v12 == u128 190
+    v15 = mod v1, v0
+    v17 = eq v15, u128 128
+    constrain v15 == u128 128
+    v18 = not v0
+    v20 = eq v18, u128 340282366920938463463374607431768199110
+    constrain v18 == u128 340282366920938463463374607431768199110
+    v21 = xor v0, v1
+    v23 = eq v21, u128 2358007
+    constrain v21 == u128 2358007
+    v24 = and v0, v1
+    v26 = eq v24, u128 8
+    constrain v24 == u128 8
+    v27 = or v0, v1
+    v29 = eq v27, u128 2358015
+    constrain v27 == u128 2358015
+    v31 = call to_le_bits(v2) -> [u1; 8]
+    v33 = array_get v31, index Field 7 -> u1
+    v34 = not v33
+    v35 = cast v33 as Field
+    v36 = cast v34 as Field
+    v38 = mul Field 2, v35
+    v39 = add v38, v36
+    v40 = mul v39, v39
+    v41 = mul v40, Field 2
+    v43 = array_get v31, index Field 6 -> u1
+    v44 = not v43
+    v45 = cast v43 as Field
+    v46 = cast v44 as Field
+    v47 = mul v41, v45
+    v48 = mul v40, v46
+    v49 = add v47, v48
+    v50 = mul v49, v49
+    v51 = mul v50, Field 2
+    v53 = array_get v31, index Field 5 -> u1
+    v54 = not v53
+    v55 = cast v53 as Field
+    v56 = cast v54 as Field
+    v57 = mul v51, v55
+    v58 = mul v50, v56
+    v59 = add v57, v58
+    v60 = mul v59, v59
+    v61 = mul v60, Field 2
+    v63 = array_get v31, index Field 4 -> u1
+    v64 = not v63
+    v65 = cast v63 as Field
+    v66 = cast v64 as Field
+    v67 = mul v61, v65
+    v68 = mul v60, v66
+    v69 = add v67, v68
+    v70 = mul v69, v69
+    v71 = mul v70, Field 2
+    v73 = array_get v31, index Field 3 -> u1
+    v74 = not v73
+    v75 = cast v73 as Field
+    v76 = cast v74 as Field
+    v77 = mul v71, v75
+    v78 = mul v70, v76
+    v79 = add v77, v78
+    v80 = mul v79, v79
+    v81 = mul v80, Field 2
+    v82 = array_get v31, index Field 2 -> u1
+    v83 = not v82
+    v84 = cast v82 as Field
+    v85 = cast v83 as Field
+    v86 = mul v81, v84
+    v87 = mul v80, v85
+    v88 = add v86, v87
+    v89 = mul v88, v88
+    v90 = mul v89, Field 2
+    v92 = array_get v31, index Field 1 -> u1
+    v93 = not v92
+    v94 = cast v92 as Field
+    v95 = cast v93 as Field
+    v96 = mul v90, v94
+    v97 = mul v89, v95
+    v98 = add v96, v97
+    v99 = mul v98, v98
+    v100 = mul v99, Field 2
+    v102 = array_get v31, index Field 0 -> u1
+    v103 = not v102
+    v104 = cast v102 as Field
+    v105 = cast v103 as Field
+    v106 = mul v100, v104
+    v107 = mul v99, v105
+    v108 = add v106, v107
+    v110 = lt v2, u8 128
+    v111 = not v110
+    v112 = cast v110 as Field
+    v113 = cast v111 as Field
+    v114 = mul v112, v108
+    v116 = mul v113, Field 340282366920938463463374607431768211455
+    v117 = add v114, v116
+    v118 = cast v117 as u128
+    v119 = div v0, v118
+    v121 = eq v119, u128 3086
+    constrain v119 == u128 3086
+    v122 = lt v2, u8 128
+    v123 = cast v122 as u128
+    v124 = call to_le_bits(v2) -> [u1; 8]
+    v125 = array_get v124, index Field 7 -> u1
+    v126 = not v125
+    v127 = cast v125 as Field
+    v128 = cast v126 as Field
+    v129 = mul Field 2, v127
+    v130 = add v129, v128
+    v131 = mul v130, v130
+    v132 = mul v131, Field 2
+    v133 = array_get v124, index Field 6 -> u1
+    v134 = not v133
+    v135 = cast v133 as Field
+    v136 = cast v134 as Field
+    v137 = mul v132, v135
+    v138 = mul v131, v136
+    v139 = add v137, v138
+    v140 = mul v139, v139
+    v141 = mul v140, Field 2
+    v142 = array_get v124, index Field 5 -> u1
+    v143 = not v142
+    v144 = cast v142 as Field
+    v145 = cast v143 as Field
+    v146 = mul v141, v144
+    v147 = mul v140, v145
+    v148 = add v146, v147
+    v149 = mul v148, v148
+    v150 = mul v149, Field 2
+    v151 = array_get v124, index Field 4 -> u1
+    v152 = not v151
+    v153 = cast v151 as Field
+    v154 = cast v152 as Field
+    v155 = mul v150, v153
+    v156 = mul v149, v154
+    v157 = add v155, v156
+    v158 = mul v157, v157
+    v159 = mul v158, Field 2
+    v160 = array_get v124, index Field 3 -> u1
+    v161 = not v160
+    v162 = cast v160 as Field
+    v163 = cast v161 as Field
+    v164 = mul v159, v162
+    v165 = mul v158, v163
+    v166 = add v164, v165
+    v167 = mul v166, v166
+    v168 = mul v167, Field 2
+    v169 = array_get v124, index Field 2 -> u1
+    v170 = not v169
+    v171 = cast v169 as Field
+    v172 = cast v170 as Field
+    v173 = mul v168, v171
+    v174 = mul v167, v172
+    v175 = add v173, v174
+    v176 = mul v175, v175
+    v177 = mul v176, Field 2
+    v178 = array_get v124, index Field 1 -> u1
+    v179 = not v178
+    v180 = cast v178 as Field
+    v181 = cast v179 as Field
+    v182 = mul v177, v180
+    v183 = mul v176, v181
+    v184 = add v182, v183
+    v185 = mul v184, v184
+    v186 = mul v185, Field 2
+    v187 = array_get v124, index Field 0 -> u1
+    v188 = not v187
+    v189 = cast v187 as Field
+    v190 = cast v188 as Field
+    v191 = mul v186, v189
+    v192 = mul v185, v190
+    v193 = add v191, v192
+    v194 = cast v193 as u128
+    v195 = unchecked_mul v123, v194
+    v196 = cast v0 as Field
+    v197 = cast v195 as Field
+    v198 = mul v196, v197
+    v199 = truncate v198 to 128 bits, max_bit_size: 254
+    v200 = cast v199 as u128
+    v201 = lt v2, u8 128
+    constrain v201 == u1 1, "attempt to bit-shift with overflow"
+    v203 = truncate v200 to 128 bits, max_bit_size: 129
+    v205 = eq v200, u128 49380
+    constrain v200 == u128 49380
+    v206 = lt v0, v1
+    constrain v206 == u1 1
+    v207 = lt v1, v0
+    v208 = not v207
+    constrain v207 == u1 0
+    v210 = eq v0, v1
+    v211 = not v210
+    constrain v210 == u1 0
+    v212 = lt v0, v1
+    constrain v212 == u1 1
+    v213 = lt v1, v0
+    v214 = not v213
+    constrain v213 == u1 0
+    return
+}

@@ -387,7 +387,15 @@ impl Context<'_> {
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
+    use crate::ssa::{
+        Ssa,
+        opt::{assert_normalized_ssa_equals, run_snapshots},
+    };
+
+    #[test]
+    fn flatten_basic_conditional_snapshots() {
+        run_snapshots("simplify_conditionals_for_unconstrained", Ssa::flatten_basic_conditionals);
+    }
 
     #[test]
     fn basic_jmpif() {

@@ -84,9 +84,14 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::opt::{assert_normalized_ssa_equals, run_snapshots};
 
     use super::Ssa;
+
+    #[test]
+    fn brillig_array_gets_snapshots() {
+        run_snapshots("brillig_array_get_optimizations", Ssa::brillig_array_gets);
+    }
 
     #[test]
     fn offset_array_get_constant_index() {

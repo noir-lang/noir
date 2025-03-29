@@ -70,3 +70,14 @@ impl Function {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::ssa::{opt::run_snapshots, ssa_gen::Ssa};
+
+    #[test]
+    fn constrain_not_equal_snapshots() {
+        run_snapshots("adding_constrain_not_equal", Ssa::make_constrain_not_equal_instructions);
+    }
+}

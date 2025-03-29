@@ -156,8 +156,14 @@ mod test {
 
     use crate::ssa::{
         ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
+        opt::run_snapshots,
         ssa_gen::Ssa,
     };
+
+    #[test]
+    fn rc_snapshots() {
+        run_snapshots("removing_paired_rc_inc_&_rc_decs", Ssa::remove_paired_rc);
+    }
 
     fn count_inc_rcs(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
         dfg[block]

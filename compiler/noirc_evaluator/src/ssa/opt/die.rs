@@ -839,8 +839,13 @@ mod test {
             map::Id,
             types::{NumericType, Type},
         },
-        opt::assert_normalized_ssa_equals,
+        opt::{assert_normalized_ssa_equals, run_snapshots},
     };
+
+    #[test]
+    fn die_snapshots() {
+        run_snapshots("dead_instruction_elimination", Ssa::dead_instruction_elimination);
+    }
 
     #[test]
     fn dead_instruction_elimination() {

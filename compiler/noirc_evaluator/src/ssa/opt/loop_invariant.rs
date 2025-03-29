@@ -550,7 +550,12 @@ fn can_be_hoisted(
 #[cfg(test)]
 mod test {
     use crate::ssa::Ssa;
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::opt::{assert_normalized_ssa_equals, run_snapshots};
+
+    #[test]
+    fn loop_invariant_snapshots() {
+        run_snapshots("loop_invariant_code_motion", Ssa::loop_invariant_code_motion);
+    }
 
     #[test]
     fn simple_loop_invariant_code_motion() {

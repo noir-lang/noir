@@ -3485,6 +3485,7 @@ dependencies = [
  "cfg-if",
  "chrono",
  "fxhash",
+ "glob",
  "im",
  "iter-extended",
  "noirc_errors",
