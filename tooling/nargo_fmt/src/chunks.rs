@@ -6,7 +6,7 @@
 //! <https://yorickpeterse.com/articles/how-to-write-a-code-formatter/>
 //!
 //! However, some changes were introduces to handle comments and other particularities of Noir.
-use std::ops::Deref;
+use std::{fmt::Display, ops::Deref};
 
 use noirc_frontend::token::Token;
 
@@ -454,6 +454,36 @@ impl ChunkGroup {
         false
     }
 
+    /// Assuming this is a MethodCall group, if the ExpressionList nested in it
+    /// has a LambdaAsLastExpressionInList, returns its `first_line_width`.
+    fn method_call_lambda_first_line_width(&self) -> Option<usize> {
+        for chunk in &self.chunks {
+            let Chunk::Group(group) = chunk else {
+                continue;
+            };
+
+            let GroupKind::ExpressionList { expressions_count: 1, .. } = group.kind else {
+                continue;
+            };
+
+            for chunk in &group.chunks {
+                let Chunk::Group(group) = chunk else {
+                    continue;
+                };
+
+                let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = group.kind
+                else {
+                    continue;
+                };
+
+                return Some(first_line_width);
+            }
+        }
+
+        None
+    }
+}
+
 impl Display for ChunkGroup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for chunk in &self.chunks {
@@ -638,7 +668,21 @@ impl<'a> Formatter<'a> {
                 lhs: false,
             } = group.kind
             {
-                let total_width = self.current_line_width() + width_until_left_paren_inclusive;
+                let mut total_width = self.current_line_width() + width_until_left_paren_inclusive;
+
+                if total_width <= self.max_width {
+                    // Check if this method call has a single lambda argument, like this:
+                    //
+                    // foo.bar.baz(|x| { x + 1 })
+                    //
+                    // In this case we can't just consider the width up to `(`, we need to include `|x| {`
+                    // because we'll want to format it in the same line as the `(` (we could put the lambda
+                    // on a separate line but it would be less readable).
+                    if let Some(first_line_width) = group.method_call_lambda_first_line_width() {
+                        total_width += first_line_width;
+                    }
+                }
+
                 if total_width <= self.max_width {
                     // Check if this method call has another call or method call nested in it.
                     // If not, it means this is the last nested call and after it we'll need to start
