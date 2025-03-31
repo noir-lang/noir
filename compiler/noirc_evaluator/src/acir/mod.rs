@@ -691,9 +691,16 @@ impl<'a> Context<'a> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
+        // Disable the side effects if the binary instruction does not require them
+        let predicate = if instruction.requires_acir_gen_predicate(dfg) {
+            self.current_side_effects_enabled_var
+        } else {
+            self.acir_context.add_constant(FieldElement::one())
+        };
+
         match instruction {
             Instruction::Binary(binary) => {
-                let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
+                let result_acir_var = self.convert_ssa_binary(binary, dfg, predicate)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
@@ -1987,6 +1994,7 @@ impl<'a> Context<'a> {
         &mut self,
         binary: &Binary,
         dfg: &DataFlowGraph,
+        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
@@ -1998,12 +2006,7 @@ impl<'a> Context<'a> {
             BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul { .. } => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(
-                lhs,
-                rhs,
-                binary_type.clone(),
-                self.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.clone(), predicate),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
@@ -2016,13 +2019,9 @@ impl<'a> Context<'a> {
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod => self.acir_context.modulo_var(
-                lhs,
-                rhs,
-                binary_type.clone(),
-                bit_count,
-                self.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Mod => {
+                self.acir_context.modulo_var(lhs, rhs, binary_type.clone(), bit_count, predicate)
+            }
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(
                 "ICE - bit shift operators do not exist in ACIR and should have been replaced"
             ),
@@ -2030,7 +2029,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, dfg)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, dfg, predicate)?;
         }
 
         Ok(result)
@@ -2043,12 +2042,13 @@ impl<'a> Context<'a> {
         bit_size: u32,
         binary: &Binary,
         dfg: &DataFlowGraph,
+        predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
         let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
             return Ok(());
         };
 
-        let with_pred = self.acir_context.mul_var(result, self.current_side_effects_enabled_var)?;
+        let with_pred = self.acir_context.mul_var(result, predicate)?;
         self.acir_context.range_constrain_var(
             with_pred,
             &NumericType::Unsigned { bit_size },
