@@ -1,7 +1,7 @@
 use acir::{FieldElement, native_types::WitnessStack};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use color_eyre::eyre::{self, WrapErr};
+use color_eyre::eyre::{self, WrapErr, bail};
 use nargo::{NargoError, PrintOutput, foreign_calls::DefaultForeignCallBuilder};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::ssa::SsaProgramArtifact;
@@ -9,20 +9,28 @@ use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_inputs, arb_program};
 
-/// Comparison result of the execution.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExecOutput {
+    pub return_value: Option<InputValue>,
+    pub print_output: String,
+}
+
+type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
+
+/// Result of the comparative execution.
+/// Does not compare results.
 pub enum CompareResult {
     BothFailed(NargoError<FieldElement>, NargoError<FieldElement>),
-    LeftFailed(NargoError<FieldElement>, Option<InputValue>),
-    RightFailed(Option<InputValue>, NargoError<FieldElement>),
-    Disagree(Option<InputValue>, Option<InputValue>),
-    Agree(Option<InputValue>),
+    LeftFailed(NargoError<FieldElement>, ExecOutput),
+    RightFailed(ExecOutput, NargoError<FieldElement>),
+    BothPassed(ExecOutput, ExecOutput),
 }
 
 impl CompareResult {
     fn new(
         abi: &Abi,
-        res1: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
-        res2: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
+        (res1, print1): ExecResult,
+        (res2, print2): ExecResult,
     ) -> eyre::Result<Self> {
         let decode = |ws: WitnessStack<FieldElement>| -> eyre::Result<Option<InputValue>> {
             let wm = &ws.peek().expect("there should be a main witness").witness;
@@ -32,15 +40,49 @@ impl CompareResult {
 
         match (res1, res2) {
             (Err(e1), Err(e2)) => Ok(CompareResult::BothFailed(e1, e2)),
-            (Err(e), Ok(ws)) => Ok(CompareResult::LeftFailed(e, decode(ws)?)),
-            (Ok(ws), Err(e)) => Ok(CompareResult::RightFailed(decode(ws)?, e)),
+            (Err(e1), Ok(ws2)) => Ok(CompareResult::LeftFailed(
+                e1,
+                ExecOutput { return_value: decode(ws2)?, print_output: print2 },
+            )),
+            (Ok(ws1), Err(e2)) => Ok(CompareResult::RightFailed(
+                ExecOutput { return_value: decode(ws1)?, print_output: print1 },
+                e2,
+            )),
             (Ok(ws1), Ok(ws2)) => {
-                let r1 = decode(ws1)?;
-                let r2 = decode(ws2)?;
-                if r1 == r2 {
-                    Ok(CompareResult::Agree(r1))
+                let o1 = ExecOutput { return_value: decode(ws1)?, print_output: print1 };
+                let o2 = ExecOutput { return_value: decode(ws2)?, print_output: print2 };
+                Ok(CompareResult::BothPassed(o1, o2))
+            }
+        }
+    }
+
+    /// Check that the programs agree on a return value.
+    ///
+    /// Returns an error if anything is different.
+    pub fn return_value_or_err(&self) -> eyre::Result<Option<&InputValue>> {
+        match self {
+            CompareResult::BothFailed(_, _) => Ok(None),
+            CompareResult::LeftFailed(e, _) => {
+                bail!("first program failed: {e}")
+            }
+            CompareResult::RightFailed(_, e) => {
+                bail!("second program failed: {e}")
+            }
+            CompareResult::BothPassed(o1, o2) => {
+                if o1.return_value != o2.return_value {
+                    bail!(
+                        "programs disagree on return value: {:?} != {:?}",
+                        o1.return_value,
+                        o2.return_value
+                    )
+                } else if o1.print_output != o2.print_output {
+                    bail!(
+                        "programs disagree on printed output:\n---\n{}\n\n---\n{}\n",
+                        o1.print_output,
+                        o2.print_output
+                    )
                 } else {
-                    Ok(CompareResult::Disagree(r1, r2))
+                    Ok(o1.return_value.as_ref())
                 }
             }
         }
@@ -60,28 +102,30 @@ impl<P> CompareSsa<P> {
     /// Execute the two SSAs and compare the results.
     pub fn exec(&self) -> eyre::Result<CompareResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
-        let mut foreign_call_executor = DefaultForeignCallBuilder::default()
-            .with_mocks(false)
-            .with_output(PrintOutput::None)
-            .build();
-
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
-        let res1 = nargo::ops::execute_program(
-            &self.ssa1.program,
-            initial_witness.clone(),
-            &blackbox_solver,
-            &mut foreign_call_executor,
-        );
+        let do_exec = |program| {
+            let mut print = String::new();
 
-        let res2 = nargo::ops::execute_program(
-            &self.ssa2.program,
-            initial_witness,
-            &blackbox_solver,
-            &mut foreign_call_executor,
-        );
+            let mut foreign_call_executor = DefaultForeignCallBuilder::default()
+                .with_mocks(false)
+                .with_output(PrintOutput::String(&mut print))
+                .build();
 
-        CompareResult::new(&self.abi, res1, res2)
+            let res = nargo::ops::execute_program(
+                program,
+                initial_witness.clone(),
+                &blackbox_solver,
+                &mut foreign_call_executor,
+            );
+
+            (res, print)
+        };
+
+        let (res1, print1) = do_exec(&self.ssa1.program);
+        let (res2, print2) = do_exec(&self.ssa1.program);
+
+        CompareResult::new(&self.abi, (res1, print1), (res2, print2))
     }
 }
 

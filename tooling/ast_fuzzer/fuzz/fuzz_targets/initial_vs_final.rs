@@ -4,11 +4,11 @@
 #![no_main]
 
 use acir::circuit::ExpressionWidth;
-use color_eyre::eyre::{self, Context, bail};
+use color_eyre::eyre::{self, Context};
 use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use noir_ast_fuzzer::Config;
-use noir_ast_fuzzer::compare::{ComparePasses, CompareResult};
+use noir_ast_fuzzer::compare::ComparePasses;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa;
 
@@ -53,17 +53,6 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec().wrap_err("exec")?;
 
-    match result {
-        CompareResult::BothFailed(_, _) => Ok(()),
-        CompareResult::LeftFailed(e, _) => {
-            bail!("initial program failed: {e}")
-        }
-        CompareResult::RightFailed(_, e) => {
-            bail!("final program failed: {e}")
-        }
-        CompareResult::Disagree(r1, r2) => {
-            bail!("programs disagree: {r1:?} != {r2:?}")
-        }
-        CompareResult::Agree(_) => Ok(()),
-    }
+    let _ = result.return_value_or_err()?;
+    Ok(())
 }
