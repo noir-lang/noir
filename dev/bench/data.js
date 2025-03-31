@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743441007567,
+  "lastUpdate": 1743441779784,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e097a1d36b4ed407d7a064d7669f7d136392fe3d",
-          "message": "chore: push users towards nargo in tutorial (#7736)",
-          "timestamp": "2025-03-19T11:25:15Z",
-          "tree_id": "9be82e35118f9d7b9514dac2376b069cec5bf31c",
-          "url": "https://github.com/noir-lang/noir/commit/e097a1d36b4ed407d7a064d7669f7d136392fe3d"
-        },
-        "date": 1742384725077,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.697,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.493,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.292,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.976,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.188,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 10.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.935,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.935,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.522,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.502,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1b3743b393b895783890b6e38e5365315be5b435",
+          "message": "fix: do not use enable_side_effect in acir-gen if instruction does not req… (#7847)",
+          "timestamp": "2025-03-31T16:49:34Z",
+          "tree_id": "4189152a4842e6a358415c2b3d4177c394efceb8",
+          "url": "https://github.com/noir-lang/noir/commit/1b3743b393b895783890b6e38e5365315be5b435"
+        },
+        "date": 1743441775411,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.687,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 15,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.509,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.242,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.952,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.106,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.927,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.956,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.474,
             "unit": "s"
           }
         ]
