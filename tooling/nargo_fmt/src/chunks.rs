@@ -641,7 +641,7 @@ impl<'a> Formatter<'a> {
                 let total_width = self.current_line_width() + width_until_left_paren_inclusive;
                 if total_width <= self.max_width {
                     // Check if this method call has another call or method call nested in it.
-                    // If not, it means tis is the last nested call and after it we'll need to start
+                    // If not, it means this is the last nested call and after it we'll need to start
                     // writing at least one closing parentheses. So the argument list will actually
                     // have one less character available for writing, and that's why we (temporarily) decrease
                     // max width.
@@ -709,7 +709,6 @@ impl<'a> Formatter<'a> {
             return;
         }
 
-        // if chunks.has_newlines() {
         // When formatting an expression list we have to check if the last argument is a lambda,
         // because we format that in a special way:
         // 1. to compute the group width we'll consider only the `|...| {` part of the lambda
