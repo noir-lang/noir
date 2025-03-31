@@ -306,12 +306,12 @@ const codegenFunction = (
   compiled_program?: CompiledCircuit,
 ): string => {
   const args = function_signature.inputs.map(([name]) => `${name}`).join(', ');
-  let args_with_types = function_signature.inputs.map(([name, type]) => `${name}: ${type}`);
+  const args_with_types = function_signature.inputs.map(([name, type]) => `${name}: ${type}`);
   if (!compiled_program) {
     args_with_types.push(`${name}_circuit: CompiledCircuit`);
   }
   args_with_types.push('foreignCallHandler?: ForeignCallHandler');
-  let args_with_types_joined_by_comma = args_with_types.join(', ');
+  const args_with_types_joined_by_comma = args_with_types.join(', ');
 
   const artifact = compiled_program
     ? `export const ${name}_circuit: CompiledCircuit = ${JSON.stringify(compiled_program)};`
