@@ -113,6 +113,26 @@ impl Chunk {
     }
 }
 
+impl Display for Chunk {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Chunk::Text(text_chunk, _)
+            | Chunk::TrailingComment(text_chunk)
+            | Chunk::LeadingComment(text_chunk) => {
+                write!(f, "{}", text_chunk.string)
+            }
+            Chunk::TrailingComma => write!(f, ","),
+            Chunk::Group(chunk_group) => chunk_group.fmt(f),
+            Chunk::SpaceOrLine => write!(f, " "),
+            Chunk::Line { .. }
+            | Chunk::IncreaseIndentation
+            | Chunk::DecreaseIndentation
+            | Chunk::PushIndentation
+            | Chunk::PopIndentation => Ok(()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct ChunkGroup {
     pub(crate) chunks: Vec<Chunk>,
@@ -432,6 +452,14 @@ impl ChunkGroup {
         }
 
         false
+    }
+
+impl Display for ChunkGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for chunk in &self.chunks {
+            chunk.fmt(f)?;
+        }
+        Ok(())
     }
 }
 
