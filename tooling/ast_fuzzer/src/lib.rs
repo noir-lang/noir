@@ -1,4 +1,5 @@
 mod abi;
+pub mod compare;
 mod input;
 mod program;
 

@@ -16,7 +16,7 @@ fn main() {
     };
     let mut u = Unstructured::new(&data);
 
-    let program = arb_program(&mut u, Config::default()).expect("arb_program");
+    let (program, _abi) = arb_program(&mut u, Config::default()).expect("arb_program");
 
     println!("{program}");
 }

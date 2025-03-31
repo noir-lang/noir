@@ -16,12 +16,14 @@ build-data.workspace = true
 
 [dependencies]
 arbitrary.workspace = true
+color-eyre.workspace = true
+proptest.workspace = true
 
 acir.workspace = true
-
-# For generating arbitrary ABI inputs.
-proptest.workspace = true
+bn254_blackbox_solver.workspace = true
+nargo.workspace = true
 noirc_abi.workspace = true
+noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 noir_fuzzer.workspace = true
 

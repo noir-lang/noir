@@ -64,7 +64,7 @@ impl Context {
 
     /// Get a function declaration.
     fn function_decl(&self, id: FuncId) -> &FunctionDeclaration {
-        &self.function_declarations.get(&id).expect("function should exist")
+        self.function_declarations.get(&id).expect("function should exist")
     }
 
     /// Generate random global definitions.
@@ -80,7 +80,7 @@ impl Context {
     /// Generate random function bodies.
     fn gen_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         for (id, decl) in &self.function_declarations {
-            let body = FunctionContext::new(&self, *id).gen_body(u);
+            let body = FunctionContext::new(self, *id).gen_body(u);
             let function = Function {
                 id: *id,
                 name: decl.name.clone(),
@@ -88,7 +88,7 @@ impl Context {
                 body,
                 return_type: decl.return_type.clone(),
                 unconstrained: decl.unconstrained,
-                inline_type: decl.inline_type.clone(),
+                inline_type: decl.inline_type,
                 func_sig: decl.signature(),
             };
             self.functions.insert(*id, function);
@@ -102,7 +102,7 @@ impl Context {
             if bool::arbitrary(u)? { Visibility::Public } else { Visibility::Private };
 
         let program = Program {
-            functions: self.functions.into_iter().map(|(_, f)| f).collect(),
+            functions: self.functions.into_values().collect(),
             function_signatures: self
                 .function_declarations
                 .values()
