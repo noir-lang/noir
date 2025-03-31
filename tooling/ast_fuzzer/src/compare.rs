@@ -47,33 +47,16 @@ impl CompareResult {
     }
 }
 
-/// Inputs for compare the same program compiled two different ways.
-pub struct ComparePasses {
-    pub program: Program,
+/// Compare the execution of different SSA representations of equivalent program(s).
+pub struct CompareSsa<P> {
+    pub program: P,
     pub abi: Abi,
     pub input_map: InputMap,
     pub ssa1: SsaProgramArtifact,
     pub ssa2: SsaProgramArtifact,
 }
 
-impl ComparePasses {
-    /// Generate a random AST and compile it into SSA in two different ways.
-    pub fn arb(
-        u: &mut Unstructured,
-        c: Config,
-        f: impl FnOnce(&Program) -> SsaProgramArtifact,
-        g: impl FnOnce(&Program) -> SsaProgramArtifact,
-    ) -> arbitrary::Result<Self> {
-        let (program, abi) = arb_program(u, c)?;
-
-        let ssa1 = f(&program);
-        let ssa2 = g(&program);
-
-        let input_map = arb_inputs(u, &ssa1.program, &abi)?;
-
-        Ok(ComparePasses { program, abi, input_map, ssa1, ssa2 })
-    }
-
+impl<P> CompareSsa<P> {
     /// Execute the two SSAs and compare the results.
     pub fn exec(&self) -> eyre::Result<CompareResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
@@ -99,5 +82,50 @@ impl ComparePasses {
         );
 
         CompareResult::new(&self.abi, res1, res2)
+    }
+}
+
+/// Compare the execution the same program compiled in two different ways.
+pub type ComparePasses = CompareSsa<Program>;
+
+impl CompareSsa<Program> {
+    /// Generate a random AST and compile it into SSA in two different ways.
+    pub fn arb(
+        u: &mut Unstructured,
+        c: Config,
+        f: impl FnOnce(Program) -> SsaProgramArtifact,
+        g: impl FnOnce(Program) -> SsaProgramArtifact,
+    ) -> arbitrary::Result<Self> {
+        let (program, abi) = arb_program(u, c)?;
+
+        let ssa1 = f(program.clone());
+        let ssa2 = g(program.clone());
+
+        let input_map = arb_inputs(u, &ssa1.program, &abi)?;
+
+        Ok(Self { program, abi, input_map, ssa1, ssa2 })
+    }
+}
+
+/// Compare two equivalent variants of the same program, compiled the same way.
+pub type CompareMutants = CompareSsa<(Program, Program)>;
+
+impl CompareMutants {
+    /// Generate a random AST and compile it into SSA in two different ways.
+    pub fn arb(
+        u: &mut Unstructured,
+        c: Config,
+        f: impl Fn(&mut Unstructured, &Program) -> arbitrary::Result<Program>,
+        g: impl Fn(Program) -> SsaProgramArtifact,
+    ) -> arbitrary::Result<Self> {
+        let (program1, abi) = arb_program(u, c)?;
+        let program2 = f(u, &program1)?;
+
+        let ssa1 = g(program1.clone());
+        let ssa2 = g(program2.clone());
+
+        let input_map = arb_inputs(u, &ssa1.program, &abi)?;
+
+        Ok(Self { program: (program1, program2), abi, input_map, ssa1, ssa2 })
     }
 }

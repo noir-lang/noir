@@ -1,6 +1,5 @@
-//! Compare the execution of random ASTs between the initial SSA
-//! (or as close as we can stay to the initial state)
-//! and the fully optimized version.
+//! Perform random equivalence mutations on the AST and check that the
+//! execution result does not change.
 #![no_main]
 
 use acir::circuit::ExpressionWidth;
@@ -8,7 +7,7 @@ use color_eyre::eyre::{self, Context, bail};
 use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use noir_ast_fuzzer::Config;
-use noir_ast_fuzzer::compare::{ComparePasses, CompareResult};
+use noir_ast_fuzzer::compare::{CompareMutants, CompareResult};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa;
 
@@ -30,25 +29,14 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         max_bytecode_increase_percent: None,
     };
 
-    // TODO: What we really want is to do the minimum number of passes on the SSA to leave it as close to the initial SSA as possible.
-    // For now just test with min/max inliner aggressiveness.
-    let inputs = ComparePasses::arb(
+    let inputs = CompareMutants::arb(
         u,
         Config::default(),
-        |program| {
-            ssa::create_program(
-                program,
-                &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MIN, ..options.clone() },
-            )
-            .expect("create_program 1")
+        |_u, program| {
+            // TODO: Perform random mutations
+            Ok(program.clone())
         },
-        |program| {
-            ssa::create_program(
-                program,
-                &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MAX, ..options.clone() },
-            )
-            .expect("create_program 2")
-        },
+        |program| ssa::create_program(program, &options).expect("create_program"),
     )?;
 
     let result = inputs.exec().wrap_err("exec")?;
@@ -56,10 +44,10 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     match result {
         CompareResult::BothFailed(_, _) => Ok(()),
         CompareResult::LeftFailed(e, _) => {
-            bail!("initial program failed: {e}")
+            bail!("original program failed: {e}")
         }
         CompareResult::RightFailed(_, e) => {
-            bail!("final program failed: {e}")
+            bail!("mutant program failed: {e}")
         }
         CompareResult::Disagree(r1, r2) => {
             bail!("programs disagree: {r1:?} != {r2:?}")

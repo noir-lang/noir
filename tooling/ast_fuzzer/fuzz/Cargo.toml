@@ -35,8 +35,8 @@ doc = false
 bench = false
 
 [[bin]]
-name = "mutation"
-path = "fuzz_targets/mutation.rs"
+name = "orig_vs_mutant"
+path = "fuzz_targets/orig_vs_mutant.rs"
 test = false
 doc = false
 bench = false
