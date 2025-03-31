@@ -705,6 +705,7 @@ pub fn compile_no_check(
 
     if options.show_monomorphized {
         println!("{program}");
+        println!("{:?}", program);
     }
 
     // If user has specified that they want to see intermediate steps printed then we should
