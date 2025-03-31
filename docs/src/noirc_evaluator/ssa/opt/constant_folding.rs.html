@@ -1935,7 +1935,8 @@
 <a href="#1934" id="1934">1934</a>
 <a href="#1935" id="1935">1935</a>
 <a href="#1936" id="1936">1936</a>
-<a href="#1937" id="1937">1937</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -3842,8 +3843,8 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>does_duplicate_unsigned_division_by_non_zero_constant() {
-        <span class="comment">// Regression test for https://github.com/noir-lang/noir/issues/7283
+    </span><span class="kw">fn </span>does_not_duplicate_unsigned_division_by_non_zero_constant() {
+        <span class="comment">// Regression test for https://github.com/noir-lang/noir/issues/7836
         </span><span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u1):
@@ -3866,6 +3867,7 @@
             v4 = div v1, u32 2
             v5 = not v2
             enable_side_effects v5
+            v6 = div v1, u32 2
             return
         }
         "</span>;

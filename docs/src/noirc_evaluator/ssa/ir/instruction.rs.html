@@ -815,20 +815,9 @@
 <a href="#814" id="814">814</a>
 <a href="#815" id="815">815</a>
 <a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a>
-<a href="#818" id="818">818</a>
-<a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a>
-<a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::{Hash, Hasher};
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::{Hash, Hasher};
 
-<span class="kw">use </span>acvm::{
-    acir::AcirField,
-    acir::{BlackBoxFunc, circuit::ErrorSelector},
-};
+<span class="kw">use </span>acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
 <span class="kw">use </span>fxhash::FxHasher64;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::hir_def::types::Type <span class="kw">as </span>HirType;
@@ -1205,12 +1194,7 @@
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         </span>dfg.type_of_value(binary.rhs).is_unsigned()
                     }
-                    BinaryOp::Div | BinaryOp::Mod =&gt; {
-                        <span class="comment">// Div and Mod require a predicate if the RHS may be zero.
-                        </span>dfg.get_numeric_constant(binary.rhs)
-                            .map(|rhs| rhs.is_zero())
-                            .unwrap_or(<span class="bool-val">true</span>)
-                    }
+                    BinaryOp::Div | BinaryOp::Mod =&gt; <span class="bool-val">true</span>,
                     BinaryOp::Add { unchecked: <span class="bool-val">true </span>}
                     | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}
                     | BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}

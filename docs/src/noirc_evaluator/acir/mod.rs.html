@@ -4438,9 +4438,16 @@
         <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>dfg[instruction_id];
         <span class="self">self</span>.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         <span class="kw">let </span><span class="kw-2">mut </span>warnings = Vec::new();
+        <span class="comment">// Disable the side effects if the binary instruction does not require them
+        </span><span class="kw">let </span>predicate = <span class="kw">if </span>instruction.requires_acir_gen_predicate(dfg) {
+            <span class="self">self</span>.current_side_effects_enabled_var
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.acir_context.add_constant(FieldElement::one())
+        };
+
         <span class="kw">match </span>instruction {
             Instruction::Binary(binary) =&gt; {
-                <span class="kw">let </span>result_acir_var = <span class="self">self</span>.convert_ssa_binary(binary, dfg)<span class="question-mark">?</span>;
+                <span class="kw">let </span>result_acir_var = <span class="self">self</span>.convert_ssa_binary(binary, dfg, predicate)<span class="question-mark">?</span>;
                 <span class="self">self</span>.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Constrain(lhs, rhs, assert_message) =&gt; {
@@ -5734,6 +5741,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         binary: <span class="kw-2">&amp;</span>Binary,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>lhs = <span class="self">self</span>.convert_numeric_value(binary.lhs, dfg)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs = <span class="self">self</span>.convert_numeric_value(binary.rhs, dfg)<span class="question-mark">?</span>;
@@ -5745,12 +5753,7 @@
             BinaryOp::Add { .. } =&gt; <span class="self">self</span>.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } =&gt; <span class="self">self</span>.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul { .. } =&gt; <span class="self">self</span>.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div =&gt; <span class="self">self</span>.acir_context.div_var(
-                lhs,
-                rhs,
-                binary_type.clone(),
-                <span class="self">self</span>.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Div =&gt; <span class="self">self</span>.acir_context.div_var(lhs, rhs, binary_type.clone(), predicate),
             <span class="comment">// Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             </span>BinaryOp::Eq =&gt; <span class="self">self</span>.acir_context.eq_var(lhs, rhs),
@@ -5763,13 +5766,9 @@
             BinaryOp::Xor =&gt; <span class="self">self</span>.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And =&gt; <span class="self">self</span>.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or =&gt; <span class="self">self</span>.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod =&gt; <span class="self">self</span>.acir_context.modulo_var(
-                lhs,
-                rhs,
-                binary_type.clone(),
-                bit_count,
-                <span class="self">self</span>.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Mod =&gt; {
+                <span class="self">self</span>.acir_context.modulo_var(lhs, rhs, binary_type.clone(), bit_count, predicate)
+            }
             BinaryOp::Shl | BinaryOp::Shr =&gt; <span class="macro">unreachable!</span>(
                 <span class="string">"ICE - bit shift operators do not exist in ACIR and should have been replaced"
             </span>),
@@ -5777,7 +5776,7 @@
 
         <span class="kw">if let </span>NumericType::Unsigned { bit_size } = <span class="kw-2">&amp;</span>num_type {
             <span class="comment">// Check for integer overflow
-            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, dfg)<span class="question-mark">?</span>;
+            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, dfg, predicate)<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(result)
@@ -5790,12 +5789,13 @@
         bit_size: u32,
         binary: <span class="kw-2">&amp;</span>Binary,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="kw">let </span><span class="prelude-val">Some</span>(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         };
 
-        <span class="kw">let </span>with_pred = <span class="self">self</span>.acir_context.mul_var(result, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>;
+        <span class="kw">let </span>with_pred = <span class="self">self</span>.acir_context.mul_var(result, predicate)<span class="question-mark">?</span>;
         <span class="self">self</span>.acir_context.range_constrain_var(
             with_pred,
             <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size },
