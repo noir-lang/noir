@@ -26,8 +26,7 @@ fn main(mut x: [Foo; 4], y: pub Field) {
     // Check dynamic array set
     if y != 2 {
         x[y].a = 50;
-    } 
-    else {
+    } else {
         x[y].a = 100;
     }
     assert(x[3].a == 50);

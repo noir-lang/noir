@@ -495,9 +495,20 @@ impl FunctionContext<'_> {
 
         // TODO: add a test that has a tuple with (field, array) to make sure we do not conflict
         // with the slice object
-        for value in array_or_slice.iter() {
+        for (i, value) in array_or_slice.iter().enumerate() {
             let typ = self.builder.current_function.dfg.type_of_value(*value);
             if matches!(typ, Type::Slice(_)) {
+                let array_type = &self.builder.type_of_value(*value);
+                match array_type {
+                    Type::Slice(_) => {
+                        // We expect the extract ident expression to
+                        self.codegen_slice_access_check(index_value, Some(array_or_slice[i - 1]));
+                    }
+                    Type::Array(..) => {
+                        // Nothing needs to done to prepare an array access on an array
+                    }
+                    _ => {}
+                }
                 indices.insert(1, NestedArrayIndex::Constant(1));
             }
         }
@@ -507,6 +518,7 @@ impl FunctionContext<'_> {
 
         let array = new_array.into_value_list(self);
         let array = if array.len() == 1 { array[0] } else { array[1] };
+
         let flattened_index = self.make_array_index(flattened_index);
 
         let mut field_index = 0u128;
