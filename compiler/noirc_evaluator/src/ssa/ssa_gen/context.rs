@@ -172,7 +172,7 @@ impl<'a> FunctionContext<'a> {
         let parameter_value = Self::map_type(parameter_type, |typ| {
             let value = self.builder.add_parameter(typ);
             if mutable {
-                // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
+                // This will wrap any `mut var: T` in a reference
                 self.new_mutable_variable(value)
             } else {
                 value.into()

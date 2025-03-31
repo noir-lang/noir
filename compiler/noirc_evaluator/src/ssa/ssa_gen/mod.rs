@@ -136,10 +136,8 @@ impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
-        // let incremented_params = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
-        // self.end_scope(incremented_params, &results);
 
         self.builder.terminate_with_return(results);
         Ok(())
