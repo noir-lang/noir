@@ -132,7 +132,7 @@ pub(crate) fn optimize_into_acir(
     // It could happen that we inlined all calls to a given brillig function.
     // In that case it's unused so we can remove it. This is what we check next.
     .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (4th)")
-    .run_pass(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination (2nd)")
+    .run_pass(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination (3rd)")
     .finish();
 
     if !options.skip_underconstrained_check {
@@ -232,7 +232,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
         .run_pass(Ssa::brillig_array_gets, "Brillig Array Get Optimizations")
-        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .finish())
 }
 
