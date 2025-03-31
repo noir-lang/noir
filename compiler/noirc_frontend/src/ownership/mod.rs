@@ -55,63 +55,77 @@ use fxhash::FxHashSet as HashSet;
 use noirc_errors::Location;
 
 impl Program {
-    pub(crate) fn handle_ownership(mut self, mut next_local_id: u32) -> Self {
+    pub(crate) fn handle_ownership(
+        mut self,
+        mut next_local_id: u32,
+        experimental_ownership_feature: bool,
+    ) -> Self {
+        let context = Context { experimental_ownership_feature };
         for function in self.functions.iter_mut() {
-            handle_ownership_in_function(function, &mut next_local_id);
+            context.handle_ownership_in_function(function, &mut next_local_id);
         }
 
         self
     }
 }
 
-fn handle_ownership_in_function(function: &mut Function, local_id: &mut u32) {
-    if !function.unconstrained {
-        return;
-    }
+struct Context {
+    experimental_ownership_feature: bool,
+}
 
-    let new_bindings = increment_parameter_rcs(&function.parameters);
-    handle_expression(&mut function.body);
-
-    // Prepend new_clones to the function body and insert drops for them at the end.
-    if !new_bindings.is_empty() {
-        let unit = Expression::Literal(Literal::Unit);
-        let old_body = std::mem::replace(&mut function.body, unit);
-
-        // Store anything we want to clone in let bindings first so when we later drop
-        // them we know we're dropping the same instance rather than a fresh copy.
-        let (mut new_body, new_idents) = create_let_bindings(new_bindings, local_id);
-
-        // Now push the clones for each parameter
-        for new_ident in &new_idents {
-            new_body.push(Expression::Clone(Box::new(new_ident.clone())));
+impl Context {
+    fn handle_ownership_in_function(&self, function: &mut Function, local_id: &mut u32) {
+        if !function.unconstrained {
+            return;
         }
 
-        // Insert a `let` for the returned value so we can insert drops after it
-        let return_id = next_local_id(local_id);
-        let return_let = Expression::Let(Let {
-            id: return_id,
-            mutable: false,
-            name: "return".to_string(),
-            expression: Box::new(old_body),
-        });
+        self.handle_expression(&mut function.body);
 
-        new_body.push(return_let);
+        if !self.experimental_ownership_feature {
+            let new_bindings = increment_parameter_rcs(&function.parameters);
 
-        // Now drop each parameter we cloned
-        for new_ident in new_idents {
-            new_body.push(Expression::Drop(Box::new(new_ident)));
+            // Prepend new_clones to the function body and insert drops for them at the end.
+            if !new_bindings.is_empty() {
+                let unit = Expression::Literal(Literal::Unit);
+                let old_body = std::mem::replace(&mut function.body, unit);
+
+                // Store anything we want to clone in let bindings first so when we later drop
+                // them we know we're dropping the same instance rather than a fresh copy.
+                let (mut new_body, new_idents) = create_let_bindings(new_bindings, local_id);
+
+                // Now push the clones for each parameter
+                for new_ident in &new_idents {
+                    new_body.push(Expression::Clone(Box::new(new_ident.clone())));
+                }
+
+                // Insert a `let` for the returned value so we can insert drops after it
+                let return_id = next_local_id(local_id);
+                let return_let = Expression::Let(Let {
+                    id: return_id,
+                    mutable: false,
+                    name: "return".to_string(),
+                    expression: Box::new(old_body),
+                });
+
+                new_body.push(return_let);
+
+                // Now drop each parameter we cloned
+                for new_ident in new_idents {
+                    new_body.push(Expression::Drop(Box::new(new_ident)));
+                }
+
+                // Finally, return the original return value we held on to
+                new_body.push(Expression::Ident(Ident {
+                    location: None,
+                    definition: Definition::Local(return_id),
+                    mutable: false,
+                    name: "return".to_string(),
+                    typ: function.return_type.clone(),
+                }));
+
+                function.body = Expression::Block(new_body);
+            }
         }
-
-        // Finally, return the original return value we held on to
-        new_body.push(Expression::Ident(Ident {
-            location: None,
-            definition: Definition::Local(return_id),
-            mutable: false,
-            name: "return".to_string(),
-            typ: function.return_type.clone(),
-        }));
-
-        function.body = Expression::Block(new_body);
     }
 }
 
@@ -241,203 +255,187 @@ fn recur_on_parameter<'typ>(
     }
 }
 
-/// Return the inner array, slice, string, or fmtstring type if it exists.
-fn inner_array_or_slice_type(typ: &Type) -> Option<&Type> {
-    match typ {
-        Type::Field | Type::Integer(..) | Type::Bool | Type::Function(..) | Type::Unit => None,
-
-        Type::Array(_, _) | Type::Slice(_) | Type::String(_) | Type::FmtString(..) => Some(typ),
-
-        Type::Tuple(elems) => {
-            for elem in elems {
-                if let Some(target) = inner_array_or_slice_type(elem) {
-                    return Some(target);
-                }
+impl Context {
+    fn handle_expression(&self, expr: &mut Expression) {
+        match expr {
+            Expression::Ident(_) => (),
+            Expression::Literal(literal) => self.handle_literal(literal),
+            Expression::Block(exprs) => {
+                exprs.iter_mut().for_each(|expr| self.handle_expression(expr));
             }
-            None
+            Expression::Unary(unary) => self.handle_unary(unary),
+            Expression::Binary(binary) => self.handle_binary(binary),
+            Expression::Index(_) => self.handle_index(expr),
+            Expression::Cast(cast) => self.handle_cast(cast),
+            Expression::For(for_expr) => self.handle_for(for_expr),
+            Expression::Loop(loop_expr) => self.handle_expression(loop_expr),
+            Expression::While(while_expr) => self.handle_while(while_expr),
+            Expression::If(if_expr) => self.handle_if(if_expr),
+            Expression::Match(match_expr) => self.handle_match(match_expr),
+            Expression::Tuple(elems) => self.handle_tuple(elems),
+            Expression::ExtractTupleField(tuple, _index) => self.handle_expression(tuple),
+            Expression::Call(call) => self.handle_call(call),
+            Expression::Let(let_expr) => self.handle_let(let_expr),
+            Expression::Constrain(boolean, _location, msg) => self.handle_constrain(boolean, msg),
+            Expression::Assign(assign) => self.handle_assign(assign),
+            Expression::Semi(expr) => self.handle_expression(expr),
+            // Clones & Drops are only inserted by this pass so we can assume any code they
+            // contain is already handled
+            Expression::Clone(_) => (),
+            Expression::Drop(_) => (),
+            Expression::Break => (),
+            Expression::Continue => (),
         }
-
-        // The existing SSA code still checked nested references for
-        // array types. These probably shouldn't be needed for cloning
-        // purposes but are kept for now to avoid differences with the existing code.
-        Type::Reference(element) => inner_array_or_slice_type(element),
     }
-}
 
-fn handle_expression(expr: &mut Expression) {
-    match expr {
-        Expression::Ident(_) => (),
-        Expression::Literal(literal) => handle_literal(literal),
-        Expression::Block(exprs) => {
-            exprs.iter_mut().for_each(handle_expression);
-        }
-        Expression::Unary(unary) => handle_unary(unary),
-        Expression::Binary(binary) => handle_binary(binary),
-        Expression::Index(_) => handle_index(expr),
-        Expression::Cast(cast) => handle_cast(cast),
-        Expression::For(for_expr) => handle_for(for_expr),
-        Expression::Loop(loop_expr) => handle_expression(loop_expr),
-        Expression::While(while_expr) => handle_while(while_expr),
-        Expression::If(if_expr) => handle_if(if_expr),
-        Expression::Match(match_expr) => handle_match(match_expr),
-        Expression::Tuple(elems) => handle_tuple(elems),
-        Expression::ExtractTupleField(tuple, _index) => handle_expression(tuple),
-        Expression::Call(call) => handle_call(call),
-        Expression::Let(let_expr) => handle_let(let_expr),
-        Expression::Constrain(boolean, _location, msg) => handle_constrain(boolean, msg),
-        Expression::Assign(assign) => handle_assign(assign),
-        Expression::Semi(expr) => handle_expression(expr),
-        // Clones & Drops are only inserted by this pass so we can assume any code they
-        // contain is already handled
-        Expression::Clone(_) => (),
-        Expression::Drop(_) => (),
-        Expression::Break => (),
-        Expression::Continue => (),
-    }
-}
+    /// - Array literals:
+    ///   - Arrays stored inside a nested array literal (e.g. both variables in `[array1, array2]`
+    ///     have their reference count incremented).
+    ///   - This does not apply to nested array literals since we know they are not referenced elsewhere.
+    fn handle_literal(&self, literal: &mut Literal) {
+        match literal {
+            Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
 
-/// - Array literals:
-///   - Arrays stored inside a nested array literal (e.g. both variables in `[array1, array2]`
-///     have their reference count incremented).
-///   - This does not apply to nested array literals since we know they are not referenced elsewhere.
-fn handle_literal(literal: &mut Literal) {
-    match literal {
-        Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
+            Literal::FmtStr(_, _, captures) => self.handle_expression(captures),
 
-        Literal::FmtStr(_, _, captures) => handle_expression(captures),
+            Literal::Array(array) | Literal::Slice(array) => {
+                let element_type = array
+                    .typ
+                    .array_element_type()
+                    .expect("Array literal should have an array type");
 
-        Literal::Array(array) | Literal::Slice(array) => {
-            let element_type =
-                array.typ.array_element_type().expect("Array literal should have an array type");
-            if contains_array_or_str_type(element_type) {
-                // We have to clone nested arrays unless they are array literals
-                for element in array.contents.iter_mut() {
-                    if !is_array_or_str_literal(element) {
-                        clone_expr(element);
+                if !self.experimental_ownership_feature && contains_array_or_str_type(element_type)
+                {
+                    // We have to clone nested arrays unless they are array literals
+                    for element in array.contents.iter_mut() {
+                        if !is_array_or_str_literal(element) {
+                            clone_expr(element);
+                        }
                     }
                 }
             }
         }
     }
-}
 
-fn handle_unary(unary: &mut Unary) {
-    handle_expression(&mut unary.rhs);
-}
-
-fn handle_binary(binary: &mut crate::monomorphization::ast::Binary) {
-    handle_expression(&mut binary.lhs);
-    handle_expression(&mut binary.rhs);
-}
-
-/// - Extracting an array from another array (`let inner: [_; _] = array[0];`):
-///   - Extracting a nested array from its outer array will always increment the reference count
-///     of the nested array.
-fn handle_index(index_expr: &mut Expression) {
-    let crate::monomorphization::ast::Expression::Index(index) = index_expr else {
-        panic!("handle_index should only be called with Index nodes");
-    };
-
-    handle_expression(&mut index.collection);
-    handle_expression(&mut index.index);
-
-    if contains_array_or_str_type(&index.element_type) {
-        clone_expr(index_expr);
-    }
-}
-
-fn handle_cast(cast: &mut crate::monomorphization::ast::Cast) {
-    handle_expression(&mut cast.lhs);
-}
-
-fn handle_for(for_expr: &mut crate::monomorphization::ast::For) {
-    handle_expression(&mut for_expr.start_range);
-    handle_expression(&mut for_expr.end_range);
-    handle_expression(&mut for_expr.block);
-}
-
-fn handle_while(while_expr: &mut crate::monomorphization::ast::While) {
-    handle_expression(&mut while_expr.condition);
-    handle_expression(&mut while_expr.body);
-}
-
-fn handle_if(if_expr: &mut crate::monomorphization::ast::If) {
-    handle_expression(&mut if_expr.condition);
-    handle_expression(&mut if_expr.consequence);
-    if let Some(alt) = &mut if_expr.alternative {
-        handle_expression(alt);
-    }
-}
-
-fn handle_match(match_expr: &mut crate::monomorphization::ast::Match) {
-    for case in &mut match_expr.cases {
-        handle_expression(&mut case.branch);
+    fn handle_unary(&self, unary: &mut Unary) {
+        self.handle_expression(&mut unary.rhs);
     }
 
-    if let Some(default_case) = &mut match_expr.default_case {
-        handle_expression(default_case);
+    fn handle_binary(&self, binary: &mut crate::monomorphization::ast::Binary) {
+        self.handle_expression(&mut binary.lhs);
+        self.handle_expression(&mut binary.rhs);
     }
-}
 
-fn handle_tuple(elems: &mut [Expression]) {
-    for elem in elems {
-        handle_expression(elem);
-    }
-}
+    /// - Extracting an array from another array (`let inner: [_; _] = array[0];`):
+    ///   - Extracting a nested array from its outer array will always increment the reference count
+    ///     of the nested array.
+    fn handle_index(&self, index_expr: &mut Expression) {
+        let crate::monomorphization::ast::Expression::Index(index) = index_expr else {
+            panic!("handle_index should only be called with Index nodes");
+        };
 
-fn handle_call(call: &mut crate::monomorphization::ast::Call) {
-    handle_expression(&mut call.func);
-    for arg in &mut call.arguments {
-        handle_expression(arg);
-    }
-}
+        self.handle_expression(&mut index.collection);
+        self.handle_expression(&mut index.index);
 
-/// - Let bindings (`let _ = <expression which returns an array>;`):
-///   - Binding an array to a let binding increments the reference count of the array unless
-///     the expression is an array literal in which case it is considered to be moved.
-fn handle_let(let_expr: &mut crate::monomorphization::ast::Let) {
-    handle_expression(&mut let_expr.expression);
-
-    if !is_array_or_str_literal(&let_expr.expression) {
-        clone_expr(&mut let_expr.expression);
-    }
-}
-
-fn handle_constrain(
-    boolean: &mut Expression,
-    msg: &mut Option<Box<(Expression, crate::hir_def::types::Type)>>,
-) {
-    handle_expression(boolean);
-
-    if let Some(msg) = msg {
-        handle_expression(&mut msg.0);
-    }
-}
-
-/// - Assignments (`x = <expression which returns an array>;`):
-///   - Assigning an array to an existing variable will also increment the reference
-///     count of the array unless it is an array literal.
-fn handle_assign(assign: &mut crate::monomorphization::ast::Assign) {
-    handle_lvalue(&mut assign.lvalue);
-    handle_expression(&mut assign.expression);
-
-    if !is_array_or_str_literal(&assign.expression) {
-        clone_expr(&mut assign.expression);
-    }
-}
-
-fn handle_lvalue(lvalue: &mut LValue) {
-    match lvalue {
-        LValue::Ident(_) => (),
-        LValue::Index { array, index, element_type: _, location: _ } => {
-            handle_expression(index);
-            handle_lvalue(array);
+        if !self.experimental_ownership_feature && contains_array_or_str_type(&index.element_type) {
+            clone_expr(index_expr);
         }
-        LValue::MemberAccess { object, field_index: _ } => {
-            handle_lvalue(object);
+    }
+
+    fn handle_cast(&self, cast: &mut crate::monomorphization::ast::Cast) {
+        self.handle_expression(&mut cast.lhs);
+    }
+
+    fn handle_for(&self, for_expr: &mut crate::monomorphization::ast::For) {
+        self.handle_expression(&mut for_expr.start_range);
+        self.handle_expression(&mut for_expr.end_range);
+        self.handle_expression(&mut for_expr.block);
+    }
+
+    fn handle_while(&self, while_expr: &mut crate::monomorphization::ast::While) {
+        self.handle_expression(&mut while_expr.condition);
+        self.handle_expression(&mut while_expr.body);
+    }
+
+    fn handle_if(&self, if_expr: &mut crate::monomorphization::ast::If) {
+        self.handle_expression(&mut if_expr.condition);
+        self.handle_expression(&mut if_expr.consequence);
+        if let Some(alt) = &mut if_expr.alternative {
+            self.handle_expression(alt);
         }
-        LValue::Dereference { reference, element_type: _ } => {
-            handle_lvalue(reference);
+    }
+
+    fn handle_match(&self, match_expr: &mut crate::monomorphization::ast::Match) {
+        for case in &mut match_expr.cases {
+            self.handle_expression(&mut case.branch);
+        }
+
+        if let Some(default_case) = &mut match_expr.default_case {
+            self.handle_expression(default_case);
+        }
+    }
+
+    fn handle_tuple(&self, elems: &mut [Expression]) {
+        for elem in elems {
+            self.handle_expression(elem);
+        }
+    }
+
+    fn handle_call(&self, call: &mut crate::monomorphization::ast::Call) {
+        self.handle_expression(&mut call.func);
+        for arg in &mut call.arguments {
+            self.handle_expression(arg);
+        }
+    }
+
+    /// - Let bindings (`let _ = <expression which returns an array>;`):
+    ///   - Binding an array to a let binding increments the reference count of the array unless
+    ///     the expression is an array literal in which case it is considered to be moved.
+    fn handle_let(&self, let_expr: &mut crate::monomorphization::ast::Let) {
+        self.handle_expression(&mut let_expr.expression);
+
+        if !self.experimental_ownership_feature && !is_array_or_str_literal(&let_expr.expression) {
+            clone_expr(&mut let_expr.expression);
+        }
+    }
+
+    fn handle_constrain(
+        &self,
+        boolean: &mut Expression,
+        msg: &mut Option<Box<(Expression, crate::hir_def::types::Type)>>,
+    ) {
+        self.handle_expression(boolean);
+
+        if let Some(msg) = msg {
+            self.handle_expression(&mut msg.0);
+        }
+    }
+
+    /// - Assignments (`x = <expression which returns an array>;`):
+    ///   - Assigning an array to an existing variable will also increment the reference
+    ///     count of the array unless it is an array literal.
+    fn handle_assign(&self, assign: &mut crate::monomorphization::ast::Assign) {
+        self.handle_lvalue(&mut assign.lvalue);
+        self.handle_expression(&mut assign.expression);
+
+        if !self.experimental_ownership_feature && !is_array_or_str_literal(&assign.expression) {
+            clone_expr(&mut assign.expression);
+        }
+    }
+
+    fn handle_lvalue(&self, lvalue: &mut LValue) {
+        match lvalue {
+            LValue::Ident(_) => (),
+            LValue::Index { array, index, element_type: _, location: _ } => {
+                self.handle_expression(index);
+                self.handle_lvalue(array);
+            }
+            LValue::MemberAccess { object, field_index: _ } => {
+                self.handle_lvalue(object);
+            }
+            LValue::Dereference { reference, element_type: _ } => {
+                self.handle_lvalue(reference);
+            }
         }
     }
 }
@@ -498,5 +496,28 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
 
         Type::Tuple(elems) => elems.iter().any(contains_array_or_str_type),
         Type::Reference(elem) => contains_array_or_str_type(elem),
+    }
+}
+
+/// Return the inner array, slice, string, or fmtstring type if it exists.
+fn inner_array_or_slice_type(typ: &Type) -> Option<&Type> {
+    match typ {
+        Type::Field | Type::Integer(..) | Type::Bool | Type::Function(..) | Type::Unit => None,
+
+        Type::Array(_, _) | Type::Slice(_) | Type::String(_) | Type::FmtString(..) => Some(typ),
+
+        Type::Tuple(elems) => {
+            for elem in elems {
+                if let Some(target) = inner_array_or_slice_type(elem) {
+                    return Some(target);
+                }
+            }
+            None
+        }
+
+        // The existing SSA code still checked nested references for
+        // array types. These probably shouldn't be needed for cloning
+        // purposes but are kept for now to avoid differences with the existing code.
+        Type::Reference(element) => inner_array_or_slice_type(element),
     }
 }

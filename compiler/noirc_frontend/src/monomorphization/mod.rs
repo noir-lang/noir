@@ -136,8 +136,15 @@ pub fn monomorphize(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
     force_unconstrained: bool,
+    enable_ownership: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(main, interner, &DebugInstrumenter::default(), force_unconstrained)
+    monomorphize_debug(
+        main,
+        interner,
+        &DebugInstrumenter::default(),
+        force_unconstrained,
+        enable_ownership,
+    )
 }
 
 pub fn monomorphize_debug(
@@ -145,6 +152,7 @@ pub fn monomorphize_debug(
     interner: &mut NodeInterner,
     debug_instrumenter: &DebugInstrumenter,
     force_unconstrained: bool,
+    experimental_ownership: bool,
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
     let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker);
@@ -201,7 +209,7 @@ pub fn monomorphize_debug(
         debug_functions,
         debug_types,
     );
-    Ok(program.handle_ownership(monomorphizer.next_local_id))
+    Ok(program.handle_ownership(monomorphizer.next_local_id, experimental_ownership))
 }
 
 impl<'interner> Monomorphizer<'interner> {
