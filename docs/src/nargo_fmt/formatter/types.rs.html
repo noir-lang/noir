@@ -360,7 +360,26 @@
 <a href="#359" id="359">359</a>
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{AsTraitPath, UnresolvedType, UnresolvedTypeData},
     token::{Keyword, Token},
 };
@@ -438,7 +457,19 @@
                 <span class="self">self</span>.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) =&gt; {
-                <span class="self">self</span>.write_token(Token::Ampersand);
+                <span class="comment">// `&amp;` can be represented with Ampersando or SliceStart in the lexer depending
+                // on whether it's right next to a `[` or not.
+                </span><span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.token {
+                    Token::Ampersand =&gt; {
+                        <span class="self">self</span>.write_token(Token::Ampersand);
+                    }
+                    Token::SliceStart =&gt; {
+                        <span class="self">self</span>.write_token(Token::SliceStart);
+                    }
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="macro">panic!</span>(<span class="string">"Expected Ampersand or SliceStart, found {:?}"</span>, <span class="self">self</span>.token);
+                    }
+                }
                 <span class="kw">if </span>mutable {
                     <span class="self">self</span>.write_keyword(Keyword::Mut);
                     <span class="self">self</span>.write_space();
@@ -635,6 +666,13 @@
     </span><span class="kw">fn </span>format_mutable_reference_type() {
         <span class="kw">let </span>src = <span class="string">" &amp;  mut  Field "</span>;
         <span class="kw">let </span>expected = <span class="string">"&amp;mut Field"</span>;
+        assert_format_type(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_array_reference_type() {
+        <span class="kw">let </span>src = <span class="string">" &amp;[ Field ; 3 ]"</span>;
+        <span class="kw">let </span>expected = <span class="string">"&amp;[Field; 3]"</span>;
         assert_format_type(src, expected);
     }
 
