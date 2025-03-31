@@ -9,12 +9,13 @@
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
 use crate::ast::{FunctionKind, IntegerBitSize, UnaryOp};
-use crate::hir::comptime::InterpreterError;
+use crate::hir::comptime::{InterpreterError, Value};
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
+use crate::{DataType, Shared, TypeVariableId};
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -963,15 +964,20 @@ impl<'interner> Monomorphizer<'interner> {
         // Ensure all instantiation bindings are bound.
         // This ensures even unused type variables like `fn foo<T>() {}` have concrete types
         if let Some(bindings) = self.interner.try_get_instantiation_bindings(expr_id) {
-            for (_, kind, binding) in bindings.values() {
+            for (var, kind, binding) in bindings.values() {
                 match kind {
                     Kind::Any => (),
                     Kind::Normal => (),
                     Kind::Integer => (),
                     Kind::IntegerOrField => (),
-                    Kind::Numeric(typ) => Self::check_type(typ, ident.location)?,
+                    Kind::Numeric(typ) => self.check_hir_ident_type_variable_type(
+                        typ,
+                        ident.location,
+                        var.id(),
+                        &ident,
+                    )?,
                 }
-                Self::check_type(binding, ident.location)?;
+                self.check_hir_ident_type_variable_type(binding, ident.location, var.id(), &ident)?;
             }
         }
 
@@ -1226,7 +1232,9 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match type_var_kind.default_type() {
                     Some(typ) => typ,
-                    None => return Err(MonomorphizationError::NoDefaultType { location }),
+                    None => {
+                        return Err(MonomorphizationError::NoDefaultType { location });
+                    }
                 };
 
                 let monomorphized_default =
@@ -1329,6 +1337,70 @@ impl<'interner> Monomorphizer<'interner> {
         })
     }
 
+    /// Similar to `check_type` but knowing that this is checking the type of a type variable,
+    /// while also checking a HirIdent. If this fails with `NoDefaultType` we try to find out
+    /// the name of the unbound generic argument.
+    fn check_hir_ident_type_variable_type(
+        &self,
+        typ: &HirType,
+        location: Location,
+        id: TypeVariableId,
+        ident: &HirIdent,
+    ) -> Result<(), MonomorphizationError> {
+        let result = Self::check_type(typ, location);
+        let Err(MonomorphizationError::NoDefaultType { location, .. }) = result else {
+            return result;
+        };
+
+        let definition = self.interner.definition(ident.id);
+        match &definition.kind {
+            DefinitionKind::Function(func_id) => {
+                // Try to find the type variable in the function's generic arguments
+                let meta = self.interner.function_meta(func_id);
+                for generic in &meta.direct_generics {
+                    if generic.type_var.id() == id {
+                        let item_name = self.interner.definition_name(ident.id).to_string();
+                        return Err(MonomorphizationError::NoDefaultTypeInItem {
+                            location,
+                            generic_name: generic.name.to_string(),
+                            item_kind: "function",
+                            item_name,
+                        });
+                    }
+                }
+            }
+            DefinitionKind::Global(global_id) => {
+                // Check if this global points to an enum variant, then get the enum's generics
+                // and find the type variable there.
+                let global = self.interner.get_global(*global_id);
+                let GlobalValue::Resolved(Value::Enum(_, _, Type::Forall(_, typ))) = &global.value
+                else {
+                    return result;
+                };
+
+                let typ: &Type = typ;
+                let Type::DataType(def, _) = typ else {
+                    return result;
+                };
+
+                let def = def.borrow();
+                for generic in &def.generics {
+                    if generic.type_var.id() == id {
+                        return Err(MonomorphizationError::NoDefaultTypeInItem {
+                            location,
+                            generic_name: generic.name.to_string(),
+                            item_kind: "enum",
+                            item_name: def.name.to_string(),
+                        });
+                    }
+                }
+            }
+            _ => (),
+        }
+
+        result
+    }
+
     // Similar to `convert_type` but returns an error if any type variable can't be defaulted.
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
@@ -1377,7 +1449,9 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match type_var_kind.default_type() {
                     Some(typ) => typ,
-                    None => return Err(MonomorphizationError::NoDefaultType { location }),
+                    None => {
+                        return Err(MonomorphizationError::NoDefaultType { location });
+                    }
                 };
 
                 Self::check_type(&default, location)
@@ -2297,8 +2371,8 @@ fn unwrap_struct_type(
     match typ.follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
-            for arg in &args {
-                Monomorphizer::check_type(arg, location)?;
+            for (index, arg) in args.iter().enumerate() {
+                check_struct_generic_type(arg, location, &def, index)?;
             }
 
             Ok(def.borrow().get_fields(&args).unwrap())
@@ -2322,6 +2396,30 @@ fn unwrap_enum_type(
         }
         other => unreachable!("unwrap_enum_type: expected enum, found {:?}", other),
     }
+}
+
+fn check_struct_generic_type(
+    typ: &HirType,
+    location: Location,
+    def: &Shared<DataType>,
+    index: usize,
+) -> Result<(), MonomorphizationError> {
+    let result = Monomorphizer::check_type(typ, location);
+    let Err(MonomorphizationError::NoDefaultType { location, .. }) = result else {
+        return result;
+    };
+
+    let def = def.borrow();
+    if let Some(generic) = def.generics.get(index) {
+        return Err(MonomorphizationError::NoDefaultTypeInItem {
+            location,
+            generic_name: generic.name.to_string(),
+            item_kind: "struct",
+            item_name: def.name.to_string(),
+        });
+    }
+
+    result
 }
 
 pub fn perform_instantiation_bindings(bindings: &TypeBindings) {
