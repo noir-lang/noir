@@ -221,7 +221,7 @@ fn recur_on_parameter<'typ>(
             }
         }
 
-        Type::Reference(element_type) => {
+        Type::Reference(element_type, _mutable) => {
             if let Some(array) = inner_array_or_slice_type(element_type) {
                 if let Some(parameter) = parameter {
                     // Check if the parameter type has been seen before
@@ -260,7 +260,7 @@ fn inner_array_or_slice_type(typ: &Type) -> Option<&Type> {
         // The existing SSA code still checked nested references for
         // array types. These probably shouldn't be needed for cloning
         // purposes but are kept for now to avoid differences with the existing code.
-        Type::Reference(element) => inner_array_or_slice_type(element),
+        Type::Reference(element, _) => inner_array_or_slice_type(element),
     }
 }
 
@@ -497,6 +497,6 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
 
         Type::Tuple(elems) => elems.iter().any(contains_array_or_str_type),
-        Type::Reference(elem) => contains_array_or_str_type(elem),
+        Type::Reference(elem, _) => contains_array_or_str_type(elem),
     }
 }

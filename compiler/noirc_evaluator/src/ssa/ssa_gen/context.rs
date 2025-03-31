@@ -211,7 +211,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => Tree::empty(),
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            ast::Type::Reference(element) => {
+            ast::Type::Reference(element, _) => {
                 Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
             }
             ast::Type::FmtString(len, fields) => {
@@ -264,7 +264,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
-            ast::Type::Reference(element) => {
+            ast::Type::Reference(element, _) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
                 Type::Reference(Arc::new(element))

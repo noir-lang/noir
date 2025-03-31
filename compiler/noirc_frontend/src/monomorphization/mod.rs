@@ -1310,9 +1310,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             // Lower both mutable & immutable references to the same reference type
-            HirType::Reference(element, _mutable) => {
+            HirType::Reference(element, mutable) => {
                 let element = Self::convert_type_helper(element, location, seen_types)?;
-                ast::Type::Reference(Box::new(element))
+                ast::Type::Reference(Box::new(element), *mutable)
             }
 
             HirType::Forall(_, _) | HirType::Constant(..) | HirType::InfixExpr(..) => {
@@ -2131,14 +2131,14 @@ impl<'interner> Monomorphizer<'interner> {
                     typ: ast::Type::Slice(element_type.clone()),
                 }))
             }
-            ast::Type::Reference(element) => {
+            ast::Type::Reference(element, mutable) => {
                 use UnaryOp::Reference;
                 let rhs = Box::new(self.zeroed_value_of_type(element, location));
                 let result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary {
                     rhs,
                     result_type,
-                    operator: Reference { mutable: true },
+                    operator: Reference { mutable: *mutable },
                     location,
                 })
             }
