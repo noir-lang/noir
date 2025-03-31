@@ -620,8 +620,8 @@ mod nargo_expand_{test_type} {{
     use super::*;
 
     fn copy_dir_all(
-        src: impl AsRef<std::path::Path>,
-        dst: impl AsRef<std::path::Path>,
+        src: impl AsRef<Path>,
+        dst: impl AsRef<Path>,
     ) -> std::io::Result<()> {{
         fs::create_dir_all(&dst)?;
         for entry in fs::read_dir(src)? {{
