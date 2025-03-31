@@ -3248,6 +3248,7 @@ dependencies = [
  "noirc_abi",
  "noirc_frontend",
  "proptest",
+ "rand",
 ]
 
 [[package]]

@@ -16,9 +16,7 @@ fn main() {
     };
     let mut u = Unstructured::new(&data);
 
-    let config = Config { max_globals: 3, max_functions: 3, max_function_args: 3 };
-
-    let (program, _abi) = arb_program(&mut u, config).unwrap();
+    let program = arb_program(&mut u, Config::default()).expect("arb_program");
 
     println!("{program}");
 }

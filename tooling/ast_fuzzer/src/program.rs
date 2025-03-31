@@ -11,25 +11,17 @@ use noirc_frontend::{
     shared::Visibility,
 };
 
-/// Generate an arbitrary monomorphized AST.
+use crate::{Config, abi::gen_abi};
+
+/// Generate an arbitrary monomorphized AST and its ABI.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<(Program, Abi)> {
     let mut ctx = Context::new(config);
     ctx.gen_globals(u)?;
     ctx.gen_function_decls(u)?;
     ctx.gen_functions(u)?;
-    let (program, abi) = ctx.finalize(u)?;
+    let program = ctx.finalize(u)?;
+    let abi = gen_abi(u, &program)?;
     Ok((program, abi))
-}
-
-/// AST generation configuration.
-#[derive(Debug, Clone)]
-pub struct Config {
-    /// Maximum number of global definitions.
-    pub max_globals: usize,
-    /// Maximum number of functions (other than main) to generate.
-    pub max_functions: usize,
-    /// Maximum number of arguments a function can have.
-    pub max_function_args: usize,
 }
 
 /// Signature of a functions we can call.
@@ -104,7 +96,7 @@ impl Context {
         Ok(())
     }
 
-    fn finalize(self, u: &mut Unstructured) -> arbitrary::Result<(Program, Abi)> {
+    fn finalize(self, u: &mut Unstructured) -> arbitrary::Result<Program> {
         let main_function_signature = self.function_decl(FuncId(0)).signature();
         let return_visibility =
             if bool::arbitrary(u)? { Visibility::Public } else { Visibility::Private };
@@ -124,9 +116,8 @@ impl Context {
             debug_functions: Default::default(),
             debug_types: Default::default(),
         };
-        let abi = todo!();
 
-        Ok((program, abi))
+        Ok(program)
     }
 }
 

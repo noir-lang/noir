@@ -10,7 +10,7 @@ use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use nargo::PrintOutput;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
-use noir_ast_fuzzer::{arb_inputs, arb_program};
+use noir_ast_fuzzer::{Config, arb_inputs, arb_program};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa;
 
@@ -19,7 +19,7 @@ fuzz_target!(|data: &[u8]| {
 });
 
 fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let (program, abi) = arb_program(u).context("arb_program")?;
+    let (program, abi) = arb_program(u, Config::default()).wrap_err("arb_program")?;
 
     let options = ssa::SsaEvaluatorOptions {
         ssa_logging: ssa::SsaLogging::None,
@@ -45,17 +45,17 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         program.clone(),
         &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MIN, ..options.clone() },
     )
-    .context("create_program")?;
+    .wrap_err("create_program")?;
 
     let ssa_program2 = ssa::create_program(
         program,
         &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MAX, ..options },
     )
-    .context("create_program")?;
+    .wrap_err("create_program")?;
 
-    let input_map = arb_inputs(u, &ssa_program1.program, &abi).context("arb_inputs")?;
+    let input_map = arb_inputs(u, &ssa_program1.program, &abi).wrap_err("arb_inputs")?;
 
-    let initial_witness = abi.encode(&input_map, None).context("abi.encode")?;
+    let initial_witness = abi.encode(&input_map, None).wrap_err("abi.encode")?;
 
     let result1 = nargo::ops::execute_program(
         &ssa_program1.program,
@@ -63,7 +63,7 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         &blackbox_solver,
         &mut foreign_call_executor,
     )
-    .context("execute_program")?;
+    .wrap_err("execute_program")?;
 
     let result2 = nargo::ops::execute_program(
         &ssa_program2.program,
@@ -71,7 +71,7 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         &blackbox_solver,
         &mut foreign_call_executor,
     )
-    .context("execute_program")?;
+    .wrap_err("execute_program")?;
 
     assert_eq!(result1, result2, "the two versions disagree");
 
