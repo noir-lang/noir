@@ -1,7 +1,6 @@
 use std::hash::{Hash, Hasher};
 
 use acvm::{
-    acir::AcirField,
     acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
 use fxhash::FxHasher64;
