@@ -1882,7 +1882,7 @@ global y = 1;
     }
 
     #[test]
-    fn format_method_call_chain() {
+    fn format_method_call_chain_1() {
         let src = "global x =  bar . baz ( 1, 2 ) . qux ( 1 , 2, 3) . one ( 5, 6)  ;";
         let expected = "global x = bar
     .baz(1, 2)
