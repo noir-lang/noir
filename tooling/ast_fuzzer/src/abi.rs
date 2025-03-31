@@ -20,7 +20,7 @@ pub(crate) fn gen_abi(u: &mut Unstructured, program: &Program) -> arbitrary::Res
             Ok(AbiParameter {
                 name: name.clone(),
                 typ: to_abi_type(typ),
-                visibility: match u.int_in_range(0..=4)? {
+                visibility: match u.choose_index(5)? {
                     0 | 1 => AbiVisibility::Public,
                     2 | 3 => AbiVisibility::Private,
                     _ => AbiVisibility::DataBus,

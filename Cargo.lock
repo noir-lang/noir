@@ -3253,6 +3253,7 @@ dependencies = [
  "noirc_frontend",
  "proptest",
  "rand",
+ "strum",
 ]
 
 [[package]]
