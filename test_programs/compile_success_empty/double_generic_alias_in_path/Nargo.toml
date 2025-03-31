@@ -1,7 +1,0 @@
-[package]
-name = "double_generic_alias_in_path"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.32.0"
-
-[dependencies]
