@@ -3,6 +3,7 @@ pub mod compare;
 mod input;
 mod program;
 
+pub use abi::program_abi;
 pub use input::arb_inputs;
 pub use program::arb_program;
 

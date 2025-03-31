@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use arbitrary::Unstructured;
 use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign};
 use noirc_frontend::{
     monomorphization::ast::{Program, Type},
@@ -8,41 +7,30 @@ use noirc_frontend::{
 };
 
 /// Generate the [Abi] interface of a [Program].
-///
-/// It is slightly random because input parameter visibility is not described by the [Program].
-pub(crate) fn gen_abi(u: &mut Unstructured, program: &Program) -> arbitrary::Result<Abi> {
+pub fn program_abi(program: &Program) -> Abi {
     let main = program.main();
+    let param_vis = program.main_function_signature.0.iter().map(|(_, _, vis)| vis);
 
     let parameters = main
         .parameters
         .iter()
-        .map(|(_id, _is_mutable, name, typ)| {
-            Ok(AbiParameter {
-                name: name.clone(),
-                typ: to_abi_type(typ),
-                visibility: match u.choose_index(5)? {
-                    0 | 1 => AbiVisibility::Public,
-                    2 | 3 => AbiVisibility::Private,
-                    _ => AbiVisibility::DataBus,
-                },
-            })
+        .zip(param_vis)
+        .map(|((_id, _is_mutable, name, typ), vis)| AbiParameter {
+            name: name.clone(),
+            typ: to_abi_type(typ),
+            visibility: to_abi_visibility(vis),
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect();
 
     let return_type = match &main.return_type {
         Type::Unit => None,
         typ => Some(AbiReturnType {
             abi_type: to_abi_type(typ),
-            visibility: match program.return_visibility {
-                Visibility::Public => AbiVisibility::Public,
-                Visibility::Private => AbiVisibility::Public,
-                Visibility::CallData(_) => AbiVisibility::DataBus,
-                Visibility::ReturnData => AbiVisibility::DataBus,
-            },
+            visibility: to_abi_visibility(&program.return_visibility),
         }),
     };
 
-    Ok(Abi { parameters, return_type, error_types: BTreeMap::default() })
+    Abi { parameters, return_type, error_types: BTreeMap::default() }
 }
 
 /// Check if a type is valid as an ABI parameter for the `main` function.
@@ -84,5 +72,14 @@ fn to_abi_type(typ: &Type) -> AbiType {
                 unreachable!("Unexpected type in ABI: {typ}")
             }
         }
+    }
+}
+
+fn to_abi_visibility(vis: &Visibility) -> AbiVisibility {
+    match vis {
+        Visibility::Public => AbiVisibility::Public,
+        Visibility::Private => AbiVisibility::Public,
+        Visibility::CallData(_) => AbiVisibility::DataBus,
+        Visibility::ReturnData => AbiVisibility::DataBus,
     }
 }

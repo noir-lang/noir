@@ -7,7 +7,7 @@ use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::monomorphization::ast::Program;
 
-use crate::{Config, arb_inputs, arb_program};
+use crate::{Config, arb_inputs, arb_program, program_abi};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExecOutput {
@@ -140,7 +140,8 @@ impl CompareSsa<Program> {
         f: impl FnOnce(Program) -> SsaProgramArtifact,
         g: impl FnOnce(Program) -> SsaProgramArtifact,
     ) -> arbitrary::Result<Self> {
-        let (program, abi) = arb_program(u, c)?;
+        let program = arb_program(u, c)?;
+        let abi = program_abi(&program);
 
         let ssa1 = f(program.clone());
         let ssa2 = g(program.clone());
@@ -162,8 +163,9 @@ impl CompareMutants {
         f: impl Fn(&mut Unstructured, &Program) -> arbitrary::Result<Program>,
         g: impl Fn(Program) -> SsaProgramArtifact,
     ) -> arbitrary::Result<Self> {
-        let (program1, abi) = arb_program(u, c)?;
+        let program1 = arb_program(u, c)?;
         let program2 = f(u, &program1)?;
+        let abi = program_abi(&program1);
 
         let ssa1 = g(program1.clone());
         let ssa2 = g(program2.clone());
