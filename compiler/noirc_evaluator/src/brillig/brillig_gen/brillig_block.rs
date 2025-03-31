@@ -904,7 +904,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     let min_addr = ReservedRegisters::usize_one();
                     let condition =
                         SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-
                     self.brillig_context.memory_op_instruction(
                         min_addr,
                         rc_register,
