@@ -109,7 +109,6 @@ pub(crate) fn optimize_into_acir(
         &options.emit_ssa,
     )?;
 
-    // let mut ssa = builder.finish();
     let mut ssa = optimize_all(builder, options)?;
 
     let mut ssa_level_warnings = vec![];
@@ -133,7 +132,7 @@ pub(crate) fn optimize_into_acir(
     // It could happen that we inlined all calls to a given brillig function.
     // In that case it's unused so we can remove it. This is what we check next.
     .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (4th)")
-    .run_pass(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination (3rd)")
+    .run_pass(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination (2nd)")
     .finish();
 
     if !options.skip_underconstrained_check {
@@ -214,7 +213,6 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
-        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal")
         .run_pass(Ssa::check_u128_mul_overflow, "Check u128 mul overflow")
@@ -234,7 +232,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
         .run_pass(Ssa::brillig_array_gets, "Brillig Array Get Optimizations")
-        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         .finish())
 }
 
