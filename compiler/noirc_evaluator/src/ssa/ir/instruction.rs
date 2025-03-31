@@ -1,8 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-use acvm::{
-    acir::{BlackBoxFunc, circuit::ErrorSelector},
-};
+use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
