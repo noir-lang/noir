@@ -211,7 +211,8 @@ impl<F: AcirField> RangeOptimizer<F> {
 }
 
 fn memory_block_implied_max_bits(init: &[Witness]) -> u32 {
-    8 * size_of::<usize>() as u32 - init.len().leading_zeros()
+    let array_len = init.len() as u32;
+    32 - array_len.leading_zeros()
 }
 
 #[cfg(test)]
