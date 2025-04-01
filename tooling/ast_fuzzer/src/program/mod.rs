@@ -231,7 +231,7 @@ impl Context {
                 let typ = self.gen_type(u, max_depth - 1)?;
                 Type::Array(size as u32, Box::new(typ))
             }
-            _ => unreachable!(),
+            _ => unreachable!("unexpected arbitrary type index"),
         };
 
         self.types.insert(typ.clone());
