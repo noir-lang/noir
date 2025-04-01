@@ -3,9 +3,7 @@ unconstrained fn main() {
     foo(&mut a);
 }
 
-unconstrained fn foo(
-    a: &mut [Field; 2],
-) {
+unconstrained fn foo(a: &mut [Field; 2]) {
     let a_copy = *a;
     a[0] = 100;
     assert_eq(a_copy, [1, 2]);
