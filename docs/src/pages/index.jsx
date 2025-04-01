@@ -24,15 +24,15 @@ export default function Landing() {
             Noir
           </h1>
           <p className="homepage_p">
-            Noir is a language for private and verifiable computing. It enables creating succinct proofs of successful program execution.
-            More technically, Noir is a Domain Specific Language for SNARK proving systems.
-            It has been designed to use any ACIR compatible proving system. Its design choices are influenced heavily by Rust and focuses on a simple,
-            familiar syntax.
+            Noir is a language for private and verifiable computing. It enables creating succinct proofs of successful
+            program execution. More technically, Noir is a Domain Specific Language for SNARK proving systems. It has
+            been designed to use any ACIR compatible proving system. Its design choices are influenced heavily by Rust
+            and focuses on a simple, familiar syntax.
           </p>
 
           <div className="homepage_cta_header_container">
             <div className="homepage_cta_container">
-              <Link to="/docs/">
+              <Link to="/docs">
                 <button className="cta-button button button--primary button--lg homepage_cta">Read the Docs</button>
               </Link>
             </div>
