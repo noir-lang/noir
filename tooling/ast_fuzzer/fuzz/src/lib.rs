@@ -19,6 +19,7 @@ pub fn create_ssa_or_die(
     // `Program` has a `RefCell` in it, which is not unwind safe.
     if should_print_ast() {
         eprint!("---\n{program}\n---");
+        eprint!("---\n{program:?}\n---");
     }
 
     ssa::create_program(program, options).unwrap_or_else(|e| {

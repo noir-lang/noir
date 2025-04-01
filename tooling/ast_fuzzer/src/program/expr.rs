@@ -27,7 +27,7 @@ pub(crate) fn gen_expr_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::R
             let (field, is_negative) =
                 if signedness.is_signed() {
                     match integer_bit_size {
-                        One => bool::arbitrary(u).map(|n| (Field::from(n), false))?,
+                        One => bool::arbitrary(u).map(|n| (Field::from(n), n))?,
                         Eight => i8::arbitrary(u)
                             .map(|n| (Field::from(n.unsigned_abs() as u32), n < 0))?,
                         Sixteen => i16::arbitrary(u)
