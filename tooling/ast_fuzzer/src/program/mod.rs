@@ -169,7 +169,9 @@ impl Context {
     fn finalize(self) -> Program {
         let return_visibility = self.main_decl().return_visibility;
         let functions = self.functions.into_values().collect::<Vec<_>>();
-        let function_signatures = functions.iter().map(|f| f.func_sig.clone()).collect::<Vec<_>>();
+        // The signatures should only contain entry functions. Currently that's just `main`.
+        let function_signatures =
+            functions.iter().take(1).map(|f| f.func_sig.clone()).collect::<Vec<_>>();
         let main_function_signature = function_signatures[0].clone();
 
         Program {

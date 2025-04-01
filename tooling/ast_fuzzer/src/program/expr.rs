@@ -49,10 +49,10 @@ pub(crate) fn gen_expr_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::R
             }
             Expression::Literal(Literal::Str(s))
         }
-        Type::Array(len, typ) => {
-            let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.as_ref().clone() };
+        Type::Array(len, item_typ) => {
+            let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             for _ in 0..*len {
-                arr.contents.push(gen_expr_literal(u, typ)?);
+                arr.contents.push(gen_expr_literal(u, item_typ)?);
             }
             Expression::Literal(Literal::Array(arr))
         }
