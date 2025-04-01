@@ -1,0 +1,1 @@
+Could not parse the required compiler version for package unary_not_on_field_type_variable in Nargo.toml. Error: unexpected end of input while parsing major version number
