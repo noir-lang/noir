@@ -1,23 +1,23 @@
+//! Module responsible for generating arbitrary [Program] ASTs.
 use std::collections::BTreeMap; // Using BTreeMap in case we need to deterministically enumerate items.
 
-use acir::FieldElement;
-use nargo::errors::Location;
+use expr::gen_expr_literal;
+use func::{FunctionContext, FunctionDeclaration};
 use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::IntegerBitSize,
-    hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Expression, FuncId, Function, GlobalId, InlineType, Literal, LocalId,
-        Parameters, Program, Type,
+        Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type,
     },
-    node_interner::DefinitionId,
     shared::{Signedness, Visibility},
-    signed_field::SignedField,
 };
 
 use crate::Config;
+
+mod expr;
+mod func;
 
 /// Generate an arbitrary monomorphized AST and its ABI.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
@@ -27,48 +27,6 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
     ctx.gen_functions(u)?;
     let program = ctx.finalize();
     Ok(program)
-}
-
-/// Signature of a functions we can call.
-struct FunctionDeclaration {
-    name: String,
-    params: Parameters,
-    param_visibilities: Vec<Visibility>,
-    return_type: Type,
-    return_visibility: Visibility,
-    inline_type: InlineType,
-    unconstrained: bool,
-}
-
-impl FunctionDeclaration {
-    /// Generate a HIR function signature.
-    fn signature(&self) -> hir_def::function::FunctionSignature {
-        let param_types = self
-            .params
-            .iter()
-            .zip(self.param_visibilities.iter())
-            .map(|((_id, mutable, _name, typ), vis)| {
-                // The pattern doesn't seem to be used in `ssa::create_program`,
-                // apart from its location, so it shouldn't matter what we put into it.
-                let mut pat = HirPattern::Identifier(HirIdent {
-                    location: Location::dummy(),
-                    id: DefinitionId::dummy_id(),
-                    impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
-                });
-                if *mutable {
-                    pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
-                }
-
-                let typ = to_hir_type(typ);
-
-                (pat, typ, *vis)
-            })
-            .collect();
-
-        let return_type = (self.return_type != Type::Unit).then(|| to_hir_type(&self.return_type));
-
-        (param_types, return_type)
-    }
 }
 
 /// Context to accumulate top level generated item, so we know what we can choose from.
@@ -255,152 +213,5 @@ impl Context {
             _ => unreachable!(),
         };
         Ok(typ)
-    }
-}
-
-/// Context used during the generation of a function body.
-struct FunctionContext<'a> {
-    /// Top level context, to access global variables and other functions.
-    ctx: &'a Context,
-    /// Declaration of this function.
-    decl: &'a FunctionDeclaration,
-    /// Self ID.
-    id: FuncId,
-    /// Every variable created in the function will have an increasing ID,
-    /// which does not reset when variables go out of scope.
-    next_local_id: u32,
-    /// Variables accumulated during the generation of the function body,
-    /// initially consisting of the function parameters, then extended
-    /// by locally defined variables. Block scopes add and remove layers.
-    variables: Vec<im::OrdMap<LocalId, Type>>,
-}
-
-impl<'a> FunctionContext<'a> {
-    fn new(ctx: &'a Context, id: FuncId) -> Self {
-        let decl = ctx.function_decl(id);
-
-        let params = decl.params.iter().map(|(id, _, _, typ)| (*id, typ.clone())).collect();
-        let next_local_id = decl.params.iter().map(|p| p.0.0).max().unwrap_or_default();
-
-        Self { ctx, decl, id, next_local_id, variables: vec![params] }
-    }
-
-    /// Generate the function body.
-    fn gen_body(self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // TODO: Generate a random AST using the variables, and return the expected type.
-        gen_expr_literal(u, &self.decl.return_type)
-    }
-
-    /// Local variables currently in scope.
-    fn current_scope(&self) -> &im::OrdMap<LocalId, Type> {
-        self.variables.last().expect("there is always the params layer")
-    }
-
-    /// Add a layer of block variables.
-    fn enter_scope(&mut self) {
-        // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
-        self.variables.push(self.current_scope().clone());
-    }
-
-    /// Remove the last layer of block variables.
-    fn exit_scope(&mut self) {
-        self.variables.pop();
-        assert!(!self.variables.is_empty(), "never pop the params layer");
-    }
-
-    /// Look up a local variable.
-    ///
-    /// Panics if it doesn't exist.
-    fn local_variable(&self, id: &LocalId) -> &Type {
-        self.current_scope().get(id).expect("local variable doesn't exist")
-    }
-
-    /// Get and increment the next local ID.
-    fn next_local_id(&mut self) -> LocalId {
-        let id = LocalId(self.next_local_id);
-        self.next_local_id += 1;
-        id
-    }
-}
-
-/// Generate a literal expression according to a type.
-fn gen_expr_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
-    let expr = match typ {
-        Type::Unit => Expression::Literal(Literal::Unit),
-        Type::Bool => Expression::Literal(Literal::Bool(bool::arbitrary(u)?)),
-        Type::Field => {
-            let field = SignedField {
-                field: FieldElement::from(u128::arbitrary(u)?),
-                is_negative: bool::arbitrary(u)?,
-            };
-            Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
-        }
-        Type::Integer(signedness, integer_bit_size) => {
-            let field = match integer_bit_size {
-                IntegerBitSize::One => FieldElement::from(bool::arbitrary(u)?),
-                IntegerBitSize::Eight => FieldElement::from(u8::arbitrary(u)? as u32),
-                IntegerBitSize::Sixteen => FieldElement::from(u16::arbitrary(u)? as u32),
-                IntegerBitSize::ThirtyTwo => FieldElement::from(u32::arbitrary(u)?),
-                IntegerBitSize::SixtyFour => FieldElement::from(u64::arbitrary(u)?),
-                IntegerBitSize::HundredTwentyEight => FieldElement::from(u128::arbitrary(u)?),
-            };
-
-            let field =
-                SignedField { field, is_negative: signedness.is_signed() && bool::arbitrary(u)? };
-
-            Expression::Literal(Literal::Integer(
-                field,
-                Type::Integer(*signedness, *integer_bit_size),
-                Location::dummy(),
-            ))
-        }
-        Type::String(len) => {
-            let mut s = String::new();
-            for _ in 0..*len {
-                s.push(char::arbitrary(u)?);
-            }
-            Expression::Literal(Literal::Str(s))
-        }
-        Type::Array(len, typ) => {
-            let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.as_ref().clone() };
-            for _ in 0..*len {
-                arr.contents.push(gen_expr_literal(u, typ)?);
-            }
-            Expression::Literal(Literal::Array(arr))
-        }
-        Type::Tuple(items) => {
-            let mut values = Vec::new();
-            for typ in items {
-                values.push(gen_expr_literal(u, typ)?);
-            }
-            Expression::Tuple(values)
-        }
-        _ => unreachable!("unexpected literal type: {typ}"),
-    };
-    Ok(expr)
-}
-
-fn to_hir_type(typ: &Type) -> hir_def::types::Type {
-    use hir_def::types::{Kind as HirKind, Type as HirType};
-
-    let size_const =
-        |size: u32| Box::new(HirType::Constant(FieldElement::from(size), HirKind::Integer));
-
-    match typ {
-        Type::Unit => HirType::Unit,
-        Type::Bool => HirType::Bool,
-        Type::Field => HirType::FieldElement,
-        Type::Integer(signedness, integer_bit_size) => {
-            HirType::Integer(*signedness, *integer_bit_size)
-        }
-        Type::String(size) => HirType::String(size_const(*size)),
-        Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
-        Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::FmtString(_, _)
-        | Type::Slice(_)
-        | Type::MutableReference(_)
-        | Type::Function(_, _, _, _) => {
-            unreachable!("unexpected type converting to HIR: {}", typ)
-        }
     }
 }
