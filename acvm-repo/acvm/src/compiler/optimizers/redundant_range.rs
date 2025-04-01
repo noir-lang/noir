@@ -1,4 +1,4 @@
-//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range][^range] opcodes
+//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
 //! which doesn't result in additional restrictions on the value of witnesses.
 //!
 //! Suppose we had the following pseudo-code:
@@ -19,7 +19,7 @@
 //!
 //! # Implicit range constraints
 //!
-//! We also consider implicit range constraints on witnesses - constraints other than [BlackBoxFunc::Range][^range]
+//! We also consider implicit range constraints on witnesses - constraints other than [BlackBoxFunc::Range]
 //! which limit the size of a witness.
 //!
 //! ## Constant assignments
@@ -50,7 +50,7 @@
 //! it would result in a read past the end of the array, which is invalid. We can then remove the explicit
 //! range constraint on `index` as the usage as an array index more tightly constrains its value.
 //!
-//! [^range]: [acir::circuit::black_box_functions::BlackBoxFunc::RANGE]
+//! [BlackBoxFunc::Range]: acir::circuit::black_box_functions::BlackBoxFunc::RANGE
 
 use acir::{
     AcirField,
