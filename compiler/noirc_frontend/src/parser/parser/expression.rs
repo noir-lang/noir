@@ -1739,6 +1739,21 @@ mod tests {
     }
 
     #[test]
+    fn errors_on_logical_and() {
+        let src = "
+        1 && 2
+          ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert_eq!(expression.to_string(), "(1 & 2)");
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::LogicalAnd));
+    }
+
+    #[test]
     fn parses_empty_lambda() {
         let src = "|| 1";
         let expr = parse_expression_no_errors(src);
