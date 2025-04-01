@@ -1,0 +1,35 @@
+error: Duplicate definitions of import with name Default found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ src/main.nr:2:11
+  │
+2 │     trait Default { }
+  │           ------- First import found here
+  │
+
+error: Duplicate definitions of import with name Option found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ src/main.nr:6:12
+  │
+6 │     struct Option<T> {
+  │            ------ First import found here
+  │
+
+error: impl has stricter requirements than trait
+   ┌─ src/main.nr:11:12
+   │
+11 │         fn bar<U>() where Option<T>: Default;
+   │            --- definition of `bar` from trait
+   ·
+17 │         fn bar<B>() where Option<A>: OtherDefault {}
+   │                                      ------------ impl has extra requirement `Option<A>: OtherDefault`
+   │
+
+Aborting due to 3 previous errors

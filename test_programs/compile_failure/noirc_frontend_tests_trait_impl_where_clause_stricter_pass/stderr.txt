@@ -1,0 +1,23 @@
+error: Duplicate definitions of import with name Option found
+   ┌─ std/aes128.nr:1:1
+   │
+ 1 │ #[foreign(aes128_encrypt)]
+   │ - Second import found here
+   │
+   ┌─ src/main.nr:10:12
+   │
+10 │     struct Option<T> {
+   │            ------ First import found here
+   │
+
+error: impl has stricter requirements than trait
+   ┌─ src/main.nr:5:12
+   │
+ 5 │         fn bad_foo<T, H>() where H: OtherTrait;
+   │            ------- definition of `bad_foo` from trait
+   ·
+17 │         fn bad_foo<A, B>() where A: OtherTrait { }
+   │                                     ---------- impl has extra requirement `A: OtherTrait`
+   │
+
+Aborting due to 2 previous errors

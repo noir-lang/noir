@@ -1,0 +1,8 @@
+error: `Default::default` expects 0 parameters, but this method has 2
+  ┌─ src/main.nr:8:12
+  │
+8 │         fn default(x: Field, y: Field) -> Self {
+  │            -------
+  │
+
+Aborting due to 1 previous error

@@ -1,0 +1,20 @@
+error: Duplicate definitions of import with name Default found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ src/main.nr:2:15
+  │
+2 │         trait Default {
+  │               ------- First import found here
+  │
+
+error: Expected 1 generic from this function, but 2 were provided
+   ┌─ src/main.nr:26:21
+   │
+26 │             let _ = foo.generic_method::<Field, u32>();
+   │                     ----------------------------------
+   │
+
+Aborting due to 2 previous errors

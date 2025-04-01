@@ -1,0 +1,20 @@
+error: Duplicate definitions of import with name Default found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ src/main.nr:7:12
+  │
+7 │     struct Default {
+  │            ------- First import found here
+  │
+
+error: Default is not a trait, therefore it can't be implemented
+   ┌─ src/main.nr:12:10
+   │
+12 │     impl Default for Foo {
+   │          -------
+   │
+
+Aborting due to 2 previous errors

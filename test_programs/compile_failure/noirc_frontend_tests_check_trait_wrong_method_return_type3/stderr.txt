@@ -1,0 +1,20 @@
+error: Duplicate definitions of import with name Default found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ src/main.nr:2:11
+  │
+2 │     trait Default {
+  │           ------- First import found here
+  │
+
+error: Expected type Foo, found type ()
+   ┌─ src/main.nr:12:41
+   │
+12 │         fn default(_x: Field, _y: Field) {
+   │                                         -
+   │
+
+Aborting due to 2 previous errors

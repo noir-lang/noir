@@ -1,0 +1,23 @@
+error: Duplicate definitions of import with name Default found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ src/main.nr:2:11
+  │
+2 │     trait Default {
+  │           ------- First import found here
+  │
+
+error: Impl for type `Foo` overlaps with existing impl
+   ┌─ src/main.nr:8:10
+   │
+ 8 │     impl Default for Foo {
+   │          ------- Previous impl defined here
+ 9 │     }
+10 │     impl Default for Foo {
+   │                      --- Overlapping impl
+   │
+
+Aborting due to 2 previous errors

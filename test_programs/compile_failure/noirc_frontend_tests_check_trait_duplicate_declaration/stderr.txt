@@ -1,0 +1,23 @@
+error: Duplicate definitions of trait definition with name Default found
+   ┌─ src/main.nr:2:11
+   │
+ 2 │     trait Default {
+   │           ------- First trait definition found here
+   ·
+17 │     trait Default {
+   │           ------- Second trait definition found here
+   │
+
+error: Duplicate definitions of import with name Default found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ src/main.nr:2:11
+  │
+2 │     trait Default {
+  │           ------- First import found here
+  │
+
+Aborting due to 2 previous errors
