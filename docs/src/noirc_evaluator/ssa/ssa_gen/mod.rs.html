@@ -1129,19 +1129,7 @@
 <a href="#1128" id="1128">1128</a>
 <a href="#1129" id="1129">1129</a>
 <a href="#1130" id="1130">1130</a>
-<a href="#1131" id="1131">1131</a>
-<a href="#1132" id="1132">1132</a>
-<a href="#1133" id="1133">1133</a>
-<a href="#1134" id="1134">1134</a>
-<a href="#1135" id="1135">1135</a>
-<a href="#1136" id="1136">1136</a>
-<a href="#1137" id="1137">1137</a>
-<a href="#1138" id="1138">1138</a>
-<a href="#1139" id="1139">1139</a>
-<a href="#1140" id="1140">1140</a>
-<a href="#1141" id="1141">1141</a>
-<a href="#1142" id="1142">1142</a>
-<a href="#1143" id="1143">1143</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1131" id="1131">1131</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>value;
 
@@ -1279,10 +1267,8 @@
     <span class="doccomment">/// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     </span><span class="kw">fn </span>codegen_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, body: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span>incremented_params = <span class="self">self</span>.increment_parameter_rcs();
         <span class="kw">let </span>return_value = <span class="self">self</span>.codegen_expression(body)<span class="question-mark">?</span>;
         <span class="kw">let </span>results = return_value.into_value_list(<span class="self">self</span>);
-        <span class="self">self</span>.end_scope(incremented_params, <span class="kw-2">&amp;</span>results);
 
         <span class="self">self</span>.builder.terminate_with_return(results);
         <span class="prelude-val">Ok</span>(())
@@ -1315,6 +1301,8 @@
             Expression::Semi(semi) =&gt; <span class="self">self</span>.codegen_semi(semi),
             Expression::Break =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.codegen_break()),
             Expression::Continue =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.codegen_continue()),
+            Expression::Clone(expr) =&gt; <span class="self">self</span>.codegen_clone(expr),
+            Expression::Drop(expr) =&gt; <span class="self">self</span>.codegen_drop(expr),
         }
     }
 
@@ -1420,17 +1408,13 @@
     <span class="kw">fn </span>codegen_array_elements(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         elements: <span class="kw-2">&amp;</span>[Expression],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(Values, bool)&gt;, RuntimeError&gt; {
-        try_vecmap(elements, |element| {
-            <span class="kw">let </span>value = <span class="self">self</span>.codegen_expression(element)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>((value, element.is_array_or_slice_literal()))
-        })
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Values&gt;, RuntimeError&gt; {
+        try_vecmap(elements, |element| <span class="self">self</span>.codegen_expression(element))
     }
 
     <span class="kw">fn </span>codegen_string(<span class="kw-2">&amp;mut </span><span class="self">self</span>, string: <span class="kw-2">&amp;</span>str) -&gt; Values {
         <span class="kw">let </span>elements = vecmap(string.as_bytes(), |byte| {
-            <span class="kw">let </span>char = <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>byte <span class="kw">as </span>u128, NumericType::char());
-            (char.into(), <span class="bool-val">false</span>)
+            <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>byte <span class="kw">as </span>u128, NumericType::char()).into()
         });
         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_non_tuple_type(<span class="kw-2">&amp;</span>ast::Type::String(elements.len() <span class="kw">as </span>u32));
         <span class="self">self</span>.codegen_array(elements, typ)
@@ -1443,7 +1427,7 @@
     /// constant to be moved into this larger array constant.
     </span><span class="kw">fn </span>codegen_array_checked(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        elements: Vec&lt;(Values, bool)&gt;,
+        elements: Vec&lt;Values&gt;,
         typ: Type,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
         <span class="kw">if </span>typ.is_nested_slice() {
@@ -1465,22 +1449,12 @@
     /// constant to be moved into this larger array constant.
     ///
     /// The value returned from this function is always that of the allocate instruction.
-    </span><span class="kw">fn </span>codegen_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;(Values, bool)&gt;, typ: Type) -&gt; Values {
+    </span><span class="kw">fn </span>codegen_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;Values&gt;, typ: Type) -&gt; Values {
         <span class="kw">let </span><span class="kw-2">mut </span>array = im::Vector::new();
 
-        <span class="kw">for </span>(element, is_array_constant) <span class="kw">in </span>elements {
+        <span class="kw">for </span>element <span class="kw">in </span>elements {
             element.for_each(|element| {
                 <span class="kw">let </span>element = element.eval(<span class="self">self</span>);
-
-                <span class="comment">// If we're referencing a sub-array in a larger nested array we need to
-                // increase the reference count of the sub array. This maintains a
-                // pessimistic reference count (since some are likely moved rather than shared)
-                // which is important for Brillig's copy on write optimization. This has no
-                // effect in ACIR code.
-                </span><span class="kw">if </span>!is_array_constant {
-                    <span class="self">self</span>.builder.increment_array_reference_count(element);
-                }
-
                 array.push_back(element);
             });
         }
@@ -1629,7 +1603,6 @@
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
             </span><span class="kw">let </span>result = <span class="self">self</span>.builder.insert_array_get(array, offset, typ);
-            <span class="self">self</span>.builder.increment_array_reference_count(result);
             result.into()
         }))
     }
@@ -2172,22 +2145,12 @@
     </span><span class="kw">fn </span>codegen_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, let_expr: <span class="kw-2">&amp;</span>ast::Let) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>values = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>let_expr.expression)<span class="question-mark">?</span>;
 
-        <span class="comment">// Don't mutate the reference count if we're assigning an array literal to a Let:
-        // `let mut foo = [1, 2, 3];`
-        // we consider the array to be moved, so we should have an initial rc of just 1.
-        </span><span class="kw">let </span>should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
-
         values = values.map(|value| {
             <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
 
             Tree::Leaf(<span class="kw">if </span>let_expr.mutable {
-                <span class="self">self</span>.new_mutable_variable(value, should_inc_rc)
+                <span class="self">self</span>.new_mutable_variable(value)
             } <span class="kw">else </span>{
-                <span class="comment">// `new_mutable_variable` increments rcs internally so we have to
-                // handle it separately for the immutable case
-                </span><span class="kw">if </span>should_inc_rc {
-                    <span class="self">self</span>.builder.increment_array_reference_count(value);
-                }
                 value::Value::Normal(value)
             })
         });
@@ -2246,15 +2209,6 @@
     <span class="kw">fn </span>codegen_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assign: <span class="kw-2">&amp;</span>ast::Assign) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
         <span class="kw">let </span>lhs = <span class="self">self</span>.extract_current_value(<span class="kw-2">&amp;</span>assign.lvalue)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>assign.expression)<span class="question-mark">?</span>;
-        <span class="kw">let </span>should_inc_rc = !assign.expression.is_array_or_slice_literal();
-
-        rhs.clone().for_each(|value| {
-            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
-
-            <span class="kw">if </span>should_inc_rc {
-                <span class="self">self</span>.builder.increment_array_reference_count(value);
-            }
-        });
 
         <span class="self">self</span>.assign_new_value(lhs, rhs);
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
@@ -2282,6 +2236,28 @@
             <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[]);
         }
         <span class="self">Self</span>::unit_value()
+    }
+
+    <span class="doccomment">/// Evaluate the given expression, increment the reference count of each array within,
+    /// and return the evaluated expression.
+    </span><span class="kw">fn </span>codegen_clone(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+        <span class="kw">let </span>values = <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(values.map(|value| {
+            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
+            <span class="self">self</span>.builder.increment_array_reference_count(value);
+            Values::from(value)
+        }))
+    }
+
+    <span class="doccomment">/// Evaluate the given expression, decrement the reference count of each array within,
+    /// and return unit.
+    </span><span class="kw">fn </span>codegen_drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+        <span class="kw">let </span>values = <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
+        values.for_each(|value| {
+            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
+            <span class="self">self</span>.builder.decrement_array_reference_count(value);
+        });
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
     }
 }
 </code></pre></div></section></main></body></html>

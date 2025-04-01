@@ -2729,7 +2729,7 @@
         debug_functions,
         debug_types,
     );
-    <span class="prelude-val">Ok</span>(program)
+    <span class="prelude-val">Ok</span>(program.handle_ownership(monomorphizer.next_local_id))
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'interner</span>&gt; Monomorphizer&lt;<span class="lifetime">'interner</span>&gt; {
@@ -3845,9 +3845,9 @@
             }
 
             <span class="comment">// Lower both mutable &amp; immutable references to the same reference type
-            </span>HirType::Reference(element, _mutable) =&gt; {
+            </span>HirType::Reference(element, mutable) =&gt; {
                 <span class="kw">let </span>element = <span class="self">Self</span>::convert_type_helper(element, location, seen_types)<span class="question-mark">?</span>;
-                ast::Type::MutableReference(Box::new(element))
+                ast::Type::Reference(Box::new(element), <span class="kw-2">*</span>mutable)
             }
 
             HirType::Forall(<span class="kw">_</span>, <span class="kw">_</span>) | HirType::Constant(..) | HirType::InfixExpr(..) =&gt; {
@@ -4732,14 +4732,14 @@
                     typ: ast::Type::Slice(element_type.clone()),
                 }))
             }
-            ast::Type::MutableReference(element) =&gt; {
+            ast::Type::Reference(element, mutable) =&gt; {
                 <span class="kw">use </span>UnaryOp::Reference;
                 <span class="kw">let </span>rhs = Box::new(<span class="self">self</span>.zeroed_value_of_type(element, location));
                 <span class="kw">let </span>result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary {
                     rhs,
                     result_type,
-                    operator: Reference { mutable: <span class="bool-val">true </span>},
+                    operator: Reference { mutable: <span class="kw-2">*</span>mutable },
                     location,
                 })
             }

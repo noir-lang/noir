@@ -21,7 +21,7 @@ is reasonable.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.length_type" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/types.rs.html#55-57">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.length_type" class="fn">length_type</a>() -&gt; <a class="enum" href="enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a></h4></section></summary><div class="docblock"><p>Creates the type of an array’s length.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.value_is_outside_limits" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/types.rs.html#62-83">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.value_is_outside_limits" class="fn">value_is_outside_limits</a>(
     self,
-    value: SignedField,
+    value: <a class="struct" href="../../../../noirc_frontend/signed_field/struct.SignedField.html" title="struct noirc_frontend::signed_field::SignedField">SignedField</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;</h4></section></summary><div class="docblock"><p>Returns None if the given Field value is within the numeric limits
 for the current NumericType. Otherwise returns a string describing
 the limits, as a range.</p>

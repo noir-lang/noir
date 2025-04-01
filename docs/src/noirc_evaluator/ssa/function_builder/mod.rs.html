@@ -604,17 +604,7 @@
 <a href="#603" id="603">603</a>
 <a href="#604" id="604">604</a>
 <a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>data_bus;
+<a href="#606" id="606">606</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -1139,17 +1129,7 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
         <span class="kw">match </span><span class="self">self</span>.type_of_value(value) {
-            Type::Numeric(<span class="kw">_</span>) | Type::Function =&gt; <span class="prelude-val">None</span>,
-            Type::Reference(element) =&gt; {
-                <span class="kw">if </span>element.contains_an_array() {
-                    <span class="kw">let </span>reference = value;
-                    <span class="kw">let </span>value = <span class="self">self</span>.insert_load(reference, element.as_ref().clone());
-                    <span class="self">self</span>.update_array_reference_count(value, increment);
-                    <span class="prelude-val">Some</span>(value)
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>}
-            }
+            Type::Numeric(<span class="kw">_</span>) | Type::Function | Type::Reference(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
             Type::Array(..) | Type::Slice(..) =&gt; {
                 <span class="comment">// If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.

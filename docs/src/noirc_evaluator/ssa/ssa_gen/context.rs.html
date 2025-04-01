@@ -1087,74 +1087,7 @@
 <a href="#1086" id="1086">1086</a>
 <a href="#1087" id="1087">1087</a>
 <a href="#1088" id="1088">1088</a>
-<a href="#1089" id="1089">1089</a>
-<a href="#1090" id="1090">1090</a>
-<a href="#1091" id="1091">1091</a>
-<a href="#1092" id="1092">1092</a>
-<a href="#1093" id="1093">1093</a>
-<a href="#1094" id="1094">1094</a>
-<a href="#1095" id="1095">1095</a>
-<a href="#1096" id="1096">1096</a>
-<a href="#1097" id="1097">1097</a>
-<a href="#1098" id="1098">1098</a>
-<a href="#1099" id="1099">1099</a>
-<a href="#1100" id="1100">1100</a>
-<a href="#1101" id="1101">1101</a>
-<a href="#1102" id="1102">1102</a>
-<a href="#1103" id="1103">1103</a>
-<a href="#1104" id="1104">1104</a>
-<a href="#1105" id="1105">1105</a>
-<a href="#1106" id="1106">1106</a>
-<a href="#1107" id="1107">1107</a>
-<a href="#1108" id="1108">1108</a>
-<a href="#1109" id="1109">1109</a>
-<a href="#1110" id="1110">1110</a>
-<a href="#1111" id="1111">1111</a>
-<a href="#1112" id="1112">1112</a>
-<a href="#1113" id="1113">1113</a>
-<a href="#1114" id="1114">1114</a>
-<a href="#1115" id="1115">1115</a>
-<a href="#1116" id="1116">1116</a>
-<a href="#1117" id="1117">1117</a>
-<a href="#1118" id="1118">1118</a>
-<a href="#1119" id="1119">1119</a>
-<a href="#1120" id="1120">1120</a>
-<a href="#1121" id="1121">1121</a>
-<a href="#1122" id="1122">1122</a>
-<a href="#1123" id="1123">1123</a>
-<a href="#1124" id="1124">1124</a>
-<a href="#1125" id="1125">1125</a>
-<a href="#1126" id="1126">1126</a>
-<a href="#1127" id="1127">1127</a>
-<a href="#1128" id="1128">1128</a>
-<a href="#1129" id="1129">1129</a>
-<a href="#1130" id="1130">1130</a>
-<a href="#1131" id="1131">1131</a>
-<a href="#1132" id="1132">1132</a>
-<a href="#1133" id="1133">1133</a>
-<a href="#1134" id="1134">1134</a>
-<a href="#1135" id="1135">1135</a>
-<a href="#1136" id="1136">1136</a>
-<a href="#1137" id="1137">1137</a>
-<a href="#1138" id="1138">1138</a>
-<a href="#1139" id="1139">1139</a>
-<a href="#1140" id="1140">1140</a>
-<a href="#1141" id="1141">1141</a>
-<a href="#1142" id="1142">1142</a>
-<a href="#1143" id="1143">1143</a>
-<a href="#1144" id="1144">1144</a>
-<a href="#1145" id="1145">1145</a>
-<a href="#1146" id="1146">1146</a>
-<a href="#1147" id="1147">1147</a>
-<a href="#1148" id="1148">1148</a>
-<a href="#1149" id="1149">1149</a>
-<a href="#1150" id="1150">1150</a>
-<a href="#1151" id="1151">1151</a>
-<a href="#1152" id="1152">1152</a>
-<a href="#1153" id="1153">1153</a>
-<a href="#1154" id="1154">1154</a>
-<a href="#1155" id="1155">1155</a>
-<a href="#1156" id="1156">1156</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1089" id="1089">1089</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1180,7 +1113,7 @@
 
 <span class="kw">use </span><span class="kw">super</span>::GlobalsGraph;
 <span class="kw">use </span><span class="kw">super</span>::value::{Tree, Value, Values};
-<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="doccomment">/// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -1328,8 +1261,8 @@
         </span><span class="kw">let </span>parameter_value = <span class="self">Self</span>::map_type(parameter_type, |typ| {
             <span class="kw">let </span>value = <span class="self">self</span>.builder.add_parameter(typ);
             <span class="kw">if </span>mutable {
-                <span class="comment">// This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
-                </span><span class="self">self</span>.new_mutable_variable(value, <span class="bool-val">true</span>)
+                <span class="comment">// This will wrap any `mut var: T` in a reference
+                </span><span class="self">self</span>.new_mutable_variable(value)
             } <span class="kw">else </span>{
                 value.into()
             }
@@ -1340,16 +1273,8 @@
 
     <span class="doccomment">/// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new_mutable_variable(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        value_to_store: ValueId,
-        increment_array_rc: bool,
-    ) -&gt; Value {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new_mutable_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value_to_store: ValueId) -&gt; Value {
         <span class="kw">let </span>element_type = <span class="self">self</span>.builder.current_function.dfg.type_of_value(value_to_store);
-
-        <span class="kw">if </span>increment_array_rc {
-            <span class="self">self</span>.builder.increment_array_reference_count(value_to_store);
-        }
 
         <span class="kw">let </span>alloc = <span class="self">self</span>.builder.insert_allocate(element_type);
         <span class="self">self</span>.builder.insert_store(alloc, value_to_store);
@@ -1375,7 +1300,7 @@
             ast::Type::Unit =&gt; Tree::empty(),
             <span class="comment">// A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            </span>ast::Type::MutableReference(element) =&gt; {
+            </span>ast::Type::Reference(element, <span class="kw">_</span>) =&gt; {
                 <span class="self">Self</span>::map_type_helper(element, <span class="kw-2">&amp;mut </span>|typ| f(Type::Reference(Arc::new(typ))))
             }
             ast::Type::FmtString(len, fields) =&gt; {
@@ -1428,7 +1353,7 @@
             ast::Type::Tuple(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"convert_non_tuple_type called on a tuple: {typ}"</span>),
             ast::Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; Type::Function,
             ast::Type::Slice(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"convert_non_tuple_type called on a slice: {typ}"</span>),
-            ast::Type::MutableReference(element) =&gt; {
+            ast::Type::Reference(element, <span class="kw">_</span>) =&gt; {
                 <span class="comment">// Recursive call to panic if element is a tuple
                 </span><span class="kw">let </span>element = <span class="self">Self</span>::convert_non_tuple_type(element);
                 Type::Reference(Arc::new(element))
@@ -2109,65 +2034,6 @@
                 <span class="macro">unreachable!</span>(
                     <span class="string">"assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
                 </span>)
-            }
-        }
-    }
-
-    <span class="doccomment">/// Increments the reference count of mutable reference array parameters.
-    /// Any mutable-value (`mut a: [T; N]` versus `a: &amp;mut [T; N]`) are already incremented
-    /// by `FunctionBuilder::add_parameter_to_scope`.
-    /// Returns each array id that was incremented.
-    ///
-    /// This is done on parameters rather than call arguments so that we can optimize out
-    /// paired inc/dec instructions within brillig functions more easily.
-    ///
-    /// Returns the list of parameters incremented, together with the value ID of the arrays they refer to.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increment_parameter_rcs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;(ValueId, ValueId)&gt; {
-        <span class="kw">let </span>entry = <span class="self">self</span>.builder.current_function.entry_block();
-        <span class="kw">let </span>parameters = <span class="self">self</span>.builder.current_function.dfg.block_parameters(entry).to_vec();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>incremented = Vec::default();
-        <span class="kw">let </span><span class="kw-2">mut </span>seen_array_types = HashSet::default();
-
-        <span class="kw">for </span>parameter <span class="kw">in </span>parameters {
-            <span class="comment">// Avoid reference counts for immutable arrays that aren't behind references.
-            </span><span class="kw">let </span>typ = <span class="self">self</span>.builder.current_function.dfg.type_of_value(parameter);
-
-            <span class="kw">if let </span>Type::Reference(element) = typ {
-                <span class="kw">if </span>element.contains_an_array() {
-                    <span class="comment">// If we haven't already seen this array type, the value may be possibly
-                    // aliased, so issue an inc_rc for it.
-                    </span><span class="kw">if </span>seen_array_types.insert(element.get_contained_array().clone()) {
-                        <span class="kw">continue</span>;
-                    }
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.builder.increment_array_reference_count(parameter) {
-                        incremented.push((parameter, id));
-                    }
-                }
-            }
-        }
-
-        incremented
-    }
-
-    <span class="doccomment">/// Ends a local scope of a function.
-    /// This will issue DecrementRc instructions for any arrays in the given starting scope
-    /// block's parameters. Arrays that are also used in terminator instructions for the scope are
-    /// ignored.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>end_scope(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>incremented_params: Vec&lt;(ValueId, ValueId)&gt;,
-        terminator_args: <span class="kw-2">&amp;</span>[ValueId],
-    ) {
-        <span class="comment">// TODO: This check likely leads to unsoundness.
-        // It is here to avoid decrementing the RC of a parameter we're returning but we
-        // only check the exact ValueId which can be easily circumvented by storing to and
-        // loading from a temporary reference.
-        </span>incremented_params.retain(|(parameter, <span class="kw">_</span>)| !terminator_args.contains(parameter));
-
-        <span class="kw">for </span>(parameter, original) <span class="kw">in </span>incremented_params {
-            <span class="kw">if </span><span class="self">self</span>.builder.current_function.dfg.value_is_reference(parameter) {
-                <span class="self">self</span>.builder.decrement_array_reference_count(original);
             }
         }
     }
