@@ -185,6 +185,10 @@ fn register_value(
             let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Raw, "()");
             ValueRecord::Raw { r: "()".to_string(), type_id: type_id }
         }
+        //PrintableType::Tuple { types } => todo!(),
+        //PrintableType::Enum { name, variants } => todo!(),
+        //PrintableType::Function { arguments, return_type, env, unconstrained } => todo!(),
+        //PrintableType::Reference { typ, mutable } => todo!(),
         _ => {
             // TODO(stanm): cover all types and remove `warn!`.
             warn!("not implemented yet: type that is not Field: {:?}", typ);
