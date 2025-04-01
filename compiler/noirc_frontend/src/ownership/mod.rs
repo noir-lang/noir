@@ -282,7 +282,7 @@ impl Context {
             Expression::Block(exprs) => {
                 exprs.iter_mut().for_each(|expr| self.handle_expression(expr));
             }
-            Expression::Unary(unary) => self.handle_unary(unary),
+            Expression::Unary(_) => self.handle_unary(expr),
             Expression::Binary(binary) => self.handle_binary(binary),
             Expression::Index(_) => self.handle_index(expr),
             Expression::Cast(cast) => self.handle_cast(cast),
@@ -369,11 +369,20 @@ impl Context {
         }
     }
 
-    fn handle_unary(&mut self, unary: &mut Unary) {
+    fn handle_unary(&mut self, expr: &mut Expression) {
+        let unary = match expr {
+            Expression::Unary(unary) => unary,
+            other => panic!("handle_unary given non-unary expression: {other}"),
+        };
+
         if self.experimental_ownership_feature && matches!(unary.operator, UnaryOp::Reference { .. }) {
             self.handle_reference_expression(&mut unary.rhs);
         } else {
             self.handle_expression(&mut unary.rhs);
+        }
+
+        if self.experimental_ownership_feature && matches!(unary.operator, UnaryOp::Dereference { .. }) {
+            clone_expr(expr);
         }
     }
 
