@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743497166208,
+  "lastUpdate": 1743497167385,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8165,70 +8165,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "c3a43abf9be80c6f89560405b65f5241ed67a6b2",
-          "message": "chore: remove bun from docs in favour of yarn (#7756)\n\nCo-authored-by: saleel <saleel@saleel.xyz>",
-          "timestamp": "2025-03-20T11:21:11Z",
-          "tree_id": "87422933d3238c902c0ea452a0a1a6fcf1321f9f",
-          "url": "https://github.com/noir-lang/noir/commit/c3a43abf9be80c6f89560405b65f5241ed67a6b2"
-        },
-        "date": 1742471275817,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.069,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.285,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.732,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.488,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "49c56a52ebabfecab85d3bade61ae50b9e7e49ed",
           "message": "feat: add `EmbeddedCurvePoint::generator()` to return generator point (#7754)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
           "timestamp": "2025-03-20T12:11:39Z",
@@ -11338,6 +11274,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 17.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9ffa00f38cf4b610095a44ad7488823e8a9d956f",
+          "message": "chore: bump external pinned commits (#7856)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-04-01T08:24:15Z",
+          "tree_id": "04a2626acbd45e174085a6a7c26e371b1288a18a",
+          "url": "https://github.com/noir-lang/noir/commit/9ffa00f38cf4b610095a44ad7488823e8a9d956f"
+        },
+        "date": 1743497162433,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.076,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.303,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.794,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.531,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18.1,
             "unit": "s"
           },
           {
