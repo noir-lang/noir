@@ -34,7 +34,7 @@
 //! We can consider the assertion that `z1 == 100` to be equivalent to a range constraint for `z1` to fit within
 //! 7 bits (the minimum necessary to hold the value `100`).
 //!
-//! # Array indexing
+//! ## Array indexing
 //!
 //! Another situation which adds an implicit range constraint are array indexing, for example in the program:
 //!
