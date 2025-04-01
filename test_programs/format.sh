@@ -4,7 +4,6 @@ set -e
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "overlapping_dep_and_mod" "overlapping_dep_and_mod_fix" "workspace_default_member" "workspace_reexport_bug")
 
-
 current_dir=$(pwd)
 
 # We generate a Noir workspace which contains all of the test cases
@@ -15,6 +14,12 @@ function collect_dirs {
   test_dirs=$(ls $current_dir/$1)
 
   for dir in $test_dirs; do
+    # TODO(https://github.com/noir-lang/noir/issues/7835): example blocking issue
+    # skip generated tests
+    if [[ "${dir}" =~ ^noirc_frontend_* ]]; then
+      continue
+    fi
+
     if [[ " ${excluded_dirs[@]} " =~ " ${dir} " ]]; then
       continue
     fi
