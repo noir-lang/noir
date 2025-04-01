@@ -14,8 +14,7 @@ use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
 
 use super::generated_acir::BrilligStdlibFunc;
-use super::{AcirContext, AcirType, AcirVar};
-use super::{AcirDynamicArray, AcirValue};
+use super::{AcirContext, AcirDynamicArray, AcirType, AcirValue, AcirVar};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     #[allow(clippy::too_many_arguments)]

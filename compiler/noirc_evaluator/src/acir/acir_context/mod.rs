@@ -137,11 +137,11 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     pub(super) acir_ir: GeneratedAcir<F>,
 
     /// The BigIntContext, used to generate identifiers for BigIntegers
-    pub(super) big_int_ctx: BigIntContext,
+    big_int_ctx: BigIntContext,
 
     expression_width: ExpressionWidth,
 
-    pub(crate) warnings: Vec<SsaReport>,
+    pub(super) warnings: Vec<SsaReport>,
 }
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
