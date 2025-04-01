@@ -274,7 +274,7 @@ fn handle_expression(expr: &mut Expression) {
         Expression::While(while_expr) => handle_while(while_expr),
         Expression::If(if_expr) => handle_if(if_expr),
         Expression::Match(match_expr) => handle_match(match_expr),
-        Expression::Tuple(elems) => handle_tuple(elems),
+        Expression::Tuple(elements) => handle_tuple(elements),
         Expression::ExtractTupleField(tuple, _index) => handle_expression(tuple),
         Expression::Call(call) => handle_call(call),
         Expression::Let(let_expr) => handle_let(let_expr),
