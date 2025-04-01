@@ -60,7 +60,7 @@ impl Program {
         mut next_local_id: u32,
         experimental_ownership_feature: bool,
     ) -> Self {
-        let context = Context { experimental_ownership_feature };
+        let mut context = Context { experimental_ownership_feature };
         for function in self.functions.iter_mut() {
             context.handle_ownership_in_function(function, &mut next_local_id);
         }
@@ -74,7 +74,7 @@ struct Context {
 }
 
 impl Context {
-    fn handle_ownership_in_function(&self, function: &mut Function, local_id: &mut u32) {
+    fn handle_ownership_in_function(&mut self, function: &mut Function, local_id: &mut u32) {
         if !function.unconstrained {
             return;
         }
@@ -275,7 +275,7 @@ fn recur_on_parameter<'typ>(
 }
 
 impl Context {
-    fn handle_expression(&self, expr: &mut Expression) {
+    fn handle_expression(&mut self, expr: &mut Expression) {
         match expr {
             Expression::Ident(_) => self.handle_ident(expr),
             Expression::Literal(literal) => self.handle_literal(literal),
@@ -307,6 +307,30 @@ impl Context {
         }
     }
 
+    /// Handle the rhs of a `&expr` unary expression.
+    /// When the experimental ownership flag is enabled variables and field accesses
+    /// in these expressions are exempt from clones.
+    fn handle_reference_expression(&mut self, expr: &mut Expression) {
+        match expr {
+            Expression::Ident(_) => (),
+            Expression::Block(exprs) => {
+                let len_minus_one = exprs.len().saturating_sub(1);
+                for expr in exprs.iter_mut().take(len_minus_one) {
+                    // In `&{ a; b; ...; z }` we're only taking the reference of `z`.
+                    self.handle_expression(expr);
+                }
+                if let Some(expr) = exprs.last_mut() {
+                    self.handle_reference_expression(expr);
+                }
+            }
+            Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
+
+            // If we have something like `f(arg)` then we want to treat those variables normally
+            // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
+            other => self.handle_expression(other),
+        }
+    }
+
     /// Under the experimental alternate ownership scheme, whenever an ident is used it is
     /// always cloned unless it is the last use of the ident (not in a loop). To simplify this
     /// analysis we always clone here then remove the last clone later if possible.
@@ -320,7 +344,7 @@ impl Context {
     ///   - Arrays stored inside a nested array literal (e.g. both variables in `[array1, array2]`
     ///     have their reference count incremented).
     ///   - This does not apply to nested array literals since we know they are not referenced elsewhere.
-    fn handle_literal(&self, literal: &mut Literal) {
+    fn handle_literal(&mut self, literal: &mut Literal) {
         match literal {
             Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
 
@@ -345,11 +369,15 @@ impl Context {
         }
     }
 
-    fn handle_unary(&self, unary: &mut Unary) {
-        self.handle_expression(&mut unary.rhs);
+    fn handle_unary(&mut self, unary: &mut Unary) {
+        if self.experimental_ownership_feature && matches!(unary.operator, UnaryOp::Reference { .. }) {
+            self.handle_reference_expression(&mut unary.rhs);
+        } else {
+            self.handle_expression(&mut unary.rhs);
+        }
     }
 
-    fn handle_binary(&self, binary: &mut crate::monomorphization::ast::Binary) {
+    fn handle_binary(&mut self, binary: &mut crate::monomorphization::ast::Binary) {
         self.handle_expression(&mut binary.lhs);
         self.handle_expression(&mut binary.rhs);
     }
@@ -357,7 +385,7 @@ impl Context {
     /// - Extracting an array from another array (`let inner: [_; _] = array[0];`):
     ///   - Extracting a nested array from its outer array will always increment the reference count
     ///     of the nested array.
-    fn handle_index(&self, index_expr: &mut Expression) {
+    fn handle_index(&mut self, index_expr: &mut Expression) {
         let crate::monomorphization::ast::Expression::Index(index) = index_expr else {
             panic!("handle_index should only be called with Index nodes");
         };
@@ -370,22 +398,22 @@ impl Context {
         }
     }
 
-    fn handle_cast(&self, cast: &mut crate::monomorphization::ast::Cast) {
+    fn handle_cast(&mut self, cast: &mut crate::monomorphization::ast::Cast) {
         self.handle_expression(&mut cast.lhs);
     }
 
-    fn handle_for(&self, for_expr: &mut crate::monomorphization::ast::For) {
+    fn handle_for(&mut self, for_expr: &mut crate::monomorphization::ast::For) {
         self.handle_expression(&mut for_expr.start_range);
         self.handle_expression(&mut for_expr.end_range);
         self.handle_expression(&mut for_expr.block);
     }
 
-    fn handle_while(&self, while_expr: &mut crate::monomorphization::ast::While) {
+    fn handle_while(&mut self, while_expr: &mut crate::monomorphization::ast::While) {
         self.handle_expression(&mut while_expr.condition);
         self.handle_expression(&mut while_expr.body);
     }
 
-    fn handle_if(&self, if_expr: &mut crate::monomorphization::ast::If) {
+    fn handle_if(&mut self, if_expr: &mut crate::monomorphization::ast::If) {
         self.handle_expression(&mut if_expr.condition);
         self.handle_expression(&mut if_expr.consequence);
         if let Some(alt) = &mut if_expr.alternative {
@@ -393,7 +421,7 @@ impl Context {
         }
     }
 
-    fn handle_match(&self, match_expr: &mut crate::monomorphization::ast::Match) {
+    fn handle_match(&mut self, match_expr: &mut crate::monomorphization::ast::Match) {
         for case in &mut match_expr.cases {
             self.handle_expression(&mut case.branch);
         }
@@ -403,13 +431,13 @@ impl Context {
         }
     }
 
-    fn handle_tuple(&self, elems: &mut [Expression]) {
+    fn handle_tuple(&mut self, elems: &mut [Expression]) {
         for elem in elems {
             self.handle_expression(elem);
         }
     }
 
-    fn handle_call(&self, call: &mut crate::monomorphization::ast::Call) {
+    fn handle_call(&mut self, call: &mut crate::monomorphization::ast::Call) {
         self.handle_expression(&mut call.func);
         for arg in &mut call.arguments {
             self.handle_expression(arg);
@@ -419,7 +447,7 @@ impl Context {
     /// - Let bindings (`let _ = <expression which returns an array>;`):
     ///   - Binding an array to a let binding increments the reference count of the array unless
     ///     the expression is an array literal in which case it is considered to be moved.
-    fn handle_let(&self, let_expr: &mut crate::monomorphization::ast::Let) {
+    fn handle_let(&mut self, let_expr: &mut crate::monomorphization::ast::Let) {
         self.handle_expression(&mut let_expr.expression);
 
         if !self.experimental_ownership_feature && !is_array_or_str_literal(&let_expr.expression) {
@@ -428,7 +456,7 @@ impl Context {
     }
 
     fn handle_constrain(
-        &self,
+        &mut self,
         boolean: &mut Expression,
         msg: &mut Option<Box<(Expression, crate::hir_def::types::Type)>>,
     ) {
@@ -442,7 +470,7 @@ impl Context {
     /// - Assignments (`x = <expression which returns an array>;`):
     ///   - Assigning an array to an existing variable will also increment the reference
     ///     count of the array unless it is an array literal.
-    fn handle_assign(&self, assign: &mut crate::monomorphization::ast::Assign) {
+    fn handle_assign(&mut self, assign: &mut crate::monomorphization::ast::Assign) {
         self.handle_lvalue(&mut assign.lvalue);
         self.handle_expression(&mut assign.expression);
 
@@ -451,7 +479,7 @@ impl Context {
         }
     }
 
-    fn handle_lvalue(&self, lvalue: &mut LValue) {
+    fn handle_lvalue(&mut self, lvalue: &mut LValue) {
         match lvalue {
             LValue::Ident(_) => (),
             LValue::Index { array, index, element_type: _, location: _ } => {
