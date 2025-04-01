@@ -62,14 +62,24 @@ mod tests {
     }
 
     fn delete_test_program_dir_occurrences(string: String, test_program_dir: &Path) -> String {
+        let test_program_base_dir = test_program_dir.parent().unwrap().parent().unwrap();
+        let mut test_program_base_dir = test_program_base_dir.to_string_lossy().to_string();
+        if !test_program_base_dir.ends_with('/') {
+            test_program_base_dir.push('/');
+        }
+
         let mut test_program_dir = test_program_dir.to_string_lossy().to_string();
         if !test_program_dir.ends_with('/') {
             test_program_dir.push('/');
         }
 
+        // We replace both test_program_dir (test_programs/compile_failure/foo) and its ancestor
+        // (test_programs) because in some cases some programs refer to other programs in `test_programs`.
         string
             .lines()
-            .map(|line| line.replace(&test_program_dir, ""))
+            .map(|line| {
+                line.replace(&test_program_dir, "").replace(&test_program_base_dir, "../../")
+            })
             .collect::<Vec<String>>()
             .join("\n")
     }
