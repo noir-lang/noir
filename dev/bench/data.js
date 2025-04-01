@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743515761515,
+  "lastUpdate": 1743515977587,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11367,70 +11367,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a46f05f84beec3f6ebf1f289a9512fa064652fe6",
-          "message": "fix: add missing inputs to `BlackBoxFuncCall::get_inputs_vec` for EcAdd (#7752)",
-          "timestamp": "2025-03-20T13:05:25Z",
-          "tree_id": "5713a58b884bbd42b38c96940ffcbc726e43e123",
-          "url": "https://github.com/noir-lang/noir/commit/a46f05f84beec3f6ebf1f289a9512fa064652fe6"
-        },
-        "date": 1742477493388,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 241.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 275.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 215.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 509.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 418.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 289,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 295.48,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "51d312bf2c480cb0d9ddaedf13462df46f67a928",
           "message": "chore: pull out pure functions from interpreter (#7755)",
           "timestamp": "2025-03-20T14:55:05Z",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 271.86,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 505.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 414.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.24,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6c014e73b535da7c6e3e183cb10ecca1eebe243b",
+          "message": "chore: replace ssa builder usage with parser in test (#7863)",
+          "timestamp": "2025-04-01T13:31:14Z",
+          "tree_id": "4b7af1473426abd14f18591dee9a99622b66fb61",
+          "url": "https://github.com/noir-lang/noir/commit/6c014e73b535da7c6e3e183cb10ecca1eebe243b"
+        },
+        "date": 1743515973782,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.87,
             "unit": "MB"
           },
           {
