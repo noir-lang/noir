@@ -150,10 +150,9 @@ fn register_value(
                 }
                 let element_values: Vec<ValueRecord> =
                     array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
-                let type_name_base = if !is_slice { "Array" } else { "Slice" };
                 let type_id = tracer.ensure_type_id(
                     runtime_tracing::TypeKind::Seq,
-                    &format!("{type_name_base}<{length}, ..>"),
+                    &format!("Array<{length}, ..>"),
                 ); // TODO: more precise?
                 ValueRecord::Sequence { elements: element_values, type_id, is_slice: false }
             } else {
