@@ -2151,7 +2151,19 @@
 <a href="#2150" id="2150">2150</a>
 <a href="#2151" id="2151">2151</a>
 <a href="#2152" id="2152">2152</a>
-<a href="#2153" id="2153">2153</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2153" id="2153">2153</a>
+<a href="#2154" id="2154">2154</a>
+<a href="#2155" id="2155">2155</a>
+<a href="#2156" id="2156">2156</a>
+<a href="#2157" id="2157">2157</a>
+<a href="#2158" id="2158">2158</a>
+<a href="#2159" id="2159">2159</a>
+<a href="#2160" id="2160">2160</a>
+<a href="#2161" id="2161">2161</a>
+<a href="#2162" id="2162">2162</a>
+<a href="#2163" id="2163">2163</a>
+<a href="#2164" id="2164">2164</a>
+<a href="#2165" id="2165">2165</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -3034,6 +3046,12 @@
                 <span class="comment">// RC is always directly pointed by the array/vector pointer
                 </span><span class="self">self</span>.brillig_context
                     .load_instruction(rc_register, array_or_vector.extract_register());
+
+                <span class="comment">// Ensure we're not incrementing from 0 back to 1
+                </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
+                    <span class="self">self</span>.assert_rc_neq_zero(rc_register);
+                }
+
                 <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(
                     rc_register,
                     BrilligBinaryOp::Add,
@@ -3054,20 +3072,7 @@
                 // and become usize::MAX, and then return to 1, then it will indicate
                 // an array as mutable when it probably shouldn't be.
                 </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
-                    <span class="kw">let </span>min_addr = ReservedRegisters::usize_one();
-                    <span class="kw">let </span>condition =
-                        SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
-                    <span class="self">self</span>.brillig_context.memory_op_instruction(
-                        min_addr,
-                        rc_register,
-                        condition.address,
-                        BrilligBinaryOp::LessThan,
-                    );
-                    <span class="self">self</span>.brillig_context.codegen_constrain(
-                        condition,
-                        <span class="prelude-val">Some</span>(<span class="string">"array ref-count underflow detected"</span>.to_owned()),
-                    );
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
+                    <span class="self">self</span>.assert_rc_neq_zero(rc_register);
                 }
 
                 <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(
@@ -3200,6 +3205,25 @@
         }
 
         <span class="self">self</span>.brillig_context.set_call_stack(CallStack::new());
+    }
+
+    <span class="kw">fn </span>assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {
+        <span class="kw">let </span>zero = SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">32</span>);
+
+        <span class="self">self</span>.brillig_context.const_instruction(zero, FieldElement::zero());
+
+        <span class="kw">let </span>condition = SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
+
+        <span class="self">self</span>.brillig_context.memory_op_instruction(
+            zero.address,
+            rc_register,
+            condition.address,
+            BrilligBinaryOp::Equals,
+        );
+        <span class="self">self</span>.brillig_context.not_instruction(condition, condition);
+        <span class="self">self</span>.brillig_context
+            .codegen_constrain(condition, <span class="prelude-val">Some</span>(<span class="string">"array ref-count underflow detected"</span>.to_owned()));
+        <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
     }
 
     <span class="kw">fn </span>convert_ssa_function_call(
