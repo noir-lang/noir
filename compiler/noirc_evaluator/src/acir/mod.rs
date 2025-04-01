@@ -3386,33 +3386,16 @@ mod test {
     // we will only generate one bytecode and the appropriate Brillig call opcodes are generated.
     #[test]
     fn multiple_brillig_stdlib_calls() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: u32, v1: u32, v2: u32):
-        //       v3 = div v0, v1
-        //       constrain v3 == v2
-        //       v4 = div v1, v2
-        //       constrain v4 == u32 1
-        //       return
-        // }
-        let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), foo_id);
-        let main_v0 = builder.add_parameter(Type::unsigned(32));
-        let main_v1 = builder.add_parameter(Type::unsigned(32));
-        let main_v2 = builder.add_parameter(Type::unsigned(32));
-
-        // Call a primitive operation that uses Brillig
-        let v0_div_v1 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
-        builder.insert_constrain(v0_div_v1, main_v2, None);
-
-        // Call the same primitive operation again
-        let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-        builder.insert_constrain(v1_div_v2, one, None);
-
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-        println!("{}", ssa);
+        let src = "
+        acir(inline) fn main f0 {
+            b0(v0: u32, v1: u32, v2: u32):
+              v3 = div v0, v1
+              constrain v3 == v2
+              v4 = div v1, v2
+              constrain v4 == u32 1
+              return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
 
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
