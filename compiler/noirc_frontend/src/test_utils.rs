@@ -137,7 +137,7 @@ pub(crate) fn get_program_with_options(
     }
 
     if let Some(test_path) = test_path {
-        emit_compile_test(test_path, src, expect)
+        emit_compile_test(test_path, src, expect);
     }
     (program, context, errors)
 }
