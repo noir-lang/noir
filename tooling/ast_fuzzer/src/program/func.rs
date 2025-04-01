@@ -54,6 +54,7 @@ impl FunctionDeclaration {
 }
 
 /// Context used during the generation of a function body.
+#[allow(unused)]
 pub(super) struct FunctionContext<'a> {
     /// Top level context, to access global variables and other functions.
     ctx: &'a Context,
@@ -70,6 +71,7 @@ pub(super) struct FunctionContext<'a> {
     variables: Vec<im::OrdMap<LocalId, Type>>,
 }
 
+#[allow(unused)]
 impl<'a> FunctionContext<'a> {
     pub fn new(ctx: &'a Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);

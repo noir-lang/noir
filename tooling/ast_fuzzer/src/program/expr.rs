@@ -1,4 +1,4 @@
-use acir::FieldElement;
+use acir::{AcirField, FieldElement};
 use nargo::errors::Location;
 
 use arbitrary::{Arbitrary, Unstructured};
@@ -30,8 +30,10 @@ pub(crate) fn gen_expr_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::R
                 IntegerBitSize::HundredTwentyEight => FieldElement::from(u128::arbitrary(u)?),
             };
 
-            let field =
-                SignedField { field, is_negative: signedness.is_signed() && bool::arbitrary(u)? };
+            let field = SignedField {
+                field,
+                is_negative: signedness.is_signed() && !field.is_zero() && bool::arbitrary(u)?,
+            };
 
             Expression::Literal(Literal::Integer(
                 field,
@@ -42,7 +44,8 @@ pub(crate) fn gen_expr_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::R
         Type::String(len) => {
             let mut s = String::new();
             for _ in 0..*len {
-                s.push(char::arbitrary(u)?);
+                let ascii_char = u.int_in_range(0x20..=0x7e).map(char::from)?;
+                s.push(ascii_char);
             }
             Expression::Literal(Literal::Str(s))
         }

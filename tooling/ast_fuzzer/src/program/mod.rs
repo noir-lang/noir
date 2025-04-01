@@ -1,5 +1,5 @@
 //! Module responsible for generating arbitrary [Program] ASTs.
-use std::collections::BTreeMap; // Using BTreeMap in case we need to deterministically enumerate items.
+use std::collections::{BTreeMap, BTreeSet}; // Using BTree for deterministic enumeration, for repeatability.
 
 use expr::gen_expr_literal;
 use func::{FunctionContext, FunctionDeclaration};
@@ -40,6 +40,8 @@ struct Context {
     /// Randomly generated functions that can access the globals and call
     /// other functions.
     functions: BTreeMap<FuncId, Function>,
+    /// Random types generated for functions.
+    types: BTreeSet<Type>,
 }
 
 impl Context {
@@ -49,6 +51,7 @@ impl Context {
             globals: Default::default(),
             function_declarations: Default::default(),
             functions: Default::default(),
+            types: Default::default(),
         }
     }
 
@@ -73,7 +76,7 @@ impl Context {
     }
 
     /// Generate the i-th global variable, which is allowed to use global variables `0..i`.
-    fn gen_global(&self, u: &mut Unstructured, _i: usize) -> arbitrary::Result<Expression> {
+    fn gen_global(&mut self, u: &mut Unstructured, _i: usize) -> arbitrary::Result<Expression> {
         let typ = self.gen_type(u, self.config.max_depth)?;
         // TODO: Can we use binary expressions here? Trying it out on a few examples
         // resulted in the compiler already evaluating such expressions into literals.
@@ -92,7 +95,7 @@ impl Context {
 
     /// Generate a random function declaration.
     fn gen_function_decl(
-        &self,
+        &mut self,
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<FunctionDeclaration> {
@@ -105,7 +108,6 @@ impl Context {
             let id = LocalId(p as u32);
             let name = format!("param{p}");
             let is_mutable = !is_main && bool::arbitrary(u)?;
-            // TODO: Reuse existing types, so functions can be aligned.
             let typ = self.gen_type(u, self.config.max_depth)?;
             params.push((id, is_mutable, name, typ));
 
@@ -185,9 +187,25 @@ impl Context {
 
     /// Generate a random [Type].
     ///
+    /// Keeps track of types already created, so that we can reuse types instead of always
+    /// creating new ones, to increase the chance of being able to pass variables between
+    /// functions.
+    ///
     /// With a `max_depth` of 0 only leaf types are created.
-    fn gen_type(&self, u: &mut Unstructured, max_depth: usize) -> arbitrary::Result<Type> {
-        let max_index = if max_depth == 0 { 4 } else { 6 };
+    fn gen_type(&mut self, u: &mut Unstructured, max_depth: usize) -> arbitrary::Result<Type> {
+        // See if we can reuse an existing type without going over the maximum depth.
+        if u.ratio(5, 10)? {
+            let existing_types =
+                self.types.iter().filter(|typ| type_depth(typ) <= max_depth).collect::<Vec<_>>();
+
+            if !existing_types.is_empty() {
+                return u.choose(&existing_types).map(|typ| (*typ).clone());
+            }
+        }
+
+        // Once we hit the maximum depth, stop generating composite types.
+        let max_index = if max_depth == 0 { 4 } else { 8 };
+
         let typ = match u.choose_index(max_index)? {
             // 4 leaf types
             0 => Type::Bool,
@@ -198,20 +216,37 @@ impl Context {
             ),
             3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
             // 2 composite types
-            4 => {
-                let size = u.int_in_range(1..=self.config.max_tuple_size)?;
-                let types = (0..=size)
+            4 | 5 => {
+                // 1-size tuples look strange, so let's make it minimum 2 fields.
+                let size = u.int_in_range(2..=self.config.max_tuple_size)?;
+                let types = (0..size)
                     .map(|_| self.gen_type(u, max_depth - 1))
                     .collect::<Result<Vec<_>, _>>()?;
                 Type::Tuple(types)
             }
-            5 => {
+            6 | 7 => {
+                // TODO: Are 0-size arrays allowed?
                 let size = u.int_in_range(0..=self.config.max_array_size)?;
                 let typ = self.gen_type(u, max_depth - 1)?;
                 Type::Array(size as u32, Box::new(typ))
             }
             _ => unreachable!(),
         };
+
+        self.types.insert(typ.clone());
+
         Ok(typ)
+    }
+}
+
+/// Calculate the depth of a type.
+///
+/// Leaf types have a depth of 0.
+fn type_depth(typ: &Type) -> usize {
+    match typ {
+        Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
+        Type::Array(_, typ) => 1 + type_depth(typ),
+        Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
+        _ => unreachable!("unexpected type: {typ}"),
     }
 }

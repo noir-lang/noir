@@ -28,11 +28,11 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             max_globals: 3,
-            max_functions: 3,
+            max_functions: 5,
             max_function_args: 3,
             max_depth: 2,
-            max_tuple_size: 5,
-            max_array_size: 10,
+            max_tuple_size: 4,
+            max_array_size: 8,
         }
     }
 }

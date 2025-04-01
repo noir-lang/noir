@@ -321,7 +321,7 @@ pub struct Function {
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
 /// - All structs replaced with tuples
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
