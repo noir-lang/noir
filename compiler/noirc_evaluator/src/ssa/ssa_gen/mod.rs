@@ -472,7 +472,6 @@ impl FunctionContext<'_> {
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
             let result = self.builder.insert_array_get(array, offset, typ);
-            // self.builder.increment_array_reference_count(result);
             result.into()
         }))
     }
