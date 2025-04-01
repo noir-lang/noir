@@ -6,7 +6,7 @@
 //! <https://yorickpeterse.com/articles/how-to-write-a-code-formatter/>
 //!
 //! However, some changes were introduces to handle comments and other particularities of Noir.
-use std::ops::Deref;
+use std::{fmt::Display, ops::Deref};
 
 use noirc_frontend::token::Token;
 
@@ -110,6 +110,26 @@ impl Chunk {
     /// Returns the current chunk as a Group, if it is one. Otherwise returns None.
     pub(crate) fn group(self) -> Option<ChunkGroup> {
         if let Chunk::Group(group) = self { Some(group) } else { None }
+    }
+}
+
+impl Display for Chunk {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Chunk::Text(text_chunk, _)
+            | Chunk::TrailingComment(text_chunk)
+            | Chunk::LeadingComment(text_chunk) => {
+                write!(f, "{}", text_chunk.string)
+            }
+            Chunk::TrailingComma => write!(f, ","),
+            Chunk::Group(chunk_group) => chunk_group.fmt(f),
+            Chunk::SpaceOrLine => write!(f, " "),
+            Chunk::Line { .. }
+            | Chunk::IncreaseIndentation
+            | Chunk::DecreaseIndentation
+            | Chunk::PushIndentation
+            | Chunk::PopIndentation => Ok(()),
+        }
     }
 }
 
@@ -433,6 +453,44 @@ impl ChunkGroup {
 
         false
     }
+
+    /// Assuming this is a MethodCall group, if the ExpressionList nested in it
+    /// has a LambdaAsLastExpressionInList, returns its `first_line_width`.
+    fn method_call_lambda_first_line_width(&self) -> Option<usize> {
+        for chunk in &self.chunks {
+            let Chunk::Group(group) = chunk else {
+                continue;
+            };
+
+            let GroupKind::ExpressionList { expressions_count: 1, .. } = group.kind else {
+                continue;
+            };
+
+            for chunk in &group.chunks {
+                let Chunk::Group(group) = chunk else {
+                    continue;
+                };
+
+                let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = group.kind
+                else {
+                    continue;
+                };
+
+                return Some(first_line_width);
+            }
+        }
+
+        None
+    }
+}
+
+impl Display for ChunkGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for chunk in &self.chunks {
+            chunk.fmt(f)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -610,10 +668,24 @@ impl<'a> Formatter<'a> {
                 lhs: false,
             } = group.kind
             {
-                let total_width = self.current_line_width() + width_until_left_paren_inclusive;
+                let mut total_width = self.current_line_width() + width_until_left_paren_inclusive;
+
+                if total_width <= self.max_width {
+                    // Check if this method call has a single lambda argument, like this:
+                    //
+                    // foo.bar.baz(|x| { x + 1 })
+                    //
+                    // In this case we can't just consider the width up to `(`, we need to include `|x| {`
+                    // because we'll want to format it in the same line as the `(` (we could put the lambda
+                    // on a separate line but it would be less readable).
+                    if let Some(first_line_width) = group.method_call_lambda_first_line_width() {
+                        total_width += first_line_width;
+                    }
+                }
+
                 if total_width <= self.max_width {
                     // Check if this method call has another call or method call nested in it.
-                    // If not, it means tis is the last nested call and after it we'll need to start
+                    // If not, it means this is the last nested call and after it we'll need to start
                     // writing at least one closing parentheses. So the argument list will actually
                     // have one less character available for writing, and that's why we (temporarily) decrease
                     // max width.
@@ -681,7 +753,6 @@ impl<'a> Formatter<'a> {
             return;
         }
 
-        // if chunks.has_newlines() {
         // When formatting an expression list we have to check if the last argument is a lambda,
         // because we format that in a special way:
         // 1. to compute the group width we'll consider only the `|...| {` part of the lambda

@@ -82,9 +82,9 @@ impl Context {
         self.handle_expression(&mut function.body);
 
         if !self.experimental_ownership_feature {
-            let new_bindings = increment_parameter_rcs(&function.parameters);
+            let new_bindings = collect_parameters_to_clone(&function.parameters);
 
-            // Prepend new_clones to the function body and insert drops for them at the end.
+            // Prepend new_bindings to the function body and insert drops for them at the end.
             if !new_bindings.is_empty() {
                 let unit = Expression::Literal(Literal::Unit);
                 let old_body = std::mem::replace(&mut function.body, unit);
@@ -159,9 +159,11 @@ fn next_local_id(current_local_id: &mut u32) -> LocalId {
     LocalId(next)
 }
 
-/// Increment any parameter reference counts necessary. Returns a vector of new
-/// clones to prepend to a function - if any.
-fn increment_parameter_rcs(parameters: &Parameters) -> Vec<(String, Type, Expression)> {
+/// Returns a vector of new parameters to prepend clones to a function - if any.
+/// Note that these may be full expressions e.g. `*param.field` so they should
+/// be stored in a let binding before being cloned to ensure that a later drop
+/// would be to the same value.
+fn collect_parameters_to_clone(parameters: &Parameters) -> Vec<(String, Type, Expression)> {
     let mut seen_array_types = HashSet::default();
     let mut new_bindings = Vec::new();
 
@@ -191,6 +193,7 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<(String, Type, Expres
             name,
             &mut seen_array_types,
             &mut new_bindings,
+            false,
         );
     }
 
@@ -214,43 +217,59 @@ fn recur_on_parameter<'typ>(
     parameter_name: &str,
     seen_array_types: &mut HashSet<&'typ Type>,
     new_bindings: &mut Vec<(String, Type, Expression)>,
+    passed_reference: bool,
 ) {
     match parameter_type {
         // These types never contain arrays
         Type::Field | Type::Integer(..) | Type::Bool | Type::Unit | Type::Function(..) => (),
 
-        Type::Array(_, element_type) | Type::Slice(element_type) => {
-            seen_array_types.insert(parameter_type);
-            // Don't clone inside arrays, but still look for more array types
-            recur_on_parameter(None, element_type, parameter_name, seen_array_types, new_bindings);
-        }
-        Type::String(_) | Type::FmtString(..) => {
-            seen_array_types.insert(parameter_type);
+        Type::Array(..) | Type::Slice(_) | Type::String(_) | Type::FmtString(..) => {
+            // If we've already seen this type and this is behind a reference
+            if !seen_array_types.insert(parameter_type) && passed_reference {
+                if let Some(parameter) = parameter {
+                    new_bindings.push((
+                        parameter_name.to_string(),
+                        parameter_type.clone(),
+                        parameter,
+                    ));
+                }
+            }
+
+            // Don't recur on the element type here, we rely on the reference count to already be
+            // incremented in the nested array case when the nested array is created.
         }
 
         Type::Tuple(fields) => {
             for (i, field) in fields.iter().enumerate() {
                 let expr = parameter.clone().map(|p| Expression::ExtractTupleField(Box::new(p), i));
-                recur_on_parameter(expr, field, parameter_name, seen_array_types, new_bindings);
+                recur_on_parameter(
+                    expr,
+                    field,
+                    parameter_name,
+                    seen_array_types,
+                    new_bindings,
+                    passed_reference,
+                );
             }
         }
 
-        Type::Reference(element_type) => {
-            if let Some(array) = inner_array_or_slice_type(element_type) {
-                if let Some(parameter) = parameter {
-                    // Check if the parameter type has been seen before
-                    if !seen_array_types.insert(array) {
-                        let typ = element_type.as_ref().clone();
-                        let expr = Expression::Unary(Unary {
-                            operator: UnaryOp::Dereference { implicitly_added: true },
-                            rhs: Box::new(parameter),
-                            result_type: typ.clone(),
-                            location: Location::dummy(), // TODO
-                        });
-                        new_bindings.push((parameter_name.to_string(), typ, expr));
-                    }
-                }
-            }
+        Type::Reference(element_type, _mutable) => {
+            let expr = parameter.map(|parameter| {
+                Expression::Unary(Unary {
+                    operator: UnaryOp::Dereference { implicitly_added: true },
+                    rhs: Box::new(parameter.clone()),
+                    result_type: element_type.as_ref().clone(),
+                    location: Location::dummy(), // TODO
+                })
+            });
+            recur_on_parameter(
+                expr,
+                element_type,
+                parameter_name,
+                seen_array_types,
+                new_bindings,
+                true,
+            );
         }
     }
 }
@@ -258,7 +277,7 @@ fn recur_on_parameter<'typ>(
 impl Context {
     fn handle_expression(&self, expr: &mut Expression) {
         match expr {
-            Expression::Ident(_) => (),
+            Expression::Ident(_) => self.handle_ident(expr),
             Expression::Literal(literal) => self.handle_literal(literal),
             Expression::Block(exprs) => {
                 exprs.iter_mut().for_each(|expr| self.handle_expression(expr));
@@ -285,6 +304,15 @@ impl Context {
             Expression::Drop(_) => (),
             Expression::Break => (),
             Expression::Continue => (),
+        }
+    }
+
+    /// Under the experimental alternate ownership scheme, whenever an ident is used it is
+    /// always cloned unless it is the last use of the ident (not in a loop). To simplify this
+    /// analysis we always clone here then remove the last clone later if possible.
+    fn handle_ident(&self, expr: &mut Expression) {
+        if self.experimental_ownership_feature {
+            clone_expr(expr);
         }
     }
 
@@ -495,29 +523,6 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
 
         Type::Tuple(elems) => elems.iter().any(contains_array_or_str_type),
-        Type::Reference(elem) => contains_array_or_str_type(elem),
-    }
-}
-
-/// Return the inner array, slice, string, or fmtstring type if it exists.
-fn inner_array_or_slice_type(typ: &Type) -> Option<&Type> {
-    match typ {
-        Type::Field | Type::Integer(..) | Type::Bool | Type::Function(..) | Type::Unit => None,
-
-        Type::Array(_, _) | Type::Slice(_) | Type::String(_) | Type::FmtString(..) => Some(typ),
-
-        Type::Tuple(elems) => {
-            for elem in elems {
-                if let Some(target) = inner_array_or_slice_type(elem) {
-                    return Some(target);
-                }
-            }
-            None
-        }
-
-        // The existing SSA code still checked nested references for
-        // array types. These probably shouldn't be needed for cloning
-        // purposes but are kept for now to avoid differences with the existing code.
-        Type::Reference(element) => inner_array_or_slice_type(element),
+        Type::Reference(elem, _) => contains_array_or_str_type(elem),
     }
 }

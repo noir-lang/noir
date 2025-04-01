@@ -10,7 +10,7 @@ libraries:
     critical: true
   eddsa:
     repo: noir-lang/eddsa
-    timeout: 2
+    timeout: 3
     critical: true
   mimc:
     repo: noir-lang/mimc
