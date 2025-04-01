@@ -207,7 +207,14 @@ mod test {
             map::Id,
             types::{NumericType, Type},
         },
+        opt::run_snapshots,
+        ssa_gen::Ssa,
     };
+
+    #[test]
+    fn remove_enable_side_effects_snapshots() {
+        run_snapshots("enablesideeffectsif_removal", Ssa::remove_enable_side_effects);
+    }
 
     #[test]
     fn remove_chains_of_same_condition() {

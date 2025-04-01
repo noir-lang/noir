@@ -78,9 +78,14 @@ fn replace_known_slice_lengths(
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::opt::{assert_normalized_ssa_equals, run_snapshots};
 
     use super::Ssa;
+
+    #[test]
+    fn as_slice_length_snapshots() {
+        run_snapshots("as_slice_optimization", Ssa::as_slice_optimization);
+    }
 
     #[test]
     fn as_slice_length_optimization() {

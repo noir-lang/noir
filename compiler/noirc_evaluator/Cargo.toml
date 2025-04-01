@@ -39,6 +39,7 @@ similar-asserts.workspace = true
 tracing-test = "0.2.5"
 num-traits.workspace = true
 test-case.workspace = true
+glob = "0.3.2"
 
 [features]
 bn254 = ["noirc_frontend/bn254"]
