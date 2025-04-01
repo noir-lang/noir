@@ -4316,3 +4316,19 @@ fn unconstrained_type_parameter_in_impl() {
         "#;
     check_errors(src);
 }
+
+#[test]
+fn unconstrained_numeric_generic_in_impl() {
+    let src = r#"
+        pub struct Foo {}
+
+        impl<let N: u32> Foo {}
+                 ^ The type parameter `N` is not constrained by the impl trait, self type, or predicates
+                 ~ Hint: remove the `N` type parameter
+
+        fn main() {
+            let _ = Foo {};
+        }
+        "#;
+    check_errors(src);
+}
