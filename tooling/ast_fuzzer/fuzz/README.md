@@ -8,5 +8,5 @@ Execute it with the following command:
 
 ```shell
 cd tooling/ast_fuzzer
-cargo +nightly fuzz run <target> --release
+cargo +nightly fuzz run <target>
 ```
