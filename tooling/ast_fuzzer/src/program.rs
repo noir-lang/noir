@@ -1,11 +1,10 @@
-// Using `BTreeMap` for deterministic iteration.
+use std::collections::BTreeMap; // Using BTreeMap in case we need to deterministically enumerate items.
+
 use acir::FieldElement;
 use nargo::errors::Location;
-use std::collections::BTreeMap;
 use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
-use noirc_abi::Abi;
 use noirc_frontend::{
     ast::IntegerBitSize,
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
@@ -267,27 +266,60 @@ struct FunctionContext<'a> {
     decl: &'a FunctionDeclaration,
     /// Self ID.
     id: FuncId,
+    /// Every variable created in the function will have an increasing ID,
+    /// which does not reset when variables go out of scope.
+    next_local_id: u32,
     /// Variables accumulated during the generation of the function body,
     /// initially consisting of the function parameters, then extended
-    /// by locally defined variables.
-    ///
-    /// TODO: Block scopes should add and remove layers.
-    variables: Vec<(LocalId, Type)>,
+    /// by locally defined variables. Block scopes add and remove layers.
+    variables: Vec<im::OrdMap<LocalId, Type>>,
 }
 
 impl<'a> FunctionContext<'a> {
     fn new(ctx: &'a Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);
 
-        let variables = decl.params.iter().map(|(id, _, _, typ)| (*id, typ.clone())).collect();
+        let params = decl.params.iter().map(|(id, _, _, typ)| (*id, typ.clone())).collect();
+        let next_local_id = decl.params.iter().map(|p| p.0.0).max().unwrap_or_default();
 
-        Self { ctx, decl, id, variables }
+        Self { ctx, decl, id, next_local_id, variables: vec![params] }
     }
 
     /// Generate the function body.
     fn gen_body(self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // TODO: Generate a random AST using the variables, and return the expected type.
         gen_expr_literal(u, &self.decl.return_type)
+    }
+
+    /// Local variables currently in scope.
+    fn current_scope(&self) -> &im::OrdMap<LocalId, Type> {
+        self.variables.last().expect("there is always the params layer")
+    }
+
+    /// Add a layer of block variables.
+    fn enter_scope(&mut self) {
+        // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
+        self.variables.push(self.current_scope().clone());
+    }
+
+    /// Remove the last layer of block variables.
+    fn exit_scope(&mut self) {
+        self.variables.pop();
+        assert!(!self.variables.is_empty(), "never pop the params layer");
+    }
+
+    /// Look up a local variable.
+    ///
+    /// Panics if it doesn't exist.
+    fn local_variable(&self, id: &LocalId) -> &Type {
+        self.current_scope().get(id).expect("local variable doesn't exist")
+    }
+
+    /// Get and increment the next local ID.
+    fn next_local_id(&mut self) -> LocalId {
+        let id = LocalId(self.next_local_id);
+        self.next_local_id += 1;
+        id
     }
 }
 

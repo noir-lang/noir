@@ -3246,6 +3246,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "build-data",
  "color-eyre",
+ "im",
  "nargo",
  "noir_fuzzer",
  "noirc_abi",

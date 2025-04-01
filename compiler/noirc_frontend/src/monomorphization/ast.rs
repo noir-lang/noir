@@ -75,7 +75,7 @@ pub enum Definition {
 
 /// ID of a local definition, e.g. from a let binding or
 /// function parameter that should be compiled before it is referenced.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LocalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::globals`

@@ -17,6 +17,7 @@ build-data.workspace = true
 [dependencies]
 arbitrary.workspace = true
 color-eyre.workspace = true
+im.workspace = true
 proptest.workspace = true
 strum.workspace = true
 
