@@ -61,7 +61,11 @@ impl CompareResult {
     /// Returns an error if anything is different.
     pub fn return_value_or_err(&self) -> eyre::Result<Option<&InputValue>> {
         match self {
-            CompareResult::BothFailed(_, _) => Ok(None),
+            CompareResult::BothFailed(e1, e2) => {
+                // For now raise an error to catch anything unexpected, but in the future if
+                // both fail the same way (e.g. assertion failure) then it should be okay.
+                bail!("both programs failed: {e1}; {e2}")
+            }
             CompareResult::LeftFailed(e, _) => {
                 bail!("first program failed: {e}")
             }
