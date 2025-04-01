@@ -185,7 +185,22 @@ fn register_value(
             let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Raw, "()");
             ValueRecord::Raw { r: "()".to_string(), type_id: type_id }
         }
-        //PrintableType::Tuple { types } => todo!(),
+        PrintableType::Tuple { types } => {
+            if let PrintableValue::Vec { array_elements, is_slice } = value {
+                if *is_slice {
+                    panic!("value of is_slice: {:?} does not match type Tuple", value)
+                }
+                let element_values: Vec<ValueRecord> = array_elements
+                    .iter()
+                    .zip(types.iter())
+                    .map(|e| register_value(tracer, e.0, e.1))
+                    .collect();
+                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Tuple, "(..)");
+                ValueRecord::Tuple { elements: element_values, type_id }
+            } else {
+                panic!("type-value mismatch: value: {:?} does not match type Tuple", value)
+            }
+        }
         //PrintableType::Enum { name, variants } => todo!(),
         //PrintableType::Function { arguments, return_type, env, unconstrained } => todo!(),
         //PrintableType::Reference { typ, mutable } => todo!(),
