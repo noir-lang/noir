@@ -27,8 +27,6 @@ use fm::FileManager;
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
 pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
-    // use crate::tests::get_program;
-
     let (_parsed_module, mut context, errors) = get_program(src);
     assert!(
         errors.iter().all(|err| !err.is_error()),
