@@ -31,7 +31,7 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         max_bytecode_increase_percent: None,
     };
 
-    // TODO: What we really want is to do the minimum number of passes on the SSA to leave it as close to the initial SSA as possible.
+    // TODO(#7873): What we really want is to do the minimum number of passes on the SSA to leave it as close to the initial SSA as possible.
     // For now just test with min/max inliner aggressiveness.
     let inputs = ComparePasses::arb(
         u,
