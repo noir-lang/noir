@@ -17,7 +17,10 @@ mod visibility;
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
+
+use ::function_name::named;
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
 
@@ -52,19 +55,31 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
     });
 }
 
-pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
+pub(crate) fn get_program<'a, 'b>(
+    src: &'a str,
+    test_path: &'b str,
+    expect: Expect,
+) -> (ParsedModule, Context<'a, 'b>, Vec<CompilationError>) {
     let allow_parser_errors = false;
-    get_program_with_options(src, allow_parser_errors, FrontendOptions::test_default())
+    get_program_with_options(
+        src,
+        test_path,
+        expect,
+        allow_parser_errors,
+        FrontendOptions::test_default(),
+    )
 }
 
 pub(crate) fn get_program_using_features(
     src: &str,
+    test_path: &str,
+    expect: Expect,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
     let allow_parser_errors = false;
     let mut options = FrontendOptions::test_default();
     options.enabled_unstable_features = features;
-    get_program_with_options(src, allow_parser_errors, options)
+    get_program_with_options(src, test_path, expect, allow_parser_errors, options)
 }
 
 /// Compile a program.
@@ -72,6 +87,8 @@ pub(crate) fn get_program_using_features(
 /// The stdlib is not available for these snippets.
 pub(crate) fn get_program_with_options(
     src: &str,
+    test_path: &str,
+    expect: Expect,
     allow_parser_errors: bool,
     options: FrontendOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
@@ -121,15 +138,168 @@ pub(crate) fn get_program_with_options(
             options,
         ));
     }
+
+    emit_compile_test(test_path, src, expect);
     (program, context, errors)
 }
 
-pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
-    get_program(src).2
+pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationError> {
+    get_program(src, test_path, Expect::Error).2
 }
 
-fn assert_no_errors(src: &str) {
-    let (_, context, errors) = get_program(src);
+pub enum Expect {
+    Bug,
+    Success,
+    Error,
+}
+
+// if the "nextest" feature is enabled, this will panic instead of emitting a test crate
+fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
+    let package_name = test_path.replace("::", "_");
+    let skipped_tests = [
+        // skip ~2.4k name_shadowing tests
+        "name_shadowing_",
+        // TODO(https://github.com/noir-lang/noir/issues/7763)
+        "unconditional_recursion_fail_",
+        "unconditional_recursion_pass_",
+        // TODO(https://github.com/noir-lang/noir/issues/7783): array type fails to resolve when
+        // compiled
+        "traits_calls_trait_method_using_struct_name_when_multiple_impls_exist",
+        // TODO(https://github.com/noir-lang/noir/issues/7766): trait generic that passes
+        // frontend test fails to resolve with nargo
+        "turbofish_numeric_generic_nested_",
+    ];
+    if skipped_tests.iter().any(|skipped_test_name| package_name.contains(skipped_test_name)) {
+        return;
+    }
+
+    // in these cases, we expect a warning when 'check_errors' or similar is used
+    let error_to_warn_cases = [
+        "cast_256_to_u8_size_checks",
+        "enums_errors_on_unspecified_unstable_enum",
+        "immutable_references_without_ownership_feature",
+        "imports_warns_on_use_of_private_exported_item",
+        "metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
+        "resolve_unused_var",
+        "struct_array_len",
+        "unused_items_errors_on_unused_private_import",
+        "unused_items_errors_on_unused_pub_crate_import",
+        "unused_items_errors_on_unused_struct",
+        "unused_items_errors_on_unused_trait",
+        "unused_items_errors_on_unused_type_alias",
+        "unused_items_warns_on_unused_global",
+        "visibility_warns_if_calling_private_struct_method",
+        "warns_on_nested_unsafe",
+        "warns_on_unneeded_unsafe",
+        // TODO(https://github.com/noir-lang/noir/issues/6932): these will be hard errors
+        "visibility_error_when_accessing_private_struct_field",
+        "visibility_error_when_using_private_struct_field_in_constructor",
+        "visibility_error_when_using_private_struct_field_in_struct_pattern",
+        "visibility_errors_if_accessing_private_struct_member_inside_comptime_context",
+        "visibility_errors_if_accessing_private_struct_member_inside_function_generated_at_comptime",
+        "visibility_errors_if_trying_to_access_public_function_inside_private_module",
+        "visibility_errors_once_on_unused_import_that_is_not_accessible",
+        // TODO(https://github.com/noir-lang/noir/issues/7795): these will be hard errors
+        "indexing_array_with_non_u32_on_lvalue_produces_a_warning",
+        "indexing_array_with_non_u32_produces_a_warning",
+    ];
+    if let Expect::Error = expect {
+        if error_to_warn_cases
+            .iter()
+            .any(|error_to_warn_case| package_name.contains(error_to_warn_case))
+        {
+            expect = Expect::Success;
+        }
+    }
+
+    let error_to_bug_cases = ["cast_negative_one_to_u8_size_checks"];
+    if let Expect::Success = expect {
+        if error_to_bug_cases
+            .iter()
+            .any(|error_to_bug_case| package_name.contains(error_to_bug_case))
+        {
+            expect = Expect::Bug;
+        }
+    }
+
+    // "compiler/noirc_frontend"
+    let noirc_frontend_path = Path::new(std::env!("CARGO_MANIFEST_DIR"));
+    let noir_root_path = noirc_frontend_path
+        .parent()
+        .expect("expected 'noirc_frontend' to be in 'compiler'")
+        .parent()
+        .expect("expected 'compiler' to be in the noir root");
+    let test_programs_path = noir_root_path.join("test_programs");
+
+    let tests_dir_name = match expect {
+        Expect::Bug => "compile_success_with_bug",
+        Expect::Success => "compile_success_no_bug",
+        Expect::Error => "compile_failure",
+    };
+    let tests_dir = test_programs_path.join(tests_dir_name);
+    let crate_path = tests_dir.join(&package_name);
+    let nargo_toml_path = crate_path.join("Nargo.toml");
+    let src_hash_path = crate_path.join("src_hash.txt");
+    let src_path = crate_path.join("src");
+    let main_nr_path = src_path.join("main.nr");
+
+    // hash `src`
+    let mut hasher = DefaultHasher::new();
+    src.hash(&mut hasher);
+    let new_hash = hasher.finish().to_string();
+
+    if crate_path.is_dir() && src_hash_path.is_file() {
+        let current_hash =
+            std::fs::read_to_string(&src_hash_path).expect("Unable to read src_hash.txt");
+        // if out of date, update main.nr and hash file
+        if current_hash != new_hash {
+            if cfg!(feature = "nextest") {
+                panic!(
+                    "test generated from frontend unit test {test_path} is out of date: run `cargo test` to update"
+                );
+            }
+            std::fs::write(main_nr_path, src).expect("Unable to write test file");
+            std::fs::write(src_hash_path, new_hash).expect("Unable to write src_hash.txt file");
+        }
+    } else {
+        if cfg!(feature = "nextest") {
+            panic!(
+                "new test generated from frontend unit test {test_path}: run `cargo test` to generate"
+            );
+        }
+
+        // create missing dir's
+        std::fs::create_dir_all(&crate_path).unwrap_or_else(|_| {
+            panic!("expected to be able to create the directory {}", crate_path.display())
+        });
+        std::fs::create_dir_all(&src_path).unwrap_or_else(|_| {
+            panic!("expected to be able to create the directory {}", src_path.display())
+        });
+
+        let package_type = "bin"; // nargo::package::PackageType::Binary;
+        let toml_contents = format!(
+            r#"
+            [package]
+            name = "{package_name}"
+            type = "{package_type}"
+            authors = [""]
+            
+            [dependencies]"#
+        );
+
+        std::fs::write(&nargo_toml_path, toml_contents).unwrap_or_else(|_| {
+            panic!("Unable to write Nargo.toml to {}", nargo_toml_path.display())
+        });
+        std::fs::write(&main_nr_path, src)
+            .unwrap_or_else(|_| panic!("Unable to write test file to {}", main_nr_path.display()));
+        std::fs::write(&src_hash_path, new_hash).unwrap_or_else(|_| {
+            panic!("Unable to write src_hash.txt file to {}", src_hash_path.display())
+        });
+    }
+}
+
+fn assert_no_errors(src: &str, test_path: &str) {
+    let (_, context, errors) = get_program(src, test_path, Expect::Success);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);
@@ -151,35 +321,41 @@ fn assert_no_errors(src: &str) {
 ///
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
-fn check_errors(src: &str) {
+fn check_errors(src: &str, test_path: &str) {
     let allow_parser_errors = false;
     let monomorphize = false;
     check_errors_with_options(
         src,
+        test_path,
         allow_parser_errors,
         monomorphize,
         FrontendOptions::test_default(),
     );
 }
 
-fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
+fn check_errors_using_features(src: &str, test_path: &str, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
     let monomorphize = false;
     let options =
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
-    check_errors_with_options(src, allow_parser_errors, monomorphize, options);
+    check_errors_with_options(src, test_path, allow_parser_errors, monomorphize, options);
 }
 
 #[allow(unused)]
-pub(super) fn check_monomorphization_error(src: &str) {
-    check_monomorphization_error_using_features(src, &[]);
+pub(super) fn check_monomorphization_error(src: &str, test_path: &str) {
+    check_monomorphization_error_using_features(src, test_path, &[]);
 }
 
-pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
+pub(super) fn check_monomorphization_error_using_features(
+    src: &str,
+    test_path: &str,
+    features: &[UnstableFeature],
+) {
     let allow_parser_errors = false;
     let monomorphize = true;
     check_errors_with_options(
         src,
+        test_path,
         allow_parser_errors,
         monomorphize,
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
@@ -188,6 +364,7 @@ pub(super) fn check_monomorphization_error_using_features(src: &str, features: &
 
 fn check_errors_with_options(
     src: &str,
+    test_path: &str,
     allow_parser_errors: bool,
     monomorphize: bool,
     options: FrontendOptions,
@@ -236,7 +413,8 @@ fn check_errors_with_options(
         secondary_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let (_, mut context, errors) =
+        get_program_with_options(&src, test_path, Expect::Error, allow_parser_errors, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {
@@ -360,24 +538,131 @@ fn get_error_line_span_and_message(
     Some((span, error))
 }
 
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! function_path {
+    () => {
+        std::concat!(std::module_path!(), "::", function_name!(),)
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! get_program {
+    ($src:expr, $expect:expr) => {
+        $crate::tests::get_program($src, $crate::function_path!(), $expr)
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! get_program_using_features {
+    ($src:expr, $expect:expr, $features:expr) => {
+        $crate::tests::get_program_using_features(
+            $src,
+            $crate::function_path!(),
+            $expect,
+            $features,
+        )
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! assert_no_errors {
+    ($src:expr) => {
+        $crate::tests::assert_no_errors($src, $crate::function_path!())
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! get_program_errors {
+    ($src:expr) => {
+        $crate::tests::get_program_errors($src, $crate::function_path!())
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! get_program_with_options {
+    ($src:expr, $expect:expr, $allow_parser_errors:expr, $options:expr) => {
+        $crate::tests::get_program_with_options(
+            $src,
+            $crate::function_path!(),
+            $expect,
+            $allow_parser_errors,
+            $options,
+        )
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! get_program_captures {
+    ($src:expr) => {
+        $crate::tests::get_program_captures($src, $crate::function_path!())
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! check_errors {
+    ($src:expr) => {
+        $crate::tests::check_errors($src, $crate::function_path!())
+    };
+    ($src:expr,) => {
+        $crate::check_errors!($src)
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! check_errors_using_features {
+    ($src:expr, $features:expr) => {
+        $crate::tests::check_errors_using_features($src, $crate::function_path!(), $features)
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! check_monomorphization_error {
+    ($src:expr) => {
+        $crate::tests::check_monomorphization_error($src, $crate::function_path!())
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! check_monomorphization_error_using_features {
+    ($src:expr, $features:expr) => {
+        $crate::tests::check_monomorphization_error_using_features(
+            $src,
+            $crate::function_path!(),
+            $features,
+        )
+    };
+}
+
+#[named]
 #[test]
 fn check_trait_implemented_for_all_t() {
     let src = "
-    trait Default {
-        fn default() -> Self;
+    trait Default2 {
+        fn default2() -> Self;
     }
 
-    trait Eq {
-        fn eq(self, other: Self) -> bool;
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
     }
 
     trait IsDefault {
         fn is_default(self) -> bool;
     }
 
-    impl<T> IsDefault for T where T: Default + Eq {
+    impl<T> IsDefault for T where T: Default2 + Eq2 {
         fn is_default(self) -> bool {
-            self.eq(T::default())
+            self.eq2(T::default2())
         }
     }
 
@@ -385,28 +670,29 @@ fn check_trait_implemented_for_all_t() {
         a: u64,
     }
 
-    impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a }
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
     }
 
-    impl Default for u64 {
-        fn default() -> Self {
+    impl Default2 for u64 {
+        fn default2() -> Self {
             0
         }
     }
 
-    impl Default for Foo {
-        fn default() -> Self {
-            Foo { a: Default::default() }
+    impl Default2 for Foo {
+        fn default2() -> Self {
+            Foo { a: Default2::default2() }
         }
     }
 
     fn main(a: Foo) -> pub bool {
         a.is_default()
     }";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_implementation_duplicate_method() {
     let src = "
@@ -436,9 +722,10 @@ fn check_trait_implementation_duplicate_method() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_method_return_type() {
     let src = "
@@ -460,9 +747,10 @@ fn check_trait_wrong_method_return_type() {
         let _ = Foo {}; // silence Foo never constructed warning
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_method_return_type2() {
     let src = "
@@ -485,9 +773,10 @@ fn check_trait_wrong_method_return_type2() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_method_return_type3() {
     let src = "
@@ -510,9 +799,10 @@ fn check_trait_wrong_method_return_type3() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_missing_implementation() {
     let src = "
@@ -539,9 +829,10 @@ fn check_trait_missing_implementation() {
     fn main() {
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_not_in_scope() {
     let src = "
@@ -560,9 +851,10 @@ fn check_trait_not_in_scope() {
     fn main() {
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_method_name() {
     let src = "
@@ -584,9 +876,10 @@ fn check_trait_wrong_method_name() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_parameter() {
     let src = "
@@ -608,9 +901,10 @@ fn check_trait_wrong_parameter() {
     fn main() {
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_parameter2() {
     let src = "
@@ -633,9 +927,10 @@ fn check_trait_wrong_parameter2() {
     fn main() {
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_parameter_type() {
     let src = "
@@ -648,9 +943,10 @@ fn check_trait_wrong_parameter_type() {
         assert(y == x);
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_wrong_parameters_count() {
     let src = "
@@ -673,9 +969,10 @@ fn check_trait_wrong_parameters_count() {
     fn main() {
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_impl_for_non_type() {
     let src = "
@@ -692,9 +989,10 @@ fn check_trait_impl_for_non_type() {
 
     fn main() {}
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_impl_struct_not_trait() {
     let src = "
@@ -719,9 +1017,10 @@ fn check_impl_struct_not_trait() {
         let _ = Default { x: 1, z: 1 }; // silence Default never constructed warning
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_duplicate_declaration() {
     let src = "
@@ -750,9 +1049,10 @@ fn check_trait_duplicate_declaration() {
     fn main() {
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_duplicate_implementation() {
     let src = "
@@ -773,9 +1073,10 @@ fn check_trait_duplicate_implementation() {
         let _ = Foo { bar: 1 }; // silence Foo never constructed warning
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_duplicate_implementation_with_alias() {
     let src = "
@@ -800,9 +1101,10 @@ fn check_trait_duplicate_implementation_with_alias() {
         let _ = MyStruct {}; // silence MyStruct never constructed warning
     }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn test_impl_self_within_default_def() {
     let src = "
@@ -819,40 +1121,44 @@ fn test_impl_self_within_default_def() {
             self
         }
     }
+
+    fn main() { }
     ";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_as_type_as_fn_parameter() {
     let src = "
-    trait Eq {
-        fn eq(self, other: Self) -> bool;
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
     }
 
     struct Foo {
         a: u64,
     }
 
-    impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a }
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
     }
 
-    fn test_eq(x: impl Eq) -> bool {
-        x.eq(x)
+    fn test_eq(x: impl Eq2) -> bool {
+        x.eq2(x)
     }
 
     fn main(a: Foo) -> pub bool {
         test_eq(a)
     }";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_trait_as_type_as_two_fn_parameters() {
     let src = "
-    trait Eq {
-        fn eq(self, other: Self) -> bool;
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
     }
 
     trait Test {
@@ -863,26 +1169,26 @@ fn check_trait_as_type_as_two_fn_parameters() {
         a: u64,
     }
 
-    impl Eq for Foo {
-        fn eq(self, other: Foo) -> bool { self.a == other.a }
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
     }
 
     impl Test for u64 {
         fn test(self) -> bool { self == self }
     }
 
-    fn test_eq(x: impl Eq, y: impl Test) -> bool {
-        x.eq(x) == y.test()
+    fn test_eq(x: impl Eq2, y: impl Test) -> bool {
+        x.eq2(x) == y.test()
     }
 
     fn main(a: Foo, b: u64) -> pub bool {
         test_eq(a, b)
     }";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
-fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src);
+fn get_program_captures(src: &str, test_path: &str) -> Vec<Vec<String>> {
+    let (program, context, _errors) = get_program(src, test_path, Expect::Success);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -937,6 +1243,7 @@ fn get_lambda_captures(
     }
 }
 
+#[named]
 #[test]
 fn resolve_empty_function() {
     let src = "
@@ -944,9 +1251,10 @@ fn resolve_empty_function() {
 
         }
     ";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_basic_function() {
     let src = r#"
@@ -955,9 +1263,10 @@ fn resolve_basic_function() {
             assert(y == x);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_unused_var() {
     let src = r#"
@@ -968,9 +1277,10 @@ fn resolve_unused_var() {
             assert(x == x);
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_unresolved_var() {
     let src = r#"
@@ -981,9 +1291,10 @@ fn resolve_unresolved_var() {
                         ~ not found in this scope
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn unresolved_path() {
     let src = "
@@ -992,9 +1303,10 @@ fn unresolved_path() {
                      ^^^^ Could not resolve 'some' in path
         }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_literal_expr() {
     let src = r#"
@@ -1003,9 +1315,10 @@ fn resolve_literal_expr() {
             assert(y == x);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn multiple_resolution_errors() {
     let src = r#"
@@ -1020,9 +1333,10 @@ fn multiple_resolution_errors() {
                        
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_prefix_expr() {
     let src = r#"
@@ -1030,9 +1344,10 @@ fn resolve_prefix_expr() {
             let _y = -x;
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_for_expr() {
     let src = r#"
@@ -1042,9 +1357,10 @@ fn resolve_for_expr() {
             };
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_for_expr_incl() {
     let src = r#"
@@ -1054,9 +1370,10 @@ fn resolve_for_expr_incl() {
             };
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_call_expr() {
     let src = r#"
@@ -1068,9 +1385,10 @@ fn resolve_call_expr() {
             x
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_shadowing() {
     let src = r#"
@@ -1085,9 +1403,10 @@ fn resolve_shadowing() {
             x
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_basic_closure() {
     let src = r#"
@@ -1096,9 +1415,10 @@ fn resolve_basic_closure() {
             closure(x)
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn resolve_simplified_closure() {
     // based on bug https://github.com/noir-lang/noir/issues/1088
@@ -1116,11 +1436,12 @@ fn resolve_simplified_closure() {
       }
 
       "#;
-    let parsed_captures = get_program_captures(src);
+    let parsed_captures = get_program_captures!(src);
     let expected_captures = vec![vec!["y".to_string()]];
     assert_eq!(expected_captures, parsed_captures);
 }
 
+#[named]
 #[test]
 fn resolve_complex_closures() {
     let src = r#"
@@ -1147,7 +1468,7 @@ fn resolve_complex_closures() {
             a + b + c + closure_with_transitive_captures(6)
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors(src, &format!("{}_1", function_path!()));
 
     let expected_captures = vec![
         vec![],
@@ -1158,11 +1479,12 @@ fn resolve_complex_closures() {
         vec!["x".to_string(), "b".to_string()],
     ];
 
-    let parsed_captures = get_program_captures(src);
+    let parsed_captures = get_program_captures(src, &format!("{}_2", function_path!()));
 
     assert_eq!(expected_captures, parsed_captures);
 }
 
+#[named]
 #[test]
 fn resolve_fmt_strings() {
     let src = r#"
@@ -1181,9 +1503,10 @@ fn resolve_fmt_strings() {
             x
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_cyclic_globals() {
     let src = r#"
@@ -1197,9 +1520,10 @@ fn deny_cyclic_globals() {
 
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_cyclic_type_aliases() {
     let src = r#"
@@ -1209,9 +1533,10 @@ fn deny_cyclic_type_aliases() {
         ~~~~~~~~~~ 'B' recursively depends on itself: B -> A -> B
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn ensure_nested_type_aliases_type_check() {
     let src = r#"
@@ -1222,18 +1547,20 @@ fn ensure_nested_type_aliases_type_check() {
                         ^^^^^^^^ Expected type A, found type u16
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_aliases_in_entry_point() {
     let src = r#"
         type Foo = u8;
         fn main(_x: Foo) {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn operators_in_global_used_in_type() {
     let src = r#"
@@ -1243,9 +1570,10 @@ fn operators_in_global_used_in_type() {
             let _array: [Field; COUNT] = [1, 2, 3];
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn break_and_continue_in_constrained_fn() {
     let src = r#"
@@ -1264,9 +1592,10 @@ fn break_and_continue_in_constrained_fn() {
             }
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn break_and_continue_outside_loop() {
     let src = r#"
@@ -1277,10 +1606,11 @@ fn break_and_continue_outside_loop() {
             ^^^^^^ break is only allowed within loops
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
 // Regression for #2540
+#[named]
 #[test]
 fn for_loop_over_array() {
     let src = r#"
@@ -1293,19 +1623,21 @@ fn for_loop_over_array() {
             hello(array);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
 // Regression for #4545
+#[named]
 #[test]
 fn type_aliases_in_main() {
     let src = r#"
         type Outer<let N: u32> = [u8; N];
         fn main(_arg: Outer<1>) {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn ban_mutable_globals() {
     let src = r#"
@@ -1315,9 +1647,10 @@ fn ban_mutable_globals() {
             let _ = FOO; // silence FOO never used warning
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_inline_attribute_on_unconstrained() {
     // TODO: improve the error location
@@ -1329,9 +1662,10 @@ fn deny_inline_attribute_on_unconstrained() {
             assert(x != y);
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_fold_attribute_on_unconstrained() {
     // TODO: improve the error location
@@ -1343,48 +1677,50 @@ fn deny_fold_attribute_on_unconstrained() {
             assert(x != y);
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn specify_function_types_with_turbofish() {
     let src = r#"
-        trait Default {
-            fn default() -> Self;
+        trait Default2 {
+            fn default2() -> Self;
         }
 
-        impl Default for Field {
-            fn default() -> Self { 0 }
+        impl Default2 for Field {
+            fn default2() -> Self { 0 }
         }
 
-        impl Default for u64 {
-            fn default() -> Self { 0 }
+        impl Default2 for u64 {
+            fn default2() -> Self { 0 }
         }
 
         // Need the above as we don't have access to the stdlib here.
         // We also need to construct a concrete value of `U` without giving away its type
         // as otherwise the unspecified type is ignored.
 
-        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
-            (T::default(), U::default())
+        fn generic_func<T, U>() -> (T, U) where T: Default2, U: Default2 {
+            (T::default2(), U::default2())
         }
 
         fn main() {
             let _ = generic_func::<u64, Field>();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn specify_method_types_with_turbofish() {
     let src = r#"
-        trait Default {
-            fn default() -> Self;
+        trait Default2 {
+            fn default2() -> Self;
         }
 
-        impl Default for Field {
-            fn default() -> Self { 0 }
+        impl Default2 for Field {
+            fn default2() -> Self { 0 }
         }
 
         // Need the above as we don't have access to the stdlib here.
@@ -1396,8 +1732,8 @@ fn specify_method_types_with_turbofish() {
         }
 
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) -> U where U: Default {
-                U::default()
+            fn generic_method<U>(_self: Self) -> U where U: Default2 {
+                U::default2()
             }
         }
 
@@ -1406,9 +1742,10 @@ fn specify_method_types_with_turbofish() {
             let _ = foo.generic_method::<Field>();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn incorrect_turbofish_count_function_call() {
     let src = r#"
@@ -1437,9 +1774,10 @@ fn incorrect_turbofish_count_function_call() {
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected 2 generics from this function, but 3 were provided
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn incorrect_turbofish_count_method_call() {
     let src = r#"
@@ -1471,9 +1809,10 @@ fn incorrect_turbofish_count_method_call() {
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected 1 generic from this function, but 2 were provided
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn struct_numeric_generic_in_function() {
     let src = r#"
@@ -1487,9 +1826,10 @@ fn struct_numeric_generic_in_function() {
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn struct_numeric_generic_in_struct() {
     let src = r#"
@@ -1501,9 +1841,10 @@ fn struct_numeric_generic_in_struct() {
                        ^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
                        ~ Unsupported numeric generic type
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn bool_numeric_generic() {
     let src = r#"
@@ -1517,9 +1858,10 @@ fn bool_numeric_generic() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_binary_operation_type_mismatch() {
     let src = r#"
@@ -1530,9 +1872,10 @@ fn numeric_generic_binary_operation_type_mismatch() {
         check
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn bool_generic_as_loop_bound() {
     let src = r#"
@@ -1549,9 +1892,10 @@ fn bool_generic_as_loop_bound() {
         assert(fields[0] == 1);
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn wrong_type_in_for_range() {
     let src = r#"
@@ -1562,17 +1906,21 @@ fn wrong_type_in_for_range() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_in_function_signature() {
     let src = r#"
     pub fn foo<let N: u32>(arr: [Field; N]) -> [Field; N] { arr }
+
+    fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_as_struct_field_type_fails() {
     let src = r#"
@@ -1583,9 +1931,10 @@ fn numeric_generic_as_struct_field_type_fails() {
            ~ not a type
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn normal_generic_as_array_length() {
     // TODO: improve error location, should be just on N
@@ -1597,9 +1946,10 @@ fn normal_generic_as_array_length() {
            ~~~~~~~~~~ the numeric generic is not of type `u32`
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_as_param_type() {
     let src = r#"
@@ -1616,9 +1966,10 @@ fn numeric_generic_as_param_type() {
         x
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_as_unused_param_type() {
     let src = r#"
@@ -1626,9 +1977,10 @@ fn numeric_generic_as_unused_param_type() {
                                ^ Expected type, found numeric generic
                                ~ not a type
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_as_unused_trait_fn_param_type() {
     let src = r#"
@@ -1640,9 +1992,10 @@ fn numeric_generic_as_unused_trait_fn_param_type() {
                                ~ not a type
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_as_return_type() {
     let src = r#"
@@ -1661,9 +2014,10 @@ fn numeric_generic_as_return_type() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_used_in_nested_type_fails() {
     let src = r#"
@@ -1677,9 +2031,10 @@ fn numeric_generic_used_in_nested_type_fails() {
                ~ not a type
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn normal_generic_used_in_nested_array_length_fail() {
     let src = r#"
@@ -1693,9 +2048,10 @@ fn normal_generic_used_in_nested_array_length_fail() {
         inner: [Field; N]
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_used_in_nested_type_pass() {
     // The order of these structs should not be changed to make sure
@@ -1708,10 +2064,13 @@ fn numeric_generic_used_in_nested_type_pass() {
     pub struct InnerNumeric<let N: u32> {
         inner: [u64; N],
     }
+
+    fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_used_in_trait() {
     // We want to make sure that `N` in `impl<let N: u32, T> Deserialize<N, T>` does
@@ -1734,15 +2093,18 @@ fn numeric_generic_used_in_trait() {
     trait Deserialize<let N: u32, T> {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
+
+    fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     let src = r#"
-    trait Default {
-        fn default() -> Self;
+    trait Default2 {
+        fn default2() -> Self;
     }
 
     struct MyType<T> {
@@ -1756,19 +2118,22 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     // `N` is used first in the trait impl generics (`Deserialize<N> for MyType<T>`).
     // We want to make sure that the compiler correctly accounts for that `N` has a numeric kind
     // while `T` has a normal kind.
-    impl<T, let N: u32> Deserialize<N> for MyType<T> where T: Default {
+    impl<T, let N: u32> Deserialize<N> for MyType<T> where T: Default2 {
         fn deserialize(fields: [Field; N]) -> Self {
-            MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default() }
+            MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default2() }
         }
     }
 
     trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
+
+    fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_used_in_where_clause() {
     let src = r#"
@@ -1783,10 +2148,13 @@ fn numeric_generic_used_in_where_clause() {
         }
         T::deserialize(fields)
     }
+
+    fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_used_in_turbofish() {
     let src = r#"
@@ -1800,12 +2168,15 @@ fn numeric_generic_used_in_turbofish() {
         assert(double::<9>() == 18);
         assert(double::<7 + 8>() == 30);
     }
+
+    fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6245):
 // allow u16 to be used as an array size
+#[named]
 #[test]
 fn numeric_generic_u16_array_size() {
     // TODO: improve the error location
@@ -1823,9 +2194,10 @@ fn numeric_generic_u16_array_size() {
         len(fields)
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_field_larger_than_u32() {
     let src = r#"
@@ -1837,9 +2209,10 @@ fn numeric_generic_field_larger_than_u32() {
             let _ = foo::<A>();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generic_field_arithmetic_larger_than_u32() {
     let src = r#"
@@ -1860,9 +2233,10 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
             let _ = size(foo::<A>());
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn cast_256_to_u8_size_checks() {
     let src = r#"
@@ -1872,11 +2246,12 @@ fn cast_256_to_u8_size_checks() {
                    ~~~~~~~~~ casting untyped value (256) to a type with a maximum size (255) that's smaller than it
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6247):
 // add negative integer literal checks
+#[named]
 #[test]
 fn cast_negative_one_to_u8_size_checks() {
     let src = r#"
@@ -1884,9 +2259,10 @@ fn cast_negative_one_to_u8_size_checks() {
             assert((-1) as u8 != 0);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn constant_used_with_numeric_generic() {
     let src = r#"
@@ -1908,9 +2284,10 @@ fn constant_used_with_numeric_generic() {
         let _ = ValueNote { value: 1 }; // silence ValueNote never constructed warning
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn normal_generic_used_when_numeric_expected_in_where_clause() {
     let src = r#"
@@ -1924,7 +2301,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         T::deserialize([0, 1])
     }
     "#;
-    check_errors(src);
+    check_errors(src, &format!("{}_1", function_path!()));
 
     // TODO: improve the error location for the array (should be on N)
     let src = r#"
@@ -1948,9 +2325,10 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         T::deserialize(fields)
     }
     "#;
-    check_errors(src);
+    check_errors(src, &format!("{}_2", function_path!()));
 }
 
+#[named]
 #[test]
 fn numeric_generics_type_kind_mismatch() {
     let src = r#"
@@ -1972,9 +2350,10 @@ fn numeric_generics_type_kind_mismatch() {
         let _ = bar::<M>();
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_generics_value_kind_mismatch_u32_u64() {
     let src = r#"
@@ -2005,9 +2384,10 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
         let _ = BoundedVec { storage: [1], len: 1 }; // silence never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn quote_code_fragments() {
     // TODO: have the error also point to `contact!` as a secondary
@@ -2026,9 +2406,10 @@ fn quote_code_fragments() {
             quote { $a $b }
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn impl_stricter_than_trait_no_trait_method_constraints() {
     // This test ensures that the error we get from the where clause on the trait impl method
@@ -2076,9 +2457,10 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
         let _ = MyType { a: 1, b: 1 }; // silence MyType never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn impl_stricter_than_trait_different_generics() {
     let src = r#"
@@ -2100,9 +2482,10 @@ fn impl_stricter_than_trait_different_generics() {
                                  ~~~~~~~ impl has extra requirement `B: Default`
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn impl_stricter_than_trait_different_object_generics() {
     let src = r#"
@@ -2165,9 +2548,10 @@ fn impl_stricter_than_trait_different_object_generics() {
         let _ = OtherOption { inner: Option { inner: 1 } }; // silence unused warnings
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn impl_stricter_than_trait_different_trait() {
     let src = r#"
@@ -2196,9 +2580,10 @@ fn impl_stricter_than_trait_different_trait() {
         let _ = Option { inner: 1 }; // silence Option never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_impl_where_clause_stricter_pass() {
     let src = r#"
@@ -2227,9 +2612,10 @@ fn trait_impl_where_clause_stricter_pass() {
         let _ = Option { inner: 1 }; // silence Option never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn impl_stricter_than_trait_different_trait_generics() {
     let src = r#"
@@ -2247,9 +2633,10 @@ fn impl_stricter_than_trait_different_trait_generics() {
 
     trait T2<C> {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn impl_not_found_for_inner_impl() {
     // We want to guarantee that we get a no impl found error
@@ -2293,9 +2680,10 @@ fn impl_not_found_for_inner_impl() {
         let _ = MyType { a: 1, b: 1 }; // silence MyType never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_call_unconstrained_function_outside_of_unsafe() {
     let src = r#"
@@ -2306,9 +2694,10 @@ fn cannot_call_unconstrained_function_outside_of_unsafe() {
 
     unconstrained fn foo() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
     let src = r#"
@@ -2326,9 +2715,10 @@ fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
 
     unconstrained fn foo() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn missing_unsafe_block_when_needing_type_annotations() {
     // This test is a regression check that even when an unsafe block is missing
@@ -2364,9 +2754,10 @@ fn missing_unsafe_block_when_needing_type_annotations() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_pass_unconstrained_function_to_regular_function() {
     let src = r#"
@@ -2381,9 +2772,10 @@ fn cannot_pass_unconstrained_function_to_regular_function() {
     fn expect_regular(_func: fn() -> ()) {
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_assign_unconstrained_and_regular_fn_to_variable() {
     let src = r#"
@@ -2395,9 +2787,10 @@ fn cannot_assign_unconstrained_and_regular_fn_to_variable() {
     fn foo() {}
     unconstrained fn bar() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn can_pass_regular_function_to_unconstrained_function() {
     let src = r#"
@@ -2410,9 +2803,10 @@ fn can_pass_regular_function_to_unconstrained_function() {
 
     fn expect_unconstrained(_func: unconstrained fn() -> ()) {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_pass_unconstrained_function_to_constrained_function() {
     let src = r#"
@@ -2426,9 +2820,10 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
 
     fn expect_regular(_func: fn() -> ()) {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var() {
     let src = r#"
@@ -2438,9 +2833,10 @@ fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var
 
     fn foo() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn can_assign_regular_function_to_unconstrained_function_in_struct_member() {
     let src = r#"
@@ -2454,9 +2850,10 @@ fn can_assign_regular_function_to_unconstrained_function_in_struct_member() {
         func: unconstrained fn() -> (),
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_impl_generics_count_mismatch() {
     let src = r#"
@@ -2467,9 +2864,10 @@ fn trait_impl_generics_count_mismatch() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn bit_not_on_untyped_integer() {
     let src = r#"
@@ -2477,9 +2875,10 @@ fn bit_not_on_untyped_integer() {
         let _: u32 = 3 & !1;
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn duplicate_struct_field() {
     let src = r#"
@@ -2493,9 +2892,10 @@ fn duplicate_struct_field() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_constraint_on_tuple_type() {
     let src = r#"
@@ -2508,9 +2908,10 @@ fn trait_constraint_on_tuple_type() {
         }
 
         fn main() {}"#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_constraint_on_tuple_type_pub_crate() {
     let src = r#"
@@ -2523,9 +2924,10 @@ fn trait_constraint_on_tuple_type_pub_crate() {
         }
 
         fn main() {}"#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn incorrect_generic_count_on_struct_impl() {
     let src = r#"
@@ -2536,9 +2938,10 @@ fn incorrect_generic_count_on_struct_impl() {
         let _ = Foo {}; // silence Foo never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn incorrect_generic_count_on_type_alias() {
     let src = r#"
@@ -2549,9 +2952,10 @@ fn incorrect_generic_count_on_type_alias() {
         let _ = Foo {}; // silence Foo never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn uses_self_type_for_struct_function_call() {
     let src = r#"
@@ -2571,9 +2975,10 @@ fn uses_self_type_for_struct_function_call() {
         let _ = S {}; // silence S never constructed warning
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn uses_self_type_inside_trait() {
     let src = r#"
@@ -2595,9 +3000,10 @@ fn uses_self_type_inside_trait() {
         let _: Field = Foo::foo();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn uses_self_type_in_trait_where_clause() {
     let src = r#"
@@ -2625,9 +3031,10 @@ fn uses_self_type_in_trait_where_clause() {
         let _ = Bar {}; // silence Bar never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn do_not_eagerly_error_on_cast_on_type_variable() {
     let src = r#"
@@ -2640,9 +3047,10 @@ fn do_not_eagerly_error_on_cast_on_type_variable() {
         let _: Field = foo(x, |x| x as Field);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_on_cast_over_type_variable() {
     let src = r#"
@@ -2656,9 +3064,10 @@ fn error_on_cast_over_type_variable() {
                                            ^ Expected type Field, found type str<1>
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_impl_for_a_type_that_implements_another_trait() {
     let src = r#"
@@ -2688,9 +3097,10 @@ fn trait_impl_for_a_type_that_implements_another_trait() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() {
     let src = r#"
@@ -2728,9 +3138,10 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn impl_missing_associated_type() {
     let src = r#"
@@ -2741,9 +3152,10 @@ fn impl_missing_associated_type() {
     impl Foo for () {}
          ^^^ `Foo` is missing the associated type `Assoc`
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn as_trait_path_syntax_resolves_outside_impl() {
     let src = r#"
@@ -2766,9 +3178,10 @@ fn as_trait_path_syntax_resolves_outside_impl() {
         let _ = Bar {}; // silence Bar never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn as_trait_path_syntax_no_impl() {
     let src = r#"
@@ -2790,9 +3203,10 @@ fn as_trait_path_syntax_no_impl() {
         let _ = Bar {}; // silence Bar never constructed warning
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn do_not_infer_globals_to_u32_from_type_use() {
     let src = r#"
@@ -2818,9 +3232,10 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                     ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn do_not_infer_partial_global_types() {
     let src = r#"
@@ -2848,9 +3263,10 @@ fn do_not_infer_partial_global_types() {
 
         fn main() { }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn u32_globals_as_sizes_in_types() {
     let src = r#"
@@ -2864,9 +3280,10 @@ fn u32_globals_as_sizes_in_types() {
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn struct_array_len() {
     let src = r#"
@@ -2889,11 +3306,12 @@ fn struct_array_len() {
             assert(ys.len() == 2);
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6245):
 // support u8 as an array size
+#[named]
 #[test]
 fn non_u32_as_array_length() {
     let src = r#"
@@ -2905,9 +3323,10 @@ fn non_u32_as_array_length() {
                     ~~~~~~~~~~~~~~~~ expected `u32`, found `u8`
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_non_u32_generic_in_struct() {
     let src = r#"
@@ -2917,9 +3336,10 @@ fn use_non_u32_generic_in_struct() {
             let _: S<3> = S {};
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_numeric_generic_in_trait_method() {
     let src = r#"
@@ -2940,9 +3360,10 @@ fn use_numeric_generic_in_trait_method() {
             let _ = Bar{}.foo(bytes);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_unconstrained_methods_typechecked_correctly() {
     // This test checks that we properly track whether a method has been declared as unconstrained on the trait definition
@@ -2966,9 +3387,10 @@ fn trait_unconstrained_methods_typechecked_correctly() {
             assert_eq(2.foo(), 2.identity() as Field);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_if_attribute_not_in_scope() {
     let src = r#"
@@ -2976,9 +3398,10 @@ fn error_if_attribute_not_in_scope() {
         ^^^^^^^^^^^^^^^ Attribute function `not_in_scope` is not in scope
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn arithmetic_generics_rounding_pass() {
     let src = r#"
@@ -2989,9 +3412,10 @@ fn arithmetic_generics_rounding_pass() {
 
         fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn arithmetic_generics_rounding_fail() {
     let src = r#"
@@ -3004,9 +3428,10 @@ fn arithmetic_generics_rounding_fail() {
 
         fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn arithmetic_generics_rounding_fail_on_struct() {
     let src = r#"
@@ -3025,9 +3450,10 @@ fn arithmetic_generics_rounding_fail_on_struct() {
                           ^^^^^^^^^^^^^ Expected type W<3>, found type W<2>
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn unconditional_recursion_fail() {
     // These examples are self recursive top level functions, which would actually
@@ -3117,11 +3543,12 @@ fn unconditional_recursion_fail() {
         "#,
     ];
 
-    for src in srcs {
-        check_errors(src);
+    for (index, src) in srcs.into_iter().enumerate() {
+        check_errors(src, &format!("{}_{index}", function_path!()));
     }
 }
 
+#[named]
 #[test]
 fn unconditional_recursion_pass() {
     let srcs = vec![
@@ -3166,11 +3593,12 @@ fn unconditional_recursion_pass() {
         "#,
     ];
 
-    for src in srcs {
-        assert_no_errors(src);
+    for (index, src) in srcs.into_iter().enumerate() {
+        assert_no_errors(src, &format!("{}_{index}", function_path!()));
     }
 }
 
+#[named]
 #[test]
 fn uses_self_in_import() {
     let src = r#"
@@ -3190,9 +3618,10 @@ fn uses_self_in_import() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_on_return_values_after_block_expression() {
     // Regression test for https://github.com/noir-lang/noir/issues/4372
@@ -3216,9 +3645,10 @@ fn does_not_error_on_return_values_after_block_expression() {
         let _ = case2();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_type_alias_in_method_call() {
     let src = r#"
@@ -3241,9 +3671,10 @@ fn use_type_alias_in_method_call() {
             let _ = foo();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_type_alias_to_generic_concrete_type_in_method_call() {
     let src = r#"
@@ -3267,9 +3698,10 @@ fn use_type_alias_to_generic_concrete_type_in_method_call() {
             let _ = foo();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_struct_with_generic_infix_type_as_main_input_1() {
     let src = r#"
@@ -3279,9 +3711,10 @@ fn allows_struct_with_generic_infix_type_as_main_input_1() {
 
         fn main(_x: Foo<18>) {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_struct_with_generic_infix_type_as_main_input_2() {
     let src = r#"
@@ -3291,9 +3724,10 @@ fn allows_struct_with_generic_infix_type_as_main_input_2() {
 
         fn main(_x: Foo<2 * 9>) {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_struct_with_generic_infix_type_as_main_input_3() {
     let src = r#"
@@ -3305,9 +3739,10 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
 
         fn main(_x: Foo<N * 2>) {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_function() {
     let src = r#"
@@ -3325,9 +3760,10 @@ fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_funct
 
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_test_attribute_on_impl_method() {
     // TODO: improve the error location
@@ -3335,16 +3771,18 @@ fn disallows_test_attribute_on_impl_method() {
         pub struct Foo { }
 
         impl Foo {
-            #[test]
+            #[named]
+#[test]
             fn foo() { }
                ^^^ The `#[test]` attribute is disallowed on `impl` methods
         }
 
         fn main() { }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_test_attribute_on_trait_impl_method() {
     let src = "
@@ -3362,9 +3800,10 @@ fn disallows_test_attribute_on_trait_impl_method() {
 
         fn main() { }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_export_attribute_on_impl_method() {
     // TODO: improve the error location
@@ -3379,9 +3818,10 @@ fn disallows_export_attribute_on_impl_method() {
 
         fn main() { }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_export_attribute_on_trait_impl_method() {
     // TODO: improve the error location
@@ -3400,9 +3840,10 @@ fn disallows_export_attribute_on_trait_impl_method() {
 
         fn main() { }
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_multiple_underscore_parameters() {
     let src = r#"
@@ -3410,9 +3851,10 @@ fn allows_multiple_underscore_parameters() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_underscore_on_right_hand_side() {
     let src = r#"
@@ -3423,9 +3865,10 @@ fn disallows_underscore_on_right_hand_side() {
                      ~ `_` not allowed here
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_cyclic_globals() {
     let src = r#"
@@ -3439,9 +3882,10 @@ fn errors_on_cyclic_globals() {
 
     fn main() { }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_on_unneeded_unsafe() {
     let src = r#"
@@ -3455,9 +3899,10 @@ fn warns_on_unneeded_unsafe() {
 
     fn foo() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_on_nested_unsafe() {
     let src = r#"
@@ -3475,9 +3920,10 @@ fn warns_on_nested_unsafe() {
 
     unconstrained fn foo() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn mutable_self_call() {
     let src = r#"
@@ -3494,9 +3940,10 @@ fn mutable_self_call() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn checks_visibility_of_trait_related_to_trait_impl_on_method_call() {
     let src = r#"
@@ -3517,9 +3964,10 @@ fn checks_visibility_of_trait_related_to_trait_impl_on_method_call() {
         bar.foo();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_method_call_function_type() {
     let src = r#"
@@ -3548,9 +3996,10 @@ fn infers_lambda_argument_from_method_call_function_type() {
         let _ = box.map(|foo| foo.foo());
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_call_function_type() {
     let src = r#"
@@ -3566,9 +4015,10 @@ fn infers_lambda_argument_from_call_function_type() {
         let _ = call(|foo| foo.value);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_call_function_type_in_generic_call() {
     let src = r#"
@@ -3584,9 +4034,10 @@ fn infers_lambda_argument_from_call_function_type_in_generic_call() {
         let _ = call(Foo { value: 1 }, |foo| foo.value);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_call_function_type_as_alias() {
     let src = r#"
@@ -3604,9 +4055,10 @@ fn infers_lambda_argument_from_call_function_type_as_alias() {
         let _ = call(|foo| foo.value);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_function_return_type() {
     let src = r#"
@@ -3621,9 +4073,10 @@ fn infers_lambda_argument_from_function_return_type() {
     fn main() {
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_function_return_type_multiple_statements() {
     let src = r#"
@@ -3639,9 +4092,10 @@ fn infers_lambda_argument_from_function_return_type_multiple_statements() {
     fn main() {
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_function_return_type_when_inside_if() {
     let src = r#"
@@ -3660,9 +4114,10 @@ fn infers_lambda_argument_from_function_return_type_when_inside_if() {
     fn main() {
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_variable_type() {
     let src = r#"
@@ -3674,9 +4129,10 @@ fn infers_lambda_argument_from_variable_type() {
       let _: fn(Foo) -> Field = |foo| foo.value;
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_variable_alias_type() {
     let src = r#"
@@ -3690,9 +4146,10 @@ fn infers_lambda_argument_from_variable_alias_type() {
       let _: FooFn = |foo| foo.value;
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_variable_double_alias_type() {
     let src = r#"
@@ -3707,9 +4164,10 @@ fn infers_lambda_argument_from_variable_double_alias_type() {
       let _: FooFn2 = |foo| foo.value;
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_variable_tuple_type() {
     let src = r#"
@@ -3721,9 +4179,10 @@ fn infers_lambda_argument_from_variable_tuple_type() {
       let _: (fn(Foo) -> Field, _) = (|foo| foo.value, 1);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn infers_lambda_argument_from_variable_tuple_type_aliased() {
     let src = r#"
@@ -3737,9 +4196,10 @@ fn infers_lambda_argument_from_variable_tuple_type_aliased() {
       let _: Alias = (|foo| foo.value, 1);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn regression_7088() {
     // A test for code that initially broke when implementing inferring
@@ -3759,9 +4219,10 @@ fn regression_7088() {
         let _: U60Repr<3, 6> = U60Repr::new(input);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_empty_loop_no_break() {
     let src = r#"
@@ -3778,9 +4239,10 @@ fn errors_on_empty_loop_no_break() {
         ~~~~ Infinite loops are disallowed
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_loop_without_break() {
     let src = r#"
@@ -3803,9 +4265,10 @@ fn errors_on_loop_without_break() {
 
     fn bar(_: Field) {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_loop_without_break_with_nested_loop() {
     let src = r#"
@@ -3832,9 +4295,10 @@ fn errors_on_loop_without_break_with_nested_loop() {
 
     fn bar(_: Field) {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn call_function_alias_type() {
     let src = r#"
@@ -3848,9 +4312,10 @@ fn call_function_alias_type() {
         assert_eq(f(0), 1);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_if_without_else_type_mismatch() {
     let src = r#"
@@ -3861,15 +4326,18 @@ fn errors_on_if_without_else_type_mismatch() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_stack_overflow_on_many_comments_in_a_row() {
-    let src = "//\n".repeat(10_000);
-    assert_no_errors(&src);
+    let mut src = "//\n".repeat(10_000);
+    src.push_str("fn main() { }");
+    assert_no_errors!(&src);
 }
 
+#[named]
 #[test]
 fn errors_if_for_body_type_is_not_unit() {
     let src = r#"
@@ -3880,9 +4348,10 @@ fn errors_if_for_body_type_is_not_unit() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_loop_body_type_is_not_unit() {
     let src = r#"
@@ -3895,9 +4364,10 @@ fn errors_if_loop_body_type_is_not_unit() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_while_body_type_is_not_unit() {
     let src = r#"
@@ -3908,9 +4378,10 @@ fn errors_if_while_body_type_is_not_unit() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn check_impl_duplicate_method_without_self() {
     let src = "
@@ -3926,9 +4397,10 @@ fn check_impl_duplicate_method_without_self() {
 
     fn main() {}
     ";
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn int_min_global() {
     let src = r#"
@@ -3938,10 +4410,10 @@ fn int_min_global() {
         }
     "#;
 
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn subtract_to_int_min() {
     // This would cause an integer underflow panic before
@@ -3955,10 +4427,10 @@ fn subtract_to_int_min() {
         }
     "#;
 
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn mutate_with_reference_in_lambda() {
     let src = r#"
@@ -3972,9 +4444,10 @@ fn mutate_with_reference_in_lambda() {
     }
     "#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn mutate_with_reference_marked_mutable_in_lambda() {
     let src = r#"
@@ -3987,9 +4460,10 @@ fn mutate_with_reference_marked_mutable_in_lambda() {
         assert(*x == 5);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_capturing_mut_variable_without_reference_in_lambda() {
     let src = r#"
@@ -4004,9 +4478,10 @@ fn deny_capturing_mut_variable_without_reference_in_lambda() {
         assert(x == 5);
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_capturing_mut_variable_without_reference_in_nested_lambda() {
     let src = r#"
@@ -4024,9 +4499,10 @@ fn deny_capturing_mut_variable_without_reference_in_nested_lambda() {
         assert(x == 5);
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn allow_capturing_mut_variable_only_used_immutably() {
     let src = r#"
@@ -4037,9 +4513,10 @@ fn allow_capturing_mut_variable_only_used_immutably() {
         assert(x == 3);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_capturing_mut_var_as_param_to_function() {
     let src = r#"
@@ -4056,9 +4533,10 @@ fn deny_capturing_mut_var_as_param_to_function() {
         *x = 5;
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_capturing_mut_var_as_param_to_function_in_nested_lambda() {
     let src = r#"
@@ -4078,9 +4556,10 @@ fn deny_capturing_mut_var_as_param_to_function_in_nested_lambda() {
         *x = 5;
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_capturing_mut_var_as_param_to_impl_method() {
     let src = r#"
@@ -4103,9 +4582,10 @@ fn deny_capturing_mut_var_as_param_to_impl_method() {
         assert(foo.value == 2);
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn deny_attaching_mut_ref_to_immutable_object() {
     let src = r#"
@@ -4127,9 +4607,10 @@ fn deny_attaching_mut_ref_to_immutable_object() {
         assert(foo.value == 2);
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn immutable_references_with_ownership_feature() {
     let src = r#"
@@ -4141,10 +4622,12 @@ fn immutable_references_with_ownership_feature() {
         fn borrow(_array: &[Field; 3]) {}
     "#;
 
-    let (_, _, errors) = get_program_using_features(src, &[UnstableFeature::Ownership]);
+    let (_, _, errors) =
+        get_program_using_features!(src, Expect::Success, &[UnstableFeature::Ownership]);
     assert_eq!(errors.len(), 0);
 }
 
+#[named]
 #[test]
 fn immutable_references_without_ownership_feature() {
     let src = r#"
@@ -4159,9 +4642,10 @@ fn immutable_references_without_ownership_feature() {
                           ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
                           ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_invalid_integer_bit_size() {
     let src = r#"
@@ -4171,9 +4655,10 @@ fn errors_on_invalid_integer_bit_size() {
                ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn mutable_reference_to_array_element_as_func_arg() {
     let src = r#"
@@ -4188,9 +4673,10 @@ fn mutable_reference_to_array_element_as_func_arg() {
         assert_eq(state[0], 2); // expect:2 got:1
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn object_type_must_be_known_in_method_call() {
     let src = r#"
@@ -4205,9 +4691,10 @@ fn object_type_must_be_known_in_method_call() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
     let src = r#"
@@ -4217,9 +4704,10 @@ fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
         let _ = array[index];
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_u32_does_not_produce_a_warning() {
     let src = r#"
@@ -4229,9 +4717,10 @@ fn indexing_array_with_u32_does_not_produce_a_warning() {
         let _ = array[index];
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_non_u32_produces_a_warning() {
     let src = r#"
@@ -4242,9 +4731,10 @@ fn indexing_array_with_non_u32_produces_a_warning() {
                       ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
     let src = r#"
@@ -4255,9 +4745,10 @@ fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
               ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_determine_type_of_generic_argument_in_function_call() {
     let src = r#"
@@ -4271,9 +4762,10 @@ fn cannot_determine_type_of_generic_argument_in_function_call() {
     }
 
     "#;
-    check_monomorphization_error(src);
+    check_monomorphization_error!(src);
 }
 
+#[named]
 #[test]
 fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
     let src = r#"
@@ -4287,9 +4779,10 @@ fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
     }
 
     "#;
-    check_monomorphization_error(src);
+    check_monomorphization_error!(src);
 }
 
+#[named]
 #[test]
 fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
     let src = r#"
@@ -4306,5 +4799,5 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 
     "#;
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features!(src, &features);
 }
