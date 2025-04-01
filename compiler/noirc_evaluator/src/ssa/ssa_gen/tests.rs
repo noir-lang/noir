@@ -4,10 +4,10 @@ use crate::{errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
 
 use super::{Ssa, generate_ssa};
 
-use noirc_frontend::test_utils::get_monomorphized;
+use noirc_frontend::test_utils::{Expect, get_monomorphized};
 
 fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
-    let program = match get_monomorphized(src) {
+    let program = match get_monomorphized(src, None, Expect::Success) {
         Ok(program) => program,
         Err(errors) => {
             panic!(

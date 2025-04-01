@@ -35,6 +35,7 @@ fxhash.workspace = true
 
 [dev-dependencies]
 base64.workspace = true
+function_name = "0.3.0"
 proptest.workspace = true
 proptest-derive.workspace = true
 
@@ -42,3 +43,4 @@ proptest-derive.workspace = true
 bn254 = []
 bls12_381 = []
 test_utils = []
+nextest = []

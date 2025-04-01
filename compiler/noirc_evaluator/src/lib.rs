@@ -3,6 +3,10 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+#[cfg(test)]
+#[macro_use]
+extern crate function_name;
+
 pub mod errors;
 
 mod acir;
