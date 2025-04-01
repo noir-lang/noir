@@ -715,6 +715,7 @@ pub fn compile_no_check(
         || options.show_brillig
         || options.force_brillig
         || options.show_ssa
+        || options.show_ssa_pass.is_some()
         || options.emit_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
