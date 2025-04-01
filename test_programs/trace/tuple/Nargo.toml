@@ -1,0 +1,6 @@
+[package]
+name = "tuple"
+type = "bin"
+authors = [""]
+
+[dependencies]
