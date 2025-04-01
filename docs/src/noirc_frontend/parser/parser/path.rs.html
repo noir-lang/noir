@@ -347,7 +347,15 @@
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType};
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserErrorReason;
 
 <span class="kw">use </span><span class="kw">crate</span>::token::{Keyword, Token};
@@ -542,6 +550,14 @@
 
         <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_error();
         <span class="self">self</span>.eat_keyword_or_error(Keyword::As);
+
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_as_trait_path_for_type_after_as_keyword(typ))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_as_trait_path_for_type_after_as_keyword(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: UnresolvedType,
+    ) -&gt; AsTraitPath {
         <span class="kw">let </span>trait_path = <span class="self">self</span>.parse_path_no_turbofish_or_error();
         <span class="kw">let </span>trait_generics = <span class="self">self</span>.parse_generic_type_args();
         <span class="self">self</span>.eat_or_error(Token::Greater);
@@ -553,7 +569,7 @@
             Ident::new(String::new(), <span class="self">self</span>.location_at_previous_token_end())
         };
 
-        <span class="prelude-val">Some</span>(AsTraitPath { typ, trait_path, trait_generics, impl_item })
+        AsTraitPath { typ, trait_path, trait_generics, impl_item }
     }
 }
 

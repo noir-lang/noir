@@ -3362,7 +3362,31 @@
 <a href="#3361" id="3361">3361</a>
 <a href="#3362" id="3362">3362</a>
 <a href="#3363" id="3363">3363</a>
-<a href="#3364" id="3364">3364</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
+<a href="#3364" id="3364">3364</a>
+<a href="#3365" id="3365">3365</a>
+<a href="#3366" id="3366">3366</a>
+<a href="#3367" id="3367">3367</a>
+<a href="#3368" id="3368">3368</a>
+<a href="#3369" id="3369">3369</a>
+<a href="#3370" id="3370">3370</a>
+<a href="#3371" id="3371">3371</a>
+<a href="#3372" id="3372">3372</a>
+<a href="#3373" id="3373">3373</a>
+<a href="#3374" id="3374">3374</a>
+<a href="#3375" id="3375">3375</a>
+<a href="#3376" id="3376">3376</a>
+<a href="#3377" id="3377">3377</a>
+<a href="#3378" id="3378">3378</a>
+<a href="#3379" id="3379">3379</a>
+<a href="#3380" id="3380">3380</a>
+<a href="#3381" id="3381">3381</a>
+<a href="#3382" id="3382">3382</a>
+<a href="#3383" id="3383">3383</a>
+<a href="#3384" id="3384">3384</a>
+<a href="#3385" id="3385">3385</a>
+<a href="#3386" id="3386">3386</a>
+<a href="#3387" id="3387">3387</a>
+<a href="#3388" id="3388">3388</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>completion_tests {
     <span class="kw">use crate</span>::{
         notifications::on_did_open_text_document,
@@ -3807,6 +3831,30 @@
         "#</span>;
         assert_completion(src, <span class="macro">vec!</span>[function_completion_item(<span class="string">"one()"</span>, <span class="string">"one()"</span>, <span class="string">"fn() -&gt; Field"</span>)])
             .<span class="kw">await</span>;
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_complete_type_path_for_nameless_type() {
+        <span class="kw">let </span>src = <span class="string">r#"
+          trait One {
+              fn some_method() -&gt; Self;
+          }
+
+          impl One for () {
+              fn some_method() -&gt; Self {
+                  1
+              }
+          }
+
+          fn main() {
+            &lt;()&gt;::some_meth&gt;|&lt;
+          }
+        "#</span>;
+        assert_completion(
+            src,
+            <span class="macro">vec!</span>[function_completion_item(<span class="string">"some_method()"</span>, <span class="string">"some_method()"</span>, <span class="string">"fn()"</span>)],
+        )
+        .<span class="kw">await</span>;
     }
 
     <span class="attr">#[test]

@@ -246,7 +246,11 @@
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_arena::Index;
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_arena::Index;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirExpression;
@@ -476,13 +480,17 @@
 
     <span class="doccomment">/// Attempts to resolve [Location] of [Type] based on [Location] of reference in code
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_resolve_type_ref(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; <span class="prelude-ty">Option</span>&lt;Location&gt; {
+        <span class="self">self</span>.try_type_ref_at_location(location).and_then(|typ| <span class="kw">match </span>typ {
+            Type::DataType(struct_typ, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(struct_typ.borrow().location),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        })
+    }
+
+    <span class="kw">pub fn </span>try_type_ref_at_location(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="self">self</span>.type_ref_locations
             .iter()
             .find(|(_typ, type_ref_location)| type_ref_location.contains(<span class="kw-2">&amp;</span>location))
-            .and_then(|(typ, <span class="kw">_</span>)| <span class="kw">match </span>typ {
-                Type::DataType(struct_typ, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(struct_typ.borrow().location),
-                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-            })
+            .map(|(typ, _type_ref_location)| typ.clone())
     }
 
     <span class="kw">fn </span>try_resolve_type_alias(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; <span class="prelude-ty">Option</span>&lt;Location&gt; {

@@ -1891,7 +1891,198 @@
 <a href="#1890" id="1890">1890</a>
 <a href="#1891" id="1891">1891</a>
 <a href="#1892" id="1892">1892</a>
-<a href="#1893" id="1893">1893</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a>
+<a href="#1945" id="1945">1945</a>
+<a href="#1946" id="1946">1946</a>
+<a href="#1947" id="1947">1947</a>
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a>
+<a href="#1950" id="1950">1950</a>
+<a href="#1951" id="1951">1951</a>
+<a href="#1952" id="1952">1952</a>
+<a href="#1953" id="1953">1953</a>
+<a href="#1954" id="1954">1954</a>
+<a href="#1955" id="1955">1955</a>
+<a href="#1956" id="1956">1956</a>
+<a href="#1957" id="1957">1957</a>
+<a href="#1958" id="1958">1958</a>
+<a href="#1959" id="1959">1959</a>
+<a href="#1960" id="1960">1960</a>
+<a href="#1961" id="1961">1961</a>
+<a href="#1962" id="1962">1962</a>
+<a href="#1963" id="1963">1963</a>
+<a href="#1964" id="1964">1964</a>
+<a href="#1965" id="1965">1965</a>
+<a href="#1966" id="1966">1966</a>
+<a href="#1967" id="1967">1967</a>
+<a href="#1968" id="1968">1968</a>
+<a href="#1969" id="1969">1969</a>
+<a href="#1970" id="1970">1970</a>
+<a href="#1971" id="1971">1971</a>
+<a href="#1972" id="1972">1972</a>
+<a href="#1973" id="1973">1973</a>
+<a href="#1974" id="1974">1974</a>
+<a href="#1975" id="1975">1975</a>
+<a href="#1976" id="1976">1976</a>
+<a href="#1977" id="1977">1977</a>
+<a href="#1978" id="1978">1978</a>
+<a href="#1979" id="1979">1979</a>
+<a href="#1980" id="1980">1980</a>
+<a href="#1981" id="1981">1981</a>
+<a href="#1982" id="1982">1982</a>
+<a href="#1983" id="1983">1983</a>
+<a href="#1984" id="1984">1984</a>
+<a href="#1985" id="1985">1985</a>
+<a href="#1986" id="1986">1986</a>
+<a href="#1987" id="1987">1987</a>
+<a href="#1988" id="1988">1988</a>
+<a href="#1989" id="1989">1989</a>
+<a href="#1990" id="1990">1990</a>
+<a href="#1991" id="1991">1991</a>
+<a href="#1992" id="1992">1992</a>
+<a href="#1993" id="1993">1993</a>
+<a href="#1994" id="1994">1994</a>
+<a href="#1995" id="1995">1995</a>
+<a href="#1996" id="1996">1996</a>
+<a href="#1997" id="1997">1997</a>
+<a href="#1998" id="1998">1998</a>
+<a href="#1999" id="1999">1999</a>
+<a href="#2000" id="2000">2000</a>
+<a href="#2001" id="2001">2001</a>
+<a href="#2002" id="2002">2002</a>
+<a href="#2003" id="2003">2003</a>
+<a href="#2004" id="2004">2004</a>
+<a href="#2005" id="2005">2005</a>
+<a href="#2006" id="2006">2006</a>
+<a href="#2007" id="2007">2007</a>
+<a href="#2008" id="2008">2008</a>
+<a href="#2009" id="2009">2009</a>
+<a href="#2010" id="2010">2010</a>
+<a href="#2011" id="2011">2011</a>
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a>
+<a href="#2018" id="2018">2018</a>
+<a href="#2019" id="2019">2019</a>
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a>
+<a href="#2023" id="2023">2023</a>
+<a href="#2024" id="2024">2024</a>
+<a href="#2025" id="2025">2025</a>
+<a href="#2026" id="2026">2026</a>
+<a href="#2027" id="2027">2027</a>
+<a href="#2028" id="2028">2028</a>
+<a href="#2029" id="2029">2029</a>
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a>
+<a href="#2032" id="2032">2032</a>
+<a href="#2033" id="2033">2033</a>
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a>
+<a href="#2038" id="2038">2038</a>
+<a href="#2039" id="2039">2039</a>
+<a href="#2040" id="2040">2040</a>
+<a href="#2041" id="2041">2041</a>
+<a href="#2042" id="2042">2042</a>
+<a href="#2043" id="2043">2043</a>
+<a href="#2044" id="2044">2044</a>
+<a href="#2045" id="2045">2045</a>
+<a href="#2046" id="2046">2046</a>
+<a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a>
+<a href="#2063" id="2063">2063</a>
+<a href="#2064" id="2064">2064</a>
+<a href="#2065" id="2065">2065</a>
+<a href="#2066" id="2066">2066</a>
+<a href="#2067" id="2067">2067</a>
+<a href="#2068" id="2068">2068</a>
+<a href="#2069" id="2069">2069</a>
+<a href="#2070" id="2070">2070</a>
+<a href="#2071" id="2071">2071</a>
+<a href="#2072" id="2072">2072</a>
+<a href="#2073" id="2073">2073</a>
+<a href="#2074" id="2074">2074</a>
+<a href="#2075" id="2075">2075</a>
+<a href="#2076" id="2076">2076</a>
+<a href="#2077" id="2077">2077</a>
+<a href="#2078" id="2078">2078</a>
+<a href="#2079" id="2079">2079</a>
+<a href="#2080" id="2080">2080</a>
+<a href="#2081" id="2081">2081</a>
+<a href="#2082" id="2082">2082</a>
+<a href="#2083" id="2083">2083</a>
+<a href="#2084" id="2084">2084</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -1899,7 +2090,7 @@
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
         ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
         IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
+        Statement, TypePath, UnaryOp, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel, parser::parse_many::separated_by_comma},
     token::{Keyword, Token, TokenKind},
@@ -1912,6 +2103,15 @@
         without_separator,
     },
 };
+
+<span class="doccomment">/// When parsing an array literal we might bump into `[expr; length]::ident()`,
+/// where the user expected to call a method on an array type.
+/// That actually needs to be written as `&lt;[expr; length]&gt;::ident()`, so
+/// in that case we'll produce an error and return `ArrayLiteralOrError::Error`.
+</span><span class="kw">enum </span>ArrayLiteralOrError {
+    ArrayLiteral(ArrayLiteral),
+    Error,
+}
 
 <span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_expression_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Expression {
@@ -2179,6 +2379,7 @@
     ///     | ComptimeExpression
     ///     | UnquoteExpression
     ///     | TypePathExpression
+    ///     | NamelessTypePathExpression
     ///     | AsTraitPath
     ///     | ResolvedExpression
     ///     | InternedExpression
@@ -2246,8 +2447,8 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(kind);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(as_trait_path) = <span class="self">self</span>.parse_as_trait_path() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::AsTraitPath(as_trait_path));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(kind) = <span class="self">self</span>.parse_nameless_type_path_or_as_trait_path_type_expression() {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(kind);
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(kind) = <span class="self">self</span>.parse_resolved_expr() {
@@ -2264,6 +2465,25 @@
 
         <span class="prelude-val">None
     </span>}
+
+    <span class="doccomment">/// NamelessTypePathExpression = '&lt;' Type '&gt;' '::' identifier ( '::' GenericTypeArgs )?
+    </span><span class="kw">fn </span>parse_nameless_type_path_or_as_trait_path_type_expression(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {
+        <span class="kw">if </span>!<span class="self">self</span>.eat_less() {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_error();
+        <span class="kw">if </span><span class="self">self</span>.eat_keyword(Keyword::As) {
+            <span class="kw">let </span>as_trait_path = <span class="self">self</span>.parse_as_trait_path_for_type_after_as_keyword(typ);
+            <span class="prelude-val">Some</span>(ExpressionKind::AsTraitPath(as_trait_path))
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.eat_or_error(Token::Greater);
+            <span class="kw">let </span>type_path = <span class="self">self</span>.parse_type_path_expr_for_type(typ);
+            <span class="prelude-val">Some</span>(ExpressionKind::TypePath(type_path))
+        }
+    }
 
     <span class="doccomment">/// ResolvedExpression = unquote_marker
     </span><span class="kw">fn </span>parse_resolved_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {
@@ -2519,8 +2739,19 @@
     </span><span class="kw">fn </span>parse_type_path_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {
         <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
         <span class="kw">let </span>typ = <span class="self">self</span>.parse_primitive_type()<span class="question-mark">?</span>;
-        <span class="kw">let </span>typ = UnresolvedType { typ, location: <span class="self">self</span>.location_since(start_location) };
+        <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+        <span class="kw">let </span>typ = UnresolvedType { typ, location };
 
+        <span class="kw">if </span><span class="self">self</span>.at(Token::DoubleColon) {
+            <span class="prelude-val">Some</span>(ExpressionKind::TypePath(<span class="self">self</span>.parse_type_path_expr_for_type(typ)))
+        } <span class="kw">else </span>{
+            <span class="comment">// This is the case when we find `Field` or `i32` but `::` doesn't follow it.
+            </span><span class="self">self</span>.push_error(ParserErrorReason::ExpectedValueFoundBuiltInType { typ }, location);
+            <span class="prelude-val">Some</span>(ExpressionKind::Error)
+        }
+    }
+
+    <span class="kw">fn </span>parse_type_path_expr_for_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; TypePath {
         <span class="self">self</span>.eat_or_error(Token::DoubleColon);
 
         <span class="kw">let </span>item = <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
@@ -2538,7 +2769,7 @@
             generics
         });
 
-        <span class="prelude-val">Some</span>(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
+        TypePath { typ, item, turbofish }
     }
 
     <span class="doccomment">/// Literal
@@ -2583,12 +2814,22 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Quote(tokens));
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(literal) = <span class="self">self</span>.parse_array_literal() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Array(literal)));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(literal_or_error) = <span class="self">self</span>.parse_array_literal() {
+            <span class="kw">return match </span>literal_or_error {
+                ArrayLiteralOrError::ArrayLiteral(literal) =&gt; {
+                    <span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Array(literal)))
+                }
+                ArrayLiteralOrError::Error =&gt; <span class="prelude-val">Some</span>(ExpressionKind::Error),
+            };
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(literal) = <span class="self">self</span>.parse_slice_literal() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Slice(literal)));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(literal_or_error) = <span class="self">self</span>.parse_slice_literal() {
+            <span class="kw">return match </span>literal_or_error {
+                ArrayLiteralOrError::ArrayLiteral(literal) =&gt; {
+                    <span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Slice(literal)))
+                }
+                ArrayLiteralOrError::Error =&gt; <span class="prelude-val">Some</span>(ExpressionKind::Error),
+            };
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(kind) = <span class="self">self</span>.parse_block() {
@@ -2611,27 +2852,44 @@
     /// ArrayElements = Expression ( ',' Expression )? ','?
     ///
     /// RepeatedArrayLiteral = '[' Expression ';' TypeExpression ']'
-    </span><span class="kw">fn </span>parse_array_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayLiteral&gt; {
+    </span><span class="kw">fn </span>parse_array_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayLiteralOrError&gt; {
+        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
+        <span class="kw">let </span>errors_before_array = <span class="self">self</span>.errors.len();
+
         <span class="kw">if </span>!<span class="self">self</span>.eat_left_bracket() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
         <span class="kw">if </span><span class="self">self</span>.eat_right_bracket() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayLiteral::Standard(Vec::new()));
+            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(Vec::new())));
         }
 
         <span class="kw">let </span>first_expr = <span class="self">self</span>.parse_expression_or_error();
-        <span class="kw">if </span>first_expr.kind == ExpressionKind::Error {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayLiteral::Standard(Vec::new()));
-        }
 
         <span class="kw">if </span><span class="self">self</span>.eat_semicolon() {
             <span class="kw">let </span>length = <span class="self">self</span>.parse_expression_or_error();
             <span class="self">self</span>.eat_or_error(Token::RightBracket);
-            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayLiteral::Repeated {
+
+            <span class="comment">// If it's `[expr; length]::ident`, give an error that it's missing `&lt;...&gt;`
+            </span><span class="kw">if </span><span class="self">self</span>.at(Token::DoubleColon) &amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.next_token.token(), Token::Ident(..)) {
+                <span class="comment">// Remove any errors that happened during `[...]` as it's likely they happened
+                // because of the missing angle brackets.
+                </span><span class="self">self</span>.errors.truncate(errors_before_array);
+
+                <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+                <span class="self">self</span>.push_error(ParserErrorReason::MissingAngleBrackets, location);
+
+                <span class="comment">// Skip `::` and the identifier
+                </span><span class="self">self</span>.bump();
+                <span class="self">self</span>.bump();
+
+                <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayLiteralOrError::Error);
+            }
+
+            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Repeated {
                 repeated_element: Box::new(first_expr),
                 length: Box::new(length),
-            });
+            }));
         }
 
         <span class="kw">let </span>comma_after_first_expr = <span class="self">self</span>.eat_comma();
@@ -2649,11 +2907,11 @@
 
         exprs.insert(<span class="number">0</span>, first_expr);
 
-        <span class="prelude-val">Some</span>(ArrayLiteral::Standard(exprs))
+        <span class="prelude-val">Some</span>(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
     <span class="doccomment">/// SliceExpression = '&amp;' ArrayLiteral
-    </span><span class="kw">fn </span>parse_slice_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayLiteral&gt; {
+    </span><span class="kw">fn </span>parse_slice_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayLiteralOrError&gt; {
         <span class="kw">if </span>!(<span class="self">self</span>.at(Token::SliceStart) &amp;&amp; <span class="self">self</span>.next_is(Token::LeftBracket)) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
@@ -2673,11 +2931,26 @@
     ///
     /// TupleExpression = '(' Expression ( ',' Expression )+ ','? ')'
     </span><span class="kw">fn </span>parse_parentheses_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {
+        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
+        <span class="kw">let </span>errors_before_parentheses = <span class="self">self</span>.errors.len();
+
         <span class="kw">if </span>!<span class="self">self</span>.eat_left_paren() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
         <span class="kw">if </span><span class="self">self</span>.eat_right_paren() {
+            <span class="comment">// If it's `()::ident`, parse it as a type path but produce an error saying it should be `&lt;()&gt;::ident`.
+            </span><span class="kw">if </span><span class="self">self</span>.at(Token::DoubleColon) &amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.next_token.token(), Token::Ident(..)) {
+                <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+                <span class="kw">let </span>typ = UnresolvedTypeData::Unit;
+                <span class="kw">let </span>typ = UnresolvedType { typ, location };
+                <span class="kw">let </span>type_path = <span class="self">self</span>.parse_type_path_expr_for_type(typ);
+
+                <span class="self">self</span>.push_error(ParserErrorReason::MissingAngleBrackets, location);
+
+                <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::TypePath(type_path));
+            }
+
             <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Unit));
         }
 
@@ -2686,6 +2959,22 @@
             separated_by_comma_until_right_paren(),
             <span class="self">Self</span>::parse_expression_in_list,
         );
+
+        <span class="comment">// If it's `(..)::ident`, give an error that it's missing `&lt;...&gt;`
+        </span><span class="kw">if </span><span class="self">self</span>.at(Token::DoubleColon) &amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.next_token.token(), Token::Ident(..)) {
+            <span class="comment">// Remove any errors that happened during `(...)` as it's likely they happened
+            // because of the missing angle brackets.
+            </span><span class="self">self</span>.errors.truncate(errors_before_parentheses);
+
+            <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+            <span class="self">self</span>.push_error(ParserErrorReason::MissingAngleBrackets, location);
+
+            <span class="comment">// Skip `::` and the identifier
+            </span><span class="self">self</span>.bump();
+            <span class="self">self</span>.bump();
+
+            <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Error);
+        }
 
         <span class="prelude-val">Some</span>(<span class="kw">if </span>exprs.len() == <span class="number">1 </span>&amp;&amp; !trailing_comma {
             ExpressionKind::Parenthesized(Box::new(exprs.remove(<span class="number">0</span>)))
@@ -3718,6 +4007,99 @@
         <span class="macro">assert_eq!</span>(type_path.typ.to_string(), <span class="string">"Field"</span>);
         <span class="macro">assert_eq!</span>(type_path.item.to_string(), <span class="string">"foo"</span>);
         <span class="macro">assert!</span>(type_path.turbofish.is_some());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_type_path_with_tuple() {
+        <span class="kw">let </span>src = <span class="string">"&lt;()&gt;::foo"</span>;
+        <span class="kw">let </span>expr = parse_expression_no_errors(src);
+        <span class="kw">let </span>ExpressionKind::TypePath(type_path) = expr.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected type_path"</span>);
+        };
+        <span class="macro">assert_eq!</span>(type_path.typ.to_string(), <span class="string">"()"</span>);
+        <span class="macro">assert_eq!</span>(type_path.item.to_string(), <span class="string">"foo"</span>);
+        <span class="macro">assert!</span>(type_path.turbofish.is_none());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_type_path_with_array_type() {
+        <span class="kw">let </span>src = <span class="string">"&lt;[i32; 3]&gt;::foo"</span>;
+        <span class="kw">let </span>expr = parse_expression_no_errors(src);
+        <span class="kw">let </span>ExpressionKind::TypePath(type_path) = expr.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected type_path"</span>);
+        };
+        <span class="macro">assert_eq!</span>(type_path.typ.to_string(), <span class="string">"[i32; 3]"</span>);
+        <span class="macro">assert_eq!</span>(type_path.item.to_string(), <span class="string">"foo"</span>);
+        <span class="macro">assert!</span>(type_path.turbofish.is_none());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_type_path_with_empty_tuple_missing_angle_brackets() {
+        <span class="kw">let </span>src = <span class="string">"
+          ()::foo
+          ^^
+          "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let </span>expr = parser.parse_expression_or_error();
+
+        <span class="kw">let </span>ExpressionKind::TypePath(type_path) = expr.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected type_path"</span>);
+        };
+        <span class="macro">assert_eq!</span>(type_path.typ.to_string(), <span class="string">"()"</span>);
+        <span class="macro">assert_eq!</span>(type_path.item.to_string(), <span class="string">"foo"</span>);
+        <span class="macro">assert!</span>(type_path.turbofish.is_none());
+
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::MissingAngleBrackets));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_type_path_with_non_empty_tuple_missing_angle_brackets() {
+        <span class="kw">let </span>src = <span class="string">"
+          (Field, i32)::foo
+          ^^^^^^^^^^^^
+          "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let </span>expr = parser.parse_expression_or_error();
+
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(expr.kind, ExpressionKind::Error));
+
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::MissingAngleBrackets));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_type_path_with_array_missing_angle_brackets() {
+        <span class="kw">let </span>src = <span class="string">"
+          [Field; 3]::foo
+          ^^^^^^^^^^
+          "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let </span>expr = parser.parse_expression_or_error();
+
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(expr.kind, ExpressionKind::Error));
+
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::MissingAngleBrackets));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_primitive_type_errors() {
+        <span class="kw">let </span>src = <span class="string">"
+        Field
+        ^^^^^
+        "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let </span>expr = parser.parse_expression_or_error();
+        <span class="kw">let </span>ExpressionKind::Error = expr.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected error"</span>);
+        };
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert_eq!</span>(reason.to_string(), <span class="string">"Expected value, found built-in type `Field`"</span>);
     }
 
     <span class="attr">#[test]

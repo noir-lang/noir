@@ -2506,7 +2506,11 @@
 <a href="#2505" id="2505">2505</a>
 <a href="#2506" id="2506">2506</a>
 <a href="#2507" id="2507">2507</a>
-<a href="#2508" id="2508">2508</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2508" id="2508">2508</a>
+<a href="#2509" id="2509">2509</a>
+<a href="#2510" id="2510">2510</a>
+<a href="#2511" id="2511">2511</a>
+<a href="#2512" id="2512">2512</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
@@ -3384,8 +3388,12 @@
     }
 
     <span class="doccomment">/// Store [Location] of [Type] reference
-    </span><span class="kw">pub fn </span>push_type_ref_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type, location: Location) {
-        <span class="self">self</span>.type_ref_locations.push((typ, location));
+    </span><span class="kw">pub fn </span>push_type_ref_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type, location: Location) {
+        <span class="kw">if </span>!<span class="self">self</span>.is_in_lsp_mode() {
+            <span class="kw">return</span>;
+        }
+
+        <span class="self">self</span>.type_ref_locations.push((typ.clone(), location));
     }
 
     <span class="attr">#[allow(clippy::too_many_arguments)]

@@ -1997,25 +1997,7 @@
 <a href="#1996" id="1996">1996</a>
 <a href="#1997" id="1997">1997</a>
 <a href="#1998" id="1998">1998</a>
-<a href="#1999" id="1999">1999</a>
-<a href="#2000" id="2000">2000</a>
-<a href="#2001" id="2001">2001</a>
-<a href="#2002" id="2002">2002</a>
-<a href="#2003" id="2003">2003</a>
-<a href="#2004" id="2004">2004</a>
-<a href="#2005" id="2005">2005</a>
-<a href="#2006" id="2006">2006</a>
-<a href="#2007" id="2007">2007</a>
-<a href="#2008" id="2008">2008</a>
-<a href="#2009" id="2009">2009</a>
-<a href="#2010" id="2010">2010</a>
-<a href="#2011" id="2011">2011</a>
-<a href="#2012" id="2012">2012</a>
-<a href="#2013" id="2013">2013</a>
-<a href="#2014" id="2014">2014</a>
-<a href="#2015" id="2015">2015</a>
-<a href="#2016" id="2016">2016</a>
-<a href="#2017" id="2017">2017</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1999" id="1999">1999</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2032,15 +2014,14 @@
 <span class="kw">use </span>lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
-    DataType, Kind, ParsedModule, Type, TypeBinding,
+    DataType, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
-        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
-        UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
+        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
+        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
+        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -2052,7 +2033,6 @@
     hir_def::traits::Trait,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
-    shared::Signedness,
     token::{MetaAttribute, Token, Tokens},
 };
 <span class="kw">use </span>sort_text::underscore_sort_text;
@@ -3819,35 +3799,19 @@
             <span class="kw">return </span><span class="bool-val">true</span>;
         }
 
-        <span class="kw">let </span>typ = <span class="kw">match </span><span class="kw-2">&amp;</span>type_path.typ.typ {
-            UnresolvedTypeData::FieldElement =&gt; <span class="prelude-val">Some</span>(Type::FieldElement),
-            UnresolvedTypeData::Integer(signedness, integer_bit_size) =&gt; {
-                <span class="prelude-val">Some</span>(Type::Integer(<span class="kw-2">*</span>signedness, <span class="kw-2">*</span>integer_bit_size))
-            }
-            UnresolvedTypeData::Bool =&gt; <span class="prelude-val">Some</span>(Type::Bool),
-            UnresolvedTypeData::String(UnresolvedTypeExpression::Constant(value, <span class="kw">_</span>)) =&gt; {
-                <span class="prelude-val">Some</span>(Type::String(Box::new(Type::Constant(
-                    <span class="kw-2">*</span>value,
-                    Kind::Numeric(Box::new(Type::Integer(
-                        Signedness::Unsigned,
-                        IntegerBitSize::ThirtyTwo,
-                    ))),
-                ))))
-            }
-            UnresolvedTypeData::Quoted(quoted_type) =&gt; <span class="prelude-val">Some</span>(Type::Quoted(<span class="kw-2">*</span>quoted_type)),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        <span class="kw">let </span>location = type_path.typ.location;
+        <span class="kw">let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.interner.try_type_ref_at_location(location) <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">true</span>;
         };
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typ {
-            <span class="kw">let </span>prefix = type_path.item.as_str();
-            <span class="self">self</span>.complete_type_methods(
-                <span class="kw-2">&amp;</span>typ,
-                prefix,
-                FunctionKind::Any,
-                FunctionCompletionKind::NameAndParameters,
-                <span class="bool-val">false</span>, <span class="comment">// self_prefix
-            </span>);
-        }
+        <span class="kw">let </span>prefix = type_path.item.as_str();
+        <span class="self">self</span>.complete_type_methods(
+            <span class="kw-2">&amp;</span>typ,
+            prefix,
+            FunctionKind::Any,
+            FunctionCompletionKind::NameAndParameters,
+            <span class="bool-val">false</span>, <span class="comment">// self_prefix
+        </span>);
 
         <span class="bool-val">false
     </span>}

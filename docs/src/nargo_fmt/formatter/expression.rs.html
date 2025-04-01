@@ -2586,7 +2586,24 @@
 <a href="#2585" id="2585">2585</a>
 <a href="#2586" id="2586">2586</a>
 <a href="#2587" id="2587">2587</a>
-<a href="#2588" id="2588">2588</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2588" id="2588">2588</a>
+<a href="#2589" id="2589">2589</a>
+<a href="#2590" id="2590">2590</a>
+<a href="#2591" id="2591">2591</a>
+<a href="#2592" id="2592">2592</a>
+<a href="#2593" id="2593">2593</a>
+<a href="#2594" id="2594">2594</a>
+<a href="#2595" id="2595">2595</a>
+<a href="#2596" id="2596">2596</a>
+<a href="#2597" id="2597">2597</a>
+<a href="#2598" id="2598">2598</a>
+<a href="#2599" id="2599">2599</a>
+<a href="#2600" id="2600">2600</a>
+<a href="#2601" id="2601">2601</a>
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a>
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -2982,7 +2999,17 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>format_type_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_path: TypePath) -&gt; ChunkGroup {
         <span class="kw">let </span><span class="kw-2">mut </span>group = ChunkGroup::new();
         group.text(<span class="self">self</span>.chunk(|formatter| {
+            <span class="kw">let </span>nameless = formatter.is_at(Token::Less);
+            <span class="kw">if </span>nameless {
+                formatter.write_token(Token::Less);
+            }
+
             formatter.format_type(type_path.typ);
+
+            <span class="kw">if </span>nameless {
+                formatter.write_token(Token::Greater);
+            }
+
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = type_path.turbofish {
@@ -4712,6 +4739,13 @@ global y = 1;
     </span><span class="kw">fn </span>format_type_path_with_turbofish() {
         <span class="kw">let </span>src = <span class="string">"global x = Field :: max :: &lt; i32 &gt; ;"</span>;
         <span class="kw">let </span>expected = <span class="string">"global x = Field::max::&lt;i32&gt;;\n"</span>;
+        assert_format(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_type_path_with_array_type() {
+        <span class="kw">let </span>src = <span class="string">"global x = &lt; [ i32 ; 3 ] &gt; :: max  ;"</span>;
+        <span class="kw">let </span>expected = <span class="string">"global x = &lt;[i32; 3]&gt;::max;\n"</span>;
         assert_format(src, expected);
     }
 

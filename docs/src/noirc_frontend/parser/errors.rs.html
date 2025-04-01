@@ -333,7 +333,15 @@
 <a href="#332" id="332">332</a>
 <a href="#333" id="333">333</a>
 <a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility};
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -454,6 +462,10 @@
     </span>MissingParametersForFunctionDefinition,
     <span class="attr">#[error(<span class="string">"`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`"</span>)]
     </span>StructDefinitionDeprecated,
+    <span class="attr">#[error(<span class="string">"Missing angle brackets surrounding type in associated item path"</span>)]
+    </span>MissingAngleBrackets,
+    <span class="attr">#[error(<span class="string">"Expected value, found built-in type `{typ}`"</span>)]
+    </span>ExpectedValueFoundBuiltInType { typ: UnresolvedType },
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.
@@ -647,6 +659,10 @@
                 }
                 ParserErrorReason::StructDefinitionDeprecated =&gt; {
                     Diagnostic::simple_warning(<span class="macro">format!</span>(<span class="string">"{reason}"</span>), String::new(), error.location())
+                }
+                ParserErrorReason::MissingAngleBrackets =&gt; {
+                    <span class="kw">let </span>secondary = <span class="string">"Types that don't start with an identifier need to be surrounded with angle brackets: `&lt;`, `&gt;`"</span>.to_string();
+                    Diagnostic::simple_error(<span class="macro">format!</span>(<span class="string">"{reason}"</span>), secondary, error.location())
                 }
                 other =&gt; {
                     Diagnostic::simple_error(<span class="macro">format!</span>(<span class="string">"{other}"</span>), String::new(), error.location())

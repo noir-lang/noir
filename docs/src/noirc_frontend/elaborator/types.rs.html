@@ -2331,7 +2331,7 @@
         <span class="kw">match </span>resolved_type {
             Type::DataType(<span class="kw-2">ref </span>data_type, <span class="kw">_</span>) =&gt; {
                 <span class="comment">// Record the location of the type reference
-                </span><span class="self">self</span>.interner.push_type_ref_location(resolved_type.clone(), location);
+                </span><span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>resolved_type, location);
                 <span class="kw">if </span>!is_synthetic {
                     <span class="self">self</span>.interner.add_type_reference(
                         data_type.borrow().id,

@@ -928,7 +928,9 @@
 <a href="#927" id="927">927</a>
 <a href="#928" id="928">928</a>
 <a href="#929" id="929">929</a>
-<a href="#930" id="930">930</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1806,6 +1808,8 @@
         <span class="kw">let </span>object_location = path.typ.location;
         <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(path.typ);
         <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
+
+        <span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>typ, object_location);
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.lookup_method(
             <span class="kw-2">&amp;</span>typ,
