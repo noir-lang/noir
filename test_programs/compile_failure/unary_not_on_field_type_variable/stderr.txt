@@ -1,1 +1,8 @@
-Could not parse the required compiler version for package unary_not_on_field_type_variable in Nargo.toml. Error: unexpected end of input while parsing major version number
+error: Types in a binary operation should match, but found Field and u32
+  ┌─ src/main.nr:3:15
+  │
+3 │     assert_eq(!0, num);
+  │               -------
+  │
+
+Aborting due to 1 previous error
