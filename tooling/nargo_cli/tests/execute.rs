@@ -192,7 +192,7 @@ mod tests {
         let stderr_path = test_program_dir.join("stderr.txt");
 
         let expected_stderr = if stderr_path.exists() {
-            String::from_utf8(fs::read(stderr_path).unwrap()).unwrap()
+            String::from_utf8(fs::read(stderr_path.clone()).unwrap()).unwrap()
         } else {
             String::new()
         };
@@ -202,6 +202,11 @@ mod tests {
         let expected_stderr = expected_stderr.trim();
 
         if stderr != expected_stderr {
+            // If the expected stderr is empty this is likely a new test, so we produce the expected output for next time
+            if expected_stderr.is_empty() {
+                fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
+            }
+
             println!(
                 "stderr does not match expected output. Expected:\n{expected_stderr}\n\nActual:\n{stderr}"
             );
