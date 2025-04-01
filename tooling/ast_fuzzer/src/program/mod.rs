@@ -80,7 +80,7 @@ impl Context {
         let typ = self.gen_type(u, self.config.max_depth)?;
         // TODO: Can we use binary expressions here? Trying it out on a few examples
         // resulted in the compiler already evaluating such expressions into literals.
-        Ok(gen_expr_literal(u, &typ)?)
+        gen_expr_literal(u, &typ)
     }
 
     /// Generate random function names and signatures.
