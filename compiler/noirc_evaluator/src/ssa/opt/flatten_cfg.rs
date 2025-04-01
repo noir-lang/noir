@@ -829,7 +829,8 @@ impl<'f> Context<'f> {
             for (i, value) in array.clone().iter().enumerate() {
                 if i % 3 != 2 {
                     // set x, y to zero
-                    array_with_predicate.push_back(self.mul_by_condition(*value, predicate, call_stack));
+                    array_with_predicate
+                        .push_back(self.mul_by_condition(*value, predicate, call_stack));
                 } else {
                     // set is_infinity to true
                     array_with_predicate.push_back(self.var_or_one(*value, predicate, call_stack));
