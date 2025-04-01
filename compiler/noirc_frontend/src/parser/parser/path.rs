@@ -193,6 +193,14 @@ impl Parser<'_> {
 
         let typ = self.parse_type_or_error();
         self.eat_keyword_or_error(Keyword::As);
+
+        Some(self.parse_as_trait_path_for_type_after_as_keyword(typ))
+    }
+
+    pub(super) fn parse_as_trait_path_for_type_after_as_keyword(
+        &mut self,
+        typ: UnresolvedType,
+    ) -> AsTraitPath {
         let trait_path = self.parse_path_no_turbofish_or_error();
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
@@ -204,7 +212,7 @@ impl Parser<'_> {
             Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
-        Some(AsTraitPath { typ, trait_path, trait_generics, impl_item })
+        AsTraitPath { typ, trait_path, trait_generics, impl_item }
     }
 }
 

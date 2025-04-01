@@ -394,7 +394,17 @@ impl ChunkFormatter<'_, '_> {
     pub(super) fn format_type_path(&mut self, type_path: TypePath) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
+            let nameless = formatter.is_at(Token::Less);
+            if nameless {
+                formatter.write_token(Token::Less);
+            }
+
             formatter.format_type(type_path.typ);
+
+            if nameless {
+                formatter.write_token(Token::Greater);
+            }
+
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
             if let Some(turbofish) = type_path.turbofish {
@@ -2124,6 +2134,13 @@ global y = 1;
     fn format_type_path_with_turbofish() {
         let src = "global x = Field :: max :: < i32 > ;";
         let expected = "global x = Field::max::<i32>;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_type_path_with_array_type() {
+        let src = "global x = < [ i32 ; 3 ] > :: max  ;";
+        let expected = "global x = <[i32; 3]>::max;\n";
         assert_format(src, expected);
     }
 

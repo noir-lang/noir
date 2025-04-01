@@ -1905,8 +1905,8 @@ mod test {
     }
 
     #[test]
-    fn does_duplicate_unsigned_division_by_non_zero_constant() {
-        // Regression test for https://github.com/noir-lang/noir/issues/7283
+    fn does_not_duplicate_unsigned_division_by_non_zero_constant() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7836
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u1):
@@ -1929,6 +1929,7 @@ mod test {
             v4 = div v1, u32 2
             v5 = not v2
             enable_side_effects v5
+            v6 = div v1, u32 2
             return
         }
         ";

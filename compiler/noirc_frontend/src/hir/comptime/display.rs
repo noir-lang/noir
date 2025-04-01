@@ -270,7 +270,8 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Ampersand
             | Token::SliceStart
             | Token::ShiftLeft
-            | Token::ShiftRight => {
+            | Token::ShiftRight
+            | Token::LogicalAnd => {
                 self.last_was_op = true;
                 write!(f, " {token}")
             }

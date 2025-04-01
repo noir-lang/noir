@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_enums_error_with_duplicate_enum_variant"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]
