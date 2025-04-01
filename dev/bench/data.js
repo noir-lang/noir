@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743532753264,
+  "lastUpdate": 1743533035173,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11367,70 +11367,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d8ea3a41dcba97fc2c3be4ad667f9eb782434156",
-          "message": "chore: add more test suites to CI (#7757)",
-          "timestamp": "2025-03-20T22:02:05Z",
-          "tree_id": "d3dd0ae78fa4182a47c3a903938e6c69ba7bbd58",
-          "url": "https://github.com/noir-lang/noir/commit/d8ea3a41dcba97fc2c3be4ad667f9eb782434156"
-        },
-        "date": 1742509634632,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 241.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 275.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 215.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 509.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 418.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 289,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 295.48,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "6723aeca502c36ea6c7eedcb3e25a9a8396465bc",
           "message": "feat: optimize unconstrained `embedded_curve_add` (#7751)",
           "timestamp": "2025-03-21T12:52:33Z",
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/98f05ca483a254816a882d21bc6c88257fe80645"
         },
         "date": 1743529255647,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 504.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 413.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 293.53,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "645a800d08a16e88242079d2caec842cab51d652",
+          "message": "chore: generate compilation tests from frontend tests (#7753)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-01T18:11:35Z",
+          "tree_id": "338857d0c0364e5b3e2aa38bc1bac910aa19ff95",
+          "url": "https://github.com/noir-lang/noir/commit/645a800d08a16e88242079d2caec842cab51d652"
+        },
+        "date": 1743533031259,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
