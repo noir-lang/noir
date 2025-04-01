@@ -375,13 +375,17 @@ impl Context {
             other => panic!("handle_unary given non-unary expression: {other}"),
         };
 
-        if self.experimental_ownership_feature && matches!(unary.operator, UnaryOp::Reference { .. }) {
+        if self.experimental_ownership_feature
+            && matches!(unary.operator, UnaryOp::Reference { .. })
+        {
             self.handle_reference_expression(&mut unary.rhs);
         } else {
             self.handle_expression(&mut unary.rhs);
         }
 
-        if self.experimental_ownership_feature && matches!(unary.operator, UnaryOp::Dereference { .. }) {
+        if self.experimental_ownership_feature
+            && matches!(unary.operator, UnaryOp::Dereference { .. })
+        {
             clone_expr(expr);
         }
     }
