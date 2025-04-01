@@ -1,13 +1,86 @@
 use std::fmt::Debug;
 
-use acvm::acir::circuit::opcodes::BlockId;
+use acvm::{AcirField, acir::circuit::opcodes::BlockId};
 
 use crate::{
     errors::InternalError,
-    ssa::ir::{call_stack::CallStack, types::NumericType},
+    ssa::ir::{call_stack::CallStack, types::NumericType, types::Type as SsaType},
 };
 
-use super::acir_context::{AcirType, AcirVar};
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+/// High level Type descriptor for Variables.
+///
+/// One can think of Expression/Witness/Const
+/// as low level types which can represent high level types.
+///
+/// An Expression can represent a u32 for example.
+/// We could store this information when we do a range constraint
+/// but this information is readily available by the caller so
+/// we allow the user to pass it in.
+pub(crate) enum AcirType {
+    NumericType(NumericType),
+    Array(Vec<AcirType>, usize),
+}
+
+impl AcirType {
+    pub(crate) fn new(typ: NumericType) -> Self {
+        Self::NumericType(typ)
+    }
+
+    /// Returns the bit size of the underlying type
+    pub(crate) fn bit_size<F: AcirField>(&self) -> u32 {
+        match self {
+            AcirType::NumericType(numeric_type) => match numeric_type {
+                NumericType::Signed { bit_size } => *bit_size,
+                NumericType::Unsigned { bit_size } => *bit_size,
+                NumericType::NativeField => F::max_num_bits(),
+            },
+            AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
+        }
+    }
+
+    /// Returns a field type
+    pub(crate) fn field() -> Self {
+        AcirType::NumericType(NumericType::NativeField)
+    }
+
+    /// Returns an unsigned type of the specified bit size
+    pub(crate) fn unsigned(bit_size: u32) -> Self {
+        AcirType::NumericType(NumericType::Unsigned { bit_size })
+    }
+
+    pub(crate) fn to_numeric_type(&self) -> NumericType {
+        match self {
+            AcirType::NumericType(numeric_type) => *numeric_type,
+            AcirType::Array(_, _) => unreachable!("cannot fetch a numeric type for an array type"),
+        }
+    }
+}
+
+impl From<SsaType> for AcirType {
+    fn from(value: SsaType) -> Self {
+        AcirType::from(&value)
+    }
+}
+
+impl From<&SsaType> for AcirType {
+    fn from(value: &SsaType) -> Self {
+        match value {
+            SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
+            SsaType::Array(elements, size) => {
+                let elements = elements.iter().map(|e| e.into()).collect();
+                AcirType::Array(elements, *size as usize)
+            }
+            _ => unreachable!("The type {value} cannot be represented in ACIR"),
+        }
+    }
+}
+
+impl From<NumericType> for AcirType {
+    fn from(value: NumericType) -> Self {
+        AcirType::NumericType(value)
+    }
+}
 
 #[derive(Clone)]
 pub(super) struct AcirDynamicArray {
@@ -32,6 +105,7 @@ pub(super) struct AcirDynamicArray {
     /// inner element type sizes array
     pub(super) element_type_sizes: Option<BlockId>,
 }
+
 impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
@@ -88,5 +162,15 @@ impl AcirValue {
             AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
             _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
         }
+    }
+}
+
+/// A Reference to an `AcirVarData`
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(super) struct AcirVar(usize);
+
+impl AcirVar {
+    pub(super) fn new(var: usize) -> Self {
+        AcirVar(var)
     }
 }

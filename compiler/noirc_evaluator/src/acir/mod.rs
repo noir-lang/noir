@@ -55,7 +55,8 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 pub(crate) use acir_context::GeneratedAcir;
-use acir_context::{AcirContext, AcirType, AcirVar, BrilligStdlibFunc, power_of_two};
+use acir_context::{AcirContext, BrilligStdlibFunc, power_of_two};
+use types::{AcirType, AcirVar};
 
 #[derive(Default)]
 struct SharedContext<F> {

@@ -22,99 +22,24 @@ use acvm::{
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
-use std::cmp::Ordering;
-use std::{borrow::Cow, hash::Hash};
+use std::{borrow::Cow, cmp::Ordering};
 
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
-use crate::ssa::ir::{
-    call_stack::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
-};
+use crate::ssa::ir::{call_stack::CallStack, instruction::Endian, types::NumericType};
 
 mod big_int;
 mod black_box;
 mod brillig_call;
 mod generated_acir;
 
-use super::{AcirDynamicArray, AcirValue};
+use super::{
+    AcirDynamicArray, AcirValue,
+    types::{AcirType, AcirVar},
+};
 use big_int::BigIntContext;
 use generated_acir::PLACEHOLDER_BRILLIG_INDEX;
 
 pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-/// High level Type descriptor for Variables.
-///
-/// One can think of Expression/Witness/Const
-/// as low level types which can represent high level types.
-///
-/// An Expression can represent a u32 for example.
-/// We could store this information when we do a range constraint
-/// but this information is readily available by the caller so
-/// we allow the user to pass it in.
-pub(crate) enum AcirType {
-    NumericType(NumericType),
-    Array(Vec<AcirType>, usize),
-}
-
-impl AcirType {
-    pub(crate) fn new(typ: NumericType) -> Self {
-        Self::NumericType(typ)
-    }
-
-    /// Returns the bit size of the underlying type
-    pub(crate) fn bit_size<F: AcirField>(&self) -> u32 {
-        match self {
-            AcirType::NumericType(numeric_type) => match numeric_type {
-                NumericType::Signed { bit_size } => *bit_size,
-                NumericType::Unsigned { bit_size } => *bit_size,
-                NumericType::NativeField => F::max_num_bits(),
-            },
-            AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
-        }
-    }
-
-    /// Returns a field type
-    pub(crate) fn field() -> Self {
-        AcirType::NumericType(NumericType::NativeField)
-    }
-
-    /// Returns an unsigned type of the specified bit size
-    pub(crate) fn unsigned(bit_size: u32) -> Self {
-        AcirType::NumericType(NumericType::Unsigned { bit_size })
-    }
-
-    pub(crate) fn to_numeric_type(&self) -> NumericType {
-        match self {
-            AcirType::NumericType(numeric_type) => *numeric_type,
-            AcirType::Array(_, _) => unreachable!("cannot fetch a numeric type for an array type"),
-        }
-    }
-}
-
-impl From<SsaType> for AcirType {
-    fn from(value: SsaType) -> Self {
-        AcirType::from(&value)
-    }
-}
-
-impl From<&SsaType> for AcirType {
-    fn from(value: &SsaType) -> Self {
-        match value {
-            SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
-            SsaType::Array(elements, size) => {
-                let elements = elements.iter().map(|e| e.into()).collect();
-                AcirType::Array(elements, *size as usize)
-            }
-            _ => unreachable!("The type {value} cannot be represented in ACIR"),
-        }
-    }
-}
-
-impl From<NumericType> for AcirType {
-    fn from(value: NumericType) -> Self {
-        AcirType::NumericType(value)
-    }
-}
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -1433,7 +1358,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     /// We use a two-way map so that it is efficient to lookup
     /// either the key or the value.
     fn add_data(&mut self, data: AcirVarData<F>) -> AcirVar {
-        let id = AcirVar(self.vars.len());
+        let id = AcirVar::new(self.vars.len());
         self.vars.insert(id, data);
         id
     }
@@ -1621,29 +1546,11 @@ pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
 
 /// Enum representing the possible values that a
 /// Variable can be given.
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Eq, Clone, PartialEq)]
 enum AcirVarData<F> {
     Witness(Witness),
     Expr(Expression<F>),
     Const(F),
-}
-
-impl<F: PartialEq> PartialEq for AcirVarData<F> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Witness(l0), Self::Witness(r0)) => l0 == r0,
-            (Self::Expr(l0), Self::Expr(r0)) => l0 == r0,
-            (Self::Const(l0), Self::Const(r0)) => l0 == r0,
-            _ => false,
-        }
-    }
-}
-
-// TODO: check/test this hash impl
-impl<F> Hash for AcirVarData<F> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        core::mem::discriminant(self).hash(state);
-    }
 }
 
 impl<F> AcirVarData<F> {
@@ -1703,10 +1610,6 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWid
 
     expr.width() <= width
 }
-
-/// A Reference to an `AcirVarData`
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct AcirVar(usize);
 
 #[cfg(test)]
 mod test {
