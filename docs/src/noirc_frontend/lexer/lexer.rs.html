@@ -1630,8 +1630,7 @@
 <a href="#1629" id="1629">1629</a>
 <a href="#1630" id="1630">1630</a>
 <a href="#1631" id="1631">1631</a>
-<a href="#1632" id="1632">1632</a>
-<a href="#1633" id="1633">1633</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
+<a href="#1632" id="1632">1632</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
 
 <span class="kw">use super</span>::{
     errors::LexerErrorKind,
@@ -1735,10 +1734,9 @@
 
     <span class="kw">fn </span>ampersand(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SpannedTokenResult {
         <span class="kw">if </span><span class="self">self</span>.peek_char_is(<span class="string">'&amp;'</span>) {
-            <span class="comment">// When we issue this error the first '&amp;' will already be consumed
-            // and the next token issued will be the next '&amp;'.
-            </span><span class="kw">let </span>span = Span::inclusive(<span class="self">self</span>.position, <span class="self">self</span>.position + <span class="number">1</span>);
-            <span class="prelude-val">Err</span>(LexerErrorKind::LogicalAnd { location: <span class="self">self</span>.location(span) })
+            <span class="kw">let </span>start = <span class="self">self</span>.position;
+            <span class="self">self</span>.next_char();
+            <span class="prelude-val">Ok</span>(Token::LogicalAnd.into_span(start, start + <span class="number">1</span>))
         } <span class="kw">else if </span><span class="self">self</span>.peek_char_is(<span class="string">'['</span>) {
             <span class="self">self</span>.single_char_token(Token::SliceStart)
         } <span class="kw">else </span>{

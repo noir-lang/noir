@@ -183,15 +183,7 @@
 <a href="#182" id="182">182</a>
 <a href="#183" id="183">183</a>
 <a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
+<a href="#185" id="185">185</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserError;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserErrorReason;
 
@@ -219,8 +211,6 @@
     </span>MalformedFuzzAttribute { location: Location },
     <span class="attr">#[error(<span class="string">"{:?} is not a valid inner attribute"</span>, found)]
     </span>InvalidInnerAttribute { location: Location, found: String },
-    <span class="attr">#[error(<span class="string">"Logical and used instead of bitwise and"</span>)]
-    </span>LogicalAnd { location: Location },
     <span class="attr">#[error(<span class="string">"Unterminated block comment"</span>)]
     </span>UnterminatedBlockComment { location: Location },
     <span class="attr">#[error(<span class="string">"Unterminated string literal"</span>)]
@@ -265,7 +255,6 @@
             LexerErrorKind::MalformedTestAttribute { location, .. } =&gt; <span class="kw-2">*</span>location,
             LexerErrorKind::MalformedFuzzAttribute { location, .. } =&gt; <span class="kw-2">*</span>location,
             LexerErrorKind::InvalidInnerAttribute { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::LogicalAnd { location } =&gt; <span class="kw-2">*</span>location,
             LexerErrorKind::UnterminatedBlockComment { location } =&gt; <span class="kw-2">*</span>location,
             LexerErrorKind::UnterminatedStringLiteral { location } =&gt; <span class="kw-2">*</span>location,
             LexerErrorKind::InvalidFormatString { location, .. } =&gt; <span class="kw-2">*</span>location,
@@ -327,11 +316,6 @@
             LexerErrorKind::InvalidInnerAttribute { location, found } =&gt; (
                 <span class="string">"Invalid inner attribute"</span>.to_string(),
                 <span class="macro">format!</span>(<span class="string">" {found} is not a valid inner attribute"</span>),
-                <span class="kw-2">*</span>location,
-            ),
-            LexerErrorKind::LogicalAnd { location } =&gt; (
-                <span class="string">"Noir has no logical-and (&amp;&amp;) operator since short-circuiting is much less efficient when compiling to circuits"</span>.to_string(),
-                <span class="string">"Try `&amp;` instead, or use `if` only if you require short-circuiting"</span>.to_string(),
                 <span class="kw-2">*</span>location,
             ),
             LexerErrorKind::UnterminatedBlockComment { location } =&gt; (<span class="string">"Unterminated block comment"</span>.to_string(), <span class="string">"Unterminated block comment"</span>.to_string(), <span class="kw-2">*</span>location),

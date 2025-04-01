@@ -1317,7 +1317,13 @@
 <a href="#1316" id="1316">1316</a>
 <a href="#1317" id="1317">1317</a>
 <a href="#1318" id="1318">1318</a>
-<a href="#1319" id="1319">1319</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -1430,6 +1436,8 @@
     </span>DollarSign,
     <span class="doccomment">/// =
     </span>Assign,
+    <span class="doccomment">/// &amp;&amp;
+    </span>LogicalAnd,
     <span class="attr">#[allow(clippy::upper_case_acronyms)]
     </span>EOF,
 
@@ -1557,6 +1565,8 @@
     </span>Assign,
     <span class="doccomment">/// $
     </span>DollarSign,
+    <span class="doccomment">/// &amp;&amp;
+    </span>LogicalAnd,
     <span class="attr">#[allow(clippy::upper_case_acronyms)]
     </span>EOF,
 
@@ -1634,6 +1644,7 @@
         Token::Assign =&gt; BorrowedToken::Assign,
         Token::Bang =&gt; BorrowedToken::Bang,
         Token::DollarSign =&gt; BorrowedToken::DollarSign,
+        Token::LogicalAnd =&gt; BorrowedToken::LogicalAnd,
         Token::EOF =&gt; BorrowedToken::EOF,
         Token::Invalid(c) =&gt; BorrowedToken::Invalid(<span class="kw-2">*</span>c),
         Token::Whitespace(s) =&gt; BorrowedToken::Whitespace(s),
@@ -1870,6 +1881,7 @@
             Token::Assign =&gt; <span class="macro">write!</span>(f, <span class="string">"="</span>),
             Token::Bang =&gt; <span class="macro">write!</span>(f, <span class="string">"!"</span>),
             Token::DollarSign =&gt; <span class="macro">write!</span>(f, <span class="string">"$"</span>),
+            Token::LogicalAnd =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;&amp;"</span>),
             Token::EOF =&gt; <span class="macro">write!</span>(f, <span class="string">"end of input"</span>),
             Token::Invalid(c) =&gt; <span class="macro">write!</span>(f, <span class="string">"{c}"</span>),
             Token::Whitespace(<span class="kw-2">ref </span>s) =&gt; <span class="macro">write!</span>(f, <span class="string">"{s}"</span>),

@@ -341,7 +341,16 @@
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -466,6 +475,8 @@
     </span>MissingAngleBrackets,
     <span class="attr">#[error(<span class="string">"Expected value, found built-in type `{typ}`"</span>)]
     </span>ExpectedValueFoundBuiltInType { typ: UnresolvedType },
+    <span class="attr">#[error(<span class="string">"Logical and used instead of bitwise and"</span>)]
+    </span>LogicalAnd,
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.
@@ -663,6 +674,13 @@
                 ParserErrorReason::MissingAngleBrackets =&gt; {
                     <span class="kw">let </span>secondary = <span class="string">"Types that don't start with an identifier need to be surrounded with angle brackets: `&lt;`, `&gt;`"</span>.to_string();
                     Diagnostic::simple_error(<span class="macro">format!</span>(<span class="string">"{reason}"</span>), secondary, error.location())
+                }
+                ParserErrorReason::LogicalAnd =&gt; {
+                    <span class="kw">let </span>primary = <span class="string">"Noir has no logical-and (&amp;&amp;) operator since short-circuiting is much less efficient when compiling to circuits"</span>.to_string();
+                    <span class="kw">let </span>secondary =
+                        <span class="string">"Try `&amp;` instead, or use `if` only if you require short-circuiting"
+                            </span>.to_string();
+                    Diagnostic::simple_error(primary, secondary, error.location)
                 }
                 other =&gt; {
                     Diagnostic::simple_error(<span class="macro">format!</span>(<span class="string">"{other}"</span>), String::new(), error.location())

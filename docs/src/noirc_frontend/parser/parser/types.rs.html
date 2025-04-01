@@ -767,7 +767,54 @@
 <a href="#766" id="766">766</a>
 <a href="#767" id="767">767</a>
 <a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use crate</span>::{
     QuotedType,
@@ -828,7 +875,7 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parses_mutable_reference_type() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_reference_type() {
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
@@ -1140,7 +1187,20 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="kw">fn </span>parses_mutable_reference_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
+    <span class="kw">fn </span>parse_reference_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
+        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
+
+        <span class="comment">// This is '&amp;&amp;', which in this context is a double reference type
+        </span><span class="kw">if </span><span class="self">self</span>.eat(Token::LogicalAnd) {
+            <span class="kw">let </span>mutable = <span class="self">self</span>.eat_keyword(Keyword::Mut);
+            <span class="kw">let </span>inner_type =
+                UnresolvedTypeData::Reference(Box::new(<span class="self">self</span>.parse_type_or_error()), mutable);
+            <span class="kw">let </span>inner_type =
+                UnresolvedType { typ: inner_type, location: <span class="self">self</span>.location_since(start_location) };
+            <span class="kw">let </span>typ = UnresolvedTypeData::Reference(Box::new(inner_type), <span class="bool-val">false </span><span class="comment">/* mutable */</span>);
+            <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
+        }
+
         <span class="comment">// The `&amp;` may be lexed as a slice start if this is an array or slice type
         </span><span class="kw">if </span><span class="self">self</span>.eat(Token::Ampersand) || <span class="self">self</span>.eat(Token::SliceStart) {
             <span class="kw">let </span>mutable = <span class="self">self</span>.eat_keyword(Keyword::Mut);
@@ -1397,6 +1457,26 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_double_reference_type() {
+        <span class="kw">let </span>src = <span class="string">"&amp;&amp;Field"</span>;
+        <span class="kw">let </span>typ = parse_type_no_errors(src);
+        <span class="kw">let </span>UnresolvedTypeData::Reference(typ, <span class="bool-val">false</span>) = typ.typ <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected a reference type"</span>)
+        };
+        <span class="macro">assert_eq!</span>(typ.typ.to_string(), <span class="string">"&amp;Field"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_double_reference_mutable_type() {
+        <span class="kw">let </span>src = <span class="string">"&amp;&amp;mut Field"</span>;
+        <span class="kw">let </span>typ = parse_type_no_errors(src);
+        <span class="kw">let </span>UnresolvedTypeData::Reference(typ, <span class="bool-val">false</span>) = typ.typ <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected a reference type"</span>)
+        };
+        <span class="macro">assert_eq!</span>(typ.typ.to_string(), <span class="string">"&amp;mut Field"</span>);
+    }
+
+    <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_named_type_no_generics() {
         <span class="kw">let </span>src = <span class="string">"foo::Bar"</span>;
         <span class="kw">let </span>typ = parse_type_no_errors(src);
@@ -1432,6 +1512,20 @@
     </span><span class="kw">fn </span>parses_array_type() {
         <span class="kw">let </span>src = <span class="string">"[Field; 10]"</span>;
         <span class="kw">let </span>typ = parse_type_no_errors(src);
+        <span class="kw">let </span>UnresolvedTypeData::Array(expr, typ) = typ.typ <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected an array type"</span>)
+        };
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ.typ, UnresolvedTypeData::FieldElement));
+        <span class="macro">assert_eq!</span>(expr.to_string(), <span class="string">"10"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_reference_to_array_type() {
+        <span class="kw">let </span>src = <span class="string">"&amp;[Field; 10]"</span>;
+        <span class="kw">let </span>typ = parse_type_no_errors(src);
+        <span class="kw">let </span>UnresolvedTypeData::Reference(typ, <span class="bool-val">false</span>) = typ.typ <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected a reference typ"</span>);
+        };
         <span class="kw">let </span>UnresolvedTypeData::Array(expr, typ) = typ.typ <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected an array type"</span>)
         };

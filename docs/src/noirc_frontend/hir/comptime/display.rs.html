@@ -961,7 +961,8 @@
 <a href="#960" id="960">960</a>
 <a href="#961" id="961">961</a>
 <a href="#962" id="962">962</a>
-<a href="#963" id="963">963</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -1225,7 +1226,8 @@
             | Token::Ampersand
             | Token::SliceStart
             | Token::ShiftLeft
-            | Token::ShiftRight =&gt; {
+            | Token::ShiftRight
+            | Token::LogicalAnd =&gt; {
                 <span class="self">self</span>.last_was_op = <span class="bool-val">true</span>;
                 <span class="macro">write!</span>(f, <span class="string">" {token}"</span>)
             }

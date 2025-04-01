@@ -191,10 +191,15 @@
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
 
 <span class="kw">use crate</span>::{
     ast::{BinaryOpKind, Expression, ExpressionKind, InfixExpression},
+    parser::ParserErrorReason,
     token::Token,
 };
 
@@ -241,6 +246,9 @@
             </span><span class="kw">if </span>parser.next_is(Token::Assign) {
                 <span class="prelude-val">None
             </span>} <span class="kw">else if </span>parser.eat(Token::Ampersand) {
+                <span class="prelude-val">Some</span>(BinaryOpKind::And)
+            } <span class="kw">else if </span>parser.eat(Token::LogicalAnd) {
+                parser.push_error(ParserErrorReason::LogicalAnd, parser.previous_token_location);
                 <span class="prelude-val">Some</span>(BinaryOpKind::And)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
