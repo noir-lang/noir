@@ -33,7 +33,7 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
 struct Context {
     config: Config,
     /// Global variables, with higher IDs able to refer to previous ones.
-    globals: BTreeMap<GlobalId, Expression>,
+    globals: BTreeMap<GlobalId, (Type, Expression)>,
     /// Function signatures generated up front, so we can call any of them,
     /// (except `main`), while generating function bodies.
     function_declarations: BTreeMap<FuncId, FunctionDeclaration>,
@@ -69,18 +69,24 @@ impl Context {
         let num_globals = u.int_in_range(0..=self.config.max_globals)?;
         for i in 0..num_globals {
             let g = self.gen_global(u, i)?;
-            // TODO: We might want to generate a name for it, or just use its ID as name later.
+            // The AST only uses globals' names' when they are accessed.
+            // We can just project a name like `GLOBAL{id}` at the time.
             self.globals.insert(GlobalId(i as u32), g);
         }
         Ok(())
     }
 
     /// Generate the i-th global variable, which is allowed to use global variables `0..i`.
-    fn gen_global(&mut self, u: &mut Unstructured, _i: usize) -> arbitrary::Result<Expression> {
+    fn gen_global(
+        &mut self,
+        u: &mut Unstructured,
+        _i: usize,
+    ) -> arbitrary::Result<(Type, Expression)> {
         let typ = self.gen_type(u, self.config.max_depth)?;
         // TODO: Can we use binary expressions here? Trying it out on a few examples
         // resulted in the compiler already evaluating such expressions into literals.
-        gen_expr_literal(u, &typ)
+        let val = gen_expr_literal(u, &typ)?;
+        Ok((typ, val))
     }
 
     /// Generate random function names and signatures.
@@ -169,10 +175,14 @@ impl Context {
     fn finalize(self) -> Program {
         let return_visibility = self.main_decl().return_visibility;
         let functions = self.functions.into_values().collect::<Vec<_>>();
+
         // The signatures should only contain entry functions. Currently that's just `main`.
         let function_signatures =
             functions.iter().take(1).map(|f| f.func_sig.clone()).collect::<Vec<_>>();
+
         let main_function_signature = function_signatures[0].clone();
+
+        let globals = self.globals.into_iter().map(|(id, (_typ, val))| (id, val)).collect();
 
         Program {
             functions,
@@ -180,7 +190,7 @@ impl Context {
             main_function_signature,
             return_location: None,
             return_visibility,
-            globals: self.globals,
+            globals,
             debug_variables: Default::default(),
             debug_functions: Default::default(),
             debug_types: Default::default(),
