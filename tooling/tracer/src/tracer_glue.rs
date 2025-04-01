@@ -154,7 +154,7 @@ fn register_value(
                 ); // TODO: more precise?
                 ValueRecord::Sequence { elements: element_values, type_id, is_slice: false }
             } else {
-                panic!("type-value mismatch: value: {:?} does not match type Bool", value)
+                panic!("type-value mismatch: value: {:?} does not match type Array", value)
             }
         }
         PrintableType::String { length: _ } => {
