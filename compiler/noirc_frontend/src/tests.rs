@@ -620,6 +620,14 @@ macro_rules! check_errors_using_features {
 
 // NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
+macro_rules! check_monomorphization_error {
+    ($src:expr) => {
+        $crate::tests::check_monomorphization_error($src, $crate::function_path!())
+    };
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
 macro_rules! check_monomorphization_error_using_features {
     ($src:expr, $features:expr) => {
         $crate::tests::check_monomorphization_error_using_features(
@@ -4734,6 +4742,7 @@ fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
     check_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_determine_type_of_generic_argument_in_function_call() {
     let src = r#"
@@ -4747,9 +4756,10 @@ fn cannot_determine_type_of_generic_argument_in_function_call() {
     }
 
     "#;
-    check_monomorphization_error(src);
+    check_monomorphization_error!(src);
 }
 
+#[named]
 #[test]
 fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
     let src = r#"
@@ -4763,9 +4773,10 @@ fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
     }
 
     "#;
-    check_monomorphization_error(src);
+    check_monomorphization_error!(src);
 }
 
+#[named]
 #[test]
 fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
     let src = r#"
@@ -4782,5 +4793,5 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 
     "#;
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features!(src, &features);
 }
