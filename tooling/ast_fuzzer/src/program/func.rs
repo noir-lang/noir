@@ -12,7 +12,9 @@ use noirc_frontend::{
 
 use super::{Context, expr::gen_expr_literal};
 
-/// Signature of a functions we can call.
+/// Something akin to a forward declaration of a function, capturing the details required to:
+/// 1. call the function from the other function bodies
+/// 2. generate the final HIR function signature
 pub(super) struct FunctionDeclaration {
     pub name: String,
     pub params: Parameters,

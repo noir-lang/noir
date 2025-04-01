@@ -227,7 +227,6 @@ impl Context {
                 Type::Tuple(types)
             }
             6 | 7 => {
-                // TODO: Are 0-size arrays allowed?
                 let size = u.int_in_range(0..=self.config.max_array_size)?;
                 let typ = self.gen_type(u, max_depth - 1)?;
                 Type::Array(size as u32, Box::new(typ))

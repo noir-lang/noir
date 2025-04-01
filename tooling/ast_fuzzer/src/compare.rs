@@ -17,8 +17,10 @@ pub struct ExecOutput {
 
 type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
 
-/// Result of the comparative execution.
-/// Does not compare results.
+/// Possible outcomes of the differential execution of two equivalent programs.
+///
+/// Use [CompareResult::return_value_or_err] to do the final comparison between
+/// the execution result.
 pub enum CompareResult {
     BothFailed(NargoError<FieldElement>, NargoError<FieldElement>),
     LeftFailed(NargoError<FieldElement>, ExecOutput),
