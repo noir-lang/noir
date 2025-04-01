@@ -3728,24 +3728,7 @@
 <a href="#3727" id="3727">3727</a>
 <a href="#3728" id="3728">3728</a>
 <a href="#3729" id="3729">3729</a>
-<a href="#3730" id="3730">3730</a>
-<a href="#3731" id="3731">3731</a>
-<a href="#3732" id="3732">3732</a>
-<a href="#3733" id="3733">3733</a>
-<a href="#3734" id="3734">3734</a>
-<a href="#3735" id="3735">3735</a>
-<a href="#3736" id="3736">3736</a>
-<a href="#3737" id="3737">3737</a>
-<a href="#3738" id="3738">3738</a>
-<a href="#3739" id="3739">3739</a>
-<a href="#3740" id="3740">3740</a>
-<a href="#3741" id="3741">3741</a>
-<a href="#3742" id="3742">3742</a>
-<a href="#3743" id="3743">3743</a>
-<a href="#3744" id="3744">3744</a>
-<a href="#3745" id="3745">3745</a>
-<a href="#3746" id="3746">3746</a>
-<a href="#3747" id="3747">3747</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file holds the pass to convert from Noir's SSA IR to ACIR.
+<a href="#3730" id="3730">3730</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
 </span><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
@@ -7133,33 +7116,16 @@
     // we will only generate one bytecode and the appropriate Brillig call opcodes are generated.
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>multiple_brillig_stdlib_calls() {
-        <span class="comment">// acir(inline) fn main f0 {
-        //     b0(v0: u32, v1: u32, v2: u32):
-        //       v3 = div v0, v1
-        //       constrain v3 == v2
-        //       v4 = div v1, v2
-        //       constrain v4 == u32 1
-        //       return
-        // }
-        </span><span class="kw">let </span>foo_id = Id::test_new(<span class="number">0</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), foo_id);
-        <span class="kw">let </span>main_v0 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
-        <span class="kw">let </span>main_v1 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
-        <span class="kw">let </span>main_v2 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
-
-        <span class="comment">// Call a primitive operation that uses Brillig
-        </span><span class="kw">let </span>v0_div_v1 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
-        builder.insert_constrain(v0_div_v1, main_v2, <span class="prelude-val">None</span>);
-
-        <span class="comment">// Call the same primitive operation again
-        </span><span class="kw">let </span>v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        <span class="kw">let </span>one = builder.numeric_constant(<span class="number">1u128</span>, NumericType::unsigned(<span class="number">32</span>));
-        builder.insert_constrain(v1_div_v2, one, <span class="prelude-val">None</span>);
-
-        builder.terminate_with_return(<span class="macro">vec!</span>[]);
-
-        <span class="kw">let </span>ssa = builder.finish();
-        <span class="macro">println!</span>(<span class="string">"{}"</span>, ssa);
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+            b0(v0: u32, v1: u32, v2: u32):
+              v3 = div v0, v1
+              constrain v3 == v2
+              v4 = div v1, v2
+              constrain v4 == u32 1
+              return
+        }"</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
         <span class="comment">// The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
