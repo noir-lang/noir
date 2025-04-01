@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743505842848,
+  "lastUpdate": 1743505925131,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14554,85 +14554,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "dc0f1c2b84248f2ced41e6115ee8e25c0fa78dfc",
-          "message": "chore: Fix rustdocs error (#7750)",
-          "timestamp": "2025-03-19T15:03:29Z",
-          "tree_id": "155a498a7168cb321d6a96629cdb9f400246e2e8",
-          "url": "https://github.com/noir-lang/noir/commit/dc0f1c2b84248f2ced41e6115ee8e25c0fa78dfc"
-        },
-        "date": 1742397907006,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
-            "value": 39,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
-            "value": 77,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 42,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 172,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
-            "value": 9,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
-            "value": 165,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 53,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-bignum_",
-            "value": 82,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_bigcurve_",
-            "value": 210,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_sha512_",
-            "value": 25,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -19307,6 +19228,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "zkemail_zkemail.nr_lib",
             "value": 2,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "632252d427fd2b8b22ce655a7601178ad31c3437",
+          "message": "feat: Remove range constraints on witnesses when use as array index is more restrictive (#7848)",
+          "timestamp": "2025-04-01T10:49:15Z",
+          "tree_id": "83eaacf49a182a1a5706572f4f2c135f6246a61e",
+          "url": "https://github.com/noir-lang/noir/commit/632252d427fd2b8b22ce655a7601178ad31c3437"
+        },
+        "date": 1743505920804,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 38,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 77,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 48,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 167,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
+            "value": 10,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 160,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 54,
+            "unit": "s"
+          },
+          {
+            "name": "Mach-34_noir-zk-regex_packages_noir",
+            "value": 16,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_bigcurve_",
+            "value": 226,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_json_parser_",
+            "value": 9,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_sha512_",
+            "value": 24,
+            "unit": "s"
+          },
+          {
+            "name": "olehmisar_noir_webauthn_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "zkemail_noir-jwt_",
+            "value": 3,
+            "unit": "s"
+          },
+          {
+            "name": "zkemail_zkemail.nr_lib",
+            "value": 1,
             "unit": "s"
           }
         ]
