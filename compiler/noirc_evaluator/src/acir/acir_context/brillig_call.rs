@@ -10,11 +10,11 @@ use acvm::{
 };
 use iter_extended::{try_vecmap, vecmap};
 
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
-use crate::{acir::acir_variable::AcirContext, brillig::brillig_ir::artifact::GeneratedBrillig};
 
-use super::acir_variable::{AcirType, AcirVar};
 use super::generated_acir::BrilligStdlibFunc;
+use super::{AcirContext, AcirType, AcirVar};
 use super::{AcirDynamicArray, AcirValue};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {

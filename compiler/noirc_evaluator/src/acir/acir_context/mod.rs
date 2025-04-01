@@ -1,3 +1,13 @@
+//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+//! of type information from SSA in order to allow efficient ACIR-gen.
+//!
+//! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
+//! layer of ACIR-gen is aware of a small amount of SSA type information in order to ensure that the generated ACIR
+//! is correct and for optimizations.
+//!
+//! [`AcirContext`] also tracks [`Expression`]s which have been simplified into a [`Witness`], or constant witnesses
+//! allowing these to be reused later in the program.
+
 use acvm::{
     BlackBoxFunctionSolver,
     acir::{
@@ -20,9 +30,16 @@ use crate::ssa::ir::{
     call_stack::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
 };
 
-use super::big_int::BigIntContext;
-use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
-use super::{AcirDynamicArray, AcirValue, brillig_directive};
+mod big_int;
+mod black_box;
+mod brillig_call;
+mod generated_acir;
+
+use super::{AcirDynamicArray, AcirValue};
+use big_int::BigIntContext;
+use generated_acir::PLACEHOLDER_BRILLIG_INDEX;
+
+pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.
@@ -332,7 +349,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         }
 
         // Compute the inverse with brillig code
-        let inverse_code = brillig_directive::directive_invert();
+        let inverse_code = BrilligStdlibFunc::Inverse.get_generated_brillig();
 
         let results = self.brillig_call(
             predicate,
@@ -859,7 +876,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let [q_value, r_value]: [AcirValue; 2] = self
             .brillig_call(
                 predicate,
-                &brillig_directive::directive_quotient(),
+                &BrilligStdlibFunc::Quotient.get_generated_brillig(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
