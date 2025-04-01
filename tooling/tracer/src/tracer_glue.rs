@@ -130,6 +130,19 @@ fn register_value(
                 panic!("type-value mismatch: value: {:?} does not match type Bool", value)
             }
         }
+        PrintableType::Slice { typ } => {
+            if let PrintableValue::Vec { array_elements, is_slice } = value {
+                if !is_slice {
+                    panic!("value of is_slice: {:?} does not match type Slice", value)
+                }
+                let element_values: Vec<ValueRecord> =
+                    array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
+                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Slice, "&[..]");
+                ValueRecord::Sequence { elements: element_values, type_id, is_slice: true }
+            } else {
+                panic!("type-value mismatch: value: {:?} does not match type Slice", value)
+            }
+        }
         PrintableType::Array { length, typ } => {
             if let PrintableValue::Vec { array_elements, is_slice } = value {
                 let element_values: Vec<ValueRecord> =
