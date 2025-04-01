@@ -21,8 +21,8 @@ noirc_evaluator.workspace = true
 noir_ast_fuzzer = { path = ".." }
 
 [[bin]]
-name = "initial_vs_final"
-path = "fuzz_targets/initial_vs_final.rs"
+name = "init_vs_final"
+path = "fuzz_targets/init_vs_final.rs"
 test = false
 doc = false
 bench = false

@@ -40,14 +40,14 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
                 program,
                 &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MIN, ..options.clone() },
             )
-            .expect("create_program 1")
+            .expect("create_program init")
         },
         |program| {
             ssa::create_program(
                 program,
                 &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MAX, ..options.clone() },
             )
-            .expect("create_program 2")
+            .expect("create_program final")
         },
     )?;
 

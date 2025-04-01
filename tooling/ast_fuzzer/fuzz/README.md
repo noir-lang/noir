@@ -8,5 +8,5 @@ Execute it with the following command:
 
 ```shell
 cd tooling/ast_fuzzer
-cargo +nightly fuzz <target> ast -- -runs=1000 -max_total_time=60
+cargo +nightly fuzz run <target> --release -- -runs=1000 -max_total_time=60
 ```
