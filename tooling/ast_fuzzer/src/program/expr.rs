@@ -24,28 +24,35 @@ pub(crate) fn gen_expr_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::R
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
-            let (field, is_negative) = if signedness.is_signed() {
-                match integer_bit_size {
-                    One => bool::arbitrary(u).map(|n| (Field::from(n), false))?,
-                    Eight => i8::arbitrary(u).map(|n| (Field::from(n.abs() as u32), n < 0))?,
-                    Sixteen => i16::arbitrary(u).map(|n| (Field::from(n.abs() as u32), n < 0))?,
-                    ThirtyTwo => i32::arbitrary(u).map(|n| (Field::from(n.abs() as u32), n < 0))?,
-                    SixtyFour => i64::arbitrary(u).map(|n| (Field::from(n.abs() as u64), n < 0))?,
-                    HundredTwentyEight => {
-                        i128::arbitrary(u).map(|n| (Field::from(n.abs() as u128), n < 0))?
+            let (field, is_negative) =
+                if signedness.is_signed() {
+                    match integer_bit_size {
+                        One => bool::arbitrary(u).map(|n| (Field::from(n), false))?,
+                        Eight => i8::arbitrary(u)
+                            .map(|n| (Field::from(n.unsigned_abs() as u32), n < 0))?,
+                        Sixteen => i16::arbitrary(u)
+                            .map(|n| (Field::from(n.unsigned_abs() as u32), n < 0))?,
+                        ThirtyTwo => {
+                            i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
+                        }
+                        SixtyFour => {
+                            i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
+                        }
+                        HundredTwentyEight => {
+                            i128::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
+                        }
                     }
-                }
-            } else {
-                let f = match integer_bit_size {
-                    One => Field::from(bool::arbitrary(u)?),
-                    Eight => Field::from(u8::arbitrary(u)? as u32),
-                    Sixteen => Field::from(u16::arbitrary(u)? as u32),
-                    ThirtyTwo => Field::from(u32::arbitrary(u)?),
-                    SixtyFour => Field::from(u64::arbitrary(u)?),
-                    HundredTwentyEight => Field::from(u128::arbitrary(u)?),
+                } else {
+                    let f = match integer_bit_size {
+                        One => Field::from(bool::arbitrary(u)?),
+                        Eight => Field::from(u8::arbitrary(u)? as u32),
+                        Sixteen => Field::from(u16::arbitrary(u)? as u32),
+                        ThirtyTwo => Field::from(u32::arbitrary(u)?),
+                        SixtyFour => Field::from(u64::arbitrary(u)?),
+                        HundredTwentyEight => Field::from(u128::arbitrary(u)?),
+                    };
+                    (f, false)
                 };
-                (f, false)
-            };
 
             Expression::Literal(Literal::Integer(
                 SignedField { field, is_negative },
