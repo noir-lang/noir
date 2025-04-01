@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["RangeOptimizer"]};
+window.SIDEBAR_ITEMS = {"fn":["memory_block_implied_max_bits"],"struct":["RangeOptimizer"]};

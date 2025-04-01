@@ -279,36 +279,169 @@
 <a href="#278" id="278">278</a>
 <a href="#279" id="279">279</a>
 <a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="doccomment">//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
+//! which doesn't result in additional restrictions on the value of witnesses.
+//!
+//! Suppose we had the following pseudo-code:
+//!
+//! ```noir
+//! let z1 = x as u16;
+//! let z2 = x as u32;
+//! ```
+//! It is clear that if `x` fits inside of a 16-bit integer,
+//! it must also fit inside of a 32-bit integer.
+//!
+//! The generated ACIR may produce two range opcodes however;
+//! - One for the 16 bit range constraint of `x`
+//! - One for the 32-bit range constraint of `x`
+//!
+//! This optimization pass will keep the 16-bit range constraint
+//! and remove the 32-bit range constraint opcode.
+//!
+//! # Implicit range constraints
+//!
+//! We also consider implicit range constraints on witnesses - constraints other than [BlackBoxFunc::Range]
+//! which limit the size of a witness.
+//!
+//! ## Constant assignments
+//!
+//! The most obvious of these are when a witness is constrained to be equal to a constant value.
+//!
+//! ```noir
+//! let z1 = x as u16;
+//! assert_eq(z1, 100);
+//! ```
+//!
+//! We can consider the assertion that `z1 == 100` to be equivalent to a range constraint for `z1` to fit within
+//! 7 bits (the minimum necessary to hold the value `100`).
+//!
+//! ## Array indexing
+//!
+//! Another situation which adds an implicit range constraint are array indexing, for example in the program:
+//!
+//! ```noir
+//! fn main(index: u32) -&gt; pub Field {
+//!     let array: [Field; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+//!     array[index]
+//! }
+//! ```
+//!
+//! Here the variable `index` is range constrained to fit within 32 bits by the `u32` type however
+//! it's constrained more restrictively by the length of `array`. If `index` were 10 or greater then
+//! it would result in a read past the end of the array, which is invalid. We can then remove the explicit
+//! range constraint on `index` as the usage as an array index more tightly constrains its value.
+//!
+//! [BlackBoxFunc::Range]: acir::circuit::black_box_functions::BlackBoxFunc::RANGE
+
+</span><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
+        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
     },
     native_types::Witness,
 };
-<span class="kw">use </span>std::collections::{BTreeMap, HashSet};
+<span class="kw">use </span>std::collections::{BTreeMap, HashMap, HashSet};
 
-<span class="doccomment">/// `RangeOptimizer` will remove redundant range constraints.
-///
-/// # Example
-///
-/// Suppose we had the following pseudo-code:
-///
-/// ```noir
-/// let z1 = x as u16;
-/// let z2 = x as u32;
-/// ```
-/// It is clear that if `x` fits inside of a 16-bit integer,
-/// it must also fit inside of a 32-bit integer.
-///
-/// The generated ACIR may produce two range opcodes however;
-/// - One for the 16 bit range constraint of `x`
-/// - One for the 32-bit range constraint of `x`
-///
-/// This optimization pass will keep the 16-bit range constraint
-/// and remove the 32-bit range constraint opcode.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RangeOptimizer&lt;F: AcirField&gt; {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RangeOptimizer&lt;F: AcirField&gt; {
     <span class="doccomment">/// Maps witnesses to their lowest known bit sizes.
     </span>lists: BTreeMap&lt;Witness, u32&gt;,
     circuit: Circuit&lt;F&gt;,
@@ -330,6 +463,7 @@
     /// be 16 bits.
     </span><span class="kw">fn </span>collect_ranges(circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; BTreeMap&lt;Witness, u32&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>witness_to_bit_sizes: BTreeMap&lt;Witness, u32&gt; = BTreeMap::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>memory_block_lengths_bit_size: HashMap&lt;BlockId, u32&gt; = HashMap::new();
 
         <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {
             <span class="kw">let </span><span class="prelude-val">Some</span>((witness, num_bits)) = (<span class="kw">match </span>opcode {
@@ -360,6 +494,23 @@
                     } <span class="kw">else </span>{
                         <span class="prelude-val">None
                     </span>}
+                }
+
+                Opcode::MemoryInit { block_id, init, .. } =&gt; {
+                    memory_block_lengths_bit_size
+                        .insert(<span class="kw-2">*</span>block_id, memory_block_implied_max_bits(init));
+                    <span class="prelude-val">None
+                </span>}
+
+                Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } =&gt; {
+                    index.to_witness().map(|witness| {
+                        (
+                            witness,
+                            <span class="kw-2">*</span>memory_block_lengths_bit_size
+                                .get(block_id)
+                                .expect(<span class="string">"memory must be initialized before any reads/writes"</span>),
+                        )
+                    })
                 }
 
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -438,19 +589,38 @@
     }
 }
 
+<span class="kw">fn </span>memory_block_implied_max_bits(init: <span class="kw-2">&amp;</span>[Witness]) -&gt; u32 {
+    <span class="kw">let </span>array_len = init.len() <span class="kw">as </span>u32;
+    <span class="number">32 </span>- array_len.leading_zeros()
+}
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::collections::BTreeSet;
 
-    <span class="kw">use </span><span class="kw">crate</span>::compiler::optimizers::redundant_range::RangeOptimizer;
+    <span class="kw">use </span><span class="kw">crate</span>::compiler::optimizers::redundant_range::{
+        RangeOptimizer, memory_block_implied_max_bits,
+    };
     <span class="kw">use </span>acir::{
         FieldElement,
         circuit::{
             Circuit, ExpressionWidth, Opcode, PublicInputs,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
     };
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>correctly_calculates_memory_block_implied_max_bits() {
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[]), <span class="number">0</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">1</span>]), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">2</span>]), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">3</span>]), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">4</span>]), <span class="number">3</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">8</span>]), <span class="number">4</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); u8::MAX <span class="kw">as </span>usize]), <span class="number">8</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); u16::MAX <span class="kw">as </span>usize]), <span class="number">16</span>);
+    }
 
     <span class="kw">fn </span>test_circuit(ranges: Vec&lt;(Witness, u32)&gt;) -&gt; Circuit&lt;FieldElement&gt; {
         <span class="kw">fn </span>test_range_constraint(witness: Witness, num_bits: u32) -&gt; Opcode&lt;FieldElement&gt; {
@@ -558,6 +728,32 @@
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">0</span>], Opcode::AssertZero(Witness(<span class="number">1</span>).into()));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>array_implied_ranges() {
+        <span class="comment">// The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">16</span>)]);
+
+        <span class="kw">let </span>mem_init = Opcode::MemoryInit {
+            block_id: BlockId(<span class="number">0</span>),
+            init: <span class="macro">vec!</span>[Witness(<span class="number">0</span>); <span class="number">8</span>],
+            block_type: BlockType::Memory,
+        };
+        <span class="kw">let </span>mem_op = Opcode::MemoryOp {
+            block_id: BlockId(<span class="number">0</span>),
+            op: MemOp::read_at_mem_index(Witness(<span class="number">1</span>).into(), Witness(<span class="number">2</span>)),
+            predicate: <span class="prelude-val">None</span>,
+        };
+
+        circuit.opcodes.push(mem_init.clone());
+        circuit.opcodes.push(mem_op.clone());
+        <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit);
+        <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">0</span>], mem_init);
+        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">1</span>], mem_op);
     }
 }
 </code></pre></div></section></main></body></html>
