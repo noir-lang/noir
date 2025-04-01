@@ -181,6 +181,10 @@ fn register_value(
                 panic!("type-value mismatch: value: {:?} does not match type Struct", value);
             }
         }
+        PrintableType::Unit => {
+            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Raw, "()");
+            ValueRecord::Raw { r: "()".to_string(), type_id: type_id }
+        }
         _ => {
             // TODO(stanm): cover all types and remove `warn!`.
             warn!("not implemented yet: type that is not Field: {:?}", typ);
