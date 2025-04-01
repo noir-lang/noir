@@ -177,6 +177,7 @@ fn increment_parameter_rcs(parameters: &Parameters) -> Vec<(String, Type, Expres
             name,
             &mut seen_array_types,
             &mut new_bindings,
+            false,
         );
     }
 
@@ -200,67 +201,60 @@ fn recur_on_parameter<'typ>(
     parameter_name: &str,
     seen_array_types: &mut HashSet<&'typ Type>,
     new_bindings: &mut Vec<(String, Type, Expression)>,
+    passed_reference: bool,
 ) {
     match parameter_type {
         // These types never contain arrays
         Type::Field | Type::Integer(..) | Type::Bool | Type::Unit | Type::Function(..) => (),
 
-        Type::Array(_, element_type) | Type::Slice(element_type) => {
-            seen_array_types.insert(parameter_type);
-            // Don't clone inside arrays, but still look for more array types
-            recur_on_parameter(None, element_type, parameter_name, seen_array_types, new_bindings);
-        }
-        Type::String(_) | Type::FmtString(..) => {
-            seen_array_types.insert(parameter_type);
+        Type::Array(..) | Type::Slice(_) | Type::String(_) | Type::FmtString(..) => {
+            // If we've already seen this type and this is behind a reference
+            if !seen_array_types.insert(parameter_type) && passed_reference {
+                if let Some(parameter) = parameter {
+                    new_bindings.push((
+                        parameter_name.to_string(),
+                        parameter_type.clone(),
+                        parameter,
+                    ));
+                }
+            }
+
+            // Don't recur on the element type here, we rely on the reference count to already be
+            // incremented in the nested array case when the nested array is created.
         }
 
         Type::Tuple(fields) => {
             for (i, field) in fields.iter().enumerate() {
                 let expr = parameter.clone().map(|p| Expression::ExtractTupleField(Box::new(p), i));
-                recur_on_parameter(expr, field, parameter_name, seen_array_types, new_bindings);
+                recur_on_parameter(
+                    expr,
+                    field,
+                    parameter_name,
+                    seen_array_types,
+                    new_bindings,
+                    passed_reference,
+                );
             }
         }
 
         Type::Reference(element_type, _mutable) => {
-            if let Some(array) = inner_array_or_slice_type(element_type) {
-                if let Some(parameter) = parameter {
-                    // Check if the parameter type has been seen before
-                    if !seen_array_types.insert(array) {
-                        let typ = element_type.as_ref().clone();
-                        let expr = Expression::Unary(Unary {
-                            operator: UnaryOp::Dereference { implicitly_added: true },
-                            rhs: Box::new(parameter),
-                            result_type: typ.clone(),
-                            location: Location::dummy(), // TODO
-                        });
-                        new_bindings.push((parameter_name.to_string(), typ, expr));
-                    }
-                }
-            }
+            let expr = parameter.map(|parameter| {
+                Expression::Unary(Unary {
+                    operator: UnaryOp::Dereference { implicitly_added: true },
+                    rhs: Box::new(parameter.clone()),
+                    result_type: element_type.as_ref().clone(),
+                    location: Location::dummy(), // TODO
+                })
+            });
+            recur_on_parameter(
+                expr,
+                element_type,
+                parameter_name,
+                seen_array_types,
+                new_bindings,
+                true,
+            );
         }
-    }
-}
-
-/// Return the inner array, slice, string, or fmtstring type if it exists.
-fn inner_array_or_slice_type(typ: &Type) -> Option<&Type> {
-    match typ {
-        Type::Field | Type::Integer(..) | Type::Bool | Type::Function(..) | Type::Unit => None,
-
-        Type::Array(_, _) | Type::Slice(_) | Type::String(_) | Type::FmtString(..) => Some(typ),
-
-        Type::Tuple(elems) => {
-            for elem in elems {
-                if let Some(target) = inner_array_or_slice_type(elem) {
-                    return Some(target);
-                }
-            }
-            None
-        }
-
-        // The existing SSA code still checked nested references for
-        // array types. These probably shouldn't be needed for cloning
-        // purposes but are kept for now to avoid differences with the existing code.
-        Type::Reference(element, _) => inner_array_or_slice_type(element),
     }
 }
 
