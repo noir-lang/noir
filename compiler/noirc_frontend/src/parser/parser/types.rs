@@ -628,6 +628,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_double_reference_type() {
+        let src = "&&Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
     fn parses_named_type_no_generics() {
         let src = "foo::Bar";
         let typ = parse_type_no_errors(src);
@@ -663,6 +673,20 @@ mod tests {
     fn parses_array_type() {
         let src = "[Field; 10]";
         let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
+            panic!("Expected an array type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(expr.to_string(), "10");
+    }
+
+    #[test]
+    fn parses_reference_to_array_type() {
+        let src = "&[Field; 10]";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference typ");
+        };
         let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
             panic!("Expected an array type")
         };
