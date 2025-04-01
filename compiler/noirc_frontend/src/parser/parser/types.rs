@@ -59,7 +59,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parses_mutable_reference_type() {
+        if let Some(typ) = self.parse_reference_type() {
             return Some(typ);
         }
 
@@ -371,7 +371,7 @@ impl Parser<'_> {
         None
     }
 
-    fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_reference_type(&mut self) -> Option<UnresolvedTypeData> {
         // The `&` may be lexed as a slice start if this is an array or slice type
         if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
             let mutable = self.eat_keyword(Keyword::Mut);
