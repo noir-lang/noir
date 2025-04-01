@@ -372,6 +372,19 @@ impl Parser<'_> {
     }
 
     fn parse_reference_type(&mut self) -> Option<UnresolvedTypeData> {
+        let start_location = self.current_token_location;
+
+        // This is '&&', which in this context is a double reference type
+        if self.eat(Token::LogicalAnd) {
+            let mutable = self.eat_keyword(Keyword::Mut);
+            let inner_type =
+                UnresolvedTypeData::Reference(Box::new(self.parse_type_or_error()), mutable);
+            let inner_type =
+                UnresolvedType { typ: inner_type, location: self.location_since(start_location) };
+            let typ = UnresolvedTypeData::Reference(Box::new(inner_type), false /* mutable */);
+            return Some(typ);
+        }
+
         // The `&` may be lexed as a slice start if this is an array or slice type
         if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
             let mutable = self.eat_keyword(Keyword::Mut);
@@ -634,7 +647,17 @@ mod tests {
         let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
             panic!("Expected a reference type")
         };
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(typ.typ.to_string(), "&Field");
+    }
+
+    #[test]
+    fn parses_double_reference_mutable_type() {
+        let src = "&&mut Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference type")
+        };
+        assert_eq!(typ.typ.to_string(), "&mut Field");
     }
 
     #[test]
