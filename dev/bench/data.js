@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743505827737,
+  "lastUpdate": 1743505842848,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8165,70 +8165,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "49c56a52ebabfecab85d3bade61ae50b9e7e49ed",
-          "message": "feat: add `EmbeddedCurvePoint::generator()` to return generator point (#7754)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-03-20T12:11:39Z",
-          "tree_id": "185c990564d5da1452f8a5a944358ad946203c73",
-          "url": "https://github.com/noir-lang/noir/commit/49c56a52ebabfecab85d3bade61ae50b9e7e49ed"
-        },
-        "date": 1742473954950,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.069,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.286,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.734,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.49,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "a46f05f84beec3f6ebf1f289a9512fa064652fe6",
           "message": "fix: add missing inputs to `BlackBoxFuncCall::get_inputs_vec` for EcAdd (#7752)",
           "timestamp": "2025-03-20T13:05:25Z",
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "632252d427fd2b8b22ce655a7601178ad31c3437",
+          "message": "feat: Remove range constraints on witnesses when use as array index is more restrictive (#7848)",
+          "timestamp": "2025-04-01T10:49:15Z",
+          "tree_id": "83eaacf49a182a1a5706572f4f2c135f6246a61e",
+          "url": "https://github.com/noir-lang/noir/commit/632252d427fd2b8b22ce655a7601178ad31c3437"
+        },
+        "date": 1743505838590,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.078,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.303,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.03,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.794,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.532,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.027,
             "unit": "s"
           }
         ]
