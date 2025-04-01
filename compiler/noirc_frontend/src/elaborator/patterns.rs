@@ -531,7 +531,7 @@ impl Elaborator<'_> {
     ) -> Vec<Type> {
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
         vecmap(kinds_with_types, |(kind, unresolved_type)| {
-            self.resolve_type_inner(unresolved_type, &kind)
+            self.use_type_with_kind(unresolved_type, &kind)
         })
     }
 
@@ -874,7 +874,7 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let location = path.item.location();
         let object_location = path.typ.location;
-        let typ = self.resolve_type(path.typ);
+        let typ = self.use_type(path.typ);
         let check_self_param = false;
 
         self.interner.push_type_ref_location(&typ, object_location);
@@ -895,7 +895,7 @@ impl Elaborator<'_> {
             .expect("Expected trait function to be a DefinitionKind::Function");
 
         let generics =
-            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, location).0);
+            path.turbofish.map(|turbofish| self.use_type_args(turbofish, func_id, location).0);
 
         let id = self.interner.function_definition_id(func_id);
 
