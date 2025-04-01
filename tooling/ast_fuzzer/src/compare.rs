@@ -123,7 +123,7 @@ impl<P> CompareSsa<P> {
         };
 
         let (res1, print1) = do_exec(&self.ssa1.program);
-        let (res2, print2) = do_exec(&self.ssa1.program);
+        let (res2, print2) = do_exec(&self.ssa2.program);
 
         CompareResult::new(&self.abi, (res1, print1), (res2, print2))
     }
