@@ -34,7 +34,7 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         u,
         Config::default(),
         |_u, program| {
-            // TODO: Perform random mutations
+            // TODO(#7875): Perform random mutations
             Ok(program.clone())
         },
         |program| create_ssa_or_die(program, &options, None),

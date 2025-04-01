@@ -83,8 +83,8 @@ impl Context {
         _i: usize,
     ) -> arbitrary::Result<(Type, Expression)> {
         let typ = self.gen_type(u, self.config.max_depth)?;
-        // TODO: Can we use binary expressions here? Trying it out on a few examples
-        // resulted in the compiler already evaluating such expressions into literals.
+        // TODO(7878): Can we use e.g. binary expressions here? Based on a few examples
+        // it looked like the compiler already evaluated such expressions into literals.
         let val = gen_expr_literal(u, &typ)?;
         Ok((typ, val))
     }
