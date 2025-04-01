@@ -1,6 +1,6 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use super::ast::{Definition, Expression, Function, LValue, While};
+use super::ast::{Definition, Expression, Function, GlobalId, LValue, While};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
@@ -10,6 +10,19 @@ pub struct AstPrinter {
 }
 
 impl AstPrinter {
+    pub fn print_global(
+        &mut self,
+        id: &GlobalId,
+        expr: &Expression,
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
+        // At the moment globals don't carry their name, nor a type.
+        write!(f, "global $g{} = ", id.0)?;
+        self.print_expr(expr, f)?;
+        write!(f, ";")?;
+        self.next_line(f)
+    }
+
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
             format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)

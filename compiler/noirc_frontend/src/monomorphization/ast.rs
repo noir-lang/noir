@@ -433,8 +433,12 @@ impl std::ops::IndexMut<FuncId> for Program {
 
 impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut printer = super::printer::AstPrinter::default();
+        for (id, expr) in &self.globals {
+            printer.print_global(id, expr, f)?;
+        }
         for function in &self.functions {
-            super::printer::AstPrinter::default().print_function(function, f)?;
+            printer.print_function(function, f)?;
         }
         Ok(())
     }
