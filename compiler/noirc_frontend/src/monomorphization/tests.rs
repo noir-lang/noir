@@ -1,24 +1,8 @@
 #![cfg(test)]
 use crate::{
-    elaborator::UnstableFeature,
-    tests::{check_monomorphization_error_using_features, get_program},
+    elaborator::UnstableFeature, test_utils::get_monomorphized,
+    tests::check_monomorphization_error_using_features,
 };
-
-use super::{ast::Program, errors::MonomorphizationError, monomorphize};
-
-pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = get_program(src);
-    assert!(
-        errors.iter().all(|err| !err.is_error()),
-        "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
-    );
-
-    let main = context
-        .get_main_function(context.root_crate_id())
-        .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
-
-    monomorphize(main, &mut context.def_interner, false)
-}
 
 fn check_rewrite(src: &str, expected: &str) {
     let program = get_monomorphized(src).unwrap();

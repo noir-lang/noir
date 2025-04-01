@@ -1,5 +1,6 @@
 pub(crate) mod context;
 mod program;
+mod tests;
 mod value;
 
 use acvm::AcirField;

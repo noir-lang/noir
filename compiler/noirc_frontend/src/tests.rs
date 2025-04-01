@@ -17,45 +17,20 @@ mod visibility;
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
 use std::collections::HashMap;
-use std::path::Path;
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::test_utils::{get_program, get_program_with_options};
 
-use iter_extended::vecmap;
 use noirc_errors::reporter::report_all;
-use noirc_errors::{CustomDiagnostic, Location, Span};
+use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::hir::Context;
 use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::hir::def_map::ModuleData;
 use crate::node_interner::{NodeInterner, StmtId};
 
-use crate::hir::def_collector::dc_crate::DefCollector;
-use crate::hir::def_map::CrateDefMap;
+use crate::ParsedModule;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
-use crate::parser::{ItemKind, ParserErrorReason};
-use crate::token::SecondaryAttribute;
-use crate::{ParsedModule, parse_program};
-use fm::FileManager;
-
-pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
-    errors.iter().any(|e| matches!(e, CompilationError::ParseError(_)))
-}
-
-pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
-    errors.retain(|error| match error {
-        CompilationError::ParseError(error) => {
-            !matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(..)))
-        }
-        _ => true,
-    });
-}
-
-pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
-    let allow_parser_errors = false;
-    get_program_with_options(src, allow_parser_errors, FrontendOptions::test_default())
-}
 
 pub(crate) fn get_program_using_features(
     src: &str,
@@ -65,63 +40,6 @@ pub(crate) fn get_program_using_features(
     let mut options = FrontendOptions::test_default();
     options.enabled_unstable_features = features;
     get_program_with_options(src, allow_parser_errors, options)
-}
-
-/// Compile a program.
-///
-/// The stdlib is not available for these snippets.
-pub(crate) fn get_program_with_options(
-    src: &str,
-    allow_parser_errors: bool,
-    options: FrontendOptions,
-) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
-    let root = std::path::Path::new("/");
-    let mut fm = FileManager::new(root);
-    let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
-    let mut context = Context::new(fm, Default::default());
-
-    context.def_interner.populate_dummy_operator_traits();
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-
-    let (program, parser_errors) = parse_program(src, root_file_id);
-    let mut errors = vecmap(parser_errors, |e| e.into());
-    remove_experimental_warnings(&mut errors);
-
-    if allow_parser_errors || !has_parser_error(&errors) {
-        let inner_attributes: Vec<SecondaryAttribute> = program
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let ItemKind::InnerAttribute(attribute) = &item.kind {
-                    Some(attribute.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let location = Location::new(Default::default(), root_file_id);
-        let root_module = ModuleData::new(
-            None,
-            location,
-            Vec::new(),
-            inner_attributes.clone(),
-            false, // is contract
-            false, // is struct
-        );
-
-        let def_map = CrateDefMap::new(root_crate_id, root_module);
-
-        // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect_crate_and_dependencies(
-            def_map,
-            &mut context,
-            program.clone().into_sorted(),
-            root_file_id,
-            options,
-        ));
-    }
-    (program, context, errors)
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {

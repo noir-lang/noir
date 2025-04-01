@@ -5,7 +5,7 @@ use acvm::{AcirField, FieldElement};
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::monomorphization::tests::get_monomorphized;
+use crate::test_utils::get_monomorphized;
 use crate::tests::assert_no_errors;
 
 #[test]
