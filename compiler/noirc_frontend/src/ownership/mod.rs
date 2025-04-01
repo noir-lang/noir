@@ -69,10 +69,10 @@ fn handle_ownership_in_function(function: &mut Function, local_id: &mut u32) {
         return;
     }
 
-    let new_bindings = increment_parameter_rcs(&function.parameters);
+    let new_bindings = collect_parameters_to_clone(&function.parameters);
     handle_expression(&mut function.body);
 
-    // Prepend new_clones to the function body and insert drops for them at the end.
+    // Prepend new_bindings to the function body and insert drops for them at the end.
     if !new_bindings.is_empty() {
         let unit = Expression::Literal(Literal::Unit);
         let old_body = std::mem::replace(&mut function.body, unit);
@@ -145,9 +145,11 @@ fn next_local_id(current_local_id: &mut u32) -> LocalId {
     LocalId(next)
 }
 
-/// Increment any parameter reference counts necessary. Returns a vector of new
-/// clones to prepend to a function - if any.
-fn increment_parameter_rcs(parameters: &Parameters) -> Vec<(String, Type, Expression)> {
+/// Returns a vector of new parameters to prepend clones to a function - if any.
+/// Note that these may be full expressions e.g. `*param.field` so they should
+/// be stored in a let binding before being cloned to ensure that a later drop
+/// would be to the same value.
+fn collect_parameters_to_clone(parameters: &Parameters) -> Vec<(String, Type, Expression)> {
     let mut seen_array_types = HashSet::default();
     let mut new_bindings = Vec::new();
 
