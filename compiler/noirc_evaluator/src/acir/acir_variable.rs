@@ -800,6 +800,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         match (lhs_expr.to_const(), rhs_expr.to_const(), predicate_expr.to_const()) {
             // If predicate is zero, `quotient_var` and `remainder_var` will be 0.
             (_, _, Some(predicate_const)) if predicate_const.is_zero() => {
+                debug_assert!(false, "Unexpected zero predicate division in ACIR-gen");
                 return Ok((zero, zero));
             }
 
@@ -816,6 +817,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             // If `rhs` is one then the division is a noop.
             (_, Some(rhs_const), _) if rhs_const.is_one() => {
+                debug_assert!(false, "Unexpected noop division in ACIR-gen");
                 return Ok((lhs, zero));
             }
 
