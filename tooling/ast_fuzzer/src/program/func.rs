@@ -3,10 +3,11 @@ use nargo::errors::Location;
 
 use arbitrary::Unstructured;
 use noirc_frontend::{
+    ast::IntegerBitSize,
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{Expression, FuncId, InlineType, LocalId, Parameters, Type},
     node_interner::DefinitionId,
-    shared::Visibility,
+    shared::{Signedness, Visibility},
 };
 
 use super::{Context, expr::gen_expr_literal};
@@ -123,8 +124,16 @@ impl<'a> FunctionContext<'a> {
 fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     use hir_def::types::{Kind as HirKind, Type as HirType};
 
-    let size_const =
-        |size: u32| Box::new(HirType::Constant(FieldElement::from(size), HirKind::Integer));
+    // Meet the expectations of `Type::evaluate_to_u32`.
+    let size_const = |size: u32| {
+        Box::new(HirType::Constant(
+            FieldElement::from(size),
+            HirKind::Numeric(Box::new(HirType::Integer(
+                Signedness::Unsigned,
+                IntegerBitSize::ThirtyTwo,
+            ))),
+        ))
+    };
 
     match typ {
         Type::Unit => HirType::Unit,
