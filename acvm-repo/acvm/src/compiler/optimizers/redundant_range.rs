@@ -1,3 +1,57 @@
+//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range][^range] opcodes
+//! which doesn't result in additional restrictions on the value of witnesses.
+//!
+//! Suppose we had the following pseudo-code:
+//!
+//! ```noir
+//! let z1 = x as u16;
+//! let z2 = x as u32;
+//! ```
+//! It is clear that if `x` fits inside of a 16-bit integer,
+//! it must also fit inside of a 32-bit integer.
+//!
+//! The generated ACIR may produce two range opcodes however;
+//! - One for the 16 bit range constraint of `x`
+//! - One for the 32-bit range constraint of `x`
+//!
+//! This optimization pass will keep the 16-bit range constraint
+//! and remove the 32-bit range constraint opcode.
+//!
+//! # Implicit range constraints
+//!
+//! We also consider implicit range constraints on witnesses - constraints other than [BlackBoxFunc::Range][^range]
+//! which limit the size of a witness.
+//!
+//! ## Constant assignments
+//!
+//! The most obvious of these are when a witness is constrained to be equal to a constant value.
+//!
+//! ```noir
+//! let z1 = x as u16;
+//! assert_eq(z1, 100);
+//! ```
+//!
+//! We can consider the assertion that `z1 == 100` to be equivalent to a range constraint for `z1` to fit within
+//! 7 bits (the minimum necessary to hold the value `100`).
+//!
+//! # Array indexing
+//!
+//! Another situation which adds an implicit range constraint are array indexing, for example in the program:
+//!
+//! ```noir
+//! fn main(index: u32) -> pub Field {
+//!     let array: [Field; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+//!     array[index]
+//! }
+//! ```
+//!
+//! Here the variable `index` is range constrained to fit within 32 bits by the `u32` type however
+//! it's constrained more restrictively by the length of `array`. If `index` were 10 or greater then
+//! it would result in a read past the end of the array, which is invalid. We can then remove the explicit
+//! range constraint on `index` as the usage as an array index more tightly constrains its value.
+//!
+//! [^range]: [acir::circuit::black_box_functions::BlackBoxFunc::RANGE]
+
 use acir::{
     AcirField,
     circuit::{
@@ -8,25 +62,6 @@ use acir::{
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-/// `RangeOptimizer` will remove redundant range constraints.
-///
-/// # Example
-///
-/// Suppose we had the following pseudo-code:
-///
-/// ```noir
-/// let z1 = x as u16;
-/// let z2 = x as u32;
-/// ```
-/// It is clear that if `x` fits inside of a 16-bit integer,
-/// it must also fit inside of a 32-bit integer.
-///
-/// The generated ACIR may produce two range opcodes however;
-/// - One for the 16 bit range constraint of `x`
-/// - One for the 32-bit range constraint of `x`
-///
-/// This optimization pass will keep the 16-bit range constraint
-/// and remove the 32-bit range constraint opcode.
 pub(crate) struct RangeOptimizer<F: AcirField> {
     /// Maps witnesses to their lowest known bit sizes.
     lists: BTreeMap<Witness, u32>,
