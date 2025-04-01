@@ -192,7 +192,7 @@ mod tests {
 
         if stderr != expected_stderr {
             println!(
-                "stderr does not match expected output. Expected:\n{expected_stderr:?}\n\nActual:\n{stderr:?}"
+                "stderr does not match expected output. Expected:\n{expected_stderr}\n\nActual:\n{stderr}"
             );
             assert_eq!(stderr, expected_stderr);
         }
