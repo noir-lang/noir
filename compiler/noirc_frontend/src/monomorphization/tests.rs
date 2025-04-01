@@ -17,7 +17,7 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
         .get_main_function(context.root_crate_id())
         .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
 
-    monomorphize(main, &mut context.def_interner, false)
+    monomorphize(main, &mut context.def_interner, false, false)
 }
 
 fn check_rewrite(src: &str, expected: &str) {
