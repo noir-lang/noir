@@ -145,6 +145,9 @@ fn register_value(
         }
         PrintableType::Array { length, typ } => {
             if let PrintableValue::Vec { array_elements, is_slice } = value {
+                if *is_slice {
+                    panic!("value of is_slice: {:?} does not match type Array", value)
+                }
                 let element_values: Vec<ValueRecord> =
                     array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
                 let type_name_base = if !is_slice { "Array" } else { "Slice" };
