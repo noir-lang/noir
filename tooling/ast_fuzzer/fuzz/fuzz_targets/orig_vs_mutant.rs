@@ -8,6 +8,7 @@ use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use noir_ast_fuzzer::Config;
 use noir_ast_fuzzer::compare::CompareMutants;
+use noir_ast_fuzzer_fuzz::create_ssa_or_die;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa;
 
@@ -36,7 +37,7 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
             // TODO: Perform random mutations
             Ok(program.clone())
         },
-        |program| ssa::create_program(program, &options).expect("create_program"),
+        |program| create_ssa_or_die(program, &options, None),
     )?;
 
     let result = inputs.exec().wrap_err("exec")?;

@@ -9,6 +9,7 @@ use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use noir_ast_fuzzer::Config;
 use noir_ast_fuzzer::compare::ComparePasses;
+use noir_ast_fuzzer_fuzz::create_ssa_or_die;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa;
 
@@ -36,18 +37,18 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         u,
         Config::default(),
         |program| {
-            ssa::create_program(
+            create_ssa_or_die(
                 program,
                 &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MIN, ..options.clone() },
+                Some("init"),
             )
-            .expect("create_program init")
         },
         |program| {
-            ssa::create_program(
+            create_ssa_or_die(
                 program,
                 &ssa::SsaEvaluatorOptions { inliner_aggressiveness: i64::MAX, ..options.clone() },
+                Some("final"),
             )
-            .expect("create_program final")
         },
     )?;
 
