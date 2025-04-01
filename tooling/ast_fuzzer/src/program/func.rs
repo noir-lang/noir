@@ -149,7 +149,7 @@ fn to_hir_type(typ: &Type) -> hir_def::types::Type {
         Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
         Type::FmtString(_, _)
         | Type::Slice(_)
-        | Type::MutableReference(_)
+        | Type::Reference(_, _)
         | Type::Function(_, _, _, _) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }

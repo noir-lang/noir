@@ -36,13 +36,13 @@ pub fn program_abi(program: &Program) -> Abi {
 /// Check if a type is valid as an ABI parameter for the `main` function.
 fn is_valid_in_abi(typ: &Type) -> bool {
     match typ {
-        Type::Field | Type::Bool | Type::String(_) | Type::Integer(_, _) => true,
-
         Type::Unit
         | Type::FmtString(_, _)
         | Type::Slice(_)
-        | Type::MutableReference(_)
+        | Type::Reference(_, _)
         | Type::Function(_, _, _, _) => false,
+
+        Type::Field | Type::Bool | Type::String(_) | Type::Integer(_, _) => true,
 
         Type::Array(_, typ) => is_valid_in_abi(typ),
         Type::Tuple(items) => items.iter().all(is_valid_in_abi),
