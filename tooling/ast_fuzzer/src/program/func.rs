@@ -86,9 +86,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate the function body.
-    pub fn gen_body(self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // TODO: Generate a random AST using the variables, and return the expected type.
-        gen_expr_literal(u, &self.decl.return_type)
+    pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        self.gen_expr(u, &self.decl.return_type)
     }
 
     /// Local variables currently in scope.
@@ -120,6 +119,14 @@ impl<'a> FunctionContext<'a> {
         let id = LocalId(self.next_local_id);
         self.next_local_id += 1;
         id
+    }
+
+    /// Generate an expression of a certain type.
+    ///
+    /// While doing so, enter and exit blocks, and add variables declared to the context,
+    /// so expressions down the line can refer to earlier variables.
+    fn gen_expr(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+        gen_expr_literal(u, typ)
     }
 }
 
