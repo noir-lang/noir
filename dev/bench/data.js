@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743609645771,
+  "lastUpdate": 1743609648300,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11367,70 +11367,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "5006fa9815ef18d59577447850731a9fefef8438",
-          "message": "chore: unhide `nargo export` command from CLI docs (#7787)",
-          "timestamp": "2025-03-24T17:49:27Z",
-          "tree_id": "f4ab4ff6ad9accd61126586b0bff80486f448a8d",
-          "url": "https://github.com/noir-lang/noir/commit/5006fa9815ef18d59577447850731a9fefef8438"
-        },
-        "date": 1742840453518,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.17,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "507a4531e6a4ac28beafa8d822c11943a26f3837",
           "message": "feat: faster `Field` decomposition (#7788)",
           "timestamp": "2025-03-24T20:34:28Z",
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/41ad634708a8a6af93623b0c2edaa263b46eca03"
         },
         "date": 1743609309386,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 504.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 413.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 293.53,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6b39b1c70930a96f8652a569f92bc5a4fad586e",
+          "message": "feat(parser): improve error recovery when `fn` is missing between mod… (#7884)",
+          "timestamp": "2025-04-02T15:33:01Z",
+          "tree_id": "a9236c4f5b5ff2e1b56e8ce282a49eb73c447734",
+          "url": "https://github.com/noir-lang/noir/commit/f6b39b1c70930a96f8652a569f92bc5a4fad586e"
+        },
+        "date": 1743609643335,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
