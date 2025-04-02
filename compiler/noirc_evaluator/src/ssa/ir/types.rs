@@ -88,19 +88,15 @@ impl NumericType {
 
     pub(crate) fn max_value(&self) -> Result<FieldElement, String> {
         match self {
-            NumericType::Unsigned { bit_size } => {
-                match bit_size {
-                    bit_size if *bit_size > 128 => {
-                        Err("Cannot get max value for unsigned type: bit size is greater than 128"
-                            .to_string())
-                    }
-                    128 => Ok(FieldElement::from(u128::MAX)),
-                    _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            NumericType::Unsigned { bit_size } => match bit_size {
+                bit_size if *bit_size > 128 => {
+                    Err("Cannot get max value for unsigned type: bit size is greater than 128"
+                        .to_string())
                 }
-            }
-            other => {
-                Err(format!("Cannot get max value for type: {other}"))
-            }
+                128 => Ok(FieldElement::from(u128::MAX)),
+                _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            },
+            other => Err(format!("Cannot get max value for type: {other}")),
         }
     }
 }
