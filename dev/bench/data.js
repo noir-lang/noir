@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743626762028,
+  "lastUpdate": 1743626766331,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "20a9084582dba63bb38dea08765f03e8c037df3d",
-          "message": "fix: mark array index as used in DIE pass when replacing read with explicit bounds check (#7786)",
-          "timestamp": "2025-03-25T12:58:03Z",
-          "tree_id": "868b9062ed32c4e971834a193fdd73a7ae398f0e",
-          "url": "https://github.com/noir-lang/noir/commit/20a9084582dba63bb38dea08765f03e8c037df3d"
-        },
-        "date": 1742908652370,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.687,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.6,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.49,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.174,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.184,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.098,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.924,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.935,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.448,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.474,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "90ad693997f66273645a0b8201e3c88d1f910f52",
+          "message": "feat: error if generic type parameter in impl is not mentioned in self type (#6388)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-02T20:24:41Z",
+          "tree_id": "82b92066ebbaef17ba7429490a32b80af7ce6bb1",
+          "url": "https://github.com/noir-lang/noir/commit/90ad693997f66273645a0b8201e3c88d1f910f52"
+        },
+        "date": 1743626761691,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.677,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.501,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.366,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.79,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.146,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.959,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.909,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.45,
             "unit": "s"
           }
         ]
