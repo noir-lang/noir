@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::node_interner::TraitId;
 use crate::token::SecondaryAttribute;
 
-use super::{Documented, GenericTypeArgs, ItemVisibility};
+use super::{Documented, GenericTypeArgs, ItemVisibility, UnresolvedGeneric, UnresolvedTypeData};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -117,7 +117,8 @@ pub enum TraitImplItemKind {
 impl Display for TypeImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         writeln!(f, "impl{} {} {{", generics, self.object_type)?;
 
@@ -276,6 +277,40 @@ impl Display for TraitImplItemKind {
             TraitImplItemKind::Constant(name, typ, value) => {
                 write!(f, "let {name}: {typ} = {value};")
             }
+        }
+    }
+}
+
+/// Moves trait bounds from generics into where clauses. For example:
+///
+/// ```noir
+/// fn foo<T: Trait>(x: T) -> T {}
+/// ```
+///
+/// becomes:
+///
+/// ```noir
+/// fn foo<T>(x: T) -> T where T: Trait {}
+/// ```
+pub(crate) fn desugar_generic_trait_bounds(
+    generics: &mut Vec<UnresolvedGeneric>,
+    where_clause: &mut Vec<UnresolvedTraitConstraint>,
+) {
+    for generic in generics {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
+            continue;
+        };
+
+        if trait_bounds.is_empty() {
+            continue;
+        }
+
+        for trait_bound in std::mem::take(trait_bounds) {
+            let path = Path::from_ident(ident.clone());
+            let typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
+            let typ = UnresolvedType { typ, location: ident.location() };
+            let trait_constraint = UnresolvedTraitConstraint { typ, trait_bound };
+            where_clause.push(trait_constraint);
         }
     }
 }

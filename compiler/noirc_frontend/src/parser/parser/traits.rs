@@ -34,7 +34,7 @@ impl Parser<'_> {
             return (noir_trait, no_implicit_impl);
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
 
         // Trait aliases:
         // trait Foo<..> = A + B + E where ..;

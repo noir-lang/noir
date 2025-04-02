@@ -11,10 +11,18 @@ use crate::{
 use super::{Parser, parse_many::separated_by_comma};
 
 impl Parser<'_> {
+    pub(super) fn parse_generics_disallowing_trait_bounds(&mut self) -> UnresolvedGenerics {
+        self.parse_generics(false)
+    }
+
+    pub(super) fn parse_generics_allowing_trait_bounds(&mut self) -> UnresolvedGenerics {
+        self.parse_generics(true)
+    }
+
     /// Generics = ( '<' GenericsList? '>' )?
     ///
     /// GenericsList = Generic ( ',' Generic )* ','?
-    pub(super) fn parse_generics(&mut self) -> UnresolvedGenerics {
+    fn parse_generics(&mut self, allow_trait_bounds: bool) -> UnresolvedGenerics {
         if !self.eat_less() {
             return Vec::new();
         }
@@ -22,12 +30,12 @@ impl Parser<'_> {
         self.parse_many(
             "generic parameters",
             separated_by_comma().until(Token::Greater),
-            Self::parse_generic_in_list,
+            |parser| parser.parse_generic_in_list(allow_trait_bounds),
         )
     }
 
-    fn parse_generic_in_list(&mut self) -> Option<UnresolvedGeneric> {
-        if let Some(generic) = self.parse_generic() {
+    fn parse_generic_in_list(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
+        if let Some(generic) = self.parse_generic(allow_trait_bounds) {
             Some(generic)
         } else {
             self.expected_label(ParsingRuleLabel::GenericParameter);
@@ -39,8 +47,8 @@ impl Parser<'_> {
     ///     = VariableGeneric
     ///     | NumericGeneric
     ///     | ResolvedGeneric
-    fn parse_generic(&mut self) -> Option<UnresolvedGeneric> {
-        if let Some(generic) = self.parse_variable_generic() {
+    fn parse_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
+        if let Some(generic) = self.parse_variable_generic(allow_trait_bounds) {
             return Some(generic);
         }
 
@@ -56,9 +64,13 @@ impl Parser<'_> {
     }
 
     /// VariableGeneric = identifier ( ':' TraitBounds ) ?
-    fn parse_variable_generic(&mut self) -> Option<UnresolvedGeneric> {
+    fn parse_variable_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
         let ident = self.eat_ident()?;
-        let trait_bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
+        let trait_bounds = if allow_trait_bounds && self.eat_colon() {
+            self.parse_trait_bounds()
+        } else {
+            Vec::new()
+        };
         Some(UnresolvedGeneric::Variable(ident, trait_bounds))
     }
 
@@ -180,7 +192,7 @@ mod tests {
 
     fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let generics = parser.parse_generics();
+        let generics = parser.parse_generics(true /* allow trait bounds */);
         expect_no_errors(&parser.errors);
         generics
     }
@@ -279,7 +291,7 @@ mod tests {
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_generics();
+        parser.parse_generics(true);
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
     }
