@@ -88,7 +88,13 @@ impl NumericType {
 
     pub(crate) fn max_value(&self) -> Result<FieldElement, String> {
         match self {
-            NumericType::Unsigned { bit_size } => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            NumericType::Unsigned { bit_size } => {
+                if *bit_size == 128 {
+                    Ok(FieldElement::from(u128::MAX))
+                } else {
+                    Ok(FieldElement::from(2u128.pow(*bit_size) - 1))
+                }
+            }
             NumericType::Signed { bit_size } => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
             NumericType::NativeField => {
                 Err("Cannot get max value for native field type".to_string())
