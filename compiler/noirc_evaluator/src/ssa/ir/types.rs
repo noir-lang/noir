@@ -85,6 +85,16 @@ impl NumericType {
     pub(crate) fn is_unsigned(&self) -> bool {
         matches!(self, NumericType::Unsigned { .. })
     }
+
+    pub(crate) fn max_value(&self) -> Result<FieldElement, String> {
+        match self {
+            NumericType::Unsigned { bit_size } => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            NumericType::Signed { bit_size } => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            NumericType::NativeField => {
+                Err("Cannot get max value for native field type".to_string())
+            }
+        }
+    }
 }
 
 /// All types representable in the IR.
