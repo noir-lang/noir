@@ -51,8 +51,10 @@ use crate::{
     },
 };
 
-use fxhash::FxHashSet as HashSet;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use noirc_errors::Location;
+
+mod last_uses;
 
 impl Program {
     pub(crate) fn handle_ownership(
@@ -60,23 +62,58 @@ impl Program {
         mut next_local_id: u32,
         experimental_ownership_feature: bool,
     ) -> Self {
-        let mut context = Context { experimental_ownership_feature };
         for function in self.functions.iter_mut() {
+            let last_uses = Default::default();
+            let mut context =
+                Context { experimental_ownership_feature, last_uses, variable_use_counts: 0 };
             context.handle_ownership_in_function(function, &mut next_local_id);
         }
-
         self
     }
 }
 
 struct Context {
     experimental_ownership_feature: bool,
+
+    /// Map from each local variable to the last "use instance" of that variable.
+    /// E.g. if the last time a variable is used is the third time it is used (in traversal order)
+    /// then this map will contain the pair `(LocalId(_), 3)`.
+    ///
+    /// Note that when a variable is declared it has 0 uses until the first time it is used after
+    /// being declared where it now has 1 use, etc.
+    ///
+    /// This map is used to move the variable on last use instead of cloning it. Code using this
+    /// should take care to keep track of any loops the variable is used in. E.g. in:
+    /// ```noir
+    /// let x = [1, 2];
+    /// for i in 0 .. 2 {
+    ///     foo(x);
+    /// }
+    /// ```
+    /// The `x` in `foo(x)` should not be counted as a last use since it still must be cloned to
+    /// be used on the next iteration of the loop.
+    ///
+    /// The outer Vec is each loop scope - we always only look at variables declared in the current
+    /// loop scope. Variables declared outside of it should always be cloned when used in loops.
+    /// The inner hashmap maps from id to its last uses in each branch. For most cases this branch
+    /// is just `Branches::Direct { last_use }` but in the case of `if` or `match` expressions, a
+    /// variable may have a last use in each branch which the `Branches` enum tracks.
+    last_uses: Vec<HashMap<LocalId, last_uses::Branches>>,
+
+    /// A counter that goes up each time any variable is used.
+    /// This is used to identify different instances a variable is used so we know
+    /// not to place `.clone()`s on a variable's last use.
+    variable_use_counts: u32,
 }
 
 impl Context {
     fn handle_ownership_in_function(&mut self, function: &mut Function, local_id: &mut u32) {
         if !function.unconstrained {
             return;
+        }
+
+        if self.experimental_ownership_feature {
+            self.find_last_uses_of_variables(function);
         }
 
         self.handle_expression(&mut function.body);
