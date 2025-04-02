@@ -1,5 +1,7 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
+use crate::ast::UnaryOp;
+
 use super::ast::{Definition, Expression, Function, LValue, While};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
@@ -78,6 +80,14 @@ impl AstPrinter {
             }
             Expression::Break => write!(f, "break"),
             Expression::Continue => write!(f, "continue"),
+            Expression::Clone(expr) => {
+                self.print_expr(expr, f)?;
+                write!(f, ".clone()")
+            }
+            Expression::Drop(expr) => {
+                self.print_expr(expr, f)?;
+                write!(f, ".drop()")
+            }
         }
     }
 
@@ -178,6 +188,9 @@ impl AstPrinter {
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
         write!(f, "({}", unary.operator)?;
+        if matches!(&unary.operator, UnaryOp::Reference { mutable: true }) {
+            write!(f, " ")?;
+        }
         self.print_expr(&unary.rhs, f)?;
         write!(f, ")")
     }

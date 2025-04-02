@@ -102,10 +102,9 @@ impl<'a> Lexer<'a> {
 
     fn ampersand(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('&') {
-            // When we issue this error the first '&' will already be consumed
-            // and the next token issued will be the next '&'.
-            let span = Span::inclusive(self.position, self.position + 1);
-            Err(LexerErrorKind::LogicalAnd { location: self.location(span) })
+            let start = self.position;
+            self.next_char();
+            Ok(Token::LogicalAnd.into_span(start, start + 1))
         } else if self.peek_char_is('[') {
             self.single_char_token(Token::SliceStart)
         } else {
