@@ -95,7 +95,9 @@ impl NumericType {
                     Ok(FieldElement::from(2u128.pow(*bit_size) - 1))
                 }
             }
-            NumericType::Signed { bit_size } => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            NumericType::Signed { bit_size } => {
+                Err("Cannot get max value for signed type".to_string())
+            }
             NumericType::NativeField => {
                 Err("Cannot get max value for native field type".to_string())
             }

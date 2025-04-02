@@ -259,7 +259,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                 return SimplifyResult::SimplifiedTo(lhs);
             }
 
-            if lhs_type.is_unsigned() && (lhs_is_max || rhs_is_max) {
+            if  lhs_is_max || rhs_is_max {
                 let max = dfg.make_constant(lhs_type.max_value().unwrap(), lhs_type);
                 return SimplifyResult::SimplifiedTo(max);
             }
