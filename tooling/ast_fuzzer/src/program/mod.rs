@@ -216,7 +216,7 @@ impl Context {
     /// With a `max_depth` of 0 only leaf types are created.
     fn gen_type(&mut self, u: &mut Unstructured, max_depth: usize) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
-        if u.ratio(5, 10)? {
+        if u.ratio(6, 10)? {
             let existing_types =
                 self.types.iter().filter(|typ| type_depth(typ) <= max_depth).collect::<Vec<_>>();
 

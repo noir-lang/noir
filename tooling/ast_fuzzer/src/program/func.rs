@@ -9,7 +9,8 @@ use noirc_frontend::{
     ast::IntegerBitSize,
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        Expression, FuncId, GlobalId, Index, InlineType, LocalId, Parameters, Type,
+        ArrayLiteral, Expression, FuncId, GlobalId, Index, InlineType, Literal, LocalId,
+        Parameters, Type,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -208,7 +209,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         let i = u.choose_index(100)?;
 
-        if i < 50 {
+        if i < 75 {
             if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
                 return Ok(expr);
             }
@@ -230,6 +231,25 @@ impl<'a> FunctionContext<'a> {
             let src_expr = expr::ident(id, src_name, src_type.clone());
             if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
                 return Ok(Some(expr));
+            }
+        } else {
+            // If we can't produce the exact we're looking for, maybe we can produce parts of it.
+            match typ {
+                Type::Array(len, item_type) => {
+                    let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
+                    for _ in 0..*len {
+                        arr.contents.push(self.gen_expr(u, item_type, max_depth)?);
+                    }
+                    return Ok(Some(Expression::Literal(Literal::Array(arr))));
+                }
+                Type::Tuple(items) => {
+                    let mut values = Vec::new();
+                    for item_type in items {
+                        values.push(self.gen_expr(u, item_type, max_depth)?);
+                    }
+                    return Ok(Some(Expression::Tuple(values)));
+                }
+                _ => {}
             }
         }
         Ok(None)

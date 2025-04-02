@@ -73,17 +73,17 @@ pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result
             }
             Expression::Literal(Literal::Str(s))
         }
-        Type::Array(len, item_typ) => {
+        Type::Array(len, item_type) => {
             let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             for _ in 0..*len {
-                arr.contents.push(gen_literal(u, item_typ)?);
+                arr.contents.push(gen_literal(u, item_type)?);
             }
             Expression::Literal(Literal::Array(arr))
         }
         Type::Tuple(items) => {
             let mut values = Vec::new();
-            for typ in items {
-                values.push(gen_literal(u, typ)?);
+            for item_type in items {
+                values.push(gen_literal(u, item_type)?);
             }
             Expression::Tuple(values)
         }
