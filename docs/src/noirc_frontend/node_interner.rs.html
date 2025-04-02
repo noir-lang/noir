@@ -4509,7 +4509,7 @@
 
     <span class="doccomment">/// This function is needed when creating a NodeInterner for testing so that calls
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
-    </span><span class="attr">#[cfg(test)]
+    </span><span class="attr">#[cfg(any(test, feature = <span class="string">"test_utils"</span>))]
     </span><span class="kw">pub fn </span>populate_dummy_operator_traits(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span>dummy_trait = TraitId(ModuleId::dummy_id());
         <span class="self">self</span>.infix_operator_traits.insert(BinaryOpKind::Add, dummy_trait);
