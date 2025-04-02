@@ -1,57 +1,8 @@
-error: Expected an item but found 'foo'
+error: Expected a 'fn' but found 'foo'
   ┌─ src/mod.nr:1:5
   │
 1 │ pub foo() -> bool {
   │     ---
-  │
-
-error: Expected an item but found '('
-  ┌─ src/mod.nr:1:8
-  │
-1 │ pub foo() -> bool {
-  │        -
-  │
-
-error: Expected an item but found ')'
-  ┌─ src/mod.nr:1:9
-  │
-1 │ pub foo() -> bool {
-  │         -
-  │
-
-error: Expected an item but found '->'
-  ┌─ src/mod.nr:1:11
-  │
-1 │ pub foo() -> bool {
-  │           --
-  │
-
-error: Expected an item but found 'bool'
-  ┌─ src/mod.nr:1:14
-  │
-1 │ pub foo() -> bool {
-  │              ----
-  │
-
-error: Expected an item but found '{'
-  ┌─ src/mod.nr:1:19
-  │
-1 │ pub foo() -> bool {
-  │                   -
-  │
-
-error: Expected an item but found 'true'
-  ┌─ src/mod.nr:2:5
-  │
-2 │     true
-  │     ----
-  │
-
-error: Expected an item but found '}'
-  ┌─ src/mod.nr:3:1
-  │
-3 │ }
-  │ -
   │
 
 error: Module '' is already part of the crate
@@ -103,4 +54,4 @@ error: Expected an item but found ';'
   │               -
   │
 
-Aborting due to 15 previous errors
+Aborting due to 8 previous errors
