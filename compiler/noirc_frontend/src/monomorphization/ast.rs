@@ -50,6 +50,8 @@ pub enum Expression {
     Constrain(Box<Expression>, Location, Option<Box<(Expression, HirType)>>),
     Assign(Assign),
     Semi(Box<Expression>),
+    Clone(Box<Expression>),
+    Drop(Box<Expression>),
     Break,
     Continue,
 }
@@ -338,7 +340,7 @@ pub enum Type {
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
-    MutableReference(Box<Type>),
+    Reference(Box<Type>, /*mutable:*/ bool),
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -376,7 +378,7 @@ impl Type {
                 vec![*elements]
             }
             Type::Tuple(elements) => elements,
-            Type::MutableReference(element) => {
+            Type::Reference(element, _) => {
                 vec![*element]
             }
             _ => {
@@ -405,6 +407,14 @@ impl Type {
                 unimplemented!("ICE: cannot fetch flattened slice size");
             }
             _ => 1,
+        }
+    }
+
+    /// Returns the element type of this array or slice
+    pub fn array_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            _ => None,
         }
     }
 }
@@ -543,7 +553,8 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
             Type::Slice(element) => write!(f, "[{element}]"),
-            Type::MutableReference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element, mutable) if *mutable => write!(f, "&mut {element}"),
+            Type::Reference(element, _mutable) => write!(f, "&{element}"),
         }
     }
 }

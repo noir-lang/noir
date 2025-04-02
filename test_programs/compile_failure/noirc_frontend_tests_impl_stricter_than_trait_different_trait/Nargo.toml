@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_impl_stricter_than_trait_different_trait"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

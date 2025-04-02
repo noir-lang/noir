@@ -497,14 +497,23 @@ fn simplify_slice_push_back(
 
     let is_acir = dfg.runtime().is_acir();
     let length = if is_acir {
-        let flat_element_size = element_type.clone().element_types().iter().map(|typ| typ.flattened_size()).sum::<u32>() as u128;
+        let flat_element_size = element_type
+            .clone()
+            .element_types()
+            .iter()
+            .map(|typ| typ.flattened_size())
+            .sum::<u32>() as u128;
 
         // The capacity must be an integer so that we can compare it against the slice length
-        let flat_element_size = dfg.make_constant(flat_element_size.into(), NumericType::length_type());
-        let flat_len = Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Mul { unchecked: true }, rhs: flat_element_size });
-        let flat_len = dfg
-            .insert_instruction_and_results(flat_len, block, None, call_stack)
-            .first();
+        let flat_element_size =
+            dfg.make_constant(flat_element_size.into(), NumericType::length_type());
+        let flat_len = Instruction::Binary(Binary {
+            lhs: arguments[0],
+            operator: BinaryOp::Mul { unchecked: true },
+            rhs: flat_element_size,
+        });
+        let flat_len =
+            dfg.insert_instruction_and_results(flat_len, block, None, call_stack).first();
         flat_len
     } else {
         arguments[0]
@@ -525,18 +534,15 @@ fn simplify_slice_push_back(
     for elem in &arguments[2..] {
         let typ = dfg.type_of_value(*elem);
         match (&typ, is_acir) {
-            (Type::Array(_, _), true) => { 
+            (Type::Array(_, _), true) => {
                 let flat_typ = typ.clone().flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {
-                    let index =
-                        dfg.make_constant(my_index.into(), typ.unwrap_numeric());
+                    let index = dfg.make_constant(my_index.into(), typ.unwrap_numeric());
                     assert!(matches!(typ, Type::Numeric(_)));
                     let get = Instruction::ArrayGet { array: *elem, index };
                     let typevars = Some(vec![typ]);
                     let res = dfg
-                        .insert_instruction_and_results(
-                            get, block, typevars, call_stack,
-                        )
+                        .insert_instruction_and_results(get, block, typevars, call_stack)
                         .first();
                     slice.push_back(res);
                 }

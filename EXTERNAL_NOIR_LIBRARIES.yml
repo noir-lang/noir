@@ -1,4 +1,4 @@
-define: &AZ_COMMIT b5a057b6a3a0b84a874dc909bd7aa8dc90058c4f
+define: &AZ_COMMIT 153a606384da62e817654c3d91253fc019864f06
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -10,7 +10,7 @@ libraries:
     critical: true
   eddsa:
     repo: noir-lang/eddsa
-    timeout: 2
+    timeout: 3
     critical: true
   mimc:
     repo: noir-lang/mimc

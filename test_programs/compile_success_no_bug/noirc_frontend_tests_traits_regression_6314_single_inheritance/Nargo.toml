@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_regression_6314_single_inheritance"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

@@ -6,7 +6,7 @@ use crate::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
         ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
         IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
+        Statement, TypePath, UnaryOp, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel, parser::parse_many::separated_by_comma},
     token::{Keyword, Token, TokenKind},
@@ -19,6 +19,15 @@ use super::{
         without_separator,
     },
 };
+
+/// When parsing an array literal we might bump into `[expr; length]::ident()`,
+/// where the user expected to call a method on an array type.
+/// That actually needs to be written as `<[expr; length]>::ident()`, so
+/// in that case we'll produce an error and return `ArrayLiteralOrError::Error`.
+enum ArrayLiteralOrError {
+    ArrayLiteral(ArrayLiteral),
+    Error,
+}
 
 impl Parser<'_> {
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
@@ -286,6 +295,7 @@ impl Parser<'_> {
     ///     | ComptimeExpression
     ///     | UnquoteExpression
     ///     | TypePathExpression
+    ///     | NamelessTypePathExpression
     ///     | AsTraitPath
     ///     | ResolvedExpression
     ///     | InternedExpression
@@ -353,8 +363,8 @@ impl Parser<'_> {
             return Some(kind);
         }
 
-        if let Some(as_trait_path) = self.parse_as_trait_path() {
-            return Some(ExpressionKind::AsTraitPath(as_trait_path));
+        if let Some(kind) = self.parse_nameless_type_path_or_as_trait_path_type_expression() {
+            return Some(kind);
         }
 
         if let Some(kind) = self.parse_resolved_expr() {
@@ -370,6 +380,25 @@ impl Parser<'_> {
         }
 
         None
+    }
+
+    /// NamelessTypePathExpression = '<' Type '>' '::' identifier ( '::' GenericTypeArgs )?
+    fn parse_nameless_type_path_or_as_trait_path_type_expression(
+        &mut self,
+    ) -> Option<ExpressionKind> {
+        if !self.eat_less() {
+            return None;
+        }
+
+        let typ = self.parse_type_or_error();
+        if self.eat_keyword(Keyword::As) {
+            let as_trait_path = self.parse_as_trait_path_for_type_after_as_keyword(typ);
+            Some(ExpressionKind::AsTraitPath(as_trait_path))
+        } else {
+            self.eat_or_error(Token::Greater);
+            let type_path = self.parse_type_path_expr_for_type(typ);
+            Some(ExpressionKind::TypePath(type_path))
+        }
     }
 
     /// ResolvedExpression = unquote_marker
@@ -626,8 +655,19 @@ impl Parser<'_> {
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let typ = self.parse_primitive_type()?;
-        let typ = UnresolvedType { typ, location: self.location_since(start_location) };
+        let location = self.location_since(start_location);
+        let typ = UnresolvedType { typ, location };
 
+        if self.at(Token::DoubleColon) {
+            Some(ExpressionKind::TypePath(self.parse_type_path_expr_for_type(typ)))
+        } else {
+            // This is the case when we find `Field` or `i32` but `::` doesn't follow it.
+            self.push_error(ParserErrorReason::ExpectedValueFoundBuiltInType { typ }, location);
+            Some(ExpressionKind::Error)
+        }
+    }
+
+    fn parse_type_path_expr_for_type(&mut self, typ: UnresolvedType) -> TypePath {
         self.eat_or_error(Token::DoubleColon);
 
         let item = if let Some(ident) = self.eat_ident() {
@@ -645,7 +685,7 @@ impl Parser<'_> {
             generics
         });
 
-        Some(ExpressionKind::TypePath(TypePath { typ, item, turbofish }))
+        TypePath { typ, item, turbofish }
     }
 
     /// Literal
@@ -690,12 +730,22 @@ impl Parser<'_> {
             return Some(ExpressionKind::Quote(tokens));
         }
 
-        if let Some(literal) = self.parse_array_literal() {
-            return Some(ExpressionKind::Literal(Literal::Array(literal)));
+        if let Some(literal_or_error) = self.parse_array_literal() {
+            return match literal_or_error {
+                ArrayLiteralOrError::ArrayLiteral(literal) => {
+                    Some(ExpressionKind::Literal(Literal::Array(literal)))
+                }
+                ArrayLiteralOrError::Error => Some(ExpressionKind::Error),
+            };
         }
 
-        if let Some(literal) = self.parse_slice_literal() {
-            return Some(ExpressionKind::Literal(Literal::Slice(literal)));
+        if let Some(literal_or_error) = self.parse_slice_literal() {
+            return match literal_or_error {
+                ArrayLiteralOrError::ArrayLiteral(literal) => {
+                    Some(ExpressionKind::Literal(Literal::Slice(literal)))
+                }
+                ArrayLiteralOrError::Error => Some(ExpressionKind::Error),
+            };
         }
 
         if let Some(kind) = self.parse_block() {
@@ -718,27 +768,44 @@ impl Parser<'_> {
     /// ArrayElements = Expression ( ',' Expression )? ','?
     ///
     /// RepeatedArrayLiteral = '[' Expression ';' TypeExpression ']'
-    fn parse_array_literal(&mut self) -> Option<ArrayLiteral> {
+    fn parse_array_literal(&mut self) -> Option<ArrayLiteralOrError> {
+        let start_location = self.current_token_location;
+        let errors_before_array = self.errors.len();
+
         if !self.eat_left_bracket() {
             return None;
         }
 
         if self.eat_right_bracket() {
-            return Some(ArrayLiteral::Standard(Vec::new()));
+            return Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(Vec::new())));
         }
 
         let first_expr = self.parse_expression_or_error();
-        if first_expr.kind == ExpressionKind::Error {
-            return Some(ArrayLiteral::Standard(Vec::new()));
-        }
 
         if self.eat_semicolon() {
             let length = self.parse_expression_or_error();
             self.eat_or_error(Token::RightBracket);
-            return Some(ArrayLiteral::Repeated {
+
+            // If it's `[expr; length]::ident`, give an error that it's missing `<...>`
+            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+                // Remove any errors that happened during `[...]` as it's likely they happened
+                // because of the missing angle brackets.
+                self.errors.truncate(errors_before_array);
+
+                let location = self.location_since(start_location);
+                self.push_error(ParserErrorReason::MissingAngleBrackets, location);
+
+                // Skip `::` and the identifier
+                self.bump();
+                self.bump();
+
+                return Some(ArrayLiteralOrError::Error);
+            }
+
+            return Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Repeated {
                 repeated_element: Box::new(first_expr),
                 length: Box::new(length),
-            });
+            }));
         }
 
         let comma_after_first_expr = self.eat_comma();
@@ -756,11 +823,11 @@ impl Parser<'_> {
 
         exprs.insert(0, first_expr);
 
-        Some(ArrayLiteral::Standard(exprs))
+        Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
     /// SliceExpression = '&' ArrayLiteral
-    fn parse_slice_literal(&mut self) -> Option<ArrayLiteral> {
+    fn parse_slice_literal(&mut self) -> Option<ArrayLiteralOrError> {
         if !(self.at(Token::SliceStart) && self.next_is(Token::LeftBracket)) {
             return None;
         }
@@ -780,11 +847,26 @@ impl Parser<'_> {
     ///
     /// TupleExpression = '(' Expression ( ',' Expression )+ ','? ')'
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
+        let start_location = self.current_token_location;
+        let errors_before_parentheses = self.errors.len();
+
         if !self.eat_left_paren() {
             return None;
         }
 
         if self.eat_right_paren() {
+            // If it's `()::ident`, parse it as a type path but produce an error saying it should be `<()>::ident`.
+            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+                let location = self.location_since(start_location);
+                let typ = UnresolvedTypeData::Unit;
+                let typ = UnresolvedType { typ, location };
+                let type_path = self.parse_type_path_expr_for_type(typ);
+
+                self.push_error(ParserErrorReason::MissingAngleBrackets, location);
+
+                return Some(ExpressionKind::TypePath(type_path));
+            }
+
             return Some(ExpressionKind::Literal(Literal::Unit));
         }
 
@@ -793,6 +875,22 @@ impl Parser<'_> {
             separated_by_comma_until_right_paren(),
             Self::parse_expression_in_list,
         );
+
+        // If it's `(..)::ident`, give an error that it's missing `<...>`
+        if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+            // Remove any errors that happened during `(...)` as it's likely they happened
+            // because of the missing angle brackets.
+            self.errors.truncate(errors_before_parentheses);
+
+            let location = self.location_since(start_location);
+            self.push_error(ParserErrorReason::MissingAngleBrackets, location);
+
+            // Skip `::` and the identifier
+            self.bump();
+            self.bump();
+
+            return Some(ExpressionKind::Error);
+        }
 
         Some(if exprs.len() == 1 && !trailing_comma {
             ExpressionKind::Parenthesized(Box::new(exprs.remove(0)))
@@ -1739,6 +1837,21 @@ mod tests {
     }
 
     #[test]
+    fn errors_on_logical_and() {
+        let src = "
+        1 && 2
+          ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert_eq!(expression.to_string(), "(1 & 2)");
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::LogicalAnd));
+    }
+
+    #[test]
     fn parses_empty_lambda() {
         let src = "|| 1";
         let expr = parse_expression_no_errors(src);
@@ -1825,6 +1938,99 @@ mod tests {
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_some());
+    }
+
+    #[test]
+    fn parses_type_path_with_tuple() {
+        let src = "<()>::foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "()");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+    }
+
+    #[test]
+    fn parses_type_path_with_array_type() {
+        let src = "<[i32; 3]>::foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "[i32; 3]");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+    }
+
+    #[test]
+    fn parses_type_path_with_empty_tuple_missing_angle_brackets() {
+        let src = "
+          ()::foo
+          ^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "()");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
+    }
+
+    #[test]
+    fn parses_type_path_with_non_empty_tuple_missing_angle_brackets() {
+        let src = "
+          (Field, i32)::foo
+          ^^^^^^^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        assert!(matches!(expr.kind, ExpressionKind::Error));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
+    }
+
+    #[test]
+    fn parses_type_path_with_array_missing_angle_brackets() {
+        let src = "
+          [Field; 3]::foo
+          ^^^^^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        assert!(matches!(expr.kind, ExpressionKind::Error));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
+    }
+
+    #[test]
+    fn parses_primitive_type_errors() {
+        let src = "
+        Field
+        ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+        let ExpressionKind::Error = expr.kind else {
+            panic!("Expected error");
+        };
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert_eq!(reason.to_string(), "Expected value, found built-in type `Field`");
     }
 
     #[test]

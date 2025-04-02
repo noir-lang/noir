@@ -255,8 +255,14 @@ impl<'a> ValueMerger<'a> {
                     self.make_slice_dummy_data(&typ)
                 } else {
                     let get = Instruction::ArrayGet { array, index };
-                    let res = self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars.clone(), self.call_stack)
+                    let res = self
+                        .dfg
+                        .insert_instruction_and_results(
+                            get,
+                            self.block,
+                            typevars.clone(),
+                            self.call_stack,
+                        )
                         .first();
                     let res = self.dfg.resolve(res);
                     let res_typ = self.dfg.type_of_value(res);
