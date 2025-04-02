@@ -63,7 +63,7 @@ fn assert_eq() {
     }
     ";
     // The SSA from assert_eq should match that from a regular assert checking for equality
-    // The expected SSA above should match that in the `assert()` test 
+    // The expected SSA above should match that in the `assert()` test
     assert_normalized_ssa_equals(assert_eq_ssa, expected);
 }
 
