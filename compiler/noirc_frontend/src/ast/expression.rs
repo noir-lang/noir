@@ -145,7 +145,7 @@ impl Display for UnresolvedGeneric {
             UnresolvedGeneric::Variable(ident, trait_bounds) => {
                 write!(f, "{ident}")?;
                 if !trait_bounds.is_empty() {
-                    write!(f, ":")?;
+                    write!(f, ": ")?;
                     for (index, trait_bound) in trait_bounds.iter().enumerate() {
                         if index > 0 {
                             write!(f, " + ")?;
