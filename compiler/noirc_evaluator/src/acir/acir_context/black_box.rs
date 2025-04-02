@@ -10,10 +10,7 @@ use num_bigint::BigUint;
 
 use crate::errors::{InternalError, RuntimeError};
 
-use super::{
-    AcirValue,
-    acir_variable::{AcirContext, AcirVar},
-};
+use super::{AcirContext, AcirValue, AcirVar};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
