@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AcirValue"],"fn":["can_omit_element_sizes_array"],"mod":["acir_variable","big_int","black_box","brillig_call","brillig_directive","generated_acir"],"struct":["AcirDynamicArray","Context","SharedContext"],"type":["Artifacts"]};
+window.SIDEBAR_ITEMS = {"fn":["can_omit_element_sizes_array"],"mod":["acir_context","ssa","types"],"struct":["Context","SharedContext"]};

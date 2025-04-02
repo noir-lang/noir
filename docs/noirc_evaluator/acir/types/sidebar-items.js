@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AcirType","AcirValue"],"struct":["AcirDynamicArray","AcirVar"]};

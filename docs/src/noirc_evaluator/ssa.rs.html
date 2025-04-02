@@ -564,7 +564,8 @@
 <a href="#563" id="563">563</a>
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -580,6 +581,7 @@
 };
 
 <span class="kw">use crate</span>::{
+    acir::ssa::Artifacts,
     brillig::BrilligOptions,
     errors::{RuntimeError, SsaReport},
 };
@@ -602,7 +604,7 @@
 <span class="kw">use </span>ssa_gen::Ssa;
 <span class="kw">use </span>tracing::{Level, span};
 
-<span class="kw">use </span><span class="kw">crate</span>::acir::{Artifacts, GeneratedAcir};
+<span class="kw">use </span><span class="kw">crate</span>::acir::GeneratedAcir;
 
 <span class="kw">mod </span>checks;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>function_builder;
