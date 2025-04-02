@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub(crate) fn check_rewrite(src: &str, expected: &str, test_path: &str) {
-    let program = get_monomorphized(src, Some(test_path), Expect::Success).unwrap();
+    let program = get_monomorphized(src, test_path, Expect::Success).unwrap();
     assert!(format!("{}", program) == expected);
 }
 
@@ -14,7 +14,7 @@ pub(crate) fn check_rewrite(src: &str, expected: &str, test_path: &str) {
 #[macro_export]
 macro_rules! get_monomorphized {
     ($src:expr, $expect:expr) => {
-        $crate::test_utils::get_monomorphized($src, Some($crate::function_path!()), $expect)
+        $crate::test_utils::get_monomorphized($src, $crate::function_path!(), $expect)
     };
 }
 

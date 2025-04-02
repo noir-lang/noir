@@ -44,15 +44,15 @@ pub(crate) fn get_program_using_features(
     let allow_parser_errors = false;
     let mut options = FrontendOptions::test_default();
     options.enabled_unstable_features = features;
-    get_program_with_options(src, Some(test_path), expect, allow_parser_errors, options)
+    get_program_with_options(src, test_path, expect, allow_parser_errors, options)
 }
 
 pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationError> {
-    get_program(src, Some(test_path), Expect::Error).2
+    get_program(src, test_path, Expect::Error).2
 }
 
 fn assert_no_errors(src: &str, test_path: &str) {
-    let (_, context, errors) = get_program(src, Some(test_path), Expect::Success);
+    let (_, context, errors) = get_program(src, test_path, Expect::Success);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);
@@ -166,13 +166,8 @@ fn check_errors_with_options(
         secondary_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) = get_program_with_options(
-        &src,
-        Some(test_path),
-        Expect::Error,
-        allow_parser_errors,
-        options,
-    );
+    let (_, mut context, errors) =
+        get_program_with_options(&src, test_path, Expect::Error, allow_parser_errors, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {
@@ -292,14 +287,6 @@ fn get_error_line_span_and_message(
 
 // NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
-macro_rules! function_path {
-    () => {
-        std::concat!(std::module_path!(), "::", function_name!(),)
-    };
-}
-
-// NOTE: this will fail in CI when called twice within one test: test names must be unique
-#[macro_export]
 macro_rules! get_program {
     ($src:expr, $expect:expr) => {
         $crate::tests::get_program($src, $crate::function_path!(), $expr)
@@ -341,7 +328,7 @@ macro_rules! get_program_with_options {
     ($src:expr, $expect:expr, $allow_parser_errors:expr, $options:expr) => {
         $crate::tests::get_program_with_options(
             $src,
-            Some($crate::function_path!()),
+            $crate::function_path!(),
             $expect,
             $allow_parser_errors,
             $options,
@@ -940,7 +927,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
 }
 
 fn get_program_captures(src: &str, test_path: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src, Some(test_path), Expect::Success);
+    let (program, context, _errors) = get_program(src, test_path, Expect::Success);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {

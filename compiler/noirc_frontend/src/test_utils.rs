@@ -29,7 +29,7 @@ use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monom
 
 pub fn get_monomorphized(
     src: &str,
-    test_path: Option<&str>,
+    test_path: &str,
     expect: Expect,
 ) -> Result<Program, MonomorphizationError> {
     let (_parsed_module, mut context, errors) = get_program(src, test_path, expect);
@@ -60,7 +60,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
 
 pub(crate) fn get_program<'a, 'b>(
     src: &'a str,
-    test_path: Option<&'b str>,
+    test_path: &'b str,
     expect: Expect,
 ) -> (ParsedModule, Context<'a, 'b>, Vec<CompilationError>) {
     let allow_parser_errors = false;
@@ -84,7 +84,7 @@ pub enum Expect {
 /// The stdlib is not available for these snippets.
 pub(crate) fn get_program_with_options(
     src: &str,
-    test_path: Option<&str>,
+    test_path: &str,
     expect: Expect,
     allow_parser_errors: bool,
     options: FrontendOptions,
@@ -136,9 +136,7 @@ pub(crate) fn get_program_with_options(
         ));
     }
 
-    if let Some(test_path) = test_path {
-        emit_compile_test(test_path, src, expect);
-    }
+    emit_compile_test(test_path, src, expect);
     (program, context, errors)
 }
 
@@ -285,4 +283,12 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
             panic!("Unable to write src_hash.txt file to {}", src_hash_path.display())
         });
     }
+}
+
+// NOTE: this will fail in CI when called twice within one test: test names must be unique
+#[macro_export]
+macro_rules! function_path {
+    () => {
+        std::concat!(std::module_path!(), "::", function_name!(),)
+    };
 }
