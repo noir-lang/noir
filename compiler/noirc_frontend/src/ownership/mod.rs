@@ -336,7 +336,32 @@ impl Context {
     /// analysis we always clone here then remove the last clone later if possible.
     fn handle_ident(&self, expr: &mut Expression) {
         if self.experimental_ownership_feature {
-            clone_expr(expr);
+            let ident = match expr {
+                Expression::Ident(ident) => ident,
+                other => panic!("handle_ident given non-ident expr: {other}"),
+            };
+
+            // This isn't necessary but helps clean up the output some.
+            // It'll need to be removed if we ever apply ownership on more
+            // than just arrays and array-containing structs.
+            let may_contain_array = match ident.typ {
+                Type::Array(..)
+                | Type::String(_)
+                | Type::FmtString(..)
+                | Type::Tuple(_)
+                | Type::Slice(_) => true,
+
+                Type::Field
+                | Type::Integer(..)
+                | Type::Bool
+                | Type::Unit
+                | Type::Function(_, _, _, _)
+                | Type::Reference(_, _) => false,
+            };
+
+            if may_contain_array {
+                clone_expr(expr);
+            }
         }
     }
 
