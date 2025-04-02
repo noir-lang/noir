@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743608899387,
+  "lastUpdate": 1743609313371,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "565c3dd0b82f8dc299c022fb8c307b2a5975a520",
-          "message": "chore: bump external pinned commits (#7780)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-03-24T11:21:58Z",
-          "tree_id": "4ae4565f2be14b073585893bc2cab6e8bfde7e4e",
-          "url": "https://github.com/noir-lang/noir/commit/565c3dd0b82f8dc299c022fb8c307b2a5975a520"
-        },
-        "date": 1742816850298,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.17,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/08937021e9a2f92155c3d79298ee773c99f7785a"
         },
         "date": 1743596938715,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 504.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 413.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 293.53,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "saleel@saleel.xyz",
+            "name": "saleel",
+            "username": "saleel"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "41ad634708a8a6af93623b0c2edaa263b46eca03",
+          "message": "chore: update bb commands in beta2 and beta3 versioned docs (#7888)",
+          "timestamp": "2025-04-02T15:25:46Z",
+          "tree_id": "24bcf12bc979a515dfb5944b322d498f28b5f803",
+          "url": "https://github.com/noir-lang/noir/commit/41ad634708a8a6af93623b0c2edaa263b46eca03"
+        },
+        "date": 1743609309386,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
