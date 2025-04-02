@@ -32,6 +32,8 @@ mod tests {
         nargo.arg("--check-non-determinism");
         // Allow more bytecode in exchange to catch illegal states.
         nargo.arg("--enable-brillig-debug-assertions");
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
 
         // Enable enums and ownership as unstable features
         nargo.arg("-Zenums");

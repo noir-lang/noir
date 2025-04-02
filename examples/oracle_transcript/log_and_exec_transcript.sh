@@ -12,7 +12,7 @@ cat Oracle.test.jsonl \
     > Oracle.jsonl
 
 # Execute `main` with the Prover.toml and Oracle.jsonl files.
-nargo execute --skip-underconstrained-check --oracle-file Oracle.jsonl
+nargo execute --skip-underconstrained-check --pedantic-solving --oracle-file Oracle.jsonl
 
 # Also execute through `noir-execute`
 noir-execute \
