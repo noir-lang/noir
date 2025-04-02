@@ -606,7 +606,13 @@
 <a href="#605" id="605">605</a>
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -1123,16 +1129,22 @@
     ) {
         <span class="kw">let </span>unused_imports = context.usage_tracker.unused_items().iter();
         <span class="kw">let </span>unused_imports = unused_imports.filter(|(module_id, <span class="kw">_</span>)| module_id.krate == crate_id);
-
-        errors.extend(unused_imports.flat_map(|(<span class="kw">_</span>, usage_tracker)| {
-            usage_tracker.iter().map(|(ident, unused_item)| {
-                <span class="kw">let </span>ident = ident.clone();
-                CompilationError::ResolverError(ResolverError::UnusedItem {
-                    ident,
-                    item: <span class="kw-2">*</span>unused_item,
+        <span class="kw">let </span><span class="kw-2">mut </span>unused_errors = unused_imports
+            .flat_map(|(<span class="kw">_</span>, unused_items)| {
+                unused_items.iter().map(|(ident, unused_item)| {
+                    <span class="kw">let </span>ident = ident.clone();
+                    CompilationError::ResolverError(ResolverError::UnusedItem {
+                        ident,
+                        item: <span class="kw-2">*</span>unused_item,
+                    })
                 })
             })
-        }));
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="comment">// Make sure errors always show up in the same order when compiling the same codebase
+        </span>unused_errors.sort_by_key(|error| error.location());
+
+        errors.extend(unused_errors);
     }
 }
 
