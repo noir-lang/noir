@@ -814,7 +814,19 @@
 <a href="#813" id="813">813</a>
 <a href="#814" id="814">814</a>
 <a href="#815" id="815">815</a>
-<a href="#816" id="816">816</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -1012,6 +1024,10 @@
         <span class="string">"Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
     </span>)]
     </span>NonU32Index { location: Location },
+    <span class="attr">#[error(
+        <span class="string">"The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
+    </span>)]
+    </span>UnconstrainedTypeParameter { ident: Ident },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1086,7 +1102,8 @@
             | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
             | ResolverError::OracleMarkedAsConstrained { ident }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { ident }
-            | ResolverError::FoldAttributeOnUnconstrained { ident } =&gt; ident.location(),
+            | ResolverError::FoldAttributeOnUnconstrained { ident }
+            | ResolverError::UnconstrainedTypeParameter { ident } =&gt; ident.location(),
             ResolverError::ArrayLengthInterpreter { error } =&gt; error.location(),
             ResolverError::PathResolutionError(path_resolution_error) =&gt; {
                 path_resolution_error.location()
@@ -1627,6 +1644,13 @@
                     <span class="kw-2">*</span>location,
                 )
             },
+            ResolverError::UnconstrainedTypeParameter { ident} =&gt; {
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"</span>),
+                    <span class="macro">format!</span>(<span class="string">"Hint: remove the `{ident}` type parameter"</span>),
+                    ident.location(),
+                )
+            }
         }
     }
 }

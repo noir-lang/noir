@@ -2219,7 +2219,64 @@
 <a href="#2218" id="2218">2218</a>
 <a href="#2219" id="2219">2219</a>
 <a href="#2220" id="2220">2220</a>
-<a href="#2221" id="2221">2221</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2221" id="2221">2221</a>
+<a href="#2222" id="2222">2222</a>
+<a href="#2223" id="2223">2223</a>
+<a href="#2224" id="2224">2224</a>
+<a href="#2225" id="2225">2225</a>
+<a href="#2226" id="2226">2226</a>
+<a href="#2227" id="2227">2227</a>
+<a href="#2228" id="2228">2228</a>
+<a href="#2229" id="2229">2229</a>
+<a href="#2230" id="2230">2230</a>
+<a href="#2231" id="2231">2231</a>
+<a href="#2232" id="2232">2232</a>
+<a href="#2233" id="2233">2233</a>
+<a href="#2234" id="2234">2234</a>
+<a href="#2235" id="2235">2235</a>
+<a href="#2236" id="2236">2236</a>
+<a href="#2237" id="2237">2237</a>
+<a href="#2238" id="2238">2238</a>
+<a href="#2239" id="2239">2239</a>
+<a href="#2240" id="2240">2240</a>
+<a href="#2241" id="2241">2241</a>
+<a href="#2242" id="2242">2242</a>
+<a href="#2243" id="2243">2243</a>
+<a href="#2244" id="2244">2244</a>
+<a href="#2245" id="2245">2245</a>
+<a href="#2246" id="2246">2246</a>
+<a href="#2247" id="2247">2247</a>
+<a href="#2248" id="2248">2248</a>
+<a href="#2249" id="2249">2249</a>
+<a href="#2250" id="2250">2250</a>
+<a href="#2251" id="2251">2251</a>
+<a href="#2252" id="2252">2252</a>
+<a href="#2253" id="2253">2253</a>
+<a href="#2254" id="2254">2254</a>
+<a href="#2255" id="2255">2255</a>
+<a href="#2256" id="2256">2256</a>
+<a href="#2257" id="2257">2257</a>
+<a href="#2258" id="2258">2258</a>
+<a href="#2259" id="2259">2259</a>
+<a href="#2260" id="2260">2260</a>
+<a href="#2261" id="2261">2261</a>
+<a href="#2262" id="2262">2262</a>
+<a href="#2263" id="2263">2263</a>
+<a href="#2264" id="2264">2264</a>
+<a href="#2265" id="2265">2265</a>
+<a href="#2266" id="2266">2266</a>
+<a href="#2267" id="2267">2267</a>
+<a href="#2268" id="2268">2268</a>
+<a href="#2269" id="2269">2269</a>
+<a href="#2270" id="2270">2270</a>
+<a href="#2271" id="2271">2271</a>
+<a href="#2272" id="2272">2272</a>
+<a href="#2273" id="2273">2273</a>
+<a href="#2274" id="2274">2274</a>
+<a href="#2275" id="2275">2275</a>
+<a href="#2276" id="2276">2276</a>
+<a href="#2277" id="2277">2277</a>
+<a href="#2278" id="2278">2278</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -2238,7 +2295,7 @@
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
+        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType, Visitor,
     },
     graph::CrateId,
     hir::{
@@ -2285,6 +2342,7 @@
 <span class="kw">pub mod </span>types;
 <span class="kw">mod </span>unquote;
 
+<span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>options::ElaboratorOptions;
@@ -2589,8 +2647,8 @@
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
         // the impl since that determines the module we should collect into.
-        </span><span class="kw">for </span>((_self_type, module), impls) <span class="kw">in </span><span class="kw-2">&amp;mut </span>items.impls {
-            <span class="self">self</span>.collect_impls(<span class="kw-2">*</span>module, impls);
+        </span><span class="kw">for </span>((self_type, module), impls) <span class="kw">in </span><span class="kw-2">&amp;mut </span>items.impls {
+            <span class="self">self</span>.collect_impls(<span class="kw-2">*</span>module, impls, self_type);
         }
 
         <span class="comment">// Bind trait impls to their trait. Collect trait functions, that have a
@@ -3698,10 +3756,13 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         module: LocalModuleId,
         impls: <span class="kw-2">&amp;mut </span>[(UnresolvedGenerics, Location, UnresolvedFunctions)],
+        self_type: <span class="kw-2">&amp;</span>UnresolvedType,
     ) {
         <span class="self">self</span>.local_module = module;
 
         <span class="kw">for </span>(generics, location, unresolved) <span class="kw">in </span>impls {
+            <span class="self">self</span>.check_generics_appear_in_type(generics, self_type);
+
             <span class="kw">let </span>old_generic_count = <span class="self">self</span>.generics.len();
             <span class="self">self</span>.add_generics(generics);
             <span class="self">self</span>.declare_methods_on_struct(<span class="prelude-val">None</span>, unresolved, <span class="kw-2">*</span>location);
@@ -4283,6 +4344,7 @@
             <span class="kw">for </span>(generics, <span class="kw">_</span>, function_set) <span class="kw">in </span>function_sets {
                 <span class="self">self</span>.add_generics(generics);
                 <span class="kw">let </span>self_type = <span class="self">self</span>.resolve_type(self_type.clone());
+
                 function_set.self_type = <span class="prelude-val">Some</span>(self_type.clone());
                 <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(self_type);
                 <span class="self">self</span>.define_function_metas_for_functions(function_set);
@@ -4422,6 +4484,46 @@
             })
     }
 
+    <span class="doccomment">/// Check that all the generics show up in `self_type` (if they don't, we produce an error)
+    </span><span class="kw">fn </span>check_generics_appear_in_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        generics: <span class="kw-2">&amp;</span>[UnresolvedGeneric],
+        self_type: <span class="kw-2">&amp;</span>UnresolvedType,
+    ) {
+        <span class="kw">if </span>generics.is_empty() {
+            <span class="kw">return</span>;
+        }
+
+        <span class="comment">// Turn each generic into an Ident
+        </span><span class="kw">let </span><span class="kw-2">mut </span>idents = HashSet::new();
+        <span class="kw">for </span>generic <span class="kw">in </span>generics {
+            <span class="kw">match </span>generic {
+                UnresolvedGeneric::Variable(ident) =&gt; {
+                    idents.insert(ident.clone());
+                }
+                UnresolvedGeneric::Numeric { ident, typ: <span class="kw">_ </span>} =&gt; {
+                    idents.insert(ident.clone());
+                }
+                UnresolvedGeneric::Resolved(quoted_type_id, span) =&gt; {
+                    <span class="kw">if let </span>Type::NamedGeneric(_type_variable, name) =
+                        <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>quoted_type_id).follow_bindings()
+                    {
+                        idents.insert(Ident::new(name.to_string(), <span class="kw-2">*</span>span));
+                    }
+                }
+            }
+        }
+
+        <span class="comment">// Remove the ones that show up in `self_type`
+        </span><span class="kw">let </span><span class="kw-2">mut </span>visitor = RemoveGenericsAppearingInTypeVisitor { idents: <span class="kw-2">&amp;mut </span>idents };
+        self_type.accept(<span class="kw-2">&amp;mut </span>visitor);
+
+        <span class="comment">// The ones that remain are not mentioned in the impl: it's an error.
+        </span><span class="kw">for </span>ident <span class="kw">in </span>idents {
+            <span class="self">self</span>.push_err(ResolverError::UnconstrainedTypeParameter { ident });
+        }
+    }
+
     <span class="doccomment">/// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     </span><span class="kw">pub fn </span>use_unstable_feature(<span class="kw-2">&amp;mut </span><span class="self">self</span>, feature: UnstableFeature, location: Location) {
@@ -4438,6 +4540,18 @@
         <span class="kw">let </span>ret = f(<span class="self">self</span>);
         <span class="kw">let </span>errored = <span class="self">self</span>.errors.iter().skip(previous_errors).any(|error| error.is_error());
         (errored, ret)
+    }
+}
+
+<span class="kw">struct </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'a</span>&gt; {
+    idents: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashSet&lt;Ident&gt;,
+}
+
+<span class="kw">impl </span>Visitor <span class="kw">for </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>visit_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() {
+            <span class="self">self</span>.idents.remove(ident);
+        }
     }
 }
 </code></pre></div></section></main></body></html>
