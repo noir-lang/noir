@@ -1,7 +1,0 @@
-[package]
-name = "ast_test"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.31.0"
-
-[dependencies]
