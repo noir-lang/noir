@@ -1,0 +1,57 @@
+error: Expected a 'fn' but found 'foo'
+  ┌─ src/mod.nr:1:5
+  │
+1 │ pub foo() -> bool {
+  │     ---
+  │
+
+error: Module '' is already part of the crate
+  ┌─ src/main.nr:1:1
+  │
+1 │ mod crate::mod;
+  │ -
+  │
+
+error: Note:  was originally declared here
+  ┌─ src/main.nr:1:1
+  │
+1 │ mod crate::mod;
+  │ -
+  │
+
+error: Expected an identifier but found 'crate'
+  ┌─ src/main.nr:1:5
+  │
+1 │ mod crate::mod;
+  │     -----
+  │
+
+error: Expected an item but found 'crate'
+  ┌─ src/main.nr:1:5
+  │
+1 │ mod crate::mod;
+  │     -----
+  │
+
+error: Expected an item but found '::'
+  ┌─ src/main.nr:1:10
+  │
+1 │ mod crate::mod;
+  │          --
+  │
+
+error: Expected an identifier but found ';'
+  ┌─ src/main.nr:1:15
+  │
+1 │ mod crate::mod;
+  │               -
+  │
+
+error: Expected an item but found ';'
+  ┌─ src/main.nr:1:15
+  │
+1 │ mod crate::mod;
+  │               -
+  │
+
+Aborting due to 8 previous errors
