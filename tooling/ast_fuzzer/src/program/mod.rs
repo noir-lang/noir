@@ -94,7 +94,7 @@ impl Context {
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         let val = expr::gen_literal(u, &typ)?;
-        let name = format!("global{i}");
+        let name = make_name(i, true);
         Ok((name, typ, val))
     }
 
@@ -121,7 +121,7 @@ impl Context {
         let mut param_visibilities = Vec::new();
         for p in 0..num_params {
             let id = LocalId(p as u32);
-            let name = format!("param{p}");
+            let name = make_name(p, false);
             let is_mutable = !is_main && bool::arbitrary(u)?;
             let typ = self.gen_type(u, self.config.max_depth)?;
             params.push((id, is_mutable, name, typ));
@@ -138,7 +138,7 @@ impl Context {
         }
 
         let decl = FunctionDeclaration {
-            name: if is_main { "main".to_string() } else { format!("function{i}") },
+            name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             param_visibilities,
             return_type: self.gen_type(u, self.config.max_depth)?,
@@ -216,7 +216,7 @@ impl Context {
     /// With a `max_depth` of 0 only leaf types are created.
     fn gen_type(&mut self, u: &mut Unstructured, max_depth: usize) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
-        if u.ratio(6, 10)? {
+        if u.ratio(5, 10)? {
             let existing_types =
                 self.types.iter().filter(|typ| type_depth(typ) <= max_depth).collect::<Vec<_>>();
 
@@ -270,4 +270,21 @@ fn type_depth(typ: &Type) -> usize {
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         _ => unreachable!("unexpected type: {typ}"),
     }
+}
+
+/// Derive a variable name from the ID.
+fn make_name(mut id: usize, is_global: bool) -> String {
+    let mut name = String::new();
+    if is_global {
+        name.push_str("g_");
+    }
+    loop {
+        let i = id % (122 - 97);
+        name.push(char::from(97 + i as u8));
+        id -= i;
+        if id == 0 {
+            break;
+        }
+    }
+    if is_global { name.to_uppercase() } else { name }
 }

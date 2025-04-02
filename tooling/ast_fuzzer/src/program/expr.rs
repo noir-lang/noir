@@ -68,7 +68,8 @@ pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result
         Type::String(len) => {
             let mut s = String::new();
             for _ in 0..*len {
-                let ascii_char = u.int_in_range(0x20..=0x7e).map(char::from)?;
+                // ASCII range would be 0x20..=0x7e
+                let ascii_char = u.int_in_range(65..=90).map(char::from)?;
                 s.push(ascii_char);
             }
             Expression::Literal(Literal::Str(s))
