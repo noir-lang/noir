@@ -1,7 +1,6 @@
 //! Module responsible for generating arbitrary [Program] ASTs.
 use std::collections::{BTreeMap, BTreeSet}; // Using BTree for deterministic enumeration, for repeatability.
 
-use expr::gen_expr_literal;
 use func::{FunctionContext, FunctionDeclaration};
 use strum::IntoEnumIterator;
 
@@ -29,11 +28,21 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
     Ok(program)
 }
 
+/// ID of variables in scope.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum VariableId {
+    Local(LocalId),
+    Global(GlobalId),
+}
+
+/// Name of a variable.
+type Name = String;
+
 /// Context to accumulate top level generated item, so we know what we can choose from.
 struct Context {
     config: Config,
-    /// Global variables, with higher IDs able to refer to previous ones.
-    globals: BTreeMap<GlobalId, (Type, Expression)>,
+    /// Global variables.
+    globals: BTreeMap<GlobalId, (Name, Type, Expression)>,
     /// Function signatures generated up front, so we can call any of them,
     /// (except `main`), while generating function bodies.
     function_declarations: BTreeMap<FuncId, FunctionDeclaration>,
@@ -70,8 +79,6 @@ impl Context {
         let num_globals = u.int_in_range(0..=self.config.max_globals)?;
         for i in 0..num_globals {
             let g = self.gen_global(u, i)?;
-            // The AST only uses globals' names' when they are accessed.
-            // We can just project a name like `GLOBAL{id}` at the time.
             self.globals.insert(GlobalId(i as u32), g);
         }
         Ok(())
@@ -81,13 +88,14 @@ impl Context {
     fn gen_global(
         &mut self,
         u: &mut Unstructured,
-        _i: usize,
-    ) -> arbitrary::Result<(Type, Expression)> {
+        i: usize,
+    ) -> arbitrary::Result<(Name, Type, Expression)> {
         let typ = self.gen_type(u, self.config.max_depth)?;
-        // TODO(7878): Can we use e.g. binary expressions here? Based on a few examples
-        // it looked like the compiler already evaluated such expressions into literals.
-        let val = gen_expr_literal(u, &typ)?;
-        Ok((typ, val))
+        // By the time we get to the monomorphized AST the compiler will have already turned
+        // complex global expressions into literals.
+        let val = expr::gen_literal(u, &typ)?;
+        let name = format!("global{i}");
+        Ok((name, typ, val))
     }
 
     /// Generate random function names and signatures.
@@ -184,7 +192,7 @@ impl Context {
 
         let main_function_signature = function_signatures[0].clone();
 
-        let globals = self.globals.into_iter().map(|(id, (_typ, val))| (id, val)).collect();
+        let globals = self.globals.into_iter().map(|(id, (_name, _typ, val))| (id, val)).collect();
 
         Program {
             functions,

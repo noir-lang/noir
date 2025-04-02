@@ -7,12 +7,12 @@ use arbitrary::Unstructured;
 use noirc_frontend::{
     ast::IntegerBitSize,
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
-    monomorphization::ast::{Expression, FuncId, InlineType, LocalId, Parameters, Type},
+    monomorphization::ast::{Expression, FuncId, GlobalId, InlineType, LocalId, Parameters, Type},
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
 };
 
-use super::{Context, expr::gen_expr_literal};
+use super::{Context, Name, VariableId, expr};
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
@@ -63,42 +63,53 @@ impl FunctionDeclaration {
 struct Scope {
     /// ID and type of variables created in all visible scopes,
     /// which includes this scope and its ancestors.
-    variables: im::OrdMap<LocalId, Type>,
+    variables: im::OrdMap<VariableId, (Name, Type)>,
     /// Reverse index of local variables which can produce a type.
     /// For example an `(u8, [u64; 4])` can produce the tuple itself,
     /// the array in it, and both primitive types.
-    producers: im::OrdMap<Type, im::OrdSet<LocalId>>,
+    producers: im::OrdMap<Type, im::OrdSet<VariableId>>,
 }
 
 impl Scope {
     /// Create the initial scope from function parameters.
-    fn new(params: impl Iterator<Item = (LocalId, Type)>) -> Self {
+    fn new(
+        globals: impl Iterator<Item = (GlobalId, Name, Type)>,
+        params: impl Iterator<Item = (LocalId, Name, Type)>,
+    ) -> Self {
         let mut scope = Self::default();
-        for (id, typ) in params {
-            scope.add(id, typ);
+        for (id, name, typ) in globals {
+            scope.add(VariableId::Global(id), name, typ);
+        }
+        for (id, name, typ) in params {
+            scope.add(VariableId::Local(id), name, typ);
         }
         scope
     }
 
-    /// Add a new local variable to the scope.
-    fn add(&mut self, id: LocalId, typ: Type) {
+    /// Add a new variable to the scope.
+    fn add(&mut self, id: VariableId, name: String, typ: Type) {
         for typ in types_produced(&typ) {
             self.producers.entry(typ).or_default().insert(id);
         }
-        self.variables.insert(id, typ);
+        self.variables.insert(id, (name, typ));
     }
 
-    /// Type of a local variable.
-    fn get_variable(&self, id: &LocalId) -> &Type {
-        self.variables.get(id).expect("local variable doesn't exist")
+    /// Add a new local variable to the scope.
+    fn add_local(&mut self, id: LocalId, name: String, typ: Type) {
+        self.add(VariableId::Local(id), name, typ);
     }
 
-    /// Get a random producer of a type, if there is one.
-    fn get_producer(
+    /// Get a variable in scope.
+    fn get_variable(&self, id: &VariableId) -> &(Name, Type) {
+        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
+    }
+
+    /// Choose a random producer of a type, if there is one.
+    fn choose_producer(
         &self,
         u: &mut Unstructured,
         typ: &Type,
-    ) -> arbitrary::Result<Option<&LocalId>> {
+    ) -> arbitrary::Result<Option<&VariableId>> {
         let Some(ps) = self.producers.get(typ) else {
             return Ok(None);
         };
@@ -127,7 +138,10 @@ impl<'a> FunctionContext<'a> {
     pub fn new(ctx: &'a Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);
 
-        let scope = Scope::new(decl.params.iter().map(|(id, _, _, typ)| (*id, typ.clone())));
+        let scope = Scope::new(
+            ctx.globals.iter().map(|(id, (name, typ, _expr))| (*id, name.clone(), typ.clone())),
+            decl.params.iter().map(|(id, _, name, typ)| (*id, name.clone(), typ.clone())),
+        );
         let next_local_id = decl.params.iter().map(|p| p.0.0).max().unwrap_or_default();
 
         Self { ctx, decl, id, next_local_id, scopes: vec![scope] }
@@ -167,7 +181,20 @@ impl<'a> FunctionContext<'a> {
     /// While doing so, enter and exit blocks, and add variables declared to the context,
     /// so expressions down the line can refer to earlier variables.
     fn gen_expr(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
-        gen_expr_literal(u, typ)
+        let i = u.choose_index(100)?;
+
+        if i < 50 {
+            if let Some(id) = self.current_scope().choose_producer(u, typ)? {
+                let (src_name, src_type) = self.current_scope().get_variable(id);
+                let src_expr = expr::ident(*id, src_name.clone(), src_type.clone());
+                if let Some(expr) = expr::gen_produce(u, src_expr, src_type, typ)? {
+                    return Ok(expr);
+                }
+            }
+        }
+
+        // If nothing else worked out we can always produce a random literal.
+        expr::gen_literal(u, typ)
     }
 }
 
@@ -222,6 +249,13 @@ fn types_produced(typ: &Type) -> HashSet<Type> {
                 if *len > 0 {
                     visit(acc, typ);
                 }
+                // Technically we could produce `[T; N]` from `[S; N]` if
+                // we can produce `T` from `S`, but let's ignore that;
+                // instead we will produce `[T; N]` from any source that can
+                // supply `T`, one of which would be the `[S; N]` itself.
+                // So if we have `let foo = [1u32, 2u32];` and we need `[u64; 2]`
+                // we might generate `[foo[1] as u64, 3u64]` instead of "mapping"
+                // over the entire foo. Same goes for tuples.
             }
             Type::Tuple(types) => {
                 for typ in types {
