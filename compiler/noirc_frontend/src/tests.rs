@@ -435,7 +435,7 @@ fn check_trait_implemented_for_all_t() {
 #[test]
 fn check_trait_implementation_duplicate_method() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Field;
     }
 
@@ -444,7 +444,7 @@ fn check_trait_implementation_duplicate_method() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
            ~~~~~~~ First trait associated function found here
@@ -468,14 +468,14 @@ fn check_trait_implementation_duplicate_method() {
 #[test]
 fn check_trait_wrong_method_return_type() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default() -> Self;
     }
 
     struct Foo {
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default() -> Field {
                         ^^^^^ Expected type Foo, found type Field
             0
@@ -493,7 +493,7 @@ fn check_trait_wrong_method_return_type() {
 #[test]
 fn check_trait_wrong_method_return_type2() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -502,7 +502,7 @@ fn check_trait_wrong_method_return_type2() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(x: Field, _y: Field) -> Field {
                                            ^^^^^ Expected type Foo, found type Field
             x
@@ -519,7 +519,7 @@ fn check_trait_wrong_method_return_type2() {
 #[test]
 fn check_trait_wrong_method_return_type3() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -528,7 +528,7 @@ fn check_trait_wrong_method_return_type3() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(_x: Field, _y: Field) {
                                         ^ Expected type Foo, found type ()
         }
@@ -545,7 +545,7 @@ fn check_trait_wrong_method_return_type3() {
 #[test]
 fn check_trait_missing_implementation() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Self;
 
         fn method2(x: Field) -> Field;
@@ -557,9 +557,9 @@ fn check_trait_missing_implementation() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
-                     ^^^ Method `method2` from trait `Default` is not implemented
-                     ~~~ Please implement method2 here
+    impl Default2 for Foo {
+                      ^^^ Method `method2` from trait `Default2` is not implemented
+                      ~~~ Please implement method2 here
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
@@ -580,8 +580,8 @@ fn check_trait_not_in_scope() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
-         ^^^^^^^ Trait Default not found
+    impl Default2 for Foo {
+         ^^^^^^^^ Trait Default2 not found
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
@@ -597,7 +597,7 @@ fn check_trait_not_in_scope() {
 #[test]
 fn check_trait_wrong_method_name() {
     let src = "
-    trait Default {
+    trait Default2 {
     }
 
     struct Foo {
@@ -605,9 +605,9 @@ fn check_trait_wrong_method_name() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn does_not_exist(x: Field, y: Field) -> Self {
-           ^^^^^^^^^^^^^^ Method with name `does_not_exist` is not part of trait `Default`, therefore it can't be implemented
+           ^^^^^^^^^^^^^^ Method with name `does_not_exist` is not part of trait `Default2`, therefore it can't be implemented
             Self { bar: x, array: [x,y] }
         }
     }
@@ -622,7 +622,7 @@ fn check_trait_wrong_method_name() {
 #[test]
 fn check_trait_wrong_parameter() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field) -> Self;
     }
 
@@ -630,7 +630,7 @@ fn check_trait_wrong_parameter() {
         bar: u32,
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(x: u32) -> Self {
                       ^^^ Parameter #1 of method `default` must be of type Field, not u32
             Foo {bar: x}
@@ -647,7 +647,7 @@ fn check_trait_wrong_parameter() {
 #[test]
 fn check_trait_wrong_parameter2() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -656,7 +656,7 @@ fn check_trait_wrong_parameter2() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(x: Field, y: Foo) -> Self {
                                 ^^^ Parameter #2 of method `default` must be of type Field, not Foo
             Self { bar: x, array: [x, y.bar] }
@@ -673,7 +673,7 @@ fn check_trait_wrong_parameter2() {
 #[test]
 fn check_trait_wrong_parameter_type() {
     let src = "
-    pub trait Default {
+    pub trait Default2 {
         fn default(x: Field, y: NotAType) -> Field;
                                 ^^^^^^^^ Could not resolve 'NotAType' in path
     }
@@ -689,7 +689,7 @@ fn check_trait_wrong_parameter_type() {
 #[test]
 fn check_trait_wrong_parameters_count() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -698,9 +698,9 @@ fn check_trait_wrong_parameters_count() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(x: Field) -> Self {
-           ^^^^^^^ `Default::default` expects 2 parameters, but this method has 1
+           ^^^^^^^ `Default2::default` expects 2 parameters, but this method has 1
             Self { bar: x, array: [x, x] }
         }
     }
@@ -715,12 +715,12 @@ fn check_trait_wrong_parameters_count() {
 #[test]
 fn check_trait_impl_for_non_type() {
     let src = "
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Field;
     }
 
-    impl Default for main {
-                     ^^^^ expected type got function
+    impl Default2 for main {
+                      ^^^^ expected type got function
         fn default(x: Field, y: Field) -> Field {
             x + y
         }
@@ -740,20 +740,20 @@ fn check_impl_struct_not_trait() {
         array: [Field; 2],
     }
 
-    struct Default {
+    struct Default2 {
         x: Field,
         z: Field,
     }
 
-    impl Default for Foo {
-         ^^^^^^^ Default is not a trait, therefore it can't be implemented
+    impl Default2 for Foo {
+         ^^^^^^^^ Default2 is not a trait, therefore it can't be implemented
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
 
     fn main() {
-        let _ = Default { x: 1, z: 1 }; // silence Default never constructed warning
+        let _ = Default2 { x: 1, z: 1 }; // silence Default2 never constructed warning
     }
     ";
     check_errors!(src);
@@ -763,8 +763,8 @@ fn check_impl_struct_not_trait() {
 #[test]
 fn check_trait_duplicate_declaration() {
     let src = "
-    trait Default {
-          ~~~~~~~ First trait definition found here
+    trait Default2 {
+          ~~~~~~~~ First trait definition found here
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -773,15 +773,15 @@ fn check_trait_duplicate_declaration() {
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(x: Field,y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
 
-    trait Default {
-          ^^^^^^^ Duplicate definitions of trait definition with name Default found
-          ~~~~~~~ Second trait definition found here
+    trait Default2 {
+          ^^^^^^^^ Duplicate definitions of trait definition with name Default2 found
+          ~~~~~~~~ Second trait definition found here
         fn default(x: Field) -> Self;
     }
 
@@ -795,18 +795,18 @@ fn check_trait_duplicate_declaration() {
 #[test]
 fn check_trait_duplicate_implementation() {
     let src = "
-    trait Default {
+    trait Default2 {
     }
     struct Foo {
         bar: Field,
     }
 
-    impl Default for Foo {
-         ~~~~~~~ Previous impl defined here
+    impl Default2 for Foo {
+         ~~~~~~~~ Previous impl defined here
     }
-    impl Default for Foo {
-                     ^^^ Impl for type `Foo` overlaps with existing impl
-                     ~~~ Overlapping impl
+    impl Default2 for Foo {
+                      ^^^ Impl for type `Foo` overlaps with existing impl
+                      ~~~ Overlapping impl
     }
     fn main() {
         let _ = Foo { bar: 1 }; // silence Foo never constructed warning
@@ -819,7 +819,7 @@ fn check_trait_duplicate_implementation() {
 #[test]
 fn check_trait_duplicate_implementation_with_alias() {
     let src = "
-    trait Default {
+    trait Default2 {
     }
 
     struct MyStruct {
@@ -827,13 +827,13 @@ fn check_trait_duplicate_implementation_with_alias() {
 
     type MyType = MyStruct;
 
-    impl Default for MyStruct {
-         ~~~~~~~ Previous impl defined here
+    impl Default2 for MyStruct {
+         ~~~~~~~~ Previous impl defined here
     }
 
-    impl Default for MyType {
-                     ^^^^^^ Impl for type `MyType` overlaps with existing impl
-                     ~~~~~~ Overlapping impl
+    impl Default2 for MyType {
+                      ^^^^^^ Impl for type `MyType` overlaps with existing impl
+                      ~~~~~~ Overlapping impl
     }
 
     fn main() {
@@ -1488,15 +1488,15 @@ fn specify_method_types_with_turbofish() {
 #[test]
 fn incorrect_turbofish_count_function_call() {
     let src = r#"
-        trait Default {
+        trait Default2 {
             fn default() -> Self;
         }
 
-        impl Default for Field {
+        impl Default2 for Field {
             fn default() -> Self { 0 }
         }
 
-        impl Default for u64 {
+        impl Default2 for u64 {
             fn default() -> Self { 0 }
         }
 
@@ -1504,7 +1504,7 @@ fn incorrect_turbofish_count_function_call() {
         // We also need to construct a concrete value of `U` without giving away its type
         // as otherwise the unspecified type is ignored.
 
-        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+        fn generic_func<T, U>() -> (T, U) where T: Default2, U: Default2 {
             (T::default(), U::default())
         }
 
@@ -1520,11 +1520,11 @@ fn incorrect_turbofish_count_function_call() {
 #[test]
 fn incorrect_turbofish_count_method_call() {
     let src = r#"
-        trait Default {
+        trait Default2 {
             fn default() -> Self;
         }
 
-        impl Default for Field {
+        impl Default2 for Field {
             fn default() -> Self { 0 }
         }
 
@@ -1537,7 +1537,7 @@ fn incorrect_turbofish_count_method_call() {
         }
 
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) -> U where U: Default {
+            fn generic_method<U>(_self: Self) -> U where U: Default2 {
                 U::default()
             }
         }
@@ -2203,22 +2203,22 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
 #[test]
 fn impl_stricter_than_trait_different_generics() {
     let src = r#"
-    trait Default { }
+    trait Default2 { }
 
     // Object type of the trait constraint differs
     trait Foo<T> {
-        fn foo_good<U>() where T: Default;
+        fn foo_good<U>() where T: Default2;
 
-        fn foo_bad<U>() where T: Default;
+        fn foo_bad<U>() where T: Default2;
            ~~~~~~~ definition of `foo_bad` from trait
     }
 
     impl<A> Foo<A> for () {
-        fn foo_good<B>() where A: Default {}
+        fn foo_good<B>() where A: Default2 {}
 
-        fn foo_bad<B>() where B: Default {}
-                                 ^^^^^^^ impl has stricter requirements than trait
-                                 ~~~~~~~ impl has extra requirement `B: Default`
+        fn foo_bad<B>() where B: Default2 {}
+                                 ^^^^^^^^ impl has stricter requirements than trait
+                                 ~~~~~~~~ impl has extra requirement `B: Default2`
     }
     "#;
     check_errors!(src);
@@ -2232,18 +2232,18 @@ fn impl_stricter_than_trait_different_object_generics() {
 
     trait OtherTrait {}
 
-    struct Option<T> {
+    struct Option2<T> {
         inner: T
     }
 
     struct OtherOption<T> {
-        inner: Option<T>,
+        inner: Option2<T>,
     }
 
     trait Bar<T> {
-        fn bar_good<U>() where Option<T>: MyTrait, OtherOption<Option<T>>: OtherTrait;
+        fn bar_good<U>() where Option2<T>: MyTrait, OtherOption<Option2<T>>: OtherTrait;
 
-        fn bar_bad<U>() where Option<T>: MyTrait, OtherOption<Option<T>>: OtherTrait;
+        fn bar_bad<U>() where Option2<T>: MyTrait, OtherOption<Option2<T>>: OtherTrait;
            ~~~~~~~ definition of `bar_bad` from trait
 
         fn array_good<U>() where [T; 8]: MyTrait;
@@ -2251,24 +2251,24 @@ fn impl_stricter_than_trait_different_object_generics() {
         fn array_bad<U>() where [T; 8]: MyTrait;
            ~~~~~~~~~ definition of `array_bad` from trait
 
-        fn tuple_good<U>() where (Option<T>, Option<U>): MyTrait;
+        fn tuple_good<U>() where (Option2<T>, Option2<U>): MyTrait;
 
-        fn tuple_bad<U>() where (Option<T>, Option<U>): MyTrait;
+        fn tuple_bad<U>() where (Option2<T>, Option2<U>): MyTrait;
            ~~~~~~~~~ definition of `tuple_bad` from trait
     }
 
     impl<A> Bar<A> for () {
         fn bar_good<B>()
         where
-            OtherOption<Option<A>>: OtherTrait,
-            Option<A>: MyTrait { }
+            OtherOption<Option2<A>>: OtherTrait,
+            Option2<A>: MyTrait { }
 
         fn bar_bad<B>()
         where
-            OtherOption<Option<A>>: OtherTrait,
-            Option<B>: MyTrait { }
-                       ^^^^^^^ impl has stricter requirements than trait
-                       ~~~~~~~ impl has extra requirement `Option<B>: MyTrait`
+            OtherOption<Option2<A>>: OtherTrait,
+            Option2<B>: MyTrait { }
+                        ^^^^^^^ impl has stricter requirements than trait
+                        ~~~~~~~ impl has extra requirement `Option2<B>: MyTrait`
 
         fn array_good<B>() where [A; 8]: MyTrait { }
 
@@ -2276,15 +2276,15 @@ fn impl_stricter_than_trait_different_object_generics() {
                                         ^^^^^^^ impl has stricter requirements than trait
                                         ~~~~~~~ impl has extra requirement `[B; 8]: MyTrait`
 
-        fn tuple_good<B>() where (Option<A>, Option<B>): MyTrait { }
+        fn tuple_good<B>() where (Option2<A>, Option2<B>): MyTrait { }
 
-        fn tuple_bad<B>() where (Option<B>, Option<A>): MyTrait { }
-                                                        ^^^^^^^ impl has stricter requirements than trait
-                                                        ~~~~~~~ impl has extra requirement `(Option<B>, Option<A>): MyTrait`
+        fn tuple_bad<B>() where (Option2<B>, Option2<A>): MyTrait { }
+                                                          ^^^^^^^ impl has stricter requirements than trait
+                                                          ~~~~~~~ impl has extra requirement `(Option2<B>, Option2<A>): MyTrait`
     }
 
     fn main() {
-        let _ = OtherOption { inner: Option { inner: 1 } }; // silence unused warnings
+        let _ = OtherOption { inner: Option2 { inner: 1 } }; // silence unused warnings
     }
     "#;
     check_errors!(src);
@@ -2294,29 +2294,29 @@ fn impl_stricter_than_trait_different_object_generics() {
 #[test]
 fn impl_stricter_than_trait_different_trait() {
     let src = r#"
-    trait Default { }
+    trait Default2 { }
 
     trait OtherDefault { }
 
-    struct Option<T> {
+    struct Option2<T> {
         inner: T
     }
 
     trait Bar<T> {
-        fn bar<U>() where Option<T>: Default;
+        fn bar<U>() where Option2<T>: Default2;
            ~~~ definition of `bar` from trait
     }
 
     impl<A> Bar<A> for () {
         // Trait constraint differs due to the trait even though the constraint
         // types are the same.
-        fn bar<B>() where Option<A>: OtherDefault {}
-                                     ^^^^^^^^^^^^ impl has stricter requirements than trait
-                                     ~~~~~~~~~~~~ impl has extra requirement `Option<A>: OtherDefault`
+        fn bar<B>() where Option2<A>: OtherDefault {}
+                                      ^^^^^^^^^^^^ impl has stricter requirements than trait
+                                      ~~~~~~~~~~~~ impl has extra requirement `Option2<A>: OtherDefault`
     }
 
     fn main() {
-        let _ = Option { inner: 1 }; // silence Option never constructed warning
+        let _ = Option2 { inner: 1 }; // silence Option2 never constructed warning
     }
     "#;
     check_errors!(src);
@@ -2335,11 +2335,11 @@ fn trait_impl_where_clause_stricter_pass() {
 
     trait OtherTrait {}
 
-    struct Option<T> {
+    struct Option2<T> {
         inner: T
     }
 
-    impl<T> MyTrait for [T] where Option<T>: MyTrait {
+    impl<T> MyTrait for [T] where Option2<T>: MyTrait {
         fn good_foo<A, B>() where B: OtherTrait { }
 
         fn bad_foo<A, B>() where A: OtherTrait { }
@@ -2348,7 +2348,7 @@ fn trait_impl_where_clause_stricter_pass() {
     }
 
     fn main() {
-        let _ = Option { inner: 1 }; // silence Option never constructed warning
+        let _ = Option2 { inner: 1 }; // silence Option2 never constructed warning
     }
     "#;
     check_errors!(src);
