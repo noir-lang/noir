@@ -131,49 +131,6 @@ fn fuzz_poseidon2_equivalence() {
     }
 }
 
-#[test]
-fn fuzz_poseidon_equivalence() {
-    use light_poseidon::{Poseidon, PoseidonHasher};
-
-    let poseidon_hash = |inputs: &[FieldElement]| {
-        let mut poseidon = Poseidon::<ark_bn254::Fr>::new_circom(inputs.len()).unwrap();
-        let frs: Vec<ark_bn254::Fr> = inputs.iter().map(|f| f.into_repr()).collect::<Vec<_>>();
-        let hash: ark_bn254::Fr = poseidon.hash(&frs).expect("failed to hash");
-        FieldElement::from_repr(hash)
-    };
-
-    // Noir has hashes up to length 16, but the reference library won't work with more than 12.
-    for len in 1..light_poseidon::MAX_X5_LEN {
-        let source = format!(
-            "
-            use std::hash::{{Hash, Hasher}};
-
-            fn main(input: [Field; {len}]) -> pub Field {{
-                let h1 = std::hash::poseidon::bn254::hash_{len}(input);
-                let h2 = {{
-                    let mut hasher = std::hash::poseidon::PoseidonHasher::default();
-                    input.hash(&mut hasher);
-                    hasher.finish()
-                }};
-                assert_eq(h1, h2);
-                h1
-            }}"
-        );
-
-        let strategy = field_vec_strategy(len)
-            .prop_map(move |msg| {
-                let output = poseidon_hash(&msg);
-                let inputs = vec![("input", InputValue::Vec(vecmap(msg, InputValue::Field)))];
-
-                SnippetInputOutput::new(inputs, InputValue::Field(output))
-                    .with_description(format!("len = {len}"))
-            })
-            .boxed();
-
-        run_snippet_proptest(source.clone(), false, strategy);
-    }
-}
-
 fn field_vec_strategy(len: usize) -> impl Strategy<Value = Vec<FieldElement>> {
     // Generate Field elements from random 32 byte vectors.
     let field = prop::collection::vec(any::<u8>(), 32)
