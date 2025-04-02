@@ -66,7 +66,14 @@ impl Parser<'_> {
     /// VariableGeneric = identifier ( ':' TraitBounds ) ?
     fn parse_variable_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
         let ident = self.eat_ident()?;
-        let trait_bounds = if allow_trait_bounds && self.eat_colon() {
+        let trait_bounds = if self.eat_colon() {
+            if !allow_trait_bounds {
+                self.push_error(
+                    ParserErrorReason::TraitBoundsNotAllowedHere,
+                    self.previous_token_location,
+                );
+            }
+
             self.parse_trait_bounds()
         } else {
             Vec::new()
@@ -308,5 +315,18 @@ mod tests {
         let src = "<N<1>>";
         let generics = parse_generic_type_args_no_errors(src);
         assert_eq!(generics.ordered_args[0].to_string(), "N<1>");
+    }
+
+    #[test]
+    fn parse_generic_trait_bound_not_allowed() {
+        let src = "
+        N: Trait
+         ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        parser.parse_generic(false);
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::TraitBoundsNotAllowedHere));
     }
 }
