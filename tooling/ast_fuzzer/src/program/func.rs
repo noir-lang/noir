@@ -1,7 +1,7 @@
 #![allow(unused)] // TODO(#7879): Remove when done.
 use acir::FieldElement;
 use nargo::errors::Location;
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Debug};
 use strum::IntoEnumIterator;
 
 use arbitrary::Unstructured;
@@ -62,57 +62,45 @@ impl FunctionDeclaration {
 }
 
 /// A layer of variables available to choose from in blocks.
-#[derive(Debug, Clone, Default)]
-struct Scope {
+#[derive(Debug, Clone)]
+struct Scope<K: Ord> {
     /// ID and type of variables created in all visible scopes,
     /// which includes this scope and its ancestors.
-    variables: im::OrdMap<VariableId, (Name, Type)>,
-    /// Reverse index of local variables which can produce a type.
+    variables: im::OrdMap<K, (Name, Type)>,
+    /// Reverse index of variables which can produce a type.
     /// For example an `(u8, [u64; 4])` can produce the tuple itself,
     /// the array in it, and both primitive types.
-    producers: im::OrdMap<Type, im::OrdSet<VariableId>>,
+    producers: im::OrdMap<Type, im::OrdSet<K>>,
 }
 
-impl Scope {
+impl<K> Scope<K>
+where
+    K: Ord + Clone + Copy + Debug,
+{
     /// Create the initial scope from function parameters.
-    fn new(
-        globals: impl Iterator<Item = (GlobalId, Name, Type)>,
-        params: impl Iterator<Item = (LocalId, Name, Type)>,
-    ) -> Self {
-        let mut scope = Self::default();
-        for (id, name, typ) in globals {
-            scope.add(VariableId::Global(id), name, typ);
-        }
-        for (id, name, typ) in params {
-            scope.add(VariableId::Local(id), name, typ);
+    fn new(vars: impl Iterator<Item = (K, Name, Type)>) -> Self {
+        let mut scope = Self { variables: im::OrdMap::new(), producers: im::OrdMap::new() };
+        for (id, name, typ) in vars {
+            scope.add(id, name, typ);
         }
         scope
     }
 
     /// Add a new variable to the scope.
-    fn add(&mut self, id: VariableId, name: String, typ: Type) {
+    fn add(&mut self, id: K, name: String, typ: Type) {
         for typ in types_produced(&typ) {
             self.producers.entry(typ).or_default().insert(id);
         }
         self.variables.insert(id, (name, typ));
     }
 
-    /// Add a new local variable to the scope.
-    fn add_local(&mut self, id: LocalId, name: String, typ: Type) {
-        self.add(VariableId::Local(id), name, typ);
-    }
-
     /// Get a variable in scope.
-    fn get_variable(&self, id: &VariableId) -> &(Name, Type) {
+    fn get_variable(&self, id: &K) -> &(Name, Type) {
         self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
     }
 
     /// Choose a random producer of a type, if there is one.
-    fn choose_producer(
-        &self,
-        u: &mut Unstructured,
-        typ: &Type,
-    ) -> arbitrary::Result<Option<VariableId>> {
+    fn choose_producer(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Option<K>> {
         let Some(vs) = self.producers.get(typ) else {
             return Ok(None);
         };
@@ -131,23 +119,28 @@ pub(super) struct FunctionContext<'a> {
     /// Every variable created in the function will have an increasing ID,
     /// which does not reset when variables go out of scope.
     next_local_id: u32,
+    /// Global variables.
+    globals: Scope<GlobalId>,
     /// Variables accumulated during the generation of the function body,
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
-    scopes: Vec<Scope>,
+    locals: Vec<Scope<LocalId>>,
 }
 
 impl<'a> FunctionContext<'a> {
     pub fn new(ctx: &'a Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);
-
-        let scope = Scope::new(
-            ctx.globals.iter().map(|(id, (name, typ, _expr))| (*id, name.clone(), typ.clone())),
-            decl.params.iter().map(|(id, _, name, typ)| (*id, name.clone(), typ.clone())),
-        );
         let next_local_id = decl.params.iter().map(|p| p.0.0).max().unwrap_or_default();
 
-        Self { ctx, decl, id, next_local_id, scopes: vec![scope] }
+        let globals = Scope::new(
+            ctx.globals.iter().map(|(id, (name, typ, _expr))| (*id, name.clone(), typ.clone())),
+        );
+
+        let locals = Scope::new(
+            decl.params.iter().map(|(id, _, name, typ)| (*id, name.clone(), typ.clone())),
+        );
+
+        Self { ctx, decl, id, next_local_id, globals, locals: vec![locals] }
     }
 
     /// Generate the function body.
@@ -156,20 +149,20 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Local variables currently in scope.
-    fn current_scope(&self) -> &Scope {
-        self.scopes.last().expect("there is always the params layer")
+    fn current_scope(&self) -> &Scope<LocalId> {
+        self.locals.last().expect("there is always the params layer")
     }
 
     /// Add a layer of block variables.
     fn enter_scope(&mut self) {
         // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
-        self.scopes.push(self.current_scope().clone());
+        self.locals.push(self.current_scope().clone());
     }
 
     /// Remove the last layer of block variables.
     fn exit_scope(&mut self) {
-        self.scopes.pop();
-        assert!(!self.scopes.is_empty(), "never pop the params layer");
+        self.locals.pop();
+        assert!(!self.locals.is_empty(), "never pop the params layer");
     }
 
     /// Get and increment the next local ID.
@@ -177,6 +170,30 @@ impl<'a> FunctionContext<'a> {
         let id = LocalId(self.next_local_id);
         self.next_local_id += 1;
         id
+    }
+
+    /// Choose a producer for a type, preferring local variables over global ones.
+    fn choose_producer(
+        &self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Option<VariableId>> {
+        if u.ratio(7, 10)? {
+            if let Some(id) = self.current_scope().choose_producer(u, typ)? {
+                return Ok(Some(VariableId::Local(id)));
+            }
+        }
+        self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
+    }
+
+    /// Get a local or global variable.
+    ///
+    /// Panics if it doesn't exist.
+    fn get_variable(&self, id: &VariableId) -> &(Name, Type) {
+        match id {
+            VariableId::Local(id) => self.current_scope().get_variable(id),
+            VariableId::Global(id) => self.globals.get_variable(id),
+        }
     }
 
     /// Generate an expression of a certain type.
@@ -208,8 +225,8 @@ impl<'a> FunctionContext<'a> {
         typ: &Type,
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
-        if let Some(id) = self.current_scope().choose_producer(u, typ)? {
-            let (src_name, src_type) = self.current_scope().get_variable(&id).clone();
+        if let Some(id) = self.choose_producer(u, typ)? {
+            let (src_name, src_type) = self.get_variable(&id).clone();
             let src_expr = expr::ident(id, src_name, src_type.clone());
             if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
                 return Ok(Some(expr));
