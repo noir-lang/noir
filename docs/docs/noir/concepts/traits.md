@@ -129,7 +129,7 @@ fn log_area<T: Area>(shape: T) {
 }
 ```
 
-Both are equivalent. Using `where` is preferrable when there are many trait boudns and it's clearer to have
+Both are equivalent. Using `where` is preferable when there are many trait bounds and it's clearer to have
 them separate from the types the are applying bounds to.
 
 ## Invoking trait methods
