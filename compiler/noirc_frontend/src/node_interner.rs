@@ -1997,7 +1997,7 @@ impl NodeInterner {
 
     /// This function is needed when creating a NodeInterner for testing so that calls
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test_utils"))]
     pub fn populate_dummy_operator_traits(&mut self) {
         let dummy_trait = TraitId(ModuleId::dummy_id());
         self.infix_operator_traits.insert(BinaryOpKind::Add, dummy_trait);
