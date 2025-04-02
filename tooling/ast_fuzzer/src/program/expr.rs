@@ -3,9 +3,9 @@ use nargo::errors::Location;
 
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
-    ast::IntegerBitSize,
+    ast::{BinaryOpKind, IntegerBitSize},
     monomorphization::ast::{
-        ArrayLiteral, Cast, Definition, Expression, Ident, Index, Literal, LocalId, Type,
+        ArrayLiteral, Binary, Cast, Definition, Expression, Ident, Literal, Type,
     },
     shared::Signedness,
     signed_field::SignedField,
@@ -106,74 +106,32 @@ pub(crate) fn ident(id: VariableId, name: Name, typ: Type) -> Expression {
     })
 }
 
-/// Generate an expression that produces a target type from a source,
-/// e.g. given a source type of `[(u32, bool); 4]` and a target of `u64`
-/// it might generate `my_var[2].0 as u64`.
-///
-/// Returns `None` if there is no way to produce the target from the source.
-pub(crate) fn gen_produce(
-    u: &mut Unstructured,
-    src_expr: Expression,
-    src_type: &Type,
-    tgt_type: &Type,
-) -> arbitrary::Result<Option<Expression>> {
-    let cast = |lhs| {
-        Expression::Cast(Cast {
-            lhs: Box::new(lhs),
-            r#type: tgt_type.clone(),
-            location: Location::dummy(),
-        })
-    };
+/// 32-bit unsigned int type, used in indexing arrays.
+pub(crate) fn u32_type() -> Type {
+    Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
+}
 
-    if src_type == tgt_type {
-        // Return the variable as-is.
-        return Ok(Some(src_expr));
-    }
+/// 32-bit unsigned int literal, used in indexing arrays.
+pub(crate) fn u32_literal(value: u32) -> Expression {
+    Expression::Literal(Literal::Integer(
+        SignedField { field: FieldElement::from(value), is_negative: false },
+        u32_type(),
+        Location::dummy(),
+    ))
+}
 
-    match (src_type, tgt_type) {
-        (Type::Field, Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)) => {
-            Ok(Some(cast(src_expr)))
-        }
-        (Type::Bool, Type::Field) => Ok(Some(cast(src_expr))),
-        (Type::Integer(Signedness::Unsigned, _), Type::Field) => Ok(Some(cast(src_expr))),
-        (Type::Integer(sign_from, ibs_from), Type::Integer(sign_to, ibs_to))
-            if sign_from == sign_to && ibs_from.bit_size() < ibs_to.bit_size() =>
-        {
-            Ok(Some(cast(src_expr)))
-        }
-        (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
-            Ok(Some(Expression::Clone(Box::new(src_expr))))
-        }
-        (Type::Array(len, item_typ), _) => {
-            // We could move this entire function into the `FunctionContext`
-            // and then the index could come from another call to `gen_expr`,
-            // but for now just choose a random index.
-            let idx = u.choose_index(*len as usize)?;
-            let idx_expr = Expression::Literal(Literal::Integer(
-                SignedField { field: FieldElement::from(idx), is_negative: false },
-                Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-                Location::dummy(),
-            ));
-            // Access the item.
-            let item_expr = Expression::Index(Index {
-                collection: Box::new(src_expr),
-                index: Box::new(idx_expr),
-                element_type: *item_typ.clone(),
-                location: Location::dummy(),
-            });
-            // Produce the target type from the item.
-            gen_produce(u, item_expr, item_typ, tgt_type)
-        }
-        (Type::Tuple(items), _) => todo!(),
-        (Type::Slice(_), _) => todo!(),
-        _ => {
-            // We have already considered the case when the two types equal.
-            // Normally we would call this function knowing that source can produce the target,
-            // but in case we missed a case, let's return None and let the caller fall back to
-            // a different strategy. In some cases we could return a literal, but it wouldn't
-            // work in the recursive case of producing a type from an array item, which needs
-            // to be wrapped with an accessor.
-            Ok(None)
-        }
-    }
+/// Cast an expression to a type.
+pub(crate) fn cast(lhs: Expression, tgt_type: Type) -> Expression {
+    Expression::Cast(Cast { lhs: Box::new(lhs), r#type: tgt_type, location: Location::dummy() })
+}
+
+/// Take an integer expression and make sure it fits in an expected `len`
+/// by taking a modulo.
+pub(crate) fn index_modulo(idx: Expression, len: usize) -> Expression {
+    Expression::Binary(Binary {
+        lhs: Box::new(idx),
+        operator: BinaryOpKind::Modulo,
+        rhs: Box::new(u32_literal(len as u32)),
+        location: Location::dummy(),
+    })
 }

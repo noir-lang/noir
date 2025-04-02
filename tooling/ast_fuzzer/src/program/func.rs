@@ -3,11 +3,13 @@ use nargo::errors::Location;
 use std::collections::HashSet;
 use strum::IntoEnumIterator;
 
-use arbitrary::Unstructured;
+use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::IntegerBitSize,
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
-    monomorphization::ast::{Expression, FuncId, GlobalId, InlineType, LocalId, Parameters, Type},
+    monomorphization::ast::{
+        Expression, FuncId, GlobalId, Index, InlineType, LocalId, Parameters, Type,
+    },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
 };
@@ -109,11 +111,11 @@ impl Scope {
         &self,
         u: &mut Unstructured,
         typ: &Type,
-    ) -> arbitrary::Result<Option<&VariableId>> {
-        let Some(ps) = self.producers.get(typ) else {
+    ) -> arbitrary::Result<Option<VariableId>> {
+        let Some(vs) = self.producers.get(typ) else {
             return Ok(None);
         };
-        u.choose_iter(ps.iter()).map(Some)
+        u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
     }
 }
 
@@ -149,7 +151,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate the function body.
     pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        self.gen_expr(u, &self.decl.return_type)
+        self.gen_expr(u, &self.decl.return_type, self.ctx.config.max_depth)
     }
 
     /// Local variables currently in scope.
@@ -180,21 +182,121 @@ impl<'a> FunctionContext<'a> {
     ///
     /// While doing so, enter and exit blocks, and add variables declared to the context,
     /// so expressions down the line can refer to earlier variables.
-    fn gen_expr(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+    fn gen_expr(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Expression> {
         let i = u.choose_index(100)?;
 
         if i < 50 {
-            if let Some(id) = self.current_scope().choose_producer(u, typ)? {
-                let (src_name, src_type) = self.current_scope().get_variable(id);
-                let src_expr = expr::ident(*id, src_name.clone(), src_type.clone());
-                if let Some(expr) = expr::gen_produce(u, src_expr, src_type, typ)? {
-                    return Ok(expr);
-                }
+            if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
+                return Ok(expr);
             }
         }
 
         // If nothing else worked out we can always produce a random literal.
         expr::gen_literal(u, typ)
+    }
+
+    /// Try to generate an expression with a certain type out of the variables in scope.
+    fn gen_expr_from_vars(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<Expression>> {
+        if let Some(id) = self.current_scope().choose_producer(u, typ)? {
+            let (src_name, src_type) = self.current_scope().get_variable(&id).clone();
+            let src_expr = expr::ident(id, src_name, src_type.clone());
+            if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
+                return Ok(Some(expr));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Try to generate an expression that produces a target type from a source,
+    /// e.g. given a source type of `[(u32, bool); 4]` and a target of `u64`
+    /// it might generate `my_var[2].0 as u64`.
+    ///
+    /// Returns `None` if there is no way to produce the target from the source.
+    fn gen_expr_from_source(
+        &mut self,
+        u: &mut Unstructured,
+        src_expr: Expression,
+        src_type: &Type,
+        tgt_type: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<Expression>> {
+        // If we found our type, return it without further ado.
+        if src_type == tgt_type {
+            return Ok(Some(src_expr));
+        }
+
+        // Cast the source into the target type.
+        let src_as_tgt = || Ok(Some(expr::cast(src_expr.clone(), tgt_type.clone())));
+
+        // See how we can produce tgt from src.
+        match (src_type, tgt_type) {
+            (
+                Type::Field,
+                Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
+            ) => src_as_tgt(),
+            (Type::Bool, Type::Field) => src_as_tgt(),
+            (Type::Integer(Signedness::Unsigned, _), Type::Field) => src_as_tgt(),
+            (Type::Integer(sign_from, ibs_from), Type::Integer(sign_to, ibs_to))
+                if sign_from == sign_to && ibs_from.bit_size() < ibs_to.bit_size() =>
+            {
+                src_as_tgt()
+            }
+            (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
+                Ok(Some(Expression::Clone(Box::new(src_expr))))
+            }
+            (Type::Array(len, item_typ), _) => {
+                // Choose a random index.
+                let idx_expr = self.gen_index(u, *len as usize, max_depth)?;
+                // Access the item.
+                let item_expr = Expression::Index(Index {
+                    collection: Box::new(src_expr),
+                    index: Box::new(idx_expr),
+                    element_type: *item_typ.clone(),
+                    location: Location::dummy(),
+                });
+                // Produce the target type from the item.
+                self.gen_expr_from_source(u, item_expr, item_typ, tgt_type, max_depth)
+            }
+            (Type::Tuple(items), _) => todo!(),
+            (Type::Slice(_), _) => todo!(),
+            _ => {
+                // We have already considered the case when the two types equal.
+                // Normally we would call this function knowing that source can produce the target,
+                // but in case we missed a case, let's return None and let the caller fall back to
+                // a different strategy. In some cases we could return a literal, but it wouldn't
+                // work in the recursive case of producing a type from an array item, which needs
+                // to be wrapped with an accessor.
+                Ok(None)
+            }
+        }
+    }
+
+    /// Generate an arbitrary index for an array.
+    ///
+    /// This can be either a random int literal, or a complex expression that produces an int.
+    fn gen_index(
+        &mut self,
+        u: &mut Unstructured,
+        len: usize,
+        max_depth: usize,
+    ) -> arbitrary::Result<Expression> {
+        if max_depth > 0 && u.ratio(1, 3)? {
+            let idx = self.gen_expr(u, &expr::u32_type(), max_depth - 1)?;
+            Ok(expr::index_modulo(idx, len))
+        } else {
+            let idx = u.choose_index(len)?;
+            Ok(expr::u32_literal(idx as u32))
+        }
     }
 }
 
