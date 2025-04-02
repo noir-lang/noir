@@ -3508,6 +3508,7 @@ dependencies = [
  "num-traits",
  "petgraph",
  "proptest",
+ "proptest-derive",
  "rayon",
  "serde",
  "serde_json",
