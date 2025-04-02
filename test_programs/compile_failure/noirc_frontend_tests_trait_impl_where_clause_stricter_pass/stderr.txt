@@ -1,15 +1,3 @@
-error: Duplicate definitions of import with name Option found
-   ┌─ std/aes128.nr:1:1
-   │
- 1 │ #[foreign(aes128_encrypt)]
-   │ - Second import found here
-   │
-   ┌─ src/main.nr:10:12
-   │
-10 │     struct Option<T> {
-   │            ------ First import found here
-   │
-
 error: impl has stricter requirements than trait
    ┌─ src/main.nr:5:12
    │
@@ -20,4 +8,4 @@ error: impl has stricter requirements than trait
    │                                     ---------- impl has extra requirement `A: OtherTrait`
    │
 
-Aborting due to 2 previous errors
+Aborting due to 1 previous error

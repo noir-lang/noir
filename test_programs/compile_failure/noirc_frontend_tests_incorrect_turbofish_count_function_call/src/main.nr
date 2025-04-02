@@ -1,13 +1,13 @@
 
-        trait Default {
+        trait Default2 {
             fn default() -> Self;
         }
 
-        impl Default for Field {
+        impl Default2 for Field {
             fn default() -> Self { 0 }
         }
 
-        impl Default for u64 {
+        impl Default2 for u64 {
             fn default() -> Self { 0 }
         }
 
@@ -15,7 +15,7 @@
         // We also need to construct a concrete value of `U` without giving away its type
         // as otherwise the unspecified type is ignored.
 
-        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+        fn generic_func<T, U>() -> (T, U) where T: Default2, U: Default2 {
             (T::default(), U::default())
         }
 

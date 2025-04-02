@@ -1,23 +1,11 @@
-error: Duplicate definitions of import with name Option found
-  ┌─ std/aes128.nr:1:1
-  │
-1 │ #[foreign(aes128_encrypt)]
-  │ - Second import found here
-  │
-  ┌─ src/main.nr:6:12
-  │
-6 │     struct Option<T> {
-  │            ------ First import found here
-  │
-
 error: impl has stricter requirements than trait
    ┌─ src/main.nr:17:12
    │
-17 │         fn bar_bad<U>() where Option<T>: MyTrait, OtherOption<Option<T>>: OtherTrait;
+17 │         fn bar_bad<U>() where Option2<T>: MyTrait, OtherOption<Option2<T>>: OtherTrait;
    │            ------- definition of `bar_bad` from trait
    ·
-37 │             Option<B>: MyTrait { }
-   │                        ------- impl has extra requirement `Option<B>: MyTrait`
+37 │             Option2<B>: MyTrait { }
+   │                         ------- impl has extra requirement `Option2<B>: MyTrait`
    │
 
 error: impl has stricter requirements than trait
@@ -33,11 +21,11 @@ error: impl has stricter requirements than trait
 error: impl has stricter requirements than trait
    ┌─ src/main.nr:25:12
    │
-25 │         fn tuple_bad<U>() where (Option<T>, Option<U>): MyTrait;
+25 │         fn tuple_bad<U>() where (Option2<T>, Option2<U>): MyTrait;
    │            --------- definition of `tuple_bad` from trait
    ·
-45 │         fn tuple_bad<B>() where (Option<B>, Option<A>): MyTrait { }
-   │                                                         ------- impl has extra requirement `(Option<B>, Option<A>): MyTrait`
+45 │         fn tuple_bad<B>() where (Option2<B>, Option2<A>): MyTrait { }
+   │                                                           ------- impl has extra requirement `(Option2<B>, Option2<A>): MyTrait`
    │
 
-Aborting due to 4 previous errors
+Aborting due to 3 previous errors

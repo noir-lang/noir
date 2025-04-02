@@ -1,15 +1,3 @@
-error: Duplicate definitions of import with name Default found
-  ┌─ std/aes128.nr:1:1
-  │
-1 │ #[foreign(aes128_encrypt)]
-  │ - Second import found here
-  │
-  ┌─ src/main.nr:2:11
-  │
-2 │     trait Default {
-  │           ------- First import found here
-  │
-
 error: Expected type Foo, found type Field
    ┌─ src/main.nr:10:25
    │
@@ -17,4 +5,4 @@ error: Expected type Foo, found type Field
    │                         -----
    │
 
-Aborting due to 2 previous errors
+Aborting due to 1 previous error
