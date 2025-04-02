@@ -147,7 +147,6 @@ pub(super) fn simplify_call(
                                         dfg.make_constant(my_index.into(), typ.unwrap_numeric());
                                     assert!(matches!(typ, Type::Numeric(_)));
                                     let get = Instruction::ArrayGet { array: *elem, index };
-                                    // let res = self.builder.insert_array_get(element, index, typ);
                                     let typevars = Some(vec![typ]);
                                     let res = dfg
                                         .insert_instruction_and_results(
@@ -494,10 +493,25 @@ fn simplify_slice_push_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    // The capacity must be an integer so that we can compare it against the slice length
     let capacity = dfg.make_constant((slice.len() as u128).into(), NumericType::length_type());
+
+    let is_acir = dfg.runtime().is_acir();
+    let length = if is_acir {
+        let flat_element_size = element_type.clone().element_types().iter().map(|typ| typ.flattened_size()).sum::<u32>() as u128;
+
+        // The capacity must be an integer so that we can compare it against the slice length
+        let flat_element_size = dfg.make_constant(flat_element_size.into(), NumericType::length_type());
+        let flat_len = Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Mul { unchecked: true }, rhs: flat_element_size });
+        let flat_len = dfg
+            .insert_instruction_and_results(flat_len, block, None, call_stack)
+            .first();
+        flat_len
+    } else {
+        arguments[0]
+    };
+
     let len_equals_capacity_instr =
-        Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
+        Instruction::Binary(Binary { lhs: length, operator: BinaryOp::Eq, rhs: capacity });
     let len_equals_capacity = dfg
         .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)
         .first();
@@ -509,12 +523,33 @@ fn simplify_slice_push_back(
     let new_slice_length = increment_slice_length(arguments[0], dfg, block);
 
     for elem in &arguments[2..] {
-        slice.push_back(*elem);
+        let typ = dfg.type_of_value(*elem);
+        match (&typ, is_acir) {
+            (Type::Array(_, _), true) => { 
+                let flat_typ = typ.clone().flatten();
+                for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                    let index =
+                        dfg.make_constant(my_index.into(), typ.unwrap_numeric());
+                    assert!(matches!(typ, Type::Numeric(_)));
+                    let get = Instruction::ArrayGet { array: *elem, index };
+                    let typevars = Some(vec![typ]);
+                    let res = dfg
+                        .insert_instruction_and_results(
+                            get, block, typevars, call_stack,
+                        )
+                        .first();
+                    slice.push_back(res);
+                }
+            }
+            _ => {
+                slice.push_back(*elem);
+            }
+        }
     }
     let slice_size = slice.len() as u32;
-    let element_size = element_type.element_size() as u32;
-    let new_slice = make_array(dfg, slice, element_type, block, call_stack);
 
+    // let element_size = element_type.element_size() as u32;
+    let new_slice = make_array(dfg, slice, element_type, block, call_stack);
     let set_last_slice_value_instr = Instruction::ArraySet {
         array: new_slice,
         index: arguments[0],
@@ -527,8 +562,8 @@ fn simplify_slice_push_back(
         .first();
 
     let mut slice_sizes = HashMap::default();
-    slice_sizes.insert(set_last_slice_value, slice_size / element_size);
-    slice_sizes.insert(new_slice, slice_size / element_size);
+    slice_sizes.insert(set_last_slice_value, slice_size);
+    slice_sizes.insert(new_slice, slice_size);
 
     let unknown = &mut HashMap::default();
     let mut value_merger =

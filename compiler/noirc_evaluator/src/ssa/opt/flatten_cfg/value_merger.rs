@@ -237,7 +237,6 @@ impl<'a> ValueMerger<'a> {
             slice.len() as u32
         });
         let len = then_len.max(else_len);
-
         let composite_len = len / flat_element_types_size;
 
         let flat_types: Vec<Type> = (0..composite_len)
@@ -249,16 +248,23 @@ impl<'a> ValueMerger<'a> {
             assert!(matches!(typ, Type::Numeric(_)));
             let typevars = Some(vec![typ.clone()]);
 
-            let mut get_element = |array, typevars, len| {
+            let mut get_element = |array, typevars: Option<Vec<Type>>, len| {
                 // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                 // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                 if len <= my_index as u32 {
                     self.make_slice_dummy_data(&typ)
                 } else {
                     let get = Instruction::ArrayGet { array, index };
-                    self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
-                        .first()
+                    let res = self.dfg
+                        .insert_instruction_and_results(get, self.block, typevars.clone(), self.call_stack)
+                        .first();
+                    let res = self.dfg.resolve(res);
+                    let res_typ = self.dfg.type_of_value(res);
+                    assert!(
+                        matches!(res_typ, Type::Numeric(_)),
+                        "ICE: Array get is returning a non-numeric type. All arrays in ACIR work upon flat memory. Got {res_typ}"
+                    );
+                    res
                 }
             };
             let then_element = get_element(then_value_id, typevars.clone(), then_len);

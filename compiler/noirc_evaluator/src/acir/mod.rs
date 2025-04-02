@@ -1065,13 +1065,15 @@ impl<'a> Context<'a> {
                         AcirValue::Array(array) => array.len(),
                         _ => unreachable!("ICE: Slice value is not an array"),
                     };
+                    
+                    let flat_items_size = item_types.iter().map(|typ| typ.flattened_size()).sum::<u32>();
 
                     BrilligParameter::Slice(
                         item_types
                             .iter()
                             .map(BrilligFunctionContext::ssa_type_to_parameter)
                             .collect(),
-                        len / item_types.len(),
+                        len / flat_items_size as usize,
                     )
                 } else {
                     BrilligFunctionContext::ssa_type_to_parameter(&typ)

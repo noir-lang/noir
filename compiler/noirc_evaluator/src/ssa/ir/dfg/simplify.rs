@@ -119,14 +119,37 @@ pub(crate) fn simplify(
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
             let array = dfg.get_array_constant(*array_id);
             let index = dfg.get_numeric_constant(*index_id);
-            if let (Some((array, _element_type)), Some(index)) = (array, index) {
-                let index =
+            if let (Some((mut array, _element_type)), Some(index)) = (array, index) {
+                let index_const =
                     index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
-                if index < array.len() {
-                    let elements = array.update(index, *value);
+                if index_const < array.len() {
+                    let typ = dfg.type_of_value(*value);
+                    let is_acir = dfg.runtime().is_acir();
+                    match (&typ, is_acir) {
+                        (Type::Array(_, _), true) => { 
+                            let flat_typ = typ.clone().flatten();
+                            for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                                let index =
+                                    dfg.make_constant(my_index.into(), typ.unwrap_numeric());
+                                assert!(matches!(typ, Type::Numeric(_)));
+                                let get = Instruction::ArrayGet { array: *value, index };
+                                let typevars = Some(vec![typ]);
+                                let res = dfg
+                                    .insert_instruction_and_results(
+                                        get, block, typevars, call_stack,
+                                    )
+                                    .first();
+                                array = array.update(index_const + my_index, res);
+                            }
+                        }
+                        _ => {
+                            array = array.update(index_const, *value);
+                        }
+                    }
+
                     let typ = dfg.type_of_value(*array_id);
-                    let instruction = Instruction::MakeArray { elements, typ };
+                    let instruction = Instruction::MakeArray { elements: array, typ };
                     let new_array = dfg.insert_instruction_and_results(
                         instruction,
                         block,
