@@ -2220,7 +2220,7 @@ impl<'context> Elaborator<'context> {
         let mut idents = HashSet::new();
         for generic in generics {
             match generic {
-                UnresolvedGeneric::Variable(ident) => {
+                UnresolvedGeneric::Variable(ident, _) => {
                     idents.insert(ident.clone());
                 }
                 UnresolvedGeneric::Numeric { ident, typ: _ } => {
