@@ -445,15 +445,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.fuzzing_trace_branching(self.program_counter + 1);
                 self.increment_program_counter()
             }
-            Opcode::JumpIfNot { condition, location: destination } => {
-                let condition_value = self.memory.read(*condition);
-                if condition_value.expect_u1().expect("condition value is not a boolean") {
-                    self.fuzzing_trace_branching(self.program_counter + 1);
-                    return self.increment_program_counter();
-                }
-                self.fuzzing_trace_branching(*destination);
-                self.set_program_counter(*destination)
-            }
+
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
                 let size = self.memory.read(*size_address).to_usize();
                 let offset = self.memory.read(*offset_address).to_usize();
@@ -592,6 +584,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     Ok(()) => self.increment_program_counter(),
                     Err(e) => self.fail(e.to_string()),
                 }
+            }
+            #[expect(deprecated)]
+            Opcode::JumpIfNot { .. } => {
+                unreachable!("JumpIfNot is deprecated and should not be emitted")
             }
         }
     }

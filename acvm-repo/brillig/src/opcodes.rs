@@ -1,3 +1,6 @@
+// The derives on `BrilligOpcode` throw a warning for using a deprecated variant without this.
+#![expect(deprecated)]
+
 use crate::black_box::BlackBoxOp;
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
@@ -243,6 +246,7 @@ pub enum BrilligOpcode<F> {
     },
     /// Sets the program counter to the value of `location` if
     /// the value at the `condition` address is zero.
+    #[deprecated]
     JumpIfNot {
         condition: MemoryAddress,
         location: Label,

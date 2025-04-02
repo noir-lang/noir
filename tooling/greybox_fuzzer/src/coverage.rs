@@ -658,8 +658,7 @@ pub fn analyze_brillig_program_before_fuzzing(
     for (opcode_index, opcode) in fuzzed_brillig_function.bytecode.iter().enumerate() {
         match opcode {
             // Conditional branching
-            &BrilligOpcode::JumpIf { location, .. }
-            | &BrilligOpcode::JumpIfNot { location, .. } => {
+            &BrilligOpcode::JumpIf { location, .. } => {
                 feature_to_index_map.insert((opcode_index, location), total_features);
                 feature_to_index_map.insert((opcode_index, opcode_index + 1), total_features + 1);
                 coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
@@ -751,6 +750,9 @@ pub fn analyze_brillig_program_before_fuzzing(
             | BrilligOpcode::BlackBox(..)
             | BrilligOpcode::Trap { .. }
             | BrilligOpcode::Stop { .. } => (),
+
+            #[expect(deprecated)]
+            BrilligOpcode::JumpIfNot { .. } => unreachable!("JumpIfNot is deprecated and should not be emitted")
         }
     }
     (feature_to_index_map, coverage_items)
