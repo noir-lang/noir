@@ -1,5 +1,11 @@
-//! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
-//! program as it is being converted from SSA form.
+//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
+//!
+//! This module defines the `GeneratedAcir` which is constructed as part of the ACIR-gen pass
+//! to accumulate all of the ACIR. This tracks properties such as which witnesses form part of the circuit interface
+//! and defines common snippets of ACIR to perform simple operations. Notably it has no concept of SSA or any types
+//! for the variables it works with, it instead only works on the [`Expression`]s and [`Witness`]es which will be
+//! reflected in the final circuit.
+
 use std::collections::BTreeMap;
 
 use acvm::acir::{
@@ -12,7 +18,6 @@ use acvm::acir::{
     native_types::{Expression, Witness},
 };
 
-use super::brillig_directive;
 use crate::{
     ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
@@ -24,11 +29,13 @@ use iter_extended::vecmap;
 use noirc_errors::debug_info::ProcedureDebugId;
 use num_bigint::BigUint;
 
+mod brillig_directive;
+
 /// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
+pub(super) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
