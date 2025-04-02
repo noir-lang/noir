@@ -4574,6 +4574,7 @@ fn unconstrained_numeric_generic_in_impl() {
     check_errors!(src);
 }
 
+#[named]
 #[test]
 fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numeric_generic() {
     let src = r#"
@@ -4598,5 +4599,5 @@ fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numer
     }
     "#;
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features!(src, &features);
 }
