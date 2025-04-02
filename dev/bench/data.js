@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743626907601,
+  "lastUpdate": 1743627078861,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "20a9084582dba63bb38dea08765f03e8c037df3d",
-          "message": "fix: mark array index as used in DIE pass when replacing read with explicit bounds check (#7786)",
-          "timestamp": "2025-03-25T12:58:03Z",
-          "tree_id": "868b9062ed32c4e971834a193fdd73a7ae398f0e",
-          "url": "https://github.com/noir-lang/noir/commit/20a9084582dba63bb38dea08765f03e8c037df3d"
-        },
-        "date": 1742908986756,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.11,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.17,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.13,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d2fabc637cf8e37bbc59f8e59c480ad3cd47e265"
         },
         "date": 1743623658435,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 504.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 413.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 293.53,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "90ad693997f66273645a0b8201e3c88d1f910f52",
+          "message": "feat: error if generic type parameter in impl is not mentioned in self type (#6388)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-02T20:24:41Z",
+          "tree_id": "82b92066ebbaef17ba7429490a32b80af7ce6bb1",
+          "url": "https://github.com/noir-lang/noir/commit/90ad693997f66273645a0b8201e3c88d1f910f52"
+        },
+        "date": 1743627074805,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
