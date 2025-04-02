@@ -1,9 +1,10 @@
+#![allow(unused)] // TODO(#7879): Remove when done.
 use acir::FieldElement;
 use nargo::errors::Location;
 use std::collections::HashSet;
 use strum::IntoEnumIterator;
 
-use arbitrary::{Arbitrary, Unstructured};
+use arbitrary::Unstructured;
 use noirc_frontend::{
     ast::IntegerBitSize,
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
