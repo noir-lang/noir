@@ -1,5 +1,7 @@
 use acir::FieldElement;
 use nargo::errors::Location;
+use std::collections::HashSet;
+use strum::IntoEnumIterator;
 
 use arbitrary::Unstructured;
 use noirc_frontend::{
@@ -56,8 +58,55 @@ impl FunctionDeclaration {
     }
 }
 
+/// A layer of variables available to choose from in blocks.
+#[derive(Debug, Clone, Default)]
+struct Scope {
+    /// ID and type of variables created in all visible scopes,
+    /// which includes this scope and its ancestors.
+    variables: im::OrdMap<LocalId, Type>,
+    /// Reverse index of local variables which can produce a type.
+    /// For example an `(u8, [u64; 4])` can produce the tuple itself,
+    /// the array in it, and both primitive types.
+    producers: im::OrdMap<Type, im::OrdSet<LocalId>>,
+}
+
+impl Scope {
+    /// Create the initial scope from function parameters.
+    fn new(params: impl Iterator<Item = (LocalId, Type)>) -> Self {
+        let mut scope = Self::default();
+        for (id, typ) in params {
+            scope.add(id, typ);
+        }
+        scope
+    }
+
+    /// Add a new local variable to the scope.
+    fn add(&mut self, id: LocalId, typ: Type) {
+        for typ in types_produced(&typ) {
+            self.producers.entry(typ).or_default().insert(id);
+        }
+        self.variables.insert(id, typ);
+    }
+
+    /// Type of a local variable.
+    fn get_variable(&self, id: &LocalId) -> &Type {
+        self.variables.get(id).expect("local variable doesn't exist")
+    }
+
+    /// Get a random producer of a type, if there is one.
+    fn get_producer(
+        &self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Option<&LocalId>> {
+        let Some(ps) = self.producers.get(typ) else {
+            return Ok(None);
+        };
+        u.choose_iter(ps.iter()).map(Some)
+    }
+}
+
 /// Context used during the generation of a function body.
-#[allow(unused)]
 pub(super) struct FunctionContext<'a> {
     /// Top level context, to access global variables and other functions.
     ctx: &'a Context,
@@ -71,18 +120,17 @@ pub(super) struct FunctionContext<'a> {
     /// Variables accumulated during the generation of the function body,
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
-    variables: Vec<im::OrdMap<LocalId, Type>>,
+    scopes: Vec<Scope>,
 }
 
-#[allow(unused)]
 impl<'a> FunctionContext<'a> {
     pub fn new(ctx: &'a Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);
 
-        let params = decl.params.iter().map(|(id, _, _, typ)| (*id, typ.clone())).collect();
+        let scope = Scope::new(decl.params.iter().map(|(id, _, _, typ)| (*id, typ.clone())));
         let next_local_id = decl.params.iter().map(|p| p.0.0).max().unwrap_or_default();
 
-        Self { ctx, decl, id, next_local_id, variables: vec![params] }
+        Self { ctx, decl, id, next_local_id, scopes: vec![scope] }
     }
 
     /// Generate the function body.
@@ -91,27 +139,20 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Local variables currently in scope.
-    fn current_scope(&self) -> &im::OrdMap<LocalId, Type> {
-        self.variables.last().expect("there is always the params layer")
+    fn current_scope(&self) -> &Scope {
+        self.scopes.last().expect("there is always the params layer")
     }
 
     /// Add a layer of block variables.
     fn enter_scope(&mut self) {
         // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
-        self.variables.push(self.current_scope().clone());
+        self.scopes.push(self.current_scope().clone());
     }
 
     /// Remove the last layer of block variables.
     fn exit_scope(&mut self) {
-        self.variables.pop();
-        assert!(!self.variables.is_empty(), "never pop the params layer");
-    }
-
-    /// Look up a local variable.
-    ///
-    /// Panics if it doesn't exist.
-    fn local_variable(&self, id: &LocalId) -> &Type {
-        self.current_scope().get(id).expect("local variable doesn't exist")
+        self.scopes.pop();
+        assert!(!self.scopes.is_empty(), "never pop the params layer");
     }
 
     /// Get and increment the next local ID.
@@ -161,4 +202,69 @@ fn to_hir_type(typ: &Type) -> hir_def::types::Type {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
     }
+}
+
+/// Collect all the sub-types produced by a type.
+///
+/// It's like a _power set_ of the type.
+fn types_produced(typ: &Type) -> HashSet<Type> {
+    /// Recursively visit subtypes.
+    fn visit(acc: &mut HashSet<Type>, typ: &Type) {
+        if acc.contains(typ) {
+            return;
+        }
+
+        // Trivially produce self.
+        acc.insert(typ.clone());
+
+        match typ {
+            Type::Array(len, typ) => {
+                if *len > 0 {
+                    visit(acc, typ);
+                }
+            }
+            Type::Tuple(types) => {
+                for typ in types {
+                    visit(acc, typ);
+                }
+            }
+            Type::String(_) => {
+                // Maybe it could produce substrings, but it would be an overkill to enumerate.
+            }
+            Type::Field => {
+                // There are `try_to_*` methods, but let's consider only what is safe.
+                acc.insert(Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight));
+            }
+            Type::Integer(sign, integer_bit_size) => {
+                // Casting up is safe.
+                for size in IntegerBitSize::iter()
+                    .filter(|size| size.bit_size() > integer_bit_size.bit_size())
+                {
+                    acc.insert(Type::Integer(*sign, size));
+                }
+                // There are `From<u*>` for Field
+                if !sign.is_signed() {
+                    acc.insert(Type::Field);
+                }
+            }
+            Type::Bool => {
+                // Maybe we can also cast to u1 or u8 etc?
+                acc.insert(Type::Field);
+            }
+            Type::Slice(typ) => {
+                visit(acc, typ);
+            }
+            Type::Reference(typ, _) => {
+                visit(acc, typ);
+            }
+            Type::Function(_, ret, _, _) => {
+                visit(acc, ret);
+            }
+            Type::Unit | Type::FmtString(_, _) => {}
+        }
+    }
+
+    let mut acc = HashSet::new();
+    visit(&mut acc, typ);
+    acc
 }
