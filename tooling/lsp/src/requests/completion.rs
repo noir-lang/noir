@@ -556,7 +556,7 @@ impl<'a> NodeFinder<'a> {
 
     fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
         match generic {
-            UnresolvedGeneric::Variable(ident) => {
+            UnresolvedGeneric::Variable(ident, _) => {
                 self.type_parameters.insert(ident.to_string());
             }
             UnresolvedGeneric::Numeric { ident, typ: _ } => {

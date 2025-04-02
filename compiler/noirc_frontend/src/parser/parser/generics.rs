@@ -55,9 +55,11 @@ impl Parser<'_> {
         None
     }
 
-    /// VariableGeneric = identifier
+    /// VariableGeneric = identifier ( ':' TraitBounds ) ?
     fn parse_variable_generic(&mut self) -> Option<UnresolvedGeneric> {
-        self.eat_ident().map(UnresolvedGeneric::Variable)
+        let ident = self.eat_ident()?;
+        let trait_bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
+        Some(UnresolvedGeneric::Variable(ident, trait_bounds))
     }
 
     /// NumericGeneric = 'let' identifier ':' Type
@@ -199,15 +201,16 @@ mod tests {
 
     #[test]
     fn parses_generics() {
-        let src = "<A, let B: u32>";
+        let src = "<A, let B: u32, C: X + Y>";
         let mut generics = parse_generics_no_errors(src);
-        assert_eq!(generics.len(), 2);
+        assert_eq!(generics.len(), 3);
 
         let generic = generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {
@@ -218,6 +221,16 @@ mod tests {
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
         );
+
+        let generic = generics.remove(0);
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
+            panic!("Expected generic variable");
+        };
+        assert_eq!("C", ident.to_string());
+        assert_eq!(trait_bounds.len(), 2);
+
+        assert_eq!(trait_bounds[0].to_string(), "X");
+        assert_eq!(trait_bounds[1].to_string(), "Y");
     }
 
     #[test]

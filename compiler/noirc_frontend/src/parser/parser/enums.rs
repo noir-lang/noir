@@ -158,10 +158,11 @@ mod tests {
         assert_eq!(noir_enum.generics.len(), 2);
 
         let generic = noir_enum.generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = noir_enum.generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {
