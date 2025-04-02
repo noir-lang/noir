@@ -7,6 +7,7 @@
 pub mod circuit;
 pub mod native_types;
 mod proto;
+mod serialization;
 
 pub use acir_field;
 pub use acir_field::{AcirField, FieldElement};

@@ -4,11 +4,8 @@ use acir_field::AcirField;
 use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
-use noir_protobuf::ProtoCodec as _;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-use crate::proto::convert::ProtoSchema;
 
 use super::WitnessMap;
 
@@ -84,18 +81,6 @@ impl<F: Serialize> WitnessStack<F> {
 impl<F: for<'a> Deserialize<'a>> WitnessStack<F> {
     pub(crate) fn bincode_deserialize(buf: &[u8]) -> Result<Self, WitnessStackError> {
         bincode::deserialize(buf).map_err(|e| WitnessStackError(e.into()))
-    }
-}
-
-#[allow(dead_code)]
-impl<F: AcirField> WitnessStack<F> {
-    pub(crate) fn proto_serialize(&self) -> Vec<u8> {
-        ProtoSchema::<F>::serialize_to_vec(self)
-    }
-
-    pub(crate) fn proto_deserialize(buf: &[u8]) -> Result<Self, WitnessStackError> {
-        ProtoSchema::<F>::deserialize_from_vec(buf)
-            .map_err(|e| SerializationError::Deserialize(e.to_string()).into())
     }
 }
 
