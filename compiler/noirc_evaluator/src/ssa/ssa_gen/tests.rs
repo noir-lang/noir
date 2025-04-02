@@ -24,7 +24,7 @@ fn get_initial_ssa(src: &str, test_path: &str) -> Result<Ssa, RuntimeError> {
 
 #[named]
 #[test]
-fn assert_eq() {
+fn assert() {
     let assert_src = "
     fn main(input: u32) {
         assert(input == 5);
@@ -41,7 +41,11 @@ fn assert_eq() {
     }
     ";
     assert_normalized_ssa_equals(assert_ssa, expected);
+}
 
+#[named]
+#[test]
+fn assert_eq() {
     let assert_eq_src = "
     fn main(input: u32) {
         assert_eq(input, 5);
@@ -50,7 +54,16 @@ fn assert_eq() {
 
     let assert_eq_ssa = get_initial_ssa(assert_eq_src, function_path!()).unwrap();
 
+    let expected = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v2 = eq v0, u32 5
+        constrain v0 == u32 5
+        return
+    }
+    ";
     // The SSA from assert_eq should match that from a regular assert checking for equality
+    // The expected SSA above should match that in the `assert()` test 
     assert_normalized_ssa_equals(assert_eq_ssa, expected);
 }
 
