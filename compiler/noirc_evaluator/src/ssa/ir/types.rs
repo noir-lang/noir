@@ -337,7 +337,7 @@ mod tests {
             let max_value = input.max_value();
             if let Ok(max_value) = max_value {
                 println!("max_value: {}", max_value);
-                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)) == None);
+                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
             }
         }
     }
