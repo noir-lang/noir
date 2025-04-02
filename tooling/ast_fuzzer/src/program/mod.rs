@@ -19,7 +19,7 @@ use crate::Config;
 mod expr;
 mod func;
 
-/// Generate an arbitrary monomorphized AST and its ABI.
+/// Generate an arbitrary monomorphized AST.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
     let mut ctx = Context::new(config);
     ctx.gen_globals(u)?;
@@ -60,6 +60,7 @@ impl Context {
         self.function_declarations.get(&id).expect("function should exist")
     }
 
+    /// Get the main function declaration.
     fn main_decl(&self) -> &FunctionDeclaration {
         self.function_declarations.get(&Program::main_id()).expect("main should exist")
     }
@@ -172,6 +173,7 @@ impl Context {
         Ok(())
     }
 
+    /// Return the generated [Program].
     fn finalize(self) -> Program {
         let return_visibility = self.main_decl().return_visibility;
         let functions = self.functions.into_values().collect::<Vec<_>>();
