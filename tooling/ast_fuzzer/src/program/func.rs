@@ -267,8 +267,29 @@ impl<'a> FunctionContext<'a> {
                 // Produce the target type from the item.
                 self.gen_expr_from_source(u, item_expr, item_typ, tgt_type, max_depth)
             }
-            (Type::Tuple(items), _) => todo!(),
-            (Type::Slice(_), _) => todo!(),
+            (Type::Tuple(items), _) => {
+                // Any of the items might be able to produce the target type.
+                let mut opts = Vec::new();
+                for (i, item_type) in items.iter().enumerate() {
+                    let item_expr = Expression::ExtractTupleField(Box::new(src_expr.clone()), i);
+                    if let Some(expr) =
+                        self.gen_expr_from_source(u, item_expr, item_type, tgt_type, max_depth)?
+                    {
+                        opts.push(expr);
+                    }
+                }
+                if opts.is_empty() { Ok(None) } else { Ok(Some(u.choose_iter(opts)?)) }
+            }
+            (Type::Slice(_), _) => {
+                // TODO: We don't know the length of the slice at compile time,
+                // so we need to call the builtin function to get its length,
+                // generate a random number here, and take its modulo:
+                //      let idx = u32::arbitrary(u)?;
+                //      let len_expr = ???;
+                //      let idx_expr = expr::modulo(expr::u32_literal(idx), len_expr);
+                // For now return nothing.
+                Ok(None)
+            }
             _ => {
                 // We have already considered the case when the two types equal.
                 // Normally we would call this function knowing that source can produce the target,

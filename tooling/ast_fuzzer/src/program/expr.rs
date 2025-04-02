@@ -128,10 +128,15 @@ pub(crate) fn cast(lhs: Expression, tgt_type: Type) -> Expression {
 /// Take an integer expression and make sure it fits in an expected `len`
 /// by taking a modulo.
 pub(crate) fn index_modulo(idx: Expression, len: usize) -> Expression {
+    modulo(idx, u32_literal(len as u32))
+}
+
+/// Make a modulo expression.
+pub(crate) fn modulo(lhs: Expression, rhs: Expression) -> Expression {
     Expression::Binary(Binary {
-        lhs: Box::new(idx),
+        lhs: Box::new(lhs),
         operator: BinaryOpKind::Modulo,
-        rhs: Box::new(u32_literal(len as u32)),
+        rhs: Box::new(rhs),
         location: Location::dummy(),
     })
 }
