@@ -1,14 +1,20 @@
-//! This file holds the pass to convert from Noir's SSA IR to ACIR.
+//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+//! generates the output ACIR program.
+//!
+//! # Usage
+//!
+//! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
+//! The compiled program will be returned as an [`Artifacts`][ssa::Artifacts] type.
 
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
-use std::fmt::Debug;
+use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
     BlackBoxFunc,
     circuit::{
-        AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation,
-        brillig::{BrilligBytecode, BrilligFunctionId},
+        AssertionPayload, ExpressionWidth, OpcodeLocation,
+        brillig::BrilligFunctionId,
         opcodes::{AcirFunctionId, BlockType},
     },
     native_types::Witness,
@@ -18,12 +24,9 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::monomorphization::ast::InlineType;
 
-mod acir_variable;
-mod big_int;
-mod black_box;
-mod brillig_call;
-mod brillig_directive;
-mod generated_acir;
+mod acir_context;
+pub(crate) mod ssa;
+mod types;
 
 use crate::brillig::BrilligOptions;
 use crate::brillig::brillig_gen::gen_brillig_for;
@@ -51,10 +54,9 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use acir_variable::{AcirContext, AcirType, AcirVar, power_of_two};
-use generated_acir::BrilligStdlibFunc;
-pub(crate) use generated_acir::GeneratedAcir;
-use noirc_frontend::hir_def::types::Type as HirType;
+pub(crate) use acir_context::GeneratedAcir;
+use acir_context::{AcirContext, BrilligStdlibFunc, power_of_two};
+use types::{AcirType, AcirVar};
 
 #[derive(Default)]
 struct SharedContext<F> {
@@ -215,156 +217,6 @@ struct Context<'a> {
 
     /// Options affecting Brillig code generation.
     brillig_options: &'a BrilligOptions,
-}
-
-#[derive(Clone)]
-pub(crate) struct AcirDynamicArray {
-    /// Identification for the Acir dynamic array
-    /// This is essentially a ACIR pointer to the array
-    block_id: BlockId,
-    /// Length of the array
-    len: usize,
-    /// An ACIR dynamic array is a flat structure, so we use
-    /// the inner structure of an `AcirType::NumericType` directly.
-    /// Some usages of ACIR arrays (e.g. black box functions) require the bit size
-    /// of every value to be known, thus we store the types as part of the dynamic
-    /// array definition.
-    ///
-    /// A dynamic non-homogenous array can potentially have values of differing types.
-    /// Thus, we store a vector of types rather than a single type, as a dynamic non-homogenous array
-    /// is still represented in ACIR by a single `AcirDynamicArray` structure.
-    ///
-    /// The length of the value types vector must match the `len` field in this structure.
-    value_types: Vec<NumericType>,
-    /// Identification for the ACIR dynamic array
-    /// inner element type sizes array
-    element_type_sizes: Option<BlockId>,
-}
-impl Debug for AcirDynamicArray {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "id: {}, len: {}, element_type_sizes: {:?}",
-            self.block_id.0,
-            self.len,
-            self.element_type_sizes.map(|block_id| block_id.0)
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) enum AcirValue {
-    Var(AcirVar, AcirType),
-    Array(im::Vector<AcirValue>),
-    DynamicArray(AcirDynamicArray),
-}
-
-impl AcirValue {
-    fn into_var(self) -> Result<AcirVar, InternalError> {
-        match self {
-            AcirValue::Var(var, _) => Ok(var),
-            AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
-                message: "Called AcirValue::into_var on an array".to_string(),
-                call_stack: CallStack::new(),
-            }),
-        }
-    }
-
-    fn borrow_var(&self) -> Result<AcirVar, InternalError> {
-        match self {
-            AcirValue::Var(var, _) => Ok(*var),
-            AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
-                message: "Called AcirValue::borrow_var on an array".to_string(),
-                call_stack: CallStack::new(),
-            }),
-        }
-    }
-
-    fn flatten(self) -> Vec<(AcirVar, AcirType)> {
-        match self {
-            AcirValue::Var(var, typ) => vec![(var, typ)],
-            AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
-            AcirValue::DynamicArray(_) => unimplemented!("Cannot flatten a dynamic array"),
-        }
-    }
-
-    fn flat_numeric_types(self) -> Vec<NumericType> {
-        match self {
-            AcirValue::Array(_) => {
-                self.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect()
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
-            _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
-        }
-    }
-}
-
-pub(crate) type Artifacts = (
-    Vec<GeneratedAcir<FieldElement>>,
-    Vec<BrilligBytecode<FieldElement>>,
-    Vec<String>,
-    BTreeMap<ErrorSelector, HirType>,
-);
-
-impl Ssa {
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(
-        self,
-        brillig: &Brillig,
-        brillig_options: &BrilligOptions,
-        expression_width: ExpressionWidth,
-    ) -> Result<Artifacts, RuntimeError> {
-        let mut acirs = Vec::new();
-        // TODO: can we parallelize this?
-        let mut shared_context = SharedContext::default();
-
-        for function in self.functions.values() {
-            let context =
-                Context::new(&mut shared_context, expression_width, brillig, brillig_options);
-
-            if let Some(mut generated_acir) = context.convert_ssa_function(&self, function)? {
-                // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
-                // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
-                // we instead store the opcode location at which a Brillig call to a std lib function occurred.
-                // We then defer resolving the function IDs of those Brillig functions to when we have generated Brillig
-                // for all normal Brillig calls.
-                for (opcode_location, brillig_stdlib_func) in
-                    &generated_acir.brillig_stdlib_func_locations
-                {
-                    shared_context.generate_brillig_calls_to_resolve(
-                        brillig_stdlib_func,
-                        function.id(),
-                        *opcode_location,
-                    );
-                }
-
-                // Fetch the Brillig stdlib calls to resolve for this function
-                if let Some(calls_to_resolve) =
-                    shared_context.brillig_stdlib_calls_to_resolve.get(&function.id())
-                {
-                    // Resolve the Brillig stdlib calls
-                    // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
-                    for (opcode_location, brillig_function_pointer) in calls_to_resolve {
-                        generated_acir.resolve_brillig_stdlib_call(
-                            *opcode_location,
-                            *brillig_function_pointer,
-                        );
-                    }
-                }
-
-                generated_acir.name = function.name().to_owned();
-                acirs.push(generated_acir);
-            }
-        }
-
-        let (brillig_bytecode, brillig_names) = shared_context
-            .generated_brillig
-            .into_iter()
-            .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
-            .unzip();
-
-        Ok((acirs, brillig_bytecode, brillig_names, self.error_selector_to_type))
-    }
 }
 
 impl<'a> Context<'a> {
