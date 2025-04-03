@@ -156,7 +156,33 @@
 <a href="#155" id="155">155</a>
 <a href="#156" id="156">156</a>
 <a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{Ident, Pattern},
     token::{Keyword, Token},
 };
@@ -207,13 +233,19 @@
                 <span class="self">self</span>.write_right_paren();
             }
             Pattern::Struct(path, fields, _span) =&gt; {
-                <span class="self">self</span>.format_path(path);
-                <span class="self">self</span>.write_space();
-                <span class="self">self</span>.write_left_brace();
+                <span class="kw">let </span><span class="kw-2">mut </span>group = ChunkGroup::new();
+
+                group.text(<span class="self">self</span>.chunk_formatter().chunk(|formatter| {
+                    formatter.format_path(path);
+                    formatter.write_space();
+                    formatter.write_left_brace();
+                }));
+
                 <span class="kw">if </span>fields.is_empty() {
-                    <span class="self">self</span>.format_empty_block_contents();
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(inner_group) = <span class="self">self</span>.chunk_formatter().empty_block_contents_chunk() {
+                        group.group(inner_group);
+                    }
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span><span class="kw-2">mut </span>group = ChunkGroup::new();
                     <span class="self">self</span>.chunk_formatter().format_items_separated_by_comma(
                         fields,
                         <span class="bool-val">false</span>, <span class="comment">// force trailing comma,
@@ -238,10 +270,13 @@
                             }
                         },
                     );
-                    <span class="self">self</span>.format_chunk_group(group);
                 }
 
-                <span class="self">self</span>.write_right_brace();
+                group.text(<span class="self">self</span>.chunk_formatter().chunk(|formatter| {
+                    formatter.write_right_brace();
+                }));
+
+                <span class="self">self</span>.format_chunk_group(group);
             }
             Pattern::Interned(..) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Should not be present in the AST"</span>)
@@ -256,7 +291,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::assert_format;
+    <span class="kw">use crate</span>::{assert_format, assert_format_with_max_width};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_identifier_pattern() {
@@ -312,6 +347,23 @@
         <span class="kw">let </span>src = <span class="string">"fn foo( Foo { x  , y : y } : i32) {}"</span>;
         <span class="kw">let </span>expected = <span class="string">"fn foo(Foo { x, y }: i32) {}\n"</span>;
         assert_format(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_struct_pattern_that_exceeds_max_width() {
+        <span class="kw">let </span>src = <span class="string">"
+        fn foo() {
+            let SomeStruct { one, two } = 1; 
+        }
+        "</span>;
+        <span class="kw">let </span>expected = <span class="string">"fn foo() {
+    let SomeStruct {
+        one,
+        two,
+    } = 1;
+}
+"</span>;
+        assert_format_with_max_width(src, expected, <span class="number">20</span>);
     }
 }
 </code></pre></div></section></main></body></html>
