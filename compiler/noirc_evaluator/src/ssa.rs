@@ -54,6 +54,7 @@ pub enum SsaLogging {
     Contains(String),
 }
 
+#[derive(Debug, Clone)]
 pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
     pub ssa_logging: SsaLogging,

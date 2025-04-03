@@ -860,8 +860,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let q0_big = F::modulus() / &rhs_big;
                 let q0 = F::from_be_bytes_reduce(&q0_big.to_bytes_be());
                 let q0_var = self.add_constant(q0);
-                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+                // ensure that q <= q0
+                self.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits)?;
 
+                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
                 let size_predicate = self.eq_var(q0_var, quotient_var)?;
                 let predicate = self.mul_var(size_predicate, predicate)?;
                 // Ensure that there is no overflow, under q == q0 predicate

@@ -71,6 +71,7 @@ impl FuzzingRunStatus {
 ///
 /// This is a helper function to build a foreign call executor for the fuzzing harness.
 ///
+#[allow(unused)] // Suppress warnings when the `rpc` feature is off.
 fn build_foreign_call_executor<
     'a,
     F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a + 'static,
