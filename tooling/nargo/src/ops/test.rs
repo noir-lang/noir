@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fs::OpenOptions, path::PathBuf};
 
 use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -73,7 +73,13 @@ where
                     match std::env::var("NARGO_TEST_FOREIGN_CALL_LOG") {
                         Err(_) => Box::new(std::io::empty()),
                         Ok(s) if s == "stdout" => Box::new(std::io::stdout()),
-                        Ok(s) => Box::new(std::fs::File::open(PathBuf::from(s)).unwrap()),
+                        Ok(s) => Box::new(
+                            OpenOptions::new()
+                                .create_new(true)
+                                .write(true)
+                                .open(PathBuf::from(s))
+                                .unwrap(),
+                        ),
                     };
 
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
