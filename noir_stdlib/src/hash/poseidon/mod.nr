@@ -129,11 +129,11 @@ fn absorb<let T: u32, let N: u32, let X: u32, let O: u32>(
     pos_conf: PoseidonConfig<T, N, X>,
     // Initial state; usually [0; O]
     mut state: [Field; T],
-    rate: Field,
-    capacity: Field,
+    rate: u32,
+    capacity: u32,
     msg: [Field; O], // Arbitrary length message
 ) -> [Field; T] {
-    assert_eq(pos_conf.t, rate + capacity);
+    assert_eq(pos_conf.t, (rate + capacity) as Field);
 
     let mut i = 0;
 
