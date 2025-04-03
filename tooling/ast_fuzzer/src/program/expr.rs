@@ -5,13 +5,12 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Binary, Cast, Definition, Expression, Ident, Literal, Type, Unary,
+        ArrayLiteral, Binary, BinaryOp, Cast, Definition, Expression, Ident, Literal, Type, Unary,
     },
-    shared::Signedness,
     signed_field::SignedField,
 };
 
-use super::{Name, VariableId};
+use super::{Name, VariableId, types};
 
 /// Generate a literal expression according to a type.
 pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
@@ -107,16 +106,11 @@ pub(crate) fn ident(id: VariableId, name: Name, typ: Type) -> Expression {
     })
 }
 
-/// 32-bit unsigned int type, used in indexing arrays.
-pub(crate) fn u32_type() -> Type {
-    Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-}
-
 /// 32-bit unsigned int literal, used in indexing arrays.
 pub(crate) fn u32_literal(value: u32) -> Expression {
     Expression::Literal(Literal::Integer(
         SignedField { field: FieldElement::from(value), is_negative: false },
-        u32_type(),
+        types::U32,
         Location::dummy(),
     ))
 }
@@ -144,14 +138,25 @@ pub(crate) fn modulo(lhs: Expression, rhs: Expression) -> Expression {
 
 /// Dereference an expression into a target type
 pub(crate) fn deref(rhs: Expression, tgt_type: Type) -> Expression {
-    unary(rhs, tgt_type, UnaryOp::Dereference { implicitly_added: false })
+    unary(UnaryOp::Dereference { implicitly_added: false }, rhs, tgt_type)
 }
 
-pub(crate) fn unary(rhs: Expression, tgt_type: Type, op: UnaryOp) -> Expression {
+/// Make a unary expression.
+pub(crate) fn unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -> Expression {
     Expression::Unary(Unary {
         operator: op,
         rhs: Box::new(rhs),
         result_type: tgt_type,
+        location: Location::dummy(),
+    })
+}
+
+/// Make a binary expression.
+pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expression {
+    Expression::Binary(Binary {
+        lhs: Box::new(lhs),
+        operator: op,
+        rhs: Box::new(rhs),
         location: Location::dummy(),
     })
 }

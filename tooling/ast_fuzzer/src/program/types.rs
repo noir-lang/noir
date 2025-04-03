@@ -2,9 +2,15 @@ use std::collections::HashSet;
 
 use acir::FieldElement;
 use noirc_frontend::{
-    ast::IntegerBitSize, hir_def, monomorphization::ast::Type, shared::Signedness,
+    ast::{BinaryOpKind, IntegerBitSize},
+    hir_def,
+    monomorphization::ast::{BinaryOp, Type},
+    shared::Signedness,
 };
 use strum::IntoEnumIterator as _;
+
+pub(crate) const U8: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+pub(crate) const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
 
 /// Calculate the depth of a type.
 ///
@@ -135,4 +141,48 @@ pub(crate) fn is_signed(typ: &Type) -> bool {
 /// Check if the type works with `UnaryOp::Not`
 pub(crate) fn is_bool(typ: &Type) -> bool {
     matches!(typ, Type::Bool)
+}
+
+/// Can the type be returned by some `UnaryOp`.
+pub(crate) fn can_unary_return(typ: &Type) -> bool {
+    is_bool(typ) || is_signed(typ)
+}
+
+/// Can the type be returned by some `BinaryOp`.
+pub(crate) fn can_binary_return(typ: &Type) -> bool {
+    BinaryOp::iter().any(|op| can_binary_op_return(&op, typ))
+}
+
+/// Check if a certain binary operation can return a target type as output.
+pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
+    use BinaryOpKind::*;
+    match typ {
+        Type::Bool => op.is_comparator(),
+        Type::Field => {
+            matches!(op, Add | Subtract | Multiply | Divide)
+        }
+        Type::Integer(_, _) => {
+            matches!(op, Add | Subtract | Multiply | Divide | ShiftLeft | ShiftRight | Modulo)
+        }
+        Type::Reference(typ, _) => can_binary_op_return(op, typ),
+        _ => false,
+    }
+}
+
+/// Check if a certain binary operation can take a type as input.
+pub(crate) fn can_binary_op_take(op: &BinaryOp, typ: &Type) -> bool {
+    match typ {
+        Type::Field => op.is_valid_for_field_type(),
+        Type::Bool => op.is_comparator() || op.is_bitwise(),
+        Type::Integer(_, _) => {
+            op.is_comparator()
+                || op.is_arithmetic()
+                || op.is_bitshift()
+                || op.is_bitwise()
+                || matches!(op, BinaryOp::Modulo)
+        }
+        Type::Array(_, _) | Type::Tuple(_) => matches!(op, BinaryOp::Equal | BinaryOp::NotEqual),
+        Type::Reference(typ, _) => can_binary_op_take(op, typ),
+        _ => false,
+    }
 }

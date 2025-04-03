@@ -9,8 +9,8 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Expression, FuncId, GlobalId, Index, InlineType, Literal, LocalId,
-        Parameters, Type, Unary,
+        ArrayLiteral, Binary, BinaryOp, Expression, FuncId, GlobalId, Index, InlineType, Literal,
+        LocalId, Parameters, Type, Unary,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -106,6 +106,9 @@ where
         let Some(vs) = self.producers.get(typ) else {
             return Ok(None);
         };
+        if vs.is_empty() {
+            return Ok(None);
+        }
         u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
     }
 }
@@ -202,6 +205,8 @@ impl<'a> FunctionContext<'a> {
     ///
     /// While doing so, enter and exit blocks, and add variables declared to the context,
     /// so expressions down the line can refer to earlier variables.
+    ///
+    /// This will always succeed, because we can always return a literal expression.
     fn gen_expr(
         &mut self,
         u: &mut Unstructured,
@@ -210,20 +215,38 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         let i = u.choose_index(100)?;
 
-        // Unary
-        if i < 5 {
-            let mut make_unary = |op| {
-                self.gen_expr(u, typ, max_depth - 1).map(|rhs| expr::unary(rhs, typ.clone(), op))
-            };
-            if types::is_signed(typ) {
-                return make_unary(UnaryOp::Minus);
+        // Check whether `i` falls into some cumulative distribution window.
+        let mut total_prob = 0;
+        let mut freq = |prob: usize, cond: Option<fn(&Type) -> bool>| -> bool {
+            // If a pre-condition isn't met, don't increase the total seen so far,
+            // otherwise the next frequency will be distorted.
+            if let Some(cond) = cond {
+                // Where there is a condition it's also something that produces nested expressions
+                // that we want to disable if we hit maximum depth.
+                if max_depth == 0 || !cond(typ) {
+                    return false;
+                }
             }
-            if types::is_bool(typ) {
-                return make_unary(UnaryOp::Not);
+            total_prob += prob;
+            i < total_prob
+        };
+
+        // Unary
+        if freq(10, Some(types::can_unary_return)) {
+            if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
+                return Ok(expr);
             }
         }
 
-        if i < 75 {
+        // Binary
+        if freq(25, Some(types::can_binary_return)) {
+            if let Some(expr) = self.gen_binary(u, typ, max_depth)? {
+                return Ok(expr);
+            }
+        }
+
+        // We can always try to just derive a value from the variables we have.
+        if freq(50, None) {
             if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
                 return Ok(expr);
             }
@@ -311,7 +334,7 @@ impl<'a> FunctionContext<'a> {
                 };
                 Ok(Some(e))
             }
-            (Type::Array(len, item_typ), _) => {
+            (Type::Array(len, item_typ), _) if *len > 0 => {
                 // Choose a random index.
                 let idx_expr = self.gen_index(u, *len as usize, max_depth)?;
                 // Access the item.
@@ -368,12 +391,79 @@ impl<'a> FunctionContext<'a> {
         len: usize,
         max_depth: usize,
     ) -> arbitrary::Result<Expression> {
+        assert!(len > 0, "cannot index empty array");
         if max_depth > 0 && u.ratio(1, 3)? {
-            let idx = self.gen_expr(u, &expr::u32_type(), max_depth - 1)?;
+            let idx = self.gen_expr(u, &types::U32, max_depth - 1)?;
             Ok(expr::index_modulo(idx, len))
         } else {
             let idx = u.choose_index(len)?;
             Ok(expr::u32_literal(idx as u32))
         }
+    }
+
+    /// Try to generate a unary expression of a certain type, if it's amenable to it, otherwise return `None`.
+    fn gen_unary(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<Expression>> {
+        let mut make_unary = |op| {
+            self.gen_expr(u, typ, max_depth - 1).map(|rhs| Some(expr::unary(op, rhs, typ.clone())))
+        };
+        if types::is_signed(typ) {
+            make_unary(UnaryOp::Minus)
+        } else if types::is_bool(typ) {
+            make_unary(UnaryOp::Not)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Try to generate a binary expression of a certain type, if it's amenable to it, otherwise return `None`.
+    fn gen_binary(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<Expression>> {
+        // Collect the operations can produce the expected type.
+        let ops =
+            BinaryOp::iter().filter(|op| types::can_binary_op_return(op, typ)).collect::<Vec<_>>();
+
+        // Ideally we checked that the target type can be returned, but just in case.
+        if ops.is_empty() {
+            return Ok(None);
+        }
+
+        // Choose a random operation.
+        let op = u.choose_iter(ops)?;
+
+        // Find a type we can produce in the current scope which works with this operation.
+        let lhs_opts = self
+            .current_scope()
+            .producers
+            .keys()
+            .filter(|typ| types::can_binary_op_take(&op, typ))
+            .collect::<Vec<_>>();
+
+        // We might not have any input that works for this operation.
+        // We could generate literals, but that's not super interesting.
+        if lhs_opts.is_empty() {
+            return Ok(None);
+        }
+
+        // Choose a type for the LHS and RHS.
+        let lhs_type = u.choose_iter(lhs_opts)?.clone();
+        let rhs_type = match op {
+            BinaryOp::ShiftLeft | BinaryOp::ShiftRight => &types::U8,
+            _ => &lhs_type,
+        };
+
+        // Generate expressions for LHS and RHS.
+        let lhs_expr = self.gen_expr(u, &lhs_type, max_depth - 1)?;
+        let rhs_expr = self.gen_expr(u, rhs_type, max_depth - 1)?;
+
+        Ok(Some(expr::binary(lhs_expr, op, rhs_expr)))
     }
 }

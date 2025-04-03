@@ -26,6 +26,7 @@
         "bindgen",
         "bitand",
         "bitmask",
+        "bitshift",
         "bitsize",
         "blackbox",
         "boilerplate",
