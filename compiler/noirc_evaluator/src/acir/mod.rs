@@ -2753,15 +2753,20 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 mod test {
 
     use acvm::{
-        FieldElement,
+        AcirField, FieldElement,
         acir::{
+            brillig::{
+                BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode,
+            },
             circuit::{
                 ExpressionWidth, Opcode, OpcodeLocation,
-                brillig::BrilligFunctionId,
+                brillig::{BrilligBytecode, BrilligFunctionId},
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
             },
-            native_types::Witness,
+            native_types::{Witness, WitnessMap},
         },
+        blackbox_solver::StubbedBlackBoxSolver,
+        pwg::{ACVM, ACVMStatus},
     };
     use noirc_errors::Location;
     use noirc_frontend::monomorphization::ast::InlineType;
@@ -3578,5 +3583,99 @@ mod test {
         // Check that no memory opcodes were emitted.
         let main = &acir_functions[0];
         assert!(!main.opcodes().iter().any(|opcode| matches!(opcode, Opcode::MemoryOp { .. })));
+    }
+
+    #[test]
+    fn properly_constrains_quotient_when_truncating_fields() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            return v1
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (acir_functions, mut brillig_functions, _, _) = ssa
+            .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+        // [`directive_quotient`, `directive_invert`]
+        assert_eq!(brillig_functions.len(), 2);
+
+        let main = &acir_functions[0];
+
+        // Here we're attempting to perform a truncation of a `Field` type into 32 bits. We then do a euclidean
+        // division `a/b` with `a` and `b` taking the values:
+        //
+        // a = 0xf9bb18d1ece5fd647afba497e7ea7a2d7cc17b786468f6ebc1e0a6b0fffffff
+        // b = 0x100000000 (2**32)
+        //
+        // We expect q and r to be constrained such that the expression `a = q*b + r` has the single solution.
+        //
+        // q = 0xf9bb18d1ece5fd647afba497e7ea7a2d7cc17b786468f6ebc1e0a6b
+        // r = 0xfffffff
+        //
+        // One necessary constraint is that q <= field_modulus / b as otherwise `q*b` will overflow the field modulus.
+        // Relaxing this constraint permits another solution:
+        //
+        // malicious_q = 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        // malicious_r = 0
+        //
+        // We then require that if this solution is injected that execution will fail.
+
+        let input = FieldElement::from_hex(
+            "0xf9bb18d1ece5fd647afba497e7ea7a2d7cc17b786468f6ebc1e0a6b0fffffff",
+        )
+        .unwrap();
+        let malicious_q =
+            FieldElement::from_hex("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+                .unwrap();
+        let malicious_r = FieldElement::zero();
+
+        // This brillig function replaces the standard implementation of `directive_quotient` with
+        // an implementation which returns `(malicious_q, malicious_r)`.
+        let malicious_quotient = BrilligBytecode {
+            bytecode: vec![
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(10),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(2_usize),
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(11),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(0_usize),
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(0),
+                    bit_size: BitSize::Field,
+                    value: malicious_q,
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(1),
+                    bit_size: BitSize::Field,
+                    value: malicious_r,
+                },
+                BrilligOpcode::Stop {
+                    return_data: HeapVector {
+                        pointer: MemoryAddress::direct(11),
+                        size: MemoryAddress::direct(10),
+                    },
+                },
+            ],
+        };
+        let malicious_brillig = [malicious_quotient, brillig_functions.remove(1)];
+
+        let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
+        let mut acvm = ACVM::new(
+            &StubbedBlackBoxSolver(true),
+            main.opcodes(),
+            initial_witness,
+            &malicious_brillig,
+            &[],
+        );
+
+        assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
     }
 }
