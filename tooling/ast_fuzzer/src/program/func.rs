@@ -4,13 +4,13 @@ use nargo::errors::Location;
 use std::{collections::HashSet, fmt::Debug};
 use strum::IntoEnumIterator;
 
-use arbitrary::Unstructured;
+use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::IntegerBitSize,
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
         ArrayLiteral, Expression, FuncId, GlobalId, Index, InlineType, Literal, LocalId,
-        Parameters, Type,
+        Parameters, Type, Unary,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -290,7 +290,12 @@ impl<'a> FunctionContext<'a> {
                 src_as_tgt()
             }
             (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
-                Ok(Some(Expression::Clone(Box::new(src_expr))))
+                let e = if bool::arbitrary(u)? {
+                    Expression::Clone(Box::new(src_expr))
+                } else {
+                    expr::deref(src_expr, tgt_type.clone())
+                };
+                Ok(Some(e))
             }
             (Type::Array(len, item_typ), _) => {
                 // Choose a random index.

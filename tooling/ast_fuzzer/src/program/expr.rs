@@ -3,9 +3,9 @@ use nargo::errors::Location;
 
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
-    ast::{BinaryOpKind, IntegerBitSize},
+    ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Binary, Cast, Definition, Expression, Ident, Literal, Type,
+        ArrayLiteral, Binary, Cast, Definition, Expression, Ident, Literal, Type, Unary,
     },
     shared::Signedness,
     signed_field::SignedField,
@@ -121,7 +121,7 @@ pub(crate) fn u32_literal(value: u32) -> Expression {
     ))
 }
 
-/// Cast an expression to a type.
+/// Cast an expression to a target type.
 pub(crate) fn cast(lhs: Expression, tgt_type: Type) -> Expression {
     Expression::Cast(Cast { lhs: Box::new(lhs), r#type: tgt_type, location: Location::dummy() })
 }
@@ -138,6 +138,16 @@ pub(crate) fn modulo(lhs: Expression, rhs: Expression) -> Expression {
         lhs: Box::new(lhs),
         operator: BinaryOpKind::Modulo,
         rhs: Box::new(rhs),
+        location: Location::dummy(),
+    })
+}
+
+/// Dereference an expression into a target type
+pub(crate) fn deref(rhs: Expression, tgt_type: Type) -> Expression {
+    Expression::Unary(Unary {
+        operator: UnaryOp::Dereference { implicitly_added: false },
+        rhs: Box::new(rhs),
+        result_type: tgt_type,
         location: Location::dummy(),
     })
 }
