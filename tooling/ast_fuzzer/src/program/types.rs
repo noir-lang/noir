@@ -138,6 +138,11 @@ pub(crate) fn is_signed(typ: &Type) -> bool {
     }
 }
 
+/// Check if a type is `Unit`.
+pub(crate) fn is_unit(typ: &Type) -> bool {
+    matches!(typ, Type::Unit)
+}
+
 /// Check if the type works with `UnaryOp::Not`
 pub(crate) fn is_bool(typ: &Type) -> bool {
     matches!(typ, Type::Bool)

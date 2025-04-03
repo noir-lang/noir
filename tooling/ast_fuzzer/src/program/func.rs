@@ -59,7 +59,7 @@ impl FunctionDeclaration {
             .collect();
 
         let return_type =
-            (self.return_type != Type::Unit).then(|| types::to_hir_type(&self.return_type));
+            (!types::is_unit(&self.return_type)).then(|| types::to_hir_type(&self.return_type));
 
         (param_types, return_type)
     }
@@ -533,8 +533,11 @@ impl<'a> FunctionContext<'a> {
         for i in 0..size - 1 {
             stmts.push(self.gen_statement(u)?);
         }
-        // TODO: If the `typ` is `Unit`, we could use `Semi` in the last position.
-        stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
+        if types::is_unit(typ) && bool::arbitrary(u)? {
+            stmts.push(Expression::Semi(Box::new(self.gen_statement(u)?)))
+        } else {
+            stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
+        }
         self.exit_scope();
 
         Ok(Expression::Block(stmts))
@@ -580,7 +583,7 @@ impl<'a> FunctionContext<'a> {
         self.decrease_budget(1);
         let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_ifs())?;
         let consequence = self.gen_expr(u, typ, max_depth, flags)?;
-        let alternative = if matches!(typ, Type::Unit) && bool::arbitrary(u)? {
+        let alternative = if types::is_unit(typ) && bool::arbitrary(u)? {
             None
         } else {
             Some(self.gen_expr(u, typ, max_depth, flags)?)
