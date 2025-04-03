@@ -16,6 +16,8 @@ use noirc_frontend::{
     shared::{Signedness, Visibility},
 };
 
+use crate::Config;
+
 use super::{Context, Name, VariableId, expr, types};
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
@@ -213,40 +215,29 @@ impl<'a> FunctionContext<'a> {
         typ: &Type,
         max_depth: usize,
     ) -> arbitrary::Result<Expression> {
-        let i = u.choose_index(100)?;
-
-        // Check whether `i` falls into some cumulative distribution window.
-        let mut total_prob = 0;
-        let mut freq = |prob: usize, cond: Option<fn(&Type) -> bool>| -> bool {
-            // If a pre-condition isn't met, don't increase the total seen so far,
-            // otherwise the next frequency will be distorted.
-            if let Some(cond) = cond {
-                // Where there is a condition it's also something that produces nested expressions
-                // that we want to disable if we hit maximum depth.
-                if max_depth == 0 || !cond(typ) {
-                    return false;
-                }
-            }
-            total_prob += prob;
-            i < total_prob
-        };
+        let mut freq = Freq::new(u, 100, max_depth, &self.ctx.config)?;
 
         // Unary
-        if freq(10, Some(types::can_unary_return)) {
+        if freq.prob_nested(10, types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
                 return Ok(expr);
             }
         }
 
         // Binary
-        if freq(25, Some(types::can_binary_return)) {
+        if freq.prob_nested(25, types::can_binary_return(typ)) {
             if let Some(expr) = self.gen_binary(u, typ, max_depth)? {
                 return Ok(expr);
             }
         }
 
+        // Block of statements
+        // if freq.prob_block(20) {
+        //     todo!()
+        // }
+
         // We can always try to just derive a value from the variables we have.
-        if freq(50, None) {
+        if freq.prob(50) {
             if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
                 return Ok(expr);
             }
@@ -465,5 +456,52 @@ impl<'a> FunctionContext<'a> {
         let rhs_expr = self.gen_expr(u, rhs_type, max_depth - 1)?;
 
         Ok(Some(expr::binary(lhs_expr, op, rhs_expr)))
+    }
+}
+
+/// Help with cumulative frequency distributions.
+struct Freq {
+    x: usize,
+    total: usize,
+    depth: usize,
+    max_depth: usize,
+}
+
+impl Freq {
+    fn new(
+        u: &mut Unstructured,
+        total: usize,
+        depth: usize,
+        config: &Config,
+    ) -> arbitrary::Result<Self> {
+        let x = u.choose_index(total)?;
+        Ok(Self { x: u.choose_index(total)?, total: 0, depth, max_depth: config.max_depth })
+    }
+
+    /// Check if we're in the next `p` size window on top of the already checked cumulative values.
+    fn prob(&mut self, p: usize) -> bool {
+        self.total += p;
+        self.x < self.total
+    }
+
+    /// Like `prob`, but if `cond` is `false` it does not increase the cumulative value,
+    /// so as not to distort the next call, ie. if we have have 5% then another 5%,
+    /// if the first one is disabled, the second doesn't become 10%.
+    fn prob_if(&mut self, p: usize, cond: bool) -> bool {
+        cond && self.prob(p)
+    }
+
+    /// Like `prob_if`, but only if we're not in the bottom depth yet, to limit how
+    /// deeply nested expressions we generate.
+    fn prob_nested(&mut self, p: usize, cond: bool) -> bool {
+        self.prob_if(p, self.depth > 0 && cond)
+    }
+
+    /// Like `prob`, but only if we're not in a nested expression, so as not to
+    /// generate blocks, and loops where we're generating e.g. array indexes
+    /// or loop range values; the compiler might be okay with it, but it would
+    /// be hard to read and unidiomatic.
+    fn prob_block(&mut self, p: usize) -> bool {
+        self.prob_if(p, self.depth == self.max_depth)
     }
 }
