@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743698020627,
+  "lastUpdate": 1743698184253,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b665d8841b39e184be1512802714216e0e7c22ef",
-          "message": "chore: parse `!=` in SSA parser (#7800)",
-          "timestamp": "2025-03-25T16:15:12Z",
-          "tree_id": "07e7c25144f02a8c4c75050c7ba06f8ec31c738d",
-          "url": "https://github.com/noir-lang/noir/commit/b665d8841b39e184be1512802714216e0e7c22ef"
-        },
-        "date": 1742921527009,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.11,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.17,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.13,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d18a1dd814b1b71032b429a56d1366e154efb898",
           "message": "fix: improve misleading error message when object type is unknown (#7799)",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/52ef55327ed1cdf09997b80395934ca48228face"
         },
         "date": 1743690440597,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 504.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 413.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 293.53,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9c94ab1b21c9cc1fd8ff4017ffd7f53bf364bc51",
+          "message": "feat(formatter): improved formatting of long struct patterns (#7899)",
+          "timestamp": "2025-04-03T16:07:49Z",
+          "tree_id": "61c7908861232549f889aab774aa4d7aedaae928",
+          "url": "https://github.com/noir-lang/noir/commit/9c94ab1b21c9cc1fd8ff4017ffd7f53bf364bc51"
+        },
+        "date": 1743698180015,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
