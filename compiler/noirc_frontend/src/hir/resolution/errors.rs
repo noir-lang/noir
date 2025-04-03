@@ -810,7 +810,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 )
             },
             ResolverError::NonU32Index { location } => {
-                Diagnostic::simple_warning(
+                Diagnostic::simple_error(
                     "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(), 
                     String::new(),
                     *location,
