@@ -77,7 +77,7 @@ pub enum Definition {
 
 /// ID of a local definition, e.g. from a let binding or
 /// function parameter that should be compiled before it is referenced.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LocalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::globals`
@@ -150,12 +150,6 @@ pub struct Binary {
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
     pub location: Location,
-}
-
-#[derive(Debug, Clone)]
-pub struct Lambda {
-    pub function: Ident,
-    pub env: Ident,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -329,7 +323,7 @@ pub struct Function {
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
 /// - All structs replaced with tuples
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
@@ -449,8 +443,12 @@ impl std::ops::IndexMut<FuncId> for Program {
 
 impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut printer = super::printer::AstPrinter::default();
+        for (id, expr) in &self.globals {
+            printer.print_global(id, expr, f)?;
+        }
         for function in &self.functions {
-            super::printer::AstPrinter::default().print_function(function, f)?;
+            printer.print_function(function, f)?;
         }
         Ok(())
     }

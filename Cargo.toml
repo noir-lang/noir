@@ -13,6 +13,8 @@ members = [
     # Crates related to tooling built on top of the Noir compiler
     "tooling/lsp",
     "tooling/debugger",
+    "tooling/ast_fuzzer",
+    "tooling/ast_fuzzer/fuzz",
     "tooling/greybox_fuzzer",
     "tooling/fuzzer",
     "tooling/nargo",
@@ -146,6 +148,7 @@ prost = "0.13"
 prost-build = "0.13"
 protoc-prebuilt = "0.3"
 
+arbitrary = "1.4.1"
 cfg-if = "1.0.0"
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
@@ -161,6 +164,7 @@ bincode = "1.3.3"
 hex = "0.4.2"
 const_format = "0.2.30"
 lazy_static = "1.4"
+libfuzzer-sys = "0.4"
 num-bigint = "0.4"
 num-traits = "0.2"
 similar-asserts = "1.5.0"
