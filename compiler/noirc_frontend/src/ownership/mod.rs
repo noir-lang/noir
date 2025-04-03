@@ -478,8 +478,11 @@ impl Context {
             other => panic!("handle_unary given non-unary expression: {other}"),
         };
 
+        // Don't clone `rhs` if this is a reference or dereference exprssion.
+        // - If this is a reference expression `&rhs`, `rhs` by definition shouldn't be cloned
+        // - If this is `*rhs` we're going to clone the extracted element instead
         if self.experimental_ownership_feature
-            && matches!(unary.operator, UnaryOp::Reference { .. })
+            && matches!(unary.operator, UnaryOp::Reference { .. } | UnaryOp::Dereference { .. })
         {
             self.handle_reference_expression(&mut unary.rhs);
         } else {
@@ -506,10 +509,23 @@ impl Context {
             panic!("handle_index should only be called with Index nodes");
         };
 
-        self.handle_expression(&mut index.collection);
+        let mut clone_result = false;
+
+        if self.experimental_ownership_feature {
+            // Don't clone the collection, cloning only the resulting element is cheaper
+            self.handle_reference_expression(&mut index.collection);
+            clone_result = true;
+        } else {
+            self.handle_expression(&mut index.collection);
+        }
+
         self.handle_expression(&mut index.index);
 
         if !self.experimental_ownership_feature && contains_array_or_str_type(&index.element_type) {
+            clone_result = true;
+        }
+
+        if clone_result {
             clone_expr(index_expr);
         }
     }
