@@ -930,7 +930,21 @@
 <a href="#929" id="929">929</a>
 <a href="#930" id="930">930</a>
 <a href="#931" id="931">931</a>
-<a href="#932" id="932">932</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1548,6 +1562,13 @@
                     generics.location,
                 )
             }
+            PathResolutionItem::SelfMethod(<span class="kw">_</span>) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::DataType(<span class="kw">_</span>, generics)) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type {
+                    generics.clone()
+                } <span class="kw">else </span>{
+                    Vec::new()
+                }
+            }
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) =&gt; {
                 <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
                 <span class="kw">let </span>type_alias = type_alias.borrow();
@@ -1587,7 +1608,14 @@
                     generics.location,
                 )
             }
-            <span class="kw">_ </span>=&gt; Vec::new(),
+            PathResolutionItem::Method(<span class="kw">_</span>, <span class="prelude-val">None</span>, <span class="kw">_</span>)
+            | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="prelude-val">None</span>, <span class="kw">_</span>)
+            | PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::ModuleFunction(..) =&gt; Vec::new(),
         }
     }
 

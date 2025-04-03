@@ -81,15 +81,12 @@
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#83" id="83">83</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{Circuit, Opcode},
 };
 
-<span class="comment">// mod constant_backpropagation;
-</span><span class="kw">mod </span>general;
+<span class="kw">mod </span>general;
 <span class="kw">mod </span>merge_expressions;
 <span class="kw">mod </span>redundant_range;
 <span class="kw">mod </span>unused_memory;
@@ -99,8 +96,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>redundant_range::RangeOptimizer;
 <span class="kw">use </span>tracing::info;
 
-<span class="comment">// use self::constant_backpropagation::ConstantBackpropagationOptimizer;
-</span><span class="kw">use </span><span class="self">self</span>::unused_memory::UnusedMemoryOptimizer;
+<span class="kw">use </span><span class="self">self</span>::unused_memory::UnusedMemoryOptimizer;
 
 <span class="kw">use super</span>::{AcirTransformationMap, transform_assert_messages};
 

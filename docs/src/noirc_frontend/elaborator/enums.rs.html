@@ -2030,7 +2030,7 @@
                 <span class="kw">let </span>actual_type = global_type.instantiate(<span class="self">self</span>.interner).<span class="number">0</span>;
                 (actual_type, Vec::new(), variant_index)
             }
-            PathResolutionItem::Method(_type_id, _type_turbofish, func_id) =&gt; {
+            PathResolutionItem::Method(<span class="kw">_</span>, <span class="kw">_</span>, func_id) | PathResolutionItem::SelfMethod(func_id) =&gt; {
                 <span class="comment">// TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 </span><span class="kw">let </span>meta = <span class="self">self</span>.interner.function_meta(func_id);
                 <span class="kw">let </span><span class="prelude-val">Some</span>(variant_index) = meta.enum_variant_index <span class="kw">else </span>{
