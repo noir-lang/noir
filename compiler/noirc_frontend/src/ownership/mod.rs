@@ -335,7 +335,7 @@ impl Context {
             Expression::If(if_expr) => self.handle_if(if_expr),
             Expression::Match(match_expr) => self.handle_match(match_expr),
             Expression::Tuple(elems) => self.handle_tuple(elems),
-            Expression::ExtractTupleField(tuple, _index) => self.handle_expression(tuple),
+            Expression::ExtractTupleField(..) => self.handle_extract_expression(expr),
             Expression::Call(call) => self.handle_call(call),
             Expression::Let(let_expr) => self.handle_let(let_expr),
             Expression::Constrain(boolean, _location, msg) => self.handle_constrain(boolean, msg),
@@ -374,16 +374,37 @@ impl Context {
         }
     }
 
+    fn handle_extract_expression(&mut self, expr: &mut Expression) {
+        let Expression::ExtractTupleField(tuple, _) = expr else {
+            panic!("handle_extract_expression given non-extract expression {expr}");
+        };
+
+        if !self.experimental_ownership_feature {
+            return self.handle_expression(tuple);
+        }
+
+        // When experimental ownership is enabled, we may clone identifiers. We want to avoid
+        // cloning the entire object though if we're only accessing one field of it so we check
+        // here to move the clone to the outermost extract expression instead.
+        let mut inner_expr = tuple.as_mut();
+        let should_clone = loop {
+            match inner_expr {
+                Expression::Ident(ident) => break self.should_clone_ident(ident),
+                Expression::ExtractTupleField(tuple, _) => inner_expr = tuple,
+                other => return self.handle_expression(other),
+            }
+        };
+
+        if should_clone {
+            clone_expr(expr);
+        }
+    }
+
     /// Under the experimental alternate ownership scheme, whenever an ident is used it is
     /// always cloned unless it is the last use of the ident (not in a loop). To simplify this
     /// analysis we always clone here then remove the last clone later if possible.
-    fn handle_ident(&self, expr: &mut Expression) {
+    fn should_clone_ident(&self, ident: &Ident) -> bool {
         if self.experimental_ownership_feature {
-            let ident = match expr {
-                Expression::Ident(ident) => ident,
-                other => panic!("handle_ident given non-ident expr: {other}"),
-            };
-
             // This isn't necessary but helps clean up the output some.
             // It'll need to be removed if we ever apply ownership on more
             // than just arrays and array-containing structs.
@@ -404,9 +425,21 @@ impl Context {
 
             if let Definition::Local(local_id) = &ident.definition {
                 if may_contain_array && !self.should_move(*local_id, ident.id) {
-                    clone_expr(expr);
+                    return true;
                 }
             }
+        }
+        false
+    }
+
+    fn handle_ident(&self, expr: &mut Expression) {
+        let ident = match expr {
+            Expression::Ident(ident) => ident,
+            other => panic!("handle_ident given non-ident expr: {other}"),
+        };
+
+        if self.should_clone_ident(ident) {
+            clone_expr(expr);
         }
     }
 
