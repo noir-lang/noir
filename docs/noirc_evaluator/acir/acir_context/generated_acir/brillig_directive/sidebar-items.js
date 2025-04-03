@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["directive_invert","directive_quotient","directive_to_radix"]};
+window.SIDEBAR_ITEMS = {"constant":["PLACEHOLDER_BRILLIG_INDEX"],"enum":["BrilligStdlibFunc"],"fn":["directive_invert","directive_quotient","directive_to_radix"],"struct":["BrilligStdLib"]};

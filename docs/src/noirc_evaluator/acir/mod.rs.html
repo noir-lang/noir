@@ -3679,7 +3679,19 @@
 <a href="#3678" id="3678">3678</a>
 <a href="#3679" id="3679">3679</a>
 <a href="#3680" id="3680">3680</a>
-<a href="#3681" id="3681">3681</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#3681" id="3681">3681</a>
+<a href="#3682" id="3682">3682</a>
+<a href="#3683" id="3683">3683</a>
+<a href="#3684" id="3684">3684</a>
+<a href="#3685" id="3685">3685</a>
+<a href="#3686" id="3686">3686</a>
+<a href="#3687" id="3687">3687</a>
+<a href="#3688" id="3688">3688</a>
+<a href="#3689" id="3689">3689</a>
+<a href="#3690" id="3690">3690</a>
+<a href="#3691" id="3691">3691</a>
+<a href="#3692" id="3692">3692</a>
+<a href="#3693" id="3693">3693</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -3736,11 +3748,13 @@
     ssa_gen::Ssa,
 };
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>acir_context::GeneratedAcir;
-<span class="kw">use </span>acir_context::{AcirContext, BrilligStdlibFunc, power_of_two};
+<span class="kw">use </span>acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
 <span class="kw">use </span>types::{AcirType, AcirVar};
 
 <span class="attr">#[derive(Default)]
-</span><span class="kw">struct </span>SharedContext&lt;F&gt; {
+</span><span class="kw">struct </span>SharedContext&lt;F: AcirField&gt; {
+    brillig_stdlib: BrilligStdLib&lt;F&gt;,
+
     <span class="doccomment">/// Final list of Brillig functions which will be part of the final program
     /// This is shared across `Context` structs as we want one list of Brillig
     /// functions across all ACIR artifacts
@@ -3803,14 +3817,14 @@
         {
             <span class="self">self</span>.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         } <span class="kw">else </span>{
-            <span class="kw">let </span>code = brillig_stdlib_func.get_generated_brillig();
+            <span class="kw">let </span>code = <span class="self">self</span>.brillig_stdlib.get_code(<span class="kw-2">*</span>brillig_stdlib_func);
             <span class="kw">let </span>generated_pointer = <span class="self">self</span>.new_generated_pointer();
             <span class="self">self</span>.insert_generated_brillig_stdlib(
                 <span class="kw-2">*</span>brillig_stdlib_func,
                 generated_pointer,
                 func_id,
                 opcode_location,
-                code,
+                code.clone(),
             );
         }
     }
@@ -3905,9 +3919,10 @@
         shared_context: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>SharedContext&lt;FieldElement&gt;,
         expression_width: ExpressionWidth,
         brillig: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Brillig,
+        brillig_stdlib: BrilligStdLib&lt;FieldElement&gt;,
         brillig_options: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BrilligOptions,
     ) -&gt; Context&lt;<span class="lifetime">'a</span>&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>acir_context = AcirContext::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>acir_context = AcirContext::new(brillig_stdlib, Bn254BlackBoxSolver::default());
         acir_context.set_expression_width(expression_width);
         <span class="kw">let </span>current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
@@ -6441,7 +6456,7 @@
             },
             circuit::{
                 ExpressionWidth, Opcode, OpcodeLocation,
-                brillig::{BrilligBytecode, BrilligFunctionId},
+                brillig::BrilligFunctionId,
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
             },
             native_types::{Witness, WitnessMap},
@@ -6454,8 +6469,8 @@
     <span class="kw">use </span>std::collections::BTreeMap;
 
     <span class="kw">use crate</span>::{
-        acir::BrilligStdlibFunc,
-        brillig::{Brillig, BrilligOptions},
+        acir::{BrilligStdlibFunc, acir_context::BrilligStdLib, ssa::codegen_acir},
+        brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
@@ -7276,16 +7291,6 @@
         }"</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>(acir_functions, <span class="kw-2">mut </span>brillig_functions, <span class="kw">_</span>, <span class="kw">_</span>) = ssa
-            .into_acir(<span class="kw-2">&amp;</span>Brillig::default(), <span class="kw-2">&amp;</span>BrilligOptions::default(), ExpressionWidth::default())
-            .expect(<span class="string">"Should compile manually written SSA into ACIR"</span>);
-
-        <span class="macro">assert_eq!</span>(acir_functions.len(), <span class="number">1</span>);
-        <span class="comment">// [`directive_quotient`, `directive_invert`]
-        </span><span class="macro">assert_eq!</span>(brillig_functions.len(), <span class="number">2</span>);
-
-        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>acir_functions[<span class="number">0</span>];
-
         <span class="comment">// Here we're attempting to perform a truncation of a `Field` type into 32 bits. We then do a euclidean
         // division `a/b` with `a` and `b` taking the values:
         //
@@ -7316,8 +7321,8 @@
 
         <span class="comment">// This brillig function replaces the standard implementation of `directive_quotient` with
         // an implementation which returns `(malicious_q, malicious_r)`.
-        </span><span class="kw">let </span>malicious_quotient = BrilligBytecode {
-            bytecode: <span class="macro">vec!</span>[
+        </span><span class="kw">let </span>malicious_quotient = GeneratedBrillig {
+            byte_code: <span class="macro">vec!</span>[
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(<span class="number">10</span>),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
@@ -7345,15 +7350,34 @@
                     },
                 },
             ],
+            name: <span class="string">"malicious_directive_quotient"</span>.to_string(),
+            ..Default::default()
         };
-        <span class="kw">let </span>malicious_brillig = [malicious_quotient, brillig_functions.remove(<span class="number">1</span>)];
+
+        <span class="kw">let </span>malicious_brillig_stdlib =
+            BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
+
+        <span class="kw">let </span>(acir_functions, brillig_functions, <span class="kw">_</span>, <span class="kw">_</span>) = codegen_acir(
+            ssa,
+            <span class="kw-2">&amp;</span>Brillig::default(),
+            malicious_brillig_stdlib,
+            <span class="kw-2">&amp;</span>BrilligOptions::default(),
+            ExpressionWidth::default(),
+        )
+        .expect(<span class="string">"Should compile manually written SSA into ACIR"</span>);
+
+        <span class="macro">assert_eq!</span>(acir_functions.len(), <span class="number">1</span>);
+        <span class="comment">// [`malicious_directive_quotient`, `directive_invert`]
+        </span><span class="macro">assert_eq!</span>(brillig_functions.len(), <span class="number">2</span>);
+
+        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>acir_functions[<span class="number">0</span>];
 
         <span class="kw">let </span>initial_witness = WitnessMap::from(BTreeMap::from([(Witness(<span class="number">0</span>), input)]));
         <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(
             <span class="kw-2">&amp;</span>StubbedBlackBoxSolver(<span class="bool-val">true</span>),
             main.opcodes(),
             initial_witness,
-            <span class="kw-2">&amp;</span>malicious_brillig,
+            <span class="kw-2">&amp;</span>brillig_functions,
             <span class="kw-2">&amp;</span>[],
         );
 

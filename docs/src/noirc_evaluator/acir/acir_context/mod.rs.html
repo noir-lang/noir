@@ -1638,7 +1638,13 @@
 <a href="#1637" id="1637">1637</a>
 <a href="#1638" id="1638">1638</a>
 <a href="#1639" id="1639">1639</a>
-<a href="#1640" id="1640">1640</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1677,9 +1683,8 @@
     types::{AcirType, AcirVar},
 };
 <span class="kw">use </span>big_int::BigIntContext;
-<span class="kw">use </span>generated_acir::PLACEHOLDER_BRILLIG_INDEX;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>generated_acir::{BrilligStdlibFunc, GeneratedAcir};
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>generated_acir::{BrilligStdLib, BrilligStdlibFunc, GeneratedAcir};
 
 <span class="attr">#[derive(Debug, Default)]
 </span><span class="doccomment">/// Context object which holds the relationship between
@@ -1687,6 +1692,7 @@
 /// which are placed into ACIR.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>AcirContext&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) blackbox_solver: B,
+    brillig_stdlib: BrilligStdLib&lt;F&gt;,
 
     vars: HashMap&lt;AcirVar, AcirVarData&lt;F&gt;&gt;,
 
@@ -1710,6 +1716,19 @@
 }
 
 <span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; AcirContext&lt;F, B&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(brillig_stdlib: BrilligStdLib&lt;F&gt;, blackbox_solver: B) -&gt; <span class="self">Self </span>{
+        AcirContext {
+            brillig_stdlib,
+            blackbox_solver,
+            vars: Default::default(),
+            constant_witnesses: Default::default(),
+            acir_ir: Default::default(),
+            big_int_ctx: Default::default(),
+            expression_width: Default::default(),
+            warnings: Default::default(),
+        }
+    }
+
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_expression_width(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expression_width: ExpressionWidth) {
         <span class="self">self</span>.expression_width = expression_width;
     }
@@ -1913,18 +1932,13 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(inverted_var);
         }
 
-        <span class="comment">// Compute the inverse with brillig code
-        </span><span class="kw">let </span>inverse_code = BrilligStdlibFunc::Inverse.get_generated_brillig();
-
-        <span class="kw">let </span>results = <span class="self">self</span>.brillig_call(
+        <span class="kw">let </span>results = <span class="self">self</span>.stdlib_brillig_call(
             predicate,
-            <span class="kw-2">&amp;</span>inverse_code,
+            BrilligStdlibFunc::Inverse,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
             <span class="macro">vec!</span>[AcirValue::Var(var, AcirType::field())],
             <span class="macro">vec!</span>[AcirType::field()],
             <span class="bool-val">true</span>,
-            <span class="bool-val">false</span>,
-            PLACEHOLDER_BRILLIG_INDEX,
-            <span class="prelude-val">Some</span>(BrilligStdlibFunc::Inverse),
         )<span class="question-mark">?</span>;
         <span class="kw">let </span>inverted_var = <span class="self">Self</span>::expect_one_var(results);
 
@@ -2439,18 +2453,16 @@
         };
 
         <span class="kw">let </span>[q_value, r_value]: [AcirValue; <span class="number">2</span>] = <span class="self">self
-            </span>.brillig_call(
+            </span>.stdlib_brillig_call(
                 predicate,
-                <span class="kw-2">&amp;</span>BrilligStdlibFunc::Quotient.get_generated_brillig(),
+                BrilligStdlibFunc::Quotient,
+                <span class="kw-2">&amp;</span><span class="self">self</span>.brillig_stdlib.get_code(BrilligStdlibFunc::Quotient).clone(),
                 <span class="macro">vec!</span>[
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
                 ],
                 <span class="macro">vec!</span>[AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 <span class="bool-val">true</span>,
-                <span class="bool-val">false</span>,
-                PLACEHOLDER_BRILLIG_INDEX,
-                <span class="prelude-val">Some</span>(BrilligStdlibFunc::Quotient),
             )<span class="question-mark">?
             </span>.try_into()
             .expect(<span class="string">"quotient only returns two values"</span>);

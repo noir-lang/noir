@@ -812,28 +812,7 @@
 <a href="#811" id="811">811</a>
 <a href="#812" id="812">812</a>
 <a href="#813" id="813">813</a>
-<a href="#814" id="814">814</a>
-<a href="#815" id="815">815</a>
-<a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a>
-<a href="#818" id="818">818</a>
-<a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a>
-<a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a>
-<a href="#826" id="826">826</a>
-<a href="#827" id="827">827</a>
-<a href="#828" id="828">828</a>
-<a href="#829" id="829">829</a>
-<a href="#830" id="830">830</a>
-<a href="#831" id="831">831</a>
-<a href="#832" id="832">832</a>
-<a href="#833" id="833">833</a>
-<a href="#834" id="834">834</a>
-<a href="#835" id="835">835</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
+<a href="#814" id="814">814</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
 //!
 //! This module defines the `GeneratedAcir` which is constructed as part of the ACIR-gen pass
 //! to accumulate all of the ACIR. This tracks properties such as which witnesses form part of the circuit interface
@@ -866,11 +845,7 @@
 
 <span class="kw">mod </span>brillig_directive;
 
-<span class="doccomment">/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
-/// This index should be used when adding a Brillig call during code generation.
-/// Code generation should then keep track of that unresolved call opcode which will be resolved with the
-/// correct function index after code generation.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(<span class="number">0</span>);
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>brillig_directive::{BrilligStdLib, BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
 
 <span class="attr">#[derive(Debug, Default)]
 </span><span class="doccomment">/// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
@@ -931,23 +906,6 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BrilligOpcodeToLocationsMap = BTreeMap&lt;BrilligOpcodeLocation, CallStack&gt;;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BrilligProcedureRangeMap = BTreeMap&lt;ProcedureDebugId, (usize, usize)&gt;;
-
-<span class="attr">#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>BrilligStdlibFunc {
-    Inverse,
-    Quotient,
-    ToLeBytes,
-}
-
-<span class="kw">impl </span>BrilligStdlibFunc {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_generated_brillig&lt;F: AcirField&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; GeneratedBrillig&lt;F&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            BrilligStdlibFunc::Inverse =&gt; brillig_directive::directive_invert(),
-            BrilligStdlibFunc::Quotient =&gt; brillig_directive::directive_quotient(),
-            BrilligStdlibFunc::ToLeBytes =&gt; brillig_directive::directive_to_radix(),
-        }
-    }
-}
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; GeneratedAcir&lt;F&gt; {
     <span class="doccomment">/// Returns the current witness index.

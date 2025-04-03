@@ -378,7 +378,7 @@
 
 <span class="doccomment">/// The result of compiling and linking brillig artifacts.
 /// This is ready to run bytecode with attached metadata.
-</span><span class="attr">#[derive(Debug, Default)]
+</span><span class="attr">#[derive(Debug, Default, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>GeneratedBrillig&lt;F&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) byte_code: Vec&lt;BrilligOpcode&lt;F&gt;&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) locations: BTreeMap&lt;OpcodeLocation, CallStack&gt;,

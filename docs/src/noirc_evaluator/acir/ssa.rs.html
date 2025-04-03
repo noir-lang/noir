@@ -81,7 +81,21 @@
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
@@ -95,7 +109,7 @@
     ssa::ssa_gen::Ssa,
 };
 
-<span class="kw">use super</span>::{Context, GeneratedAcir, SharedContext};
+<span class="kw">use super</span>::{Context, GeneratedAcir, SharedContext, acir_context::BrilligStdLib};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>Artifacts = (
     Vec&lt;GeneratedAcir&lt;FieldElement&gt;&gt;,
@@ -112,56 +126,70 @@
         brillig_options: <span class="kw-2">&amp;</span>BrilligOptions,
         expression_width: ExpressionWidth,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Artifacts, RuntimeError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>acirs = Vec::new();
-        <span class="comment">// TODO: can we parallelize this?
-        </span><span class="kw">let </span><span class="kw-2">mut </span>shared_context = SharedContext::default();
-
-        <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values() {
-            <span class="kw">let </span>context =
-                Context::new(<span class="kw-2">&amp;mut </span>shared_context, expression_width, brillig, brillig_options);
-
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>generated_acir) = context.convert_ssa_function(<span class="kw-2">&amp;</span><span class="self">self</span>, function)<span class="question-mark">? </span>{
-                <span class="comment">// We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
-                // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
-                // we instead store the opcode location at which a Brillig call to a std lib function occurred.
-                // We then defer resolving the function IDs of those Brillig functions to when we have generated Brillig
-                // for all normal Brillig calls.
-                </span><span class="kw">for </span>(opcode_location, brillig_stdlib_func) <span class="kw">in
-                    </span><span class="kw-2">&amp;</span>generated_acir.brillig_stdlib_func_locations
-                {
-                    shared_context.generate_brillig_calls_to_resolve(
-                        brillig_stdlib_func,
-                        function.id(),
-                        <span class="kw-2">*</span>opcode_location,
-                    );
-                }
-
-                <span class="comment">// Fetch the Brillig stdlib calls to resolve for this function
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(calls_to_resolve) =
-                    shared_context.brillig_stdlib_calls_to_resolve.get(<span class="kw-2">&amp;</span>function.id())
-                {
-                    <span class="comment">// Resolve the Brillig stdlib calls
-                    // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
-                    </span><span class="kw">for </span>(opcode_location, brillig_function_pointer) <span class="kw">in </span>calls_to_resolve {
-                        generated_acir.resolve_brillig_stdlib_call(
-                            <span class="kw-2">*</span>opcode_location,
-                            <span class="kw-2">*</span>brillig_function_pointer,
-                        );
-                    }
-                }
-
-                generated_acir.name = function.name().to_owned();
-                acirs.push(generated_acir);
-            }
-        }
-
-        <span class="kw">let </span>(brillig_bytecode, brillig_names) = shared_context
-            .generated_brillig
-            .into_iter()
-            .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
-            .unzip();
-
-        <span class="prelude-val">Ok</span>((acirs, brillig_bytecode, brillig_names, <span class="self">self</span>.error_selector_to_type))
+        codegen_acir(<span class="self">self</span>, brillig, BrilligStdLib::default(), brillig_options, expression_width)
     }
+}
+
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>codegen_acir(
+    ssa: Ssa,
+    brillig: <span class="kw-2">&amp;</span>Brillig,
+    brillig_stdlib: BrilligStdLib&lt;FieldElement&gt;,
+    brillig_options: <span class="kw-2">&amp;</span>BrilligOptions,
+    expression_width: ExpressionWidth,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Artifacts, RuntimeError&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>acirs = Vec::new();
+    <span class="comment">// TODO: can we parallelize this?
+    </span><span class="kw">let </span><span class="kw-2">mut </span>shared_context =
+        SharedContext { brillig_stdlib: brillig_stdlib.clone(), ..SharedContext::default() };
+
+    <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
+        <span class="kw">let </span>context = Context::new(
+            <span class="kw-2">&amp;mut </span>shared_context,
+            expression_width,
+            brillig,
+            brillig_stdlib.clone(),
+            brillig_options,
+        );
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>generated_acir) = context.convert_ssa_function(<span class="kw-2">&amp;</span>ssa, function)<span class="question-mark">? </span>{
+            <span class="comment">// We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
+            // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
+            // we instead store the opcode location at which a Brillig call to a std lib function occurred.
+            // We then defer resolving the function IDs of those Brillig functions to when we have generated Brillig
+            // for all normal Brillig calls.
+            </span><span class="kw">for </span>(opcode_location, brillig_stdlib_func) <span class="kw">in
+                </span><span class="kw-2">&amp;</span>generated_acir.brillig_stdlib_func_locations
+            {
+                shared_context.generate_brillig_calls_to_resolve(
+                    brillig_stdlib_func,
+                    function.id(),
+                    <span class="kw-2">*</span>opcode_location,
+                );
+            }
+
+            <span class="comment">// Fetch the Brillig stdlib calls to resolve for this function
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(calls_to_resolve) =
+                shared_context.brillig_stdlib_calls_to_resolve.get(<span class="kw-2">&amp;</span>function.id())
+            {
+                <span class="comment">// Resolve the Brillig stdlib calls
+                // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
+                </span><span class="kw">for </span>(opcode_location, brillig_function_pointer) <span class="kw">in </span>calls_to_resolve {
+                    generated_acir
+                        .resolve_brillig_stdlib_call(<span class="kw-2">*</span>opcode_location, <span class="kw-2">*</span>brillig_function_pointer);
+                }
+            }
+
+            generated_acir.name = function.name().to_owned();
+            acirs.push(generated_acir);
+        }
+    }
+
+    <span class="kw">let </span>(brillig_bytecode, brillig_names) = shared_context
+        .generated_brillig
+        .into_iter()
+        .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
+        .unzip();
+
+    <span class="prelude-val">Ok</span>((acirs, brillig_bytecode, brillig_names, ssa.error_selector_to_type))
 }
 </code></pre></div></section></main></body></html>

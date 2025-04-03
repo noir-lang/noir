@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"type":["Artifacts"]};
+window.SIDEBAR_ITEMS = {"fn":["codegen_acir"],"type":["Artifacts"]};
