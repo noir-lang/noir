@@ -132,7 +132,9 @@ impl ChunkFormatter<'_, '_> {
             formatter.format_secondary_attributes(attributes);
             formatter.write_keyword(keyword);
             formatter.write_space();
+            formatter.increase_indentation();
             formatter.format_pattern(pattern);
+            formatter.decrease_indentation();
             if typ.typ != UnresolvedTypeData::Unspecified {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();
