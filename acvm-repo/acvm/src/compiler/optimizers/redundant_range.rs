@@ -364,7 +364,6 @@ mod tests {
         let mem_op = Opcode::MemoryOp {
             block_id: BlockId(0),
             op: MemOp::read_at_mem_index(Witness(1).into(), Witness(2)),
-            predicate: None,
         };
 
         circuit.opcodes.push(mem_init.clone());
