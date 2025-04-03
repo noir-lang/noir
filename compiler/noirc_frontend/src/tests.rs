@@ -166,8 +166,9 @@ fn check_errors_with_options(
         secondary_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
+    let expect = if primary_spans_with_errors.is_empty() { Expect::Success } else { Expect::Error };
     let (_, mut context, errors) =
-        get_program_with_options(&src, test_path, Expect::Error, allow_parser_errors, options);
+        get_program_with_options(&src, test_path, expect, allow_parser_errors, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {
@@ -182,7 +183,12 @@ fn check_errors_with_options(
 
         let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
         match result {
-            Ok(_) => panic!("Expected a monomorphization error but got none"),
+            Ok(_) => {
+                if primary_spans_with_errors.is_empty() {
+                    return;
+                }
+                panic!("Expected a monomorphization error but got none")
+            }
             Err(error) => {
                 errors.push(error.into());
             }
@@ -4572,4 +4578,25 @@ fn unconstrained_numeric_generic_in_impl() {
         }
         "#;
     check_errors!(src);
+}
+
+#[named]
+#[test]
+fn resolves_generic_type_argument_via_self() {
+    let src = "
+    pub struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        fn one() {
+            Self::two();
+        }
+
+        fn two() {}
+    }
+
+    fn main() {
+        Foo::<i32>::one();
+    }
+    ";
+    check_monomorphization_error!(src);
 }
