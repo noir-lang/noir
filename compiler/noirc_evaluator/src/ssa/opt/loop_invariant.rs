@@ -1905,10 +1905,7 @@ mod control_dependence {
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.loop_invariant_code_motion();
-        // We expect the constrain to remain inside of `loop_body`
-        // as the loop is never going to be executed.
-        // If the constrain were to be hoisted out it could potentially
-        // cause the program to fail when it is not meant to fail.
+        // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1, and then to be hoisted out of the loop
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -2085,7 +2082,7 @@ mod control_dependence {
     }
 
     #[test]
-    fn simplify_not_equal_constrain() {
+    fn simplify_not_equal_instruction() {
         // This tests shows that the not equal constraint on v3 is simplified due to the loop bounds
         let src = "
         brillig(inline) fn main f0 {
