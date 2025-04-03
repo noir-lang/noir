@@ -4579,3 +4579,24 @@ fn unconstrained_numeric_generic_in_impl() {
         "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn resolves_generic_type_argument_via_self() {
+    let src = "
+    pub struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        fn one() {
+            Self::two();
+        }
+
+        fn two() {}
+    }
+
+    fn main() {
+        Foo::<i32>::one();
+    }
+    ";
+    check_monomorphization_error!(src);
+}
