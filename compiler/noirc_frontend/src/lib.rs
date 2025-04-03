@@ -47,3 +47,5 @@ pub use hir_def::types::*;
 
 // Unit tests that involve all modules
 pub mod tests;
+// Utility functions for easily compiling the frontend for tests in other crates
+pub mod test_utils;

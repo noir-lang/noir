@@ -3558,6 +3558,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "cfg-if",
  "chrono",
+ "function_name",
  "fxhash",
  "im",
  "iter-extended",

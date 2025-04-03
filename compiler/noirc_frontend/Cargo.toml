@@ -42,4 +42,5 @@ proptest-derive.workspace = true
 [features]
 bn254 = []
 bls12_381 = []
+test_utils = []
 nextest = []
