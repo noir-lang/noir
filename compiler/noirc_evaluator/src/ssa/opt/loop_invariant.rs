@@ -1871,10 +1871,10 @@ mod control_dependence {
 
     #[test]
     fn simplify_constraint() {
-        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b0
+        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in entry block
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u32):
+          entry(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             store v0 at v4
             jmp b1(u32 0)
@@ -1908,7 +1908,7 @@ mod control_dependence {
         // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1, and then to be hoisted out of the loop
         let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u32):
+          entry(v0: u32, v1: u32, v2: u32):
               v4 = allocate -> &mut u32
               store v0 at v4
               constrain u1 0 == u1 1
@@ -1940,7 +1940,7 @@ mod control_dependence {
 
     #[test]
     fn do_not_simplify_constraint() {
-        // This test is similar to simplify_constraint but does not simplify because b3 has 2 predecessors
+        // This test is similar to simplify_constraint but does not simplify because loop_exit has 2 predecessors
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -1950,10 +1950,10 @@ mod control_dependence {
             jmp b1(u32 0)
           b1(v3: u32):
             v9 = lt v3, u32 5
-            jmpif v9 then: b2, else: b3
+            jmpif v9 then: b2, else: loop_exit
           b2():
             jmpif u1 1 then: b4, else: b5
-          b3():
+          loop_exit():
             v19 = load v4 -> u32
             v20 = lt v1, v19
             constrain v20 == u1 1
@@ -1966,7 +1966,7 @@ mod control_dependence {
           b5():
             v15 = lt u32 2, v3
             v16 = mul v6, v15
-            jmpif v16 then: b3, else: b6
+            jmpif v16 then: loop_exit, else: b6
           b6():
             v17 = lt v3, u32 4
             constrain v17 == u1 1
@@ -1988,10 +1988,10 @@ mod control_dependence {
             jmp b1(u32 0)
           b1(v3: u32):
             v9 = lt v3, u32 5
-            jmpif v9 then: b2, else: b3
+            jmpif v9 then: b2, else: loop_exit
           b2():
             jmpif u1 1 then: b4, else: b5
-          b3():
+          loop_exit():
             v19 = load v4 -> u32
             v20 = lt v1, v19
             constrain v20 == u1 1
@@ -2004,7 +2004,7 @@ mod control_dependence {
           b5():
             v15 = lt u32 2, v3
             v16 = mul v6, v15
-            jmpif v16 then: b3, else: b6
+            jmpif v16 then: loop_exit, else: b6
           b6():
             v17 = lt v3, u32 4
             constrain v17 == u1 1
