@@ -465,11 +465,6 @@ impl<'f> LoopInvariantContext<'f> {
             if binary.operator == BinaryOp::Lt && rhs_const == Some(FieldElement::one()) {
                 // Generates the comparison replacement
                 let new_binary = if is_left {
-                    assert!(
-                        self.inserter.function.dfg.get_numeric_constant(max).unwrap()
-                            != FieldElement::zero(),
-                        "executing a non executable loop"
-                    );
                     Instruction::Binary(Binary {
                         lhs: max,
                         rhs: binary.rhs,
@@ -601,6 +596,7 @@ impl<'f> LoopInvariantContext<'f> {
         } {
             let min_iter =
                 self.inserter.function.dfg.make_constant(*lower, NumericType::length_type());
+            assert!(*upper != FieldElement::zero(), "executing a non executable loop");
             let max_iter = self
                 .inserter
                 .function
