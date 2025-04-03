@@ -810,7 +810,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             .stdlib_brillig_call(
                 predicate,
                 BrilligStdlibFunc::Quotient,
-                &self.brillig_stdlib.quotient.clone(),
+                &self.brillig_stdlib.get_code(BrilligStdlibFunc::Quotient).clone(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
