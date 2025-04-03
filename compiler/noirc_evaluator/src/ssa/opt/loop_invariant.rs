@@ -51,15 +51,18 @@ use crate::ssa::{
     Ssa,
     ir::{
         basic_block::BasicBlockId,
+        call_stack::CallStackId,
         cfg::ControlFlowGraph,
+        dfg::simplify::SimplifyResult,
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{
-            Binary, BinaryOp, Instruction, InstructionId, binary::eval_constant_binary_op,
+            Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
+            binary::eval_constant_binary_op,
         },
         post_order::PostOrder,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::pure::Purity,
@@ -152,6 +155,12 @@ struct LoopInvariantContext<'f> {
     // Maps a block to its post-dominance frontiers
     // This map should be precomputed a single time and used for checking control dependence.
     post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+
+    // Indicates whether the current loop has break or early returns
+    no_break: bool,
+    // Helper constants
+    true_value: ValueId,
+    false_value: ValueId,
 }
 
 impl<'f> LoopInvariantContext<'f> {
@@ -161,6 +170,10 @@ impl<'f> LoopInvariantContext<'f> {
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
+        let true_value =
+            function.dfg.make_constant(FieldElement::one(), NumericType::Unsigned { bit_size: 1 });
+        let false_value =
+            function.dfg.make_constant(FieldElement::zero(), NumericType::Unsigned { bit_size: 1 });
         Self {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
@@ -171,11 +184,26 @@ impl<'f> LoopInvariantContext<'f> {
             cfg,
             current_block_control_dependent: false,
             post_dom_frontiers,
+            true_value,
+            false_value,
+            no_break: false,
         }
     }
 
     fn pre_header(&self) -> BasicBlockId {
         self.current_pre_header.expect("ICE: Pre-header block should have been set")
+    }
+
+    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
+    fn is_full(&self, loop_: &Loop) -> bool {
+        if let Some(header) = loop_.blocks.first() {
+            for block in self.inserter.function.dfg[*header].successors() {
+                if !loop_.blocks.contains(&block) {
+                    return self.cfg.predecessors(block).len() == 1;
+                }
+            }
+        }
+        true
     }
 
     fn hoist_loop_invariants(&mut self, loop_: &Loop) {
@@ -185,8 +213,9 @@ impl<'f> LoopInvariantContext<'f> {
             self.is_control_dependent_post_pre_header(loop_, *block);
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
-                self.transform_to_unchecked_from_loop_bounds(instruction_id);
-
+                if self.simplify_from_loop_bounds(instruction_id, loop_, block) {
+                    continue;
+                }
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
 
                 if hoist_invariant {
@@ -227,6 +256,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// the given loop's header.
     fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
         let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
+        self.current_block_control_dependent = false;
 
         // Need to accurately determine whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves
@@ -266,6 +296,7 @@ impl<'f> LoopInvariantContext<'f> {
         // If we fail to reset for the next loop, a block may be inadvertently labelled
         // as control dependent thus preventing optimizations.
         self.current_block_control_dependent = false;
+        self.no_break = self.is_full(loop_);
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -277,7 +308,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
-    /// Update any values defined in the loop and loop invariants after a
+    /// Update any values defined in the loop and loop invariants after
     /// analyzing and re-inserting a loop's instruction.
     fn extend_values_defined_in_loop_and_invariants(
         &mut self,
@@ -314,8 +345,7 @@ impl<'f> LoopInvariantContext<'f> {
             // We are implicitly checking whether the values are constant as well.
             // The set of values defined in the loop only contains instruction results and block parameters
             // which cannot be constants.
-            is_loop_invariant &=
-                !self.defined_in_loop.contains(&value) || self.loop_invariants.contains(&value);
+            is_loop_invariant &= self.is_loop_invariant(&value);
         });
 
         let can_be_hoisted = can_be_hoisted(&instruction, self.inserter.function, false)
@@ -385,28 +415,350 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
-    /// Binary operations can take advantage of that our induction variable has a fixed minimum/maximum,
-    /// to be transformed from a checked operation to an unchecked operation.
+    /// Some instructions can take advantage of that our induction variable has a fixed minimum/maximum,
+    /// For instance operations can be transformed from a checked operation to an unchecked operation.
     ///
     /// Checked operations require more bytecode and thus we aim to minimize their usage wherever possible.
     ///
     /// For example, if one side of an add/mul operation is a constant and the other is an induction variable
     /// with a known upper bound, we know whether that binary operation will ever overflow.
     /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
-    fn transform_to_unchecked_from_loop_bounds(&mut self, instruction_id: InstructionId) {
-        let Instruction::Binary(binary) = &self.inserter.function.dfg[instruction_id] else {
-            return;
-        };
+    ///
+    /// The function returns false if the instruction must be added to the block
+    fn simplify_from_loop_bounds(
+        &mut self,
+        instruction_id: InstructionId,
+        loop_: &Loop,
+        current_block: &BasicBlockId,
+    ) -> bool {
+        // Simplify the instruction and update it in the DFG.
+        match self.simplify_induction_variable(instruction_id, loop_, current_block) {
+            SimplifyResult::SimplifiedTo(id) => {
+                let results =
+                    self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
+                assert!(results.len() == 1);
+                self.inserter.function.dfg.set_value_from_id(results[0], id);
+                true
+            }
+            SimplifyResult::SimplifiedToInstruction(instruction) => {
+                self.inserter.function.dfg[instruction_id] = instruction;
+                false
+            }
+            SimplifyResult::Remove => true,
+            SimplifyResult::None => false,
+            _ => unreachable!(
+                "ICE - loop bounds simplification should only simplify to a value or an instruction"
+            ),
+        }
+    }
 
-        if binary.operator.is_unchecked()
-            || !self.can_evaluate_binary_op(binary, &self.current_induction_variables)
-        {
-            return;
+    /// Simplify 'assert(lhs<rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
+    fn simplify_induction_in_constrain(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        err: &Option<ConstrainError>,
+        call_stack: CallStackId,
+    ) -> SimplifyResult {
+        let rhs_const = self.inserter.function.dfg.get_numeric_constant(rhs);
+        if let Some((is_left, min, max, binary)) = self.extract_induction_and_invariant(lhs) {
+            if binary.operator == BinaryOp::Lt && rhs_const == Some(FieldElement::one()) {
+                // Generates the comparison replacement
+                let new_binary = if is_left {
+                    assert!(
+                        self.inserter.function.dfg.get_numeric_constant(max).unwrap()
+                            != FieldElement::zero(),
+                        "executing a non executable loop"
+                    );
+                    Instruction::Binary(Binary {
+                        lhs: max,
+                        rhs: binary.rhs,
+                        operator: BinaryOp::Lt,
+                    })
+                } else {
+                    Instruction::Binary(Binary {
+                        lhs: binary.lhs,
+                        rhs: min,
+                        operator: BinaryOp::Lt,
+                    })
+                };
+
+                // The new comparison can be safely hoisted to the pre-header because it is loop invariant and control independent
+                let comparison_results = self
+                    .inserter
+                    .function
+                    .dfg
+                    .insert_instruction_and_results(new_binary, self.pre_header(), None, call_stack)
+                    .results();
+                assert!(comparison_results.len() == 1);
+                return SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
+                    comparison_results[0],
+                    rhs,
+                    err.clone(),
+                ));
+            }
         }
 
-        if let Instruction::Binary(binary) = &mut self.inserter.function.dfg[instruction_id] {
-            binary.operator = binary.operator.into_unchecked();
+        SimplifyResult::None
+    }
+
+    /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
+    fn simplify_not_equal_constraint(
+        &mut self,
+        x: &ValueId,
+        y: &ValueId,
+        err: &Option<ConstrainError>,
+        call_stack: CallStackId,
+    ) -> SimplifyResult {
+        if let Some((is_left, upper, lower)) = self.match_induction_and_invariant(x, y) {
+            let invariant = if is_left { y } else { x };
+            let check_lower_bound =
+                Instruction::Binary(Binary { lhs: *invariant, rhs: lower, operator: BinaryOp::Lt });
+            let check_upper_bound =
+                Instruction::Binary(Binary { lhs: upper, rhs: *invariant, operator: BinaryOp::Lt });
+            // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
+            let lower_bound_result = self
+                .inserter
+                .function
+                .dfg
+                .insert_instruction_and_results(
+                    check_lower_bound,
+                    self.pre_header(),
+                    None,
+                    call_stack,
+                )
+                .results();
+            assert!(lower_bound_result.len() == 1);
+            let lower_bound_result = lower_bound_result[0];
+            let upper_bound_result = self
+                .inserter
+                .function
+                .dfg
+                .insert_instruction_and_results(
+                    check_upper_bound,
+                    self.pre_header(),
+                    None,
+                    call_stack,
+                )
+                .results();
+            assert!(upper_bound_result.len() == 1);
+            let check_bounds = Instruction::Binary(Binary {
+                lhs: lower_bound_result,
+                rhs: upper_bound_result[0],
+                operator: BinaryOp::Or,
+            });
+            let check_bounds_result = self
+                .inserter
+                .function
+                .dfg
+                .insert_instruction_and_results(check_bounds, self.pre_header(), None, call_stack)
+                .results();
+            assert!(check_bounds_result.len() == 1);
+            SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
+                check_bounds_result[0],
+                self.true_value,
+                err.clone(),
+            ))
+        } else {
+            SimplifyResult::None
+        }
+    }
+
+    /// Returns the binary instruction only if the input value refers to a binary instruction with invariant and induction variables as operands
+    /// The return values are:
+    /// - a boolean indicating if the induction variable is lhs
+    /// - the minimum and maximum values of the induction variable, coming from the loop bounds
+    /// - the binary instruction itself
+    fn extract_induction_and_invariant(
+        &mut self,
+        value: ValueId,
+    ) -> Option<(bool, ValueId, ValueId, Binary)> {
+        if let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] {
+            if let Instruction::Binary(binary) = self.inserter.function.dfg[*instruction].clone() {
+                return self
+                    .match_induction_and_invariant(&binary.lhs, &binary.rhs)
+                    .map(|(is_left, min, max)| (is_left, min, max, binary));
+            }
+        }
+        None
+    }
+
+    /// If the inputs are an induction and a loop invariant variables, it returns
+    /// the maximum and minimum values of the induction variable, based on the loop bounds,
+    /// and a boolean indicating if the induction variable is lhs or rhs (true for lhs)
+    fn match_induction_and_invariant(
+        &mut self,
+        lhs: &ValueId,
+        rhs: &ValueId,
+    ) -> Option<(bool, ValueId, ValueId)> {
+        if let Some((is_left, lower, upper)) = match (
+            self.current_induction_variables.get(lhs),
+            self.current_induction_variables.get(rhs),
+        ) {
+            (_, Some((lower, upper))) => Some((false, lower, upper)),
+            (Some((lower, upper)), _) => Some((true, lower, upper)),
+            _ => None,
+        } {
+            let min_iter =
+                self.inserter.function.dfg.make_constant(*lower, NumericType::length_type());
+            let max_iter = self
+                .inserter
+                .function
+                .dfg
+                .make_constant(*upper - FieldElement::one(), NumericType::length_type());
+            if (is_left && self.is_loop_invariant(rhs)) || (!is_left && self.is_loop_invariant(lhs))
+            {
+                return Some((is_left, min_iter, max_iter));
+            }
+        }
+        None
+    }
+
+    /// Simplify some instructions using induction variable by using its lower/upper bounds
+    fn simplify_induction_variable(
+        &mut self,
+        instruction_id: InstructionId,
+        loop_: &Loop,
+        block: &BasicBlockId,
+    ) -> SimplifyResult {
+        let header = loop_.header == *block;
+
+        let call_stack = self.inserter.function.dfg.get_instruction_call_stack_id(instruction_id);
+        let instruction = self.inserter.function.dfg[instruction_id].clone();
+        match &instruction {
+            Instruction::Binary(binary) => {
+                self.simplify_induction_variable_in_binary(binary, header)
+            }
+            Instruction::Constrain(x, y, err) => {
+                // Ensure the loop is fully executed
+                if self.no_break && self.can_be_hoisted_from_loop_bounds(&instruction) {
+                    self.simplify_induction_in_constrain(*x, *y, err, call_stack)
+                } else {
+                    SimplifyResult::None
+                }
+            }
+            Instruction::ConstrainNotEqual(x, y, err) => {
+                // Ensure the loop is fully executed
+                if self.no_break && self.can_be_hoisted_from_loop_bounds(&instruction) {
+                    self.simplify_not_equal_constraint(x, y, err, call_stack)
+                } else {
+                    SimplifyResult::None
+                }
+            }
+            _ => SimplifyResult::None,
+        }
+    }
+
+    fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
+        !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
+    }
+
+    // Replace checked operations with unchecked version if the bounds prove that the operation will not overflow
+    // Replace comparisons i<c by true if max(i)<c, and false if min(i)>=c
+    // Similarly for c<i, i==c
+    // Header indicates if we are in the loop header where loop bounds do not apply yet
+    fn simplify_induction_variable_in_binary(
+        &mut self,
+        binary: &Binary,
+        header: bool,
+    ) -> SimplifyResult {
+        // We need the operands to be an induction variable and a constant
+        // Note that here we allow outer_induction_variables
+        let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
+        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
+        let (is_left, value, lower_bound, upper_bound) = match (
+            lhs_const,
+            rhs_const,
+            self.current_induction_variables
+                .get(&binary.lhs)
+                .and_then(|v| if header { None } else { Some(v) })
+                .or(self.outer_induction_variables.get(&binary.lhs)),
+            self.current_induction_variables
+                .get(&binary.rhs)
+                .and_then(|v| if header { None } else { Some(v) })
+                .or(self.outer_induction_variables.get(&binary.rhs)),
+        ) {
+            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
+                (false, lhs, lower_bound, upper_bound)
+            }
+            (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
+                (true, rhs, lower_bound, upper_bound)
+            }
+            _ => return SimplifyResult::None,
         };
+
+        // Unchecked version of the binary operation
+        let unchecked = Instruction::Binary(Binary {
+            operator: binary.operator.into_unchecked(),
+            lhs: binary.lhs,
+            rhs: binary.rhs,
+        });
+
+        match binary.operator {
+            BinaryOp::Add { unchecked }
+            | BinaryOp::Sub { unchecked }
+            | BinaryOp::Mul { unchecked }
+                if unchecked =>
+            {
+                SimplifyResult::None
+            }
+            BinaryOp::Sub { .. } => {
+                if is_left {
+                    if eval_constant_binary_op(*lower_bound, value, binary.operator, operand_type)
+                        .is_some()
+                    {
+                        return SimplifyResult::SimplifiedToInstruction(unchecked);
+                    }
+                } else if eval_constant_binary_op(
+                    value,
+                    *upper_bound,
+                    binary.operator,
+                    operand_type,
+                )
+                .is_some()
+                {
+                    return SimplifyResult::SimplifiedToInstruction(unchecked);
+                }
+                SimplifyResult::None
+            }
+            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
+                if eval_constant_binary_op(value, *upper_bound, binary.operator, operand_type)
+                    .is_some()
+                {
+                    SimplifyResult::SimplifiedToInstruction(unchecked)
+                } else {
+                    SimplifyResult::None
+                }
+            }
+            BinaryOp::Div | BinaryOp::Mod => SimplifyResult::None,
+            BinaryOp::Eq => {
+                if value >= *upper_bound || value < *lower_bound {
+                    SimplifyResult::SimplifiedTo(self.false_value)
+                } else {
+                    SimplifyResult::None
+                }
+            }
+            BinaryOp::Lt => {
+                if is_left {
+                    if *upper_bound <= value {
+                        return SimplifyResult::SimplifiedTo(self.true_value);
+                    }
+                    if *lower_bound >= value {
+                        return SimplifyResult::SimplifiedTo(self.false_value);
+                    }
+                } else {
+                    if *lower_bound > value {
+                        return SimplifyResult::SimplifiedTo(self.true_value);
+                    }
+                    if *upper_bound <= value + FieldElement::one() {
+                        return SimplifyResult::SimplifiedTo(self.false_value);
+                    }
+                }
+                SimplifyResult::None
+            }
+            _ => SimplifyResult::None,
+        }
     }
 
     /// Checks whether a binary operation can be evaluated using the bounds of a given loop induction variables.
@@ -1515,6 +1867,266 @@ mod control_dependence {
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
+            return
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplify_constraint() {
+        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b0
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            store v0 at v4
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v7 = lt v3, u32 5
+            jmpif v7 then: b2, else: b3
+          b2():
+            v12 = lt v3, u32 8
+            jmpif v12 then: b4, else: b5
+          b3():
+            v8 = load v4 -> u32
+            v9 = lt v1, v8
+            constrain v9 == u1 1
+            return
+          b4():
+            v13 = load v4 -> u32
+            v15 = add v13, u32 1
+            store v15 at v4
+            jmp b5()
+          b5():
+            v17 = lt v3, u32 4
+            constrain v17 == u1 1
+            v18 = unchecked_add v3, u32 1
+            jmp b1(v18)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        // We expect the constrain to remain inside of `loop_body`
+        // as the loop is never going to be executed.
+        // If the constrain were to be hoisted out it could potentially
+        // cause the program to fail when it is not meant to fail.
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+              v4 = allocate -> &mut u32
+              store v0 at v4
+              constrain u1 0 == u1 1
+              jmp b1(u32 0)
+            b1(v3: u32):
+              v9 = lt v3, u32 5
+              jmpif v9 then: b2, else: b3
+            b2():
+              jmpif u1 1 then: b4, else: b5
+            b3():
+              v10 = load v4 -> u32
+              v11 = lt v1, v10
+              constrain v11 == u1 1
+              return
+            b4():
+              v12 = load v4 -> u32
+              v14 = add v12, u32 1
+              store v14 at v4
+              jmp b5()
+            b5():
+              v16 = lt v3, u32 4
+              v17 = unchecked_add v3, u32 1
+              jmp b1(v17)
+          }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_simplify_constraint() {
+        // This test is similar to simplify_constraint but does not simplify because b3 has 2 predecessors
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            store v0 at v4
+            v6 = eq v1, u32 4
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v9 = lt v3, u32 5
+            jmpif v9 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            v19 = load v4 -> u32
+            v20 = lt v1, v19
+            constrain v20 == u1 1
+            return
+          b4():
+            v11 = load v4 -> u32
+            v13 = add v11, u32 1
+            store v13 at v4
+            jmp b5()
+          b5():
+            v15 = lt u32 2, v3
+            v16 = mul v6, v15
+            jmpif v16 then: b3, else: b6
+          b6():
+            v17 = lt v3, u32 4
+            constrain v17 == u1 1
+            v18 = unchecked_add v3, u32 1
+            jmp b1(v18)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            store v0 at v4
+            v6 = eq v1, u32 4
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v9 = lt v3, u32 5
+            jmpif v9 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            v19 = load v4 -> u32
+            v20 = lt v1, v19
+            constrain v20 == u1 1
+            return
+          b4():
+            v11 = load v4 -> u32
+            v13 = add v11, u32 1
+            store v13 at v4
+            jmp b5()
+          b5():
+            v15 = lt u32 2, v3
+            v16 = mul v6, v15
+            jmpif v16 then: b3, else: b6
+          b6():
+            v17 = lt v3, u32 4
+            constrain v17 == u1 1
+            v18 = unchecked_add v3, u32 1
+            jmp b1(v18)
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplify_comparison() {
+        // This tests shows that the comparison v12 = lt v3, u32 8 is simplified because v3 is bounded by 5
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            store v0 at v4
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v7 = lt v3, u32 5
+            jmpif v7 then: b2, else: b3
+          b2():
+            v12 = lt v3, u32 8
+            jmpif v12 then: b4, else: b5
+          b3():
+            v8 = load v4 -> u32
+            v9 = lt v1, v8
+            constrain v9 == u1 1
+            return
+          b4():
+            v13 = load v4 -> u32
+            v15 = add v13, u32 1
+            store v15 at v4
+            jmp b5()
+          b5():
+            v16 = unchecked_add v3, u32 1
+            jmp b1(v16)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            store v0 at v4
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v7 = lt v3, u32 5
+            jmpif v7 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            v8 = load v4 -> u32
+            v9 = lt v1, v8
+            constrain v9 == u1 1
+            return
+          b4():
+            v11 = load v4 -> u32
+            v13 = add v11, u32 1
+            store v13 at v4
+            jmp b5()
+          b5():
+            v14 = unchecked_add v3, u32 1
+            jmp b1(v14)
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplify_not_equal_constrain() {
+        // This tests shows that the not equal constraint on v3 is simplified due to the loop bounds
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v7 = lt v3, u32 5
+            jmpif v7 then: b2, else: b3
+          b2():
+            v9 = eq v3, u32 10
+            v10 = not v9
+            constrain v9 == u1 0
+            v13 = unchecked_add v3, u32 1
+            jmp b1(v13)
+          b3():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v7 = lt v3, u32 5
+            jmpif v7 then: b2, else: b3
+          b2():
+            v9 = unchecked_add v3, u32 1
+            jmp b1(v9)
+          b3():
             return
         }
         ";
