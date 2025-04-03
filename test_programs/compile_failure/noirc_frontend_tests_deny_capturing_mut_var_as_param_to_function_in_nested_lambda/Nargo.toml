@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_deny_capturing_mut_var_as_param_to_function_in_nested_lambda"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

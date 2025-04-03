@@ -1,4 +1,4 @@
-use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
+use crate::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
@@ -119,6 +119,12 @@ pub enum ParserErrorReason {
     MissingParametersForFunctionDefinition,
     #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
     StructDefinitionDeprecated,
+    #[error("Missing angle brackets surrounding type in associated item path")]
+    MissingAngleBrackets,
+    #[error("Expected value, found built-in type `{typ}`")]
+    ExpectedValueFoundBuiltInType { typ: UnresolvedType },
+    #[error("Logical and used instead of bitwise and")]
+    LogicalAnd,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -312,6 +318,17 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 }
                 ParserErrorReason::StructDefinitionDeprecated => {
                     Diagnostic::simple_warning(format!("{reason}"), String::new(), error.location())
+                }
+                ParserErrorReason::MissingAngleBrackets => {
+                    let secondary = "Types that don't start with an identifier need to be surrounded with angle brackets: `<`, `>`".to_string();
+                    Diagnostic::simple_error(format!("{reason}"), secondary, error.location())
+                }
+                ParserErrorReason::LogicalAnd => {
+                    let primary = "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string();
+                    let secondary =
+                        "Try `&` instead, or use `if` only if you require short-circuiting"
+                            .to_string();
+                    Diagnostic::simple_error(primary, secondary, error.location)
                 }
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())

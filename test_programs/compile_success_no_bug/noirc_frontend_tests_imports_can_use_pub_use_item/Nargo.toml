@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_imports_can_use_pub_use_item"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

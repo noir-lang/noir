@@ -14,6 +14,7 @@ use std::{
 };
 
 use crate::{
+    acir::ssa::Artifacts,
     brillig::BrilligOptions,
     errors::{RuntimeError, SsaReport},
 };
@@ -36,7 +37,7 @@ use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast
 use ssa_gen::Ssa;
 use tracing::{Level, span};
 
-use crate::acir::{Artifacts, GeneratedAcir};
+use crate::acir::GeneratedAcir;
 
 mod checks;
 pub(super) mod function_builder;
