@@ -3628,6 +3628,10 @@ mod test {
             "0xf9bb18d1ece5fd647afba497e7ea7a2d7cc17b786468f6ebc1e0a6b0fffffff",
         )
         .unwrap();
+        let malicious_q =
+            FieldElement::from_hex("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+                .unwrap();
+        let malicious_r = FieldElement::zero();
 
         // This brillig function replaces the standard implementation of `directive_quotient` with
         // an implementation which returns `(malicious_q, malicious_r)`.
@@ -3646,15 +3650,12 @@ mod test {
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(0),
                     bit_size: BitSize::Field,
-                    value: FieldElement::from_hex(
-                        "0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-                    )
-                    .unwrap(),
+                    value: malicious_q,
                 },
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(1),
                     bit_size: BitSize::Field,
-                    value: FieldElement::from(0_usize),
+                    value: malicious_r,
                 },
                 BrilligOpcode::Stop {
                     return_data: HeapVector {
