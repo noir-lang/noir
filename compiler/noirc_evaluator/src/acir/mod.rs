@@ -124,18 +124,14 @@ impl<F: AcirField> SharedContext<F> {
         {
             self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         } else {
-            let code = match brillig_stdlib_func {
-                BrilligStdlibFunc::Inverse => self.brillig_stdlib.invert.clone(),
-                BrilligStdlibFunc::Quotient => self.brillig_stdlib.quotient.clone(),
-                BrilligStdlibFunc::ToLeBytes => self.brillig_stdlib.to_le_bytes.clone(),
-            };
+            let code = self.brillig_stdlib.get_code(*brillig_stdlib_func);
             let generated_pointer = self.new_generated_pointer();
             self.insert_generated_brillig_stdlib(
                 *brillig_stdlib_func,
                 generated_pointer,
                 func_id,
                 opcode_location,
-                code,
+                code.clone(),
             );
         }
     }

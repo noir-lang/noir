@@ -289,7 +289,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let results = self.stdlib_brillig_call(
             predicate,
             BrilligStdlibFunc::Inverse,
-            &self.brillig_stdlib.invert.clone(),
+            &self.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,

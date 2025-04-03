@@ -32,6 +32,16 @@ impl<F: AcirField> Default for BrilligStdLib<F> {
     }
 }
 
+impl<F: AcirField> BrilligStdLib<F> {
+    pub(crate) fn get_code(&self, func: BrilligStdlibFunc) -> &GeneratedBrillig<F> {
+        match func {
+            BrilligStdlibFunc::Inverse => &self.invert,
+            BrilligStdlibFunc::Quotient => &self.quotient,
+            BrilligStdlibFunc::ToLeBytes => &self.to_le_bytes,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
     Inverse,
