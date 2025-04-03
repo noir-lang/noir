@@ -37,7 +37,6 @@ use super::{
     types::{AcirType, AcirVar},
 };
 use big_int::BigIntContext;
-use generated_acir::PLACEHOLDER_BRILLIG_INDEX;
 
 pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
 
@@ -273,18 +272,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(inverted_var);
         }
 
-        // Compute the inverse with brillig code
-        let inverse_code = BrilligStdlibFunc::Inverse.get_generated_brillig();
-
-        let results = self.brillig_call(
+        let results = self.stdlib_brillig_call(
             predicate,
-            &inverse_code,
+            BrilligStdlibFunc::Inverse,
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
-            false,
-            PLACEHOLDER_BRILLIG_INDEX,
-            Some(BrilligStdlibFunc::Inverse),
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -799,18 +792,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         };
 
         let [q_value, r_value]: [AcirValue; 2] = self
-            .brillig_call(
+            .stdlib_brillig_call(
                 predicate,
-                &BrilligStdlibFunc::Quotient.get_generated_brillig(),
+                BrilligStdlibFunc::Quotient,
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
-                false,
-                PLACEHOLDER_BRILLIG_INDEX,
-                Some(BrilligStdlibFunc::Quotient),
             )?
             .try_into()
             .expect("quotient only returns two values");
