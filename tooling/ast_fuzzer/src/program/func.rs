@@ -533,7 +533,7 @@ impl<'a> FunctionContext<'a> {
         for i in 0..size - 1 {
             stmts.push(self.gen_statement(u)?);
         }
-        // TODO: If the `typ` was `Unit`, we could use `Semi` in the last position.
+        // TODO: If the `typ` is `Unit`, we could use `Semi` in the last position.
         stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
         self.exit_scope();
 
@@ -543,9 +543,13 @@ impl<'a> FunctionContext<'a> {
     /// Generate a statement, which is an expression that doesn't return anything,
     /// for example loops, variable declarations, etc.
     fn gen_statement(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        let mut _freq = Freq::new(u, 100)?;
+        let mut freq = Freq::new(u, 100)?;
         // TODO: For, Loop, While, If, Match, Call, Assign
-        self.gen_let(u)
+        if freq.prob(50) {
+            self.gen_if_then_else(u, &Type::Unit, self.start_depth(), Flags::TOP)
+        } else {
+            self.gen_let(u)
+        }
     }
 
     /// Generate a `Let` statement.
