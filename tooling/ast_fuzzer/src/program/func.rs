@@ -65,12 +65,13 @@ impl FunctionDeclaration {
     }
 }
 
+type Variable = (/*mutable*/ bool, Name, Type);
 /// A layer of variables available to choose from in blocks.
 #[derive(Debug, Clone)]
 struct Scope<K: Ord> {
     /// ID and type of variables created in all visible scopes,
     /// which includes this scope and its ancestors.
-    variables: im::OrdMap<K, (Name, Type)>,
+    variables: im::OrdMap<K, Variable>,
     /// Reverse index of variables which can produce a type.
     /// For example an `(u8, [u64; 4])` can produce the tuple itself,
     /// the array in it, and both primitive types.
@@ -82,20 +83,20 @@ where
     K: Ord + Clone + Copy + Debug,
 {
     /// Create the initial scope from function parameters.
-    fn new(vars: impl Iterator<Item = (K, Name, Type)>) -> Self {
+    fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
         let mut scope = Self { variables: im::OrdMap::new(), producers: im::OrdMap::new() };
-        for (id, name, typ) in vars {
-            scope.add(id, name, typ);
+        for (id, mutable, name, typ) in vars {
+            scope.add(id, mutable, name, typ);
         }
         scope
     }
 
     /// Add a new variable to the scope.
-    fn add(&mut self, id: K, name: String, typ: Type) {
+    fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
         for typ in types::types_produced(&typ) {
             self.producers.entry(typ).or_default().insert(id);
         }
-        self.variables.insert(id, (name, typ));
+        self.variables.insert(id, (mutable, name, typ));
     }
 
     /// Remove a variable from the scope.
@@ -122,7 +123,7 @@ where
     }
 
     /// Get a variable in scope.
-    fn get_variable(&self, id: &K) -> &(Name, Type) {
+    fn get_variable(&self, id: &K) -> &Variable {
         self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
     }
 
@@ -164,11 +165,15 @@ impl<'a> FunctionContext<'a> {
         let budget = ctx.config.max_function_size;
 
         let globals = Scope::new(
-            ctx.globals.iter().map(|(id, (name, typ, _expr))| (*id, name.clone(), typ.clone())),
+            ctx.globals
+                .iter()
+                .map(|(id, (name, typ, _expr))| (*id, false, name.clone(), typ.clone())),
         );
 
         let locals = Scope::new(
-            decl.params.iter().map(|(id, _, name, typ)| (*id, name.clone(), typ.clone())),
+            decl.params
+                .iter()
+                .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
         Self { ctx, id, next_local_id, budget, globals, locals: vec![locals] }
@@ -209,8 +214,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Add a new local variable to the current scope.
-    fn add_local(&mut self, id: LocalId, name: String, typ: Type) {
-        self.locals.last_mut().expect("there is always a layer").add(id, name, typ);
+    fn add_local(&mut self, id: LocalId, mutable: bool, name: String, typ: Type) {
+        self.locals.last_mut().expect("there is always a layer").add(id, mutable, name, typ);
     }
 
     /// Remove a local variable from all scopes.
@@ -261,7 +266,7 @@ impl<'a> FunctionContext<'a> {
     /// Get a local or global variable.
     ///
     /// Panics if it doesn't exist.
-    fn get_variable(&self, id: &VariableId) -> &(Name, Type) {
+    fn get_variable(&self, id: &VariableId) -> &Variable {
         match id {
             VariableId::Local(id) => self.current_scope().get_variable(id),
             VariableId::Global(id) => self.globals.get_variable(id),
@@ -337,7 +342,7 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
-            let (src_name, src_type) = self.get_variable(&id).clone();
+            let (_, src_name, src_type) = self.get_variable(&id).clone();
             let src_expr = expr::ident(id, src_name, src_type.clone());
             if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
                 return Ok(Some(expr));
@@ -599,7 +604,7 @@ impl<'a> FunctionContext<'a> {
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
 
         // Add the variable so we can use it in subsequent expressions.
-        self.add_local(id, name.clone(), typ.clone());
+        self.add_local(id, mutable, name.clone(), typ.clone());
 
         Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
     }
@@ -610,7 +615,7 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
         let id = u.choose_iter(self.current_scope().variables.keys())?.clone();
-        let (name, typ) = self.current_scope().get_variable(&id).clone();
+        let (_, name, typ) = self.current_scope().get_variable(&id).clone();
 
         // Remove variable so we stop using it.
         self.remove_local(&id);
