@@ -16,7 +16,7 @@ use noirc_frontend::{
     shared::{Signedness, Visibility},
 };
 
-use crate::Config;
+use crate::{Config, Freqs};
 
 use super::{Context, Name, VariableId, expr, make_name, types};
 
@@ -281,7 +281,7 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
-        let mut freq = Freq::new(u, 100)?;
+        let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
 
         // Stop nesting if we reached the bottom.
         let allow_nested = max_depth > 0;
@@ -291,17 +291,15 @@ impl<'a> FunctionContext<'a> {
             && max_depth == self.ctx.config.max_depth
             && self.budget > 0;
 
-        let allow_ifs = flags.allow_ifs && allow_nested && self.budget > 0;
+        let allow_if_then = flags.allow_if_then && allow_nested && self.budget > 0;
 
-        // Unary
-        if freq.prob_if(10, allow_nested && types::can_unary_return(typ)) {
+        if freq.enabled_if("unary", allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
                 return Ok(expr);
             }
         }
 
-        // Binary
-        if freq.prob_if(25, allow_nested && types::can_binary_return(typ)) {
+        if freq.enabled_if("binary", allow_nested && types::can_binary_return(typ)) {
             if let Some(expr) = self.gen_binary(u, typ, max_depth)? {
                 return Ok(expr);
             }
@@ -309,17 +307,17 @@ impl<'a> FunctionContext<'a> {
 
         // if-then-else returning a value
         // Unlike blocks/loops it can appear in nested expressions.
-        if freq.prob_if(20, allow_ifs) {
-            return self.gen_if_then_else(u, typ, max_depth, flags);
+        if freq.enabled_if("if_then", allow_if_then) {
+            return self.gen_if_then(u, typ, max_depth, flags);
         }
 
         // Block of statements returning a value
-        if freq.prob_if(20, allow_blocks) {
+        if freq.enabled_if("block", allow_blocks) {
             return self.gen_block(u, typ);
         }
 
         // We can always try to just derive a value from the variables we have.
-        if freq.prob(50) {
+        if freq.enabled("vars") {
             if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
                 return Ok(expr);
             }
@@ -328,9 +326,7 @@ impl<'a> FunctionContext<'a> {
         // TODO: Match, Call
 
         // If nothing else worked out we can always produce a random literal.
-        let lit = expr::gen_literal(u, typ)?;
-
-        Ok(lit)
+        expr::gen_literal(u, typ)
     }
 
     /// Try to generate an expression with a certain type out of the variables in scope.
@@ -561,10 +557,10 @@ impl<'a> FunctionContext<'a> {
 
         self.enter_scope();
         for i in 0..size - 1 {
-            stmts.push(self.gen_statement(u)?);
+            stmts.push(self.gen_stmt(u)?);
         }
         if types::is_unit(typ) && bool::arbitrary(u)? {
-            stmts.push(Expression::Semi(Box::new(self.gen_statement(u)?)))
+            stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)))
         } else {
             stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
         }
@@ -575,18 +571,18 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a statement, which is an expression that doesn't return anything,
     /// for example loops, variable declarations, etc.
-    fn gen_statement(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        let mut freq = Freq::new(u, 100)?;
+    fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
         // TODO: For, Loop, While, Match, Call, Assign
 
-        if freq.prob(5) {
+        if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
                 return Ok(e);
             }
         }
 
-        if freq.prob(50) {
-            return self.gen_if_then_else(u, &Type::Unit, self.start_depth(), Flags::TOP);
+        if freq.enabled("if_then") {
+            return self.gen_if_then(u, &Type::Unit, self.start_depth(), Flags::TOP);
         }
 
         self.gen_let(u)
@@ -623,7 +619,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate an if-then-else statement or expression.
-    fn gen_if_then_else(
+    fn gen_if_then(
         &mut self,
         u: &mut Unstructured,
         typ: &Type,
@@ -632,7 +628,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         // Decrease the budget so we avoid a potential infinite nesting of ifs in the arms.
         self.decrease_budget(2);
-        let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_ifs())?;
+        let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_if_then())?;
         let consequence = self.gen_expr(u, typ, max_depth, flags)?;
         let alternative = if types::is_unit(typ) && bool::arbitrary(u)? {
             None
@@ -651,27 +647,27 @@ impl<'a> FunctionContext<'a> {
 
 /// Help with cumulative frequency distributions.
 struct Freq {
+    freqs: Freqs,
+    acc: usize,
     x: usize,
-    total: usize,
 }
 
 impl Freq {
-    fn new(u: &mut Unstructured, total: usize) -> arbitrary::Result<Self> {
-        let x = u.choose_index(total)?;
-        Ok(Self { x: u.choose_index(total)?, total: 0 })
+    fn new(u: &mut Unstructured, freqs: &Freqs) -> arbitrary::Result<Self> {
+        Ok(Self { freqs: freqs.clone(), acc: 0, x: u.choose_index(freqs.total())? })
     }
 
-    /// Check if we're in the next `p` size window on top of the already checked cumulative values.
-    fn prob(&mut self, p: usize) -> bool {
-        self.total += p;
-        self.x < self.total
+    /// Check if a key is enabled, based on the already checked cumulative values.
+    fn enabled(&mut self, key: &str) -> bool {
+        self.acc += self.freqs[key];
+        self.x < self.acc
     }
 
-    /// Like `prob`, but if `cond` is `false` it does not increase the cumulative value,
+    /// Like `enabled`, but if `cond` is `false` it does not increase the cumulative value,
     /// so as not to distort the next call, ie. if we have have 5% then another 5%,
     /// if the first one is disabled, the second doesn't become 10%.
-    fn prob_if(&mut self, p: usize, cond: bool) -> bool {
-        cond && self.prob(p)
+    fn enabled_if(&mut self, key: &str, cond: bool) -> bool {
+        cond && self.enabled(key)
     }
 }
 
@@ -679,20 +675,20 @@ impl Freq {
 #[derive(Debug, Clone, Copy)]
 struct Flags {
     allow_blocks: bool,
-    allow_ifs: bool,
+    allow_if_then: bool,
 }
 
 impl Flags {
     /// In a top level context, everything is allowed.
-    const TOP: Self = Self { allow_blocks: true, allow_ifs: true };
+    const TOP: Self = Self { allow_blocks: true, allow_if_then: true };
     /// In complex nested expressions, avoid generating blocks;
     /// they would be unreadable and non-idiomatic.
-    const NESTED: Self = Self { allow_blocks: false, allow_ifs: true };
+    const NESTED: Self = Self { allow_blocks: false, allow_if_then: true };
     /// In `if` conditions avoid nesting more ifs, like `if if if false ...`.
-    const CONDITION: Self = Self { allow_blocks: false, allow_ifs: false };
+    const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
 
-    fn no_ifs(mut self) -> Self {
-        self.allow_ifs = false;
+    fn no_if_then(mut self) -> Self {
+        self.allow_if_then = false;
         self
     }
 }
