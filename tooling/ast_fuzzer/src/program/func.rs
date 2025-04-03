@@ -9,8 +9,8 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Binary, BinaryOp, Expression, FuncId, GlobalId, Index, InlineType, Literal,
-        LocalId, Parameters, Type, Unary,
+        ArrayLiteral, Binary, BinaryOp, Expression, FuncId, GlobalId, Index, InlineType, Let,
+        Literal, LocalId, Parameters, Type, Unary,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -18,7 +18,7 @@ use noirc_frontend::{
 
 use crate::Config;
 
-use super::{Context, Name, VariableId, expr, types};
+use super::{Context, Name, VariableId, expr, make_name, types};
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
@@ -118,14 +118,14 @@ where
 /// Context used during the generation of a function body.
 pub(super) struct FunctionContext<'a> {
     /// Top level context, to access global variables and other functions.
-    ctx: &'a Context,
-    /// Declaration of this function.
-    decl: &'a FunctionDeclaration,
+    ctx: &'a mut Context,
     /// Self ID.
     id: FuncId,
     /// Every variable created in the function will have an increasing ID,
     /// which does not reset when variables go out of scope.
     next_local_id: u32,
+    /// Number of statements remaining to be generated in the function.
+    budget: usize,
     /// Global variables.
     globals: Scope<GlobalId>,
     /// Variables accumulated during the generation of the function body,
@@ -135,9 +135,10 @@ pub(super) struct FunctionContext<'a> {
 }
 
 impl<'a> FunctionContext<'a> {
-    pub fn new(ctx: &'a Context, id: FuncId) -> Self {
+    pub fn new(ctx: &'a mut Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);
-        let next_local_id = decl.params.iter().map(|p| p.0.0).max().unwrap_or_default();
+        let next_local_id = decl.params.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
+        let budget = ctx.config.max_function_size;
 
         let globals = Scope::new(
             ctx.globals.iter().map(|(id, (name, typ, _expr))| (*id, name.clone(), typ.clone())),
@@ -147,12 +148,24 @@ impl<'a> FunctionContext<'a> {
             decl.params.iter().map(|(id, _, name, typ)| (*id, name.clone(), typ.clone())),
         );
 
-        Self { ctx, decl, id, next_local_id, globals, locals: vec![locals] }
+        Self { ctx, id, next_local_id, budget, globals, locals: vec![locals] }
     }
 
     /// Generate the function body.
     pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        self.gen_expr(u, &self.decl.return_type, self.ctx.config.max_depth)
+        let ret = self.decl().return_type.clone();
+        self.gen_expr(u, &ret, self.start_depth())
+    }
+
+    /// Get the function declaration.
+    fn decl(&self) -> &FunctionDeclaration {
+        self.ctx.function_decl(self.id)
+    }
+
+    /// The default maximum depth to start from. We use `max_depth` to limit the
+    /// complexity of expressions such as binary ones, array indexes, etc.
+    fn start_depth(&self) -> usize {
+        self.ctx.config.max_depth
     }
 
     /// Local variables currently in scope.
@@ -191,6 +204,18 @@ impl<'a> FunctionContext<'a> {
             }
         }
         self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
+    }
+
+    /// Take some of the available budget.
+    fn choose_budget(&mut self, u: &mut Unstructured) -> arbitrary::Result<usize> {
+        if self.budget == 0 {
+            return Ok(self.budget);
+        }
+        let budget = u.choose_index(self.budget)?;
+        // Limit it so we don't blow it on the first block.
+        let budget = budget.min(self.ctx.config.max_function_size / 2);
+        self.budget -= budget;
+        Ok(budget)
     }
 
     /// Get a local or global variable.
@@ -232,9 +257,11 @@ impl<'a> FunctionContext<'a> {
         }
 
         // Block of statements
-        // if freq.prob_block(20) {
-        //     todo!()
-        // }
+        if freq.prob_block(20, self.budget) {
+            return self.gen_block(u, typ);
+        }
+
+        // TODO: If, Match, Call
 
         // We can always try to just derive a value from the variables we have.
         if freq.prob(50) {
@@ -244,7 +271,9 @@ impl<'a> FunctionContext<'a> {
         }
 
         // If nothing else worked out we can always produce a random literal.
-        expr::gen_literal(u, typ)
+        let lit = expr::gen_literal(u, typ)?;
+
+        Ok(lit)
     }
 
     /// Try to generate an expression with a certain type out of the variables in scope.
@@ -265,7 +294,7 @@ impl<'a> FunctionContext<'a> {
             match typ {
                 Type::Array(len, item_type) => {
                     let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
-                    for _ in 0..*len {
+                    for i in 0..*len {
                         arr.contents.push(self.gen_expr(u, item_type, max_depth)?);
                     }
                     return Ok(Some(Expression::Literal(Literal::Array(arr))));
@@ -384,7 +413,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         assert!(len > 0, "cannot index empty array");
         if max_depth > 0 && u.ratio(1, 3)? {
-            let idx = self.gen_expr(u, &types::U32, max_depth - 1)?;
+            let idx = self.gen_expr(u, &types::U32, max_depth.saturating_sub(1))?;
             Ok(expr::index_modulo(idx, len))
         } else {
             let idx = u.choose_index(len)?;
@@ -400,7 +429,8 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         let mut make_unary = |op| {
-            self.gen_expr(u, typ, max_depth - 1).map(|rhs| Some(expr::unary(op, rhs, typ.clone())))
+            self.gen_expr(u, typ, max_depth.saturating_sub(1))
+                .map(|rhs| Some(expr::unary(op, rhs, typ.clone())))
         };
         if types::is_signed(typ) {
             make_unary(UnaryOp::Minus)
@@ -452,10 +482,54 @@ impl<'a> FunctionContext<'a> {
         };
 
         // Generate expressions for LHS and RHS.
-        let lhs_expr = self.gen_expr(u, &lhs_type, max_depth - 1)?;
-        let rhs_expr = self.gen_expr(u, rhs_type, max_depth - 1)?;
+        let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1))?;
+        let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1))?;
 
         Ok(Some(expr::binary(lhs_expr, op, rhs_expr)))
+    }
+
+    /// Generate a block of statements, finally returning a target type.
+    ///
+    /// This should always succeed, as we can always create a literal in the end.
+    fn gen_block(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+        /// The `max_depth` resets here, because that's only relevant in complex expressions.
+        let max_depth = self.start_depth();
+        let size = self.choose_budget(u)?;
+        if size == 0 {
+            return self.gen_expr(u, typ, max_depth);
+        }
+        let mut stmts = Vec::new();
+
+        self.enter_scope();
+        for i in 0..size - 1 {
+            stmts.push(self.gen_statement(u)?);
+        }
+        // TODO: If the `typ` was `Unit`, we could use `Semi` in the last position.
+        stmts.push(self.gen_expr(u, typ, max_depth)?);
+        self.exit_scope();
+
+        Ok(Expression::Block(stmts))
+    }
+
+    /// Generate a statement, which is an expression that doesn't return anything,
+    /// for example loops, variable declarations, etc.
+    fn gen_statement(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        let mut _freq = Freq::new(u, 100, self.start_depth(), &self.ctx.config)?;
+        // TODO: For, Loop, While, If, Match, Call, Assign
+        self.gen_let(u)
+    }
+
+    /// Generate a `Let` statement.
+    fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // Generate a type or choose an existing one.
+        let max_depth = self.start_depth();
+        let typ = self.ctx.gen_type(u, max_depth)?;
+        let id = self.next_local_id();
+        let mutable = bool::arbitrary(u)?;
+        let name = make_name(id.0 as usize, false);
+
+        let expr = self.gen_expr(u, &typ, max_depth)?;
+        Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
     }
 }
 
@@ -501,7 +575,7 @@ impl Freq {
     /// generate blocks, and loops where we're generating e.g. array indexes
     /// or loop range values; the compiler might be okay with it, but it would
     /// be hard to read and unidiomatic.
-    fn prob_block(&mut self, p: usize) -> bool {
-        self.prob_if(p, self.depth == self.max_depth)
+    fn prob_block(&mut self, p: usize, budget: usize) -> bool {
+        self.prob_if(p, self.depth == self.max_depth && budget > 0)
     }
 }

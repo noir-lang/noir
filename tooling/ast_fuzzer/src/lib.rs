@@ -16,6 +16,8 @@ pub struct Config {
     pub max_functions: usize,
     /// Maximum number of arguments a function can have.
     pub max_function_args: usize,
+    /// Maximum number of statements to aim for in a function body.
+    pub max_function_size: usize,
     /// Maximum nesting depth for complex expressions.
     pub max_depth: usize,
     /// Maximum number of fields for tuples.
@@ -30,6 +32,7 @@ impl Default for Config {
             max_globals: 3,
             max_functions: 5,
             max_function_args: 3,
+            max_function_size: 50,
             max_depth: 2,
             max_tuple_size: 4,
             max_array_size: 8,

@@ -166,10 +166,12 @@ impl Context {
 
     /// Generate random function bodies.
     fn gen_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        for (id, decl) in &self.function_declarations {
-            let body = FunctionContext::new(self, *id).gen_body(u)?;
-            let function = Function {
-                id: *id,
+        let ids = self.function_declarations.keys().cloned().collect::<Vec<_>>();
+        for id in ids {
+            let body = FunctionContext::new(self, id).gen_body(u)?;
+            let decl = self.function_decl(id);
+            let func = Function {
+                id,
                 name: decl.name.clone(),
                 parameters: decl.params.clone(),
                 body,
@@ -178,7 +180,7 @@ impl Context {
                 inline_type: decl.inline_type,
                 func_sig: decl.signature(),
             };
-            self.functions.insert(*id, function);
+            self.functions.insert(id, func);
         }
         Ok(())
     }
@@ -263,18 +265,35 @@ impl Context {
 }
 
 /// Derive a variable name from the ID.
+///
+/// Start with `a`, `b`, continuing with `aa`, `ab` if we run out of the alphabet.
 fn make_name(mut id: usize, is_global: bool) -> String {
-    let mut name = String::new();
-    if is_global {
-        name.push_str("g_");
-    }
+    let mut name = Vec::new();
+    let start = if is_global { 65 } else { 97 };
     loop {
-        let i = id % (122 - 97);
-        name.push(char::from(97 + i as u8));
+        let i = id % 26;
+        name.push(char::from(start + i as u8));
         id -= i;
         if id == 0 {
             break;
         }
+        id -= 26;
     }
-    if is_global { name.to_uppercase() } else { name }
+    name.reverse();
+    let name = name.into_iter().collect::<String>();
+    if is_global { format!("G_{}", name) } else { name }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::program::make_name;
+
+    #[test]
+    fn test_make_name() {
+        for (i, n) in
+            [(0, "a"), (1, "b"), (24, "y"), (25, "z"), (26, "aa"), (27, "ab"), (26 * 2 + 1, "aab")]
+        {
+            assert_eq!(make_name(i, false), n);
+        }
+    }
 }
