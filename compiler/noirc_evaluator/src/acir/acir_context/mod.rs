@@ -38,7 +38,7 @@ use super::{
 };
 use big_int::BigIntContext;
 
-pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
+pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc, GeneratedAcir};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -46,6 +46,7 @@ pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
 /// which are placed into ACIR.
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     pub(super) blackbox_solver: B,
+    brillig_stdlib: BrilligStdLib<F>,
 
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
@@ -69,6 +70,19 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
 }
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
+    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>, blackbox_solver: B) -> Self {
+        AcirContext {
+            brillig_stdlib,
+            blackbox_solver,
+            vars: Default::default(),
+            constant_witnesses: Default::default(),
+            acir_ir: Default::default(),
+            big_int_ctx: Default::default(),
+            expression_width: Default::default(),
+            warnings: Default::default(),
+        }
+    }
+
     pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
         self.expression_width = expression_width;
     }
@@ -275,6 +289,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let results = self.stdlib_brillig_call(
             predicate,
             BrilligStdlibFunc::Inverse,
+            &self.brillig_stdlib.invert.clone(),
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
@@ -795,6 +810,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             .stdlib_brillig_call(
                 predicate,
                 BrilligStdlibFunc::Quotient,
+                &self.brillig_stdlib.quotient.clone(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),

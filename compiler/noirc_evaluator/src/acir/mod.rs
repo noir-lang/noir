@@ -55,11 +55,13 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 pub(crate) use acir_context::GeneratedAcir;
-use acir_context::{AcirContext, BrilligStdlibFunc, power_of_two};
+use acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
 use types::{AcirType, AcirVar};
 
 #[derive(Default)]
-struct SharedContext<F> {
+struct SharedContext<F: AcirField> {
+    brillig_stdlib: BrilligStdLib<F>,
+
     /// Final list of Brillig functions which will be part of the final program
     /// This is shared across `Context` structs as we want one list of Brillig
     /// functions across all ACIR artifacts
@@ -122,7 +124,11 @@ impl<F: AcirField> SharedContext<F> {
         {
             self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         } else {
-            let code = brillig_stdlib_func.get_generated_brillig();
+            let code = match brillig_stdlib_func {
+                BrilligStdlibFunc::Inverse => self.brillig_stdlib.invert.clone(),
+                BrilligStdlibFunc::Quotient => self.brillig_stdlib.quotient.clone(),
+                BrilligStdlibFunc::ToLeBytes => self.brillig_stdlib.to_le_bytes.clone(),
+            };
             let generated_pointer = self.new_generated_pointer();
             self.insert_generated_brillig_stdlib(
                 *brillig_stdlib_func,
@@ -224,9 +230,10 @@ impl<'a> Context<'a> {
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
         brillig: &'a Brillig,
+        brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
-        let mut acir_context = AcirContext::default();
+        let mut acir_context = AcirContext::new(brillig_stdlib, Bn254BlackBoxSolver::default());
         acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
@@ -2760,7 +2767,7 @@ mod test {
             },
             circuit::{
                 ExpressionWidth, Opcode, OpcodeLocation,
-                brillig::{BrilligBytecode, BrilligFunctionId},
+                brillig::BrilligFunctionId,
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
             },
             native_types::{Witness, WitnessMap},
@@ -2773,8 +2780,8 @@ mod test {
     use std::collections::BTreeMap;
 
     use crate::{
-        acir::BrilligStdlibFunc,
-        brillig::{Brillig, BrilligOptions},
+        acir::{BrilligStdlibFunc, acir_context::BrilligStdLib, ssa::codegen_acir},
+        brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
@@ -3595,16 +3602,6 @@ mod test {
         }";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let (acir_functions, mut brillig_functions, _, _) = ssa
-            .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
-            .expect("Should compile manually written SSA into ACIR");
-
-        assert_eq!(acir_functions.len(), 1);
-        // [`directive_quotient`, `directive_invert`]
-        assert_eq!(brillig_functions.len(), 2);
-
-        let main = &acir_functions[0];
-
         // Here we're attempting to perform a truncation of a `Field` type into 32 bits. We then do a euclidean
         // division `a/b` with `a` and `b` taking the values:
         //
@@ -3635,8 +3632,8 @@ mod test {
 
         // This brillig function replaces the standard implementation of `directive_quotient` with
         // an implementation which returns `(malicious_q, malicious_r)`.
-        let malicious_quotient = BrilligBytecode {
-            bytecode: vec![
+        let malicious_quotient = GeneratedBrillig {
+            byte_code: vec![
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(10),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
@@ -3664,15 +3661,34 @@ mod test {
                     },
                 },
             ],
+            name: "malicious_directive_quotient".to_string(),
+            ..Default::default()
         };
-        let malicious_brillig = [malicious_quotient, brillig_functions.remove(1)];
+
+        let malicious_brillig_stdlib =
+            BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
+
+        let (acir_functions, brillig_functions, _, _) = codegen_acir(
+            ssa,
+            &Brillig::default(),
+            malicious_brillig_stdlib,
+            &BrilligOptions::default(),
+            ExpressionWidth::default(),
+        )
+        .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+        // [`malicious_directive_quotient`, `directive_invert`]
+        assert_eq!(brillig_functions.len(), 2);
+
+        let main = &acir_functions[0];
 
         let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
         let mut acvm = ACVM::new(
             &StubbedBlackBoxSolver(true),
             main.opcodes(),
             initial_witness,
-            &malicious_brillig,
+            &brillig_functions,
             &[],
         );
 

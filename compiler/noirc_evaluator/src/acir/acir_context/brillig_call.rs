@@ -22,13 +22,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         predicate: AcirVar,
         brillig_stdlib_func: BrilligStdlibFunc,
+        stdlib_func_bytecode: &GeneratedBrillig<F>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         self.brillig_call(
             predicate,
-            &brillig_stdlib_func.get_generated_brillig(),
+            stdlib_func_bytecode,
             inputs,
             outputs,
             attempt_execution,
