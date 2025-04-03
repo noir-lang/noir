@@ -1,0 +1,6 @@
+[package]
+name = "expand"
+type = "bin"
+authors = [""]
+
+[dependencies]
