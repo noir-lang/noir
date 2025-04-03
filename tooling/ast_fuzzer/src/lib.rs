@@ -34,8 +34,8 @@ impl Default for Config {
             max_function_args: 3,
             max_function_size: 50,
             max_depth: 2,
-            max_tuple_size: 4,
-            max_array_size: 8,
+            max_tuple_size: 5,
+            max_array_size: 4,
         }
     }
 }

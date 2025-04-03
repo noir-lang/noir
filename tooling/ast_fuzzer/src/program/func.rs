@@ -98,6 +98,29 @@ where
         self.variables.insert(id, (name, typ));
     }
 
+    /// Remove a variable from the scope.
+    fn remove(&mut self, id: &K) {
+        // Remove the variable
+        if self.variables.remove(id).is_none() {
+            return;
+        }
+        // Remove the variable from the producers of all types.
+        // At the end remove types which are no longer produced.
+        let mut emptied = Vec::new();
+        let types = self.producers.keys().cloned().collect::<Vec<_>>();
+        for typ in types {
+            if let Some(ps) = self.producers.get_mut(&typ) {
+                ps.remove(&id);
+                if ps.is_empty() {
+                    emptied.push(typ);
+                }
+            }
+        }
+        for typ in emptied {
+            self.producers.remove(&typ);
+        }
+    }
+
     /// Get a variable in scope.
     fn get_variable(&self, id: &K) -> &(Name, Type) {
         self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
@@ -188,6 +211,13 @@ impl<'a> FunctionContext<'a> {
     /// Add a new local variable to the current scope.
     fn add_local(&mut self, id: LocalId, name: String, typ: Type) {
         self.locals.last_mut().expect("there is always a layer").add(id, name, typ);
+    }
+
+    /// Remove a local variable from all scopes.
+    fn remove_local(&mut self, id: &LocalId) {
+        for scope in self.locals.iter_mut() {
+            scope.remove(id);
+        }
     }
 
     /// Get and increment the next local ID.
@@ -547,12 +577,19 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_statement(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, 100)?;
-        // TODO: For, Loop, While, If, Match, Call, Assign
-        if freq.prob(50) {
-            self.gen_if_then_else(u, &Type::Unit, self.start_depth(), Flags::TOP)
-        } else {
-            self.gen_let(u)
+        // TODO: For, Loop, While, Match, Call, Assign
+
+        if freq.prob(5) {
+            if let Some(e) = self.gen_drop(u)? {
+                return Ok(e);
+            }
         }
+
+        if freq.prob(50) {
+            return self.gen_if_then_else(u, &Type::Unit, self.start_depth(), Flags::TOP);
+        }
+
+        self.gen_let(u)
     }
 
     /// Generate a `Let` statement.
@@ -571,6 +608,20 @@ impl<'a> FunctionContext<'a> {
         Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
     }
 
+    /// Drop a local variable, if we have anything to drop.
+    fn gen_drop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
+        if self.current_scope().variables.is_empty() {
+            return Ok(None);
+        }
+        let id = u.choose_iter(self.current_scope().variables.keys())?.clone();
+        let (name, typ) = self.current_scope().get_variable(&id).clone();
+
+        // Remove variable so we stop using it.
+        self.remove_local(&id);
+
+        Ok(Some(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), name, typ)))))
+    }
+
     /// Generate an if-then-else statement or expression.
     fn gen_if_then_else(
         &mut self,
@@ -579,13 +630,14 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
-        // Decrease the budget so we stop infinite nesting in the arms.
-        self.decrease_budget(1);
+        // Decrease the budget so we avoid a potential infinite nesting of ifs in the arms.
+        self.decrease_budget(2);
         let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_ifs())?;
         let consequence = self.gen_expr(u, typ, max_depth, flags)?;
         let alternative = if types::is_unit(typ) && bool::arbitrary(u)? {
             None
         } else {
+            self.decrease_budget(1);
             Some(self.gen_expr(u, typ, max_depth, flags)?)
         };
         Ok(Expression::If(If {
