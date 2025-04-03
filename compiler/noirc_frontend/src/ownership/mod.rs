@@ -46,12 +46,13 @@
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{
-        Definition, Expression, Function, Ident, LValue, Let, Literal, LocalId, Parameters,
-        Program, Type, Unary,
+        Definition, Expression, Function, Ident, IdentId, LValue, Let, Literal, LocalId,
+        Parameters, Program, Type, Unary,
     },
 };
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
+use fxhash::FxHashSet as HashSet;
 use noirc_errors::Location;
 
 mod last_uses;
@@ -59,14 +60,19 @@ mod last_uses;
 impl Program {
     pub(crate) fn handle_ownership(
         mut self,
-        mut next_local_id: u32,
+        next_local_id: u32,
+        next_ident_id: u32,
         experimental_ownership_feature: bool,
     ) -> Self {
+        let mut context = Context {
+            experimental_ownership_feature,
+            next_ident_id,
+            next_local_id,
+            variables_to_move: Default::default(),
+        };
+
         for function in self.functions.iter_mut() {
-            let last_uses = Default::default();
-            let mut context =
-                Context { experimental_ownership_feature, last_uses, variable_use_counts: 0 };
-            context.handle_ownership_in_function(function, &mut next_local_id);
+            context.handle_ownership_in_function(function);
         }
         self
     }
@@ -75,51 +81,46 @@ impl Program {
 struct Context {
     experimental_ownership_feature: bool,
 
-    /// Map from each local variable to the last "use instance" of that variable.
-    /// E.g. if the last time a variable is used is the third time it is used (in traversal order)
-    /// then this map will contain the pair `(LocalId(_), 3)`.
-    ///
-    /// Note that when a variable is declared it has 0 uses until the first time it is used after
-    /// being declared where it now has 1 use, etc.
-    ///
-    /// This map is used to move the variable on last use instead of cloning it. Code using this
-    /// should take care to keep track of any loops the variable is used in. E.g. in:
-    /// ```noir
-    /// let x = [1, 2];
-    /// for i in 0 .. 2 {
-    ///     foo(x);
-    /// }
-    /// ```
-    /// The `x` in `foo(x)` should not be counted as a last use since it still must be cloned to
-    /// be used on the next iteration of the loop.
-    ///
-    /// The outer Vec is each loop scope - we always only look at variables declared in the current
-    /// loop scope. Variables declared outside of it should always be cloned when used in loops.
-    /// The inner hashmap maps from id to its last uses in each branch. For most cases this branch
-    /// is just `Branches::Direct { last_use }` but in the case of `if` or `match` expressions, a
-    /// variable may have a last use in each branch which the `Branches` enum tracks.
-    last_uses: Vec<HashMap<LocalId, last_uses::Branches>>,
+    /// If `experimental_ownership_feature` is enabled, this contains each instance of a variable
+    /// we should move instead of cloning.
+    variables_to_move: HashMap<LocalId, Vec<IdentId>>,
 
-    /// A counter that goes up each time any variable is used.
-    /// This is used to identify different instances a variable is used so we know
-    /// not to place `.clone()`s on a variable's last use.
-    variable_use_counts: u32,
+    next_ident_id: u32,
+    next_local_id: u32,
 }
 
 impl Context {
-    fn handle_ownership_in_function(&mut self, function: &mut Function, local_id: &mut u32) {
+    fn next_ident_id(&mut self) -> IdentId {
+        let id = self.next_ident_id;
+        self.next_ident_id += 1;
+        IdentId(id)
+    }
+
+    fn next_local_id(&mut self) -> LocalId {
+        let id = self.next_local_id;
+        self.next_local_id += 1;
+        LocalId(id)
+    }
+
+    fn should_move(&self, definition: LocalId, variable: IdentId) -> bool {
+        self.variables_to_move
+            .get(&definition)
+            .map_or(false, |instances_to_move| instances_to_move.contains(&variable))
+    }
+
+    fn handle_ownership_in_function(&mut self, function: &mut Function) {
         if !function.unconstrained {
             return;
         }
 
         if self.experimental_ownership_feature {
-            self.find_last_uses_of_variables(function);
+            self.variables_to_move = Self::find_last_uses_of_variables(function);
         }
 
         self.handle_expression(&mut function.body);
 
         if !self.experimental_ownership_feature {
-            let new_bindings = collect_parameters_to_clone(&function.parameters);
+            let new_bindings = self.collect_parameters_to_clone(&function.parameters);
 
             // Prepend new_bindings to the function body and insert drops for them at the end.
             if !new_bindings.is_empty() {
@@ -128,7 +129,7 @@ impl Context {
 
                 // Store anything we want to clone in let bindings first so when we later drop
                 // them we know we're dropping the same instance rather than a fresh copy.
-                let (mut new_body, new_idents) = create_let_bindings(new_bindings, local_id);
+                let (mut new_body, new_idents) = self.create_let_bindings(new_bindings);
 
                 // Now push the clones for each parameter
                 for new_ident in &new_idents {
@@ -136,7 +137,7 @@ impl Context {
                 }
 
                 // Insert a `let` for the returned value so we can insert drops after it
-                let return_id = next_local_id(local_id);
+                let return_id = self.next_local_id();
                 let return_let = Expression::Let(Let {
                     id: return_id,
                     mutable: false,
@@ -158,83 +159,88 @@ impl Context {
                     mutable: false,
                     name: "return".to_string(),
                     typ: function.return_type.clone(),
+                    id: self.next_ident_id(),
                 }));
 
                 function.body = Expression::Block(new_body);
             }
         }
     }
-}
 
-fn create_let_bindings(
-    bindings_to_create: Vec<(String, Type, Expression)>,
-    current_local_id: &mut u32,
-) -> (Vec<Expression>, Vec<Expression>) {
-    let mut bindings = Vec::with_capacity(bindings_to_create.len());
-    let mut idents = Vec::with_capacity(bindings_to_create.len());
+    fn create_let_bindings(
+        &mut self,
+        bindings_to_create: Vec<(String, Type, Expression)>,
+    ) -> (Vec<Expression>, Vec<Expression>) {
+        let mut bindings = Vec::with_capacity(bindings_to_create.len());
+        let mut idents = Vec::with_capacity(bindings_to_create.len());
 
-    for (name, typ, expression) in bindings_to_create {
-        let id = next_local_id(current_local_id);
-        let expression = Box::new(expression);
-        bindings.push(Expression::Let(Let { id, mutable: false, name: String::new(), expression }));
+        for (name, typ, expression) in bindings_to_create {
+            let id = self.next_local_id();
+            let expression = Box::new(expression);
+            bindings.push(Expression::Let(Let {
+                id,
+                mutable: false,
+                name: String::new(),
+                expression,
+            }));
 
-        idents.push(Expression::Ident(Ident {
-            location: None,
-            definition: Definition::Local(id),
-            mutable: false,
-            name,
-            typ,
-        }));
+            idents.push(Expression::Ident(Ident {
+                location: None,
+                definition: Definition::Local(id),
+                mutable: false,
+                name,
+                typ,
+                id: self.next_ident_id(),
+            }));
+        }
+
+        (bindings, idents)
     }
 
-    (bindings, idents)
-}
+    /// Returns a vector of new parameters to prepend clones to a function - if any.
+    /// Note that these may be full expressions e.g. `*param.field` so they should
+    /// be stored in a let binding before being cloned to ensure that a later drop
+    /// would be to the same value.
+    fn collect_parameters_to_clone(
+        &mut self,
+        parameters: &Parameters,
+    ) -> Vec<(String, Type, Expression)> {
+        let mut seen_array_types = HashSet::default();
+        let mut new_bindings = Vec::new();
 
-fn next_local_id(current_local_id: &mut u32) -> LocalId {
-    let next = *current_local_id;
-    *current_local_id += 1;
-    LocalId(next)
-}
+        for (parameter_id, mutable, name, parameter_type) in parameters {
+            let parameter = Expression::Ident(Ident {
+                location: None,
+                definition: Definition::Local(*parameter_id),
+                mutable: *mutable,
+                name: name.clone(),
+                typ: parameter_type.clone(),
+                id: self.next_ident_id(),
+            });
 
-/// Returns a vector of new parameters to prepend clones to a function - if any.
-/// Note that these may be full expressions e.g. `*param.field` so they should
-/// be stored in a let binding before being cloned to ensure that a later drop
-/// would be to the same value.
-fn collect_parameters_to_clone(parameters: &Parameters) -> Vec<(String, Type, Expression)> {
-    let mut seen_array_types = HashSet::default();
-    let mut new_bindings = Vec::new();
+            // (by-value) Mutable parameters are always cloned. Otherwise, we have to recur on the type
+            // to find a duplicate array types behind mutable references.
+            let parameter = if *mutable {
+                let name = name.clone();
+                new_bindings.push((name, parameter_type.clone(), parameter));
+                // disable cloning in recur_on_parameter, we already cloned
+                None
+            } else {
+                Some(parameter)
+            };
 
-    for (parameter_id, mutable, name, parameter_type) in parameters {
-        let parameter = Expression::Ident(Ident {
-            location: None,
-            definition: Definition::Local(*parameter_id),
-            mutable: *mutable,
-            name: name.clone(),
-            typ: parameter_type.clone(),
-        });
+            recur_on_parameter(
+                parameter,
+                parameter_type,
+                name,
+                &mut seen_array_types,
+                &mut new_bindings,
+                false,
+            );
+        }
 
-        // (by-value) Mutable parameters are always cloned. Otherwise, we have to recur on the type
-        // to find a duplicate array types behind mutable references.
-        let parameter = if *mutable {
-            let name = name.clone();
-            new_bindings.push((name, parameter_type.clone(), parameter));
-            // disable cloning in recur_on_parameter, we already cloned
-            None
-        } else {
-            Some(parameter)
-        };
-
-        recur_on_parameter(
-            parameter,
-            parameter_type,
-            name,
-            &mut seen_array_types,
-            &mut new_bindings,
-            false,
-        );
+        new_bindings
     }
-
-    new_bindings
 }
 
 /// Recur on a parameter's type, digging into any struct fields, looking for references to arrays.
@@ -396,8 +402,10 @@ impl Context {
                 | Type::Reference(_, _) => false,
             };
 
-            if may_contain_array {
-                clone_expr(expr);
+            if let Definition::Local(local_id) = &ident.definition {
+                if may_contain_array && !self.should_move(*local_id, ident.id) {
+                    clone_expr(expr);
+                }
             }
         }
     }
