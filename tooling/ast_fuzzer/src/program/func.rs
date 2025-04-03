@@ -185,6 +185,11 @@ impl<'a> FunctionContext<'a> {
         assert!(!self.locals.is_empty(), "never pop the params layer");
     }
 
+    /// Add a new local variable to the current scope.
+    fn add_local(&mut self, id: LocalId, name: String, typ: Type) {
+        self.locals.last_mut().expect("there is always a layer").add(id, name, typ);
+    }
+
     /// Get and increment the next local ID.
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
@@ -551,8 +556,11 @@ impl<'a> FunctionContext<'a> {
         let id = self.next_local_id();
         let mutable = bool::arbitrary(u)?;
         let name = make_name(id.0 as usize, false);
-
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+
+        // Add the variable so we can use it in subsequent expressions.
+        self.add_local(id, name.clone(), typ.clone());
+
         Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
     }
 
