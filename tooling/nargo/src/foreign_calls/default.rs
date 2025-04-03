@@ -51,8 +51,11 @@ impl<W> DefaultForeignCallBuilder<W> {
         DefaultForeignCallBuilder {
             output,
             enable_mocks: self.enable_mocks,
+            #[cfg(feature = "rpc")]
             resolver_url: self.resolver_url,
+            #[cfg(feature = "rpc")]
             root_path: self.root_path,
+            #[cfg(feature = "rpc")]
             package_name: self.package_name,
         }
     }
@@ -64,6 +67,7 @@ impl<W> DefaultForeignCallBuilder<W> {
     }
 
     /// Set or unset resolver url.
+    #[cfg(feature = "rpc")]
     pub fn with_resolver_url(mut self, resolver_url: Option<String>) -> Self {
         self.resolver_url = resolver_url;
         self
@@ -124,8 +128,8 @@ pub type DefaultForeignCallLayers<W, B, F> = Layer<
     >,
 >;
 #[cfg(not(feature = "rpc"))]
-pub type DefaultForeignCallLayers<'a, B, F> = Layer<
-    PrintForeignCallExecutor<'a>,
+pub type DefaultForeignCallLayers<W, B, F> = Layer<
+    PrintForeignCallExecutor<W>,
     Layer<Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>, B>,
 >;
 
