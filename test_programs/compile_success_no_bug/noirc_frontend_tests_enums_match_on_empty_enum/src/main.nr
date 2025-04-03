@@ -3,3 +3,5 @@
             match v {}
         }
         pub enum Void {}
+        fn main() {}
+        
