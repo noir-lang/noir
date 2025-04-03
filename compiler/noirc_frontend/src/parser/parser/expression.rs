@@ -502,20 +502,39 @@ impl Parser<'_> {
     }
 
     fn parse_constructor_field(&mut self) -> Option<(Ident, Expression)> {
-        let ident = self.eat_ident()?;
+        // Loop to do some error recovery
+        loop {
+            // Make sure not to loop forever
+            if self.at_eof() || self.at(Token::RightBrace) {
+                return None;
+            }
 
-        Some(if self.eat_colon() {
-            let expression = self.parse_expression_or_error();
-            (ident, expression)
-        } else if self.at(Token::DoubleColon) || self.at(Token::Assign) {
-            // If we find '='  or '::' instead of ':', assume the user meant ':`, error and continue
-            self.expected_token(Token::Colon);
-            self.bump();
-            let expression = self.parse_expression_or_error();
-            (ident, expression)
-        } else {
-            (ident.clone(), ident.into())
-        })
+            // If we can't find an identifier, error but continue looking for an identifier
+            if !matches!(self.token.token(), Token::Ident(..)) {
+                self.expected_identifier();
+                self.bump();
+                // Don't error again if a comma comes next
+                if self.at(Token::Comma) {
+                    self.bump();
+                }
+                continue;
+            }
+
+            let ident = self.eat_ident()?;
+
+            return Some(if self.eat_colon() {
+                let expression = self.parse_expression_or_error();
+                (ident, expression)
+            } else if self.at(Token::DoubleColon) || self.at(Token::Assign) {
+                // If we find '='  or '::' instead of ':', assume the user meant ':`, error and continue
+                self.expected_token(Token::Colon);
+                self.bump();
+                let expression = self.parse_expression_or_error();
+                (ident, expression)
+            } else {
+                (ident.clone(), ident.into())
+            });
+        }
     }
 
     /// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
@@ -1687,6 +1706,58 @@ mod tests {
     }
 
     #[test]
+    fn parses_constructor_with_fields_recovers_if_not_an_identifier_1() {
+        let src = "
+        Foo { x: 1, 2 }
+                    ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let ExpressionKind::Constructor(mut constructor) = expr.kind else {
+            panic!("Expected constructor");
+        };
+        assert_eq!(constructor.typ.to_string(), "Foo");
+        assert_eq!(constructor.fields.len(), 1);
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(expr.to_string(), "1");
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
+    }
+
+    #[test]
+    fn parses_constructor_with_fields_recovers_if_not_an_identifier_2() {
+        let src = "
+        Foo { x: 1, 2, y: 2 }
+                    ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let ExpressionKind::Constructor(mut constructor) = expr.kind else {
+            panic!("Expected constructor");
+        };
+        assert_eq!(constructor.typ.to_string(), "Foo");
+        assert_eq!(constructor.fields.len(), 2);
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "x");
+        assert_eq!(expr.to_string(), "1");
+
+        let (name, expr) = constructor.fields.remove(0);
+        assert_eq!(name.to_string(), "y");
+        assert_eq!(expr.to_string(), "2");
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
+    }
+
+    #[test]
     fn parses_parses_if_true() {
         let src = "if true { 1 }";
         let expr = parse_expression_no_errors(src);
@@ -1834,6 +1905,21 @@ mod tests {
             panic!("Expected infix");
         };
         assert_eq!(infix_expr.to_string(), expected_src);
+    }
+
+    #[test]
+    fn errors_on_logical_and() {
+        let src = "
+        1 && 2
+          ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert_eq!(expression.to_string(), "(1 & 2)");
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::LogicalAnd));
     }
 
     #[test]
