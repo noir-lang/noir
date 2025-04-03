@@ -1,7 +1,4 @@
-use std::{
-    collections::VecDeque,
-    path::{Path, PathBuf},
-};
+use std::{collections::VecDeque, path::Path};
 
 use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use serde::{Deserialize, Serialize};
@@ -56,32 +53,6 @@ where
             writeln!(self.output, "{}", log_item()).expect("write should succeed");
         }
         result
-    }
-}
-
-/// Log foreign calls to stdout as soon as they are made, or buffer them and write to a file at the end.
-pub enum ForeignCallLog {
-    None,
-    Stdout,
-    File(PathBuf, String),
-}
-
-impl ForeignCallLog {
-    /// Instantiate based on an env var.
-    pub fn from_env(key: &str) -> Self {
-        match std::env::var(key) {
-            Err(_) => Self::None,
-            Ok(s) if s == "stdout" => Self::Stdout,
-            Ok(s) => Self::File(PathBuf::from(s), String::new()),
-        }
-    }
-
-    /// Any final logging.
-    pub fn write_log(self) -> std::io::Result<()> {
-        if let ForeignCallLog::File(path, contents) = self {
-            std::fs::write(path, contents)?;
-        }
-        Ok(())
     }
 }
 
