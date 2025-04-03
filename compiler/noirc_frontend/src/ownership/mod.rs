@@ -375,7 +375,7 @@ impl Context {
     }
 
     fn handle_extract_expression(&mut self, expr: &mut Expression) {
-        let Expression::ExtractTupleField(tuple, _) = expr else {
+        let Expression::ExtractTupleField(tuple, index) = expr else {
             panic!("handle_extract_expression given non-extract expression {expr}");
         };
 
@@ -386,17 +386,37 @@ impl Context {
         // When experimental ownership is enabled, we may clone identifiers. We want to avoid
         // cloning the entire object though if we're only accessing one field of it so we check
         // here to move the clone to the outermost extract expression instead.
-        let mut inner_expr = tuple.as_mut();
-        let should_clone = loop {
-            match inner_expr {
-                Expression::Ident(ident) => break self.should_clone_ident(ident),
-                Expression::ExtractTupleField(tuple, _) => inner_expr = tuple,
-                other => return self.handle_expression(other),
+        eprintln!("On expr {tuple}.{index}");
+        if let Some((should_clone, tuple_type)) = self.handle_extract_expression_rec(tuple) {
+            eprintln!("Done expr {tuple}.{index} : {tuple_type}");
+            if let Some(elements) = unwrap_tuple_type(tuple_type) {
+                if should_clone && contains_array_or_str_type(&elements[*index]) {
+                    clone_expr(expr);
+                }
             }
-        };
+        } else {
+            self.handle_expression(tuple);
+        }
+    }
 
-        if should_clone {
-            clone_expr(expr);
+    /// Traverse an expression comprised of only identifiers and tuple field extractions
+    /// returning whether we should clone the result and the type of that result.
+    /// Returns None if a different expression variant was found.
+    fn handle_extract_expression_rec(&self, expr: &Expression) -> Option<(bool, Type)> {
+        match expr {
+            Expression::Ident(ident) => {
+                let should_clone = self.should_clone_ident(ident);
+                eprintln!("handle_extract_expression_rec {} : {}", ident.name, ident.typ);
+                Some((should_clone, ident.typ.clone()))
+            }
+            Expression::ExtractTupleField(tuple, index) => {
+                let (should_clone, typ) = self.handle_extract_expression_rec(tuple)?;
+                let mut elements = unwrap_tuple_type(typ)?;
+                let t = elements.swap_remove(*index);
+                eprintln!("handle_extract_expression_rec {} : {}", expr, t);
+                Some((should_clone, t))
+            },
+            _ => None,
         }
     }
 
@@ -405,26 +425,8 @@ impl Context {
     /// analysis we always clone here then remove the last clone later if possible.
     fn should_clone_ident(&self, ident: &Ident) -> bool {
         if self.experimental_ownership_feature {
-            // This isn't necessary but helps clean up the output some.
-            // It'll need to be removed if we ever apply ownership on more
-            // than just arrays and array-containing structs.
-            let may_contain_array = match ident.typ {
-                Type::Array(..)
-                | Type::String(_)
-                | Type::FmtString(..)
-                | Type::Tuple(_)
-                | Type::Slice(_) => true,
-
-                Type::Field
-                | Type::Integer(..)
-                | Type::Bool
-                | Type::Unit
-                | Type::Function(_, _, _, _)
-                | Type::Reference(_, _) => false,
-            };
-
             if let Definition::Local(local_id) = &ident.definition {
-                if may_contain_array && !self.should_move(*local_id, ident.id) {
+                if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id) {
                     return true;
                 }
             }
@@ -491,6 +493,7 @@ impl Context {
 
         if self.experimental_ownership_feature
             && matches!(unary.operator, UnaryOp::Dereference { .. })
+            && contains_array_or_str_type(&unary.result_type)
         {
             clone_expr(expr);
         }
@@ -509,7 +512,7 @@ impl Context {
             panic!("handle_index should only be called with Index nodes");
         };
 
-        let mut clone_result = false;
+        let mut clone_result = !self.experimental_ownership_feature;
 
         if self.experimental_ownership_feature {
             // Don't clone the collection, cloning only the resulting element is cheaper
@@ -521,11 +524,7 @@ impl Context {
 
         self.handle_expression(&mut index.index);
 
-        if !self.experimental_ownership_feature && contains_array_or_str_type(&index.element_type) {
-            clone_result = true;
-        }
-
-        if clone_result {
+        if clone_result && contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
@@ -678,11 +677,20 @@ fn is_array_or_str_literal(expr: &Expression) -> bool {
 
 fn contains_array_or_str_type(typ: &Type) -> bool {
     match typ {
-        Type::Field | Type::Integer(..) | Type::Bool | Type::Unit | Type::Function(..) => false,
+        Type::Field | Type::Integer(..) | Type::Bool | Type::Unit | Type::Function(..)
+        | Type::Reference(..) => false,
 
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
 
         Type::Tuple(elems) => elems.iter().any(contains_array_or_str_type),
-        Type::Reference(elem, _) => contains_array_or_str_type(elem),
+    }
+}
+
+fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
+    match typ {
+        Type::Tuple(elements) => Some(elements),
+        // array accesses will automatically dereference so we do too
+        Type::Reference(element, _) => unwrap_tuple_type(*element),
+        _ => None,
     }
 }
