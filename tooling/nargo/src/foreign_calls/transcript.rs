@@ -7,8 +7,6 @@ use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::PrintOutput;
-
 use super::{ForeignCallError, ForeignCallExecutor};
 
 #[derive(Debug, thiserror::Error)]
@@ -27,19 +25,20 @@ struct LogItem<F> {
 }
 
 /// Log foreign calls during the execution, for testing purposes.
-pub struct LoggingForeignCallExecutor<'a, E> {
+pub struct LoggingForeignCallExecutor<W, E> {
     pub executor: E,
-    pub output: PrintOutput<'a>,
+    pub output: W,
 }
 
-impl<'a, E> LoggingForeignCallExecutor<'a, E> {
-    pub fn new(executor: E, output: PrintOutput<'a>) -> Self {
+impl<W, E> LoggingForeignCallExecutor<W, E> {
+    pub fn new(executor: E, output: W) -> Self {
         Self { executor, output }
     }
 }
 
-impl<E, F> ForeignCallExecutor<F> for LoggingForeignCallExecutor<'_, E>
+impl<W, E, F> ForeignCallExecutor<F> for LoggingForeignCallExecutor<W, E>
 where
+    W: std::io::Write,
     F: AcirField + Serialize,
     E: ForeignCallExecutor<F>,
 {
@@ -54,14 +53,7 @@ where
                 let json = json!({"call": foreign_call, "result": result});
                 serde_json::to_string(&json).expect("failed to serialize foreign call")
             };
-            match &mut self.output {
-                PrintOutput::None => (),
-                PrintOutput::Stdout => println!("{}", log_item()),
-                PrintOutput::String(s) => {
-                    s.push_str(&log_item());
-                    s.push('\n');
-                }
-            }
+            writeln!(self.output, "{}", log_item()).expect("write should succeed");
         }
         result
     }
@@ -81,15 +73,6 @@ impl ForeignCallLog {
             Err(_) => Self::None,
             Ok(s) if s == "stdout" => Self::Stdout,
             Ok(s) => Self::File(PathBuf::from(s), String::new()),
-        }
-    }
-
-    /// Create a [PrintOutput] based on the log setting.
-    pub fn print_output(&mut self) -> PrintOutput {
-        match self {
-            ForeignCallLog::None => PrintOutput::None,
-            ForeignCallLog::Stdout => PrintOutput::Stdout,
-            ForeignCallLog::File(_, s) => PrintOutput::String(s),
         }
     }
 

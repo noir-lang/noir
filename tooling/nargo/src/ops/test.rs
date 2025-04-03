@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
     acir::{
@@ -15,9 +17,7 @@ use crate::{
     NargoError,
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
-        ForeignCallError, ForeignCallExecutor, layers,
-        print::PrintOutput,
-        transcript::{ForeignCallLog, LoggingForeignCallExecutor},
+        ForeignCallError, ForeignCallExecutor, layers, transcript::LoggingForeignCallExecutor,
     },
 };
 
@@ -37,17 +37,18 @@ impl TestStatus {
     }
 }
 
-pub fn run_test<'a, B, F, E>(
+pub fn run_test<'a, W, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    output: PrintOutput<'a>,
+    output: W,
     config: &CompileOptions,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
+    W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement>,
-    F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
     let test_function_has_no_arguments = context
@@ -68,17 +69,21 @@ where
                     std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
                         .is_ok_and(|var| &var == "true");
 
-                let mut foreign_call_log = ForeignCallLog::from_env("NARGO_TEST_FOREIGN_CALL_LOG");
+                let writer: Box<dyn std::io::Write> =
+                    match std::env::var("NARGO_TEST_FOREIGN_CALL_LOG") {
+                        Err(_) => Box::new(std::io::empty()),
+                        Ok(s) if s == "stdout" => Box::new(std::io::stdout()),
+                        Ok(s) => Box::new(std::fs::File::open(PathBuf::from(s)).unwrap()),
+                    };
 
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                let foreign_call_executor = build_foreign_call_executor(output, layers::Unhandled);
+                let foreign_call_executor =
+                    build_foreign_call_executor(Box::new(output), layers::Unhandled);
                 let foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
-                let mut foreign_call_executor = LoggingForeignCallExecutor::new(
-                    foreign_call_executor,
-                    foreign_call_log.print_output(),
-                );
+                let mut foreign_call_executor =
+                    LoggingForeignCallExecutor::new(foreign_call_executor, writer);
 
                 let circuit_execution = execute_program(
                     &compiled_program.program,
@@ -95,7 +100,6 @@ where
                 );
 
                 let foreign_call_executor = foreign_call_executor.executor;
-                foreign_call_log.write_log().expect("failed to write foreign call log");
 
                 if let TestStatus::Fail { .. } = status {
                     if ignore_foreign_call_failures
@@ -125,7 +129,7 @@ where
                  -> Result<WitnessStack<FieldElement>, String> {
                     // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
                     let inner_executor =
-                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+                        build_foreign_call_executor(Box::new(std::io::empty()), layers::Unhandled);
 
                     let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
 
