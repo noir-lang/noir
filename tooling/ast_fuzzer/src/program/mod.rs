@@ -12,11 +12,13 @@ use noirc_frontend::{
     },
     shared::{Signedness, Visibility},
 };
+use types::type_depth;
 
 use crate::Config;
 
 mod expr;
 mod func;
+mod types;
 
 /// Generate an arbitrary monomorphized AST.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
@@ -257,18 +259,6 @@ impl Context {
         self.types.insert(typ.clone());
 
         Ok(typ)
-    }
-}
-
-/// Calculate the depth of a type.
-///
-/// Leaf types have a depth of 0.
-fn type_depth(typ: &Type) -> usize {
-    match typ {
-        Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
-        Type::Array(_, typ) => 1 + type_depth(typ),
-        Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
-        _ => unreachable!("unexpected type: {typ}"),
     }
 }
 

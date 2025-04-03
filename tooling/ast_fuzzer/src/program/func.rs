@@ -6,7 +6,7 @@ use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
-    ast::IntegerBitSize,
+    ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
         ArrayLiteral, Expression, FuncId, GlobalId, Index, InlineType, Literal, LocalId,
@@ -16,7 +16,7 @@ use noirc_frontend::{
     shared::{Signedness, Visibility},
 };
 
-use super::{Context, Name, VariableId, expr};
+use super::{Context, Name, VariableId, expr, types};
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
@@ -50,13 +50,14 @@ impl FunctionDeclaration {
                     pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
                 }
 
-                let typ = to_hir_type(typ);
+                let typ = types::to_hir_type(typ);
 
                 (pat, typ, *vis)
             })
             .collect();
 
-        let return_type = (self.return_type != Type::Unit).then(|| to_hir_type(&self.return_type));
+        let return_type =
+            (self.return_type != Type::Unit).then(|| types::to_hir_type(&self.return_type));
 
         (param_types, return_type)
     }
@@ -89,7 +90,7 @@ where
 
     /// Add a new variable to the scope.
     fn add(&mut self, id: K, name: String, typ: Type) {
-        for typ in types_produced(&typ) {
+        for typ in types::types_produced(&typ) {
             self.producers.entry(typ).or_default().insert(id);
         }
         self.variables.insert(id, (name, typ));
@@ -208,6 +209,19 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Expression> {
         let i = u.choose_index(100)?;
+
+        // Unary
+        if i < 5 {
+            let mut make_unary = |op| {
+                self.gen_expr(u, typ, max_depth - 1).map(|rhs| expr::unary(rhs, typ.clone(), op))
+            };
+            if types::is_signed(typ) {
+                return make_unary(UnaryOp::Minus);
+            }
+            if types::is_bool(typ) {
+                return make_unary(UnaryOp::Not);
+            }
+        }
 
         if i < 75 {
             if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
@@ -362,109 +376,4 @@ impl<'a> FunctionContext<'a> {
             Ok(expr::u32_literal(idx as u32))
         }
     }
-}
-
-fn to_hir_type(typ: &Type) -> hir_def::types::Type {
-    use hir_def::types::{Kind as HirKind, Type as HirType};
-
-    // Meet the expectations of `Type::evaluate_to_u32`.
-    let size_const = |size: u32| {
-        Box::new(HirType::Constant(
-            FieldElement::from(size),
-            HirKind::Numeric(Box::new(HirType::Integer(
-                Signedness::Unsigned,
-                IntegerBitSize::ThirtyTwo,
-            ))),
-        ))
-    };
-
-    match typ {
-        Type::Unit => HirType::Unit,
-        Type::Bool => HirType::Bool,
-        Type::Field => HirType::FieldElement,
-        Type::Integer(signedness, integer_bit_size) => {
-            HirType::Integer(*signedness, *integer_bit_size)
-        }
-        Type::String(size) => HirType::String(size_const(*size)),
-        Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
-        Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::FmtString(_, _)
-        | Type::Slice(_)
-        | Type::Reference(_, _)
-        | Type::Function(_, _, _, _) => {
-            unreachable!("unexpected type converting to HIR: {}", typ)
-        }
-    }
-}
-
-/// Collect all the sub-types produced by a type.
-///
-/// It's like a _power set_ of the type.
-fn types_produced(typ: &Type) -> HashSet<Type> {
-    /// Recursively visit subtypes.
-    fn visit(acc: &mut HashSet<Type>, typ: &Type) {
-        if acc.contains(typ) {
-            return;
-        }
-
-        // Trivially produce self.
-        acc.insert(typ.clone());
-
-        match typ {
-            Type::Array(len, typ) => {
-                if *len > 0 {
-                    visit(acc, typ);
-                }
-                // Technically we could produce `[T; N]` from `[S; N]` if
-                // we can produce `T` from `S`, but let's ignore that;
-                // instead we will produce `[T; N]` from any source that can
-                // supply `T`, one of which would be the `[S; N]` itself.
-                // So if we have `let foo = [1u32, 2u32];` and we need `[u64; 2]`
-                // we might generate `[foo[1] as u64, 3u64]` instead of "mapping"
-                // over the entire foo. Same goes for tuples.
-            }
-            Type::Tuple(types) => {
-                for typ in types {
-                    visit(acc, typ);
-                }
-            }
-            Type::String(_) => {
-                // Maybe it could produce substrings, but it would be an overkill to enumerate.
-            }
-            Type::Field => {
-                // There are `try_to_*` methods, but let's consider only what is safe.
-                acc.insert(Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight));
-            }
-            Type::Integer(sign, integer_bit_size) => {
-                // Casting up is safe.
-                for size in IntegerBitSize::iter()
-                    .filter(|size| size.bit_size() > integer_bit_size.bit_size())
-                {
-                    acc.insert(Type::Integer(*sign, size));
-                }
-                // There are `From<u*>` for Field
-                if !sign.is_signed() {
-                    acc.insert(Type::Field);
-                }
-            }
-            Type::Bool => {
-                // Maybe we can also cast to u1 or u8 etc?
-                acc.insert(Type::Field);
-            }
-            Type::Slice(typ) => {
-                visit(acc, typ);
-            }
-            Type::Reference(typ, _) => {
-                visit(acc, typ);
-            }
-            Type::Function(_, ret, _, _) => {
-                visit(acc, ret);
-            }
-            Type::Unit | Type::FmtString(_, _) => {}
-        }
-    }
-
-    let mut acc = HashSet::new();
-    visit(&mut acc, typ);
-    acc
 }

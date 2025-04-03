@@ -144,8 +144,12 @@ pub(crate) fn modulo(lhs: Expression, rhs: Expression) -> Expression {
 
 /// Dereference an expression into a target type
 pub(crate) fn deref(rhs: Expression, tgt_type: Type) -> Expression {
+    unary(rhs, tgt_type, UnaryOp::Dereference { implicitly_added: false })
+}
+
+pub(crate) fn unary(rhs: Expression, tgt_type: Type, op: UnaryOp) -> Expression {
     Expression::Unary(Unary {
-        operator: UnaryOp::Dereference { implicitly_added: false },
+        operator: op,
         rhs: Box::new(rhs),
         result_type: tgt_type,
         location: Location::dummy(),
