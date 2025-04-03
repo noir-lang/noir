@@ -9,7 +9,7 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Binary, BinaryOp, Expression, FuncId, GlobalId, Index, InlineType, Let,
+        ArrayLiteral, Binary, BinaryOp, Expression, FuncId, GlobalId, If, Index, InlineType, Let,
         Literal, LocalId, Parameters, Type, Unary,
     },
     node_interner::DefinitionId,
@@ -154,7 +154,7 @@ impl<'a> FunctionContext<'a> {
     /// Generate the function body.
     pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let ret = self.decl().return_type.clone();
-        self.gen_expr(u, &ret, self.start_depth())
+        self.gen_expr(u, &ret, self.start_depth(), Flags::TOP)
     }
 
     /// Get the function declaration.
@@ -214,8 +214,13 @@ impl<'a> FunctionContext<'a> {
         let budget = u.choose_index(self.budget)?;
         // Limit it so we don't blow it on the first block.
         let budget = budget.min(self.ctx.config.max_function_size / 2);
-        self.budget -= budget;
+        self.decrease_budget(budget);
         Ok(budget)
+    }
+
+    /// Decrease the budget by some amount.
+    fn decrease_budget(&mut self, amount: usize) {
+        self.budget = self.budget.saturating_sub(amount);
     }
 
     /// Get a local or global variable.
@@ -239,29 +244,44 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
         max_depth: usize,
+        flags: Flags,
     ) -> arbitrary::Result<Expression> {
-        let mut freq = Freq::new(u, 100, max_depth, &self.ctx.config)?;
+        let mut freq = Freq::new(u, 100)?;
+
+        // Stop nesting if we reached the bottom.
+        let allow_nested = max_depth > 0;
+
+        let allow_blocks = flags.allow_blocks
+            && allow_nested
+            && max_depth == self.ctx.config.max_depth
+            && self.budget > 0;
+
+        let allow_ifs = flags.allow_ifs && allow_nested && self.budget > 0;
 
         // Unary
-        if freq.prob_nested(10, types::can_unary_return(typ)) {
+        if freq.prob_if(10, allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
                 return Ok(expr);
             }
         }
 
         // Binary
-        if freq.prob_nested(25, types::can_binary_return(typ)) {
+        if freq.prob_if(25, allow_nested && types::can_binary_return(typ)) {
             if let Some(expr) = self.gen_binary(u, typ, max_depth)? {
                 return Ok(expr);
             }
         }
 
-        // Block of statements
-        if freq.prob_block(20, self.budget) {
-            return self.gen_block(u, typ);
+        // if-then-else returning a value
+        // Unlike blocks/loops it can appear in nested expressions.
+        if freq.prob_if(20, allow_ifs) {
+            return self.gen_if_then_else(u, typ, max_depth, flags);
         }
 
-        // TODO: If, Match, Call
+        // Block of statements returning a value
+        if freq.prob_if(20, allow_blocks) {
+            return self.gen_block(u, typ);
+        }
 
         // We can always try to just derive a value from the variables we have.
         if freq.prob(50) {
@@ -269,6 +289,8 @@ impl<'a> FunctionContext<'a> {
                 return Ok(expr);
             }
         }
+
+        // TODO: Match, Call
 
         // If nothing else worked out we can always produce a random literal.
         let lit = expr::gen_literal(u, typ)?;
@@ -295,14 +317,16 @@ impl<'a> FunctionContext<'a> {
                 Type::Array(len, item_type) => {
                     let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
                     for i in 0..*len {
-                        arr.contents.push(self.gen_expr(u, item_type, max_depth)?);
+                        let item = self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
+                        arr.contents.push(item);
                     }
                     return Ok(Some(Expression::Literal(Literal::Array(arr))));
                 }
                 Type::Tuple(items) => {
                     let mut values = Vec::new();
                     for item_type in items {
-                        values.push(self.gen_expr(u, item_type, max_depth)?);
+                        let item = self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
+                        values.push(item);
                     }
                     return Ok(Some(Expression::Tuple(values)));
                 }
@@ -413,7 +437,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         assert!(len > 0, "cannot index empty array");
         if max_depth > 0 && u.ratio(1, 3)? {
-            let idx = self.gen_expr(u, &types::U32, max_depth.saturating_sub(1))?;
+            let idx = self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
             Ok(expr::index_modulo(idx, len))
         } else {
             let idx = u.choose_index(len)?;
@@ -429,7 +453,7 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         let mut make_unary = |op| {
-            self.gen_expr(u, typ, max_depth.saturating_sub(1))
+            self.gen_expr(u, typ, max_depth.saturating_sub(1), Flags::NESTED)
                 .map(|rhs| Some(expr::unary(op, rhs, typ.clone())))
         };
         if types::is_signed(typ) {
@@ -482,8 +506,8 @@ impl<'a> FunctionContext<'a> {
         };
 
         // Generate expressions for LHS and RHS.
-        let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1))?;
-        let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1))?;
+        let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+        let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
 
         Ok(Some(expr::binary(lhs_expr, op, rhs_expr)))
     }
@@ -496,7 +520,7 @@ impl<'a> FunctionContext<'a> {
         let max_depth = self.start_depth();
         let size = self.choose_budget(u)?;
         if size == 0 {
-            return self.gen_expr(u, typ, max_depth);
+            return self.gen_expr(u, typ, max_depth, Flags::TOP);
         }
         let mut stmts = Vec::new();
 
@@ -505,7 +529,7 @@ impl<'a> FunctionContext<'a> {
             stmts.push(self.gen_statement(u)?);
         }
         // TODO: If the `typ` was `Unit`, we could use `Semi` in the last position.
-        stmts.push(self.gen_expr(u, typ, max_depth)?);
+        stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
         self.exit_scope();
 
         Ok(Expression::Block(stmts))
@@ -514,7 +538,7 @@ impl<'a> FunctionContext<'a> {
     /// Generate a statement, which is an expression that doesn't return anything,
     /// for example loops, variable declarations, etc.
     fn gen_statement(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        let mut _freq = Freq::new(u, 100, self.start_depth(), &self.ctx.config)?;
+        let mut _freq = Freq::new(u, 100)?;
         // TODO: For, Loop, While, If, Match, Call, Assign
         self.gen_let(u)
     }
@@ -528,8 +552,33 @@ impl<'a> FunctionContext<'a> {
         let mutable = bool::arbitrary(u)?;
         let name = make_name(id.0 as usize, false);
 
-        let expr = self.gen_expr(u, &typ, max_depth)?;
+        let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
+    }
+
+    /// Generate an if-then-else statement or expression.
+    fn gen_if_then_else(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+        flags: Flags,
+    ) -> arbitrary::Result<Expression> {
+        // Decrease the budget so we stop infinite nesting in the arms.
+        self.decrease_budget(1);
+        let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_ifs())?;
+        let consequence = self.gen_expr(u, typ, max_depth, flags)?;
+        let alternative = if matches!(typ, Type::Unit) && bool::arbitrary(u)? {
+            None
+        } else {
+            Some(self.gen_expr(u, typ, max_depth, flags)?)
+        };
+        Ok(Expression::If(If {
+            condition: Box::new(condition),
+            consequence: Box::new(consequence),
+            alternative: alternative.map(Box::new),
+            typ: typ.clone(),
+        }))
     }
 }
 
@@ -537,19 +586,12 @@ impl<'a> FunctionContext<'a> {
 struct Freq {
     x: usize,
     total: usize,
-    depth: usize,
-    max_depth: usize,
 }
 
 impl Freq {
-    fn new(
-        u: &mut Unstructured,
-        total: usize,
-        depth: usize,
-        config: &Config,
-    ) -> arbitrary::Result<Self> {
+    fn new(u: &mut Unstructured, total: usize) -> arbitrary::Result<Self> {
         let x = u.choose_index(total)?;
-        Ok(Self { x: u.choose_index(total)?, total: 0, depth, max_depth: config.max_depth })
+        Ok(Self { x: u.choose_index(total)?, total: 0 })
     }
 
     /// Check if we're in the next `p` size window on top of the already checked cumulative values.
@@ -564,18 +606,26 @@ impl Freq {
     fn prob_if(&mut self, p: usize, cond: bool) -> bool {
         cond && self.prob(p)
     }
+}
 
-    /// Like `prob_if`, but only if we're not in the bottom depth yet, to limit how
-    /// deeply nested expressions we generate.
-    fn prob_nested(&mut self, p: usize, cond: bool) -> bool {
-        self.prob_if(p, self.depth > 0 && cond)
-    }
+/// Control what kind of expressions we can generate, depending on the surrounding context.
+#[derive(Debug, Clone, Copy)]
+struct Flags {
+    allow_blocks: bool,
+    allow_ifs: bool,
+}
 
-    /// Like `prob`, but only if we're not in a nested expression, so as not to
-    /// generate blocks, and loops where we're generating e.g. array indexes
-    /// or loop range values; the compiler might be okay with it, but it would
-    /// be hard to read and unidiomatic.
-    fn prob_block(&mut self, p: usize, budget: usize) -> bool {
-        self.prob_if(p, self.depth == self.max_depth && budget > 0)
+impl Flags {
+    /// In a top level context, everything is allowed.
+    const TOP: Self = Self { allow_blocks: true, allow_ifs: true };
+    /// In complex nested expressions, avoid generating blocks;
+    /// they would be unreadable and non-idiomatic.
+    const NESTED: Self = Self { allow_blocks: false, allow_ifs: true };
+    /// In `if` conditions avoid nesting more ifs, like `if if if false ...`.
+    const CONDITION: Self = Self { allow_blocks: false, allow_ifs: false };
+
+    fn no_ifs(mut self) -> Self {
+        self.allow_ifs = false;
+        self
     }
 }
