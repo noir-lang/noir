@@ -445,15 +445,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.fuzzing_trace_branching(self.program_counter + 1);
                 self.increment_program_counter()
             }
-            Opcode::JumpIfNot { condition, location: destination } => {
-                let condition_value = self.memory.read(*condition);
-                if condition_value.expect_u1().expect("condition value is not a boolean") {
-                    self.fuzzing_trace_branching(self.program_counter + 1);
-                    return self.increment_program_counter();
-                }
-                self.fuzzing_trace_branching(*destination);
-                self.set_program_counter(*destination)
-            }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
                 let size = self.memory.read(*size_address).to_usize();
                 let offset = self.memory.read(*offset_address).to_usize();
@@ -1096,90 +1087,6 @@ mod tests {
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
-    }
-
-    #[test]
-    fn jmpifnot_opcode() {
-        let calldata: Vec<FieldElement> = vec![1u128.into(), 2u128.into()];
-
-        let opcodes = vec![
-            Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(2u64),
-            },
-            Opcode::Const {
-                destination: MemoryAddress::direct(1),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(0u64),
-            },
-            Opcode::CalldataCopy {
-                destination_address: MemoryAddress::direct(0),
-                size_address: MemoryAddress::direct(0),
-                offset_address: MemoryAddress::direct(1),
-            },
-            Opcode::Jump { location: 6 },
-            Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(0u64),
-            },
-            Opcode::Trap {
-                revert_data: HeapVector {
-                    pointer: MemoryAddress::direct(0),
-                    size: MemoryAddress::direct(0),
-                },
-            },
-            Opcode::BinaryFieldOp {
-                op: BinaryFieldOp::Equals,
-                lhs: MemoryAddress::direct(0),
-                rhs: MemoryAddress::direct(1),
-                destination: MemoryAddress::direct(2),
-            },
-            Opcode::JumpIfNot { condition: MemoryAddress::direct(2), location: 4 },
-            Opcode::BinaryFieldOp {
-                op: BinaryFieldOp::Add,
-                lhs: MemoryAddress::direct(0),
-                rhs: MemoryAddress::direct(1),
-                destination: MemoryAddress::direct(2),
-            },
-        ];
-
-        let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
-
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
-
-        let output_cmp_value = vm.memory.read(MemoryAddress::direct(2));
-        assert_eq!(output_cmp_value.to_field(), false.into());
-
-        let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
-
-        let status = vm.process_opcode();
-        assert_eq!(
-            status,
-            VMStatus::Failure {
-                reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
-                call_stack: vec![5]
-            }
-        );
-
-        // The address at index `2` should have not changed as we jumped over the add opcode
-        let VM { memory, .. } = vm;
-        let output_value = memory.read(MemoryAddress::direct(2));
-        assert_eq!(output_value.to_field(), false.into());
     }
 
     #[test]

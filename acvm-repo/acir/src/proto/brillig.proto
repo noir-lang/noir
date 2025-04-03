@@ -12,7 +12,7 @@ message BrilligOpcode {
     BinaryIntOp binary_int_op = 2;
     Not not = 3;
     Cast cast = 4;
-    JumpIfNot jump_if_not = 5;
+    JumpIfNot jump_if_not = 5 [deprecated=true];
     JumpIf jump_if = 6;
     Jump jump = 7;
     CalldataCopy calldata_copy = 8;

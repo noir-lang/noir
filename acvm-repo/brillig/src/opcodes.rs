@@ -241,12 +241,6 @@ pub enum BrilligOpcode<F> {
         source: MemoryAddress,
         bit_size: BitSize,
     },
-    /// Sets the program counter to the value of `location` if
-    /// the value at the `condition` address is zero.
-    JumpIfNot {
-        condition: MemoryAddress,
-        location: Label,
-    },
     /// Sets the program counter to the value of `location`
     /// If the value at `condition` is non-zero
     JumpIf {

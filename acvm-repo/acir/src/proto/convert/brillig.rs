@@ -59,10 +59,6 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
                 source: Self::encode_some(source),
                 bit_size: Self::encode_some(bit_size),
             }),
-            brillig::Opcode::JumpIfNot { condition, location } => Value::JumpIfNot(JumpIfNot {
-                condition: Self::encode_some(condition),
-                location: Self::encode(location),
-            }),
             brillig::Opcode::JumpIf { condition, location } => Value::JumpIf(JumpIf {
                 condition: Self::encode_some(condition),
                 location: Self::encode(location),
@@ -166,10 +162,7 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
                 source: Self::decode_some_wrap(&v.source, "source")?,
                 bit_size: Self::decode_some_wrap(&v.bit_size, "bit_size")?,
             }),
-            Value::JumpIfNot(v) => Ok(brillig::Opcode::JumpIfNot {
-                condition: Self::decode_some_wrap(&v.condition, "condition")?,
-                location: Self::decode_wrap(&v.location, "location")?,
-            }),
+            Value::JumpIfNot(_) => Err(eyre::Report::msg("JumpIfNot is deprecated")),
             Value::JumpIf(v) => Ok(brillig::Opcode::JumpIf {
                 condition: Self::decode_some_wrap(&v.condition, "condition")?,
                 location: Self::decode_wrap(&v.location, "location")?,
