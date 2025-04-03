@@ -1368,6 +1368,23 @@ impl<'interner> Monomorphizer<'interner> {
                         });
                     }
                 }
+                // If we find one in `all_generics` it means it's a generic on the type
+                // the function is in.
+                if let Some(Type::DataType(typ, ..)) = &meta.self_type {
+                    for generic in &meta.all_generics {
+                        if generic.type_var.id() == id {
+                            let typ = typ.borrow();
+                            let item_name = typ.name.to_string();
+                            let item_kind = if typ.is_struct() { "struct" } else { "enum" };
+                            return Err(MonomorphizationError::NoDefaultTypeInItem {
+                                location,
+                                generic_name: generic.name.to_string(),
+                                item_kind,
+                                item_name,
+                            });
+                        }
+                    }
+                }
             }
             DefinitionKind::Global(global_id) => {
                 // Check if this global points to an enum variant, then get the enum's generics
