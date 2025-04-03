@@ -260,7 +260,8 @@
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{Documented, EnumVariant, Ident, ItemVisibility, NoirEnumeration, UnresolvedGenerics},
@@ -296,7 +297,7 @@
             );
         };
 
-        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics();
+        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_disallowing_trait_bounds();
 
         <span class="kw">if </span>!<span class="self">self</span>.eat_left_brace() {
             <span class="self">self</span>.expected_token(Token::LeftBrace);
@@ -420,10 +421,11 @@
         <span class="macro">assert_eq!</span>(noir_enum.generics.len(), <span class="number">2</span>);
 
         <span class="kw">let </span>generic = noir_enum.generics.remove(<span class="number">0</span>);
-        <span class="kw">let </span>UnresolvedGeneric::Variable(ident) = generic <span class="kw">else </span>{
+        <span class="kw">let </span>UnresolvedGeneric::Variable(ident, trait_bounds) = generic <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected generic variable"</span>);
         };
         <span class="macro">assert_eq!</span>(<span class="string">"A"</span>, ident.to_string());
+        <span class="macro">assert!</span>(trait_bounds.is_empty());
 
         <span class="kw">let </span>generic = noir_enum.generics.remove(<span class="number">0</span>);
         <span class="kw">let </span>UnresolvedGeneric::Numeric { ident, typ } = generic <span class="kw">else </span>{

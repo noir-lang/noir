@@ -115,7 +115,7 @@
             };
         };
 
-        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics();
+        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_disallowing_trait_bounds();
 
         <span class="kw">if </span>!<span class="self">self</span>.eat_assign() {
             <span class="self">self</span>.expected_token(Token::Assign);

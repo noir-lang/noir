@@ -285,7 +285,52 @@
 <a href="#284" id="284">284</a>
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{
         GenericTypeArg, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedType, UnresolvedTypeData,
@@ -298,10 +343,18 @@
 <span class="kw">use super</span>::{Parser, parse_many::separated_by_comma};
 
 <span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_generics_disallowing_trait_bounds(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; UnresolvedGenerics {
+        <span class="self">self</span>.parse_generics(<span class="bool-val">false</span>)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_generics_allowing_trait_bounds(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; UnresolvedGenerics {
+        <span class="self">self</span>.parse_generics(<span class="bool-val">true</span>)
+    }
+
     <span class="doccomment">/// Generics = ( '&lt;' GenericsList? '&gt;' )?
     ///
     /// GenericsList = Generic ( ',' Generic )* ','?
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; UnresolvedGenerics {
+    </span><span class="kw">fn </span>parse_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_trait_bounds: bool) -&gt; UnresolvedGenerics {
         <span class="kw">if </span>!<span class="self">self</span>.eat_less() {
             <span class="kw">return </span>Vec::new();
         }
@@ -309,12 +362,12 @@
         <span class="self">self</span>.parse_many(
             <span class="string">"generic parameters"</span>,
             separated_by_comma().until(Token::Greater),
-            <span class="self">Self</span>::parse_generic_in_list,
+            |parser| parser.parse_generic_in_list(allow_trait_bounds),
         )
     }
 
-    <span class="kw">fn </span>parse_generic_in_list(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.parse_generic() {
+    <span class="kw">fn </span>parse_generic_in_list(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_trait_bounds: bool) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.parse_generic(allow_trait_bounds) {
             <span class="prelude-val">Some</span>(generic)
         } <span class="kw">else </span>{
             <span class="self">self</span>.expected_label(ParsingRuleLabel::GenericParameter);
@@ -326,8 +379,8 @@
     ///     = VariableGeneric
     ///     | NumericGeneric
     ///     | ResolvedGeneric
-    </span><span class="kw">fn </span>parse_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.parse_variable_generic() {
+    </span><span class="kw">fn </span>parse_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_trait_bounds: bool) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.parse_variable_generic(allow_trait_bounds) {
             <span class="kw">return </span><span class="prelude-val">Some</span>(generic);
         }
 
@@ -342,9 +395,22 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="doccomment">/// VariableGeneric = identifier
-    </span><span class="kw">fn </span>parse_variable_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
-        <span class="self">self</span>.eat_ident().map(UnresolvedGeneric::Variable)
+    <span class="doccomment">/// VariableGeneric = identifier ( ':' TraitBounds ) ?
+    </span><span class="kw">fn </span>parse_variable_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_trait_bounds: bool) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
+        <span class="kw">let </span>ident = <span class="self">self</span>.eat_ident()<span class="question-mark">?</span>;
+        <span class="kw">let </span>trait_bounds = <span class="kw">if </span><span class="self">self</span>.eat_colon() {
+            <span class="kw">if </span>!allow_trait_bounds {
+                <span class="self">self</span>.push_error(
+                    ParserErrorReason::TraitBoundsNotAllowedHere,
+                    <span class="self">self</span>.previous_token_location,
+                );
+            }
+
+            <span class="self">self</span>.parse_trait_bounds()
+        } <span class="kw">else </span>{
+            Vec::new()
+        };
+        <span class="prelude-val">Some</span>(UnresolvedGeneric::Variable(ident, trait_bounds))
     }
 
     <span class="doccomment">/// NumericGeneric = 'let' identifier ':' Type
@@ -465,7 +531,7 @@
 
     <span class="kw">fn </span>parse_generics_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;UnresolvedGeneric&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
-        <span class="kw">let </span>generics = parser.parse_generics();
+        <span class="kw">let </span>generics = parser.parse_generics(<span class="bool-val">true </span><span class="comment">/* allow trait bounds */</span>);
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
         generics
     }
@@ -486,15 +552,16 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_generics() {
-        <span class="kw">let </span>src = <span class="string">"&lt;A, let B: u32&gt;"</span>;
+        <span class="kw">let </span>src = <span class="string">"&lt;A, let B: u32, C: X + Y&gt;"</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>generics = parse_generics_no_errors(src);
-        <span class="macro">assert_eq!</span>(generics.len(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(generics.len(), <span class="number">3</span>);
 
         <span class="kw">let </span>generic = generics.remove(<span class="number">0</span>);
-        <span class="kw">let </span>UnresolvedGeneric::Variable(ident) = generic <span class="kw">else </span>{
+        <span class="kw">let </span>UnresolvedGeneric::Variable(ident, trait_bounds) = generic <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected generic variable"</span>);
         };
         <span class="macro">assert_eq!</span>(<span class="string">"A"</span>, ident.to_string());
+        <span class="macro">assert!</span>(trait_bounds.is_empty());
 
         <span class="kw">let </span>generic = generics.remove(<span class="number">0</span>);
         <span class="kw">let </span>UnresolvedGeneric::Numeric { ident, typ } = generic <span class="kw">else </span>{
@@ -505,6 +572,16 @@
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
         );
+
+        <span class="kw">let </span>generic = generics.remove(<span class="number">0</span>);
+        <span class="kw">let </span>UnresolvedGeneric::Variable(ident, trait_bounds) = generic <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected generic variable"</span>);
+        };
+        <span class="macro">assert_eq!</span>(<span class="string">"C"</span>, ident.to_string());
+        <span class="macro">assert_eq!</span>(trait_bounds.len(), <span class="number">2</span>);
+
+        <span class="macro">assert_eq!</span>(trait_bounds[<span class="number">0</span>].to_string(), <span class="string">"X"</span>);
+        <span class="macro">assert_eq!</span>(trait_bounds[<span class="number">1</span>].to_string(), <span class="string">"Y"</span>);
     }
 
     <span class="attr">#[test]
@@ -553,7 +630,7 @@
         "</span>;
         <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
-        parser.parse_generics();
+        parser.parse_generics(<span class="bool-val">true</span>);
         <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::ForbiddenNumericGenericType));
     }
@@ -570,6 +647,19 @@
         <span class="kw">let </span>src = <span class="string">"&lt;N&lt;1&gt;&gt;"</span>;
         <span class="kw">let </span>generics = parse_generic_type_args_no_errors(src);
         <span class="macro">assert_eq!</span>(generics.ordered_args[<span class="number">0</span>].to_string(), <span class="string">"N&lt;1&gt;"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_generic_trait_bound_not_allowed() {
+        <span class="kw">let </span>src = <span class="string">"
+        N: Trait
+         ^
+        "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        parser.parse_generic(<span class="bool-val">false</span>);
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::TraitBoundsNotAllowedHere));
     }
 }
 </code></pre></div></section></main></body></html>

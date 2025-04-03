@@ -596,7 +596,7 @@
     ///     = TypeImpl
     ///     | TraitImpl
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Impl {
-        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics();
+        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_allowing_trait_bounds();
 
         <span class="kw">let </span>type_location_start = <span class="self">self</span>.current_token_location;
         <span class="kw">let </span>object_type = <span class="self">self</span>.parse_type_or_error();

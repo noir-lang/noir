@@ -350,7 +350,9 @@
 <a href="#349" id="349">349</a>
 <a href="#350" id="350">350</a>
 <a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -477,6 +479,8 @@
     </span>ExpectedValueFoundBuiltInType { typ: UnresolvedType },
     <span class="attr">#[error(<span class="string">"Logical and used instead of bitwise and"</span>)]
     </span>LogicalAnd,
+    <span class="attr">#[error(<span class="string">"Trait bounds are not allowed here"</span>)]
+    </span>TraitBoundsNotAllowedHere,
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.

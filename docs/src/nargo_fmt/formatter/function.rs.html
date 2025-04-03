@@ -975,8 +975,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_function_generics() {
-        <span class="kw">let </span>src = <span class="string">"fn  foo &lt; A, B, &gt;( ) {  }"</span>;
-        <span class="kw">let </span>expected = <span class="string">"fn foo&lt;A, B&gt;() {}\n"</span>;
+        <span class="kw">let </span>src = <span class="string">"fn  foo &lt; A, B:  X  +  Y , &gt;( ) {  }"</span>;
+        <span class="kw">let </span>expected = <span class="string">"fn foo&lt;A, B: X + Y&gt;() {}\n"</span>;
         assert_format(src, expected);
     }
 

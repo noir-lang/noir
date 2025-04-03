@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AttributeTarget"],"fn":["visit_expressions","visit_unresolved_types"],"trait":["Visitor"]};
+window.SIDEBAR_ITEMS = {"enum":["AttributeTarget"],"fn":["visit_expressions","visit_unresolved_generics","visit_unresolved_types"],"trait":["Visitor"]};

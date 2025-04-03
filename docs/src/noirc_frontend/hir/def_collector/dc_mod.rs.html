@@ -1657,7 +1657,31 @@
 <a href="#1656" id="1656">1656</a>
 <a href="#1657" id="1657">1657</a>
 <a href="#1658" id="1658">1658</a>
-<a href="#1659" id="1659">1659</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -1673,7 +1697,7 @@
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData,
+    UnresolvedTypeData, desugar_generic_trait_bounds,
 };
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
@@ -1834,7 +1858,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
         <span class="kw">let </span>module_id = ModuleId { krate, local_id: <span class="self">self</span>.module_id };
 
-        <span class="kw">for </span>r#impl <span class="kw">in </span>impls {
+        <span class="kw">for </span><span class="kw-2">mut </span>r#impl <span class="kw">in </span>impls {
+            desugar_generic_trait_bounds(<span class="kw-2">&amp;mut </span>r#impl.generics, <span class="kw-2">&amp;mut </span>r#impl.where_clause);
+
             collect_impl(
                 <span class="kw-2">&amp;mut </span>context.def_interner,
                 <span class="kw-2">&amp;mut </span><span class="self">self</span>.def_collector.items,
@@ -1857,6 +1883,11 @@
         <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
 
         <span class="kw">for </span><span class="kw-2">mut </span>trait_impl <span class="kw">in </span>impls {
+            desugar_generic_trait_bounds(
+                <span class="kw-2">&amp;mut </span>trait_impl.impl_generics,
+                <span class="kw-2">&amp;mut </span>trait_impl.where_clause,
+            );
+
             <span class="kw">let </span>(<span class="kw-2">mut </span>unresolved_functions, associated_types, associated_constants) =
                 collect_trait_impl_items(
                     <span class="kw-2">&amp;mut </span>context.def_interner,
@@ -1947,7 +1978,13 @@
             // and replace it
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
-            </span>unresolved_functions.push_fn(<span class="self">self</span>.module_id, func_id, function.item);
+            </span><span class="kw">let </span><span class="kw-2">mut </span>noir_function = function.item;
+            desugar_generic_trait_bounds(
+                <span class="kw-2">&amp;mut </span>noir_function.def.generics,
+                <span class="kw-2">&amp;mut </span>noir_function.def.where_clause,
+            );
+
+            unresolved_functions.push_fn(<span class="self">self</span>.module_id, func_id, noir_function);
         }
 
         <span class="self">self</span>.def_collector.items.functions.push(unresolved_functions);
@@ -2093,7 +2130,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>errors: Vec&lt;CompilationError&gt; = <span class="macro">vec!</span>[];
         <span class="kw">for </span>trait_definition <span class="kw">in </span>traits {
             <span class="kw">let </span>doc_comments = trait_definition.doc_comments;
-            <span class="kw">let </span>trait_definition = trait_definition.item;
+            <span class="kw">let </span><span class="kw-2">mut </span>trait_definition = trait_definition.item;
             <span class="kw">let </span>name = trait_definition.name.clone();
             <span class="kw">let </span>location = trait_definition.location;
 
@@ -2153,6 +2190,12 @@
 
             <span class="kw">let </span><span class="kw-2">mut </span>method_ids = HashMap::default();
             <span class="kw">let </span><span class="kw-2">mut </span>associated_types = Generics::new();
+
+            <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;mut </span>trait_definition.items {
+                <span class="kw">if let </span>TraitItem::Function { generics, where_clause, .. } = <span class="kw-2">&amp;mut </span>item.item {
+                    desugar_generic_trait_bounds(generics, where_clause);
+                }
+            }
 
             <span class="kw">for </span>trait_item <span class="kw">in </span><span class="kw-2">&amp;</span>trait_definition.items {
                 <span class="kw">match </span><span class="kw-2">&amp;</span>trait_item.item {
@@ -2896,6 +2939,7 @@
 
         <span class="kw">let </span>func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
+        desugar_generic_trait_bounds(<span class="kw-2">&amp;mut </span>method.def.generics, <span class="kw-2">&amp;mut </span>method.def.where_clause);
         <span class="kw">let </span>location = Location::new(method.span(), file_id);
         interner.push_function(func_id, <span class="kw-2">&amp;</span>method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
@@ -3020,6 +3064,10 @@
                 <span class="kw">let </span>location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, <span class="kw-2">&amp;</span>impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
+                desugar_generic_trait_bounds(
+                    <span class="kw-2">&amp;mut </span>impl_method.def.generics,
+                    <span class="kw-2">&amp;mut </span>impl_method.def.where_clause,
+                );
                 unresolved_functions.push_fn(local_id, func_id, impl_method);
             }
             TraitImplItemKind::Constant(name, typ, expr) =&gt; {

@@ -630,7 +630,7 @@
             <span class="kw">return </span>(noir_trait, no_implicit_impl);
         };
 
-        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics();
+        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_allowing_trait_bounds();
 
         <span class="comment">// Trait aliases:
         // trait Foo&lt;..&gt; = A + B + E where ..;
@@ -662,7 +662,7 @@
         <span class="kw">let </span>noir_impl = is_alias.then(|| {
             <span class="kw">let </span>object_type_ident = Ident::from(Located::from(location, <span class="string">"#T"</span>.to_string()));
             <span class="kw">let </span>object_type_path = Path::from_ident(object_type_ident.clone());
-            <span class="kw">let </span>object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
+            <span class="kw">let </span>object_type_generic = UnresolvedGeneric::Variable(object_type_ident, Vec::new());
 
             <span class="kw">let </span>is_synthesized = <span class="bool-val">true</span>;
             <span class="kw">let </span>object_type = UnresolvedType {

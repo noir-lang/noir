@@ -722,7 +722,7 @@
             <span class="kw">return </span>empty_function(<span class="self">self</span>.previous_token_location);
         };
 
-        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics();
+        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_allowing_trait_bounds();
         <span class="kw">let </span>parameters = <span class="self">self</span>.parse_function_parameters(allow_self);
 
         <span class="kw">let </span>parameters = <span class="kw">match </span>parameters {

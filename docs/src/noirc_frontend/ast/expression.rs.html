@@ -951,7 +951,21 @@
 <a href="#950" id="950">950</a>
 <a href="#951" id="951">951</a>
 <a href="#952" id="952">952</a>
-<a href="#953" id="953">953</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
@@ -969,7 +983,7 @@
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
-<span class="kw">use super</span>::{AsTraitPath, TypePath, UnsafeExpression};
+<span class="kw">use super</span>::{AsTraitPath, TraitBound, TypePath, UnsafeExpression};
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub enum </span>ExpressionKind {
@@ -1019,7 +1033,7 @@
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 </span><span class="kw">pub enum </span>UnresolvedGeneric {
-    Variable(Ident),
+    Variable(Ident, Vec&lt;TraitBound&gt;),
     Numeric {
         ident: Ident,
         typ: UnresolvedType,
@@ -1042,7 +1056,7 @@
 <span class="kw">impl </span>UnresolvedGeneric {
     <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         <span class="kw">match </span><span class="self">self </span>{
-            UnresolvedGeneric::Variable(ident) =&gt; ident.location(),
+            UnresolvedGeneric::Variable(ident, <span class="kw">_</span>) =&gt; ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } =&gt; ident.location().merge(typ.location),
             UnresolvedGeneric::Resolved(<span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
         }
@@ -1054,7 +1068,7 @@
 
     <span class="kw">pub fn </span>kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Kind, UnsupportedNumericGenericType&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            UnresolvedGeneric::Variable(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Kind::Normal),
+            UnresolvedGeneric::Variable(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.resolve_numeric_kind_type(typ)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(Kind::numeric(typ))
@@ -1084,7 +1098,9 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ident(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Ident {
         <span class="kw">match </span><span class="self">self </span>{
-            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } =&gt; ident,
+            UnresolvedGeneric::Variable(ident, <span class="kw">_</span>) | UnresolvedGeneric::Numeric { ident, .. } =&gt; {
+                ident
+            }
             UnresolvedGeneric::Resolved(..) =&gt; <span class="macro">panic!</span>(<span class="string">"UnresolvedGeneric::Resolved no ident"</span>),
         }
     }
@@ -1093,7 +1109,19 @@
 <span class="kw">impl </span>Display <span class="kw">for </span>UnresolvedGeneric {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            UnresolvedGeneric::Variable(ident) =&gt; <span class="macro">write!</span>(f, <span class="string">"{ident}"</span>),
+            UnresolvedGeneric::Variable(ident, trait_bounds) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"{ident}"</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>!trait_bounds.is_empty() {
+                    <span class="macro">write!</span>(f, <span class="string">": "</span>)<span class="question-mark">?</span>;
+                    <span class="kw">for </span>(index, trait_bound) <span class="kw">in </span>trait_bounds.iter().enumerate() {
+                        <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+                            <span class="macro">write!</span>(f, <span class="string">" + "</span>)<span class="question-mark">?</span>;
+                        }
+                        <span class="macro">write!</span>(f, <span class="string">"{trait_bound}"</span>)<span class="question-mark">?</span>;
+                    }
+                }
+                <span class="prelude-val">Ok</span>(())
+            }
             UnresolvedGeneric::Numeric { ident, typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"let {ident}: {typ}"</span>),
             UnresolvedGeneric::Resolved(..) =&gt; <span class="macro">write!</span>(f, <span class="string">"(resolved)"</span>),
         }
@@ -1102,7 +1130,7 @@
 
 <span class="kw">impl </span>From&lt;Ident&gt; <span class="kw">for </span>UnresolvedGeneric {
     <span class="kw">fn </span>from(value: Ident) -&gt; <span class="self">Self </span>{
-        UnresolvedGeneric::Variable(value)
+        UnresolvedGeneric::Variable(value, Vec::new())
     }
 }
 

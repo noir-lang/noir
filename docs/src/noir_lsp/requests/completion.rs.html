@@ -1997,7 +1997,19 @@
 <a href="#1996" id="1996">1996</a>
 <a href="#1997" id="1997">1997</a>
 <a href="#1998" id="1998">1998</a>
-<a href="#1999" id="1999">1999</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1999" id="1999">1999</a>
+<a href="#2000" id="2000">2000</a>
+<a href="#2001" id="2001">2001</a>
+<a href="#2002" id="2002">2002</a>
+<a href="#2003" id="2003">2003</a>
+<a href="#2004" id="2004">2004</a>
+<a href="#2005" id="2005">2005</a>
+<a href="#2006" id="2006">2006</a>
+<a href="#2007" id="2007">2007</a>
+<a href="#2008" id="2008">2008</a>
+<a href="#2009" id="2009">2009</a>
+<a href="#2010" id="2010">2010</a>
+<a href="#2011" id="2011">2011</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2555,7 +2567,7 @@
 
     <span class="kw">fn </span>collect_type_parameters_in_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generic: <span class="kw-2">&amp;</span>UnresolvedGeneric) {
         <span class="kw">match </span>generic {
-            UnresolvedGeneric::Variable(ident) =&gt; {
+            UnresolvedGeneric::Variable(ident, <span class="kw">_</span>) =&gt; {
                 <span class="self">self</span>.type_parameters.insert(ident.to_string());
             }
             UnresolvedGeneric::Numeric { ident, typ: <span class="kw">_ </span>} =&gt; {
@@ -3258,6 +3270,10 @@
             attribute.accept(AttributeTarget::Function, <span class="self">self</span>);
         }
 
+        <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>noir_function.def.generics {
+            generic.accept(<span class="self">self</span>);
+        }
+
         <span class="kw">let </span>old_type_parameters = <span class="self">self</span>.type_parameters.clone();
         <span class="self">self</span>.collect_type_parameters_in_generics(<span class="kw-2">&amp;</span>noir_function.def.generics);
 
@@ -3299,6 +3315,10 @@
     </span>}
 
     <span class="kw">fn </span>visit_noir_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, noir_trait_impl: <span class="kw-2">&amp;</span>NoirTraitImpl, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>noir_trait_impl.impl_generics {
+            generic.accept(<span class="self">self</span>);
+        }
+
         <span class="kw">let </span>UnresolvedTypeData::Named(trait_name, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>noir_trait_impl.r#trait.typ <span class="kw">else </span>{
             <span class="kw">return </span><span class="bool-val">false</span>;
         };
@@ -3337,6 +3357,10 @@
     </span>}
 
     <span class="kw">fn </span>visit_type_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_impl: <span class="kw-2">&amp;</span>TypeImpl, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>type_impl.generics {
+            generic.accept(<span class="self">self</span>);
+        }
+
         type_impl.object_type.accept(<span class="self">self</span>);
 
         <span class="self">self</span>.type_parameters.clear();

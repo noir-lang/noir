@@ -94,7 +94,22 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{GenericTypeArgKind, GenericTypeArgs, UnresolvedGeneric},
     token::{Keyword, Token},
 };
@@ -130,8 +145,23 @@
     <span class="kw">fn </span>format_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generic: UnresolvedGeneric) {
         <span class="self">self</span>.skip_comments_and_whitespace();
         <span class="kw">match </span>generic {
-            UnresolvedGeneric::Variable(ident) =&gt; {
+            UnresolvedGeneric::Variable(ident, trait_bounds) =&gt; {
                 <span class="self">self</span>.write_identifier(ident);
+                <span class="kw">if </span>!trait_bounds.is_empty() {
+                    <span class="self">self</span>.write_token(Token::Colon);
+                    <span class="self">self</span>.write_space();
+
+                    <span class="kw">let </span>len = trait_bounds.len();
+                    <span class="kw">for </span>(index, trait_bound) <span class="kw">in </span>trait_bounds.into_iter().enumerate() {
+                        <span class="self">self</span>.format_trait_bound(trait_bound);
+
+                        <span class="kw">if </span>index &lt; len - <span class="number">1 </span>{
+                            <span class="self">self</span>.write_space();
+                            <span class="self">self</span>.write_token(Token::Plus);
+                            <span class="self">self</span>.write_space();
+                        }
+                    }
+                }
             }
             UnresolvedGeneric::Numeric { ident, typ } =&gt; {
                 <span class="self">self</span>.write_keyword(Keyword::Let);

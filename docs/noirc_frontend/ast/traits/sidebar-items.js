@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["TraitImplItemKind","TraitItem"],"struct":["NoirTrait","NoirTraitImpl","TraitBound","TraitImplItem","TypeImpl","UnresolvedTraitConstraint"]};
+window.SIDEBAR_ITEMS = {"enum":["TraitImplItemKind","TraitItem"],"fn":["desugar_generic_trait_bounds"],"struct":["NoirTrait","NoirTraitImpl","TraitBound","TraitImplItem","TypeImpl","UnresolvedTraitConstraint"]};
