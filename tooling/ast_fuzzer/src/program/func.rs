@@ -684,14 +684,26 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         // Decrease the budget so we avoid a potential infinite nesting of ifs in the arms.
         self.decrease_budget(2);
+
         let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_if_then())?;
-        let consequence = self.gen_expr(u, typ, max_depth, flags)?;
+
+        let consequence = {
+            self.enter_scope();
+            let expr = self.gen_expr(u, typ, max_depth, flags)?;
+            self.exit_scope();
+            expr
+        };
+
         let alternative = if types::is_unit(typ) && bool::arbitrary(u)? {
             None
         } else {
             self.decrease_budget(1);
-            Some(self.gen_expr(u, typ, max_depth, flags)?)
+            self.enter_scope();
+            let expr = self.gen_expr(u, typ, max_depth, flags)?;
+            self.exit_scope();
+            Some(expr)
         };
+
         Ok(Expression::If(If {
             condition: Box::new(condition),
             consequence: Box::new(consequence),
