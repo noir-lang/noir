@@ -9,8 +9,8 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Binary, BinaryOp, Expression, FuncId, GlobalId, If, Index, InlineType, Let,
-        Literal, LocalId, Parameters, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Expression, FuncId, GlobalId, Ident, If, Index,
+        InlineType, LValue, Let, Literal, LocalId, Parameters, Type, Unary,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -182,7 +182,7 @@ impl<'a> FunctionContext<'a> {
     /// Generate the function body.
     pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let ret = self.decl().return_type.clone();
-        self.gen_expr(u, &ret, self.start_depth(), Flags::TOP)
+        self.gen_expr(u, &ret, self.max_depth(), Flags::TOP)
     }
 
     /// Get the function declaration.
@@ -192,7 +192,7 @@ impl<'a> FunctionContext<'a> {
 
     /// The default maximum depth to start from. We use `max_depth` to limit the
     /// complexity of expressions such as binary ones, array indexes, etc.
-    fn start_depth(&self) -> usize {
+    fn max_depth(&self) -> usize {
         self.ctx.config.max_depth
     }
 
@@ -342,8 +342,8 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
-            let (_, src_name, src_type) = self.get_variable(&id).clone();
-            let src_expr = expr::ident(id, src_name, src_type.clone());
+            let (mutable, src_name, src_type) = self.get_variable(&id).clone();
+            let src_expr = expr::ident(id, mutable, src_name, src_type.clone());
             if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
                 return Ok(Some(expr));
             }
@@ -416,7 +416,7 @@ impl<'a> FunctionContext<'a> {
             }
             (Type::Array(len, item_typ), _) if *len > 0 => {
                 // Choose a random index.
-                let idx_expr = self.gen_index(u, *len as usize, max_depth)?;
+                let idx_expr = self.gen_index(u, *len, max_depth)?;
                 // Access the item.
                 let item_expr = Expression::Index(Index {
                     collection: Box::new(src_expr),
@@ -468,7 +468,7 @@ impl<'a> FunctionContext<'a> {
     fn gen_index(
         &mut self,
         u: &mut Unstructured,
-        len: usize,
+        len: u32,
         max_depth: usize,
     ) -> arbitrary::Result<Expression> {
         assert!(len > 0, "cannot index empty array");
@@ -476,7 +476,7 @@ impl<'a> FunctionContext<'a> {
             let idx = self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
             Ok(expr::index_modulo(idx, len))
         } else {
-            let idx = u.choose_index(len)?;
+            let idx = u.choose_index(len as usize)?;
             Ok(expr::u32_literal(idx as u32))
         }
     }
@@ -553,7 +553,7 @@ impl<'a> FunctionContext<'a> {
     /// This should always succeed, as we can always create a literal in the end.
     fn gen_block(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
         /// The `max_depth` resets here, because that's only relevant in complex expressions.
-        let max_depth = self.start_depth();
+        let max_depth = self.max_depth();
         let size = self.choose_budget(u)?;
         if size == 0 {
             return self.gen_expr(u, typ, max_depth, Flags::TOP);
@@ -578,7 +578,7 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO: For, Loop, While, Match, Call, Assign
+        // TODO: For, Loop, While, Match, Call
 
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
@@ -586,8 +586,14 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
+        if freq.enabled("assign") {
+            if let Some(e) = self.gen_assign(u)? {
+                return Ok(e);
+            }
+        }
+
         if freq.enabled("if_then") {
-            return self.gen_if_then(u, &Type::Unit, self.start_depth(), Flags::TOP);
+            return self.gen_if_then(u, &Type::Unit, self.max_depth(), Flags::TOP);
         }
 
         self.gen_let(u)
@@ -596,7 +602,7 @@ impl<'a> FunctionContext<'a> {
     /// Generate a `Let` statement.
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
-        let max_depth = self.start_depth();
+        let max_depth = self.max_depth();
         let typ = self.ctx.gen_type(u, max_depth)?;
         let id = self.next_local_id();
         let mutable = bool::arbitrary(u)?;
@@ -615,12 +621,57 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
         let id = u.choose_iter(self.current_scope().variables.keys())?.clone();
-        let (_, name, typ) = self.current_scope().get_variable(&id).clone();
+        let (mutable, name, typ) = self.current_scope().get_variable(&id).clone();
 
         // Remove variable so we stop using it.
         self.remove_local(&id);
 
-        Ok(Some(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), name, typ)))))
+        Ok(Some(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), mutable, name, typ)))))
+    }
+
+    /// Assign to a mutable variable, if we have one in scope.
+    fn gen_assign(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
+        let opts = self
+            .current_scope()
+            .variables
+            .iter()
+            .filter_map(|(id, (mutable, _, _))| mutable.then_some(id))
+            .collect::<Vec<_>>();
+
+        if opts.is_empty() {
+            return Ok(None);
+        }
+
+        let id = u.choose_iter(opts)?.clone();
+        let (mutable, name, typ) = self.current_scope().get_variable(&id).clone();
+        let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
+        let ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
+        let ident = LValue::Ident(ident);
+
+        // For arrays and tuples we can consider assigning to their items.
+        let (lvalue, typ) = match typ {
+            Type::Array(len, typ) if len > 0 && bool::arbitrary(u)? => {
+                let idx = self.gen_index(u, len, self.max_depth())?;
+                let lvalue = LValue::Index {
+                    array: Box::new(ident),
+                    index: Box::new(idx),
+                    element_type: typ.as_ref().clone(),
+                    location: Location::dummy(),
+                };
+                (lvalue, *typ)
+            }
+            Type::Tuple(items) if bool::arbitrary(u)? => {
+                let idx = u.choose_index(items.len())?;
+                let typ = items[idx].clone();
+                let lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
+                (lvalue, typ)
+            }
+            _ => (ident, typ),
+        };
+
+        let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
+
+        Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
     }
 
     /// Generate an if-then-else statement or expression.

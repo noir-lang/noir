@@ -42,7 +42,7 @@ impl Default for Config {
             ("vars", 50),
             ("literal", 5),
         ]);
-        let stmt_freqs = Freqs::new(&[("drop", 5), ("if_then", 20), ("let", 30)]);
+        let stmt_freqs = Freqs::new(&[("drop", 5), ("assign", 20), ("if_then", 20), ("let", 30)]);
         Self {
             max_globals: 3,
             max_functions: 5,

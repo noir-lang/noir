@@ -93,17 +93,22 @@ pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result
 }
 
 /// Make an `Ident` expression out of a variable.
-pub(crate) fn ident(id: VariableId, name: Name, typ: Type) -> Expression {
-    Expression::Ident(Ident {
+pub(crate) fn ident(id: VariableId, mutable: bool, name: Name, typ: Type) -> Expression {
+    Expression::Ident(ident_inner(id, mutable, name, typ))
+}
+
+/// Make an `Ident` out of a variable.
+pub(crate) fn ident_inner(id: VariableId, mutable: bool, name: Name, typ: Type) -> Ident {
+    Ident {
         location: None,
         definition: match id {
             VariableId::Global(id) => Definition::Global(id),
             VariableId::Local(id) => Definition::Local(id),
         },
-        mutable: false,
+        mutable,
         name,
         typ,
-    })
+    }
 }
 
 /// 32-bit unsigned int literal, used in indexing arrays.
@@ -122,8 +127,8 @@ pub(crate) fn cast(lhs: Expression, tgt_type: Type) -> Expression {
 
 /// Take an integer expression and make sure it fits in an expected `len`
 /// by taking a modulo.
-pub(crate) fn index_modulo(idx: Expression, len: usize) -> Expression {
-    modulo(idx, u32_literal(len as u32))
+pub(crate) fn index_modulo(idx: Expression, len: u32) -> Expression {
+    modulo(idx, u32_literal(len))
 }
 
 /// Make a modulo expression.
