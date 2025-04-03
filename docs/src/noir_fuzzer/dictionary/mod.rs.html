@@ -136,7 +136,9 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines how to build a dictionary of values which are likely to be correspond
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines how to build a dictionary of values which are likely to be correspond
 //! to significant inputs during fuzzing by inspecting the [Program] being fuzzed.
 //!
 //! This dictionary can be fed into the fuzzer's [strategy][proptest::strategy::Strategy] in order to bias it towards
@@ -192,7 +194,9 @@
     <span class="kw">fn </span>insert_array_len&lt;F: AcirField, T&gt;(dictionary: <span class="kw-2">&amp;mut </span>HashSet&lt;F&gt;, array: <span class="kw-2">&amp;</span>[T]) {
         <span class="kw">let </span>array_length = array.len() <span class="kw">as </span>u128;
         dictionary.insert(F::from(array_length));
-        dictionary.insert(F::from(array_length - <span class="number">1</span>));
+        <span class="kw">if </span>array_length &gt; <span class="number">0 </span>{
+            dictionary.insert(F::from(array_length - <span class="number">1</span>));
+        }
     }
 
     <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {

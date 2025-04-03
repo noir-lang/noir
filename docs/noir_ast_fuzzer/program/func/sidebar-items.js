@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["to_hir_type"],"struct":["FunctionContext","FunctionDeclaration"]};

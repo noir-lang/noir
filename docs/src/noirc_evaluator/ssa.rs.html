@@ -565,7 +565,8 @@
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
 <a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -621,7 +622,8 @@
     Contains(String),
 }
 
-<span class="kw">pub struct </span>SsaEvaluatorOptions {
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>SsaEvaluatorOptions {
     <span class="doccomment">/// Emit debug information for the intermediate SSA IR
     </span><span class="kw">pub </span>ssa_logging: SsaLogging,
 

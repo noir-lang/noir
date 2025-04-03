@@ -134,7 +134,10 @@
         }
         AbiType::Integer { width, .. } =&gt; {
             <span class="kw">let </span>width = (<span class="kw-2">*</span>width).min(<span class="number">64</span>);
-            <span class="kw">let </span>shift = <span class="number">2i128</span>.pow(width);
+            <span class="comment">// Based on `FieldElement::to_i128`:
+            // * negative integers are represented by the range [p + i128::MIN, p)
+            // * positive integers are represented by the range [0, i128::MAX)
+            </span><span class="kw">let </span>shift = <span class="number">2i128</span>.pow(width);
             IntStrategy::new(width <span class="kw">as </span>usize)
                 .prop_map(<span class="kw">move </span>|<span class="kw-2">mut </span>int| {
                     <span class="kw">if </span>int &lt; <span class="number">0 </span>{
@@ -187,10 +190,7 @@
 <span class="doccomment">/// Given the [Abi] description of a [program artifact][noirc_artifacts::program::ProgramArtifact], generate random [InputValue]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>arb_input_map(
-    abi: <span class="kw-2">&amp;</span>Abi,
-    dictionary: <span class="kw-2">&amp;</span>HashSet&lt;FieldElement&gt;,
-) -&gt; BoxedStrategy&lt;InputMap&gt; {
+</span><span class="kw">pub fn </span>arb_input_map(abi: <span class="kw-2">&amp;</span>Abi, dictionary: <span class="kw-2">&amp;</span>HashSet&lt;FieldElement&gt;) -&gt; BoxedStrategy&lt;InputMap&gt; {
     <span class="kw">let </span>values: Vec&lt;<span class="kw">_</span>&gt; = abi
         .parameters
         .iter()

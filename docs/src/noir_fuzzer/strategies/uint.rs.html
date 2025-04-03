@@ -98,7 +98,11 @@
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>proptest::{
@@ -150,7 +154,11 @@
         <span class="comment">// Choose if we want values around 0 or max
         </span><span class="kw">let </span>is_min = rng.gen_bool(<span class="number">0.5</span>);
         <span class="kw">let </span>offset = rng.gen_range(<span class="number">0</span>..<span class="number">4</span>);
-        <span class="kw">let </span>start = <span class="kw">if </span>is_min { offset } <span class="kw">else </span>{ <span class="self">self</span>.type_max().saturating_sub(offset) };
+        <span class="kw">let </span>start = <span class="kw">if </span>is_min {
+            offset.min(<span class="self">self</span>.type_max())
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.type_max().saturating_sub(offset)
+        };
         <span class="prelude-val">Ok</span>(BinarySearch::new(start))
     }
 

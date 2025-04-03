@@ -375,11 +375,24 @@
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::UnaryOp;
 
-<span class="kw">use </span><span class="kw">super</span>::ast::{Definition, Expression, Function, LValue, While};
+<span class="kw">use </span><span class="kw">super</span>::ast::{Definition, Expression, Function, GlobalId, LValue, While};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>std::fmt::{Display, Formatter};
 
@@ -389,6 +402,19 @@
 }
 
 <span class="kw">impl </span>AstPrinter {
+    <span class="kw">pub fn </span>print_global(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        id: <span class="kw-2">&amp;</span>GlobalId,
+        expr: <span class="kw-2">&amp;</span>Expression,
+        f: <span class="kw-2">&amp;mut </span>Formatter,
+    ) -&gt; std::fmt::Result {
+        <span class="comment">// At the moment globals don't carry their name, nor a type.
+        </span><span class="macro">write!</span>(f, <span class="string">"global $g{} = "</span>, id.<span class="number">0</span>)<span class="question-mark">?</span>;
+        <span class="self">self</span>.print_expr(expr, f)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">";"</span>)<span class="question-mark">?</span>;
+        <span class="self">self</span>.next_line(f)
+    }
+
     <span class="kw">pub fn </span>print_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
         <span class="kw">let </span>params = vecmap(<span class="kw-2">&amp;</span>function.parameters, |(id, mutable, name, typ)| {
             <span class="macro">format!</span>(<span class="string">"{}{}$l{}: {}"</span>, <span class="kw">if </span><span class="kw-2">*</span>mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>}, name, id.<span class="number">0</span>, typ)

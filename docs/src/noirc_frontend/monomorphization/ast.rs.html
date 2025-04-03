@@ -503,9 +503,7 @@
 <a href="#502" id="502">502</a>
 <a href="#503" id="503">503</a>
 <a href="#504" id="504">504</a>
-<a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#505" id="505">505</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -584,7 +582,7 @@
 
 <span class="doccomment">/// ID of a local definition, e.g. from a let binding or
 /// function parameter that should be compiled before it is referenced.
-</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>LocalId(<span class="kw">pub </span>u32);
 
 <span class="doccomment">/// A function ID corresponds directly to an index of `Program::globals`
@@ -657,12 +655,6 @@
     <span class="kw">pub </span>operator: BinaryOp,
     <span class="kw">pub </span>rhs: Box&lt;Expression&gt;,
     <span class="kw">pub </span>location: Location,
-}
-
-<span class="attr">#[derive(Debug, Clone)]
-</span><span class="kw">pub struct </span>Lambda {
-    <span class="kw">pub </span>function: Ident,
-    <span class="kw">pub </span>env: Ident,
 }
 
 <span class="attr">#[derive(Debug, Clone, Hash)]
@@ -836,7 +828,7 @@
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
 /// - All structs replaced with tuples
-</span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub enum </span>Type {
     Field,
     Array(<span class="comment">/*len:*/ </span>u32, Box&lt;Type&gt;), <span class="comment">// Array(4, Field) = [Field; 4]
@@ -956,8 +948,12 @@
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Program {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>printer = <span class="kw">super</span>::printer::AstPrinter::default();
+        <span class="kw">for </span>(id, expr) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.globals {
+            printer.print_global(id, expr, f)<span class="question-mark">?</span>;
+        }
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.functions {
-            <span class="kw">super</span>::printer::AstPrinter::default().print_function(function, f)<span class="question-mark">?</span>;
+            printer.print_function(function, f)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }

@@ -314,7 +314,8 @@
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -387,6 +388,7 @@
 ///
 /// This is a helper function to build a foreign call executor for the fuzzing harness.
 ///
+</span><span class="attr">#[allow(unused)] </span><span class="comment">// Suppress warnings when the `rpc` feature is off.
 </span><span class="kw">fn </span>build_foreign_call_executor&lt;
     <span class="lifetime">'a</span>,
     F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; + <span class="lifetime">'a </span>+ <span class="lifetime">'static</span>,
