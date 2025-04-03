@@ -377,13 +377,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_register(read_pointer);
     }
 
-    /// Returns a variable holding the length of a given array
-    pub(crate) fn codegen_make_array_length(&mut self, array: BrilligArray) -> SingleAddrVariable {
-        let result = SingleAddrVariable::new_usize(self.allocate_register());
-        self.usize_const_instruction(result.address, array.size.into());
-        result
-    }
-
     /// Returns a pointer to the items of a given array
     pub(crate) fn codegen_make_array_items_pointer(
         &mut self,
@@ -392,17 +385,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let result = self.allocate_register();
         self.codegen_usize_op(array.pointer, result, BrilligBinaryOp::Add, 1);
         result
-    }
-
-    pub(crate) fn codegen_make_array_or_vector_length(
-        &mut self,
-        variable: BrilligVariable,
-    ) -> SingleAddrVariable {
-        match variable {
-            BrilligVariable::BrilligArray(array) => self.codegen_make_array_length(array),
-            BrilligVariable::BrilligVector(vector) => self.codegen_make_vector_length(vector),
-            _ => unreachable!("ICE: Expected array or vector, got {variable:?}"),
-        }
     }
 
     pub(crate) fn codegen_make_array_or_vector_items_pointer(

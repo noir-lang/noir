@@ -787,13 +787,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
-                // Slice access checks are generated separately against the slice's dynamic length field.
-                if matches!(dfg.type_of_value(*array), Type::Array(..))
-                    && !dfg.is_safe_brillig_index(*index, *array)
-                {
-                    self.validate_array_index(array_variable, index_variable);
-                }
-
                 if dfg.is_constant(*index) {
                     self.brillig_context.codegen_load_with_offset(
                         array_variable.extract_register(),
@@ -824,13 +817,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     result_ids[0],
                     dfg,
                 );
-
-                // Slice access checks are generated separately against the slice's dynamic length field.
-                if matches!(dfg.type_of_value(*array), Type::Array(..))
-                    && !dfg.is_safe_index(*index, *array)
-                {
-                    self.validate_array_index(source_variable, index_register);
-                }
 
                 self.convert_ssa_array_set(
                     source_variable,
@@ -1103,29 +1089,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         for (src, dst) in argument_variables.into_iter().zip(return_variables) {
             self.brillig_context.mov_instruction(dst.extract_register(), src.extract_register());
         }
-    }
-
-    fn validate_array_index(
-        &mut self,
-        array_variable: BrilligVariable,
-        index_register: SingleAddrVariable,
-    ) {
-        let size = self.brillig_context.codegen_make_array_or_vector_length(array_variable);
-
-        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-
-        self.brillig_context.memory_op_instruction(
-            index_register.address,
-            size.address,
-            condition.address,
-            BrilligBinaryOp::LessThan,
-        );
-
-        self.brillig_context
-            .codegen_constrain(condition, Some("Array index out of bounds".to_owned()));
-
-        self.brillig_context.deallocate_single_addr(size);
-        self.brillig_context.deallocate_single_addr(condition);
     }
 
     /// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice
