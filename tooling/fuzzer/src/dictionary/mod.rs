@@ -54,7 +54,9 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
     fn insert_array_len<F: AcirField, T>(dictionary: &mut HashSet<F>, array: &[T]) {
         let array_length = array.len() as u128;
         dictionary.insert(F::from(array_length));
-        dictionary.insert(F::from(array_length - 1));
+        if array_length > 0 {
+            dictionary.insert(F::from(array_length - 1));
+        }
     }
 
     for opcode in &circuit.opcodes {

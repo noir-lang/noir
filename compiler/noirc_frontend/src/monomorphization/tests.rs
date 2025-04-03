@@ -2,30 +2,10 @@
 use crate::{
     check_monomorphization_error_using_features,
     elaborator::UnstableFeature,
-    tests::{Expect, get_program},
+    test_utils::{Expect, get_monomorphized},
 };
 
-use super::{ast::Program, errors::MonomorphizationError, monomorphize};
-
-pub fn get_monomorphized(
-    src: &str,
-    test_path: &str,
-    expect: Expect,
-) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = get_program(src, test_path, expect);
-    assert!(
-        errors.iter().all(|err| !err.is_error()),
-        "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
-    );
-
-    let main = context
-        .get_main_function(context.root_crate_id())
-        .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
-
-    monomorphize(main, &mut context.def_interner, false)
-}
-
-fn check_rewrite(src: &str, expected: &str, test_path: &str) {
+pub(crate) fn check_rewrite(src: &str, expected: &str, test_path: &str) {
     let program = get_monomorphized(src, test_path, Expect::Success).unwrap();
     assert!(format!("{}", program) == expected);
 }
@@ -34,7 +14,7 @@ fn check_rewrite(src: &str, expected: &str, test_path: &str) {
 #[macro_export]
 macro_rules! get_monomorphized {
     ($src:expr, $expect:expr) => {
-        $crate::monomorphization::tests::get_monomorphized($src, $crate::function_path!(), $expect)
+        $crate::test_utils::get_monomorphized($src, $crate::function_path!(), $expect)
     };
 }
 

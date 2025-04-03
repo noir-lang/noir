@@ -1,0 +1,8 @@
+error: Type annotation needed
+   ┌─ src/main.nr:11:20
+   │
+11 │     let foo = Foo::new();
+   │                    --- Could not determine type of generic argument
+   │
+
+Aborting due to 1 previous error
