@@ -25,7 +25,7 @@ impl Parser<'_> {
             };
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
 
         if !self.eat_assign() {
             self.expected_token(Token::Assign);

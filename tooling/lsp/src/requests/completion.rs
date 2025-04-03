@@ -556,7 +556,7 @@ impl<'a> NodeFinder<'a> {
 
     fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
         match generic {
-            UnresolvedGeneric::Variable(ident) => {
+            UnresolvedGeneric::Variable(ident, _) => {
                 self.type_parameters.insert(ident.to_string());
             }
             UnresolvedGeneric::Numeric { ident, typ: _ } => {
@@ -1259,6 +1259,10 @@ impl Visitor for NodeFinder<'_> {
             attribute.accept(AttributeTarget::Function, self);
         }
 
+        for generic in &noir_function.def.generics {
+            generic.accept(self);
+        }
+
         let old_type_parameters = self.type_parameters.clone();
         self.collect_type_parameters_in_generics(&noir_function.def.generics);
 
@@ -1300,6 +1304,10 @@ impl Visitor for NodeFinder<'_> {
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, _: Span) -> bool {
+        for generic in &noir_trait_impl.impl_generics {
+            generic.accept(self);
+        }
+
         let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ else {
             return false;
         };
@@ -1338,6 +1346,10 @@ impl Visitor for NodeFinder<'_> {
     }
 
     fn visit_type_impl(&mut self, type_impl: &TypeImpl, _: Span) -> bool {
+        for generic in &type_impl.generics {
+            generic.accept(self);
+        }
+
         type_impl.object_type.accept(self);
 
         self.type_parameters.clear();
