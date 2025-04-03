@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743690118474,
+  "lastUpdate": 1743690126355,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14564,105 +14564,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "20a9084582dba63bb38dea08765f03e8c037df3d",
-          "message": "fix: mark array index as used in DIE pass when replacing read with explicit bounds check (#7786)",
-          "timestamp": "2025-03-25T12:58:03Z",
-          "tree_id": "868b9062ed32c4e971834a193fdd73a7ae398f0e",
-          "url": "https://github.com/noir-lang/noir/commit/20a9084582dba63bb38dea08765f03e8c037df3d"
-        },
-        "date": 1742908773123,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
-            "value": 36,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
-            "value": 77,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 44,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 169,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
-            "value": 10,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
-            "value": 166,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 53,
-            "unit": "s"
-          },
-          {
-            "name": "Mach-34_noir-zk-regex_packages_noir",
-            "value": 16,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-bignum_",
-            "value": 83,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_bigcurve_",
-            "value": 220,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_sha512_",
-            "value": 25,
-            "unit": "s"
-          },
-          {
-            "name": "olehmisar_noir_webauthn_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "zkemail_noir-jwt_",
-            "value": 3,
-            "unit": "s"
-          },
-          {
-            "name": "zkemail_zkemail.nr_lib",
-            "value": 1,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19482,6 +19383,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "zkemail_zkemail.nr_lib",
             "value": 1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52ef55327ed1cdf09997b80395934ca48228face",
+          "message": "feat(fuzz): AST fuzzer skeleton (#7865)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-04-03T13:58:19Z",
+          "tree_id": "ba482f33ccda78c83292acc17b19975d1ed12982",
+          "url": "https://github.com/noir-lang/noir/commit/52ef55327ed1cdf09997b80395934ca48228face"
+        },
+        "date": 1743690122089,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 38,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 76,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 51,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 176,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
+            "value": 9,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 159,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 53,
+            "unit": "s"
+          },
+          {
+            "name": "Mach-34_noir-zk-regex_packages_noir",
+            "value": 16,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir-bignum_",
+            "value": 90,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_bigcurve_",
+            "value": 214,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_json_parser_",
+            "value": 9,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_sha512_",
+            "value": 24,
+            "unit": "s"
+          },
+          {
+            "name": "olehmisar_noir_webauthn_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "zkemail_noir-jwt_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "zkemail_zkemail.nr_lib",
+            "value": 2,
             "unit": "s"
           }
         ]
