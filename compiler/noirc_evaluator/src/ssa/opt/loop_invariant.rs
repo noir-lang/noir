@@ -619,8 +619,7 @@ impl<'f> LoopInvariantContext<'f> {
     ) -> SimplifyResult {
         let header = loop_.header == *block;
 
-        let call_stack = self.inserter.function.dfg.get_instruction_call_stack_id(instruction_id);
-        let instruction = self.inserter.function.dfg[instruction_id].clone();
+        let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
         match &instruction {
             Instruction::Binary(binary) => {
                 self.simplify_induction_variable_in_binary(binary, header)
