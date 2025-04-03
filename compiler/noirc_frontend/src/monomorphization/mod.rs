@@ -856,7 +856,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
             HirPattern::Tuple(patterns, _) => {
                 let fields = unwrap_tuple_type(typ);
-                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields))
+                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields), typ)
             }
             HirPattern::Struct(_, patterns, location) => {
                 let fields = unwrap_struct_type(typ, location)?;
@@ -871,7 +871,7 @@ impl<'interner> Monomorphizer<'interner> {
                     (pattern, field_type)
                 });
 
-                self.unpack_tuple_pattern(value, patterns_iter)
+                self.unpack_tuple_pattern(value, patterns_iter, typ)
             }
         }
     }
@@ -880,6 +880,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         value: ast::Expression,
         fields: impl Iterator<Item = (HirPattern, HirType)>,
+        tuple_type: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let fresh_id = self.next_local_id();
 
@@ -895,8 +896,8 @@ impl<'interner> Monomorphizer<'interner> {
             let mutable = false;
             let definition = Definition::Local(fresh_id);
             let name = i.to_string();
-            let typ = Self::convert_type(&field_type, location)?;
 
+            let typ = Self::convert_type(tuple_type, location)?;
             let location = Some(location);
             let new_rhs =
                 ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
