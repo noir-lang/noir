@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743687703704,
+  "lastUpdate": 1743687707739,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c39f33d36d53a15c9cc4b5e68ee3e391166636da",
-          "message": "feat: use relative paths in \"Call stack\" and \"Witness saved to\" (#7708)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-03-25T14:13:02Z",
-          "tree_id": "88ca92f595598720516e956fbe6b280ae31cac85",
-          "url": "https://github.com/noir-lang/noir/commit/c39f33d36d53a15c9cc4b5e68ee3e391166636da"
-        },
-        "date": 1742913256214,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.7,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.492,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.396,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.712,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.48,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.953,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.967,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.49,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.45,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "47ba6138f81a662e4dabc28a4d758d85e383cd84",
+          "message": "fix: properly constrain quotient during field truncation (#7895)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-04-03T13:19:29Z",
+          "tree_id": "9cfed9567ca03342cc24c9c87204c6d73cdcd977",
+          "url": "https://github.com/noir-lang/noir/commit/47ba6138f81a662e4dabc28a4d758d85e383cd84"
+        },
+        "date": 1743687702224,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.717,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.9,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.508,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.326,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.694,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.154,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.52,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.927,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.458,
             "unit": "s"
           }
         ]
