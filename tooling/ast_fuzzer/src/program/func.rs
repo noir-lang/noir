@@ -251,8 +251,8 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        // TODO: Match
-        // TODO: Call
+        // TODO(#7926): Match
+        // TODO(#7925): Call
 
         // If nothing else worked out we can always produce a random literal.
         expr::gen_literal(u, typ)
@@ -365,7 +365,7 @@ impl<'a> FunctionContext<'a> {
                 if opts.is_empty() { Ok(None) } else { Ok(Some(u.choose_iter(opts)?)) }
             }
             (Type::Slice(_), _) => {
-                // TODO: We don't know the length of the slice at compile time,
+                // TODO(#7929): We don't know the length of the slice at compile time,
                 // so we need to call the builtin function to get its length,
                 // generate a random number here, and take its modulo:
                 //      let idx = u32::arbitrary(u)?;
@@ -510,9 +510,12 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO: Loop, While,
-        // TODO: Match
-        // TODO: Call
+        // TODO(#7927): Loop
+        // TODO(#7928): While
+        // TODO(#7926): Match
+        // TODO(#7925): Call
+        // TODO(#7931): print
+        // TODO(#7932): Constrain
 
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
