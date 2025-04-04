@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Type annotation needed
+   ┌─ compile_failure/type_annotation_needed_on_struct_new/src/main.nr:11:20
+   │
+11 │     let foo = Foo::new();
+   │                    --- Could not determine type of generic argument
+   │
+
+Aborting due to 1 previous error

@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: The type bool cannot be used in a for loop
+  ┌─ compile_failure/noirc_frontend_tests_wrong_type_in_for_range/src/main.nr:3:18
+  │
+3 │         for _ in true..false { 
+  │                  ----
+  │
+
+Aborting due to 1 previous error

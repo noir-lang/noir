@@ -1,0 +1,15 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Unsafe block must have a safety comment above it
+  ┌─ execution_success/brillig_calls/src/main.nr:5:5
+  │
+5 │     unsafe {
+  │     ------ The comment must start with the "Safety: " word
+  │

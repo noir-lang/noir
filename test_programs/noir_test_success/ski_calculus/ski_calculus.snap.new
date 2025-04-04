@@ -1,0 +1,42 @@
+---
+source: test_programs/src/lib.rs
+assertion_line: 64
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[ski_calculus] Running 10 test functions
+----- stderr -----
+warning: Unreachable match case
+   ┌─ noir_test_success/ski_calculus/src/main.nr:35:13
+   │
+35 │             (Node::Const(x), Node::Const(y)) => x == y,
+   │             -------------------------------- This pattern is redundant with one or more prior patterns
+   │
+
+warning: Unreachable match case
+   ┌─ noir_test_success/ski_calculus/src/main.nr:36:13
+   │
+36 │             (Node::App(f, x), Node::App(g, y)) => { (f == g) & (x == y) },
+   │             ---------------------------------- This pattern is redundant with one or more prior patterns
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ noir_test_success/ski_calculus/src/main.nr:93:58
+   │
+93 │                         output.output.push(BASE10_DIGITS[current_mod10]);
+   │                                                          -------------
+   │
+
+[ski_calculus] Testing test_identity_and_show ... [0m[32mok[0m
+[ski_calculus] Testing test_logic_and_show ... [0m[32mok[0m
+[ski_calculus] Testing test_numeric_and_show ... [0m[32mok[0m
+[ski_calculus] Testing test_pow_and_show ... [0m[32mok[0m
+[ski_calculus] Testing test_add_and_show ... [0m[32mok[0m
+[ski_calculus] Testing test_identity ... [0m[32mok[0m
+[ski_calculus] Testing test_logic ... [0m[32mok[0m
+[ski_calculus] Testing test_numeric ... [0m[32mok[0m
+[ski_calculus] Testing test_add ... [0m[32mok[0m <32.646s>
+[ski_calculus] Testing test_pow ... [0m[32mok[0m <32.818s>
+[ski_calculus] [0m[32m10 tests passed[0m

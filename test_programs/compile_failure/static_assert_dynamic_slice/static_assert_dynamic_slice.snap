@@ -1,0 +1,19 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Argument is dynamic
+   ┌─ compile_failure/static_assert_dynamic_slice/src/main.nr:14:5
+   │
+14 │     std::static_assert(dynamic_built_slice_pair.len() == 3, "");
+   │     -----------------------------------------------------------
+   │
+   = Call stack:
+     1. compile_failure/static_assert_dynamic_slice/src/main.nr:14:5
+
+Aborting due to 1 previous error

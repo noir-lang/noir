@@ -1,0 +1,19 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: duplicate definitions of foo found
+  ┌─ compile_failure/noirc_frontend_tests_check_impl_duplicate_method_without_self/src/main.nr:5:12
+  │
+5 │         fn foo() {}
+  │            --- first definition found here
+6 │         fn foo() {}
+  │            --- second definition found here
+  │
+
+Aborting due to 1 previous error

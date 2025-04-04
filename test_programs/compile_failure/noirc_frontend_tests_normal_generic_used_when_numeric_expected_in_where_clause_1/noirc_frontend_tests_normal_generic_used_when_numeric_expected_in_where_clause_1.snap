@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Type provided when a numeric generic was expected
+  ┌─ compile_failure/noirc_frontend_tests_normal_generic_used_when_numeric_expected_in_where_clause_1/src/main.nr:6:51
+  │
+6 │     pub fn read<T, N>() -> T where T: Deserialize<N> {
+  │                                                   - the numeric generic is not of type `u32`
+  │
+
+Aborting due to 1 previous error

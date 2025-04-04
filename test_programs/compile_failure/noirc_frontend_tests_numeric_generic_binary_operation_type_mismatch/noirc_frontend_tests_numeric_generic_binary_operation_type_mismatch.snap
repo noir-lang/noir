@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Cannot assign an expression of type Field to a value of type bool
+  ┌─ compile_failure/noirc_frontend_tests_numeric_generic_binary_operation_type_mismatch/src/main.nr:4:17
+  │
+4 │         check = N;
+  │                 -
+  │
+
+Aborting due to 1 previous error

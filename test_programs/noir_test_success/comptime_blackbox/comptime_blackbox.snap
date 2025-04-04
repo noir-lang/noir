@@ -1,0 +1,18 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[comptime_blackbox] Running 8 test functions
+----- stderr -----
+[comptime_blackbox] Testing test_ecdsa_secp256k1 ... [0m[32mok[0m
+[comptime_blackbox] Testing test_bitshift ... [0m[32mok[0m
+[comptime_blackbox] Testing test_sha256_compression ... [0m[32mok[0m
+[comptime_blackbox] Testing test_ecdsa_secp256r1 ... [0m[32mok[0m
+[comptime_blackbox] Testing test_aes128_encrypt ... [0m[32mok[0m
+[comptime_blackbox] Testing test_embedded_curve_ops ... [0m[32mok[0m
+[comptime_blackbox] Testing test_blake2s ... [0m[32mok[0m
+[comptime_blackbox] Testing test_blake3 ... [0m[32mok[0m
+[comptime_blackbox] [0m[32m8 tests passed[0m

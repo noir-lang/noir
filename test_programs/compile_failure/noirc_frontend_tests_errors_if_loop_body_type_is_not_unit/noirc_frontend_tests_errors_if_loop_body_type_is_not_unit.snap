@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected type (), found type Field
+  ┌─ compile_failure/noirc_frontend_tests_errors_if_loop_body_type_is_not_unit/src/main.nr:6:13
+  │
+6 │             1
+  │             -
+  │
+
+Aborting due to 1 previous error

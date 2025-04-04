@@ -1,1 +1,0 @@
-[main_return] Circuit output: Field(8)

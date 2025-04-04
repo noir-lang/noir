@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: struct Foo expects 1 generic but 2 were given
+  ┌─ compile_failure/noirc_frontend_tests_turbofish_turbofish_in_constructor_generics_mismatch/src/main.nr:7:20
+  │
+7 │         let _ = Foo::<i32, i64> { x: 1 };
+  │                    ------------
+  │
+
+Aborting due to 1 previous error

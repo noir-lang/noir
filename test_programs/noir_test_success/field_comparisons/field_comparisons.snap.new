@@ -1,0 +1,21 @@
+---
+source: test_programs/src/lib.rs
+assertion_line: 64
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[field_comparisons] Running 3 test functions
+----- stderr -----
+warning: TWO_POW_128 is private and not visible from the current module
+  ┌─ noir_test_success/field_comparisons/src/main.nr:1:36
+  │
+1 │ use std::field::bn254::{assert_gt, TWO_POW_128};
+  │                                    ----------- TWO_POW_128 is private
+  │
+
+[field_comparisons] Testing test_assert_gt_should_fail_low_lt ... [0m[32mok[0m
+[field_comparisons] Testing test_assert_gt_should_fail_high_lt ... [0m[32mok[0m
+[field_comparisons] Testing test_assert_gt_should_fail_eq ... [0m[32mok[0m
+[field_comparisons] [0m[32m3 tests passed[0m

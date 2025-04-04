@@ -1,0 +1,20 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: impl has stricter requirements than trait
+   ┌─ compile_failure/noirc_frontend_tests_impl_stricter_than_trait_different_trait/src/main.nr:11:12
+   │
+11 │         fn bar<U>() where Option2<T>: Default2;
+   │            --- definition of `bar` from trait
+   ·
+17 │         fn bar<B>() where Option2<A>: OtherDefault {}
+   │                                       ------------ impl has extra requirement `Option2<A>: OtherDefault`
+   │
+
+Aborting due to 1 previous error

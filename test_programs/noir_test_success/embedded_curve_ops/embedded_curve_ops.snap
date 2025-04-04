@@ -1,0 +1,11 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[embedded_curve_ops] Running 1 test function
+----- stderr -----
+[embedded_curve_ops] Testing test_infinite_point ... [0m[32mok[0m
+[embedded_curve_ops] [0m[32m1 test passed[0m

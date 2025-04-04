@@ -1,0 +1,17 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: u8 cannot be used in a unary operation
+  ┌─ compile_failure/negate_unsigned/src/main.nr:2:15
+  │
+2 │     let var = -1 as u8;
+  │               --------
+  │
+
+Aborting due to 1 previous error

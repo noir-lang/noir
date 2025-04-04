@@ -1,0 +1,66 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected a 'fn' but found 'foo'
+  ┌─ compile_failure/invalid_mod_mod_path/src/mod.nr:1:5
+  │
+1 │ pub foo() -> bool {
+  │     ---
+  │
+
+error: Module '' is already part of the crate
+  ┌─ compile_failure/invalid_mod_mod_path/src/main.nr:1:1
+  │
+1 │ mod crate::mod;
+  │ -
+  │
+
+error: Note:  was originally declared here
+  ┌─ compile_failure/invalid_mod_mod_path/src/main.nr:1:1
+  │
+1 │ mod crate::mod;
+  │ -
+  │
+
+error: Expected an identifier but found 'crate'
+  ┌─ compile_failure/invalid_mod_mod_path/src/main.nr:1:5
+  │
+1 │ mod crate::mod;
+  │     -----
+  │
+
+error: Expected an item but found 'crate'
+  ┌─ compile_failure/invalid_mod_mod_path/src/main.nr:1:5
+  │
+1 │ mod crate::mod;
+  │     -----
+  │
+
+error: Expected an item but found '::'
+  ┌─ compile_failure/invalid_mod_mod_path/src/main.nr:1:10
+  │
+1 │ mod crate::mod;
+  │          --
+  │
+
+error: Expected an identifier but found ';'
+  ┌─ compile_failure/invalid_mod_mod_path/src/main.nr:1:15
+  │
+1 │ mod crate::mod;
+  │               -
+  │
+
+error: Expected an item but found ';'
+  ┌─ compile_failure/invalid_mod_mod_path/src/main.nr:1:15
+  │
+1 │ mod crate::mod;
+  │               -
+  │
+
+Aborting due to 8 previous errors

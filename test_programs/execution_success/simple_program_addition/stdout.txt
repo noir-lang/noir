@@ -1,1 +1,0 @@
-[simple_program_addition] Circuit output: Field(4)

@@ -1,0 +1,17 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Cannot mutate immutable variable `foo`
+   ┌─ compile_failure/noirc_frontend_tests_deny_attaching_mut_ref_to_immutable_object/src/main.nr:14:20
+   │
+14 │         let f = || foo.mutate();
+   │                    ---
+   │
+
+Aborting due to 1 previous error

@@ -1,0 +1,17 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Type `Opt<()>` is recursive
+  ┌─ compile_failure/noirc_frontend_monomorphization_tests_recursive_type_with_alias_errors/src/main.nr:3:44
+  │
+3 │             let _tree: Opt<OptAlias<()>> = Opt::Some(OptAlias::None);
+  │                                            --------- All types in Noir must have a known size at compile-time
+  │
+
+Aborting due to 1 previous error

@@ -1,0 +1,20 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: impl has stricter requirements than trait
+   ┌─ compile_failure/noirc_frontend_tests_trait_impl_where_clause_stricter_pass/src/main.nr:5:12
+   │
+ 5 │         fn bad_foo<T, H>() where H: OtherTrait;
+   │            ------- definition of `bad_foo` from trait
+   ·
+17 │         fn bad_foo<A, B>() where A: OtherTrait { }
+   │                                     ---------- impl has extra requirement `A: OtherTrait`
+   │
+
+Aborting due to 1 previous error

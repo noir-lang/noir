@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Multiple applicable items in scope
+  ┌─ compile_failure/noirc_frontend_tests_traits_errors_if_multiple_trait_methods_are_in_scope_for_method_call/src/main.nr:7:17
+  │
+7 │         let _ = bar.foo();
+  │                 --------- All these trait which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+  │
+
+Aborting due to 1 previous error

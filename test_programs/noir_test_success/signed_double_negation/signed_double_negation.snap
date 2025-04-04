@@ -1,0 +1,14 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[signed_double_negation] Running 4 test functions
+----- stderr -----
+[signed_double_negation] Testing double_negate_i64 ... [0m[32mok[0m
+[signed_double_negation] Testing double_negate_i32 ... [0m[32mok[0m
+[signed_double_negation] Testing double_negate_i16 ... [0m[32mok[0m
+[signed_double_negation] Testing double_negate_i8 ... [0m[32mok[0m
+[signed_double_negation] [0m[32m4 tests passed[0m

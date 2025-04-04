@@ -1,0 +1,29 @@
+[package]
+name = "test_programs"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+build-data.workspace = true
+toml.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+assert_cmd = "2.0.8"
+assert_fs = "1.0.10"
+predicates = "2.1.5"
+test-case.workspace = true
+insta = "1.42.2"
+serde.workspace = true
+serde_json.workspace = true
+

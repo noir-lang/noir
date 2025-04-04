@@ -1,0 +1,20 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: expected type i32, found type bool
+  ┌─ compile_failure/noirc_frontend_tests_traits_type_checks_trait_default_method_and_errors/src/main.nr:3:29
+  │
+3 │             fn foo(self) -> i32 {
+  │                             --- expected i32 because of return type
+4 │                 let _ = self;
+5 │                 true
+  │                 ---- bool returned here
+  │
+
+Aborting due to 1 previous error

@@ -1,0 +1,31 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Type provided when a numeric generic was expected
+  ┌─ compile_failure/typevar_default/src/main.nr:6:41
+  │
+6 │ fn slice_to_array<N>(slice: [Field]) -> [Field; N] {
+  │                                         ---------- the numeric generic is not of type `u32`
+  │
+
+error: Type provided when a numeric generic was expected
+  ┌─ compile_failure/typevar_default/src/main.nr:7:25
+  │
+7 │     let mut array = [0; N];
+  │                         - the numeric generic is not of type `u32`
+  │
+
+error: cannot find `N` in this scope
+  ┌─ compile_failure/typevar_default/src/main.nr:8:19
+  │
+8 │     for i in 0 .. N {
+  │                   - not found in this scope
+  │
+
+Aborting due to 3 previous errors

@@ -1,0 +1,11 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[assert_message] Running 1 test function
+----- stderr -----
+[assert_message] Testing test_assert_message_preserved_during_optimization ... [0m[32mok[0m
+[assert_message] [0m[32m1 test passed[0m

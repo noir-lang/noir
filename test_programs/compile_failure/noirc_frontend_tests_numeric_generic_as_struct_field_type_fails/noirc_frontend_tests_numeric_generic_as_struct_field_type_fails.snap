@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected type, found numeric generic
+  ┌─ compile_failure/noirc_frontend_tests_numeric_generic_as_struct_field_type_fails/src/main.nr:4:12
+  │
+4 │         b: N,
+  │            - not a type
+  │
+
+Aborting due to 1 previous error

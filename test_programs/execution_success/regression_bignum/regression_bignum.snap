@@ -1,0 +1,29 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: unused variable accumulator_u60
+   ┌─ execution_success/regression_bignum/src/main.nr:14:9
+   │
+14 │     let accumulator_u60: [u64; 6] = shl(bit_difference);
+   │         --------------- unused variable
+   │
+
+warning: Unsafe block must have a safety comment above it
+  ┌─ execution_success/regression_bignum/src/main.nr:4:5
+  │
+4 │     unsafe { __udiv_mod(numerator) };
+  │     ------ The comment must start with the "Safety: " word
+  │
+
+warning: Unsafe block must have a safety comment above it
+  ┌─ execution_success/regression_bignum/src/main.nr:7:18
+  │
+7 │     let result = unsafe { __validate_gt_remainder(denominator) };
+  │                  ------ The comment must start with the "Safety: " word
+  │

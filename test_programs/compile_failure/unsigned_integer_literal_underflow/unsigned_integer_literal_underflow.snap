@@ -1,0 +1,19 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: The value `-1` cannot fit into `u8` which has range `0..=255`
+  ┌─ compile_failure/unsigned_integer_literal_underflow/src/main.nr:2:9
+  │
+2 │     foo(-1)
+  │         --
+  │
+  = Call stack:
+    1. compile_failure/unsigned_integer_literal_underflow/src/main.nr:2:9
+
+Aborting due to 1 previous error

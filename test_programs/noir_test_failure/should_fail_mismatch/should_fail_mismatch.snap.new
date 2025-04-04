@@ -1,0 +1,47 @@
+---
+source: test_programs/src/lib.rs
+assertion_line: 64
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+[should_fail_with_mismatch] Running 2 test functions
+----- stderr -----
+[should_fail_with_mismatch] Testing test_wrong_expectation ... [0m[31mFAIL
+
+error: Test failed with the wrong message. 
+Expected: Definitely Not equal! 
+Got: Not equal
+[0m
+error: Assertion failed: Not equal
+  ┌─ noir_test_failure/should_fail_mismatch/src/main.nr:9:15
+  │
+9 │     assert_eq(0, 1, "Not equal");
+  │               ----
+  │
+  = Call stack:
+    1. noir_test_failure/should_fail_mismatch/src/main.nr:9:15
+
+[should_fail_with_mismatch] Testing test_different_string ... [0m[31mFAIL
+
+error: Test failed with the wrong message. 
+Expected: Not equal 
+Got: Different string
+[0m
+error: Assertion failed: Different string
+  ┌─ noir_test_failure/should_fail_mismatch/src/main.nr:3:15
+  │
+3 │     assert_eq(0, 1, "Different string");
+  │               ----
+  │
+  = Call stack:
+    1. noir_test_failure/should_fail_mismatch/src/main.nr:3:15
+
+
+[should_fail_with_mismatch] Failures:
+     test_wrong_expectation
+     test_different_string
+
+[should_fail_with_mismatch] [0m[31m2 tests failed
+[0m

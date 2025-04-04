@@ -1,0 +1,18 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: misplaced #[no_predicates] attribute on unconstrained function foo. Only allowed on constrained functions
+  ┌─ compile_failure/noirc_frontend_tests_deny_inline_attribute_on_unconstrained/src/main.nr:3:30
+  │
+3 │         unconstrained pub fn foo(x: Field, y: Field) {
+  │                              --- misplaced #[no_predicates] attribute
+  │
+  = The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions
+
+Aborting due to 1 previous error

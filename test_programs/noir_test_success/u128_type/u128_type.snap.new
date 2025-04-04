@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+assertion_line: 64
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[u128_type] Running 6 test functions
+----- stderr -----
+[u128_type] Testing test_u128_sub ... [0m[32mok[0m
+[u128_type] Testing test_max_u128 ... [0m[32mok[0m
+[u128_type] Testing test_u128_div ... [0m[32mok[0m
+[u128_type] Testing test_u128_mul ... [0m[32mok[0m
+[u128_type] Testing test_u128_not ... [0m[32mok[0m
+[u128_type] Testing test_u128_add ... [0m[32mok[0m
+[u128_type] [0m[32m6 tests passed[0m

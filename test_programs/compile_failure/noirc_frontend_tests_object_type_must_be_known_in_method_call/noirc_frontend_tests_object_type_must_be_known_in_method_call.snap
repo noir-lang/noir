@@ -1,0 +1,18 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Object type is unknown in method call
+  ┌─ compile_failure/noirc_frontend_tests_object_type_must_be_known_in_method_call/src/main.nr:5:17
+  │
+5 │         let _ = bar.len();
+  │                 --- Type must be known by this point to know which method to call
+  │
+  = Try adding a type annotation for the object type before this method call
+
+Aborting due to 1 previous error

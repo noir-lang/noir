@@ -1,0 +1,27 @@
+---
+source: test_programs/src/lib.rs
+assertion_line: 64
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[should_fail_with_match] Running 16 test functions
+----- stderr -----
+[should_fail_with_match] Testing test_should_fail_with_match_partial_match ... [0m[32mok[0m
+[should_fail_with_match] Testing test_should_fail_with_basic_type_fmt_string ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_with_basic_type_fmt_string ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_with_match_partial_match ... [0m[32mok[0m
+[should_fail_with_match] Testing test_should_fail_without_runtime_match ... [0m[32mok[0m
+[should_fail_with_match] Testing test_should_fail_with_runtime_match ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_with_match ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_with_struct ... [0m[32mok[0m
+[should_fail_with_match] Testing test_should_fail_with_struct ... [0m[32mok[0m
+[should_fail_with_match] Testing test_should_fail_with_struct_fmt_string ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_with_runtime_match ... [0m[32mok[0m
+[should_fail_with_match] Testing test_should_fail_with_match ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_with_struct_fmt_string ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_without_match ... [0m[32mok[0m
+[should_fail_with_match] Testing unconstrained_test_should_fail_without_runtime_match ... [0m[32mok[0m
+[should_fail_with_match] Testing test_should_fail_without_match ... [0m[32mok[0m
+[should_fail_with_match] [0m[32m16 tests passed[0m

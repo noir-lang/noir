@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: turbofish (`::<_>`) not allowed on module `moo`
+  ┌─ compile_failure/noirc_frontend_tests_turbofish_errors_if_turbofish_after_module/src/main.nr:7:12
+  │
+7 │         moo::<i32>::foo();
+  │            -------
+  │
+
+Aborting due to 1 previous error

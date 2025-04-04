@@ -1,0 +1,17 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: failed to solve blackbox function: range, reason: value exceeds range check bounds
+   ┌─ std/field/mod.nr:17:9
+   │
+17 │         self.__assert_max_bit_size(BIT_SIZE);
+   │         ------------------------------------
+   │
+
+Aborting due to 1 previous error

@@ -1,1 +1,0 @@
-[simple_not] Circuit output: Field(1)

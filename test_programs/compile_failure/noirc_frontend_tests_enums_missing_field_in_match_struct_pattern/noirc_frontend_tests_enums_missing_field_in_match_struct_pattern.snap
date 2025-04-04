@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: missing field y in struct Foo
+  ┌─ compile_failure/noirc_frontend_tests_enums_missing_field_in_match_struct_pattern/src/main.nr:5:13
+  │
+5 │             Foo { x: _ } => {}
+  │             ---
+  │
+
+Aborting due to 1 previous error

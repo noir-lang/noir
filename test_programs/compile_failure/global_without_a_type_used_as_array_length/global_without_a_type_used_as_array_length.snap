@@ -1,0 +1,52 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+warning: unused global X
+  ┌─ compile_failure/global_without_a_type_used_as_array_length/src/main.nr:2:8
+  │
+2 │ global X: [Field; BAR] = [];
+  │        - unused global
+  │
+
+error: cannot find `OOPS` in this scope
+  ┌─ compile_failure/global_without_a_type_used_as_array_length/src/main.nr:1:14
+  │
+1 │ global BAR = OOPS;
+  │              ---- not found in this scope
+  │
+
+error: Globals must have a specified type
+  ┌─ compile_failure/global_without_a_type_used_as_array_length/src/main.nr:1:8
+  │
+1 │ global BAR = OOPS;
+  │        ---   ---- Inferred type is `_`
+  │
+
+error: Variable not in scope
+  ┌─ compile_failure/global_without_a_type_used_as_array_length/src/main.nr:1:14
+  │
+1 │ global BAR = OOPS;
+  │              ---- Could not find variable
+  │
+
+error: Global failed to evaluate
+  ┌─ compile_failure/global_without_a_type_used_as_array_length/src/main.nr:1:14
+  │
+1 │ global BAR = OOPS;
+  │              ----
+  │
+
+error: expected type got global
+  ┌─ compile_failure/global_without_a_type_used_as_array_length/src/main.nr:2:19
+  │
+2 │ global X: [Field; BAR] = [];
+  │                   ---
+  │
+
+Aborting due to 5 previous errors

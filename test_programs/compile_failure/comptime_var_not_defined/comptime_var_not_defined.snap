@@ -1,0 +1,24 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: cannot find `foo` in this scope
+  ┌─ compile_failure/comptime_var_not_defined/src/main.nr:3:9
+  │
+3 │         foo();
+  │         --- not found in this scope
+  │
+
+error: Variable not in scope
+  ┌─ compile_failure/comptime_var_not_defined/src/main.nr:3:9
+  │
+3 │         foo();
+  │         --- Could not find variable
+  │
+
+Aborting due to 2 previous errors

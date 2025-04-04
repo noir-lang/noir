@@ -1,0 +1,28 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+[should_fail_with_mismatch] Running 2 test functions
+----- stderr -----
+[should_fail_with_mismatch] Testing this_will_fail ... [0m[31mFAIL
+Failed to solve program: 'Cannot satisfy constraint'
+[0m
+error: Failed constraint
+   ┌─ noir_test_failure/should_fail_suite_with_one_failure/src/main.nr:10:12
+   │
+10 │     assert(false);
+   │            -----
+   │
+   = Call stack:
+     1. noir_test_failure/should_fail_suite_with_one_failure/src/main.nr:10:12
+
+[should_fail_with_mismatch] Testing this_will_pass ... [0m[32mok[0m
+
+[should_fail_with_mismatch] Failures:
+     this_will_fail
+
+[should_fail_with_mismatch] [0m[32m1 test passed, [0m[31m1 test failed
+[0m

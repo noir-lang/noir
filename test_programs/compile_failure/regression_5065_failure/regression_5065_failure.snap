@@ -1,0 +1,24 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+warning: struct `BadType` is never constructed
+   ┌─ compile_failure/regression_5065_failure/src/main.nr:31:8
+   │
+31 │ struct BadType {}
+   │        ------- struct is never constructed
+   │
+
+error: No matching impl found for `BadType: MyTrait`
+   ┌─ compile_failure/regression_5065_failure/src/main.nr:35:18
+   │
+35 │     Wrapper::new(foo()).unwrap()
+   │                  --- No impl for `BadType: MyTrait`
+   │
+
+Aborting due to 1 previous error

@@ -1,0 +1,36 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/brillig_cow/src/main.nr:21:14
+   │
+21 │     modified[index] = 27;
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/brillig_cow/src/main.nr:25:14
+   │
+25 │     modified[index + 1] = 27;
+   │              ---------
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/brillig_cow/src/main.nr:36:14
+   │
+36 │     modified[index] = 27;
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/brillig_cow/src/main.nr:40:14
+   │
+40 │     modified[index + 1] = 27;
+   │              ---------
+   │

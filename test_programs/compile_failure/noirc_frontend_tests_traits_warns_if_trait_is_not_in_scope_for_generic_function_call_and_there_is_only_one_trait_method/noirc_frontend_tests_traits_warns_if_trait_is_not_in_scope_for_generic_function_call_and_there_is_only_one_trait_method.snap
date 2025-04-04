@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: trait `private_mod::Foo` which provides `foo` is implemented but not in scope, please import it
+  ┌─ compile_failure/noirc_frontend_tests_traits_warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_one_trait_method/src/main.nr:4:17
+  │
+4 │         let _ = x.foo();
+  │                 -------
+  │
+
+Aborting due to 1 previous error

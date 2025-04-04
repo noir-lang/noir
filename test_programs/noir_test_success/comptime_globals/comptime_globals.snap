@@ -1,0 +1,12 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[comptime_globals] Running 2 test functions
+----- stderr -----
+[comptime_globals] Testing foo_function_not_constant ... [0m[32mok[0m
+[comptime_globals] Testing foo_global_constant ... [0m[32mok[0m
+[comptime_globals] [0m[32m2 tests passed[0m

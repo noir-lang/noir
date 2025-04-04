@@ -1,0 +1,24 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+warning: unused function foo
+   ┌─ compile_failure/turbofish_generic_count/src/main.nr:13:4
+   │
+13 │ fn foo<T>(bar: Bar<T>) {
+   │    --- unused function
+   │
+
+error: Expected 1 generic from this function, but 2 were provided
+   ┌─ compile_failure/turbofish_generic_count/src/main.nr:20:12
+   │
+20 │     assert(bar1.zeroed::<u32, Field>() == 0);
+   │            ---------------------------
+   │
+
+Aborting due to 1 previous error

@@ -1,0 +1,23 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Inserting Entry { key: 0x02, value: 0x11 }
+Inserting Entry { key: 0x03, value: 0x13 }
+Inserting Entry { key: 0x05, value: 0x17 }
+Inserting Entry { key: 0x07, value: 0x1d }
+Inserting Entry { key: 0x0b, value: 0x1f }
+Inserting Entry { key: 0x29, value: 0x2b }
+6
+1
+No value for key 7!
+----- stderr -----
+warning: unused type alias MyMap
+    ┌─ execution_success/uhashmap/src/main.nr:200:6
+    │
+200 │ type MyMap = UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>>;
+    │      ----- unused type alias
+    │

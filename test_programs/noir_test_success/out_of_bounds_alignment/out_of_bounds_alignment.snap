@@ -1,0 +1,19 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[out_of_bounds_alignment] Running 2 test functions
+----- stderr -----
+warning: unused variable arr_2
+  ┌─ noir_test_success/out_of_bounds_alignment/src/main.nr:7:5
+  │
+7 │     arr_2: [Field; 50],
+  │     ----- unused variable
+  │
+
+[out_of_bounds_alignment] Testing test_acir ... [0m[32mok[0m
+[out_of_bounds_alignment] Testing test_brillig ... [0m[32mok[0m
+[out_of_bounds_alignment] [0m[32m2 tests passed[0m
