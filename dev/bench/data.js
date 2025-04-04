@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743776178611,
+  "lastUpdate": 1743785365815,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fa28667e51e9891f34f7f67aa1ab814001845e3f",
-          "message": "chore: add various tests for signed type behaviour (#7805)",
-          "timestamp": "2025-03-26T14:31:14Z",
-          "tree_id": "fee51b1b9191edbca7ee6564db379fd78232b82d",
-          "url": "https://github.com/noir-lang/noir/commit/fa28667e51e9891f34f7f67aa1ab814001845e3f"
-        },
-        "date": 1743001268844,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.727,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 15.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.514,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.234,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.798,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.088,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.926,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 132,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.494,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.482,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "kashbrti@gmail.com",
+            "name": "Khashayar Barooti",
+            "username": "kashbrti"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f1b10dc497a32ce18ba0b1e95e68b314ba8503b3",
+          "message": "feat: add simplified OR when `rhs` or `lhs` is all 1s (#7880)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Khashayar Barooti <khashayar.baroot@epfl.ch>",
+          "timestamp": "2025-04-04T16:22:04Z",
+          "tree_id": "1d6bed3966b36f36052ddfcf7afb66a321a5995e",
+          "url": "https://github.com/noir-lang/noir/commit/f1b10dc497a32ce18ba0b1e95e68b314ba8503b3"
+        },
+        "date": 1743785361165,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.748,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.486,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.32,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.226,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.218,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.934,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.901,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.464,
             "unit": "s"
           }
         ]
