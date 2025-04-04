@@ -128,8 +128,10 @@ mod tests {
 
     fn noir_test_success(mut nargo: Command, test_program_dir: PathBuf) {
         nargo.assert().success();
-        let output = nargo.output().unwrap();
-        snapshot_output(output, &test_program_dir);
+
+        // Disabled due to non-deterministic output of test results
+        // let output = nargo.output().unwrap();
+        // snapshot_output(output, &test_program_dir);
     }
 
     fn noir_test_failure(mut nargo: Command, test_program_dir: PathBuf) {
@@ -137,8 +139,10 @@ mod tests {
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
-        let output = nargo.output().unwrap();
-        snapshot_output(output, &test_program_dir);
+
+        // Disabled due to non-deterministic output of test results
+        // let output = nargo.output().unwrap();
+        // snapshot_output(output, &test_program_dir);
     }
 
     fn compile_success_empty(mut nargo: Command, no_warnings: bool) {

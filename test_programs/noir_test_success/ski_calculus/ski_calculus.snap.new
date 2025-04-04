@@ -37,6 +37,6 @@ warning: Indexing an array or slice with a type other than `u32` is deprecated a
 [ski_calculus] Testing test_identity ... [0m[32mok[0m
 [ski_calculus] Testing test_logic ... [0m[32mok[0m
 [ski_calculus] Testing test_numeric ... [0m[32mok[0m
-[ski_calculus] Testing test_add ... [0m[32mok[0m <32.646s>
-[ski_calculus] Testing test_pow ... [0m[32mok[0m <32.818s>
+[ski_calculus] Testing test_add ... [0m[32mok[0m <31.627s>
+[ski_calculus] Testing test_pow ... [0m[32mok[0m <32.436s>
 [ski_calculus] [0m[32m10 tests passed[0m
