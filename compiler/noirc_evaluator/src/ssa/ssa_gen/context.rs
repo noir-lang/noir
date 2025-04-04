@@ -867,7 +867,11 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
-    fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+    pub(super) fn dereference_lvalue(
+        &mut self,
+        values: &Values,
+        element_type: &ast::Type,
+    ) -> Values {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
@@ -1082,10 +1086,17 @@ impl<'a> FunctionContext<'a> {
                 ))
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) =
+                indices.push(NestedArrayIndex::Dereference(element_type.clone()));
+
+                let (reference, deref_lvalue) =
                     self.extract_current_value_recursive_new(reference, indices, nested_indexing)?;
-                let dereferenced = self.dereference_lvalue(&reference, element_type);
-                Ok((dereferenced, LValue::Dereference { reference }))
+
+                if *nested_indexing == 0 {
+                    let dereferenced = self.dereference_lvalue(&reference, element_type);
+                    return Ok((dereferenced, LValue::Dereference { reference }));
+                }
+                let deref_lvalue = Box::new(deref_lvalue);
+                Ok((reference.clone(), LValue::DereferenceNested { deref_lvalue }))
             }
         }
     }
@@ -1112,6 +1123,44 @@ impl<'a> FunctionContext<'a> {
                     self.assign_new_value(*array_lvalue, new_value, original_value);
                     return;
                 }
+
+                let has_dereferences = indices
+                    .iter()
+                    .take_while(|idx| !matches!(idx, NestedArrayIndex::Dereference(_)))
+                    .all(|idx| matches!(idx, NestedArrayIndex::Constant(_)));
+
+                if has_dereferences {
+                    let dereference_types: Vec<ast::Type> = indices
+                        .iter()
+                        .filter_map(|index| {
+                            if let NestedArrayIndex::Dereference(typ) = index {
+                                Some(typ.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+
+                    // Skip extraction being true is needed for `struct_alias_in_array`
+                    let (flattened_index, new_array) =
+                        self.build_nested_lvalue_index(old_array.into(), false, &mut indices);
+                    let array = new_array.into_value_list(self);
+                    // We expect the slice array to already be extracted
+                    let array = array[0];
+                    let element_type = self.composite_array_types.get(&array).cloned().unwrap();
+                    let mut reference =
+                        self.codegen_array_index_acir(array, flattened_index, &element_type);
+
+                    let mut current_reference = Self::unit_value();
+                    for deref_typ in dereference_types {
+                        current_reference = reference.clone();
+                        let dereferenced = self.dereference_lvalue(&reference, &deref_typ);
+                        reference = dereferenced;
+                    }
+
+                    self.assign(current_reference, new_value);
+                    return;
+                };
 
                 // Should already have extracted the appropriate array value from any tuples
                 let (flattened_index, _) =
@@ -1177,6 +1226,9 @@ impl<'a> FunctionContext<'a> {
             }
             LValue::Dereference { reference } => {
                 self.assign(reference, new_value);
+            }
+            LValue::DereferenceNested { deref_lvalue } => {
+                self.assign_new_value(*deref_lvalue, new_value, original_value);
             }
         }
     }
@@ -1280,7 +1332,6 @@ impl<'a> FunctionContext<'a> {
                 self.builder.insert_store(lhs, rhs);
             }
             (lhs, rhs) => {
-                println!("{}", self.builder.current_function);
                 unreachable!(
                     "assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
                 )
@@ -1371,10 +1422,11 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) enum NestedArrayIndex {
     Value(ValueId),
     Constant(usize),
+    Dereference(ast::Type),
 }
 
 impl SharedContext {
@@ -1488,5 +1540,8 @@ pub(super) enum LValue {
     },
     Dereference {
         reference: Values,
+    },
+    DereferenceNested {
+        deref_lvalue: Box<LValue>,
     },
 }

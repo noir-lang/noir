@@ -505,10 +505,19 @@ impl FunctionContext<'_> {
         let array = new_array.into_value_list(self);
         let array = if array.len() == 1 { array[0] } else { array[1] };
 
+        Ok(self.codegen_array_index_acir(array, flattened_index, &index.element_type))
+    }
+
+    fn codegen_array_index_acir(
+        &mut self,
+        array: ValueId,
+        flattened_index: ValueId,
+        element_type: &ast::Type,
+    ) -> Values {
         let flattened_index = self.make_array_index(flattened_index);
 
         let mut field_index = 0u128;
-        Ok(Self::map_type_with_ast_type(&index.element_type, |ast_typ, typ| {
+        Self::map_type_with_ast_type(element_type, |ast_typ, typ| {
             let offset = self.make_offset(flattened_index, field_index);
             field_index += typ.flattened_size() as u128;
             let result = if typ.contains_an_array() {
@@ -527,7 +536,7 @@ impl FunctionContext<'_> {
             };
             self.insert_composite_array_typ(result, ast_typ);
             result.into()
-        }))
+        })
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
@@ -1251,6 +1260,7 @@ impl FunctionContext<'_> {
                     first_index = Some(index);
                     break;
                 }
+                NestedArrayIndex::Dereference(_) => {}
             }
         }
 
@@ -1278,6 +1288,9 @@ impl FunctionContext<'_> {
                     self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
 
                 (new_index, typ)
+            }
+            NestedArrayIndex::Dereference(_) => {
+                panic!("Dereference cannot be first index")
             }
         };
 
@@ -1318,6 +1331,9 @@ impl FunctionContext<'_> {
                         new_index,
                     );
                     result_index = new_index;
+                }
+                NestedArrayIndex::Dereference(_) => {
+                    // Do nothing, these dereferences should be handled by the caller
                 }
             }
         }
