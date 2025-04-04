@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743773209268,
+  "lastUpdate": 1743773212670,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2c63f8001b0eae417179838e002a171612119e15",
-          "message": "feat(debugging): Add `--count-array-copies` flag (#7789)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-03-25T20:03:08Z",
-          "tree_id": "9d991e17ba7877a8ad500706b6cc9a33136a1b3e",
-          "url": "https://github.com/noir-lang/noir/commit/2c63f8001b0eae417179838e002a171612119e15"
-        },
-        "date": 1742934698878,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.11,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.17,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.13,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -14540,6 +14476,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 413.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 287.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 293.53,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b12368414105f4e2f50d2f50f82d0e12b60d329",
+          "message": "fix: Fix type of internal variable created while destructuring tuples and structs during monomorphization (#7916)",
+          "timestamp": "2025-04-04T12:58:12Z",
+          "tree_id": "1b1ba78e4bf11cecce1a947d079858060109c58b",
+          "url": "https://github.com/noir-lang/noir/commit/8b12368414105f4e2f50d2f50f82d0e12b60d329"
+        },
+        "date": 1743773207490,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 237.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 271.34,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 504.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 413.55,
             "unit": "MB"
           },
           {
