@@ -4,7 +4,6 @@ use acvm::{FieldElement, acir::circuit::Program};
 use fm::FileId;
 
 use noirc_errors::debug_info::DebugInfo;
-use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 
 use super::debug::DebugFile;
@@ -26,7 +25,6 @@ pub struct CompiledProgram {
     pub abi: noirc_abi::Abi,
     pub debug: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,
-    pub warnings: Vec<SsaReport>,
     /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
     pub names: Vec<String>,
     /// Names of the unconstrained functions in the program.

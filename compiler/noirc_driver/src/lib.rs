@@ -407,11 +407,11 @@ pub fn compile_main(
         vec![err]
     })?;
 
-    let compiled_program =
+    let (compiled_program, extra_warnings) =
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
-    let compilation_warnings = vecmap(compiled_program.warnings.clone(), CustomDiagnostic::from);
+    let compilation_warnings = vecmap(extra_warnings, CustomDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
@@ -458,14 +458,16 @@ pub fn compile_contract(
 
     let mut errors = warnings;
 
-    let compiled_contract = match compile_contract_inner(context, contract, options) {
-        Ok(contract) => contract,
-        Err(mut more_errors) => {
-            errors.append(&mut more_errors);
-            return Err(errors);
-        }
-    };
+    let (compiled_contract, more_warnings) =
+        match compile_contract_inner(context, contract, options) {
+            Ok(contract_and_warnings) => contract_and_warnings,
+            Err(mut more_errors) => {
+                errors.append(&mut more_errors);
+                return Err(errors);
+            }
+        };
 
+    errors.extend(more_warnings);
     if has_errors(&errors, options.deny_warnings) {
         Err(errors)
     } else {
@@ -544,7 +546,7 @@ fn compile_contract_inner(
     context: &mut Context,
     contract: Contract,
     options: &CompileOptions,
-) -> Result<CompiledContract, ErrorsAndWarnings> {
+) -> Result<(CompiledContract, Warnings), ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -570,14 +572,15 @@ fn compile_contract_inner(
             options.show_ssa_pass = options.show_ssa_pass.filter(|_| show);
         };
 
-        let function = match compile_no_check(context, &options, function_id, None, true) {
-            Ok(function) => function,
-            Err(new_error) => {
-                errors.push(new_error.into());
-                continue;
-            }
-        };
-        warnings.extend(function.warnings);
+        let (function, func_warnings) =
+            match compile_no_check(context, &options, function_id, None, true) {
+                Ok(function) => function,
+                Err(new_error) => {
+                    errors.push(new_error.into());
+                    continue;
+                }
+            };
+        warnings.extend(func_warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
 
         let custom_attributes = modifiers
@@ -651,14 +654,16 @@ fn compile_contract_inner(
             })
             .collect();
 
-        Ok(CompiledContract {
-            name: contract.name,
-            functions,
-            outputs: CompiledContractOutputs { structs: out_structs, globals: out_globals },
-            file_map,
-            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+        Ok((
+            CompiledContract {
+                name: contract.name,
+                functions,
+                outputs: CompiledContractOutputs { structs: out_structs, globals: out_globals },
+                file_map,
+                noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+            },
             warnings,
-        })
+        ))
     } else {
         Err(errors)
     }
@@ -689,7 +694,7 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-) -> Result<CompiledProgram, CompileError> {
+) -> Result<(CompiledProgram, Warnings), CompileError> {
     let force_unconstrained = options.force_brillig;
 
     let program = if options.instrument_debug {
@@ -723,7 +728,7 @@ pub fn compile_no_check(
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {
             info!("Program matches existing artifact, returning early");
-            return Ok(cached_program);
+            return Ok((cached_program, Vec::new()));
         }
     }
 
@@ -765,17 +770,20 @@ pub fn compile_no_check(
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
-    Ok(CompiledProgram {
-        hash,
-        program,
-        debug,
-        abi,
-        file_map,
-        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-        warnings,
-        names,
-        brillig_names,
-    })
+    Ok((
+        CompiledProgram {
+            hash,
+            program,
+            debug,
+            abi,
+            file_map,
+            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+
+            names,
+            brillig_names,
+        },
+        vecmap(warnings, CustomDiagnostic::from),
+    ))
 }
 
 /// Specifies a contract function and extra metadata that

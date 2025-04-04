@@ -106,16 +106,16 @@ impl CompilerContext {
         };
 
         let root_crate_id = *self.context.root_crate_id();
-        let compiled_program =
-            compile_main(&mut self.context, root_crate_id, &compile_options, None)
-                .map_err(|errs| {
+        let (compiled_program, warnings) =
+            compile_main(&mut self.context, root_crate_id, &compile_options, None).map_err(
+                |errs| {
                     CompileError::with_custom_diagnostics(
                         "Failed to compile program",
                         errs,
                         &self.context.file_manager,
                     )
-                })?
-                .0;
+                },
+            )?;
 
         let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
         nargo::ops::check_program(&optimized_program).map_err(|errs| {
@@ -125,7 +125,6 @@ impl CompilerContext {
                 &self.context.file_manager,
             )
         })?;
-        let warnings = optimized_program.warnings.clone();
 
         Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
     }
@@ -145,20 +144,19 @@ impl CompilerContext {
         };
 
         let root_crate_id = *self.context.root_crate_id();
-        let compiled_contract =
-            compile_contract(&mut self.context, root_crate_id, &compile_options)
-                .map_err(|errs| {
+        let (compiled_contract, warnings) =
+            compile_contract(&mut self.context, root_crate_id, &compile_options).map_err(
+                |errs| {
                     CompileError::with_custom_diagnostics(
                         "Failed to compile contract",
                         errs,
                         &self.context.file_manager,
                     )
-                })?
-                .0;
+                },
+            )?;
 
         let optimized_contract =
             nargo::ops::transform_contract(compiled_contract, expression_width);
-        let warnings = optimized_contract.warnings.clone();
 
         Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
     }

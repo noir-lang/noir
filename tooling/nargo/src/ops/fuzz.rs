@@ -139,14 +139,16 @@ where
     let brillig_config = CompileOptions { force_brillig: true, ..compile_config.clone() };
 
     let acir_program =
-        compile_no_check(context, &acir_config, fuzzing_harness.get_id(), None, false);
+        compile_no_check(context, &acir_config, fuzzing_harness.get_id(), None, false)
+            .map(|(program, _)| program);
     let acir_program_copy = if let Ok(acir_program_internal) = &acir_program {
         Some(acir_program_internal.clone())
     } else {
         None
     };
     let brillig_program =
-        compile_no_check(context, &brillig_config, fuzzing_harness.get_id(), None, false);
+        compile_no_check(context, &brillig_config, fuzzing_harness.get_id(), None, false)
+            .map(|(program, _)| program);
     let brillig_program_copy = if let Ok(brillig_program_internal) = &brillig_program {
         Some(brillig_program_internal.clone())
     } else {

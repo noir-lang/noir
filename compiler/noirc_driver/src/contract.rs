@@ -5,7 +5,6 @@ use acvm::{FieldElement, acir::circuit::Program};
 use fm::FileId;
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_errors::debug_info::DebugInfo;
-use noirc_evaluator::errors::SsaReport;
 
 use super::debug::DebugFile;
 
@@ -28,7 +27,6 @@ pub struct CompiledContract {
     pub outputs: CompiledContractOutputs,
 
     pub file_map: BTreeMap<FileId, DebugFile>,
-    pub warnings: Vec<SsaReport>,
 }
 
 /// Each function in the contract will be compiled

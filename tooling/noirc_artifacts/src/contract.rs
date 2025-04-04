@@ -105,7 +105,6 @@ impl ContractFunctionArtifact {
             abi: self.abi,
             debug: self.debug_symbols.debug_infos,
             file_map,
-            warnings: Vec::new(),
             names: self.names,
             brillig_names: self.brillig_names,
         }

@@ -58,7 +58,7 @@ where
         .is_empty();
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
-        Ok(compiled_program) => {
+        Ok((compiled_program, _warnings)) => {
             // Do the same optimizations as `compile_cmd`.
             let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
             let compiled_program = crate::ops::transform_program(compiled_program, target_width);
