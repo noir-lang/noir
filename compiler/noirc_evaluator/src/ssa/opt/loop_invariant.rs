@@ -464,41 +464,34 @@ impl<'f> LoopInvariantContext<'f> {
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        let rhs_const = self.inserter.function.dfg.get_numeric_constant(rhs);
-        if let Some((is_left, min, max, binary)) = self.extract_induction_and_invariant(lhs) {
-            if binary.operator == BinaryOp::Lt && rhs_const == Some(FieldElement::one()) {
-                // Generates the comparison replacement
-                let new_binary = if is_left {
-                    Instruction::Binary(Binary {
-                        lhs: max,
-                        rhs: binary.rhs,
-                        operator: BinaryOp::Lt,
-                    })
-                } else {
-                    Instruction::Binary(Binary {
-                        lhs: binary.lhs,
-                        rhs: min,
-                        operator: BinaryOp::Lt,
-                    })
-                };
-
-                // The new comparison can be safely hoisted to the pre-header because it is loop invariant and control independent
-                let comparison_results = self
-                    .inserter
-                    .function
-                    .dfg
-                    .insert_instruction_and_results(new_binary, self.pre_header(), None, call_stack)
-                    .results();
-                assert!(comparison_results.len() == 1);
-                return SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-                    comparison_results[0],
-                    rhs,
-                    err.clone(),
-                ));
+        let mut extract_variables = |rhs, lhs| {
+            let rhs_true =
+                self.inserter.function.dfg.get_numeric_constant(rhs)? == FieldElement::one();
+            let (is_left, min, max, binary) = self.extract_induction_and_invariant(lhs)?;
+            match (is_left, rhs_true) {
+                (true, true) => Some((max, binary.rhs)),
+                (false, true) => Some((binary.lhs, min)),
+                _ => None,
             }
-        }
-
-        SimplifyResult::None
+        };
+        let Some((new_lhs, new_rhs)) = extract_variables(rhs, lhs) else {
+            return SimplifyResult::None;
+        };
+        let new_binary =
+            Instruction::Binary(Binary { lhs: new_lhs, rhs: new_rhs, operator: BinaryOp::Lt });
+        // The new comparison can be safely hoisted to the pre-header because it is loop invariant and control independent
+        let comparison_results = self
+            .inserter
+            .function
+            .dfg
+            .insert_instruction_and_results(new_binary, self.pre_header(), None, call_stack)
+            .results();
+        assert!(comparison_results.len() == 1);
+        SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
+            comparison_results[0],
+            rhs,
+            err.clone(),
+        ))
     }
 
     /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
@@ -512,58 +505,34 @@ impl<'f> LoopInvariantContext<'f> {
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        if let Some((is_left, upper, lower)) = self.match_induction_and_invariant(lhs, rhs) {
-            let invariant = if is_left { rhs } else { lhs };
-            let check_lower_bound =
-                Instruction::Binary(Binary { lhs: *invariant, rhs: lower, operator: BinaryOp::Lt });
-            let check_upper_bound =
-                Instruction::Binary(Binary { lhs: upper, rhs: *invariant, operator: BinaryOp::Lt });
-            // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-            let lower_bound_result = self
+        let (invariant, upper, lower) = match self.match_induction_and_invariant(lhs, rhs) {
+            Some((true, upper, lower)) => (rhs, upper, lower),
+            Some((false, upper, lower)) => (lhs, upper, lower),
+            _ => return SimplifyResult::None,
+        };
+
+        let mut insert_binary_to_preheader = |lhs, rhs, operator| {
+            let binary = Instruction::Binary(Binary { lhs, rhs, operator });
+            let results = self
                 .inserter
                 .function
                 .dfg
-                .insert_instruction_and_results(
-                    check_lower_bound,
-                    self.pre_header(),
-                    None,
-                    call_stack,
-                )
+                .insert_instruction_and_results(binary, self.pre_header(), None, call_stack)
                 .results();
-            assert!(lower_bound_result.len() == 1);
-            let lower_bound_result = lower_bound_result[0];
-            let upper_bound_result = self
-                .inserter
-                .function
-                .dfg
-                .insert_instruction_and_results(
-                    check_upper_bound,
-                    self.pre_header(),
-                    None,
-                    call_stack,
-                )
-                .results();
-            assert!(upper_bound_result.len() == 1);
-            let check_bounds = Instruction::Binary(Binary {
-                lhs: lower_bound_result,
-                rhs: upper_bound_result[0],
-                operator: BinaryOp::Or,
-            });
-            let check_bounds_result = self
-                .inserter
-                .function
-                .dfg
-                .insert_instruction_and_results(check_bounds, self.pre_header(), None, call_stack)
-                .results();
-            assert!(check_bounds_result.len() == 1);
-            SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-                check_bounds_result[0],
-                self.true_value,
-                err.clone(),
-            ))
-        } else {
-            SimplifyResult::None
-        }
+            assert!(results.len() == 1);
+            results[0]
+        };
+        // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
+        let check_lower_bound = insert_binary_to_preheader(*invariant, lower, BinaryOp::Lt);
+        let check_upper_bound = insert_binary_to_preheader(upper, *invariant, BinaryOp::Lt);
+        let check_bounds =
+            insert_binary_to_preheader(check_lower_bound, check_upper_bound, BinaryOp::Or);
+
+        SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
+            check_bounds,
+            self.true_value,
+            err.clone(),
+        ))
     }
 
     /// Returns the binary instruction only if the input value refers to a binary instruction with invariant and induction variables as operands
@@ -665,7 +634,7 @@ impl<'f> LoopInvariantContext<'f> {
         binary: &Binary,
         header: bool,
     ) -> SimplifyResult {
-        // We need the operands to be an induction variable and a constant
+        // Checks the operands are an induction variable and a constant
         // Note that here we allow outer_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
         let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
@@ -691,50 +660,41 @@ impl<'f> LoopInvariantContext<'f> {
             _ => return SimplifyResult::None,
         };
 
-        // Unchecked version of the binary operation
-        let unchecked = Instruction::Binary(Binary {
-            operator: binary.operator.into_unchecked(),
-            lhs: binary.lhs,
-            rhs: binary.rhs,
-        });
-
-        match binary.operator {
+        // Handle arithmetic operations
+        if let Some((lhs, rhs)) = match binary.operator {
             BinaryOp::Add { unchecked }
             | BinaryOp::Sub { unchecked }
             | BinaryOp::Mul { unchecked }
                 if unchecked =>
             {
-                SimplifyResult::None
+                return SimplifyResult::None;
             }
             BinaryOp::Sub { .. } => {
                 if is_induction_var_lhs {
-                    if eval_constant_binary_op(*lower_bound, value, binary.operator, operand_type)
-                        .is_some()
-                    {
-                        return SimplifyResult::SimplifiedToInstruction(unchecked);
-                    }
-                } else if eval_constant_binary_op(
-                    value,
-                    *upper_bound,
-                    binary.operator,
-                    operand_type,
-                )
-                .is_some()
-                {
-                    return SimplifyResult::SimplifiedToInstruction(unchecked);
-                }
-                SimplifyResult::None
-            }
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
-                if eval_constant_binary_op(value, *upper_bound, binary.operator, operand_type)
-                    .is_some()
-                {
-                    SimplifyResult::SimplifiedToInstruction(unchecked)
+                    Some((*lower_bound, value))
                 } else {
-                    SimplifyResult::None
+                    Some((value, *upper_bound))
                 }
             }
-            BinaryOp::Div | BinaryOp::Mod => SimplifyResult::None,
+            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => Some((value, *upper_bound)),
+            BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
+            _ => None,
+        } {
+            if eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
+                // Unchecked version of the binary operation
+                let unchecked = Instruction::Binary(Binary {
+                    operator: binary.operator.into_unchecked(),
+                    lhs: binary.lhs,
+                    rhs: binary.rhs,
+                });
+                return SimplifyResult::SimplifiedToInstruction(unchecked);
+            } else {
+                return SimplifyResult::None;
+            }
+        }
+
+        // Handle comparisons
+        match binary.operator {
             BinaryOp::Eq => {
                 if value >= *upper_bound || value < *lower_bound {
                     SimplifyResult::SimplifiedTo(self.false_value)
