@@ -2525,7 +2525,8 @@
 <a href="#2524" id="2524">2524</a>
 <a href="#2525" id="2525">2525</a>
 <a href="#2526" id="2526">2526</a>
-<a href="#2527" id="2527">2527</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2527" id="2527">2527</a>
+<a href="#2528" id="2528">2528</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3383,7 +3384,7 @@
             HirPattern::Mutable(pattern, <span class="kw">_</span>) =&gt; <span class="self">self</span>.unpack_pattern(<span class="kw-2">*</span>pattern, value, typ),
             HirPattern::Tuple(patterns, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>fields = unwrap_tuple_type(typ);
-                <span class="self">self</span>.unpack_tuple_pattern(value, patterns.into_iter().zip(fields))
+                <span class="self">self</span>.unpack_tuple_pattern(value, patterns.into_iter().zip(fields), typ)
             }
             HirPattern::Struct(<span class="kw">_</span>, patterns, location) =&gt; {
                 <span class="kw">let </span>fields = unwrap_struct_type(typ, location)<span class="question-mark">?</span>;
@@ -3398,7 +3399,7 @@
                     (pattern, field_type)
                 });
 
-                <span class="self">self</span>.unpack_tuple_pattern(value, patterns_iter)
+                <span class="self">self</span>.unpack_tuple_pattern(value, patterns_iter, typ)
             }
         }
     }
@@ -3407,6 +3408,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value: ast::Expression,
         fields: <span class="kw">impl </span>Iterator&lt;Item = (HirPattern, HirType)&gt;,
+        tuple_type: <span class="kw-2">&amp;</span>Type,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>fresh_id = <span class="self">self</span>.next_local_id();
 
@@ -3422,8 +3424,8 @@
             <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
             <span class="kw">let </span>definition = Definition::Local(fresh_id);
             <span class="kw">let </span>name = i.to_string();
-            <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>field_type, location)<span class="question-mark">?</span>;
 
+            <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(tuple_type, location)<span class="question-mark">?</span>;
             <span class="kw">let </span>location = <span class="prelude-val">Some</span>(location);
             <span class="kw">let </span>new_rhs =
                 ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
