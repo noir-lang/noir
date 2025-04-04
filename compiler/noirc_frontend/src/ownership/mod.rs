@@ -400,11 +400,16 @@ impl Context {
     /// Traverse an expression comprised of only identifiers and tuple field extractions
     /// returning whether we should clone the result and the type of that result.
     /// Returns None if a different expression variant was found.
-    fn handle_extract_expression_rec(&self, expr: &Expression) -> Option<(bool, Type)> {
+    fn handle_extract_expression_rec(&mut self, expr: &mut Expression) -> Option<(bool, Type)> {
         match expr {
             Expression::Ident(ident) => {
                 let should_clone = self.should_clone_ident(ident);
                 Some((should_clone, ident.typ.clone()))
+            }
+            // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
+            Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, result_type, .. }) => {
+                self.handle_reference_expression(rhs);
+                Some((true, result_type.clone()))
             }
             Expression::ExtractTupleField(tuple, index) => {
                 let (should_clone, typ) = self.handle_extract_expression_rec(tuple)?;
