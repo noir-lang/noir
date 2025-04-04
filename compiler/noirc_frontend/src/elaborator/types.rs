@@ -1311,8 +1311,12 @@ impl Elaborator<'_> {
                 }
             }
             crate::ast::UnaryOp::Reference { mutable } => {
-                let typ = Type::Reference(Box::new(rhs_type.follow_bindings()), *mutable);
-                Ok((typ, false))
+                if *mutable {
+                    let typ = Type::Reference(Box::new(rhs_type.follow_bindings()), *mutable);
+                    Ok((typ, false))
+                } else {
+                    Ok((rhs_type.follow_bindings(), false))
+                }
             }
             crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();

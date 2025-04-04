@@ -4,7 +4,6 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -12,30 +11,24 @@ use crate::{
         MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
-    },
-    hir::{
+    }, hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{TypeCheckError, generics::TraitGenerics},
-    },
-    hir_def::{
+        type_check::{generics::TraitGenerics, TypeCheckError},
+    }, hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
             TraitMethod,
-        },
-        stmt::{HirLetStatement, HirPattern, HirStatement},
-        traits::{ResolvedTraitBound, TraitConstraint},
-    },
-    node_interner::{
+        }, function::Parameters, stmt::{HirLetStatement, HirPattern, HirStatement}, traits::{ResolvedTraitBound, TraitConstraint}
+    }, node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
-    },
-    token::{FmtStrFragment, Tokens},
+    }, shared::Visibility, token::{FmtStrFragment, Tokens}, DataType, Kind, QuotedType, Shared, Type
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
@@ -1182,7 +1175,9 @@ impl Elaborator<'_> {
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
         let parameters =
             vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
+                let (typ, pass_by_ref) = Self::unwrap_reference_type(typ);
                 let parameter = DefinitionKind::Local(None);
+
                 let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
                     if let Some(parameter_type_hint) =
                         parameters_type_hints.and_then(|hints| hints.get(index))
@@ -1196,8 +1191,11 @@ impl Elaborator<'_> {
                 };
 
                 arg_types.push(typ.clone());
-                (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
+                let pattern = self.elaborate_pattern(pattern, typ.clone(), parameter, true);
+                (pattern, typ, pass_by_ref, Visibility::Private)
             });
+
+        let parameters = Parameters(parameters);
 
         let return_type = self.resolve_inferred_type(lambda.return_type);
         let body_location = lambda.body.location;

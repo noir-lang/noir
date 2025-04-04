@@ -154,7 +154,7 @@ impl Elaborator<'_> {
 
                     let func_meta = this.interner.function_meta(&func_id);
 
-                    let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
+                    let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _, _)| typ.clone());
                     let return_type = func_meta.return_type().clone();
 
                     let generics =

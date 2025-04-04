@@ -140,7 +140,7 @@ impl<'a> SignatureFinder<'a> {
 
         label.push_str(name);
         label.push('(');
-        for (index, (pattern, typ, _)) in func_meta.parameters.0.iter().enumerate() {
+        for (index, (pattern, typ, _, _)) in func_meta.parameters.0.iter().enumerate() {
             if index > 0 {
                 label.push_str(", ");
             }

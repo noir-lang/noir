@@ -253,7 +253,7 @@ pub enum LValue {
     Dereference { reference: Box<LValue>, element_type: Type },
 }
 
-pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
+pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, /*pass by ref:*/bool, Type)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions

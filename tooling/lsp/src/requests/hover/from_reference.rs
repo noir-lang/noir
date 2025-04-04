@@ -440,7 +440,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     format_generics(&func_meta.direct_generics, &mut string);
     string.push('(');
     let parameters = &func_meta.parameters;
-    for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
+    for (index, (pattern, typ, _, visibility)) in parameters.iter().enumerate() {
         let is_self = pattern_is_self(pattern, args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern

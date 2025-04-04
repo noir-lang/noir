@@ -47,7 +47,7 @@ impl DataBusBuilder {
         let mut params_is_databus = Vec::new();
 
         for param in &main_signature.0 {
-            let is_databus = match param.2 {
+            let is_databus = match param.3 {
                 Visibility::Public | Visibility::Private => DatabusVisibility::None,
                 Visibility::CallData(id) => DatabusVisibility::CallData(id),
                 Visibility::ReturnData => DatabusVisibility::ReturnData,

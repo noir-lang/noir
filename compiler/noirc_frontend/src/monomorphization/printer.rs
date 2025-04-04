@@ -26,8 +26,9 @@ impl AstPrinter {
     }
 
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
-        let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
+        let params = vecmap(&function.parameters, |(id, mutable, name, pass_by_ref, typ)| {
+            let reference = if *pass_by_ref { "&" } else { "" };
+            format!("{}{}$l{}: {}{}", if *mutable { "mut " } else { "" }, name, id.0, reference, typ)
         })
         .join(", ");
 

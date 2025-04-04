@@ -12,7 +12,7 @@ use crate::ast::{FunctionKind, IntegerBitSize, UnaryOp};
 use crate::hir::comptime::{InterpreterError, Value};
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
-use crate::shared::{Signedness, Visibility};
+use crate::shared::Signedness;
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
 use crate::{DataType, Shared, TypeVariableId};
@@ -437,10 +437,10 @@ impl<'interner> Monomorphizer<'interner> {
     fn parameters(
         &mut self,
         params: &Parameters,
-    ) -> Result<Vec<(ast::LocalId, bool, String, ast::Type)>, MonomorphizationError> {
+    ) -> Result<ast::Parameters, MonomorphizationError> {
         let mut new_params = Vec::with_capacity(params.len());
-        for (parameter, typ, _) in &params.0 {
-            self.parameter(parameter, typ, &mut new_params)?;
+        for (parameter, typ, pass_by_ref, _) in &params.0 {
+            self.parameter(parameter, typ, *pass_by_ref, &mut new_params)?;
         }
         Ok(new_params)
     }
@@ -449,7 +449,8 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         param: &HirPattern,
         typ: &HirType,
-        new_params: &mut Vec<(ast::LocalId, bool, String, ast::Type)>,
+        pass_by_ref: bool,
+        new_params: &mut ast::Parameters,
     ) -> Result<(), MonomorphizationError> {
         match param {
             HirPattern::Identifier(ident) => {
@@ -457,15 +458,15 @@ impl<'interner> Monomorphizer<'interner> {
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
                 let typ = Self::convert_type(typ, ident.location)?;
-                new_params.push((new_id, definition.mutable, name, typ));
+                new_params.push((new_id, definition.mutable, name, pass_by_ref, typ));
                 self.define_local(ident.id, new_id);
             }
-            HirPattern::Mutable(pattern, _) => self.parameter(pattern, typ, new_params)?,
+            HirPattern::Mutable(pattern, _) => self.parameter(pattern, typ, pass_by_ref, new_params)?,
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
 
                 for (field, typ) in fields.iter().zip(tuple_field_types) {
-                    self.parameter(field, &typ, new_params)?;
+                    self.parameter(field, &typ, pass_by_ref, new_params)?;
                 }
             }
             HirPattern::Struct(_, fields, location) => {
@@ -481,7 +482,7 @@ impl<'interner> Monomorphizer<'interner> {
                         unreachable!("Expected a field named '{field_name}' in the struct pattern")
                     });
 
-                    self.parameter(field, &field_type, new_params)?;
+                    self.parameter(field, &field_type, pass_by_ref, new_params)?;
                 }
             }
         }
@@ -1966,13 +1967,9 @@ impl<'interner> Monomorphizer<'interner> {
         let ret_type = Self::convert_type(&lambda.return_type, location)?;
         let lambda_name = "lambda";
         let parameter_types =
-            try_vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ, location))?;
+            try_vecmap(&lambda.parameters.0, |(_, typ, _, _)| Self::convert_type(typ, location))?;
 
-        // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters =
-            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
-
-        let parameters = self.parameters(&parameters)?;
+        let parameters = self.parameters(&lambda.parameters)?;
         let body = self.expr(lambda.body)?;
         let id = self.next_function_id();
 
@@ -2029,13 +2026,9 @@ impl<'interner> Monomorphizer<'interner> {
         let ret_type = Self::convert_type(&lambda.return_type, location)?;
         let lambda_name = "lambda";
         let parameter_types =
-            try_vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ, location))?;
+            try_vecmap(&lambda.parameters.0, |(_, typ, _, _)| Self::convert_type(typ, location))?;
 
-        // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters =
-            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
-
-        let mut converted_parameters = self.parameters(&parameters)?;
+        let mut converted_parameters = self.parameters(&lambda.parameters)?;
 
         let id = self.next_function_id();
         let name = lambda_name.to_owned();
@@ -2109,7 +2102,7 @@ impl<'interner> Monomorphizer<'interner> {
             id: self.next_ident_id(),
         });
 
-        let mut parameters = vec![(env_local_id, true, env_name.to_string(), env_typ.clone())];
+        let mut parameters = vec![(env_local_id, true, env_name.to_string(), false, env_typ.clone())];
         parameters.append(&mut converted_parameters);
 
         let function = ast::Function {
@@ -2293,7 +2286,7 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone())
+            (self.next_local_id(), false, "_".into(), false, parameter_type.clone())
         });
 
         let body = self.zeroed_value_of_type(ret_type, location);

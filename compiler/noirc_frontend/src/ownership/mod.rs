@@ -208,7 +208,7 @@ impl Context {
         let mut seen_array_types = HashSet::default();
         let mut new_bindings = Vec::new();
 
-        for (parameter_id, mutable, name, parameter_type) in parameters {
+        for (parameter_id, mutable, name, _pass_by_ref, parameter_type) in parameters {
             let parameter = Expression::Ident(Ident {
                 location: None,
                 definition: Definition::Local(*parameter_id),

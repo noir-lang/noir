@@ -2568,12 +2568,15 @@ fn function_def_parameters(
     let parameters = func_meta
         .parameters
         .iter()
-        .map(|(hir_pattern, typ, _visibility)| {
+        .map(|(hir_pattern, typ, pass_by_ref, _visibility)| {
             let tokens = hir_pattern_to_tokens(interner, hir_pattern);
             let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
             let name = Value::Quoted(Rc::new(tokens));
-            let typ = Value::Type(typ.clone());
-            Value::Tuple(vec![name, typ])
+            let mut typ = typ.clone();
+            if *pass_by_ref {
+                typ = Type::Reference(Box::new(typ), false);
+            }
+            Value::Tuple(vec![name, Value::Type(typ)])
         })
         .collect();
 
@@ -2685,7 +2688,8 @@ fn function_def_set_parameters(
             )
         });
 
-        parameters.push((hir_pattern, parameter_type.clone(), Visibility::Private));
+        let pass_by_ref = false;
+        parameters.push((hir_pattern, parameter_type.clone(), pass_by_ref, Visibility::Private));
         parameter_types.push(parameter_type);
     }
 

@@ -72,7 +72,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         self.string.push_str(self.name);
         self.append_resolved_generics(&self.func_meta.direct_generics);
         self.string.push('(');
-        for (index, (pattern, typ, _visibility)) in self.func_meta.parameters.iter().enumerate() {
+        for (index, (pattern, typ, _, _visibility)) in self.func_meta.parameters.iter().enumerate() {
             if index > 0 {
                 self.string.push_str(", ");
             }

@@ -181,14 +181,14 @@ impl<'a> InlayHintCollector<'a> {
             let mut parameters_count = func_meta.parameters.len();
 
             // Skip `self` parameter
-            if let Some((pattern, _, _)) = parameters.peek() {
+            if let Some((pattern, _, _, _)) = parameters.peek() {
                 if self.is_self_parameter(pattern) {
                     parameters.next();
                     parameters_count -= 1;
                 }
             }
 
-            for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
+            for (call_argument, (pattern, _, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
                     to_lsp_location(self.files, self.file_id, call_argument.location.span)
                 else {

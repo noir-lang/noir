@@ -172,7 +172,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
-        for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
+        for ((parameter, typ, _, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
@@ -298,7 +298,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         let parameters = closure.parameters.iter().zip(arguments);
-        for ((parameter, typ), (argument, arg_location)) in parameters {
+        for ((parameter, typ, _, _), (argument, arg_location)) in parameters {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 

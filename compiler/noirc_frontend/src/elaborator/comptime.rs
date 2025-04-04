@@ -268,7 +268,7 @@ impl<'context> Elaborator<'context> {
     ) -> Result<Vec<(Value, Location)>, InterpreterError> {
         let meta = interpreter.elaborator.interner.function_meta(&function);
 
-        let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
+        let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _, _)| typ.clone());
 
         if parameters.is_empty() {
             return Err(InterpreterError::ArgumentCountMismatch {

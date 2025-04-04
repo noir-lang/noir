@@ -499,7 +499,7 @@ impl<'context> Elaborator<'context> {
                 self.interner.definition_name(func_meta.name.id).to_string(),
                 func_meta.name.location,
             );
-            for (_, typ, _) in func_meta.parameters.iter() {
+            for (_, typ, _, _) in func_meta.parameters.iter() {
                 self.check_type_is_not_more_private_then_item(
                     &name,
                     modifiers.visibility,
@@ -989,6 +989,8 @@ impl<'context> Elaborator<'context> {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
 
+            let (typ, pass_by_ref) = Self::unwrap_reference_type(typ);
+
             let type_location = typ.location;
             let typ = match typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) => {
@@ -1017,7 +1019,7 @@ impl<'context> Elaborator<'context> {
                 true, // warn_if_unused
             );
 
-            parameters.push((pattern, typ.clone(), visibility));
+            parameters.push((pattern, typ.clone(), pass_by_ref, visibility));
             parameter_types.push(typ);
         }
 
@@ -1082,6 +1084,13 @@ impl<'context> Elaborator<'context> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+    }
+
+    fn unwrap_reference_type(parameter: UnresolvedType) -> (UnresolvedType, bool) {
+        match parameter.typ {
+            UnresolvedTypeData::Reference(element, false) => (*element, true),
+            typ => (UnresolvedType { typ, location: parameter.location }, false),
+        }
     }
 
     fn mark_type_as_used(&mut self, typ: &Type) {

@@ -186,7 +186,7 @@ impl NodeFinder<'_> {
     ) -> Vec<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
 
-        let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.first() {
+        let func_self_type = if let Some((pattern, typ, _, _)) = func_meta.parameters.0.first() {
             if self.hir_pattern_is_self_type(pattern) {
                 if let Type::Reference(elem_type, _) = typ {
                     let typ: &Type = elem_type;
@@ -206,7 +206,7 @@ impl NodeFinder<'_> {
                 return Vec::new();
             }
 
-            let (_, typ, _) = &func_meta.parameters.0[0];
+            let (_, typ, _, _) = &func_meta.parameters.0[0];
             if typ != attribute_first_type {
                 return Vec::new();
             }
@@ -460,7 +460,7 @@ impl NodeFinder<'_> {
         }
 
         let mut index = 1;
-        for (pattern, _, _) in parameters {
+        for (pattern, _, _, _) in parameters {
             if index == 1 {
                 match function_kind {
                     FunctionKind::SelfType(_) => {

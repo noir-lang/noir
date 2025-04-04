@@ -359,7 +359,10 @@ impl FunctionContext<'_> {
                     unary.location,
                 ))
             }
-            UnaryOp::Reference { mutable: _ } => {
+            UnaryOp::Reference { mutable: false } => {
+                self.codegen_expression(&unary.rhs)
+            }
+            UnaryOp::Reference { mutable: true } => {
                 Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {

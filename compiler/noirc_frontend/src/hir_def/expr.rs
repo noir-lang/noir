@@ -11,7 +11,6 @@ use crate::node_interner::{
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 
-use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
 use super::types::{DataType, Type};
 
@@ -346,7 +345,7 @@ pub struct HirCapturedVar {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirLambda {
-    pub parameters: Vec<(HirPattern, Type)>,
+    pub parameters: super::function::Parameters,
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,

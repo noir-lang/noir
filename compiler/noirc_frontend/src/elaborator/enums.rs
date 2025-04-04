@@ -294,7 +294,7 @@ impl Elaborator<'_> {
     ) -> ExprId {
         // Each parameter of the enum variant function is used as a parameter of the enum
         // constructor expression
-        let arguments = vecmap(&parameters.0, |(pattern, typ, _)| match pattern {
+        let arguments = vecmap(&parameters.0, |(pattern, typ, _, _)| match pattern {
             HirPattern::Identifier(ident) => {
                 let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
                 self.interner.push_expr_type(id, typ.clone());
@@ -328,7 +328,7 @@ impl Elaborator<'_> {
             let parameter = DefinitionKind::Local(None);
             let id = self.interner.push_definition(name, false, false, parameter, location);
             let pattern = HirPattern::Identifier(HirIdent::non_trait_method(id, location));
-            (pattern, parameter_type, Visibility::Private)
+            (pattern, parameter_type, false, Visibility::Private)
         }))
     }
 
