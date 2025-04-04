@@ -973,7 +973,6 @@ mod tests {
             BinaryFieldOp, HeapValueType, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
     };
-    use nargo::PrintOutput;
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
@@ -1034,7 +1033,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
         let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             debug_artifact,
         ));
         let mut context = DebugContext::new(
@@ -1202,7 +1201,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
         let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             debug_artifact,
         ));
         let brillig_funcs = &[brillig_bytecode];
@@ -1299,7 +1298,7 @@ mod tests {
             &circuits,
             &debug_artifact,
             WitnessMap::new(),
-            Box::new(DefaultDebugForeignCallExecutor::new(PrintOutput::Stdout)),
+            Box::new(DefaultDebugForeignCallExecutor::new(std::io::stdout())),
             brillig_funcs,
         );
 

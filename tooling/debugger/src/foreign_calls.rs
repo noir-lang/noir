@@ -3,11 +3,8 @@ use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
 };
-use nargo::{
-    PrintOutput,
-    foreign_calls::{
-        DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
-    },
+use nargo::foreign_calls::{
+    DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
 };
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 use noirc_errors::debug_info::{DebugFnId, DebugVarId};
@@ -51,22 +48,22 @@ pub struct DefaultDebugForeignCallExecutor {
 }
 
 impl DefaultDebugForeignCallExecutor {
-    fn make(
-        output: PrintOutput<'_>,
+    fn make<'a, W: 'a + std::io::Write>(
+        output: W,
         ex: DefaultDebugForeignCallExecutor,
-    ) -> impl DebugForeignCallExecutor + '_ {
+    ) -> impl DebugForeignCallExecutor + 'a {
         DefaultForeignCallBuilder::default().with_output(output).build().add_layer(ex)
     }
 
     #[allow(clippy::new_ret_no_self, dead_code)]
-    pub fn new(output: PrintOutput<'_>) -> impl DebugForeignCallExecutor + '_ {
+    pub fn new<'a, W: 'a + std::io::Write>(output: W) -> impl DebugForeignCallExecutor + 'a {
         Self::make(output, Self::default())
     }
 
-    pub fn from_artifact<'a>(
-        output: PrintOutput<'a>,
+    pub fn from_artifact<'a, W: 'a + std::io::Write>(
+        output: W,
         artifact: &DebugArtifact,
-    ) -> impl DebugForeignCallExecutor + use<'a> {
+    ) -> impl DebugForeignCallExecutor + use<'a, W> {
         let mut ex = Self::default();
         ex.load_artifact(artifact);
         Self::make(output, ex)

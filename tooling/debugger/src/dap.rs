@@ -5,7 +5,6 @@ use acvm::acir::circuit::Circuit;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::native_types::WitnessMap;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use nargo::PrintOutput;
 
 use crate::context::DebugContext;
 use crate::context::{DebugCommandResult, DebugLocation};
@@ -73,7 +72,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             debug_artifact,
             initial_witness,
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-                PrintOutput::Stdout,
+                std::io::stdout(),
                 debug_artifact,
             )),
             unconstrained_functions,

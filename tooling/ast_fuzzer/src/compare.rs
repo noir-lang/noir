@@ -2,7 +2,7 @@ use acir::{FieldElement, native_types::WitnessStack};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr, bail};
-use nargo::{NargoError, PrintOutput, foreign_calls::DefaultForeignCallBuilder};
+use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::monomorphization::ast::Program;
@@ -111,11 +111,11 @@ impl<P> CompareSsa<P> {
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
         let do_exec = |program| {
-            let mut print = String::new();
+            let mut print = Vec::new();
 
             let mut foreign_call_executor = DefaultForeignCallBuilder::default()
                 .with_mocks(false)
-                .with_output(PrintOutput::String(&mut print))
+                .with_output(&mut print)
                 .build();
 
             let res = nargo::ops::execute_program(
@@ -125,6 +125,7 @@ impl<P> CompareSsa<P> {
                 &mut foreign_call_executor,
             );
 
+            let print = String::from_utf8(print).expect("should be valid utf8 string");
             (res, print)
         };
 

@@ -1,13 +1,8 @@
-use std::{
-    collections::VecDeque,
-    path::{Path, PathBuf},
-};
+use std::{collections::VecDeque, path::Path};
 
 use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
-use crate::PrintOutput;
 
 use super::{ForeignCallError, ForeignCallExecutor};
 
@@ -27,19 +22,20 @@ struct LogItem<F> {
 }
 
 /// Log foreign calls during the execution, for testing purposes.
-pub struct LoggingForeignCallExecutor<'a, E> {
+pub struct LoggingForeignCallExecutor<W, E> {
     pub executor: E,
-    pub output: PrintOutput<'a>,
+    pub output: W,
 }
 
-impl<'a, E> LoggingForeignCallExecutor<'a, E> {
-    pub fn new(executor: E, output: PrintOutput<'a>) -> Self {
+impl<W, E> LoggingForeignCallExecutor<W, E> {
+    pub fn new(executor: E, output: W) -> Self {
         Self { executor, output }
     }
 }
 
-impl<E, F> ForeignCallExecutor<F> for LoggingForeignCallExecutor<'_, E>
+impl<W, E, F> ForeignCallExecutor<F> for LoggingForeignCallExecutor<W, E>
 where
+    W: std::io::Write,
     F: AcirField + Serialize,
     E: ForeignCallExecutor<F>,
 {
@@ -54,51 +50,9 @@ where
                 let json = json!({"call": foreign_call, "result": result});
                 serde_json::to_string(&json).expect("failed to serialize foreign call")
             };
-            match &mut self.output {
-                PrintOutput::None => (),
-                PrintOutput::Stdout => println!("{}", log_item()),
-                PrintOutput::String(s) => {
-                    s.push_str(&log_item());
-                    s.push('\n');
-                }
-            }
+            writeln!(self.output, "{}", log_item()).expect("write should succeed");
         }
         result
-    }
-}
-
-/// Log foreign calls to stdout as soon as they are made, or buffer them and write to a file at the end.
-pub enum ForeignCallLog {
-    None,
-    Stdout,
-    File(PathBuf, String),
-}
-
-impl ForeignCallLog {
-    /// Instantiate based on an env var.
-    pub fn from_env(key: &str) -> Self {
-        match std::env::var(key) {
-            Err(_) => Self::None,
-            Ok(s) if s == "stdout" => Self::Stdout,
-            Ok(s) => Self::File(PathBuf::from(s), String::new()),
-        }
-    }
-
-    /// Create a [PrintOutput] based on the log setting.
-    pub fn print_output(&mut self) -> PrintOutput {
-        match self {
-            ForeignCallLog::None => PrintOutput::None,
-            ForeignCallLog::Stdout => PrintOutput::Stdout,
-            ForeignCallLog::File(_, s) => PrintOutput::String(s),
-        }
-    }
-
-    /// Any final logging.
-    pub fn write_log(self) -> std::io::Result<()> {
-        if let ForeignCallLog::File(path, contents) = self {
-            std::fs::write(path, contents)?;
-        }
-        Ok(())
     }
 }
 
