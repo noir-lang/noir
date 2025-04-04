@@ -1,0 +1,19 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Variable `_x` was already defined in the same match pattern
+  ┌─ compile_failure/noirc_frontend_tests_enums_errors_on_repeated_match_variables_in_pattern/src/main.nr:4:14
+  │
+4 │             (_x, _x) => (),
+  │              --  -- `_x` redefined here
+  │              │    
+  │              `_x` was previously defined here
+  │
+
+Aborting due to 1 previous error

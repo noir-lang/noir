@@ -1,0 +1,24 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected type &mut [Field], found type &mut [_; 0]
+  ┌─ compile_failure/mutability_regression_2911/src/main.nr:3:32
+  │
+3 │     let slice : &mut [Field] = &mut [];
+  │                                -------
+  │
+
+error: Variable `slice` must be mutable to be assigned to
+  ┌─ compile_failure/mutability_regression_2911/src/main.nr:4:5
+  │
+4 │     slice = &mut (*slice).push_back(1);
+  │     -----
+  │
+
+Aborting due to 2 previous errors

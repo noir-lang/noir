@@ -1,0 +1,20 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: static_assert failed: x != 4
+  ┌─ compile_failure/comptime_static_assert_failure/src/main.nr:4:5
+  │
+4 │     static_assert(x == 4, "x != 4");
+  │     ------------------------------- Assertion failed
+  │
+  = Call stack:
+    1. compile_failure/comptime_static_assert_failure/src/main.nr:10:23
+    2. compile_failure/comptime_static_assert_failure/src/main.nr:4:5
+
+Aborting due to 1 previous error

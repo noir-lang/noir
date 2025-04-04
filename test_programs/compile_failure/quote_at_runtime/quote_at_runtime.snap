@@ -1,0 +1,24 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Comptime-only type `Quoted` cannot be used in runtime code
+  ┌─ compile_failure/quote_at_runtime/src/main.nr:5:11
+  │
+5 │ fn foo(q: Quoted) {
+  │           ------ Comptime-only type used here
+  │
+
+error: `quote` cannot be used in runtime code
+  ┌─ compile_failure/quote_at_runtime/src/main.nr:2:9
+  │
+2 │     foo(quote { test })
+  │         -------------- Wrap this in a `comptime` block or function to use it
+  │
+
+Aborting due to 2 previous errors

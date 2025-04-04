@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Could not resolve 'foo' in path
+  ┌─ compile_failure/noirc_frontend_tests_traits_errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_candidates/src/main.nr:3:22
+  │
+3 │         let _ = Bar::foo();
+  │                      --- The following traits which provide `foo` are implemented but not in scope: `private_mod::Foo2`, `private_mod::Foo`
+  │
+
+Aborting due to 1 previous error

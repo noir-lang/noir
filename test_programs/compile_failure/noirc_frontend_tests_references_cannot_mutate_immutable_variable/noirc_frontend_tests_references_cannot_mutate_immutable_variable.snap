@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Cannot mutate immutable variable `array`
+  ┌─ compile_failure/noirc_frontend_tests_references_cannot_mutate_immutable_variable/src/main.nr:4:21
+  │
+4 │         mutate(&mut array);
+  │                     -----
+  │
+
+Aborting due to 1 previous error

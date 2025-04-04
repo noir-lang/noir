@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Type `Opt<Field>` is recursive
+  ┌─ compile_failure/noirc_frontend_tests_enums_unreachable_match_case/src/main.nr:3:19
+  │
+3 │             match Opt::Some(Opt::Some(3)) {
+  │                   --------- All types in Noir must have a known size at compile-time
+  │
+
+Aborting due to 1 previous error

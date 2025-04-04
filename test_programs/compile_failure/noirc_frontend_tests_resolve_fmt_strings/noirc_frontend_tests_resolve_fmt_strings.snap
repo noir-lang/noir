@@ -1,0 +1,43 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+warning: Unused expression result of type fmtstr<14, ()>
+  ┌─ compile_failure/noirc_frontend_tests_resolve_fmt_strings/src/main.nr:4:13
+  │
+4 │             println(string);
+  │             ---------------
+  │
+
+warning: Unused expression result of type fmtstr<31, (Field, Field)>
+  ┌─ compile_failure/noirc_frontend_tests_resolve_fmt_strings/src/main.nr:7:13
+  │
+7 │             println(f"random_string{new_val}{new_val}");
+  │             -------------------------------------------
+  │
+
+error: Duplicate definitions of import with name println found
+  ┌─ std/aes128.nr:1:1
+  │
+1 │ #[foreign(aes128_encrypt)]
+  │ - Second import found here
+  │
+  ┌─ compile_failure/noirc_frontend_tests_resolve_fmt_strings/src/main.nr:9:12
+  │
+9 │         fn println<T>(x : T) -> T {
+  │            ------- First import found here
+  │
+
+error: cannot find `i` in this scope
+  ┌─ compile_failure/noirc_frontend_tests_resolve_fmt_strings/src/main.nr:3:40
+  │
+3 │             let string = f"this is i: {i}";
+  │                                        - not found in this scope
+  │
+
+Aborting due to 2 previous errors

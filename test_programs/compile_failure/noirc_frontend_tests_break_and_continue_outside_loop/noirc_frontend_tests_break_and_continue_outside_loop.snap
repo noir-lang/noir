@@ -1,0 +1,24 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: continue is only allowed within loops
+  ┌─ compile_failure/noirc_frontend_tests_break_and_continue_outside_loop/src/main.nr:3:13
+  │
+3 │             continue;
+  │             ---------
+  │
+
+error: break is only allowed within loops
+  ┌─ compile_failure/noirc_frontend_tests_break_and_continue_outside_loop/src/main.nr:4:13
+  │
+4 │             break;
+  │             ------
+  │
+
+Aborting due to 2 previous errors

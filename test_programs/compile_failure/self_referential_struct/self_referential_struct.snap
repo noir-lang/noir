@@ -1,0 +1,24 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Self-referential types are not supported
+  ┌─ compile_failure/self_referential_struct/src/main.nr:6:8
+  │
+6 │ struct SelfReferential
+  │        ---------------
+  │
+
+error: Type SelfReferential has no member named _is_some
+   ┌─ compile_failure/self_referential_struct/src/main.nr:11:40
+   │
+11 │ fn main(x: SelfReferential) { assert(x._is_some); }
+   │                                        --------
+   │
+
+Aborting due to 2 previous errors

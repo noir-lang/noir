@@ -1,0 +1,24 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+  ┌─ compile_failure/noirc_frontend_tests_cannot_call_unconstrained_first_class_function_outside_of_unsafe/src/main.nr:4:9
+  │
+4 │         func();
+  │         ------
+  │
+
+error: Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+  ┌─ compile_failure/noirc_frontend_tests_cannot_call_unconstrained_first_class_function_outside_of_unsafe/src/main.nr:9:9
+  │
+9 │         x();
+  │         ---
+  │
+
+Aborting due to 2 previous errors

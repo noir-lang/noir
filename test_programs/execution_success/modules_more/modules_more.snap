@@ -1,0 +1,22 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: bar is private and not visible from the current module
+  ┌─ execution_success/modules_more/src/main.nr:4:22
+  │
+4 │     assert(x != foo::bar::from_bar(y));
+  │                      --- bar is private
+  │
+
+warning: unused function hello
+  ┌─ execution_success/modules_more/src/foo.nr:3:4
+  │
+3 │ fn hello(x: Field) -> Field {
+  │    ----- unused function
+  │

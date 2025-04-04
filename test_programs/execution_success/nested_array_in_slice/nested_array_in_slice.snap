@@ -1,0 +1,134 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:21:14
+   │
+21 │     assert(x[y - 3].a == 1);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:22:14
+   │
+22 │     assert(x[y - 3].b == [2, 3, 20]);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:23:14
+   │
+23 │     assert(x[y - 2].a == 4);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:24:14
+   │
+24 │     assert(x[y - 2].b == [5, 6, 21]);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:25:14
+   │
+25 │     assert(x[y - 1].a == 7);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:26:14
+   │
+26 │     assert(x[y - 1].b == [8, 9, 22]);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:27:14
+   │
+27 │     assert(x[y].a == 10);
+   │              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:28:14
+   │
+28 │     assert(x[y].b == [11, 12, 23]);
+   │              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:29:14
+   │
+29 │     assert(x[y].bar.inner == [109, 110, 111]);
+   │              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:32:11
+   │
+32 │         x[y - 2].a = 50;
+   │           -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:34:11
+   │
+34 │         x[y - 2].a = 100;
+   │           -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:36:14
+   │
+36 │     assert(x[y - 2].a == 50);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:39:11
+   │
+39 │         x[y - 1].b = [50, 51, 52];
+   │           -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:41:11
+   │
+41 │         x[y - 1].b = [100, 101, 102];
+   │           -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:45:14
+   │
+45 │     assert(x[y - 3].bar.inner == [100, 101, 102]);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:46:14
+   │
+46 │     assert(x[y - 2].bar.inner == [103, 104, 105]);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:47:14
+   │
+47 │     assert(x[y - 1].bar.inner == [106, 107, 108]);
+   │              -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ execution_success/nested_array_in_slice/src/main.nr:48:14
+   │
+48 │     assert(x[y].bar.inner == [109, 110, 111]);
+   │              -
+   │

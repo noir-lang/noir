@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: bar is a type alias, not a module
+  ┌─ compile_failure/noirc_frontend_tests_imports_errors_if_using_alias_in_import/src/main.nr:6:14
+  │
+6 │     use foo::bar::baz;
+  │              ---
+  │
+
+Aborting due to 1 previous error

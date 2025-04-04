@@ -1,0 +1,4 @@
+[profile.default]
+archive.include = [
+    { path = "debug/nargo", relative-to = "target" },
+]

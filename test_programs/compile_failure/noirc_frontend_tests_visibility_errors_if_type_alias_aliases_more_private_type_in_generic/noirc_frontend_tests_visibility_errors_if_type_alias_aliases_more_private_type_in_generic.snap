@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Type `Foo` is more private than item `Bar`
+  ┌─ compile_failure/noirc_frontend_tests_visibility_errors_if_type_alias_aliases_more_private_type_in_generic/src/main.nr:4:20
+  │
+4 │     pub type Bar = Generic<Foo>;
+  │                    ------------
+  │
+
+Aborting due to 1 previous error

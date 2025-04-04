@@ -1,0 +1,23 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Duplicate definitions of function with name foo found
+   ┌─ compile_failure/noirc_frontend_tests_metaprogramming_errors_if_macros_inject_functions_with_name_collisions/src/main.nr:4:16
+   │
+ 4 │             fn foo() {}
+   │                ---
+   │                │
+   │                Second function found here
+   │                First function found here
+   ·
+11 │     #[make_colliding_functions]
+   │     --------------------------- While running this function attribute
+   │
+
+Aborting due to 1 previous error

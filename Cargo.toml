@@ -41,6 +41,8 @@ members = [
     # Utility crates
     "utils/iter-extended",
     "utils/protobuf",
+    # Testing crates
+    "test_programs"
 ]
 default-members = [
     "tooling/nargo_cli",

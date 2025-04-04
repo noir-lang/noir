@@ -1,0 +1,17 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: The value `-1` cannot fit into `u8` which has range `0..=255`
+  ┌─ compile_failure/noirc_frontend_tests_bound_checks_underflowing_u8/src/main.nr:3:25
+  │
+3 │             let _: u8 = -1;
+  │                         --
+  │
+
+Aborting due to 1 previous error

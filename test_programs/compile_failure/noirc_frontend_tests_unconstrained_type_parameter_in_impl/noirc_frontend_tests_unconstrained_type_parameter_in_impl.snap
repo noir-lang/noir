@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: The type parameter `U` is not constrained by the impl trait, self type, or predicates
+  ┌─ compile_failure/noirc_frontend_tests_unconstrained_type_parameter_in_impl/src/main.nr:4:17
+  │
+4 │         impl<T, U> Foo<T> {}
+  │                 - Hint: remove the `U` type parameter
+  │
+
+Aborting due to 1 previous error

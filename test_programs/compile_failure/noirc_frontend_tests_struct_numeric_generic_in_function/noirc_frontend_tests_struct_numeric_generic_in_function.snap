@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+  ┌─ compile_failure/noirc_frontend_tests_struct_numeric_generic_in_function/src/main.nr:6:20
+  │
+6 │     pub fn bar<let N: Foo>() {
+  │                    - Unsupported numeric generic type
+  │
+
+Aborting due to 1 previous error

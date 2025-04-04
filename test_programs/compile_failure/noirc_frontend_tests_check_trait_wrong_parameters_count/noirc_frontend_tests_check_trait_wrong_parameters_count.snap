@@ -1,0 +1,17 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: `Default2::default` expects 2 parameters, but this method has 1
+   ┌─ compile_failure/noirc_frontend_tests_check_trait_wrong_parameters_count/src/main.nr:12:12
+   │
+12 │         fn default(x: Field) -> Self {
+   │            -------
+   │
+
+Aborting due to 1 previous error

@@ -1,0 +1,24 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: No module `lib` at path `src/lib.nr` or `src/lib/mod.nr`
+  ┌─ compile_failure/invalid_main_sub_lib/src/main.nr:1:5
+  │
+1 │ mod lib;
+  │     ---
+  │
+
+error: Could not resolve 'lib' in path
+  ┌─ compile_failure/invalid_main_sub_lib/src/main.nr:3:12
+  │
+3 │ use crate::lib::foo;
+  │            ---
+  │
+
+Aborting due to 2 previous errors

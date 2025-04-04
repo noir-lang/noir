@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected type bool, found type Field
+   ┌─ compile_failure/noirc_frontend_tests_turbofish_trait_function_with_turbofish_on_trait_gives_error/src/main.nr:13:39
+   │
+13 │         let _: i32 = Foo::<bool>::foo(1);
+   │                                       -
+   │
+
+Aborting due to 1 previous error

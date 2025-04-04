@@ -1,0 +1,24 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: continue is only allowed in unconstrained functions
+  ┌─ compile_failure/noirc_frontend_tests_break_and_continue_in_constrained_fn/src/main.nr:5:21
+  │
+5 │                     continue;
+  │                     --------- Constrained code must always have a known number of loop iterations
+  │
+
+error: break is only allowed in unconstrained functions
+  ┌─ compile_failure/noirc_frontend_tests_break_and_continue_in_constrained_fn/src/main.nr:8:21
+  │
+8 │                     break;
+  │                     ------ Constrained code must always have a known number of loop iterations
+  │
+
+Aborting due to 2 previous errors

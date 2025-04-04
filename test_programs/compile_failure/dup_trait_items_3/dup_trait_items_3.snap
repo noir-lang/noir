@@ -1,0 +1,26 @@
+---
+source: test_programs/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+warning: unused trait MyTrait
+  ┌─ compile_failure/dup_trait_items_3/src/main.nr:1:7
+  │
+1 │ trait MyTrait {
+  │       ------- unused trait
+  │
+
+error: Duplicate definitions of trait associated type with name SomeType found
+  ┌─ compile_failure/dup_trait_items_3/src/main.nr:2:8
+  │
+2 │   type SomeType;
+  │        -------- First trait associated type found here
+3 │   type SomeType;
+  │        -------- Second trait associated type found here
+  │
+
+Aborting due to 1 previous error

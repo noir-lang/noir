@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: `loop` must have at least one `break` in it
+   ┌─ compile_failure/noirc_frontend_tests_errors_on_empty_loop_no_break/src/main.nr:10:9
+   │
+10 │         loop {}
+   │         ---- Infinite loops are disallowed
+   │
+
+Aborting due to 1 previous error

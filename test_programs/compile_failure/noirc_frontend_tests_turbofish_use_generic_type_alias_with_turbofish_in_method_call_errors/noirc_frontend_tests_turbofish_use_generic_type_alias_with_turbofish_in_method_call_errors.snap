@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected type i32, found type bool
+   ┌─ compile_failure/noirc_frontend_tests_turbofish_use_generic_type_alias_with_turbofish_in_method_call_errors/src/main.nr:15:37
+   │
+15 │             let _ = Bar::<i32>::new(true);
+   │                                     ----
+   │
+
+Aborting due to 1 previous error

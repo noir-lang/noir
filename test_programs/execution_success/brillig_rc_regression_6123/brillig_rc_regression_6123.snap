@@ -1,0 +1,50 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: storage is private and not visible from the current module
+   ┌─ execution_success/brillig_rc_regression_6123/src/main.nr:22:19
+   │
+22 │     let tmp = vec.storage[from_index];
+   │                   ------- storage is private
+   │
+
+warning: storage is private and not visible from the current module
+   ┌─ execution_success/brillig_rc_regression_6123/src/main.nr:23:35
+   │
+23 │     vec.storage[from_index] = vec.storage[to_index];
+   │                                   ------- storage is private
+   │
+
+warning: storage is private and not visible from the current module
+   ┌─ execution_success/brillig_rc_regression_6123/src/main.nr:23:9
+   │
+23 │     vec.storage[from_index] = vec.storage[to_index];
+   │         ------- storage is private
+   │
+
+warning: storage is private and not visible from the current module
+   ┌─ execution_success/brillig_rc_regression_6123/src/main.nr:24:9
+   │
+24 │     vec.storage[to_index] = tmp;
+   │         ------- storage is private
+   │
+
+warning: storage is private and not visible from the current module
+   ┌─ execution_success/brillig_rc_regression_6123/src/main.nr:31:24
+   │
+31 │     builder.nullifiers.storage[1] = 27;
+   │                        ------- storage is private
+   │
+
+warning: storage is private and not visible from the current module
+   ┌─ execution_success/brillig_rc_regression_6123/src/main.nr:33:43
+   │
+33 │     let note_hashes = builder.note_hashes.storage;
+   │                                           ------- storage is private
+   │

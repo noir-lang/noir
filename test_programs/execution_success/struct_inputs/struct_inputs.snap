@@ -1,0 +1,330 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[struct_inputs] Circuit output: Field(1)
+----- stderr -----
+warning: barStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/foo.nr:4:22
+  │
+4 │     bar_struct: bar::barStruct,
+  │                      --------- barStruct is private
+  │
+
+warning: barStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/foo.nr:4:22
+  │
+4 │     bar_struct: bar::barStruct,
+  │                      --------- barStruct is private
+  │
+
+warning: barStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/foo.nr:4:22
+  │
+4 │     bar_struct: bar::barStruct,
+  │                      --------- barStruct is private
+  │
+
+warning: bar is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:48
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                --- bar is private
+  │
+
+warning: barStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:53
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                     --------- barStruct is private
+  │
+
+warning: bar is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:48
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                --- bar is private
+  │
+
+warning: barStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:53
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                     --------- barStruct is private
+  │
+
+warning: bar is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:48
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                --- bar is private
+  │
+
+warning: barStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:53
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                     --------- barStruct is private
+  │
+
+warning: fooStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:76
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                                            --------- fooStruct is private
+  │
+
+warning: fooStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:76
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                                            --------- fooStruct is private
+  │
+
+warning: fooStruct is private and not visible from the current module
+  ┌─ execution_success/struct_inputs/src/main.nr:9:76
+  │
+9 │ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
+  │                                                                            --------- fooStruct is private
+  │
+
+warning: fooStruct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:31
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                               --------- fooStruct is private
+   │
+
+warning: fooStruct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:31
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                               --------- fooStruct is private
+   │
+
+warning: fooStruct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:31
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                               --------- fooStruct is private
+   │
+
+warning: bar is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:50
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                                                  --- bar is private
+   │
+
+warning: barStruct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:55
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                                                       --------- barStruct is private
+   │
+
+warning: bar is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:50
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                                                  --- bar is private
+   │
+
+warning: barStruct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:55
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                                                       --------- barStruct is private
+   │
+
+warning: bar is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:50
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                                                  --- bar is private
+   │
+
+warning: barStruct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:29:55
+   │
+29 │ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
+   │                                                       --------- barStruct is private
+   │
+
+warning: bar is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:10:32
+   │
+10 │     let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: "hello" };
+   │                                --- bar is private
+   │
+
+warning: barStruct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:10:37
+   │
+10 │     let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: "hello" };
+   │                                     --------- barStruct is private
+   │
+
+warning: val is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:10:49
+   │
+10 │     let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: "hello" };
+   │                                                 --- val is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:10:57
+   │
+10 │     let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: "hello" };
+   │                                                         ----- array is private
+   │
+
+warning: message is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:10:72
+   │
+10 │     let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: "hello" };
+   │                                                                        ------- message is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:14:33
+   │
+14 │     for i in 0..struct_from_bar.array.len() {
+   │                                 ----- array is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:15:32
+   │
+15 │         assert(struct_from_bar.array[i] == z.array[i]);
+   │                                ----- array is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:15:46
+   │
+15 │         assert(struct_from_bar.array[i] == z.array[i]);
+   │                                              ----- array is private
+   │
+
+warning: val is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:17:14
+   │
+17 │     assert(z.val == struct_from_bar.val);
+   │              --- val is private
+   │
+
+warning: val is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:17:37
+   │
+17 │     assert(z.val == struct_from_bar.val);
+   │                                     --- val is private
+   │
+
+warning: val is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:19:29
+   │
+19 │     assert((struct_from_bar.val * x) == x);
+   │                             --- val is private
+   │
+
+warning: bar_struct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:24:14
+   │
+24 │     assert(a.bar_struct.message == struct_from_bar.message);
+   │              ---------- bar_struct is private
+   │
+
+warning: message is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:24:25
+   │
+24 │     assert(a.bar_struct.message == struct_from_bar.message);
+   │                         ------- message is private
+   │
+
+warning: message is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:24:52
+   │
+24 │     assert(a.bar_struct.message == struct_from_bar.message);
+   │                                                    ------- message is private
+   │
+
+warning: bar_struct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:26:7
+   │
+26 │     a.bar_struct.array[1]
+   │       ---------- bar_struct is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:26:18
+   │
+26 │     a.bar_struct.array[1]
+   │                  ----- array is private
+   │
+
+warning: bar_struct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:30:14
+   │
+30 │     assert(a.bar_struct.val == z.val);
+   │              ---------- bar_struct is private
+   │
+
+warning: val is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:30:25
+   │
+30 │     assert(a.bar_struct.val == z.val);
+   │                         --- val is private
+   │
+
+warning: val is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:30:34
+   │
+30 │     assert(a.bar_struct.val == z.val);
+   │                                  --- val is private
+   │
+
+warning: bar_struct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:31:19
+   │
+31 │     for i in 0..a.bar_struct.array.len() {
+   │                   ---------- bar_struct is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:31:30
+   │
+31 │     for i in 0..a.bar_struct.array.len() {
+   │                              ----- array is private
+   │
+
+warning: bar_struct is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:32:18
+   │
+32 │         assert(a.bar_struct.array[i] == z.array[i]);
+   │                  ---------- bar_struct is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:32:29
+   │
+32 │         assert(a.bar_struct.array[i] == z.array[i]);
+   │                             ----- array is private
+   │
+
+warning: array is private and not visible from the current module
+   ┌─ execution_success/struct_inputs/src/main.nr:32:43
+   │
+32 │         assert(a.bar_struct.array[i] == z.array[i]);
+   │                                           ----- array is private
+   │
+
+warning: unused global N
+  ┌─ execution_success/struct_inputs/src/foo/bar.nr:1:8
+  │
+1 │ global N: Field = 2;
+  │        - unused global
+  │

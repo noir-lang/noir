@@ -1,0 +1,17 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Types in a binary operation should match, but found Field and u32
+  ┌─ compile_failure/unary_not_on_field_type_variable/src/main.nr:3:15
+  │
+3 │     assert_eq(!0, num);
+  │               -------
+  │
+
+Aborting due to 1 previous error

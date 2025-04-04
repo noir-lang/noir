@@ -1,0 +1,27 @@
+---
+source: test_programs/src/lib.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: The trait bound `_: Trait` is not satisfied
+   ┌─ compile_failure/noirc_frontend_tests_uses_self_type_in_trait_where_clause/src/main.nr:6:31
+   │
+ 6 │     pub trait Foo where Self: Trait {
+   │                               ----- required by this bound in `Foo`
+   ·
+14 │     impl Foo for Bar {
+   │                  --- The trait `Trait` is not implemented for `_`
+   │
+
+error: No method named 'trait_func' found for type 'Bar'
+  ┌─ compile_failure/noirc_frontend_tests_uses_self_type_in_trait_where_clause/src/main.nr:8:13
+  │
+8 │             self.trait_func()
+  │             -----------------
+  │
+
+Aborting due to 2 previous errors
