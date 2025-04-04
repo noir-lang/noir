@@ -61,7 +61,9 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
             let Some(main) = context.get_main_function(&crate_id) else {
                 continue;
             };
-            let program = monomorphize(main, &mut context.def_interner, false).unwrap();
+            use noirc_frontend::elaborator::UnstableFeature::Ownership;
+            let ownership = args.compile_options.unstable_features.contains(&Ownership);
+            let program = monomorphize(main, &mut context.def_interner, false, ownership).unwrap();
             let hash = fxhash::hash64(&program);
             println!("{}: {:x}", package.name, hash);
             continue;
