@@ -366,6 +366,9 @@ impl Context {
                     self.handle_reference_expression(expr);
                 }
             }
+            Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
+                self.handle_reference_expression(rhs);
+            }
             Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
 
             // If we have something like `f(arg)` then we want to treat those variables normally
