@@ -386,15 +386,16 @@ impl Context {
         // When experimental ownership is enabled, we may clone identifiers. We want to avoid
         // cloning the entire object though if we're only accessing one field of it so we check
         // here to move the clone to the outermost extract expression instead.
-        if let Some((should_clone, tuple_type)) = self.handle_extract_expression_rec(tuple) {
-            if let Some(elements) = unwrap_tuple_type(tuple_type) {
-                if should_clone && contains_array_or_str_type(&elements[*index]) {
-                    clone_expr(expr);
-                }
-            }
-        } else {
-            self.handle_expression(tuple);
-        }
+        // if let Some((should_clone, tuple_type)) = self.handle_extract_expression_rec(tuple) {
+        //     if let Some(elements) = unwrap_tuple_type(tuple_type) {
+        //         if should_clone && contains_array_or_str_type(&elements[*index]) {
+        //             clone_expr(expr);
+        //         }
+        //     }
+        // } else {
+        //     self.handle_expression(tuple);
+        // }
+        self.handle_reference_expression(tuple);
     }
 
     /// Traverse an expression comprised of only identifiers and tuple field extractions
@@ -410,7 +411,7 @@ impl Context {
                 let (should_clone, typ) = self.handle_extract_expression_rec(tuple)?;
                 let mut elements = unwrap_tuple_type(typ)?;
                 Some((should_clone, elements.swap_remove(*index)))
-            },
+            }
             _ => None,
         }
     }
@@ -421,7 +422,8 @@ impl Context {
     fn should_clone_ident(&self, ident: &Ident) -> bool {
         if self.experimental_ownership_feature {
             if let Definition::Local(local_id) = &ident.definition {
-                if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id) {
+                if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id)
+                {
                     return true;
                 }
             }
@@ -486,12 +488,12 @@ impl Context {
             self.handle_expression(&mut unary.rhs);
         }
 
-        if self.experimental_ownership_feature
-            && matches!(unary.operator, UnaryOp::Dereference { .. })
-            && contains_array_or_str_type(&unary.result_type)
-        {
-            clone_expr(expr);
-        }
+        // if self.experimental_ownership_feature
+        //     && matches!(unary.operator, UnaryOp::Dereference { .. })
+        //     && contains_array_or_str_type(&unary.result_type)
+        // {
+        //     clone_expr(expr);
+        // }
     }
 
     fn handle_binary(&mut self, binary: &mut crate::monomorphization::ast::Binary) {
@@ -512,7 +514,7 @@ impl Context {
         if self.experimental_ownership_feature {
             // Don't clone the collection, cloning only the resulting element is cheaper
             self.handle_reference_expression(&mut index.collection);
-            clone_result = true;
+            // clone_result = true;
         } else {
             self.handle_expression(&mut index.collection);
         }
@@ -567,6 +569,18 @@ impl Context {
         self.handle_expression(&mut call.func);
         for arg in &mut call.arguments {
             self.handle_expression(arg);
+        }
+
+        // Just never clone when passing to functions, we don't usually want to although this is
+        // unsound and just for testing
+        if self.experimental_ownership_feature {
+            for arg in &mut call.arguments {
+                if let Expression::Clone(inner) = arg {
+                    let old_inner =
+                        std::mem::replace(inner.as_mut(), Expression::Literal(Literal::Unit));
+                    *arg = old_inner;
+                }
+            }
         }
     }
 
@@ -672,7 +686,11 @@ fn is_array_or_str_literal(expr: &Expression) -> bool {
 
 fn contains_array_or_str_type(typ: &Type) -> bool {
     match typ {
-        Type::Field | Type::Integer(..) | Type::Bool | Type::Unit | Type::Function(..)
+        Type::Field
+        | Type::Integer(..)
+        | Type::Bool
+        | Type::Unit
+        | Type::Function(..)
         | Type::Reference(..) => false,
 
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,

@@ -461,7 +461,9 @@ impl<'interner> Monomorphizer<'interner> {
                 new_params.push((new_id, definition.mutable, name, pass_by_ref, typ));
                 self.define_local(ident.id, new_id);
             }
-            HirPattern::Mutable(pattern, _) => self.parameter(pattern, typ, pass_by_ref, new_params)?,
+            HirPattern::Mutable(pattern, _) => {
+                self.parameter(pattern, typ, pass_by_ref, new_params)?
+            }
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
 
@@ -2102,7 +2104,8 @@ impl<'interner> Monomorphizer<'interner> {
             id: self.next_ident_id(),
         });
 
-        let mut parameters = vec![(env_local_id, true, env_name.to_string(), false, env_typ.clone())];
+        let mut parameters =
+            vec![(env_local_id, true, env_name.to_string(), false, env_typ.clone())];
         parameters.append(&mut converted_parameters);
 
         let function = ast::Function {

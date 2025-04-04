@@ -177,12 +177,13 @@ impl HirExpression {
                 ExpressionKind::Tuple(vecmap(fields, |field| field.to_display_ast(interner)))
             }
             HirExpression::Lambda(lambda) => {
-                let parameters = vecmap(lambda.parameters.clone(), |(pattern, mut typ, pass_by_ref, _)| {
-                    if pass_by_ref {
-                        typ = Type::Reference(Box::new(typ), false);
-                    }
-                    (pattern.to_display_ast(interner), typ.to_display_ast())
-                });
+                let parameters =
+                    vecmap(lambda.parameters.clone(), |(pattern, mut typ, pass_by_ref, _)| {
+                        if pass_by_ref {
+                            typ = Type::Reference(Box::new(typ), false);
+                        }
+                        (pattern.to_display_ast(interner), typ.to_display_ast())
+                    });
                 let return_type = lambda.return_type.to_display_ast();
                 let body = lambda.body.to_display_ast(interner);
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))

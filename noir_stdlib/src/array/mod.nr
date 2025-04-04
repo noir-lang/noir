@@ -46,7 +46,7 @@ impl<T, let N: u32> [T; N] {
         let uninitialized = crate::mem::zeroed();
         let mut ret = [uninitialized; N];
 
-        for i in 0..self.len() {
+        for i in 0..(&self).len() {
             ret[i] = f(self[i]);
         }
 
@@ -89,7 +89,7 @@ impl<T, let N: u32> [T; N] {
     /// assert_eq(a, b);
     /// ```
     pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
-        for i in 0..self.len() {
+        for i in 0..(&self).len() {
             f(self[i]);
         }
     }
@@ -107,7 +107,7 @@ impl<T, let N: u32> [T; N] {
     /// assert_eq(a, b);
     /// ```
     pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
-        for i in 0..self.len() {
+        for i in 0..(&self).len() {
             f(i, self[i]);
         }
     }

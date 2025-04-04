@@ -4,6 +4,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
+    DataType, Kind, QuotedType, Shared, Type,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -11,24 +12,32 @@ use crate::{
         MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
-    }, hir::{
+    },
+    hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{generics::TraitGenerics, TypeCheckError},
-    }, hir_def::{
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
+    hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
             TraitMethod,
-        }, function::Parameters, stmt::{HirLetStatement, HirPattern, HirStatement}, traits::{ResolvedTraitBound, TraitConstraint}
-    }, node_interner::{
+        },
+        function::Parameters,
+        stmt::{HirLetStatement, HirPattern, HirStatement},
+        traits::{ResolvedTraitBound, TraitConstraint},
+    },
+    node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
-    }, shared::Visibility, token::{FmtStrFragment, Tokens}, DataType, Kind, QuotedType, Shared, Type
+    },
+    shared::Visibility,
+    token::{FmtStrFragment, Tokens},
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
