@@ -32,6 +32,7 @@ where
 
     /// Add a new variable to the scope.
     pub fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
+        assert!(!self.variables.contains_key(&id), "variable already exists");
         for typ in types::types_produced(&typ) {
             self.producers.entry(typ).or_default().insert(id);
         }
@@ -99,5 +100,34 @@ where
             return Ok(None);
         }
         u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use noirc_frontend::monomorphization::ast::{LocalId, Type};
+
+    use crate::program::types;
+
+    use super::Scope;
+
+    #[test]
+    fn test_scope() {
+        let foo_type =
+            Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Box::new(types::U32))]);
+
+        let scope0 = Scope::new([(LocalId(0), false, "foo".to_string(), foo_type)].into_iter());
+        let mut scope1 = scope0.clone();
+
+        scope1.add(LocalId(1), false, "bar".to_string(), Type::String(10));
+
+        for typ in scope0.types_produced() {
+            eprintln!("{typ}");
+        }
+
+        assert_eq!(scope0.variable_ids().len(), 1);
+        assert_eq!(scope0.types_produced().len(), 5 + 2); // What we see plus upcasts from u32 to u64 and u128
+        assert_eq!(scope1.variable_ids().len(), 2);
+        assert_eq!(scope1.types_produced().len(), 5 + 2 + 1);
     }
 }
