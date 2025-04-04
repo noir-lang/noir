@@ -794,11 +794,8 @@ fn memory_operations() {
         block_type: BlockType::Memory,
     };
 
-    let read_op = Opcode::MemoryOp {
-        block_id,
-        op: MemOp::read_at_mem_index(Witness(6).into(), Witness(7)),
-        predicate: None,
-    };
+    let read_op =
+        Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(6).into(), Witness(7)) };
 
     let expression = Opcode::AssertZero(Expression {
         mul_terms: Vec::new(),
