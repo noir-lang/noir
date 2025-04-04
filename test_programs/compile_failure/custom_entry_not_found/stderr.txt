@@ -1,0 +1,1 @@
+Cannot find file src/foobarbaz.nr which was specified as the `entry` field in Nargo.toml

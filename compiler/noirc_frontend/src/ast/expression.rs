@@ -16,7 +16,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
-use super::{AsTraitPath, TypePath, UnsafeExpression};
+use super::{AsTraitPath, TraitBound, TypePath, UnsafeExpression};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -66,7 +66,7 @@ pub type UnresolvedGenerics = Vec<UnresolvedGeneric>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedGeneric {
-    Variable(Ident),
+    Variable(Ident, Vec<TraitBound>),
     Numeric {
         ident: Ident,
         typ: UnresolvedType,
@@ -89,7 +89,7 @@ pub struct UnsupportedNumericGenericType {
 impl UnresolvedGeneric {
     pub fn location(&self) -> Location {
         match self {
-            UnresolvedGeneric::Variable(ident) => ident.location(),
+            UnresolvedGeneric::Variable(ident, _) => ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
             UnresolvedGeneric::Resolved(_, location) => *location,
         }
@@ -101,7 +101,7 @@ impl UnresolvedGeneric {
 
     pub fn kind(&self) -> Result<Kind, UnsupportedNumericGenericType> {
         match self {
-            UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
+            UnresolvedGeneric::Variable(_, _) => Ok(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } => {
                 let typ = self.resolve_numeric_kind_type(typ)?;
                 Ok(Kind::numeric(typ))
@@ -131,7 +131,9 @@ impl UnresolvedGeneric {
 
     pub(crate) fn ident(&self) -> &Ident {
         match self {
-            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
+            UnresolvedGeneric::Variable(ident, _) | UnresolvedGeneric::Numeric { ident, .. } => {
+                ident
+            }
             UnresolvedGeneric::Resolved(..) => panic!("UnresolvedGeneric::Resolved no ident"),
         }
     }
@@ -140,7 +142,19 @@ impl UnresolvedGeneric {
 impl Display for UnresolvedGeneric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UnresolvedGeneric::Variable(ident) => write!(f, "{ident}"),
+            UnresolvedGeneric::Variable(ident, trait_bounds) => {
+                write!(f, "{ident}")?;
+                if !trait_bounds.is_empty() {
+                    write!(f, ": ")?;
+                    for (index, trait_bound) in trait_bounds.iter().enumerate() {
+                        if index > 0 {
+                            write!(f, " + ")?;
+                        }
+                        write!(f, "{trait_bound}")?;
+                    }
+                }
+                Ok(())
+            }
             UnresolvedGeneric::Numeric { ident, typ } => write!(f, "let {ident}: {typ}"),
             UnresolvedGeneric::Resolved(..) => write!(f, "(resolved)"),
         }
@@ -149,7 +163,7 @@ impl Display for UnresolvedGeneric {
 
 impl From<Ident> for UnresolvedGeneric {
     fn from(value: Ident) -> Self {
-        UnresolvedGeneric::Variable(value)
+        UnresolvedGeneric::Variable(value, Vec::new())
     }
 }
 
