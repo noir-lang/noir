@@ -333,7 +333,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn encoding_and_decoding_returns_original_witness_map(input: NumericType) {
+        fn test_max_value_is_in_limits(input: NumericType) {
             let max_value = input.max_value();
             if let Ok(max_value) = max_value {
                 prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
