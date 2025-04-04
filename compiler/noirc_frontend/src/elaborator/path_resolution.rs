@@ -33,6 +33,7 @@ pub enum PathResolutionItem {
     Global(GlobalId),
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
+    SelfMethod(FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
 }
@@ -42,9 +43,14 @@ impl PathResolutionItem {
         match self {
             PathResolutionItem::ModuleFunction(func_id)
             | PathResolutionItem::Method(_, _, func_id)
+            | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
             | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
-            _ => None,
+            PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..) => None,
         }
     }
 
@@ -64,6 +70,7 @@ impl PathResolutionItem {
             PathResolutionItem::Global(..) => "global",
             PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..) => "function",
         }
@@ -79,6 +86,7 @@ pub struct Turbofish {
 /// Any item that can appear before the last segment in a path.
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
+    SelfType,
     Module,
     Type(TypeId, Option<Turbofish>),
     TypeAlias(TypeAliasId, Option<Turbofish>),
@@ -122,6 +130,7 @@ impl Elaborator<'_> {
     /// is not accessible from the current module (e.g. because it's private).
     pub(super) fn resolve_path(&mut self, mut path: Path) -> PathResolutionResult {
         let mut module_id = self.module_id();
+        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(Type::DataType(datatype, _)) = &self.self_type {
@@ -135,10 +144,11 @@ impl Elaborator<'_> {
 
                 module_id = datatype.id.module_id();
                 path.segments.remove(0);
+                intermediate_item = IntermediatePathResolutionItem::SelfType;
             }
         }
 
-        self.resolve_path_in_module(path, module_id)
+        self.resolve_path_in_module(path, module_id, intermediate_item)
     }
 
     /// Resolves a path in `current_module`.
@@ -147,6 +157,7 @@ impl Elaborator<'_> {
         &mut self,
         path: Path,
         importing_module: ModuleId,
+        intermediate_item: IntermediatePathResolutionItem,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
             Some(ReferencesTracker::new(self.interner))
@@ -155,7 +166,7 @@ impl Elaborator<'_> {
         };
         let (path, module_id, _) =
             resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(path, module_id, importing_module)
+        self.resolve_name_in_module(path, module_id, importing_module, intermediate_item)
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -165,6 +176,7 @@ impl Elaborator<'_> {
         path: Path,
         starting_module: ModuleId,
         importing_module: ModuleId,
+        mut intermediate_item: IntermediatePathResolutionItem,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
@@ -179,8 +191,6 @@ impl Elaborator<'_> {
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
-
-        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
@@ -421,6 +431,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
+            IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),
             IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
             IntermediatePathResolutionItem::Type(type_id, generics) => {
                 PathResolutionItem::Method(type_id, generics, func_id)

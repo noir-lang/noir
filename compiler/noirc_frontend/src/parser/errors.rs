@@ -125,6 +125,8 @@ pub enum ParserErrorReason {
     ExpectedValueFoundBuiltInType { typ: UnresolvedType },
     #[error("Logical and used instead of bitwise and")]
     LogicalAnd,
+    #[error("Trait bounds are not allowed here")]
+    TraitBoundsNotAllowedHere,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

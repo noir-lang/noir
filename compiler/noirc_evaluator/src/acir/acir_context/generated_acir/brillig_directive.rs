@@ -4,9 +4,50 @@ use acvm::acir::{
         BinaryFieldOp, BinaryIntOp, BitSize, HeapVector, IntegerBitSize, MemoryAddress,
         Opcode as BrilligOpcode,
     },
+    circuit::brillig::BrilligFunctionId,
 };
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
+
+/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
+/// This index should be used when adding a Brillig call during code generation.
+/// Code generation should then keep track of that unresolved call opcode which will be resolved with the
+/// correct function index after code generation.
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
+
+#[derive(Debug, Clone)]
+pub(crate) struct BrilligStdLib<F> {
+    pub(crate) invert: GeneratedBrillig<F>,
+    pub(crate) quotient: GeneratedBrillig<F>,
+    pub(crate) to_le_bytes: GeneratedBrillig<F>,
+}
+
+impl<F: AcirField> Default for BrilligStdLib<F> {
+    fn default() -> Self {
+        Self {
+            invert: directive_invert(),
+            quotient: directive_quotient(),
+            to_le_bytes: directive_to_radix(),
+        }
+    }
+}
+
+impl<F: AcirField> BrilligStdLib<F> {
+    pub(crate) fn get_code(&self, func: BrilligStdlibFunc) -> &GeneratedBrillig<F> {
+        match func {
+            BrilligStdlibFunc::Inverse => &self.invert,
+            BrilligStdlibFunc::Quotient => &self.quotient,
+            BrilligStdlibFunc::ToLeBytes => &self.to_le_bytes,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub(crate) enum BrilligStdlibFunc {
+    Inverse,
+    Quotient,
+    ToLeBytes,
+}
 
 /// Generates brillig bytecode which computes the inverse of its input if not null, and zero else.
 pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
