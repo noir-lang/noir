@@ -196,6 +196,10 @@ pub enum ResolverError {
         "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
     )]
     NonU32Index { location: Location },
+    #[error(
+        "The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
+    )]
+    UnconstrainedTypeParameter { ident: Ident },
 }
 
 impl ResolverError {
@@ -270,7 +274,8 @@ impl ResolverError {
             | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
             | ResolverError::OracleMarkedAsConstrained { ident }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { ident }
-            | ResolverError::FoldAttributeOnUnconstrained { ident } => ident.location(),
+            | ResolverError::FoldAttributeOnUnconstrained { ident }
+            | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
             ResolverError::ArrayLengthInterpreter { error } => error.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
@@ -811,6 +816,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::UnconstrainedTypeParameter { ident} => {
+                Diagnostic::simple_error(
+                    format!("The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"),
+                    format!("Hint: remove the `{ident}` type parameter"),
+                    ident.location(),
+                )
+            }
         }
     }
 }

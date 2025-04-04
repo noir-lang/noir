@@ -37,9 +37,8 @@ use super::{
     types::{AcirType, AcirVar},
 };
 use big_int::BigIntContext;
-use generated_acir::PLACEHOLDER_BRILLIG_INDEX;
 
-pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
+pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc, GeneratedAcir};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -47,6 +46,7 @@ pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
 /// which are placed into ACIR.
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     pub(super) blackbox_solver: B,
+    brillig_stdlib: BrilligStdLib<F>,
 
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
@@ -70,6 +70,19 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
 }
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
+    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>, blackbox_solver: B) -> Self {
+        AcirContext {
+            brillig_stdlib,
+            blackbox_solver,
+            vars: Default::default(),
+            constant_witnesses: Default::default(),
+            acir_ir: Default::default(),
+            big_int_ctx: Default::default(),
+            expression_width: Default::default(),
+            warnings: Default::default(),
+        }
+    }
+
     pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
         self.expression_width = expression_width;
     }
@@ -273,18 +286,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(inverted_var);
         }
 
-        // Compute the inverse with brillig code
-        let inverse_code = BrilligStdlibFunc::Inverse.get_generated_brillig();
-
-        let results = self.brillig_call(
+        let results = self.stdlib_brillig_call(
             predicate,
-            &inverse_code,
+            BrilligStdlibFunc::Inverse,
+            &self.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
-            false,
-            PLACEHOLDER_BRILLIG_INDEX,
-            Some(BrilligStdlibFunc::Inverse),
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -799,18 +807,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         };
 
         let [q_value, r_value]: [AcirValue; 2] = self
-            .brillig_call(
+            .stdlib_brillig_call(
                 predicate,
-                &BrilligStdlibFunc::Quotient.get_generated_brillig(),
+                BrilligStdlibFunc::Quotient,
+                &self.brillig_stdlib.get_code(BrilligStdlibFunc::Quotient).clone(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
-                false,
-                PLACEHOLDER_BRILLIG_INDEX,
-                Some(BrilligStdlibFunc::Quotient),
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -860,8 +866,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let q0_big = F::modulus() / &rhs_big;
                 let q0 = F::from_be_bytes_reduce(&q0_big.to_bytes_be());
                 let q0_var = self.add_constant(q0);
-                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+                // ensure that q <= q0
+                self.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits)?;
 
+                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
                 let size_predicate = self.eq_var(q0_var, quotient_var)?;
                 let predicate = self.mul_var(size_predicate, predicate)?;
                 // Ensure that there is no overflow, under q == q0 predicate

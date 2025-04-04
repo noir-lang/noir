@@ -34,7 +34,7 @@ impl Parser<'_> {
             );
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
@@ -158,10 +158,11 @@ mod tests {
         assert_eq!(noir_enum.generics.len(), 2);
 
         let generic = noir_enum.generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = noir_enum.generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {

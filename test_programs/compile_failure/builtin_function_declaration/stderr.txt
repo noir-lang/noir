@@ -1,0 +1,57 @@
+error: Definition of low-level function outside of standard library
+  ┌─ src/main.nr:5:4
+  │
+5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1: N] {}
+  │    ---------- Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
+  │
+
+error: Expected type [u1; 100], found type [u1]
+  ┌─ src/main.nr:8:27
+  │
+8 │     let bits: [u1; 100] = to_le_bits(x);
+  │                           -------------
+  │
+
+error: Expected a ']' but found ':'
+  ┌─ src/main.nr:5:44
+  │
+5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1: N] {}
+  │                                            -
+  │
+
+error: Expected an item but found ':'
+  ┌─ src/main.nr:5:44
+  │
+5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1: N] {}
+  │                                            -
+  │
+
+error: Expected an item but found 'N'
+  ┌─ src/main.nr:5:46
+  │
+5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1: N] {}
+  │                                              -
+  │
+
+error: Expected an item but found ']'
+  ┌─ src/main.nr:5:47
+  │
+5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1: N] {}
+  │                                               -
+  │
+
+error: Expected an item but found '{'
+  ┌─ src/main.nr:5:49
+  │
+5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1: N] {}
+  │                                                 -
+  │
+
+error: Expected an item but found '}'
+  ┌─ src/main.nr:5:50
+  │
+5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1: N] {}
+  │                                                  -
+  │
+
+Aborting due to 8 previous errors

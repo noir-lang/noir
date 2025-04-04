@@ -50,7 +50,11 @@ impl UintStrategy {
         // Choose if we want values around 0 or max
         let is_min = rng.gen_bool(0.5);
         let offset = rng.gen_range(0..4);
-        let start = if is_min { offset } else { self.type_max().saturating_sub(offset) };
+        let start = if is_min {
+            offset.min(self.type_max())
+        } else {
+            self.type_max().saturating_sub(offset)
+        };
         Ok(BinarySearch::new(start))
     }
 

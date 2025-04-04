@@ -40,6 +40,8 @@ similar-asserts.workspace = true
 tracing-test = "0.2.5"
 num-traits.workspace = true
 test-case.workspace = true
+function_name = "0.3.0"
+noirc_frontend = { workspace = true, features = ["test_utils"] }
 
 [features]
 bn254 = ["noirc_frontend/bn254"]

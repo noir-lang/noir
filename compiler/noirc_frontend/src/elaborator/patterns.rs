@@ -616,6 +616,13 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
+            PathResolutionItem::SelfMethod(_) => {
+                if let Some(Type::DataType(_, generics)) = &self.self_type {
+                    generics.clone()
+                } else {
+                    Vec::new()
+                }
+            }
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
@@ -655,7 +662,14 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
-            _ => Vec::new(),
+            PathResolutionItem::Method(_, None, _)
+            | PathResolutionItem::TraitFunction(_, None, _)
+            | PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::ModuleFunction(..) => Vec::new(),
         }
     }
 
