@@ -465,4 +465,124 @@ mod tests {
         ";
         assert_normalized_ssa_equals(ssa, expected);
     }
+
+    #[test]
+    fn simplifies_or_when_one_side_is_all_1s_u128() {
+        let src: &str = "
+        g0 = u128 340282366920938463463374607431768211455
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u128):
+        v2 = or u128 340282366920938463463374607431768211455, v1
+        return v2
+        }
+        ";
+        let ssa: Ssa = Ssa::from_str_simplifying(src).unwrap();
+        let expected = "
+        g0 = u128 340282366920938463463374607431768211455
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u128):
+        return u128 340282366920938463463374607431768211455
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplifies_or_when_one_side_is_all_1s_u64() {
+        let src: &str = "
+        g0 = u64 18446744073709551615
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u64):
+        v2 = or u64 18446744073709551615, v1
+        return v2
+        }
+        ";
+        let ssa: Ssa = Ssa::from_str_simplifying(src).unwrap();
+        let expected = "
+        g0 = u64 18446744073709551615
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u64):
+        return u64 18446744073709551615
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplifies_or_when_one_side_is_all_1s_u32() {
+        let src: &str = "
+        g0 = u32 4294967295
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u32):
+        v2 = or u32 4294967295, v1
+        return v2
+        }
+        ";
+        let ssa: Ssa = Ssa::from_str_simplifying(src).unwrap();
+        let expected = "
+        g0 = u32 4294967295
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u32):
+        return u32 4294967295
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplifies_or_when_one_side_is_all_1s_u16() {
+        let src: &str = "
+        g0 = u16 65535
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u16):
+        v2 = or u16 65535, v1
+        return v2
+        }
+        ";
+        let ssa: Ssa = Ssa::from_str_simplifying(src).unwrap();
+        let expected = "
+        g0 = u16 65535
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u16):
+        return u16 65535
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplifies_or_when_one_side_is_all_1s_u8() {
+        let src: &str = "
+        g0 = u8 255
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u8):
+        v2 = or u8 255, v1
+        return v2
+        }
+        ";
+        let ssa: Ssa = Ssa::from_str_simplifying(src).unwrap();
+        let expected = "
+        g0 = u8 255
+
+        acir(inline) pure fn main f0 {
+        b0(v1: u8):
+        return u8 255
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }
