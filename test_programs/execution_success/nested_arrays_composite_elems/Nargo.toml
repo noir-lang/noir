@@ -1,0 +1,6 @@
+[package]
+name = "nested_arrays_composite_elems"
+type = "bin"
+authors = [""]
+
+[dependencies]

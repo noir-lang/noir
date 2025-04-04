@@ -113,6 +113,7 @@ impl Context {
                                 self.slice_sizes.insert(value, new_capacity);
                             }
                             SizeChange::Inc { old, new } => {
+                                // if new.
                                 let old_capacity = self.get_or_find_capacity(&function.dfg, old);
                                 self.slice_sizes.insert(new, old_capacity + 1);
                             }
@@ -151,8 +152,8 @@ impl Context {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
-                if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    let length = array.len() / typ.element_types().len();
+                if let Some((array, _)) = dfg.get_array_constant(value) {
+                    let length = array.len();
                     return *entry.insert(length as u32);
                 }
 

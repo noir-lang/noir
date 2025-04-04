@@ -213,7 +213,7 @@ type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Resu
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
@@ -446,7 +446,6 @@ impl<'brillig> Context<'brillig> {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
-
             self.cached_instruction_results
                 .entry(array_get)
                 .or_default()
@@ -473,6 +472,8 @@ impl<'brillig> Context<'brillig> {
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
+                // .entry(ctrl_typevars.clone())
+                // .or_default()
                 .entry(predicate)
                 .or_default()
                 .cache(block, instruction_results);
@@ -511,7 +512,6 @@ impl<'brillig> Context<'brillig> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
-
         results_for_instruction.get(&predicate)?.get(block, dom, has_side_effects(instruction, dfg))
     }
 
@@ -693,6 +693,7 @@ impl<'brillig> Context<'brillig> {
             };
 
             if matches!(instruction, Instruction::MakeArray { .. }) {
+                // Instruction::MakeArray does not require ctrl typevars
                 self.cached_instruction_results.remove(instruction);
             }
         }
@@ -733,7 +734,7 @@ impl ResultCache {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum CacheResult<'a> {
     Cached(&'a [ValueId]),
     NeedToHoistToCommonBlock(BasicBlockId),
