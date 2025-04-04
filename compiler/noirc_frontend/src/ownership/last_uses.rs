@@ -15,7 +15,7 @@ use super::Context;
 /// }
 /// ```
 /// d's last uses in the above snippet would be:
-/// ```
+/// ```noir
 /// Branches::If {
 ///     then_branch: Branches::If {
 ///         then_branch: Branches::Direct(3),

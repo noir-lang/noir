@@ -410,7 +410,12 @@ impl Context {
                 Some((should_clone, ident.typ.clone()))
             }
             // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
-            Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, result_type, .. }) => {
+            Expression::Unary(Unary {
+                rhs,
+                operator: UnaryOp::Dereference { .. },
+                result_type,
+                ..
+            }) => {
                 self.handle_reference_expression(rhs);
                 Some((true, result_type.clone()))
             }
@@ -418,7 +423,7 @@ impl Context {
                 let (should_clone, typ) = self.handle_extract_expression_rec(tuple)?;
                 let mut elements = unwrap_tuple_type(typ)?;
                 Some((should_clone, elements.swap_remove(*index)))
-            },
+            }
             _ => None,
         }
     }
@@ -429,7 +434,8 @@ impl Context {
     fn should_clone_ident(&self, ident: &Ident) -> bool {
         if self.experimental_ownership_feature {
             if let Definition::Local(local_id) = &ident.definition {
-                if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id) {
+                if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id)
+                {
                     return true;
                 }
             }
@@ -680,7 +686,11 @@ fn is_array_or_str_literal(expr: &Expression) -> bool {
 
 fn contains_array_or_str_type(typ: &Type) -> bool {
     match typ {
-        Type::Field | Type::Integer(..) | Type::Bool | Type::Unit | Type::Function(..)
+        Type::Field
+        | Type::Integer(..)
+        | Type::Bool
+        | Type::Unit
+        | Type::Function(..)
         | Type::Reference(..) => false,
 
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
