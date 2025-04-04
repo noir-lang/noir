@@ -49,7 +49,7 @@ impl Freq {
 
     /// Like `enabled`, but if `cond` is `false` it redistributes the probability
     /// to the remaining keys, as if the current one never existed.
-    pub fn enabled_if(&mut self, key: &str, cond: bool) -> bool {
+    pub fn enabled_when(&mut self, key: &str, cond: bool) -> bool {
         if cond {
             self.enabled(key)
         } else {
@@ -109,8 +109,8 @@ mod tests {
     #[test]
     fn test_freq_redistribution() {
         let mut freq = make_test_freq(25);
-        assert!(!freq.enabled_if("foo", false));
-        assert!(!freq.enabled_if("bar", false));
+        assert!(!freq.enabled_when("foo", false));
+        assert!(!freq.enabled_when("bar", false));
         assert!(freq.enabled("baz"));
     }
 }

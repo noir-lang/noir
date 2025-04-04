@@ -218,13 +218,13 @@ impl<'a> FunctionContext<'a> {
 
         let allow_if_then = flags.allow_if_then && allow_nested && self.budget > 0;
 
-        if freq.enabled_if("unary", allow_nested && types::can_unary_return(typ)) {
+        if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
                 return Ok(expr);
             }
         }
 
-        if freq.enabled_if("binary", allow_nested && types::can_binary_return(typ)) {
+        if freq.enabled_when("binary", allow_nested && types::can_binary_return(typ)) {
             if let Some(expr) = self.gen_binary(u, typ, max_depth)? {
                 return Ok(expr);
             }
@@ -232,12 +232,12 @@ impl<'a> FunctionContext<'a> {
 
         // if-then-else returning a value
         // Unlike blocks/loops it can appear in nested expressions.
-        if freq.enabled_if("if_then", allow_if_then) {
-            return self.gen_if_then(u, typ, max_depth, flags);
+        if freq.enabled_when("if", allow_if_then) {
+            return self.gen_if(u, typ, max_depth, flags);
         }
 
         // Block of statements returning a value
-        if freq.enabled_if("block", allow_blocks) {
+        if freq.enabled_when("block", allow_blocks) {
             return self.gen_block(u, typ);
         }
 
@@ -520,8 +520,8 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        if freq.enabled("if_then") {
-            return self.gen_if_then(u, &Type::Unit, self.max_depth(), Flags::TOP);
+        if freq.enabled("if") {
+            return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
         }
 
         self.gen_let(u)
@@ -603,7 +603,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate an if-then-else statement or expression.
-    fn gen_if_then(
+    fn gen_if(
         &mut self,
         u: &mut Unstructured,
         typ: &Type,
