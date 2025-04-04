@@ -33,8 +33,12 @@ impl AstPrinter {
 
         write!(
             f,
-            "fn {}$f{}({}) -> {} {{",
-            function.name, function.id, params, function.return_type
+            "{}fn {}$f{}({}) -> {} {{",
+            if function.unconstrained { "unconstrained " } else { "" },
+            function.name,
+            function.id,
+            params,
+            function.return_type
         )?;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
@@ -75,7 +79,13 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
-                write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
+                write!(
+                    f,
+                    "let {}{}${} = ",
+                    if let_expr.mutable { "mut " } else { "" },
+                    let_expr.name,
+                    let_expr.id.0
+                )?;
                 self.print_expr(&let_expr.expression, f)
             }
             Expression::Constrain(expr, ..) => {
