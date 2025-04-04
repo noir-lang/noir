@@ -86,11 +86,6 @@ impl Flags {
     const NESTED: Self = Self { allow_blocks: false, allow_if_then: true };
     /// In `if` conditions avoid nesting more ifs, like `if if if false ...`.
     const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
-
-    fn no_if_then(mut self) -> Self {
-        self.allow_if_then = false;
-        self
-    }
 }
 
 /// Context used during the generation of a function body.
@@ -178,7 +173,7 @@ impl<'a> FunctionContext<'a> {
         }
         let budget = u.choose_index(self.budget)?;
         // Limit it so we don't blow it on the first block.
-        let budget = budget.min(self.ctx.config.max_function_size / 2);
+        let budget = budget.min(self.ctx.config.max_function_size / 5);
         self.decrease_budget(budget);
         Ok(budget)
     }
@@ -618,7 +613,7 @@ impl<'a> FunctionContext<'a> {
         // Decrease the budget so we avoid a potential infinite nesting of ifs in the arms.
         self.decrease_budget(2);
 
-        let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_if_then())?;
+        let condition = self.gen_expr(u, &Type::Bool, max_depth, Flags::CONDITION)?;
 
         let consequence = {
             self.locals.enter();
