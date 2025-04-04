@@ -199,11 +199,9 @@ impl<'f> LoopInvariantContext<'f> {
         let Some(header) = loop_.blocks.first() else {
             return true;
         };
-        if let Some(header) = loop_.blocks.first() {
-            for block in self.inserter.function.dfg[*header].successors() {
-                if !loop_.blocks.contains(&block) {
-                    return self.cfg.predecessors(block).len() == 1;
-                }
+        for block in self.inserter.function.dfg[*header].successors() {
+            if !loop_.blocks.contains(&block) {
+                return self.cfg.predecessors(block).len() == 1;
             }
         }
         true
@@ -456,6 +454,9 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Simplify 'assert(lhs < rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
+    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
+    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
+    /// This is ensured via control dependence and the check for break patterns, before calling this function.
     fn simplify_induction_in_constrain(
         &mut self,
         lhs: ValueId,
@@ -501,15 +502,18 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
+    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
+    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
+    /// This is ensured via control dependence and the check for break patterns, before calling this function.
     fn simplify_not_equal_constraint(
         &mut self,
-        x: &ValueId,
-        y: &ValueId,
+        lhs: &ValueId,
+        rhs: &ValueId,
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        if let Some((is_left, upper, lower)) = self.match_induction_and_invariant(x, y) {
-            let invariant = if is_left { y } else { x };
+        if let Some((is_left, upper, lower)) = self.match_induction_and_invariant(lhs, rhs) {
+            let invariant = if is_left { rhs } else { lhs };
             let check_lower_bound =
                 Instruction::Binary(Binary { lhs: *invariant, rhs: lower, operator: BinaryOp::Lt });
             let check_upper_bound =
@@ -571,14 +575,14 @@ impl<'f> LoopInvariantContext<'f> {
         &mut self,
         value: ValueId,
     ) -> Option<(bool, ValueId, ValueId, Binary)> {
-        if let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] {
-            if let Instruction::Binary(binary) = self.inserter.function.dfg[*instruction].clone() {
-                return self
-                    .match_induction_and_invariant(&binary.lhs, &binary.rhs)
-                    .map(|(is_left, min, max)| (is_left, min, max, binary));
-            }
-        }
-        None
+        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
+            return None;
+        };
+        let Instruction::Binary(binary) = self.inserter.function.dfg[*instruction].clone() else {
+            return None;
+        };
+        self.match_induction_and_invariant(&binary.lhs, &binary.rhs)
+            .map(|(is_left, min, max)| (is_left, min, max, binary))
     }
 
     /// If the inputs are an induction and a loop invariant variables, it returns
@@ -589,26 +593,24 @@ impl<'f> LoopInvariantContext<'f> {
         lhs: &ValueId,
         rhs: &ValueId,
     ) -> Option<(bool, ValueId, ValueId)> {
-        if let Some((is_left, lower, upper)) = match (
+        let (is_left, lower, upper) = match (
             self.current_induction_variables.get(lhs),
             self.current_induction_variables.get(rhs),
         ) {
             (_, Some((lower, upper))) => Some((false, lower, upper)),
             (Some((lower, upper)), _) => Some((true, lower, upper)),
             _ => None,
-        } {
-            let min_iter =
-                self.inserter.function.dfg.make_constant(*lower, NumericType::length_type());
-            assert!(*upper != FieldElement::zero(), "executing a non executable loop");
-            let max_iter = self
-                .inserter
-                .function
-                .dfg
-                .make_constant(*upper - FieldElement::one(), NumericType::length_type());
-            if (is_left && self.is_loop_invariant(rhs)) || (!is_left && self.is_loop_invariant(lhs))
-            {
-                return Some((is_left, min_iter, max_iter));
-            }
+        }?;
+
+        let min_iter = self.inserter.function.dfg.make_constant(*lower, NumericType::length_type());
+        assert!(*upper != FieldElement::zero(), "executing a non executable loop");
+        let max_iter = self
+            .inserter
+            .function
+            .dfg
+            .make_constant(*upper - FieldElement::one(), NumericType::length_type());
+        if (is_left && self.is_loop_invariant(rhs)) || (!is_left && self.is_loop_invariant(lhs)) {
+            return Some((is_left, min_iter, max_iter));
         }
         None
     }
@@ -651,10 +653,13 @@ impl<'f> LoopInvariantContext<'f> {
         !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
     }
 
-    // Replace checked operations with unchecked version if the bounds prove that the operation will not overflow
-    // Replace comparisons i<c by true if max(i)<c, and false if min(i)>=c
-    // Similarly for c<i, i==c
-    // Header indicates if we are in the loop header where loop bounds do not apply yet
+    /// Given a constant `c` and an induction variable `i`:
+    /// - Replace comparisons `i < c` by true if `max(i) < c`, and false if `min(i) >= c`
+    /// - Replace comparisons `c < i` by true if `min(i) > c`, and false if `max(i) <= c`
+    /// - Replace equalities `i == c` by false if `min(i) > c or max(i) < c`
+    /// - Replace checked operations with unchecked version if the induction variable bounds prove that the operation will not overflow
+    ///
+    /// `header` indicates if we are in the loop header where loop bounds do not apply yet
     fn simplify_induction_variable_in_binary(
         &mut self,
         binary: &Binary,
@@ -665,7 +670,7 @@ impl<'f> LoopInvariantContext<'f> {
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
         let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
         let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
-        let (is_left, value, lower_bound, upper_bound) = match (
+        let (is_induction_var_lhs, value, lower_bound, upper_bound) = match (
             lhs_const,
             rhs_const,
             self.current_induction_variables
@@ -702,7 +707,7 @@ impl<'f> LoopInvariantContext<'f> {
                 SimplifyResult::None
             }
             BinaryOp::Sub { .. } => {
-                if is_left {
+                if is_induction_var_lhs {
                     if eval_constant_binary_op(*lower_bound, value, binary.operator, operand_type)
                         .is_some()
                     {
@@ -737,24 +742,15 @@ impl<'f> LoopInvariantContext<'f> {
                     SimplifyResult::None
                 }
             }
-            BinaryOp::Lt => {
-                if is_left {
-                    if *upper_bound <= value {
-                        return SimplifyResult::SimplifiedTo(self.true_value);
-                    }
-                    if *lower_bound >= value {
-                        return SimplifyResult::SimplifiedTo(self.false_value);
-                    }
-                } else {
-                    if *lower_bound > value {
-                        return SimplifyResult::SimplifiedTo(self.true_value);
-                    }
-                    if *upper_bound <= value + FieldElement::one() {
-                        return SimplifyResult::SimplifiedTo(self.false_value);
-                    }
+            BinaryOp::Lt => match is_induction_var_lhs {
+                true if *upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
+                true if *lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
+                false if *lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
+                false if *upper_bound <= value + FieldElement::one() => {
+                    SimplifyResult::SimplifiedTo(self.false_value)
                 }
-                SimplifyResult::None
-            }
+                _ => SimplifyResult::None,
+            },
             _ => SimplifyResult::None,
         }
     }
