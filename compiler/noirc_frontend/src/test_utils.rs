@@ -190,7 +190,7 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         "indexing_array_with_non_u32_on_lvalue_produces_a_warning",
         "indexing_array_with_non_u32_produces_a_warning",
         // This test requires the ownership feature which we don't want to enable on each test
-        "immutable_references_with_ownership_feature"
+        "immutable_references_with_ownership_feature",
     ];
     if let Expect::Error = expect {
         if error_to_warn_cases
