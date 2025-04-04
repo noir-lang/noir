@@ -8,13 +8,11 @@ fn main() {
     let destination = Path::new(&out_dir).join("execute.rs");
     let mut test_file = File::create(destination).unwrap();
 
-    // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
-    // is the root of the repository and append the crate path
-    let root_dir = match env::var("CARGO_MANIFEST_DIR") {
-        Ok(dir) => PathBuf::from(dir).parent().unwrap().to_path_buf(),
+    // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD.
+    let test_dir = match env::var("CARGO_MANIFEST_DIR") {
+        Ok(dir) => PathBuf::from(dir),
         Err(_) => env::current_dir().unwrap(),
     };
-    let test_dir = root_dir.join("test_programs");
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_execution_failure_tests(&mut test_file, &test_dir);
