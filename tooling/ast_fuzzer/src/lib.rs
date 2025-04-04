@@ -19,6 +19,8 @@ pub struct Config {
     pub max_function_args: usize,
     /// Maximum number of statements to aim for in a function body.
     pub max_function_size: usize,
+    /// Maximum number of statements in a block.
+    pub max_block_size: usize,
     /// Maximum nesting depth for complex expressions.
     pub max_depth: usize,
     /// Maximum number of fields for tuples.
@@ -44,12 +46,13 @@ impl Default for Config {
             ("literal", 5),
         ]);
         let stmt_freqs =
-            Freqs::new(&[("drop", 5), ("assign", 20), ("if", 10), ("for", 20), ("let", 30)]);
+            Freqs::new(&[("drop", 5), ("assign", 30), ("if", 10), ("for", 20), ("let", 20)]);
         Self {
             max_globals: 3,
             max_functions: 5,
             max_function_args: 3,
             max_function_size: 25,
+            max_block_size: 5,
             max_depth: 2,
             max_tuple_size: 5,
             max_array_size: 4,

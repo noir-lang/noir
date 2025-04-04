@@ -169,18 +169,6 @@ impl<'a> FunctionContext<'a> {
         self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
     }
 
-    /// Take some of the available budget.
-    fn choose_budget(&mut self, u: &mut Unstructured) -> arbitrary::Result<usize> {
-        if self.budget == 0 {
-            return Ok(self.budget);
-        }
-        let budget = u.choose_index(self.budget)?;
-        // Limit it so we don't blow it on the first block.
-        let budget = budget.min(self.ctx.config.max_function_size / 5);
-        self.decrease_budget(budget);
-        Ok(budget)
-    }
-
     /// Decrease the budget by some amount.
     fn decrease_budget(&mut self, amount: usize) {
         self.budget = self.budget.saturating_sub(amount);
@@ -275,7 +263,10 @@ impl<'a> FunctionContext<'a> {
             // If we can't produce the exact we're looking for, maybe we can produce parts of it.
             match typ {
                 Type::Array(len, item_type) => {
-                    let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
+                    let mut arr = ArrayLiteral {
+                        contents: Vec::with_capacity(*len as usize),
+                        typ: typ.clone(),
+                    };
                     for _ in 0..*len {
                         let item = self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
                         arr.contents.push(item);
@@ -283,7 +274,7 @@ impl<'a> FunctionContext<'a> {
                     return Ok(Some(Expression::Literal(Literal::Array(arr))));
                 }
                 Type::Tuple(items) => {
-                    let mut values = Vec::new();
+                    let mut values = Vec::with_capacity(items.len());
                     for item_type in items {
                         let item = self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
                         values.push(item);
@@ -486,17 +477,27 @@ impl<'a> FunctionContext<'a> {
     fn gen_block(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
         // The `max_depth` resets here, because that's only relevant in complex expressions.
         let max_depth = self.max_depth();
-        let size = self.choose_budget(u)?;
-        if size == 0 {
+        let max_size = self.ctx.config.max_block_size.min(self.budget);
+
+        // If we want blocks to be empty, or we don't have a budget for statements, just return an expression.
+        if max_size == 0 {
             return self.gen_expr(u, typ, max_depth, Flags::TOP);
         }
-        let mut stmts = Vec::new();
+
+        // Choose a positive number of statements.
+        let size = u.int_in_range(1..=max_size)?;
+        let mut stmts = Vec::with_capacity(size);
 
         self.locals.enter();
+        self.decrease_budget(1);
         for _ in 0..size - 1 {
+            if self.budget == 0 {
+                break;
+            }
+            self.decrease_budget(1);
             stmts.push(self.gen_stmt(u)?);
         }
-        if types::is_unit(typ) && bool::arbitrary(u)? {
+        if types::is_unit(typ) && u.ratio(4, 5)? {
             stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)))
         } else {
             stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
@@ -517,6 +518,14 @@ impl<'a> FunctionContext<'a> {
         // TODO(#7931): print
         // TODO(#7932): Constrain
 
+        if freq.enabled_when("if", self.budget > 1) {
+            return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
+        }
+
+        if freq.enabled_when("for", self.budget > 1) {
+            return self.gen_for(u);
+        }
+
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
                 return Ok(e);
@@ -527,14 +536,6 @@ impl<'a> FunctionContext<'a> {
             if let Some(e) = self.gen_assign(u)? {
                 return Ok(e);
             }
-        }
-
-        if freq.enabled("if") {
-            return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
-        }
-
-        if freq.enabled("for") {
-            return self.gen_for(u);
         }
 
         self.gen_let(u)
@@ -624,7 +625,7 @@ impl<'a> FunctionContext<'a> {
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
         // Decrease the budget so we avoid a potential infinite nesting of if expressions in the arms.
-        self.decrease_budget(2);
+        self.decrease_budget(1);
 
         let condition = self.gen_expr(u, &Type::Bool, max_depth, Flags::CONDITION)?;
 
