@@ -201,9 +201,13 @@ fn register_value(
                 panic!("type-value mismatch: value: {:?} does not match type Tuple", value)
             }
         }
+        PrintableType::Reference { typ, mutable } => {
+            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Ref, "&");
+            let v = register_value(tracer, value, typ);
+            ValueRecord::Reference { dereferenced: Box::new(v), mutable: *mutable, type_id }
+        }
         //PrintableType::Enum { name, variants } => todo!(),
         //PrintableType::Function { arguments, return_type, env, unconstrained } => todo!(),
-        //PrintableType::Reference { typ, mutable } => todo!(),
         _ => {
             // TODO(stanm): cover all types and remove `warn!`.
             warn!("not implemented yet: type that is not Field: {:?}", typ);
