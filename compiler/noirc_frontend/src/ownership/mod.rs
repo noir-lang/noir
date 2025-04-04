@@ -386,9 +386,7 @@ impl Context {
         // When experimental ownership is enabled, we may clone identifiers. We want to avoid
         // cloning the entire object though if we're only accessing one field of it so we check
         // here to move the clone to the outermost extract expression instead.
-        eprintln!("On expr {tuple}.{index}");
         if let Some((should_clone, tuple_type)) = self.handle_extract_expression_rec(tuple) {
-            eprintln!("Done expr {tuple}.{index} : {tuple_type}");
             if let Some(elements) = unwrap_tuple_type(tuple_type) {
                 if should_clone && contains_array_or_str_type(&elements[*index]) {
                     clone_expr(expr);
@@ -406,15 +404,12 @@ impl Context {
         match expr {
             Expression::Ident(ident) => {
                 let should_clone = self.should_clone_ident(ident);
-                eprintln!("handle_extract_expression_rec {} : {}", ident.name, ident.typ);
                 Some((should_clone, ident.typ.clone()))
             }
             Expression::ExtractTupleField(tuple, index) => {
                 let (should_clone, typ) = self.handle_extract_expression_rec(tuple)?;
                 let mut elements = unwrap_tuple_type(typ)?;
-                let t = elements.swap_remove(*index);
-                eprintln!("handle_extract_expression_rec {} : {}", expr, t);
-                Some((should_clone, t))
+                Some((should_clone, elements.swap_remove(*index)))
             },
             _ => None,
         }

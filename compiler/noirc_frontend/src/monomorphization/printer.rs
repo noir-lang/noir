@@ -31,9 +31,12 @@ impl AstPrinter {
         })
         .join(", ");
 
+        let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
+
         write!(
             f,
-            "fn {}$f{}({}) -> {} {{",
+            "{}fn {}$f{}({}) -> {} {{",
+            unconstrained,
             function.name, function.id, params, function.return_type
         )?;
         self.indent_level += 1;
