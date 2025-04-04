@@ -2049,7 +2049,7 @@ mod control_dependence {
     }
 
     #[test]
-    fn simplifiy_not_equal_constraint() {
+    fn simplify_not_equal_constraint() {
         // This tests shows that the not equal on v3 is simplified due to the loop bounds
         let src = "
         brillig(inline) fn main f0 {
