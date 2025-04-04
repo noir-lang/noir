@@ -3,11 +3,10 @@ pub mod compare;
 mod input;
 mod program;
 
-use std::ops::Index;
-
 pub use abi::program_abi;
 pub use input::arb_inputs;
 pub use program::arb_program;
+use program::freq::Freqs;
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -54,30 +53,5 @@ impl Default for Config {
             expr_freqs,
             stmt_freqs,
         }
-    }
-}
-
-/// Frequency distribution of generators.
-#[derive(Debug, Clone)]
-pub struct Freqs {
-    items: im::HashMap<&'static str, usize>,
-    total: usize,
-}
-
-impl Freqs {
-    pub fn new(items: &[(&'static str, usize)]) -> Self {
-        let total = items.iter().map(|i| i.1).sum();
-        Self { items: items.iter().cloned().collect(), total }
-    }
-    pub fn total(&self) -> usize {
-        self.total
-    }
-}
-
-impl Index<&str> for Freqs {
-    type Output = usize;
-
-    fn index(&self, index: &str) -> &Self::Output {
-        self.items.get(index).unwrap_or_else(|| panic!("unknown freq: {index}"))
     }
 }

@@ -18,7 +18,7 @@ use noirc_frontend::{
 
 use crate::{Config, Freqs};
 
-use super::{Context, Name, VariableId, expr, make_name, types};
+use super::{Context, Name, VariableId, expr, freq::Freq, make_name, types};
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
@@ -136,6 +136,28 @@ where
             return Ok(None);
         }
         u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
+    }
+}
+
+/// Control what kind of expressions we can generate, depending on the surrounding context.
+#[derive(Debug, Clone, Copy)]
+struct Flags {
+    allow_blocks: bool,
+    allow_if_then: bool,
+}
+
+impl Flags {
+    /// In a top level context, everything is allowed.
+    const TOP: Self = Self { allow_blocks: true, allow_if_then: true };
+    /// In complex nested expressions, avoid generating blocks;
+    /// they would be unreadable and non-idiomatic.
+    const NESTED: Self = Self { allow_blocks: false, allow_if_then: true };
+    /// In `if` conditions avoid nesting more ifs, like `if if if false ...`.
+    const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
+
+    fn no_if_then(mut self) -> Self {
+        self.allow_if_then = false;
+        self
     }
 }
 
@@ -710,53 +732,5 @@ impl<'a> FunctionContext<'a> {
             alternative: alternative.map(Box::new),
             typ: typ.clone(),
         }))
-    }
-}
-
-/// Help with cumulative frequency distributions.
-struct Freq {
-    freqs: Freqs,
-    acc: usize,
-    x: usize,
-}
-
-impl Freq {
-    fn new(u: &mut Unstructured, freqs: &Freqs) -> arbitrary::Result<Self> {
-        Ok(Self { freqs: freqs.clone(), acc: 0, x: u.choose_index(freqs.total())? })
-    }
-
-    /// Check if a key is enabled, based on the already checked cumulative values.
-    fn enabled(&mut self, key: &str) -> bool {
-        self.acc += self.freqs[key];
-        self.x < self.acc
-    }
-
-    /// Like `enabled`, but if `cond` is `false` it does not increase the cumulative value,
-    /// so as not to distort the next call, ie. if we have have 5% then another 5%,
-    /// if the first one is disabled, the second doesn't become 10%.
-    fn enabled_if(&mut self, key: &str, cond: bool) -> bool {
-        cond && self.enabled(key)
-    }
-}
-
-/// Control what kind of expressions we can generate, depending on the surrounding context.
-#[derive(Debug, Clone, Copy)]
-struct Flags {
-    allow_blocks: bool,
-    allow_if_then: bool,
-}
-
-impl Flags {
-    /// In a top level context, everything is allowed.
-    const TOP: Self = Self { allow_blocks: true, allow_if_then: true };
-    /// In complex nested expressions, avoid generating blocks;
-    /// they would be unreadable and non-idiomatic.
-    const NESTED: Self = Self { allow_blocks: false, allow_if_then: true };
-    /// In `if` conditions avoid nesting more ifs, like `if if if false ...`.
-    const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
-
-    fn no_if_then(mut self) -> Self {
-        self.allow_if_then = false;
-        self
     }
 }

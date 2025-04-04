@@ -17,6 +17,7 @@ use types::type_depth;
 use crate::Config;
 
 mod expr;
+pub(crate) mod freq;
 mod func;
 mod types;
 
