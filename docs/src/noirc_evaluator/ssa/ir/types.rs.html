@@ -316,12 +316,36 @@
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
 <a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::signed_field::SignedField;
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::sync::Arc;
-
-<span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
-<span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::SSA_WORD_SIZE;
 
@@ -334,6 +358,7 @@
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
 </span><span class="attr">#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -402,6 +427,20 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>, NumericType::Unsigned { .. })
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>max_value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, String&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            NumericType::Unsigned { bit_size } =&gt; <span class="kw">match </span>bit_size {
+                bit_size <span class="kw">if </span><span class="kw-2">*</span>bit_size &gt; <span class="number">128 </span>=&gt; {
+                    <span class="prelude-val">Err</span>(<span class="string">"Cannot get max value for unsigned type: bit size is greater than 128"
+                        </span>.to_string())
+                }
+                <span class="number">128 </span>=&gt; <span class="prelude-val">Ok</span>(FieldElement::from(u128::MAX)),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(FieldElement::from(<span class="number">2u128</span>.pow(<span class="kw-2">*</span>bit_size) - <span class="number">1</span>)),
+            },
+            other =&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Cannot get max value for type: {other}"</span>)),
+        }
     }
 }
 
@@ -614,6 +653,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_u8_value_is_outside_limits() {
@@ -632,6 +672,16 @@
         <span class="macro">assert!</span>(i8.value_is_outside_limits(SignedField::positive(<span class="number">0_i128</span>)).is_none());
         <span class="macro">assert!</span>(i8.value_is_outside_limits(SignedField::positive(<span class="number">127_i128</span>)).is_none());
         <span class="macro">assert!</span>(i8.value_is_outside_limits(SignedField::positive(<span class="number">128_i128</span>)).is_some());
+    }
+
+    <span class="macro">proptest!</span> {
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_max_value_is_in_limits(input: NumericType) {
+            <span class="kw">let </span>max_value = input.max_value();
+            <span class="kw">if let </span><span class="prelude-val">Ok</span>(max_value) = max_value {
+                <span class="macro">prop_assert!</span>(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
+            }
+        }
     }
 }
 </code></pre></div></section></main></body></html>

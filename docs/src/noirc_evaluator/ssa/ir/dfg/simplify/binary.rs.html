@@ -282,7 +282,16 @@
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -346,6 +355,10 @@
 
     <span class="kw">let </span>lhs_is_one = lhs_value.is_some_and(|lhs| lhs.is_one());
     <span class="kw">let </span>rhs_is_one = rhs_value.is_some_and(|rhs| rhs.is_one());
+    <span class="kw">let </span>lhs_is_max =
+        lhs_value.is_some_and(|lhs| lhs_type.max_value().is_ok_and(|max_value| lhs == max_value));
+    <span class="kw">let </span>rhs_is_max =
+        rhs_value.is_some_and(|rhs| rhs_type.max_value().is_ok_and(|max_value| rhs == max_value));
 
     <span class="kw">match </span>binary.operator {
         BinaryOp::Add { .. } =&gt; {
@@ -537,6 +550,11 @@
             }
             <span class="kw">if </span>lhs == rhs {
                 <span class="kw">return </span>SimplifyResult::SimplifiedTo(lhs);
+            }
+
+            <span class="kw">if </span>lhs_is_max || rhs_is_max {
+                <span class="kw">let </span>max = dfg.make_constant(lhs_type.max_value().unwrap(), lhs_type);
+                <span class="kw">return </span>SimplifyResult::SimplifiedTo(max);
             }
         }
         BinaryOp::Xor =&gt; {

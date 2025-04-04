@@ -286,8 +286,7 @@
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
+<a href="#288" id="288">288</a></pre></div><pre class="rust"><code><span class="kw">use </span>num_bigint::BigUint;
 
 <span class="doccomment">/// This trait is extremely unstable and WILL have breaking changes.
 </span><span class="kw">pub trait </span>AcirField:
@@ -321,7 +320,6 @@
 
     <span class="kw">fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
     <span class="kw">fn </span>is_one(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
-
     <span class="kw">fn </span>pow(<span class="kw-2">&amp;</span><span class="self">self</span>, exponent: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// Maximum number of bits needed to represent a field element
