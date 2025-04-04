@@ -195,7 +195,8 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
-    fn is_full(&self, loop_: &Loop) -> bool {
+    // If a loop can have several exit blocks, we would need to update this function
+    fn is_fully_executed(&self, loop_: &Loop) -> bool {
         let Some(header) = loop_.blocks.first() else {
             return true;
         };
@@ -297,7 +298,7 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
-        self.no_break = self.is_full(loop_);
+        self.no_break = self.is_fully_executed(loop_);
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
