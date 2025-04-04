@@ -196,6 +196,9 @@ impl<'f> LoopInvariantContext<'f> {
 
     // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
     fn is_full(&self, loop_: &Loop) -> bool {
+        let Some(header) = loop_.blocks.first() else {
+            return true;
+        };
         if let Some(header) = loop_.blocks.first() {
             for block in self.inserter.function.dfg[*header].successors() {
                 if !loop_.blocks.contains(&block) {
@@ -256,6 +259,10 @@ impl<'f> LoopInvariantContext<'f> {
     /// the given loop's header.
     fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
         let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
+
+        // Reset the current block control dependent flag, the check will set it to true if needed.
+        // If we fail to reset it, a block may be inadvertently labelled
+        // as control dependent thus preventing optimizations.
         self.current_block_control_dependent = false;
 
         // Need to accurately determine whether the current block is dependent on any blocks between
@@ -292,10 +299,6 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
-        // The previous loop may have set that the current block is control dependent.
-        // If we fail to reset for the next loop, a block may be inadvertently labelled
-        // as control dependent thus preventing optimizations.
-        self.current_block_control_dependent = false;
         self.no_break = self.is_full(loop_);
 
         for block in loop_.blocks.iter() {
@@ -452,7 +455,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
-    /// Simplify 'assert(lhs<rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
+    /// Simplify 'assert(lhs < rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
     fn simplify_induction_in_constrain(
         &mut self,
         lhs: ValueId,
@@ -561,7 +564,7 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Returns the binary instruction only if the input value refers to a binary instruction with invariant and induction variables as operands
     /// The return values are:
-    /// - a boolean indicating if the induction variable is lhs
+    /// - a boolean indicating if the induction variable is on the lhs
     /// - the minimum and maximum values of the induction variable, coming from the loop bounds
     /// - the binary instruction itself
     fn extract_induction_and_invariant(
@@ -580,7 +583,7 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// If the inputs are an induction and a loop invariant variables, it returns
     /// the maximum and minimum values of the induction variable, based on the loop bounds,
-    /// and a boolean indicating if the induction variable is lhs or rhs (true for lhs)
+    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
     fn match_induction_and_invariant(
         &mut self,
         lhs: &ValueId,
@@ -610,7 +613,7 @@ impl<'f> LoopInvariantContext<'f> {
         None
     }
 
-    /// Simplify some instructions using induction variable by using its lower/upper bounds
+    /// Simplify certain instructions using the lower/upper bounds of induction variables
     fn simplify_induction_variable(
         &mut self,
         instruction_id: InstructionId,
@@ -2082,8 +2085,8 @@ mod control_dependence {
     }
 
     #[test]
-    fn simplify_not_equal_instruction() {
-        // This tests shows that the not equal constraint on v3 is simplified due to the loop bounds
+    fn simplifiy_not_equal_constraint() {
+        // This tests shows that the not equal on v3 is simplified due to the loop bounds
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
