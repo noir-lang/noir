@@ -1,5 +1,6 @@
 use arbitrary::Unstructured;
 use noirc_frontend::monomorphization::ast::Type;
+use std::fmt::Debug;
 
 use super::{Name, types};
 
@@ -19,7 +20,7 @@ pub(crate) struct Scope<K: Ord> {
 
 impl<K> Scope<K>
 where
-    K: Ord + Clone + Copy + std::fmt::Debug,
+    K: Ord + Clone + Copy + Debug,
 {
     /// Create the initial scope from function parameters.
     pub fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
@@ -31,7 +32,11 @@ where
     }
 
     /// Add a new variable to the scope.
-    pub fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
+    ///
+    /// Private because:
+    /// * we can't add globals
+    /// * locals should go though the `ScopeStack`
+    fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
         assert!(!self.variables.contains_key(&id), "variable already exists");
         for typ in types::types_produced(&typ) {
             self.producers.entry(typ).or_default().insert(id);
@@ -40,7 +45,11 @@ where
     }
 
     /// Remove a variable from the scope.
-    pub fn remove(&mut self, id: &K) {
+    ///
+    /// Private because:
+    /// * we can't add or remove globals
+    /// * locals should go through the `ScopeStack`
+    fn remove(&mut self, id: &K) {
         // Remove the variable
         if self.variables.remove(id).is_none() {
             return;
@@ -62,14 +71,34 @@ where
         }
     }
 
-    /// Check if there are any variables in scope.
-    pub fn is_empty(&self) -> bool {
-        self.variables.is_empty()
+    /// Choose a random producer of a type, if there is one.
+    pub fn choose_producer(
+        &self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Option<K>> {
+        let Some(vs) = self.producers.get(typ) else {
+            return Ok(None);
+        };
+        if vs.is_empty() {
+            return Ok(None);
+        }
+        u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
     }
 
     /// Get a variable in scope.
     pub fn get_variable(&self, id: &K) -> &Variable {
         self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
+    }
+}
+
+impl<K> Scope<K>
+where
+    K: Ord,
+{
+    /// Check if there are any variables in scope.
+    pub fn is_empty(&self) -> bool {
+        self.variables.is_empty()
     }
 
     /// Iterate the variables in scope.
@@ -86,20 +115,47 @@ where
     pub fn types_produced(&self) -> impl ExactSizeIterator<Item = &Type> {
         self.producers.keys()
     }
+}
 
-    /// Choose a random producer of a type, if there is one.
-    pub fn choose_producer(
-        &self,
-        u: &mut Unstructured,
-        typ: &Type,
-    ) -> arbitrary::Result<Option<K>> {
-        let Some(vs) = self.producers.get(typ) else {
-            return Ok(None);
-        };
-        if vs.is_empty() {
-            return Ok(None);
+/// Scope stack as we exit and enter blocks
+pub(crate) struct ScopeStack<K: Ord>(Vec<Scope<K>>);
+
+impl<K> ScopeStack<K>
+where
+    K: Ord + Clone + Copy + Debug,
+{
+    /// Create a stack from the base variables.
+    pub fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
+        Self(vec![Scope::new(vars)])
+    }
+
+    /// The top scope in the stack.
+    pub fn current(&self) -> &Scope<K> {
+        self.0.last().expect("there is always the base layer")
+    }
+
+    /// Push a new scope on top of the current one.
+    pub fn enter(&mut self) {
+        // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
+        self.0.push(self.current().clone());
+    }
+
+    /// Remove the last layer of block variables.
+    pub fn exit(&mut self) {
+        self.0.pop();
+        assert!(!self.0.is_empty(), "never pop the base layer");
+    }
+
+    /// Add a new variable to the current scope.
+    pub fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
+        self.0.last_mut().expect("there is always a layer").add(id, mutable, name, typ);
+    }
+
+    /// Remove a variable from all scopes.
+    pub fn remove(&mut self, id: &K) {
+        for scope in self.0.iter_mut() {
+            scope.remove(id);
         }
-        u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
     }
 }
 
@@ -109,25 +165,28 @@ mod tests {
 
     use crate::program::types;
 
-    use super::Scope;
+    use super::ScopeStack;
 
     #[test]
-    fn test_scope() {
+    fn test_scope_stack() {
         let foo_type =
             Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Box::new(types::U32))]);
 
-        let scope0 = Scope::new([(LocalId(0), false, "foo".to_string(), foo_type)].into_iter());
-        let mut scope1 = scope0.clone();
+        let mut stack =
+            ScopeStack::new([(LocalId(0), false, "foo".to_string(), foo_type)].into_iter());
 
-        scope1.add(LocalId(1), false, "bar".to_string(), Type::String(10));
+        stack.enter();
+        stack.add(LocalId(1), false, "bar".to_string(), Type::String(10));
 
-        for typ in scope0.types_produced() {
-            eprintln!("{typ}");
-        }
+        let scope0 = &stack.0[0];
+        let scope1 = &stack.0[1];
 
         assert_eq!(scope0.variable_ids().len(), 1);
         assert_eq!(scope0.types_produced().len(), 5 + 2); // What we see plus upcasts from u32 to u64 and u128
         assert_eq!(scope1.variable_ids().len(), 2);
         assert_eq!(scope1.types_produced().len(), 5 + 2 + 1);
+
+        stack.exit();
+        assert_eq!(stack.0.len(), 1);
     }
 }

@@ -22,7 +22,7 @@ use super::{
     Context, Name, VariableId, expr,
     freq::Freq,
     make_name,
-    scope::{Scope, Variable},
+    scope::{Scope, ScopeStack, Variable},
     types,
 };
 
@@ -109,7 +109,7 @@ pub(super) struct FunctionContext<'a> {
     /// Variables accumulated during the generation of the function body,
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
-    locals: Vec<Scope<LocalId>>,
+    locals: ScopeStack<LocalId>,
 }
 
 impl<'a> FunctionContext<'a> {
@@ -124,13 +124,13 @@ impl<'a> FunctionContext<'a> {
                 .map(|(id, (name, typ, _expr))| (*id, false, name.clone(), typ.clone())),
         );
 
-        let locals = Scope::new(
+        let locals = ScopeStack::new(
             decl.params
                 .iter()
                 .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        Self { ctx, id, next_local_id, budget, globals, locals: vec![locals] }
+        Self { ctx, id, next_local_id, budget, globals, locals }
     }
 
     /// Generate the function body.
@@ -150,35 +150,6 @@ impl<'a> FunctionContext<'a> {
         self.ctx.config.max_depth
     }
 
-    /// Local variables currently in scope.
-    fn current_scope(&self) -> &Scope<LocalId> {
-        self.locals.last().expect("there is always the params layer")
-    }
-
-    /// Add a layer of block variables.
-    fn enter_scope(&mut self) {
-        // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
-        self.locals.push(self.current_scope().clone());
-    }
-
-    /// Remove the last layer of block variables.
-    fn exit_scope(&mut self) {
-        self.locals.pop();
-        assert!(!self.locals.is_empty(), "never pop the params layer");
-    }
-
-    /// Add a new local variable to the current scope.
-    fn add_local(&mut self, id: LocalId, mutable: bool, name: String, typ: Type) {
-        self.locals.last_mut().expect("there is always a layer").add(id, mutable, name, typ);
-    }
-
-    /// Remove a local variable from all scopes.
-    fn remove_local(&mut self, id: &LocalId) {
-        for scope in self.locals.iter_mut() {
-            scope.remove(id);
-        }
-    }
-
     /// Get and increment the next local ID.
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
@@ -193,7 +164,7 @@ impl<'a> FunctionContext<'a> {
         typ: &Type,
     ) -> arbitrary::Result<Option<VariableId>> {
         if u.ratio(7, 10)? {
-            if let Some(id) = self.current_scope().choose_producer(u, typ)? {
+            if let Some(id) = self.locals.current().choose_producer(u, typ)? {
                 return Ok(Some(VariableId::Local(id)));
             }
         }
@@ -222,7 +193,7 @@ impl<'a> FunctionContext<'a> {
     /// Panics if it doesn't exist.
     fn get_variable(&self, id: &VariableId) -> &Variable {
         match id {
-            VariableId::Local(id) => self.current_scope().get_variable(id),
+            VariableId::Local(id) => self.locals.current().get_variable(id),
             VariableId::Global(id) => self.globals.get_variable(id),
         }
     }
@@ -475,11 +446,20 @@ impl<'a> FunctionContext<'a> {
         let op = u.choose_iter(ops)?;
 
         // Find a type we can produce in the current scope which works with this operation.
-        let lhs_opts = self
-            .current_scope()
-            .types_produced()
-            .filter(|typ| types::can_binary_op_take(&op, typ))
-            .collect::<Vec<_>>();
+        fn collect_input_types<K: Ord>(op: BinaryOp, scope: &Scope<K>) -> Vec<&Type> {
+            scope
+                .types_produced()
+                .filter(|typ| types::can_binary_op_take(&op, typ))
+                .collect::<Vec<_>>()
+        }
+
+        // Try local variables first.
+        let mut lhs_opts = collect_input_types(op, self.locals.current());
+
+        // If the locals don't have any type compatible with `op`, try the globals.
+        if lhs_opts.is_empty() {
+            lhs_opts = collect_input_types(op, &self.globals);
+        }
 
         // We might not have any input that works for this operation.
         // We could generate literals, but that's not super interesting.
@@ -513,7 +493,7 @@ impl<'a> FunctionContext<'a> {
         }
         let mut stmts = Vec::new();
 
-        self.enter_scope();
+        self.locals.enter();
         for i in 0..size - 1 {
             stmts.push(self.gen_stmt(u)?);
         }
@@ -522,7 +502,7 @@ impl<'a> FunctionContext<'a> {
         } else {
             stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
         }
-        self.exit_scope();
+        self.locals.exit();
 
         Ok(Expression::Block(stmts))
     }
@@ -563,21 +543,21 @@ impl<'a> FunctionContext<'a> {
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
 
         // Add the variable so we can use it in subsequent expressions.
-        self.add_local(id, mutable, name.clone(), typ.clone());
+        self.locals.add(id, mutable, name.clone(), typ.clone());
 
         Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
     }
 
     /// Drop a local variable, if we have anything to drop.
     fn gen_drop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
-        if self.current_scope().is_empty() {
+        if self.locals.current().is_empty() {
             return Ok(None);
         }
-        let id = *u.choose_iter(self.current_scope().variable_ids())?;
-        let (mutable, name, typ) = self.current_scope().get_variable(&id).clone();
+        let id = *u.choose_iter(self.locals.current().variable_ids())?;
+        let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
 
         // Remove variable so we stop using it.
-        self.remove_local(&id);
+        self.locals.remove(&id);
 
         Ok(Some(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), mutable, name, typ)))))
     }
@@ -585,7 +565,8 @@ impl<'a> FunctionContext<'a> {
     /// Assign to a mutable variable, if we have one in scope.
     fn gen_assign(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
         let opts = self
-            .current_scope()
+            .locals
+            .current()
             .variables()
             .filter_map(|(id, (mutable, _, _))| mutable.then_some(id))
             .collect::<Vec<_>>();
@@ -595,7 +576,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         let id = *u.choose_iter(opts)?;
-        let (mutable, name, typ) = self.current_scope().get_variable(&id).clone();
+        let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
         let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
         let ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
         let ident = LValue::Ident(ident);
@@ -640,9 +621,9 @@ impl<'a> FunctionContext<'a> {
         let condition = self.gen_expr(u, &Type::Bool, max_depth, flags.no_if_then())?;
 
         let consequence = {
-            self.enter_scope();
+            self.locals.enter();
             let expr = self.gen_expr(u, typ, max_depth, flags)?;
-            self.exit_scope();
+            self.locals.exit();
             expr
         };
 
@@ -650,9 +631,9 @@ impl<'a> FunctionContext<'a> {
             None
         } else {
             self.decrease_budget(1);
-            self.enter_scope();
+            self.locals.enter();
             let expr = self.gen_expr(u, typ, max_depth, flags)?;
-            self.exit_scope();
+            self.locals.exit();
             Some(expr)
         };
 
