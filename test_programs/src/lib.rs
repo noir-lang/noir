@@ -3,10 +3,27 @@ mod tests {
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
     use predicates::prelude::*;
+    use test_binary::TestBinaryError;
 
     use std::path::{Path, PathBuf};
     use std::process::{Command, Output};
+    use std::sync::OnceLock;
 
+    fn build_nargo() -> &'static PathBuf {
+        static INSTANCE: OnceLock<PathBuf> = OnceLock::new();
+        INSTANCE.get_or_init(|| {
+            // Due to the renaming of the nargo_cli binary we need to work around an error in
+            // `test_binary`. If we build `nargo` then we'll successfully build nargo but it will
+            // report an error as it's reported under a different name when looking for it in the build output.
+            let result = test_binary::TestBinary::relative_to_parent(
+                "nargo",
+                &PathBuf::from("../tooling/nargo_cli/Cargo.toml"),
+            )
+            .build();
+            assert!(matches!(result, Err(TestBinaryError::BinaryNotBuilt(_))));
+            PathBuf::from("../target/debug/nargo")
+        })
+    }
     // Utilities to keep the test matrix labels more intuitive.
     #[derive(Debug, Clone, Copy)]
     struct ForceBrillig(pub bool);
@@ -19,7 +36,7 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner_aggressiveness: Inliner,
     ) -> Command {
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        let mut nargo = Command::new(build_nargo());
         nargo.arg("--program-dir").arg(test_program_dir);
         nargo.arg(test_command).arg("--force");
         nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
@@ -126,7 +143,7 @@ mod tests {
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
     }
 
-    fn noir_test_success(mut nargo: Command, test_program_dir: PathBuf) {
+    fn noir_test_success(mut nargo: Command, _test_program_dir: PathBuf) {
         nargo.assert().success();
 
         // Disabled due to non-deterministic output of test results
@@ -134,7 +151,7 @@ mod tests {
         // snapshot_output(output, &test_program_dir);
     }
 
-    fn noir_test_failure(mut nargo: Command, test_program_dir: PathBuf) {
+    fn noir_test_failure(mut nargo: Command, _test_program_dir: PathBuf) {
         nargo
             .assert()
             .failure()

@@ -222,7 +222,7 @@ fn test_{test_name}() {{
     let corpus_dir = assert_fs::TempDir::new().unwrap();
     let fuzzing_failure_dir = assert_fs::TempDir::new().unwrap();
     let test_program_dir = PathBuf::from("{test_dir}");
-    let mut nargo = Command::cargo_bin("nargo").unwrap();
+    let mut nargo = Command::new(build_nargo());
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("fuzz").arg("--timeout").arg("{timeout_str}");
     nargo.arg("--corpus-dir").arg(corpus_dir.path());
