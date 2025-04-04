@@ -399,7 +399,7 @@ impl<'f> LoopInvariantContext<'f> {
                     false
                 }
             }
-            Binary(binary) => self.can_evaluate_binary_op(binary, &self.outer_induction_variables),
+            Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
                 // These instructions should not be hoisted if we know the loop will never be executed (an upper bound or zero or equal loop bounds)
                 // or we are unsure if the loop will ever be executed (dynamic loop bounds).
@@ -622,6 +622,40 @@ impl<'f> LoopInvariantContext<'f> {
         !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
     }
 
+    /// If the inputs are an induction variable and a constant, it returns
+    /// the constant value, the maximum and minimum values of the induction variable, based on the loop bounds,
+    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
+    /// if `only_outer_induction`, we only consider outer induction variables, else we also consider the induction variables from the current loop.
+    fn match_induction_and_constant(
+        &self,
+        lhs: &ValueId,
+        rhs: &ValueId,
+        only_outer_induction: bool,
+    ) -> Option<(bool, FieldElement, FieldElement, FieldElement)> {
+        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(*lhs);
+        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(*rhs);
+        match (
+            lhs_const,
+            rhs_const,
+            self.current_induction_variables
+                .get(lhs)
+                .and_then(|v| if only_outer_induction { None } else { Some(v) })
+                .or(self.outer_induction_variables.get(lhs)),
+            self.current_induction_variables
+                .get(rhs)
+                .and_then(|v| if only_outer_induction { None } else { Some(v) })
+                .or(self.outer_induction_variables.get(rhs)),
+        ) {
+            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
+                Some((false, lhs, *lower_bound, *upper_bound))
+            }
+            (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
+                Some((true, rhs, *lower_bound, *upper_bound))
+            }
+            _ => None,
+        }
+    }
+
     /// Given a constant `c` and an induction variable `i`:
     /// - Replace comparisons `i < c` by true if `max(i) < c`, and false if `min(i) >= c`
     /// - Replace comparisons `c < i` by true if `min(i) > c`, and false if `max(i) <= c`
@@ -637,27 +671,11 @@ impl<'f> LoopInvariantContext<'f> {
         // Checks the operands are an induction variable and a constant
         // Note that here we allow outer_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
-        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
-        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
-        let (is_induction_var_lhs, value, lower_bound, upper_bound) = match (
-            lhs_const,
-            rhs_const,
-            self.current_induction_variables
-                .get(&binary.lhs)
-                .and_then(|v| if header { None } else { Some(v) })
-                .or(self.outer_induction_variables.get(&binary.lhs)),
-            self.current_induction_variables
-                .get(&binary.rhs)
-                .and_then(|v| if header { None } else { Some(v) })
-                .or(self.outer_induction_variables.get(&binary.rhs)),
-        ) {
-            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
-                (false, lhs, lower_bound, upper_bound)
-            }
-            (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
-                (true, rhs, lower_bound, upper_bound)
-            }
-            _ => return SimplifyResult::None,
+
+        let Some((is_induction_var_lhs, value, lower_bound, upper_bound)) =
+            self.match_induction_and_constant(&binary.lhs, &binary.rhs, header)
+        else {
+            return SimplifyResult::None;
         };
 
         // Handle arithmetic operations
@@ -671,15 +689,19 @@ impl<'f> LoopInvariantContext<'f> {
             }
             BinaryOp::Sub { .. } => {
                 if is_induction_var_lhs {
-                    Some((*lower_bound, value))
+                    Some((lower_bound, value))
                 } else {
-                    Some((value, *upper_bound))
+                    Some((value, upper_bound))
                 }
             }
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => Some((value, *upper_bound)),
+            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => Some((value, upper_bound)),
             BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
             _ => None,
         } {
+            // We evaluate this expression using the upper bounds (or lower in the case of sub)
+            // of its inputs to check whether it will ever overflow.
+            // If so, this will cause `eval_constant_binary_op` to return `None`.
+            // Therefore a `Some` value shows that this operation is safe.
             if eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
                 // Unchecked version of the binary operation
                 let unchecked = Instruction::Binary(Binary {
@@ -696,17 +718,17 @@ impl<'f> LoopInvariantContext<'f> {
         // Handle comparisons
         match binary.operator {
             BinaryOp::Eq => {
-                if value >= *upper_bound || value < *lower_bound {
+                if value >= upper_bound || value < lower_bound {
                     SimplifyResult::SimplifiedTo(self.false_value)
                 } else {
                     SimplifyResult::None
                 }
             }
             BinaryOp::Lt => match is_induction_var_lhs {
-                true if *upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
-                true if *lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
-                false if *lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
-                false if *upper_bound <= value + FieldElement::one() => {
+                true if upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
+                true if lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
+                false if lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
+                false if upper_bound <= value + FieldElement::one() => {
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }
                 _ => SimplifyResult::None,
@@ -719,47 +741,33 @@ impl<'f> LoopInvariantContext<'f> {
     ///
     /// If it cannot be evaluated, it means that we either have a dynamic loop bound or
     /// that the operation can potentially overflow during a given loop iteration.
-    fn can_evaluate_binary_op(
-        &self,
-        binary: &Binary,
-        induction_vars: &HashMap<ValueId, (FieldElement, FieldElement)>,
-    ) -> bool {
-        let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
-
-        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
-        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
-        let (lhs, rhs) = match (
-            lhs_const,
-            rhs_const,
-            induction_vars.get(&binary.lhs),
-            induction_vars.get(&binary.rhs),
-        ) {
-            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
-                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    // If we have a Div/Mod operation we want to make sure that the
-                    // lower bound is not zero.
-                    (lhs, *lower_bound)
-                } else {
-                    (lhs, *upper_bound)
+    fn can_evaluate_binary_op(&self, binary: &Binary) -> bool {
+        match binary.operator {
+            // An unchecked operation cannot overflow, so it can be safely evaluated
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Sub { unchecked: true } => true,
+            BinaryOp::Div | BinaryOp::Mod => {
+                // Division can be evaluated if we ensure that the divisor cannot be zero
+                let Some((left, value, lower, _)) =
+                    self.match_induction_and_constant(&binary.lhs, &binary.rhs, true)
+                else {
+                    return false;
+                };
+                if left {
+                    if value != FieldElement::zero() {
+                        return true;
+                    }
+                } else if lower != FieldElement::zero() {
+                    return true;
                 }
-            }
-            (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
-                if matches!(binary.operator, BinaryOp::Sub { .. }) {
-                    // If we are subtracting and the induction variable is on the lhs,
-                    // we want to check the induction variable lower bound.
-                    (*lower_bound, rhs)
-                } else {
-                    (*upper_bound, rhs)
-                }
-            }
-            _ => return false,
-        };
 
-        // We evaluate this expression using the upper bounds (or lower in the case of div/mod)
-        // of its inputs to check whether it will ever overflow.
-        // If so, this will cause `eval_constant_binary_op` to return `None`.
-        // Therefore a `Some` value shows that this operation is safe.
-        eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
+                false
+            }
+            // Some checked operations can be safely evaluated, depending on the loop bounds, but in that case,
+            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`
+            _ => false,
+        }
     }
 
     /// Loop invariant hoisting only operates over loop instructions.
