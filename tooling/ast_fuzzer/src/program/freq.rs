@@ -42,6 +42,8 @@ impl Freq {
     }
 
     /// Check if a key is enabled, based on the already checked cumulative values.
+    ///
+    /// To work correctly, `enabled` calls should come after `enabled_when`s.
     pub fn enabled(&mut self, key: &str) -> bool {
         self.accumulated += self.freqs[key];
         self.passed()
@@ -49,6 +51,8 @@ impl Freq {
 
     /// Like `enabled`, but if `cond` is `false` it redistributes the probability
     /// to the remaining keys, as if the current one never existed.
+    ///
+    /// To work correctly, `enabled_when` calls should precede `enabled`s.
     pub fn enabled_when(&mut self, key: &str, cond: bool) -> bool {
         if cond {
             self.enabled(key)

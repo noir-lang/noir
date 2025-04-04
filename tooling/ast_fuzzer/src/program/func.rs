@@ -1,7 +1,5 @@
-#![allow(unused)] // TODO(#7879): Remove when done.
-use acir::FieldElement;
 use nargo::errors::Location;
-use std::{collections::HashSet, fmt::Debug};
+use std::fmt::Debug;
 use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
@@ -9,17 +7,15 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Expression, For, FuncId, GlobalId, Ident, If,
-        Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Type, Unary,
+        ArrayLiteral, Assign, BinaryOp, Expression, For, FuncId, GlobalId, If, Index, InlineType,
+        LValue, Let, Literal, LocalId, Parameters, Type,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
 };
 
-use crate::{Config, Freqs};
-
 use super::{
-    Context, Name, VariableId, expr,
+    Context, VariableId, expr,
     freq::Freq,
     make_name,
     scope::{Scope, ScopeStack, Variable},
@@ -255,7 +251,8 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        // TODO: Match, Call
+        // TODO: Match
+        // TODO: Call
 
         // If nothing else worked out we can always produce a random literal.
         expr::gen_literal(u, typ)
@@ -279,7 +276,7 @@ impl<'a> FunctionContext<'a> {
             match typ {
                 Type::Array(len, item_type) => {
                     let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
-                    for i in 0..*len {
+                    for _ in 0..*len {
                         let item = self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
                         arr.contents.push(item);
                     }
@@ -487,7 +484,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// This should always succeed, as we can always create a literal in the end.
     fn gen_block(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
-        /// The `max_depth` resets here, because that's only relevant in complex expressions.
+        // The `max_depth` resets here, because that's only relevant in complex expressions.
         let max_depth = self.max_depth();
         let size = self.choose_budget(u)?;
         if size == 0 {
@@ -496,7 +493,7 @@ impl<'a> FunctionContext<'a> {
         let mut stmts = Vec::new();
 
         self.locals.enter();
-        for i in 0..size - 1 {
+        for _ in 0..size - 1 {
             stmts.push(self.gen_stmt(u)?);
         }
         if types::is_unit(typ) && bool::arbitrary(u)? {
@@ -513,7 +510,9 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO: Loop, While, Match, Call
+        // TODO: Loop, While,
+        // TODO: Match
+        // TODO: Call
 
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
@@ -583,7 +582,6 @@ impl<'a> FunctionContext<'a> {
 
         let id = *u.choose_iter(opts)?;
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
-        let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
         let ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
         let ident = LValue::Ident(ident);
 
@@ -608,6 +606,7 @@ impl<'a> FunctionContext<'a> {
             _ => (ident, typ),
         };
 
+        // Generate the assigned value.
         let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
 
         Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
