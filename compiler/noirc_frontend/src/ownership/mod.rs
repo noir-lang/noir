@@ -105,7 +105,7 @@ impl Context {
     fn should_move(&self, definition: LocalId, variable: IdentId) -> bool {
         self.variables_to_move
             .get(&definition)
-            .map_or(false, |instances_to_move| instances_to_move.contains(&variable))
+            .is_some_and(|instances_to_move| instances_to_move.contains(&variable))
     }
 
     fn handle_ownership_in_function(&mut self, function: &mut Function) {

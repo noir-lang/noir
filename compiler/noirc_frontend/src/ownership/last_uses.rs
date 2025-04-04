@@ -205,12 +205,12 @@ impl LastUseContext {
             Expression::Match(match_expr) => self.track_variables_in_match(match_expr),
             Expression::Tuple(elems) => self.track_variables_in_tuple(elems),
             Expression::ExtractTupleField(tuple, _index) => {
-                self.track_variables_in_expression(tuple)
+                self.track_variables_in_expression(tuple);
             }
             Expression::Call(call) => self.track_variables_in_call(call),
             Expression::Let(let_expr) => self.track_variables_in_let(let_expr),
             Expression::Constrain(boolean, _location, msg) => {
-                self.track_variables_in_constrain(boolean, msg)
+                self.track_variables_in_constrain(boolean, msg);
             }
             Expression::Assign(assign) => self.track_variables_in_assign(assign),
             Expression::Semi(expr) => self.track_variables_in_expression(expr),
