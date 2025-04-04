@@ -92,6 +92,101 @@ pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result
     Ok(expr)
 }
 
+/// Generate a literals for loop ranges with signed/unsigned integers with bits 8, 16, 32 or 64 bits,
+/// in a way that start is not higher than the end, and the maximum difference between them is limited,
+/// so that we don't get huge unrolled loops.
+pub(crate) fn gen_range(
+    u: &mut Unstructured,
+    typ: &Type,
+    max_size: usize,
+) -> arbitrary::Result<(Expression, Expression)> {
+    use FieldElement as Field;
+    use IntegerBitSize::*;
+
+    let Type::Integer(signedness, integer_bit_size) = typ else {
+        unreachable!("invalid range type: {typ}")
+    };
+
+    let (start, end) = {
+        if signedness.is_signed() {
+            match integer_bit_size {
+                Eight => {
+                    let s = i8::arbitrary(u)?;
+                    let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u8);
+                    let s = (Field::from(s.unsigned_abs() as u32), s < 0);
+                    let e = (Field::from(e.unsigned_abs() as u32), e < 0);
+                    (s, e)
+                }
+                Sixteen => {
+                    let s = i16::arbitrary(u)?;
+                    let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u16);
+                    let s = (Field::from(s.unsigned_abs() as u32), s < 0);
+                    let e = (Field::from(e.unsigned_abs() as u32), e < 0);
+                    (s, e)
+                }
+                ThirtyTwo => {
+                    let s = i32::arbitrary(u)?;
+                    let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u32);
+                    let s = (Field::from(s.unsigned_abs()), s < 0);
+                    let e = (Field::from(e.unsigned_abs()), e < 0);
+                    (s, e)
+                }
+                SixtyFour => {
+                    let s = i64::arbitrary(u)?;
+                    let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u64);
+                    let s = (Field::from(s.unsigned_abs()), s < 0);
+                    let e = (Field::from(e.unsigned_abs()), e < 0);
+                    (s, e)
+                }
+                _ => unreachable!("invalid bit size for range: {integer_bit_size}"),
+            }
+        } else {
+            let (s, e) = match integer_bit_size {
+                Eight => {
+                    let s = u8::arbitrary(u)?;
+                    let e = s.saturating_add(u.choose_index(max_size)? as u8);
+                    let s = Field::from(s as u32);
+                    let e = Field::from(e as u32);
+                    (s, e)
+                }
+                Sixteen => {
+                    let s = u16::arbitrary(u)?;
+                    let e = s.saturating_add(u.choose_index(max_size)? as u16);
+                    let s = Field::from(s as u32);
+                    let e = Field::from(e as u32);
+                    (s, e)
+                }
+                ThirtyTwo => {
+                    let s = u32::arbitrary(u)?;
+                    let e = s.saturating_add(u.choose_index(max_size)? as u32);
+                    let s = Field::from(s);
+                    let e = Field::from(e);
+                    (s, e)
+                }
+                SixtyFour => {
+                    let s = u64::arbitrary(u)?;
+                    let e = s.saturating_add(u.choose_index(max_size)? as u64);
+                    let s = Field::from(s);
+                    let e = Field::from(e);
+                    (s, e)
+                }
+                _ => unreachable!("invalid bit size for range: {integer_bit_size}"),
+            };
+            ((s, false), (e, false))
+        }
+    };
+
+    let to_lit = |(field, is_negative)| {
+        Expression::Literal(Literal::Integer(
+            SignedField { field, is_negative },
+            Type::Integer(*signedness, *integer_bit_size),
+            Location::dummy(),
+        ))
+    };
+
+    Ok((to_lit(start), to_lit(end)))
+}
+
 /// Make an `Ident` expression out of a variable.
 pub(crate) fn ident(id: VariableId, mutable: bool, name: Name, typ: Type) -> Expression {
     Expression::Ident(ident_inner(id, mutable, name, typ))
@@ -112,12 +207,20 @@ pub(crate) fn ident_inner(id: VariableId, mutable: bool, name: Name, typ: Type) 
 }
 
 /// 32-bit unsigned int literal, used in indexing arrays.
-pub(crate) fn u32_literal(value: u32) -> Expression {
+fn positive_int_literal<V>(value: V, typ: Type) -> Expression
+where
+    FieldElement: From<V>,
+{
     Expression::Literal(Literal::Integer(
         SignedField { field: FieldElement::from(value), is_negative: false },
-        types::U32,
+        typ,
         Location::dummy(),
     ))
+}
+
+/// 32-bit unsigned int literal, used in indexing arrays.
+pub(crate) fn u32_literal(value: u32) -> Expression {
+    positive_int_literal(value, types::U32)
 }
 
 /// Cast an expression to a target type.
@@ -129,6 +232,11 @@ pub(crate) fn cast(lhs: Expression, tgt_type: Type) -> Expression {
 /// by taking a modulo.
 pub(crate) fn index_modulo(idx: Expression, len: u32) -> Expression {
     modulo(idx, u32_literal(len))
+}
+
+/// Take an integer expression and make sure it's no larger than `max_size`.
+pub(crate) fn range_modulo(lhs: Expression, typ: Type, max_size: usize) -> Expression {
+    modulo(lhs, positive_int_literal(max_size as u64, typ))
 }
 
 /// Make a modulo expression.

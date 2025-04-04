@@ -33,8 +33,12 @@ impl AstPrinter {
 
         write!(
             f,
-            "fn {}$f{}({}) -> {} {{",
-            function.name, function.id, params, function.return_type
+            "{}fn {}$f{}({}) -> {} {{",
+            if function.unconstrained { "unconstrained " } else { "" },
+            function.name,
+            function.id,
+            params,
+            function.return_type
         )?;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;

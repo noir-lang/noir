@@ -9,8 +9,8 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Expression, FuncId, GlobalId, Ident, If, Index,
-        InlineType, LValue, Let, Literal, LocalId, Parameters, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Expression, For, FuncId, GlobalId, Ident, If,
+        Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Type, Unary,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -86,6 +86,8 @@ impl Flags {
     const NESTED: Self = Self { allow_blocks: false, allow_if_then: true };
     /// In `if` conditions avoid nesting more ifs, like `if if if false ...`.
     const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
+    /// In `for` ranges we can use `if` expressions, but let's not do blocks
+    const RANGE: Self = Self { allow_blocks: false, allow_if_then: true };
 }
 
 /// Context used during the generation of a function body.
@@ -137,6 +139,11 @@ impl<'a> FunctionContext<'a> {
     /// Get the function declaration.
     fn decl(&self) -> &FunctionDeclaration {
         self.ctx.function_decl(self.id)
+    }
+
+    /// Is this function unconstrained.
+    fn unconstrained(&self) -> bool {
+        self.decl().unconstrained
     }
 
     /// The default maximum depth to start from. We use `max_depth` to limit the
@@ -506,7 +513,7 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO: For, Loop, While, Match, Call
+        // TODO: Loop, While, Match, Call
 
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
@@ -522,6 +529,10 @@ impl<'a> FunctionContext<'a> {
 
         if freq.enabled("if") {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
+        }
+
+        if freq.enabled("for") {
+            return self.gen_for(u);
         }
 
         self.gen_let(u)
@@ -610,25 +621,28 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
-        // Decrease the budget so we avoid a potential infinite nesting of ifs in the arms.
+        // Decrease the budget so we avoid a potential infinite nesting of if expressions in the arms.
         self.decrease_budget(2);
 
         let condition = self.gen_expr(u, &Type::Bool, max_depth, Flags::CONDITION)?;
 
         let consequence = {
-            self.locals.enter();
-            let expr = self.gen_expr(u, typ, max_depth, flags)?;
-            self.locals.exit();
-            expr
+            if flags.allow_blocks {
+                self.gen_block(u, typ)?
+            } else {
+                self.gen_expr(u, typ, max_depth, flags)?
+            }
         };
 
         let alternative = if types::is_unit(typ) && bool::arbitrary(u)? {
             None
         } else {
             self.decrease_budget(1);
-            self.locals.enter();
-            let expr = self.gen_expr(u, typ, max_depth, flags)?;
-            self.locals.exit();
+            let expr = if flags.allow_blocks {
+                self.gen_block(u, typ)?
+            } else {
+                self.gen_expr(u, typ, max_depth, flags)?
+            };
             Some(expr)
         };
 
@@ -638,5 +652,61 @@ impl<'a> FunctionContext<'a> {
             alternative: alternative.map(Box::new),
             typ: typ.clone(),
         }))
+    }
+
+    /// Generate a `for` loop.
+    fn gen_for(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // The index can be signed or unsigned int, 8 to 64 bits,
+        let idx_type = Type::Integer(
+            if bool::arbitrary(u)? { Signedness::Signed } else { Signedness::Unsigned },
+            u.choose(&[8, 16, 32, 64]).map(|s| IntegerBitSize::try_from(*s).unwrap())?,
+        );
+
+        let max_size = self.ctx.config.max_range_size;
+        let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
+            // Generate random expression.
+            let s = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
+            let e = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
+            // The random expressions might end up being huge to be practical for execution,
+            // so take the modulo maximum range on both ends.
+            let s = expr::range_modulo(s, idx_type.clone(), max_size);
+            let e = expr::range_modulo(e, idx_type.clone(), max_size);
+            (s, e)
+        } else {
+            // If the function is constrained, we need a range we can determine at compile time.
+            // For now do it with literals, although we should be able to use constant variables as well.
+            let (s, e) = expr::gen_range(u, &idx_type, max_size)?;
+            // The compiler allows the end to be lower than the start.
+            if u.ratio(1, 5)? { (e, s) } else { (s, e) }
+        };
+
+        // Declare index variable, but only visible in the loop body, not the range.
+        let idx_id = self.next_local_id();
+        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+
+        // Add a scope which will hold the index variable.
+        self.locals.enter();
+        self.locals.add(idx_id, false, idx_name.clone(), idx_type.clone());
+
+        // Decrease budget so we don't nest for loops endlessly.
+        self.decrease_budget(1);
+
+        let block = self.gen_block(u, &Type::Unit)?;
+
+        let expr = Expression::For(For {
+            index_variable: idx_id,
+            index_name: idx_name,
+            index_type: idx_type,
+            start_range: Box::new(start_range),
+            end_range: Box::new(end_range),
+            block: Box::new(block),
+            start_range_location: Location::dummy(),
+            end_range_location: Location::dummy(),
+        });
+
+        // Remove the loop scope.
+        self.locals.exit();
+
+        Ok(expr)
     }
 }
