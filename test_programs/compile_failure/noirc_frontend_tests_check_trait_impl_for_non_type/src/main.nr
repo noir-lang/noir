@@ -1,9 +1,9 @@
 
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Field;
     }
 
-    impl Default for main {
+    impl Default2 for main {
         fn default(x: Field, y: Field) -> Field {
             x + y
         }

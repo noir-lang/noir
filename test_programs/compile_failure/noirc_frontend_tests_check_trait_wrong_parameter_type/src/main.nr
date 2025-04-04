@@ -1,5 +1,5 @@
 
-    pub trait Default {
+    pub trait Default2 {
         fn default(x: Field, y: NotAType) -> Field;
     }
 

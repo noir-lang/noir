@@ -111,6 +111,27 @@ fn foo<T, U>(elements: [T], thing: U) where
 }
 ```
 
+## Trait bounds
+
+A shorter syntax for specifying trait bounds directly on generic types is available. For example, this code:
+
+```rust
+fn log_area<T>(shape: T) where T: Area {
+    println(shape.area());
+}
+```
+
+can also be written like this:
+
+```rust
+fn log_area<T: Area>(shape: T) {
+    println(shape.area());
+}
+```
+
+Both are equivalent. Using `where` is preferable when there are many trait bounds and it's clearer to have
+them separate from the types the are applying bounds to.
+
 ## Invoking trait methods
 
 As seen in the previous section, the `area` method was invoked on a type `T` that had a where clause `T: Area`.
@@ -242,7 +263,7 @@ impl<T, let N: u32> Eq for [T; let N: u32] where T: Eq {
 }
 ```
 
-Where clauses can also be placed on struct implementations. 
+Where clauses can also be placed on struct implementations.
 For example, here is a method utilizing a generic type that implements the equality trait.
 
 ```rust
@@ -284,7 +305,7 @@ impl Into<[Field; 2]> for MyStruct {
     }
 }
 
-fn as_array<T>(x: T) -> [Field; 2] 
+fn as_array<T>(x: T) -> [Field; 2]
     where T: Into<[Field; 2]>
 {
     x.into()
@@ -539,7 +560,7 @@ trait Programmer {
     fn fav_language(self) -> String;
 }
 
-// CompSciStudent (computer science student) is a subtrait of both Programmer 
+// CompSciStudent (computer science student) is a subtrait of both Programmer
 // and Student. Implementing CompSciStudent requires you to impl both supertraits.
 trait CompSciStudent: Programmer + Student {
     fn git_username(self) -> String;
