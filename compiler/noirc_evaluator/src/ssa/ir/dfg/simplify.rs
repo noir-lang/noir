@@ -496,5 +496,4 @@ mod tests {
             assert_normalized_ssa_equals(ssa, &expected);
         }
     }
-
 }
