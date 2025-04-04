@@ -19,6 +19,7 @@ use crate::Config;
 mod expr;
 pub(crate) mod freq;
 mod func;
+mod scope;
 mod types;
 
 /// Generate an arbitrary monomorphized AST.

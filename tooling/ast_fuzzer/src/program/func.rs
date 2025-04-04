@@ -18,7 +18,13 @@ use noirc_frontend::{
 
 use crate::{Config, Freqs};
 
-use super::{Context, Name, VariableId, expr, freq::Freq, make_name, types};
+use super::{
+    Context, Name, VariableId, expr,
+    freq::Freq,
+    make_name,
+    scope::{Scope, Variable},
+    types,
+};
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
@@ -62,80 +68,6 @@ impl FunctionDeclaration {
             (!types::is_unit(&self.return_type)).then(|| types::to_hir_type(&self.return_type));
 
         (param_types, return_type)
-    }
-}
-
-type Variable = (/*mutable*/ bool, Name, Type);
-/// A layer of variables available to choose from in blocks.
-#[derive(Debug, Clone)]
-struct Scope<K: Ord> {
-    /// ID and type of variables created in all visible scopes,
-    /// which includes this scope and its ancestors.
-    variables: im::OrdMap<K, Variable>,
-    /// Reverse index of variables which can produce a type.
-    /// For example an `(u8, [u64; 4])` can produce the tuple itself,
-    /// the array in it, and both primitive types.
-    producers: im::OrdMap<Type, im::OrdSet<K>>,
-}
-
-impl<K> Scope<K>
-where
-    K: Ord + Clone + Copy + Debug,
-{
-    /// Create the initial scope from function parameters.
-    fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
-        let mut scope = Self { variables: im::OrdMap::new(), producers: im::OrdMap::new() };
-        for (id, mutable, name, typ) in vars {
-            scope.add(id, mutable, name, typ);
-        }
-        scope
-    }
-
-    /// Add a new variable to the scope.
-    fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
-        for typ in types::types_produced(&typ) {
-            self.producers.entry(typ).or_default().insert(id);
-        }
-        self.variables.insert(id, (mutable, name, typ));
-    }
-
-    /// Remove a variable from the scope.
-    fn remove(&mut self, id: &K) {
-        // Remove the variable
-        if self.variables.remove(id).is_none() {
-            return;
-        }
-        // Remove the variable from the producers of all types.
-        // At the end remove types which are no longer produced.
-        let mut emptied = Vec::new();
-        let types = self.producers.keys().cloned().collect::<Vec<_>>();
-        for typ in types {
-            if let Some(ps) = self.producers.get_mut(&typ) {
-                ps.remove(&id);
-                if ps.is_empty() {
-                    emptied.push(typ);
-                }
-            }
-        }
-        for typ in emptied {
-            self.producers.remove(&typ);
-        }
-    }
-
-    /// Get a variable in scope.
-    fn get_variable(&self, id: &K) -> &Variable {
-        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
-    }
-
-    /// Choose a random producer of a type, if there is one.
-    fn choose_producer(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Option<K>> {
-        let Some(vs) = self.producers.get(typ) else {
-            return Ok(None);
-        };
-        if vs.is_empty() {
-            return Ok(None);
-        }
-        u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
     }
 }
 
@@ -545,8 +477,7 @@ impl<'a> FunctionContext<'a> {
         // Find a type we can produce in the current scope which works with this operation.
         let lhs_opts = self
             .current_scope()
-            .producers
-            .keys()
+            .types_produced()
             .filter(|typ| types::can_binary_op_take(&op, typ))
             .collect::<Vec<_>>();
 
@@ -639,10 +570,10 @@ impl<'a> FunctionContext<'a> {
 
     /// Drop a local variable, if we have anything to drop.
     fn gen_drop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
-        if self.current_scope().variables.is_empty() {
+        if self.current_scope().is_empty() {
             return Ok(None);
         }
-        let id = u.choose_iter(self.current_scope().variables.keys())?.clone();
+        let id = *u.choose_iter(self.current_scope().variable_ids())?;
         let (mutable, name, typ) = self.current_scope().get_variable(&id).clone();
 
         // Remove variable so we stop using it.
@@ -655,8 +586,7 @@ impl<'a> FunctionContext<'a> {
     fn gen_assign(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
         let opts = self
             .current_scope()
-            .variables
-            .iter()
+            .variables()
             .filter_map(|(id, (mutable, _, _))| mutable.then_some(id))
             .collect::<Vec<_>>();
 
@@ -664,7 +594,7 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
 
-        let id = u.choose_iter(opts)?.clone();
+        let id = *u.choose_iter(opts)?;
         let (mutable, name, typ) = self.current_scope().get_variable(&id).clone();
         let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
         let ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
