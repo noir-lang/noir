@@ -46,6 +46,7 @@ fxhash.workspace = true
 criterion.workspace = true
 pprof.workspace = true
 num-bigint.workspace = true
+insta = "1.42.2"
 
 acir = { path = ".", features = ["arb"] } # Self to turn on `arb`.
 
