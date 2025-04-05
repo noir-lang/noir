@@ -15,7 +15,7 @@ use noirc_evaluator::{
     ssa::{
         ArtifactsAndWarnings, BrilligOptions, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions,
         SsaLogging, SsaProgramArtifact, function_builder::FunctionBuilder,
-        ir::instruction::ErrorType, optimize_all, ssa_gen::Ssa,
+        ir::instruction::ErrorType, optimize_ssa_builder_into_acir
     },
 };
 
@@ -30,26 +30,7 @@ fn optimize_into_acir(
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,
     };
-    let ssa = optimize_all(builder, &options)?;
-
-    let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-    let ssa = SsaBuilder {
-        ssa,
-        ssa_logging: options.ssa_logging.clone(),
-        print_codegen_timings: options.print_codegen_timings,
-    }
-    .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
-    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
-    .finish();
-
-    // to triage ssa after optimizations, when crash found
-    let formatted_ssa = format!("{}", ssa);
-    log::debug!("formatted_ssa: {:?}", formatted_ssa);
-    match ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width) {
-        Ok(artifacts) => Ok(ArtifactsAndWarnings(artifacts, vec![])),
-        Err(e) => Err(e),
-    }
+    optimize_ssa_builder_into_acir(builder, &options)
 }
 
 /// Converts the generated ACIR into a circuit artifact
@@ -142,6 +123,7 @@ fn create_program(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         _ssa_level_warnings,
     ) = optimize_into_acir(builder, options)?;
+
     let error_types = error_types
         .into_iter()
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))

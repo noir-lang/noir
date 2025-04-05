@@ -91,24 +91,12 @@ pub struct SsaEvaluatorOptions {
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
-/// Optimize the given program by converting it into SSA
-/// form and performing optimizations there. When finished,
-/// convert the final SSA into an ACIR program and return it.
-/// An ACIR program is made up of both ACIR functions
-/// and Brillig functions for unconstrained execution.
-pub(crate) fn optimize_into_acir(
-    program: Program,
-    options: &SsaEvaluatorOptions,
+pub fn optimize_ssa_builder_into_acir(
+    builder: SsaBuilder,
+    options: &SsaEvaluatorOptions
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let builder = SsaBuilder::new(
-        program,
-        options.ssa_logging.clone(),
-        options.print_codegen_timings,
-        &options.emit_ssa,
-    )?;
-
     let mut ssa = optimize_all(builder, options)?;
 
     let mut ssa_level_warnings = vec![];
@@ -162,6 +150,25 @@ pub(crate) fn optimize_into_acir(
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
+}
+
+/// Optimize the given program by converting it into SSA
+/// form and performing optimizations there. When finished,
+/// convert the final SSA into an ACIR program and return it.
+/// An ACIR program is made up of both ACIR functions
+/// and Brillig functions for unconstrained execution.
+pub(crate) fn optimize_into_acir(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
+    let builder = SsaBuilder::new(
+        program,
+        options.ssa_logging.clone(),
+        options.print_codegen_timings,
+        &options.emit_ssa,
+    )?;
+
+    optimize_ssa_builder_into_acir(builder, options)
 }
 
 /// Run all SSA passes.

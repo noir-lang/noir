@@ -18,7 +18,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum FuzzerBuilderError {
-    #[error("Compilation panicked")]
+    #[error("Compilation panicked: {0}")]
     RuntimeError(String),
 }
 

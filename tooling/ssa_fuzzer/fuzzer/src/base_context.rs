@@ -124,21 +124,23 @@ impl FuzzerContext {
     }
 
     /// Creates a new array from a vector of indices of variables
-    pub(crate) fn insert_array(&mut self, elements: &[u32]) {
+    pub(crate) fn insert_array(&mut self, elements_indices: &[u32]) {
         let mut acir_values_ids = vec![];
         let mut brillig_values_ids = vec![];
         let acir_len = self.acir_ids.len();
         let brillig_len = self.brillig_ids.len();
-        for elem in elements {
-            acir_values_ids.push(elem % acir_len as u32);
-            brillig_values_ids.push(elem % brillig_len as u32);
+        for elem in elements_indices {
+            let acir_value_id = self.acir_ids[*elem as usize % acir_len];
+            let brillig_value_id = self.brillig_ids[*elem as usize % brillig_len];
+            acir_values_ids.push(acir_value_id);
+            brillig_values_ids.push(brillig_value_id);
         }
         let acir_array = self.acir_builder.insert_make_array(acir_values_ids);
         let brillig_array = self.brillig_builder.insert_make_array(brillig_values_ids);
         self.arrays.push(Array {
             acir_id: acir_array,
             brillig_id: brillig_array,
-            length: elements.len() as u32,
+            length: elements_indices.len() as u32,
         });
     }
 
@@ -154,6 +156,10 @@ impl FuzzerContext {
         let acir_array_id = array.acir_id;
         let brillig_array_id = array.brillig_id;
 
+        if array.length == 0 {
+            return;
+        }
+        
         let index = index % array.length;
         let acir_return_id = self.acir_builder.insert_array_get(acir_array_id, index);
         let brillig_return_id = self.brillig_builder.insert_array_get(brillig_array_id, index);
@@ -173,14 +179,17 @@ impl FuzzerContext {
         let acir_array_id = array.acir_id;
         let brillig_array_id = array.brillig_id;
 
-        let acir_id = self.acir_ids[(index % array.length) as usize];
-        let brillig_id = self.brillig_ids[(index % array.length) as usize];
+        if array.length == 0 {
+            return;
+        }
+
+        let index = index % array.length;
         let acir_value = u32_to_id_value(value % (self.acir_ids.len() as u32));
         let brillig_value = u32_to_id_value(value % (self.brillig_ids.len() as u32));
 
-        let acir_return_id = self.acir_builder.insert_array_set(acir_array_id, acir_id, acir_value);
+        let acir_return_id = self.acir_builder.insert_array_set(acir_array_id, index, acir_value);
         let brillig_return_id =
-            self.brillig_builder.insert_array_set(brillig_array_id, brillig_id, brillig_value);
+            self.brillig_builder.insert_array_set(brillig_array_id, index, brillig_value);
         self.arrays.push(Array {
             acir_id: acir_return_id,
             brillig_id: brillig_return_id,
