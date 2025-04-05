@@ -23,6 +23,7 @@ pub enum MonomorphizationError {
         generic_name: String,
         item_kind: &'static str,
         item_name: String,
+        is_numeric: bool,
     },
     InternalError {
         message: &'static str,
@@ -96,10 +97,12 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 generic_name,
                 item_kind,
                 item_name,
+                is_numeric,
             } => {
                 let message = "Type annotation needed".into();
+                let type_or_value = if *is_numeric { "value" } else { "type" };
                 let secondary = format!(
-                    "Could not determine the type of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"
+                    "Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`",
                 );
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
