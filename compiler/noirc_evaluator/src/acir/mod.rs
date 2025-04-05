@@ -4,7 +4,7 @@
 //! # Usage
 //!
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
-//! The compiled program will be returned as an [`Artifacts`][ssa::Artifacts] type.
+//! The compiled program will be returned as an [`Artifacts`] type.
 
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
@@ -55,7 +55,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-pub use acir_context::GeneratedAcir;
+pub use {ssa::Artifacts, acir_context::GeneratedAcir};
 use acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
 use types::{AcirType, AcirVar};
 
