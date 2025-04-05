@@ -10,12 +10,13 @@ use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility};
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 use noirc_evaluator::{
-    acir::generated_acir::GeneratedAcir,
+    acir::GeneratedAcir,
+    brillig::BrilligOptions,
     errors::RuntimeError,
     ssa::{
-        ArtifactsAndWarnings, BrilligOptions, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions,
-        SsaLogging, SsaProgramArtifact, function_builder::FunctionBuilder,
-        ir::instruction::ErrorType, optimize_ssa_builder_into_acir
+        ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
+        SsaProgramArtifact, function_builder::FunctionBuilder, ir::instruction::ErrorType,
+        optimize_ssa_builder_into_acir,
     },
 };
 

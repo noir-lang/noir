@@ -159,7 +159,7 @@ impl FuzzerContext {
         if array.length == 0 {
             return;
         }
-        
+
         let index = index % array.length;
         let acir_return_id = self.acir_builder.insert_array_get(acir_array_id, index);
         let brillig_return_id = self.brillig_builder.insert_array_get(brillig_array_id, index);

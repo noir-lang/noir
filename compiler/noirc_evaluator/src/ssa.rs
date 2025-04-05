@@ -95,7 +95,7 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
 pub fn optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
-    options: &SsaEvaluatorOptions
+    options: &SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
