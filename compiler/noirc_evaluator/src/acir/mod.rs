@@ -1,14 +1,20 @@
-//! This file holds the pass to convert from Noir's SSA IR to ACIR.
+//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+//! generates the output ACIR program.
+//!
+//! # Usage
+//!
+//! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
+//! The compiled program will be returned as an [`Artifacts`][ssa::Artifacts] type.
 
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
-use std::fmt::Debug;
+use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
     BlackBoxFunc,
     circuit::{
-        AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation,
-        brillig::{BrilligBytecode, BrilligFunctionId},
+        AssertionPayload, ExpressionWidth, OpcodeLocation,
+        brillig::BrilligFunctionId,
         opcodes::{AcirFunctionId, BlockType},
     },
     native_types::Witness,
@@ -18,12 +24,9 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::monomorphization::ast::InlineType;
 
-mod acir_variable;
-mod big_int;
-mod black_box;
-mod brillig_call;
-mod brillig_directive;
-pub mod generated_acir;
+mod acir_context;
+pub(crate) mod ssa;
+mod types;
 
 use crate::brillig::BrilligOptions;
 use crate::brillig::brillig_gen::gen_brillig_for;
@@ -51,13 +54,15 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use acir_variable::{AcirContext, AcirType, AcirVar, power_of_two};
-use generated_acir::BrilligStdlibFunc;
-pub(crate) use generated_acir::GeneratedAcir;
-use noirc_frontend::hir_def::types::Type as HirType;
+
+use acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
+use types::{AcirType, AcirVar};
+pub use acir_context::GeneratedAcir;
 
 #[derive(Default)]
-struct SharedContext<F> {
+struct SharedContext<F: AcirField> {
+    brillig_stdlib: BrilligStdLib<F>,
+
     /// Final list of Brillig functions which will be part of the final program
     /// This is shared across `Context` structs as we want one list of Brillig
     /// functions across all ACIR artifacts
@@ -120,14 +125,14 @@ impl<F: AcirField> SharedContext<F> {
         {
             self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         } else {
-            let code = brillig_stdlib_func.get_generated_brillig();
+            let code = self.brillig_stdlib.get_code(*brillig_stdlib_func);
             let generated_pointer = self.new_generated_pointer();
             self.insert_generated_brillig_stdlib(
                 *brillig_stdlib_func,
                 generated_pointer,
                 func_id,
                 opcode_location,
-                code,
+                code.clone(),
             );
         }
     }
@@ -217,164 +222,15 @@ struct Context<'a> {
     brillig_options: &'a BrilligOptions,
 }
 
-#[derive(Clone)]
-pub(crate) struct AcirDynamicArray {
-    /// Identification for the Acir dynamic array
-    /// This is essentially a ACIR pointer to the array
-    block_id: BlockId,
-    /// Length of the array
-    len: usize,
-    /// An ACIR dynamic array is a flat structure, so we use
-    /// the inner structure of an `AcirType::NumericType` directly.
-    /// Some usages of ACIR arrays (e.g. black box functions) require the bit size
-    /// of every value to be known, thus we store the types as part of the dynamic
-    /// array definition.
-    ///
-    /// A dynamic non-homogenous array can potentially have values of differing types.
-    /// Thus, we store a vector of types rather than a single type, as a dynamic non-homogenous array
-    /// is still represented in ACIR by a single `AcirDynamicArray` structure.
-    ///
-    /// The length of the value types vector must match the `len` field in this structure.
-    value_types: Vec<NumericType>,
-    /// Identification for the ACIR dynamic array
-    /// inner element type sizes array
-    element_type_sizes: Option<BlockId>,
-}
-impl Debug for AcirDynamicArray {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "id: {}, len: {}, element_type_sizes: {:?}",
-            self.block_id.0,
-            self.len,
-            self.element_type_sizes.map(|block_id| block_id.0)
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) enum AcirValue {
-    Var(AcirVar, AcirType),
-    Array(im::Vector<AcirValue>),
-    DynamicArray(AcirDynamicArray),
-}
-
-impl AcirValue {
-    fn into_var(self) -> Result<AcirVar, InternalError> {
-        match self {
-            AcirValue::Var(var, _) => Ok(var),
-            AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
-                message: "Called AcirValue::into_var on an array".to_string(),
-                call_stack: CallStack::new(),
-            }),
-        }
-    }
-
-    fn borrow_var(&self) -> Result<AcirVar, InternalError> {
-        match self {
-            AcirValue::Var(var, _) => Ok(*var),
-            AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
-                message: "Called AcirValue::borrow_var on an array".to_string(),
-                call_stack: CallStack::new(),
-            }),
-        }
-    }
-
-    fn flatten(self) -> Vec<(AcirVar, AcirType)> {
-        match self {
-            AcirValue::Var(var, typ) => vec![(var, typ)],
-            AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
-            AcirValue::DynamicArray(_) => unimplemented!("Cannot flatten a dynamic array"),
-        }
-    }
-
-    fn flat_numeric_types(self) -> Vec<NumericType> {
-        match self {
-            AcirValue::Array(_) => {
-                self.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect()
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
-            _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
-        }
-    }
-}
-
-pub type Artifacts = (
-    Vec<GeneratedAcir<FieldElement>>,
-    Vec<BrilligBytecode<FieldElement>>,
-    Vec<String>,
-    BTreeMap<ErrorSelector, HirType>,
-);
-
-impl Ssa {
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub fn into_acir(
-        self,
-        brillig: &Brillig,
-        brillig_options: &BrilligOptions,
-        expression_width: ExpressionWidth,
-    ) -> Result<Artifacts, RuntimeError> {
-        let mut acirs = Vec::new();
-        // TODO: can we parallelize this?
-        let mut shared_context = SharedContext::default();
-
-        for function in self.functions.values() {
-            let context =
-                Context::new(&mut shared_context, expression_width, brillig, brillig_options);
-
-            if let Some(mut generated_acir) = context.convert_ssa_function(&self, function)? {
-                // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
-                // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
-                // we instead store the opcode location at which a Brillig call to a std lib function occurred.
-                // We then defer resolving the function IDs of those Brillig functions to when we have generated Brillig
-                // for all normal Brillig calls.
-                for (opcode_location, brillig_stdlib_func) in
-                    &generated_acir.brillig_stdlib_func_locations
-                {
-                    shared_context.generate_brillig_calls_to_resolve(
-                        brillig_stdlib_func,
-                        function.id(),
-                        *opcode_location,
-                    );
-                }
-
-                // Fetch the Brillig stdlib calls to resolve for this function
-                if let Some(calls_to_resolve) =
-                    shared_context.brillig_stdlib_calls_to_resolve.get(&function.id())
-                {
-                    // Resolve the Brillig stdlib calls
-                    // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
-                    for (opcode_location, brillig_function_pointer) in calls_to_resolve {
-                        generated_acir.resolve_brillig_stdlib_call(
-                            *opcode_location,
-                            *brillig_function_pointer,
-                        );
-                    }
-                }
-
-                generated_acir.name = function.name().to_owned();
-                acirs.push(generated_acir);
-            }
-        }
-
-        let (brillig_bytecode, brillig_names) = shared_context
-            .generated_brillig
-            .into_iter()
-            .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
-            .unzip();
-
-        Ok((acirs, brillig_bytecode, brillig_names, self.error_selector_to_type))
-    }
-}
-
 impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
         brillig: &'a Brillig,
+        brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
-        let mut acir_context = AcirContext::default();
+        let mut acir_context = AcirContext::new(brillig_stdlib, Bn254BlackBoxSolver::default());
         acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
@@ -691,9 +547,16 @@ impl<'a> Context<'a> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
+        // Disable the side effects if the binary instruction does not require them
+        let predicate = if instruction.requires_acir_gen_predicate(dfg) {
+            self.current_side_effects_enabled_var
+        } else {
+            self.acir_context.add_constant(FieldElement::one())
+        };
+
         match instruction {
             Instruction::Binary(binary) => {
-                let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
+                let result_acir_var = self.convert_ssa_binary(binary, dfg, predicate)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
@@ -1987,6 +1850,7 @@ impl<'a> Context<'a> {
         &mut self,
         binary: &Binary,
         dfg: &DataFlowGraph,
+        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
@@ -1998,12 +1862,7 @@ impl<'a> Context<'a> {
             BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul { .. } => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(
-                lhs,
-                rhs,
-                binary_type.clone(),
-                self.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.clone(), predicate),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
@@ -2016,13 +1875,9 @@ impl<'a> Context<'a> {
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod => self.acir_context.modulo_var(
-                lhs,
-                rhs,
-                binary_type.clone(),
-                bit_count,
-                self.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Mod => {
+                self.acir_context.modulo_var(lhs, rhs, binary_type.clone(), bit_count, predicate)
+            }
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(
                 "ICE - bit shift operators do not exist in ACIR and should have been replaced"
             ),
@@ -2030,7 +1885,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, dfg)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, dfg, predicate)?;
         }
 
         Ok(result)
@@ -2043,12 +1898,13 @@ impl<'a> Context<'a> {
         bit_size: u32,
         binary: &Binary,
         dfg: &DataFlowGraph,
+        predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
         let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
             return Ok(());
         };
 
-        let with_pred = self.acir_context.mul_var(result, self.current_side_effects_enabled_var)?;
+        let with_pred = self.acir_context.mul_var(result, predicate)?;
         self.acir_context.range_constrain_var(
             with_pred,
             &NumericType::Unsigned { bit_size },
@@ -2901,23 +2757,28 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 mod test {
 
     use acvm::{
-        FieldElement,
+        AcirField, FieldElement,
         acir::{
+            brillig::{
+                BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode,
+            },
             circuit::{
                 ExpressionWidth, Opcode, OpcodeLocation,
                 brillig::BrilligFunctionId,
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
             },
-            native_types::Witness,
+            native_types::{Witness, WitnessMap},
         },
+        blackbox_solver::StubbedBlackBoxSolver,
+        pwg::{ACVM, ACVMStatus},
     };
     use noirc_errors::Location;
     use noirc_frontend::monomorphization::ast::InlineType;
     use std::collections::BTreeMap;
 
     use crate::{
-        acir::BrilligStdlibFunc,
-        brillig::{Brillig, BrilligOptions},
+        acir::{BrilligStdlibFunc, acir_context::BrilligStdLib, ssa::codegen_acir},
+        brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
@@ -3386,33 +3247,16 @@ mod test {
     // we will only generate one bytecode and the appropriate Brillig call opcodes are generated.
     #[test]
     fn multiple_brillig_stdlib_calls() {
-        // acir(inline) fn main f0 {
-        //     b0(v0: u32, v1: u32, v2: u32):
-        //       v3 = div v0, v1
-        //       constrain v3 == v2
-        //       v4 = div v1, v2
-        //       constrain v4 == u32 1
-        //       return
-        // }
-        let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), foo_id);
-        let main_v0 = builder.add_parameter(Type::unsigned(32));
-        let main_v1 = builder.add_parameter(Type::unsigned(32));
-        let main_v2 = builder.add_parameter(Type::unsigned(32));
-
-        // Call a primitive operation that uses Brillig
-        let v0_div_v1 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
-        builder.insert_constrain(v0_div_v1, main_v2, None);
-
-        // Call the same primitive operation again
-        let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-        builder.insert_constrain(v1_div_v2, one, None);
-
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-        println!("{}", ssa);
+        let src = "
+        acir(inline) fn main f0 {
+            b0(v0: u32, v1: u32, v2: u32):
+              v3 = div v0, v1
+              constrain v3 == v2
+              v4 = div v1, v2
+              constrain v4 == u32 1
+              return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
 
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
@@ -3743,5 +3587,108 @@ mod test {
         // Check that no memory opcodes were emitted.
         let main = &acir_functions[0];
         assert!(!main.opcodes().iter().any(|opcode| matches!(opcode, Opcode::MemoryOp { .. })));
+    }
+
+    #[test]
+    fn properly_constrains_quotient_when_truncating_fields() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            return v1
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Here we're attempting to perform a truncation of a `Field` type into 32 bits. We then do a euclidean
+        // division `a/b` with `a` and `b` taking the values:
+        //
+        // a = 0xf9bb18d1ece5fd647afba497e7ea7a2d7cc17b786468f6ebc1e0a6b0fffffff
+        // b = 0x100000000 (2**32)
+        //
+        // We expect q and r to be constrained such that the expression `a = q*b + r` has the single solution.
+        //
+        // q = 0xf9bb18d1ece5fd647afba497e7ea7a2d7cc17b786468f6ebc1e0a6b
+        // r = 0xfffffff
+        //
+        // One necessary constraint is that q <= field_modulus / b as otherwise `q*b` will overflow the field modulus.
+        // Relaxing this constraint permits another solution:
+        //
+        // malicious_q = 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        // malicious_r = 0
+        //
+        // We then require that if this solution is injected that execution will fail.
+
+        let input = FieldElement::from_hex(
+            "0xf9bb18d1ece5fd647afba497e7ea7a2d7cc17b786468f6ebc1e0a6b0fffffff",
+        )
+        .unwrap();
+        let malicious_q =
+            FieldElement::from_hex("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+                .unwrap();
+        let malicious_r = FieldElement::zero();
+
+        // This brillig function replaces the standard implementation of `directive_quotient` with
+        // an implementation which returns `(malicious_q, malicious_r)`.
+        let malicious_quotient = GeneratedBrillig {
+            byte_code: vec![
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(10),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(2_usize),
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(11),
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
+                    value: FieldElement::from(0_usize),
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(0),
+                    bit_size: BitSize::Field,
+                    value: malicious_q,
+                },
+                BrilligOpcode::Const {
+                    destination: MemoryAddress::direct(1),
+                    bit_size: BitSize::Field,
+                    value: malicious_r,
+                },
+                BrilligOpcode::Stop {
+                    return_data: HeapVector {
+                        pointer: MemoryAddress::direct(11),
+                        size: MemoryAddress::direct(10),
+                    },
+                },
+            ],
+            name: "malicious_directive_quotient".to_string(),
+            ..Default::default()
+        };
+
+        let malicious_brillig_stdlib =
+            BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
+
+        let (acir_functions, brillig_functions, _, _) = codegen_acir(
+            ssa,
+            &Brillig::default(),
+            malicious_brillig_stdlib,
+            &BrilligOptions::default(),
+            ExpressionWidth::default(),
+        )
+        .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+        // [`malicious_directive_quotient`, `directive_invert`]
+        assert_eq!(brillig_functions.len(), 2);
+
+        let main = &acir_functions[0];
+
+        let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
+        let mut acvm = ACVM::new(
+            &StubbedBlackBoxSolver(true),
+            main.opcodes(),
+            initial_witness,
+            &brillig_functions,
+            &[],
+        );
+
+        assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
     }
 }

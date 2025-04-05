@@ -1,9 +1,8 @@
+use acvm::{FieldElement, acir::AcirField};
+use iter_extended::vecmap;
 use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-use acvm::{FieldElement, acir::AcirField};
-use iter_extended::vecmap;
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 
@@ -16,6 +15,7 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -84,6 +84,20 @@ impl NumericType {
 
     pub(crate) fn is_unsigned(&self) -> bool {
         matches!(self, NumericType::Unsigned { .. })
+    }
+
+    pub(crate) fn max_value(&self) -> Result<FieldElement, String> {
+        match self {
+            NumericType::Unsigned { bit_size } => match bit_size {
+                bit_size if *bit_size > 128 => {
+                    Err("Cannot get max value for unsigned type: bit size is greater than 128"
+                        .to_string())
+                }
+                128 => Ok(FieldElement::from(u128::MAX)),
+                _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            },
+            other => Err(format!("Cannot get max value for type: {other}")),
+        }
     }
 }
 
@@ -296,6 +310,7 @@ impl std::fmt::Display for NumericType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_u8_value_is_outside_limits() {
@@ -314,5 +329,15 @@ mod tests {
         assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+    }
+
+    proptest! {
+        #[test]
+        fn test_max_value_is_in_limits(input: NumericType) {
+            let max_value = input.max_value();
+            if let Ok(max_value) = max_value {
+                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
+            }
+        }
     }
 }

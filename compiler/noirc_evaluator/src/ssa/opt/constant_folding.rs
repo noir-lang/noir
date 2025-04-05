@@ -443,9 +443,7 @@ impl<'brillig> Context<'brillig> {
         // Thus, even if the index is dynamic (meaning the array get would have side effects),
         // we can simplify the operation when we take into account the predicate.
         if let Instruction::ArraySet { index, value, .. } = &instruction {
-            let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
-            let predicate = use_predicate.then_some(side_effects_enabled_var);
+            let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
@@ -853,13 +851,14 @@ fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
             | BinaryOp::Shr => false,
         },
 
-        // These can have different behavior depending on the EnableSideEffectsIf context.
-        Cast(_, _)
-        | Not(_)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } => instruction.requires_acir_gen_predicate(dfg),
+        // These don't have side effects
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+        // `ArrayGet`s which read from "known good" indices from an array have no side effects
+        ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
+
+        // ArraySet has side effects
+        ArraySet { .. } => true,
     }
 }
 
@@ -888,18 +887,19 @@ pub(crate) fn can_be_deduplicated(
         | IncrementRc { .. }
         | DecrementRc { .. } => false,
 
-        Call { func, .. } => match function.dfg[*func] {
-            Value::Intrinsic(intrinsic) => {
-                intrinsic.can_be_deduplicated(deduplicate_with_predicate)
-            }
-            Value::Function(id) => match function.dfg.purity_of(id) {
+        Call { func, .. } => {
+            let purity = match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
+                Value::Function(id) => function.dfg.purity_of(id),
+                _ => None,
+            };
+            match purity {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
                 Some(Purity::Impure) => false,
                 None => false,
-            },
-            _ => false,
-        },
+            }
+        }
 
         // We can deduplicate these instructions if we know the predicate is also the same.
         Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => deduplicate_with_predicate,
@@ -908,8 +908,8 @@ pub(crate) fn can_be_deduplicated(
         // removed entirely.
         Noop => true,
 
-        // Cast instructions can always be deduplicated
-        Cast(_, _) => true,
+        // These instructions can always be deduplicated
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => true,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
@@ -921,12 +921,7 @@ pub(crate) fn can_be_deduplicated(
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-        Binary(_)
-        | Not(_)
-        | Truncate { .. }
-        | IfElse { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. } => {
+        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
     }
@@ -1910,8 +1905,8 @@ mod test {
     }
 
     #[test]
-    fn does_duplicate_unsigned_division_by_non_zero_constant() {
-        // Regression test for https://github.com/noir-lang/noir/issues/7283
+    fn does_not_duplicate_unsigned_division_by_non_zero_constant() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7836
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u1):
@@ -1934,6 +1929,7 @@ mod test {
             v4 = div v1, u32 2
             v5 = not v2
             enable_side_effects v5
+            v6 = div v1, u32 2
             return
         }
         ";

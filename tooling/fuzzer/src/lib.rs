@@ -15,7 +15,7 @@ use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
 
 pub mod dictionary;
-mod strategies;
+pub mod strategies;
 mod types;
 
 use types::{CaseOutcome, CounterExampleOutcome, FuzzOutcome, FuzzTestResult};
