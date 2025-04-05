@@ -118,7 +118,7 @@ The profiler also enables developers to generate a flamegraph of the unconstrain
 
 Let's take our initial program and simply add an `unconstrained` modifier before main (e.g. `unconstrained fn main`). Then run the following command:
 ```sh
-noir-profiler execution-opcodes --artifact-name ./target/program.json --prover_toml_path Prover.toml --output ./target
+noir-profiler execution-opcodes --artifact-path ./target/program.json --prover_toml_path Prover.toml --output ./target
 ```
 This matches the `opcodes` command, except that now we need to accept a `Prover.toml` file to profile execution with a specific set of inputs.
 
