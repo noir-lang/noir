@@ -116,16 +116,17 @@ mod tests {
     }
 
     /// Test that some labels being disabled redistribute the probability
-    /// on the remaining ones. In this example we choose x=25 out of 100,
-    /// which is the 25th percentile, but disable the first 70 weights,
-    /// which means if we want `x` to be the 25th percentile of the
-    /// remaining 30 we adjust it down to 7, which enabled baz instead
-    /// of qux.
+    /// on the remaining ones. In this example we choose x=75 out of 100,
+    /// which is the 75th percentile, but disable the first 70 weights,
+    /// which means if we want `x` to be the 75th percentile of the
+    /// remaining 30 we adjust it down to 75*30/100 = 22, which enables
+    /// qux az instead of baz, which would have originally fallen between [70,90).
     #[test]
     fn test_freq_redistribution() {
-        let mut freq = make_test_freq(25);
+        let mut freq = make_test_freq(75);
         assert!(!freq.enabled_when("foo", false));
         assert!(!freq.enabled_when("bar", false));
-        assert!(freq.enabled("baz"));
+        assert!(!freq.enabled_when("baz", false));
+        assert!(freq.enabled("qux"));
     }
 }
