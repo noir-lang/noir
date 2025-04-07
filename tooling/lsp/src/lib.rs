@@ -21,7 +21,7 @@ use async_lsp::{
 use fm::{FileManager, codespan_files as files};
 use fxhash::FxHashSet;
 use lsp_types::{
-    CodeLens,
+    CodeLens, WorkspaceSymbol,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
         PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
@@ -102,6 +102,7 @@ pub struct LspState {
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
+    workspace_symbol_cache: HashMap<PathBuf, Vec<WorkspaceSymbol>>,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -134,9 +135,16 @@ impl LspState {
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
+            workspace_symbol_cache: HashMap::new(),
             open_documents_count: 0,
             options: Default::default(),
             files_with_errors: HashMap::new(),
+        }
+    }
+
+    fn clear_workspace_symbol_cache(&mut self, uri: &Url) {
+        if let Ok(path) = uri.to_file_path() {
+            self.workspace_symbol_cache.remove(&path);
         }
     }
 }

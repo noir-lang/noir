@@ -1,19 +1,20 @@
 use std::{
     collections::HashMap,
     future::{self, Future},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use async_lsp::ResponseError;
 use convert_case::{Case, Casing};
-use fm::{FileManager, FileMap};
+use fm::{FILE_EXTENSION, FileManager, FileMap};
 use lsp_types::{SymbolKind, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse};
-use nargo::{insert_all_files_under_path_into_file_manager, parse_all};
+use nargo::parse_all;
 use noirc_errors::{Location, Span};
 use noirc_frontend::ast::{
     Ident, LetStatement, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait,
     NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, Visitor,
 };
+use walkdir::WalkDir;
 
 use crate::{LspState, name_match::name_matches};
 
@@ -27,39 +28,9 @@ pub(crate) fn on_workspace_symbol_request(
         return future::ready(Ok(None));
     };
 
-    let now = std::time::Instant::now();
-
     let query = &params.query;
     let query_lowercase = query.to_lowercase();
     let query_snake_case = query.to_case(Case::Snake);
-
-    let file_manager = setup_file_manager(state, root_path);
-    let parsed_files = parse_all(&file_manager);
-
-    let mut symbols = Vec::new();
-
-    for (_, (parsed_module, _)) in parsed_files {
-        let mut gatherer = WorkspaceSymboGatherer::new(&mut symbols, file_manager.as_file_map());
-        parsed_module.accept(&mut gatherer);
-    }
-
-    let symbols = symbols
-        .into_iter()
-        .filter(|symbol| {
-            let name = &symbol.name;
-            let name_lowercase = name.to_lowercase();
-            name_lowercase.contains(&query_lowercase) || name_matches(name, &query_snake_case)
-        })
-        .collect::<Vec<_>>();
-
-    let elapsed = now.elapsed();
-    eprintln!("Elapsed: {:.2?}", elapsed);
-
-    future::ready(Ok(Some(WorkspaceSymbolResponse::Nested(symbols))))
-}
-
-fn setup_file_manager(state: &mut LspState, root_path: PathBuf) -> FileManager {
-    let mut file_manager = FileManager::new(root_path.as_path());
 
     // Source code for files we cached override those that are read from disk.
     let mut overrides: HashMap<&Path, &str> = HashMap::new();
@@ -68,9 +39,58 @@ fn setup_file_manager(state: &mut LspState, root_path: PathBuf) -> FileManager {
         overrides.insert(Path::new(path), source);
     }
 
-    insert_all_files_under_path_into_file_manager(&mut file_manager, &root_path, &overrides);
+    let mut file_manager = FileManager::new(root_path.as_path());
+    let mut all_symbols = Vec::new();
 
-    file_manager
+    for entry in WalkDir::new(root_path).sort_by_file_name() {
+        let Ok(entry) = entry else {
+            continue;
+        };
+
+        if !entry.file_type().is_file() {
+            continue;
+        }
+
+        if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
+            continue;
+        };
+
+        let path = entry.into_path();
+        if let Some(symbols) = state.workspace_symbol_cache.get(&path) {
+            all_symbols.extend(symbols.clone());
+        } else {
+            let source = if let Some(src) = overrides.get(path.as_path()) {
+                src.to_string()
+            } else {
+                std::fs::read_to_string(path.as_path())
+                    .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
+            };
+
+            file_manager.add_file_with_source(path.as_path(), source);
+        }
+    }
+
+    let parsed_files = parse_all(&file_manager);
+
+    for (file_id, (parsed_module, _)) in parsed_files {
+        let path = file_manager.path(file_id).unwrap().to_path_buf();
+        let mut symbols = Vec::new();
+        let mut gatherer = WorkspaceSymboGatherer::new(&mut symbols, file_manager.as_file_map());
+        parsed_module.accept(&mut gatherer);
+        state.workspace_symbol_cache.insert(path, gatherer.symbols.clone());
+        all_symbols.extend(std::mem::take(gatherer.symbols));
+    }
+
+    let symbols = all_symbols
+        .into_iter()
+        .filter(|symbol| {
+            let name = &symbol.name;
+            let name_lowercase = name.to_lowercase();
+            name_lowercase.contains(&query_lowercase) || name_matches(name, &query_snake_case)
+        })
+        .collect::<Vec<_>>();
+
+    future::ready(Ok(Some(WorkspaceSymbolResponse::Nested(symbols))))
 }
 
 struct WorkspaceSymboGatherer<'symbols, 'files> {

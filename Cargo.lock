@@ -3381,6 +3381,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tower",
+ "walkdir",
  "wasm-bindgen",
 ]
 

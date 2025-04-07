@@ -130,7 +130,7 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
     }
 }
 
-pub fn insert_all_files_under_path_into_file_manager(
+fn insert_all_files_under_path_into_file_manager(
     file_manager: &mut FileManager,
     path: &std::path::Path,
     overrides: &HashMap<&std::path::Path, &str>,
