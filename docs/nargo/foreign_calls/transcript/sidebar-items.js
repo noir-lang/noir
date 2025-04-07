@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ForeignCallLog","TranscriptError"],"struct":["LogItem","LoggingForeignCallExecutor","ReplayForeignCallExecutor"]};
+window.SIDEBAR_ITEMS = {"enum":["TranscriptError"],"struct":["LogItem","LoggingForeignCallExecutor","ReplayForeignCallExecutor"]};

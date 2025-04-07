@@ -150,10 +150,22 @@
 <a href="#149" id="149">149</a>
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
-
-<span class="kw">use </span><span class="kw">crate</span>::PrintOutput;
 
 <span class="kw">use super</span>::{
     ForeignCallExecutor,
@@ -167,8 +179,8 @@
 
 <span class="doccomment">/// A builder for [DefaultForeignCallLayers] where we can enable fields based on feature flags,
 /// which is easier than providing different overrides for a `new` method.
-</span><span class="kw">pub struct </span>DefaultForeignCallBuilder&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">pub </span>output: PrintOutput&lt;<span class="lifetime">'a</span>&gt;,
+</span><span class="kw">pub struct </span>DefaultForeignCallBuilder&lt;W&gt; {
+    <span class="kw">pub </span>output: W,
     <span class="kw">pub </span>enable_mocks: bool,
 
     <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
@@ -181,10 +193,10 @@
     </span><span class="kw">pub </span>package_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
-<span class="kw">impl </span>Default <span class="kw">for </span>DefaultForeignCallBuilder&lt;<span class="lifetime">'_</span>&gt; {
+<span class="kw">impl </span>Default <span class="kw">for </span>DefaultForeignCallBuilder&lt;std::io::Empty&gt; {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            output: PrintOutput::default(),
+            output: std::io::empty(),
             enable_mocks: <span class="bool-val">true</span>,
 
             <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
@@ -199,12 +211,20 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; DefaultForeignCallBuilder&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">impl</span>&lt;W&gt; DefaultForeignCallBuilder&lt;W&gt; {
     <span class="doccomment">/// Override the output.
-    </span><span class="kw">pub fn </span>with_output(<span class="kw-2">mut </span><span class="self">self</span>, output: PrintOutput&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">self</span>.output = output;
-        <span class="self">self
-    </span>}
+    </span><span class="kw">pub fn </span>with_output&lt;T&gt;(<span class="self">self</span>, output: T) -&gt; DefaultForeignCallBuilder&lt;T&gt; {
+        DefaultForeignCallBuilder {
+            output,
+            enable_mocks: <span class="self">self</span>.enable_mocks,
+            <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
+            </span>resolver_url: <span class="self">self</span>.resolver_url,
+            <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
+            </span>root_path: <span class="self">self</span>.root_path,
+            <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
+            </span>package_name: <span class="self">self</span>.package_name,
+        }
+    }
 
     <span class="doccomment">/// Enable or disable mocks.
     </span><span class="kw">pub fn </span>with_mocks(<span class="kw-2">mut </span><span class="self">self</span>, enabled: bool) -&gt; <span class="self">Self </span>{
@@ -212,19 +232,26 @@
         <span class="self">self
     </span>}
 
+    <span class="doccomment">/// Set or unset resolver url.
+    </span><span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
+    </span><span class="kw">pub fn </span>with_resolver_url(<span class="kw-2">mut </span><span class="self">self</span>, resolver_url: <span class="prelude-ty">Option</span>&lt;String&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.resolver_url = resolver_url;
+        <span class="self">self
+    </span>}
+
     <span class="doccomment">/// Compose the executor layers with [layers::Empty] as the default handler.
-    </span><span class="kw">pub fn </span>build&lt;F&gt;(<span class="self">self</span>) -&gt; DefaultForeignCallLayers&lt;<span class="lifetime">'a</span>, layers::Empty, F&gt;
+    </span><span class="kw">pub fn </span>build&lt;F&gt;(<span class="self">self</span>) -&gt; DefaultForeignCallLayers&lt;W, layers::Empty, F&gt;
     <span class="kw">where
-        </span>F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; + <span class="lifetime">'a</span>,
+        </span>F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt;,
     {
         <span class="self">self</span>.build_with_base(layers::Empty)
     }
 
     <span class="doccomment">/// Compose the executor layers with `base` as the default handler.
-    </span><span class="kw">pub fn </span>build_with_base&lt;B, F&gt;(<span class="self">self</span>, base: B) -&gt; DefaultForeignCallLayers&lt;<span class="lifetime">'a</span>, B, F&gt;
+    </span><span class="kw">pub fn </span>build_with_base&lt;B, F&gt;(<span class="self">self</span>, base: B) -&gt; DefaultForeignCallLayers&lt;W, B, F&gt;
     <span class="kw">where
-        </span>F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; + <span class="lifetime">'a</span>,
-        B: ForeignCallExecutor&lt;F&gt; + <span class="lifetime">'a</span>,
+        </span>F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt;,
+        B: ForeignCallExecutor&lt;F&gt;,
     {
         <span class="kw">let </span>executor = {
             <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
@@ -259,16 +286,16 @@
 
 <span class="doccomment">/// Facilitate static typing of layers on a base layer, so inner layers can be accessed.
 </span><span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
-</span><span class="kw">pub type </span>DefaultForeignCallLayers&lt;<span class="lifetime">'a</span>, B, F&gt; = Layer&lt;
-    PrintForeignCallExecutor&lt;<span class="lifetime">'a</span>&gt;,
+</span><span class="kw">pub type </span>DefaultForeignCallLayers&lt;W, B, F&gt; = Layer&lt;
+    PrintForeignCallExecutor&lt;W&gt;,
     Layer&lt;
         Either&lt;MockForeignCallExecutor&lt;F&gt;, DisabledMockForeignCallExecutor&gt;,
         Layer&lt;<span class="prelude-ty">Option</span>&lt;RPCForeignCallExecutor&gt;, B&gt;,
     &gt;,
 &gt;;
 <span class="attr">#[cfg(not(feature = <span class="string">"rpc"</span>))]
-</span><span class="kw">pub type </span>DefaultForeignCallLayers&lt;<span class="lifetime">'a</span>, B, F&gt; = Layer&lt;
-    PrintForeignCallExecutor&lt;<span class="lifetime">'a</span>&gt;,
+</span><span class="kw">pub type </span>DefaultForeignCallLayers&lt;W, B, F&gt; = Layer&lt;
+    PrintForeignCallExecutor&lt;W&gt;,
     Layer&lt;Either&lt;MockForeignCallExecutor&lt;F&gt;, DisabledMockForeignCallExecutor&gt;, B&gt;,
 &gt;;
 
@@ -283,14 +310,15 @@
 </span><span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
 </span><span class="kw">impl </span>DefaultForeignCallExecutor {
     <span class="attr">#[allow(clippy::new_ret_no_self)]
-    </span><span class="kw">pub fn </span>new&lt;<span class="lifetime">'a</span>, F&gt;(
-        output: PrintOutput&lt;<span class="lifetime">'a</span>&gt;,
+    </span><span class="kw">pub fn </span>new&lt;<span class="lifetime">'a</span>, W, F&gt;(
+        output: W,
         resolver_url: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
         root_path: <span class="prelude-ty">Option</span>&lt;std::path::PathBuf&gt;,
         package_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    ) -&gt; <span class="kw">impl </span>ForeignCallExecutor&lt;F&gt; + <span class="lifetime">'a </span>+ <span class="kw">use</span>&lt;<span class="lifetime">'a</span>, F&gt;
+    ) -&gt; <span class="kw">impl </span>ForeignCallExecutor&lt;F&gt; + <span class="lifetime">'a </span>+ <span class="kw">use</span>&lt;<span class="lifetime">'a</span>, W, F&gt;
     <span class="kw">where
-        </span>F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; + <span class="lifetime">'a</span>,
+        </span>W: std::io::Write + <span class="lifetime">'a</span>,
+        F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; + <span class="lifetime">'a</span>,
     {
         DefaultForeignCallBuilder {
             output,

@@ -300,7 +300,20 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+
+<span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
     acir::{
         brillig::ForeignCallResult,
@@ -317,9 +330,7 @@
     NargoError,
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
-        ForeignCallError, ForeignCallExecutor, layers,
-        print::PrintOutput,
-        transcript::{ForeignCallLog, LoggingForeignCallExecutor},
+        ForeignCallError, ForeignCallExecutor, layers, transcript::LoggingForeignCallExecutor,
     },
 };
 
@@ -339,17 +350,18 @@
     }
 }
 
-<span class="kw">pub fn </span>run_test&lt;<span class="lifetime">'a</span>, B, F, E&gt;(
+<span class="kw">pub fn </span>run_test&lt;<span class="lifetime">'a</span>, W, B, F, E&gt;(
     blackbox_solver: <span class="kw-2">&amp;</span>B,
     context: <span class="kw-2">&amp;mut </span>Context,
     test_function: <span class="kw-2">&amp;</span>TestFunction,
-    output: PrintOutput&lt;<span class="lifetime">'a</span>&gt;,
+    output: W,
     config: <span class="kw-2">&amp;</span>CompileOptions,
     build_foreign_call_executor: F,
 ) -&gt; TestStatus
 <span class="kw">where
-    </span>B: BlackBoxFunctionSolver&lt;FieldElement&gt;,
-    F: Fn(PrintOutput&lt;<span class="lifetime">'a</span>&gt;, layers::Unhandled) -&gt; E + <span class="lifetime">'a</span>,
+    </span>W: std::io::Write + <span class="lifetime">'a</span>,
+    B: BlackBoxFunctionSolver&lt;FieldElement&gt;,
+    F: Fn(Box&lt;<span class="kw">dyn </span>std::io::Write + <span class="lifetime">'a</span>&gt;, layers::Unhandled) -&gt; E,
     E: ForeignCallExecutor&lt;FieldElement&gt;,
 {
     <span class="kw">let </span>test_function_has_no_arguments = context
@@ -370,17 +382,28 @@
                     std::env::var(<span class="string">"NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS"</span>)
                         .is_ok_and(|var| <span class="kw-2">&amp;</span>var == <span class="string">"true"</span>);
 
-                <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_log = ForeignCallLog::from_env(<span class="string">"NARGO_TEST_FOREIGN_CALL_LOG"</span>);
+                <span class="kw">let </span>writer: Box&lt;<span class="kw">dyn </span>std::io::Write&gt; =
+                    <span class="kw">match </span>std::env::var(<span class="string">"NARGO_TEST_FOREIGN_CALL_LOG"</span>) {
+                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; Box::new(std::io::empty()),
+                        <span class="prelude-val">Ok</span>(s) <span class="kw">if </span>s == <span class="string">"stdout" </span>=&gt; Box::new(std::io::stdout()),
+                        <span class="prelude-val">Ok</span>(s) =&gt; Box::new(
+                            OpenOptions::new()
+                                .create(<span class="bool-val">true</span>)
+                                .truncate(<span class="bool-val">true</span>)
+                                .write(<span class="bool-val">true</span>)
+                                .open(PathBuf::from(s))
+                                .unwrap(),
+                        ),
+                    };
 
                 <span class="comment">// Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                </span><span class="kw">let </span>foreign_call_executor = build_foreign_call_executor(output, layers::Unhandled);
+                </span><span class="kw">let </span>foreign_call_executor =
+                    build_foreign_call_executor(Box::new(output), layers::Unhandled);
                 <span class="kw">let </span>foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
-                <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = LoggingForeignCallExecutor::new(
-                    foreign_call_executor,
-                    foreign_call_log.print_output(),
-                );
+                <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor =
+                    LoggingForeignCallExecutor::new(foreign_call_executor, writer);
 
                 <span class="kw">let </span>circuit_execution = execute_program(
                     <span class="kw-2">&amp;</span>compiled_program.program,
@@ -397,7 +420,6 @@
                 );
 
                 <span class="kw">let </span>foreign_call_executor = foreign_call_executor.executor;
-                foreign_call_log.write_log().expect(<span class="string">"failed to write foreign call log"</span>);
 
                 <span class="kw">if let </span>TestStatus::Fail { .. } = status {
                     <span class="kw">if </span>ignore_foreign_call_failures
@@ -427,7 +449,7 @@
                  -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, String&gt; {
                     <span class="comment">// Use a base layer that doesn't handle anything, which we handle in the `execute` below.
                     </span><span class="kw">let </span>inner_executor =
-                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+                        build_foreign_call_executor(Box::new(std::io::empty()), layers::Unhandled);
 
                     <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
 

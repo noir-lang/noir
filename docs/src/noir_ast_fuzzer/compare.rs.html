@@ -181,11 +181,12 @@
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr, bail};
-<span class="kw">use </span>nargo::{NargoError, PrintOutput, foreign_calls::DefaultForeignCallBuilder};
+<span class="kw">use </span>nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
 <span class="kw">use </span>noirc_abi::{Abi, InputMap, input_parser::InputValue};
 <span class="kw">use </span>noirc_evaluator::ssa::SsaProgramArtifact;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
@@ -294,11 +295,11 @@
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>do_exec = |program| {
-            <span class="kw">let </span><span class="kw-2">mut </span>print = String::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>print = Vec::new();
 
             <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = DefaultForeignCallBuilder::default()
                 .with_mocks(<span class="bool-val">false</span>)
-                .with_output(PrintOutput::String(<span class="kw-2">&amp;mut </span>print))
+                .with_output(<span class="kw-2">&amp;mut </span>print)
                 .build();
 
             <span class="kw">let </span>res = nargo::ops::execute_program(
@@ -308,6 +309,7 @@
                 <span class="kw-2">&amp;mut </span>foreign_call_executor,
             );
 
+            <span class="kw">let </span>print = String::from_utf8(print).expect(<span class="string">"should be valid utf8 string"</span>);
             (res, print)
         };
 

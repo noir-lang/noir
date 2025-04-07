@@ -314,8 +314,7 @@
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -332,7 +331,7 @@
 <span class="kw">use </span>noirc_frontend::hir::{Context, def_map::FuzzingHarness};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="kw">use crate</span>::{PrintOutput, foreign_calls::ForeignCallExecutor};
+<span class="kw">use </span><span class="kw">crate</span>::foreign_calls::ForeignCallExecutor;
 <span class="kw">use crate</span>::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{DefaultForeignCallBuilder, layers},
@@ -414,10 +413,9 @@
         DefaultForeignCallBuilder { output, enable_mocks: <span class="bool-val">true </span>}.build_with_base(base)
     };
     <span class="comment">// Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-    </span><span class="kw">let </span>inner_executor = build_foreign_call_executor(
-        <span class="kw">if </span>show_output { PrintOutput::Stdout } <span class="kw">else </span>{ PrintOutput::None },
-        layers::Unhandled,
-    );
+    </span><span class="kw">let </span>writer: Box&lt;<span class="kw">dyn </span>io::Write&gt; =
+        <span class="kw">if </span>show_output { Box::new(io::stdout()) } <span class="kw">else </span>{ Box::new(io::empty()) };
+    <span class="kw">let </span>inner_executor = build_foreign_call_executor(writer, layers::Unhandled);
 
     TestForeignCallExecutor::new(inner_executor)
 }

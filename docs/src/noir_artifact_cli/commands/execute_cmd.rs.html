@@ -133,8 +133,7 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#135" id="135">135</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>clap::Args;
@@ -144,9 +143,8 @@
     errors::CliError,
     execution::{<span class="self">self</span>, ExecutionResults},
 };
-<span class="kw">use </span>nargo::{
-    PrintOutput,
-    foreign_calls::{DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor},
+<span class="kw">use </span>nargo::foreign_calls::{
+    DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
 };
 <span class="kw">use </span>noirc_driver::CompiledProgram;
 
@@ -258,7 +256,7 @@
     };
 
     <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = DefaultForeignCallBuilder {
-        output: PrintOutput::Stdout,
+        output: std::io::stdout(),
         enable_mocks: <span class="bool-val">false</span>,
         resolver_url: args.oracle_resolver.clone(),
         root_path: <span class="prelude-val">None</span>,

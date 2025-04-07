@@ -190,19 +190,13 @@
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField, FieldElement,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
 };
-<span class="kw">use </span>nargo::{
-    PrintOutput,
-    foreign_calls::{
-        DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
-    },
+<span class="kw">use </span>nargo::foreign_calls::{
+    DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
 };
 <span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 <span class="kw">use </span>noirc_errors::debug_info::{DebugFnId, DebugVarId};
@@ -246,22 +240,22 @@
 }
 
 <span class="kw">impl </span>DefaultDebugForeignCallExecutor {
-    <span class="kw">fn </span>make(
-        output: PrintOutput&lt;<span class="lifetime">'_</span>&gt;,
+    <span class="kw">fn </span>make&lt;<span class="lifetime">'a</span>, W: <span class="lifetime">'a </span>+ std::io::Write&gt;(
+        output: W,
         ex: DefaultDebugForeignCallExecutor,
-    ) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="lifetime">'_ </span>{
+    ) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="lifetime">'a </span>{
         DefaultForeignCallBuilder::default().with_output(output).build().add_layer(ex)
     }
 
     <span class="attr">#[allow(clippy::new_ret_no_self, dead_code)]
-    </span><span class="kw">pub fn </span>new(output: PrintOutput&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="lifetime">'_ </span>{
+    </span><span class="kw">pub fn </span>new&lt;<span class="lifetime">'a</span>, W: <span class="lifetime">'a </span>+ std::io::Write&gt;(output: W) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="lifetime">'a </span>{
         <span class="self">Self</span>::make(output, <span class="self">Self</span>::default())
     }
 
-    <span class="kw">pub fn </span>from_artifact&lt;<span class="lifetime">'a</span>&gt;(
-        output: PrintOutput&lt;<span class="lifetime">'a</span>&gt;,
+    <span class="kw">pub fn </span>from_artifact&lt;<span class="lifetime">'a</span>, W: <span class="lifetime">'a </span>+ std::io::Write&gt;(
+        output: W,
         artifact: <span class="kw-2">&amp;</span>DebugArtifact,
-    ) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="kw">use</span>&lt;<span class="lifetime">'a</span>&gt; {
+    ) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="kw">use</span>&lt;<span class="lifetime">'a</span>, W&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>ex = <span class="self">Self</span>::default();
         ex.load_artifact(artifact);
         <span class="self">Self</span>::make(output, ex)

@@ -137,19 +137,7 @@
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#139" id="139">139</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
@@ -159,27 +147,19 @@
 
 <span class="kw">use super</span>::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
-<span class="attr">#[derive(Debug, Default)]
-</span><span class="kw">pub enum </span>PrintOutput&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="attr">#[default]
-    </span><span class="prelude-val">None</span>,
-    Stdout,
-    String(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>String),
-}
-
 <span class="doccomment">/// Handle `println` calls.
 </span><span class="attr">#[derive(Debug, Default)]
-</span><span class="kw">pub struct </span>PrintForeignCallExecutor&lt;<span class="lifetime">'a</span>&gt; {
-    output: PrintOutput&lt;<span class="lifetime">'a</span>&gt;,
+</span><span class="kw">pub struct </span>PrintForeignCallExecutor&lt;W&gt; {
+    output: W,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; PrintForeignCallExecutor&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">pub fn </span>new(output: PrintOutput&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;W&gt; PrintForeignCallExecutor&lt;W&gt; {
+    <span class="kw">pub fn </span>new(output: W) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ output }
     }
 }
 
-<span class="kw">impl</span>&lt;F: AcirField&gt; ForeignCallExecutor&lt;F&gt; <span class="kw">for </span>PrintForeignCallExecutor&lt;<span class="lifetime">'_</span>&gt; {
+<span class="kw">impl</span>&lt;F: AcirField, W: std::io::Write&gt; ForeignCallExecutor&lt;F&gt; <span class="kw">for </span>PrintForeignCallExecutor&lt;W&gt; {
     <span class="doccomment">/// Print has certain information encoded in the call arguments.
     /// Below we outline the expected inputs.
     ///
@@ -213,15 +193,11 @@
 
                 <span class="kw">let </span>display_values: PrintableValueDisplay&lt;F&gt; =
                     try_from_params(foreign_call_inputs)<span class="question-mark">?</span>;
-                <span class="kw">let </span>display_string =
-                    <span class="macro">format!</span>(<span class="string">"{display_values}{}"</span>, <span class="kw">if </span>skip_newline { <span class="string">"" </span>} <span class="kw">else </span>{ <span class="string">"\n" </span>});
 
-                <span class="kw">match </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.output {
-                    PrintOutput::None =&gt; (),
-                    PrintOutput::Stdout =&gt; <span class="macro">print!</span>(<span class="string">"{display_string}"</span>),
-                    PrintOutput::String(string) =&gt; {
-                        string.push_str(<span class="kw-2">&amp;</span>display_string);
-                    }
+                <span class="kw">if </span>skip_newline {
+                    <span class="macro">write!</span>(<span class="self">self</span>.output, <span class="string">"{display_values}"</span>).expect(<span class="string">"write should succeed"</span>);
+                } <span class="kw">else </span>{
+                    <span class="macro">writeln!</span>(<span class="self">self</span>.output, <span class="string">"{display_values}"</span>).expect(<span class="string">"write should succeed"</span>);
                 }
 
                 <span class="prelude-val">Ok</span>(ForeignCallResult::default())

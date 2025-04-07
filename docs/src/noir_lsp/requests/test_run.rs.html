@@ -129,13 +129,11 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span><span class="kw">crate</span>::insert_all_files_for_workspace_into_file_manager;
 <span class="kw">use </span>async_lsp::{ErrorCode, ResponseError};
 <span class="kw">use </span>nargo::{
-    PrintOutput,
     foreign_calls::DefaultForeignCallBuilder,
     ops::{TestStatus, run_test},
 };
@@ -219,7 +217,7 @@
                 <span class="kw-2">&amp;</span>state.solver,
                 <span class="kw-2">&amp;mut </span>context,
                 <span class="kw-2">&amp;</span>test_function,
-                PrintOutput::Stdout,
+                std::io::stdout(),
                 <span class="kw-2">&amp;</span>CompileOptions::default(),
                 |output, base| {
                     DefaultForeignCallBuilder {

@@ -270,14 +270,12 @@
 <a href="#269" id="269">269</a>
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#272" id="272">272</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::circuit::Opcode;
 <span class="kw">use </span>acir::circuit::OpcodeLocation;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, Context};
-<span class="kw">use </span>nargo::PrintOutput;
 <span class="kw">use </span>nargo::errors::try_to_diagnose_runtime_error;
 <span class="kw">use </span>nargo::foreign_calls::DefaultForeignCallBuilder;
 <span class="kw">use </span>noir_artifact_cli::fs::artifact::read_program_from_file;
@@ -365,7 +363,7 @@
         <span class="kw-2">&amp;</span>program.bytecode,
         initial_witness,
         <span class="kw-2">&amp;</span>Bn254BlackBoxSolver(pedantic_solving),
-        <span class="kw-2">&amp;mut </span>DefaultForeignCallBuilder::default().with_output(PrintOutput::Stdout).build(),
+        <span class="kw-2">&amp;mut </span>DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
     );
     <span class="kw">let </span><span class="kw-2">mut </span>profiling_samples = <span class="kw">match </span>solved_witness_stack_err {
         <span class="prelude-val">Ok</span>((<span class="kw">_</span>, profiling_samples)) =&gt; profiling_samples,

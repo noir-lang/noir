@@ -1386,8 +1386,7 @@
 <a href="#1385" id="1385">1385</a>
 <a href="#1386" id="1386">1386</a>
 <a href="#1387" id="1387">1387</a>
-<a href="#1388" id="1388">1388</a>
-<a href="#1389" id="1389">1389</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1388" id="1388">1388</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -2362,7 +2361,6 @@
             BinaryFieldOp, HeapValueType, MemoryAddress, Opcode <span class="kw">as </span>BrilligOpcode, ValueOrArray,
         },
     };
-    <span class="kw">use </span>nargo::PrintOutput;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_resolve_foreign_calls_stepping_into_brillig() {
@@ -2423,7 +2421,7 @@
         <span class="kw">let </span>initial_witness = BTreeMap::from([(Witness(<span class="number">1</span>), fe_1)]).into();
 
         <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             debug_artifact,
         ));
         <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::new(
@@ -2591,7 +2589,7 @@
         <span class="kw">let </span>initial_witness = BTreeMap::from([(Witness(<span class="number">1</span>), fe_1), (Witness(<span class="number">2</span>), fe_1)]).into();
 
         <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             debug_artifact,
         ));
         <span class="kw">let </span>brillig_funcs = <span class="kw-2">&amp;</span>[brillig_bytecode];
@@ -2688,7 +2686,7 @@
             <span class="kw-2">&amp;</span>circuits,
             <span class="kw-2">&amp;</span>debug_artifact,
             WitnessMap::new(),
-            Box::new(DefaultDebugForeignCallExecutor::new(PrintOutput::Stdout)),
+            Box::new(DefaultDebugForeignCallExecutor::new(std::io::stdout())),
             brillig_funcs,
         );
 

@@ -680,7 +680,7 @@
 <span class="kw">use </span>acvm::brillig_vm::MemoryValue;
 <span class="kw">use </span>acvm::brillig_vm::brillig::Opcode <span class="kw">as </span>BrilligOpcode;
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
-<span class="kw">use </span>nargo::{NargoError, PrintOutput};
+<span class="kw">use </span>nargo::NargoError;
 <span class="kw">use </span>noirc_driver::CompiledProgram;
 
 <span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DefaultDebugForeignCallExecutor;
@@ -720,7 +720,7 @@
         raw_source_printing: bool,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             debug_artifact,
         ));
         <span class="kw">let </span>context = DebugContext::new(
@@ -1016,7 +1016,7 @@
     <span class="kw">fn </span>restart_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span>breakpoints: Vec&lt;DebugLocation&gt; = <span class="self">self</span>.context.iterate_breakpoints().copied().collect();
         <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             <span class="self">self</span>.debug_artifact,
         ));
         <span class="self">self</span>.context = DebugContext::new(
