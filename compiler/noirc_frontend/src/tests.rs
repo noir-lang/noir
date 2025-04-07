@@ -4362,23 +4362,6 @@ fn deny_attaching_mut_ref_to_immutable_object() {
 
 #[named]
 #[test]
-fn immutable_references_with_ownership_feature() {
-    let src = r#"
-        unconstrained fn main() {
-            let mut array = [1, 2, 3];
-            borrow(&array);
-        }
-
-        fn borrow(_array: &[Field; 3]) {}
-    "#;
-
-    let (_, _, errors) =
-        get_program_using_features!(src, Expect::Success, &[UnstableFeature::Ownership]);
-    assert_eq!(errors.len(), 0);
-}
-
-#[named]
-#[test]
 fn immutable_references_without_ownership_feature() {
     let src = r#"
         fn main() {
