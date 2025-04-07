@@ -15,6 +15,7 @@ dependencies = [
  "criterion",
  "flate2",
  "fxhash",
+ "insta",
  "noir_protobuf",
  "num-bigint",
  "pprof",
@@ -2572,6 +2573,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "insta"
+version = "1.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50259abbaa67d11d2bcafc7ba1d094ed7a0c70e3ce893f0d0997f73558cb3084"
+dependencies = [
+ "console",
+ "linked-hash-map",
+ "once_cell",
+ "pin-project",
+ "similar",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2889,6 +2903,12 @@ dependencies = [
  "num-bigint",
  "thiserror",
 ]
+
+[[package]]
+name = "linked-hash-map"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
 name = "linux-raw-sys"
@@ -3569,6 +3589,7 @@ dependencies = [
  "num-traits",
  "petgraph",
  "proptest",
+ "proptest-derive",
  "rayon",
  "serde",
  "serde_json",

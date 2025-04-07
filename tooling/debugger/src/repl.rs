@@ -3,7 +3,6 @@ use crate::context::{
     DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
     RunParams,
 };
-use nargo::PrintOutput;
 use noirc_driver::CompiledProgram;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
@@ -641,7 +640,7 @@ pub fn run(project: DebugProject, run_params: RunParams) -> DebugExecutionResult
     };
 
     let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-        PrintOutput::Stdout,
+        std::io::stdout(),
         run_params.oracle_resolver_url,
         &debug_artifact,
         Some(project.root_dir),

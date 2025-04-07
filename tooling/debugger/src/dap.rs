@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use nargo::{NargoError, PrintOutput};
+use nargo::NargoError;
 
 use crate::DebugProject;
 use crate::context::{DebugCommandResult, DebugLocation, RunParams};
@@ -71,7 +71,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             debug_artifact,
             project.initial_witness.clone(),
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-                PrintOutput::Stdout,
+                std::io::stdout(),
                 foreign_call_resolver_url,
                 debug_artifact,
                 Some(project.root_dir.clone()),

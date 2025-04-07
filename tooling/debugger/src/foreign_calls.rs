@@ -5,11 +5,8 @@ use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
 };
-use nargo::{
-    PrintOutput,
-    foreign_calls::{
-        DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
-    },
+use nargo::foreign_calls::{
+    DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
 };
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 use noirc_errors::debug_info::{DebugFnId, DebugVarId};
@@ -54,13 +51,13 @@ pub struct DefaultDebugForeignCallExecutor {
 }
 
 impl DefaultDebugForeignCallExecutor {
-    fn make(
-        output: PrintOutput<'_>,
+    fn make<'a, W: 'a + std::io::Write>(
+        output: W,
         resolver_url: Option<String>,
         ex: DefaultDebugForeignCallExecutor,
         root_path: Option<PathBuf>,
         package_name: String,
-    ) -> impl DebugForeignCallExecutor + '_ {
+    ) -> impl DebugForeignCallExecutor + 'a {
         DefaultForeignCallBuilder {
             output,
             enable_mocks: true,
@@ -73,22 +70,22 @@ impl DefaultDebugForeignCallExecutor {
     }
 
     #[allow(clippy::new_ret_no_self, dead_code)]
-    pub fn new(
-        output: PrintOutput<'_>,
+    pub fn new<'a, W: 'a + std::io::Write>(
+        output: W,
         resolver_url: Option<String>,
         root_path: Option<PathBuf>,
         package_name: String,
-    ) -> impl DebugForeignCallExecutor + '_ {
+    ) -> impl DebugForeignCallExecutor + 'a {
         Self::make(output, resolver_url, Self::default(), root_path, package_name)
     }
 
-    pub fn from_artifact<'a>(
-        output: PrintOutput<'a>,
+    pub fn from_artifact<'a, W: 'a + std::io::Write>(
+        output: W,
         resolver_url: Option<String>,
         artifact: &DebugArtifact,
         root_path: Option<PathBuf>,
         package_name: String,
-    ) -> impl DebugForeignCallExecutor + use<'a> {
+    ) -> impl DebugForeignCallExecutor + use<'a, W> {
         let mut ex = Self::default();
         ex.load_artifact(artifact);
         Self::make(output, resolver_url, ex, root_path, package_name)
