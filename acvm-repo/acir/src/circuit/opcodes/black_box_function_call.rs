@@ -116,29 +116,45 @@ pub enum BlackBoxFuncCall<F> {
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs AND rhs, as
     ///   bit_size bit integers
-    AND { lhs: FunctionInput<F>, rhs: FunctionInput<F>, output: Witness },
+    AND {
+        lhs: FunctionInput<F>,
+        rhs: FunctionInput<F>,
+        output: Witness,
+    },
     /// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
     /// - lhs: (witness, bit_size)
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs XOR rhs, as
     ///   bit_size bit integers
-    XOR { lhs: FunctionInput<F>, rhs: FunctionInput<F>, output: Witness },
+    XOR {
+        lhs: FunctionInput<F>,
+        rhs: FunctionInput<F>,
+        output: Witness,
+    },
     /// Range constraint to ensure that a witness
     /// can be represented in the specified number of bits.
     /// - input: (witness, bit_size)
-    RANGE { input: FunctionInput<F> },
+    RANGE {
+        input: FunctionInput<F>,
+    },
     /// Computes the Blake2s hash of the inputs, as specified in
     /// <https://tools.ietf.org/html/rfc7693>
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e. an array of 32
     ///   (witness, 8), constrained to be the blake2s of the inputs.
-    Blake2s { inputs: Vec<FunctionInput<F>>, outputs: Box<[Witness; 32]> },
+    Blake2s {
+        inputs: Vec<FunctionInput<F>>,
+        outputs: Box<[Witness; 32]>,
+    },
     /// Computes the Blake3 hash of the inputs
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e an array of 32
     ///   (witness, 8), constrained to be the blake3 of the inputs.
-    Blake3 { inputs: Vec<FunctionInput<F>>, outputs: Box<[Witness; 32]> },
+    Blake3 {
+        inputs: Vec<FunctionInput<F>>,
+        outputs: Box<[Witness; 32]>,
+    },
     /// Verifies a ECDSA signature over the secp256k1 curve.
     /// - inputs:
     ///     - x coordinate of public key as 32 bytes
@@ -217,7 +233,10 @@ pub enum BlackBoxFuncCall<F> {
     /// Keccak Permutation function of width 1600
     /// - inputs: An array of 25 64-bit Keccak lanes that represent a keccak sponge of 1600 bits
     /// - outputs: The result of a keccak f1600 permutation on the input state. Also an array of 25 Keccak lanes.
-    Keccakf1600 { inputs: Box<[FunctionInput<F>; 25]>, outputs: Box<[Witness; 25]> },
+    Keccakf1600 {
+        inputs: Box<[FunctionInput<F>; 25]>,
+        outputs: Box<[Witness; 25]>,
+    },
     /// Computes a recursive aggregation object when verifying a proof inside
     /// another circuit.
     /// The outputted aggregation object will then be either checked in a
@@ -261,17 +280,40 @@ pub enum BlackBoxFuncCall<F> {
         proof_type: u32,
     },
     /// BigInt addition
-    BigIntAdd { lhs: u32, rhs: u32, output: u32 },
+    BigIntAdd {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
     /// BigInt subtraction
-    BigIntSub { lhs: u32, rhs: u32, output: u32 },
+    BigIntSub {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
     /// BigInt multiplication
-    BigIntMul { lhs: u32, rhs: u32, output: u32 },
+    BigIntMul {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
     /// BigInt division
-    BigIntDiv { lhs: u32, rhs: u32, output: u32 },
+    BigIntDiv {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
     /// BigInt from le bytes
-    BigIntFromLeBytes { inputs: Vec<FunctionInput<F>>, modulus: Vec<u8>, output: u32 },
+    BigIntFromLeBytes {
+        inputs: Vec<FunctionInput<F>>,
+        modulus: Vec<u8>,
+        output: u32,
+    },
     /// BigInt to le bytes
-    BigIntToLeBytes { input: u32, outputs: Vec<Witness> },
+    BigIntToLeBytes {
+        input: u32,
+        outputs: Vec<Witness>,
+    },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
     Poseidon2Permutation {
@@ -298,6 +340,10 @@ pub enum BlackBoxFuncCall<F> {
         /// Output of the compression, represented by 8 u32s
         outputs: Box<[Witness; 8]>,
     },
+    // Generates a random number without any argument
+    GetRandom {
+        output: Witness,
+    },
 }
 
 impl<F> BlackBoxFuncCall<F> {
@@ -323,6 +369,7 @@ impl<F> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
             BlackBoxFuncCall::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
             BlackBoxFuncCall::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
+            BlackBoxFuncCall::GetRandom { .. } => BlackBoxFunc::GetRandom,
         }
     }
 
@@ -343,6 +390,7 @@ impl<F> BlackBoxFuncCall<F> {
             | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
 
             BlackBoxFuncCall::AND { output, .. }
+            | BlackBoxFuncCall::GetRandom { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
@@ -449,6 +497,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 inputs.push(*key_hash);
                 inputs
             }
+            BlackBoxFuncCall::GetRandom { .. } => todo!(),
         }
     }
 
@@ -597,6 +646,7 @@ mod tests {
 
 #[cfg(feature = "arb")]
 mod arb {
+    // TODO: Add test GetRandom
     use acir_field::AcirField;
     use proptest::prelude::*;
 

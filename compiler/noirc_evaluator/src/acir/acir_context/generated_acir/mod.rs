@@ -259,7 +259,6 @@ impl<F: AcirField> GeneratedAcir<F> {
                 scalars: inputs[1].clone(),
                 outputs: (outputs[0], outputs[1], outputs[2]),
             },
-
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
                 input1: Box::new([inputs[0][0], inputs[1][0], inputs[2][0]]),
                 input2: Box::new([inputs[3][0], inputs[4][0], inputs[5][0]]),
@@ -324,6 +323,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                     .expect("Compiler should generate correct size inputs"),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
+            BlackBoxFunc::GetRandom => todo!(),
         };
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -665,45 +665,23 @@ impl<F: AcirField> GeneratedAcir<F> {
 /// expects. Returning `None` if there is no expectation.
 fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
     match name {
-        // Bitwise opcodes will take in 2 parameters
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
-
-        // All of the hash/cipher methods will take in a
-        // variable number of inputs.
         BlackBoxFunc::AES128Encrypt | BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => None,
-
         BlackBoxFunc::Keccakf1600 => Some(25),
-        // The permutation takes a fixed number of inputs, but the inputs length depends on the proving system implementation.
         BlackBoxFunc::Poseidon2Permutation => None,
-
-        // SHA256 compression requires 16 u32s as input message and 8 u32s for the hash state.
         BlackBoxFunc::Sha256Compression => Some(24),
-        // Can only apply a range constraint to one
-        // witness at a time.
         BlackBoxFunc::RANGE => Some(1),
-
-        // Signature verification algorithms will take in a variable
-        // number of inputs, since the message/hashed-message can vary in size.
         BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => None,
-
-        // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
         BlackBoxFunc::MultiScalarMul => None,
-
-        // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
-
-        // Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
         BlackBoxFunc::EmbeddedCurveAdd => Some(6),
-
-        // Big integer operations take in 0 inputs. They use constants for their inputs.
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
         | BlackBoxFunc::BigIntDiv
         | BlackBoxFunc::BigIntToLeBytes => Some(0),
-
-        // FromLeBytes takes a variable array of bytes as input
         BlackBoxFunc::BigIntFromLeBytes => None,
+        BlackBoxFunc::GetRandom => None,
     }
 }
 
@@ -711,44 +689,21 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 /// expects. Returning `None` if there is no expectation.
 fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
     match name {
-        // Bitwise opcodes will return 1 parameter which is the output
-        // or the operation.
-        BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
-
-        // 32 byte hash algorithms
+        BlackBoxFunc::AND | BlackBoxFunc::GetRandom | BlackBoxFunc::XOR => Some(1),
         BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => Some(32),
-
         BlackBoxFunc::Keccakf1600 => Some(25),
-        // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.
         BlackBoxFunc::Poseidon2Permutation => None,
-
         BlackBoxFunc::Sha256Compression => Some(8),
-
-        // Can only apply a range constraint to one
-        // witness at a time.
         BlackBoxFunc::RANGE => Some(0),
-
-        // Signature verification algorithms will return a boolean
         BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
-
-        // Output of operations over the embedded curve
-        // will be 2 field elements representing the point.
         BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
-
-        // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
         | BlackBoxFunc::BigIntDiv
         | BlackBoxFunc::BigIntFromLeBytes => Some(0),
-
-        // ToLeBytes returns a variable array of bytes
         BlackBoxFunc::BigIntToLeBytes => None,
-
-        // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
-
-        // AES encryption returns a variable number of outputs
         BlackBoxFunc::AES128Encrypt => None,
     }
 }

@@ -153,7 +153,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 )
             }
         }
-
         BlackBoxFunc::MultiScalarMul => {
             if let ([points, scalars], [BrilligVariable::BrilligArray(outputs)]) =
                 (function_arguments, function_results)
@@ -421,6 +420,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
             }
         }
+        BlackBoxFunc::GetRandom => todo!(),
     }
 }
 

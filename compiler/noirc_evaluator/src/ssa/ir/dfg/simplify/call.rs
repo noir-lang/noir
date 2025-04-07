@@ -641,14 +641,12 @@ fn simplify_black_box_func(
             arguments,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-
         BlackBoxFunc::MultiScalarMul => {
             blackbox::simplify_msm(dfg, solver, arguments, block, call_stack)
         }
         BlackBoxFunc::EmbeddedCurveAdd => {
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)
         }
-
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
@@ -656,7 +654,6 @@ fn simplify_black_box_func(
         | BlackBoxFunc::RecursiveAggregation
         | BlackBoxFunc::BigIntFromLeBytes
         | BlackBoxFunc::BigIntToLeBytes => SimplifyResult::None,
-
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
         }
@@ -672,6 +669,7 @@ fn simplify_black_box_func(
             blackbox::simplify_sha256_compression(dfg, arguments, block, call_stack)
         }
         BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
+        BlackBoxFunc::GetRandom => todo!(),
     }
 }
 

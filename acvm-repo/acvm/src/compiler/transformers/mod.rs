@@ -471,6 +471,7 @@ where
                 self.fold_function_inputs(hash_values.as_slice());
                 self.fold_many(outputs.iter());
             }
+            BlackBoxFuncCall::GetRandom { output } => todo!(),
         }
     }
 

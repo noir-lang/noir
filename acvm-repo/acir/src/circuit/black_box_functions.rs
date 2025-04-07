@@ -52,6 +52,8 @@ pub enum BlackBoxFunc {
     Poseidon2Permutation,
     /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression]
     Sha256Compression,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::GetRandom]
+    GetRandom,
 }
 
 impl std::fmt::Display for BlackBoxFunc {
@@ -83,6 +85,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
             BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
             BlackBoxFunc::Sha256Compression => "sha256_compression",
+            BlackBoxFunc::GetRandom => "getrandom",
         }
     }
 
@@ -108,6 +111,7 @@ impl BlackBoxFunc {
             "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
             "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
             "sha256_compression" => Some(BlackBoxFunc::Sha256Compression),
+            "getrandom" => Some(BlackBoxFunc::GetRandom),
             _ => None,
         }
     }
@@ -133,6 +137,7 @@ impl BlackBoxFunc {
             | BlackBoxFunc::BigIntFromLeBytes
             | BlackBoxFunc::BigIntToLeBytes
             | BlackBoxFunc::Poseidon2Permutation
+            | BlackBoxFunc::GetRandom
             | BlackBoxFunc::Sha256Compression => false,
         }
     }

@@ -404,6 +404,7 @@ where
                     outputs: Self::encode_vec(outputs.as_ref()),
                 })
             }
+            opcodes::BlackBoxFuncCall::GetRandom { output } => todo!(),
         };
         BlackBoxFuncCall { value: Some(value) }
     }

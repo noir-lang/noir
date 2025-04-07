@@ -24,6 +24,7 @@ fn format_blackbox_function<F: AcirField>(call: &BlackBoxFuncCall<F>) -> String 
         BlackBoxFuncCall::BigIntToLeBytes { .. } => "big_int_to_le_bytes".to_string(),
         BlackBoxFuncCall::Poseidon2Permutation { .. } => "poseidon2_permutation".to_string(),
         BlackBoxFuncCall::Sha256Compression { .. } => "sha256_compression".to_string(),
+        BlackBoxFuncCall::GetRandom { .. } => "get_random".to_string(),
     }
 }
 

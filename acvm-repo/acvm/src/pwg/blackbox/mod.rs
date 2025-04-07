@@ -16,6 +16,7 @@ use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
 mod aes128;
 pub(crate) mod bigint;
 mod embedded_curve_ops;
+mod getrandom;
 mod hash;
 mod logic;
 mod range;
@@ -156,5 +157,6 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
             solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
         }
+        BlackBoxFuncCall::GetRandom { output } => todo!(),
     }
 }
