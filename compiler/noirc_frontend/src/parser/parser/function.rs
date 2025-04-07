@@ -92,7 +92,7 @@ impl Parser<'_> {
             return empty_function(self.previous_token_location);
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
         let parameters = self.parse_function_parameters(allow_self);
 
         let parameters = match parameters {

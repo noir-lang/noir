@@ -716,7 +716,7 @@ impl<'context> Elaborator<'context> {
     ) -> Result<(TypeVariable, Rc<String>), ResolverError> {
         // Map the generic to a fresh type variable
         match generic {
-            UnresolvedGeneric::Variable(_) | UnresolvedGeneric::Numeric { .. } => {
+            UnresolvedGeneric::Variable(..) | UnresolvedGeneric::Numeric { .. } => {
                 let id = self.interner.next_type_variable_id();
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
@@ -2220,7 +2220,7 @@ impl<'context> Elaborator<'context> {
         let mut idents = HashSet::new();
         for generic in generics {
             match generic {
-                UnresolvedGeneric::Variable(ident) => {
+                UnresolvedGeneric::Variable(ident, _) => {
                     idents.insert(ident.clone());
                 }
                 UnresolvedGeneric::Numeric { ident, typ: _ } => {
