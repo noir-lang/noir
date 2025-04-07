@@ -427,6 +427,8 @@ impl Elaborator<'_> {
                 let expr_location = index.location;
                 let (index, index_type) = self.elaborate_expression(index);
 
+                self.push_index_to_check(index);
+
                 let expected = self.polymorphic_integer_or_field();
                 self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
                     expected_typ: "an integer".to_owned(),

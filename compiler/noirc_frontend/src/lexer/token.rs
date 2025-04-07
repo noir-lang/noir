@@ -111,6 +111,8 @@ pub enum BorrowedToken<'input> {
     DollarSign,
     /// =
     Assign,
+    /// &&
+    LogicalAnd,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -238,6 +240,8 @@ pub enum Token {
     Assign,
     /// $
     DollarSign,
+    /// &&
+    LogicalAnd,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -315,6 +319,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Assign => BorrowedToken::Assign,
         Token::Bang => BorrowedToken::Bang,
         Token::DollarSign => BorrowedToken::DollarSign,
+        Token::LogicalAnd => BorrowedToken::LogicalAnd,
         Token::EOF => BorrowedToken::EOF,
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(s) => BorrowedToken::Whitespace(s),
@@ -551,6 +556,7 @@ impl fmt::Display for Token {
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
             Token::DollarSign => write!(f, "$"),
+            Token::LogicalAnd => write!(f, "&&"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
@@ -744,6 +750,26 @@ impl fmt::Display for TestScope {
     }
 }
 
+/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum FuzzingScope {
+    /// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
+    /// if it fails with the specified reason.
+    OnlyFailWith {
+        reason: String,
+    },
+    None,
+}
+
+impl fmt::Display for FuzzingScope {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FuzzingScope::None => write!(f, ""),
+            FuzzingScope::OnlyFailWith { reason } => write!(f, "(only_fail_with = {reason:?})"),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
@@ -781,11 +807,17 @@ impl Attributes {
         matches!(self.function(), Some(FunctionAttribute::Test(_)))
     }
 
+    pub fn is_fuzzing_harness(&self) -> bool {
+        matches!(self.function(), Some(FunctionAttribute::FuzzingHarness(_)))
+    }
+
     /// True if these attributes mean the given function is an entry point function if it was
     /// defined within a contract. Note that this does not check if the function is actually part
     /// of a contract.
     pub fn is_contract_entry_point(&self) -> bool {
-        !self.has_contract_library_method() && !self.is_test_function()
+        !self.has_contract_library_method()
+            && !self.is_test_function()
+            && !self.is_fuzzing_harness()
     }
 
     /// Returns note if a deprecated secondary attribute is found
@@ -861,6 +893,7 @@ pub enum FunctionAttribute {
     Fold,
     NoPredicates,
     InlineAlways,
+    FuzzingHarness(FuzzingScope),
 }
 
 impl FunctionAttribute {
@@ -924,6 +957,7 @@ impl FunctionAttribute {
             FunctionAttribute::Fold => "fold",
             FunctionAttribute::NoPredicates => "no_predicates",
             FunctionAttribute::InlineAlways => "inline_always",
+            FunctionAttribute::FuzzingHarness(_) => "fuzz",
         }
     }
 }
@@ -938,6 +972,7 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Fold => write!(f, "#[fold]"),
             FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),
+            FunctionAttribute::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
         }
     }
 }

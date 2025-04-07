@@ -616,6 +616,13 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
+            PathResolutionItem::SelfMethod(_) => {
+                if let Some(Type::DataType(_, generics)) = &self.self_type {
+                    generics.clone()
+                } else {
+                    Vec::new()
+                }
+            }
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
@@ -655,7 +662,14 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
-            _ => Vec::new(),
+            PathResolutionItem::Method(_, None, _)
+            | PathResolutionItem::TraitFunction(_, None, _)
+            | PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::ModuleFunction(..) => Vec::new(),
         }
     }
 
@@ -873,11 +887,19 @@ impl Elaborator<'_> {
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let location = path.item.location();
+        let object_location = path.typ.location;
         let typ = self.resolve_type(path.typ);
         let check_self_param = false;
 
-        let Some(method) = self.lookup_method(&typ, path.item.as_str(), location, check_self_param)
-        else {
+        self.interner.push_type_ref_location(&typ, object_location);
+
+        let Some(method) = self.lookup_method(
+            &typ,
+            path.item.as_str(),
+            location,
+            object_location,
+            check_self_param,
+        ) else {
             let error = Expression::new(ExpressionKind::Error, location);
             return self.elaborate_expression(error);
         };

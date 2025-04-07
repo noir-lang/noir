@@ -1,0 +1,7 @@
+[package]
+name = "generic_trait_bounds"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]

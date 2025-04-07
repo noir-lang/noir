@@ -81,13 +81,19 @@ impl ChunkFormatter<'_, '_> {
             StatementKind::Break => {
                 group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Break);
-                    formatter.write_semicolon();
+                    formatter.skip_comments_and_whitespace();
+                    if formatter.is_at(Token::Semicolon) {
+                        formatter.write_semicolon();
+                    }
                 }));
             }
             StatementKind::Continue => {
                 group.text(self.chunk(|formatter| {
                     formatter.write_keyword(Keyword::Continue);
-                    formatter.write_semicolon();
+                    formatter.skip_comments_and_whitespace();
+                    if formatter.is_at(Token::Semicolon) {
+                        formatter.write_semicolon();
+                    }
                 }));
             }
             StatementKind::Comptime(statement) => {
@@ -126,7 +132,9 @@ impl ChunkFormatter<'_, '_> {
             formatter.format_secondary_attributes(attributes);
             formatter.write_keyword(keyword);
             formatter.write_space();
+            formatter.increase_indentation();
             formatter.format_pattern(pattern);
+            formatter.decrease_indentation();
             if typ.typ != UnresolvedTypeData::Unspecified {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();
@@ -209,7 +217,13 @@ impl ChunkFormatter<'_, '_> {
         } else {
             self.format_expression(assign_statement.expression, &mut value_group);
         }
-        value_group.semicolon(self);
+
+        value_group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        }));
+        if self.is_at(Token::Semicolon) {
+            value_group.semicolon(self);
+        }
         group.group(value_group);
 
         group

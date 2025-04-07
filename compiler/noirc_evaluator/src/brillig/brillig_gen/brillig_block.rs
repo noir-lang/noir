@@ -106,6 +106,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
+        // Using the end of the global memory space adds more complexity as we
+        // have to account for possible register de-allocations as part of regular global compilation.
+        // Thus, we want to allocate any reserved global slots first.
+        //
+        // If this flag is set, compile the array copy counter as a global
+        if self.brillig_context.count_array_copies() {
+            let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
+            self.brillig_context
+                .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
+        }
+
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
                 continue;
@@ -133,6 +144,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
             }
         }
+
         new_hoisted_constants
     }
 
@@ -153,6 +165,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Process the block's terminator instruction
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
+
+        if self.brillig_context.count_array_copies()
+            && matches!(terminator_instruction, TerminatorInstruction::Return { .. })
+            && self.function_context.is_entry_point
+        {
+            self.brillig_context.emit_println_of_array_copy_counter();
+        }
 
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
@@ -862,6 +881,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // RC is always directly pointed by the array/vector pointer
                 self.brillig_context
                     .load_instruction(rc_register, array_or_vector.extract_register());
+
+                // Ensure we're not incrementing from 0 back to 1
+                if self.brillig_context.enable_debug_assertions() {
+                    self.assert_rc_neq_zero(rc_register);
+                }
+
                 self.brillig_context.codegen_usize_op_in_place(
                     rc_register,
                     BrilligBinaryOp::Add,
@@ -882,20 +907,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // and become usize::MAX, and then return to 1, then it will indicate
                 // an array as mutable when it probably shouldn't be.
                 if self.brillig_context.enable_debug_assertions() {
-                    let min_addr = ReservedRegisters::usize_one();
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    self.brillig_context.memory_op_instruction(
-                        min_addr,
-                        rc_register,
-                        condition.address,
-                        BrilligBinaryOp::LessThan,
-                    );
-                    self.brillig_context.codegen_constrain(
-                        condition,
-                        Some("array ref-count underflow detected".to_owned()),
-                    );
-                    self.brillig_context.deallocate_single_addr(condition);
+                    self.assert_rc_neq_zero(rc_register);
                 }
 
                 self.brillig_context.codegen_usize_op_in_place(
@@ -1028,6 +1040,25 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         self.brillig_context.set_call_stack(CallStack::new());
+    }
+
+    fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
+        let zero = SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
+
+        self.brillig_context.const_instruction(zero, FieldElement::zero());
+
+        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+
+        self.brillig_context.memory_op_instruction(
+            zero.address,
+            rc_register,
+            condition.address,
+            BrilligBinaryOp::Equals,
+        );
+        self.brillig_context.not_instruction(condition, condition);
+        self.brillig_context
+            .codegen_constrain(condition, Some("array ref-count underflow detected".to_owned()));
+        self.brillig_context.deallocate_single_addr(condition);
     }
 
     fn convert_ssa_function_call(

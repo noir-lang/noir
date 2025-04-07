@@ -20,7 +20,7 @@ use acvm::{
 
 /// Constructs a [`HashSet<F>`] of values pulled from a [`Program<F>`] which are likely to be correspond
 /// to significant inputs during fuzzing.
-pub(super) fn build_dictionary_from_program<F: AcirField>(program: &Program<F>) -> HashSet<F> {
+pub fn build_dictionary_from_program<F: AcirField>(program: &Program<F>) -> HashSet<F> {
     let constrained_dictionaries = program.functions.iter().map(build_dictionary_from_circuit);
     let unconstrained_dictionaries =
         program.unconstrained_functions.iter().map(build_dictionary_from_unconstrained_function);
@@ -54,7 +54,9 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
     fn insert_array_len<F: AcirField, T>(dictionary: &mut HashSet<F>, array: &[T]) {
         let array_length = array.len() as u128;
         dictionary.insert(F::from(array_length));
-        dictionary.insert(F::from(array_length - 1));
+        if array_length > 0 {
+            dictionary.insert(F::from(array_length - 1));
+        }
     }
 
     for opcode in &circuit.opcodes {

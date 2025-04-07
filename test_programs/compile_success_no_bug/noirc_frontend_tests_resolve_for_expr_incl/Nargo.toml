@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_resolve_for_expr_incl"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

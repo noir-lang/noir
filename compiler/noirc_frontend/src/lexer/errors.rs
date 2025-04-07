@@ -22,10 +22,10 @@ pub enum LexerErrorKind {
     MalformedFuncAttribute { location: Location, found: String },
     #[error("Malformed test attribute")]
     MalformedTestAttribute { location: Location },
+    #[error("Malformed fuzz attribute")]
+    MalformedFuzzAttribute { location: Location },
     #[error("{:?} is not a valid inner attribute", found)]
     InvalidInnerAttribute { location: Location, found: String },
-    #[error("Logical and used instead of bitwise and")]
-    LogicalAnd { location: Location },
     #[error("Unterminated block comment")]
     UnterminatedBlockComment { location: Location },
     #[error("Unterminated string literal")]
@@ -68,8 +68,8 @@ impl LexerErrorKind {
             LexerErrorKind::IntegerLiteralTooLarge { location, .. } => *location,
             LexerErrorKind::MalformedFuncAttribute { location, .. } => *location,
             LexerErrorKind::MalformedTestAttribute { location, .. } => *location,
+            LexerErrorKind::MalformedFuzzAttribute { location, .. } => *location,
             LexerErrorKind::InvalidInnerAttribute { location, .. } => *location,
-            LexerErrorKind::LogicalAnd { location } => *location,
             LexerErrorKind::UnterminatedBlockComment { location } => *location,
             LexerErrorKind::UnterminatedStringLiteral { location } => *location,
             LexerErrorKind::InvalidFormatString { location, .. } => *location,
@@ -123,14 +123,14 @@ impl LexerErrorKind {
                 "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
                 *location,
             ),
+            LexerErrorKind::MalformedFuzzAttribute { location } => (
+                "Malformed fuzz attribute".to_string(),
+                "The fuzz attribute can be written in one of these forms: `#[fuzz]` or `#[fuzz(only_fail_with = \"message\")]`".to_string(),
+                *location,
+            ),
             LexerErrorKind::InvalidInnerAttribute { location, found } => (
                 "Invalid inner attribute".to_string(),
                 format!(" {found} is not a valid inner attribute"),
-                *location,
-            ),
-            LexerErrorKind::LogicalAnd { location } => (
-                "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string(),
-                "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
                 *location,
             ),
             LexerErrorKind::UnterminatedBlockComment { location } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *location),

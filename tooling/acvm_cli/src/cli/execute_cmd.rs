@@ -6,7 +6,6 @@ use acir::circuit::Program;
 use acir::native_types::{WitnessMap, WitnessStack};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
-use nargo::PrintOutput;
 
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noir_artifact_cli::errors::CliError;
@@ -90,17 +89,17 @@ pub(crate) fn execute_program_from_witness(
     let program: Program<FieldElement> =
         Program::deserialize_program(bytecode).map_err(CliError::CircuitDeserializationError)?;
 
+    let mut foreign_call_executor = DefaultForeignCallBuilder::default()
+        .with_output(io::stdout())
+        .with_mocks(false)
+        .with_resolver_url(resolver_url)
+        .build();
+
     nargo::ops::execute_program(
         &program,
         inputs_map,
         &Bn254BlackBoxSolver(pedantic_solving),
-        &mut DefaultForeignCallBuilder {
-            output: PrintOutput::Stdout,
-            enable_mocks: false,
-            resolver_url,
-            ..Default::default()
-        }
-        .build(),
+        &mut foreign_call_executor,
     )
     .map_err(CliError::CircuitExecutionError)
 }

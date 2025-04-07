@@ -8,27 +8,35 @@ use noirc_printable_type::{PrintableType, PrintableValueDisplay};
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
-#[derive(Debug, Default)]
-pub enum PrintOutput<'a> {
-    #[default]
-    None,
-    Stdout,
-    String(&'a mut String),
-}
-
 /// Handle `println` calls.
 #[derive(Debug, Default)]
-pub struct PrintForeignCallExecutor<'a> {
-    output: PrintOutput<'a>,
+pub struct PrintForeignCallExecutor<W> {
+    output: W,
 }
 
-impl<'a> PrintForeignCallExecutor<'a> {
-    pub fn new(output: PrintOutput<'a>) -> Self {
+impl<W> PrintForeignCallExecutor<W> {
+    pub fn new(output: W) -> Self {
         Self { output }
     }
 }
 
-impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
+impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCallExecutor<W> {
+    /// Print has certain information encoded in the call arguments.
+    /// Below we outline the expected inputs.
+    ///
+    /// For regular printing:
+    /// [print_newline][ForeignCallParam::Single]: 0 for print, 1 for println
+    /// [value_to_print][ForeignCallParam::Array]: The field values representing the actual value to print
+    /// [type_metadata][ForeignCallParam::Array]: Field values representing the JSON encoded type, which tells us how to print the above value
+    /// [is_fmt_str][ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
+    ///
+    /// For printing a format string:
+    /// [print_newline][ForeignCallParam::Single]: 0 for print, 1 for println
+    /// [message][ForeignCallParam::Array]: The fmtstr as a regular string
+    /// [num_values][ForeignCallParam::Single]: Number of values in the fmtstr
+    /// [[value_to_print][ForeignCallParam::Array]; N]: Array of the field values for each value in the fmtstr
+    /// [[type_metadata][ForeignCallParam::Array]; N]: Array of field values representing the JSON encoded types
+    /// [is_fmt_str][ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
@@ -46,15 +54,11 @@ impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
 
                 let display_values: PrintableValueDisplay<F> =
                     try_from_params(foreign_call_inputs)?;
-                let display_string =
-                    format!("{display_values}{}", if skip_newline { "" } else { "\n" });
 
-                match &mut self.output {
-                    PrintOutput::None => (),
-                    PrintOutput::Stdout => print!("{display_string}"),
-                    PrintOutput::String(string) => {
-                        string.push_str(&display_string);
-                    }
+                if skip_newline {
+                    write!(self.output, "{display_values}").expect("write should succeed");
+                } else {
+                    writeln!(self.output, "{display_values}").expect("write should succeed");
                 }
 
                 Ok(ForeignCallResult::default())
@@ -111,6 +115,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
     let num_values = num_values.unwrap_field().to_u128() as usize;
 
     let types_start_at = input_and_printable_types.len() - num_values;
+
     let mut input_iter =
         input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {

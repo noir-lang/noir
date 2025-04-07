@@ -14,7 +14,7 @@ use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData,
+    UnresolvedTypeData, desugar_generic_trait_bounds,
 };
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
@@ -175,7 +175,9 @@ impl ModCollector<'_> {
         let mut errors = Vec::new();
         let module_id = ModuleId { krate, local_id: self.module_id };
 
-        for r#impl in impls {
+        for mut r#impl in impls {
+            desugar_generic_trait_bounds(&mut r#impl.generics, &mut r#impl.where_clause);
+
             collect_impl(
                 &mut context.def_interner,
                 &mut self.def_collector.items,
@@ -198,6 +200,11 @@ impl ModCollector<'_> {
         let mut errors = Vec::new();
 
         for mut trait_impl in impls {
+            desugar_generic_trait_bounds(
+                &mut trait_impl.impl_generics,
+                &mut trait_impl.where_clause,
+            );
+
             let (mut unresolved_functions, associated_types, associated_constants) =
                 collect_trait_impl_items(
                     &mut context.def_interner,
@@ -288,7 +295,13 @@ impl ModCollector<'_> {
             // and replace it
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
-            unresolved_functions.push_fn(self.module_id, func_id, function.item);
+            let mut noir_function = function.item;
+            desugar_generic_trait_bounds(
+                &mut noir_function.def.generics,
+                &mut noir_function.def.where_clause,
+            );
+
+            unresolved_functions.push_fn(self.module_id, func_id, noir_function);
         }
 
         self.def_collector.items.functions.push(unresolved_functions);
@@ -434,7 +447,7 @@ impl ModCollector<'_> {
         let mut errors: Vec<CompilationError> = vec![];
         for trait_definition in traits {
             let doc_comments = trait_definition.doc_comments;
-            let trait_definition = trait_definition.item;
+            let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
             let location = trait_definition.location;
 
@@ -494,6 +507,12 @@ impl ModCollector<'_> {
 
             let mut method_ids = HashMap::default();
             let mut associated_types = Generics::new();
+
+            for item in &mut trait_definition.items {
+                if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
+                    desugar_generic_trait_bounds(generics, where_clause);
+                }
+            }
 
             for trait_item in &trait_definition.items {
                 match &trait_item.item {
@@ -987,6 +1006,7 @@ pub fn collect_function(
     let module_data = &mut def_map[module.local_id];
 
     let is_test = function.def.attributes.is_test_function();
+    let is_fuzzing_harness = function.def.attributes.is_fuzzing_harness();
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
@@ -1003,7 +1023,7 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_entry_point_function && !has_export {
+    if !is_test && !is_fuzzing_harness && !is_entry_point_function && !has_export {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
@@ -1236,6 +1256,7 @@ pub fn collect_impl(
 
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
+        desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
         let location = Location::new(method.span(), file_id);
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
@@ -1360,6 +1381,10 @@ pub(crate) fn collect_trait_impl_items(
                 let location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
+                desugar_generic_trait_bounds(
+                    &mut impl_method.def.generics,
+                    &mut impl_method.def.where_clause,
+                );
                 unresolved_functions.push_fn(local_id, func_id, impl_method);
             }
             TraitImplItemKind::Constant(name, typ, expr) => {
