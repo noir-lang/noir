@@ -1379,11 +1379,13 @@ impl<'interner> Monomorphizer<'interner> {
                             let typ = typ.borrow();
                             let item_name = typ.name.to_string();
                             let item_kind = if typ.is_struct() { "struct" } else { "enum" };
+                            let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                             return Err(MonomorphizationError::NoDefaultTypeInItem {
                                 location,
                                 generic_name: generic.name.to_string(),
                                 item_kind,
                                 item_name,
+                                is_numeric,
                             });
                         }
                     }
