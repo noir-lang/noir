@@ -1,10 +1,30 @@
+use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
-use noirc_evaluator::ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact};
+use noirc_evaluator::{
+    brillig::BrilligOptions,
+    ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
+};
 use noirc_frontend::monomorphization::ast::Program;
 
-fn should_print_ast() -> bool {
+// TODO(#7876): Allow specifying options on the command line.
+fn debug_enabled() -> bool {
     std::env::var("NOIR_AST_FUZZER_DEBUG").map(|s| s == "1" || s == "true").unwrap_or_default()
+}
+
+pub fn default_ssa_options() -> SsaEvaluatorOptions {
+    ssa::SsaEvaluatorOptions {
+        ssa_logging: if debug_enabled() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
+        brillig_options: BrilligOptions::default(),
+        print_codegen_timings: false,
+        expression_width: ExpressionWidth::default(),
+        emit_ssa: None,
+        skip_underconstrained_check: true,
+        skip_brillig_constraints_check: true,
+        enable_brillig_constraints_check_lookback: false,
+        inliner_aggressiveness: 0,
+        max_bytecode_increase_percent: None,
+    }
 }
 
 /// Compile a [Program] into SSA or panic.
@@ -19,7 +39,7 @@ pub fn create_ssa_or_die(
     // and `std::panic::resume_unwind` to catch any panic
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
-    if should_print_ast() {
+    if debug_enabled() {
         eprintln!("---\n{program}\n---");
         eprintln!("---\n{program:?}\n---");
     }
