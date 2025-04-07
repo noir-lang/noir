@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744032091469,
+  "lastUpdate": 1744032092867,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3e3a2c8ef7de29631580a43f2f4d03d1c2309613",
-          "message": "feat: Add Hash impls for EmbeddedCurvePoint and EmbeddedCurveScalar (#6970)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-03-26T15:47:29Z",
-          "tree_id": "f10ce40c34a12205e4b3379bb2c03cf74d42425d",
-          "url": "https://github.com/noir-lang/noir/commit/3e3a2c8ef7de29631580a43f2f4d03d1c2309613"
-        },
-        "date": 1743006508501,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.24,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -14555,6 +14491,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 293.54,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1bfce71e6c8b962bec99adfda280a80c4921f209",
+          "message": "chore!: remove poseidon from stdlib (#7650)\n\nCo-authored-by: Khashayar Barooti <kashbrti@gmail.com>\nCo-authored-by: Khashayar Barooti <khashayar@aztecprotocol.com>",
+          "timestamp": "2025-04-07T12:48:50Z",
+          "tree_id": "3d6fc1ffb8454a1a8063b28189d7d3a3e28af87b",
+          "url": "https://github.com/noir-lang/noir/commit/1bfce71e6c8b962bec99adfda280a80c4921f209"
+        },
+        "date": 1744032087396,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 474.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.52,
             "unit": "MB"
           }
         ]
