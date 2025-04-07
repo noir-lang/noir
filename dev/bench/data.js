@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744053758644,
+  "lastUpdate": 1744053793610,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "14488e5f0476fff0a957e8509a9be64165c7a329",
-          "message": "chore: move Instruction::has_side_effects and similar functions into their relevant SSA passes (#7822)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-03-27T12:56:47Z",
-          "tree_id": "d430ef68e3b8b4917e297e416d46498d52981f48",
-          "url": "https://github.com/noir-lang/noir/commit/14488e5f0476fff0a957e8509a9be64165c7a329"
-        },
-        "date": 1743081412404,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.742,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 15.2,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.532,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.6,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.104,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.132,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.86,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 134,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.912,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.51,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.458,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e13142b000d75b81d1e0e9d92236d8a040631ec9",
+          "message": "feat(perf): optimise array index checks in loops (#7893)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-07T19:00:32Z",
+          "tree_id": "51f730c5c949262f89b30da0536a86c615b11a8b",
+          "url": "https://github.com/noir-lang/noir/commit/e13142b000d75b81d1e0e9d92236d8a040631ec9"
+        },
+        "date": 1744053789018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.69,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 15,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.476,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.284,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.592,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.136,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.889,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.434,
             "unit": "s"
           }
         ]
