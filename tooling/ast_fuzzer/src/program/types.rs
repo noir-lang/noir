@@ -185,24 +185,27 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
     }
 }
 
-/// Check if a certain binary operation can take a type as input.
-pub(crate) fn can_binary_op_take(op: &BinaryOp, typ: &Type) -> bool {
-    match typ {
-        Type::Field => op.is_valid_for_field_type(),
-        Type::Bool => op.is_comparator() || op.is_bitwise(),
-        Type::Integer(_, size) => {
-            let size = size.bit_size();
+/// Check if a certain binary operation can take a type as input and produce the target output.
+pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Type) -> bool {
+    match (input, output) {
+        (Type::Field, Type::Field) => op.is_valid_for_field_type() && !op.is_equality(),
+        (Type::Field, Type::Bool) => op.is_equality(),
+        (Type::Bool, Type::Bool) => op.is_comparator() || op.is_bitwise(),
+        (Type::Integer(_, _), Type::Bool) => op.is_comparator(),
+        (Type::Integer(sign_in, size_in), Type::Integer(sign_out, size_out))
+            if sign_in == sign_out =>
+        {
+            let size = size_in.bit_size();
             // i1 and u1 are very easy to overflow, so we might want to disable those, to not get trivial assertion errors.
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
-            op.is_comparator()
-                || (op.is_arithmetic() && size != 1 && size != 128)
+            (op.is_arithmetic() && size != 1 && size != 128 && size_in <= size_out)
                 || op.is_bitshift()
                 || op.is_bitwise()
                 || matches!(op, BinaryOp::Modulo)
         }
-        Type::Array(_, _) | Type::Tuple(_) => matches!(op, BinaryOp::Equal | BinaryOp::NotEqual),
-        Type::Reference(typ, _) => can_binary_op_take(op, typ),
+        (Type::Array(_, _), Type::Bool) | (Type::Tuple(_), Type::Bool) => op.is_equality(),
+        (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
         _ => false,
     }
 }

@@ -424,7 +424,7 @@ impl<'a> FunctionContext<'a> {
         typ: &Type,
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
-        // Collect the operations can produce the expected type.
+        // Collect the operations can return the expected type.
         let ops =
             BinaryOp::iter().filter(|op| types::can_binary_op_return(op, typ)).collect::<Vec<_>>();
 
@@ -436,20 +436,25 @@ impl<'a> FunctionContext<'a> {
         // Choose a random operation.
         let op = u.choose_iter(ops)?;
 
-        // Find a type we can produce in the current scope which works with this operation.
-        fn collect_input_types<K: Ord>(op: BinaryOp, scope: &Scope<K>) -> Vec<&Type> {
+        // Find a type we can produce in the current scope which we can pass as input
+        // to the operations we selected, and it returns the desired output.
+        fn collect_input_types<'a, 'b, K: Ord>(
+            op: BinaryOp,
+            type_out: &'a Type,
+            scope: &'b Scope<K>,
+        ) -> Vec<&'b Type> {
             scope
                 .types_produced()
-                .filter(|typ| types::can_binary_op_take(&op, typ))
+                .filter(|type_in| types::can_binary_op_return_from_input(&op, type_in, type_out))
                 .collect::<Vec<_>>()
         }
 
         // Try local variables first.
-        let mut lhs_opts = collect_input_types(op, self.locals.current());
+        let mut lhs_opts = collect_input_types(op, typ, self.locals.current());
 
         // If the locals don't have any type compatible with `op`, try the globals.
         if lhs_opts.is_empty() {
-            lhs_opts = collect_input_types(op, &self.globals);
+            lhs_opts = collect_input_types(op, typ, &self.globals);
         }
 
         // We might not have any input that works for this operation.
@@ -499,6 +504,8 @@ impl<'a> FunctionContext<'a> {
             stmts.push(self.gen_stmt(u)?);
         }
         if types::is_unit(typ) && u.ratio(4, 5)? {
+            // ending a unit block with `<stmt>;` looks better than a `()` but both are valid.
+            // NB the AST printer puts a `;` between all statements, including after `if` and `for`.
             stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)))
         } else {
             stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);

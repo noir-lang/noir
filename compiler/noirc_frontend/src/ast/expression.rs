@@ -338,6 +338,12 @@ impl BinaryOpKind {
         )
     }
 
+    /// `==` and `!=`
+    pub fn is_equality(self) -> bool {
+        matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
+    }
+
+    /// `+`, `-`, `*`, `/`
     pub fn is_arithmetic(self) -> bool {
         matches!(
             self,
