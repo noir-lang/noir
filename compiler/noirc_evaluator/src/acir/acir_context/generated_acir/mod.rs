@@ -323,7 +323,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                     .expect("Compiler should generate correct size inputs"),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
-            BlackBoxFunc::GetRandom => todo!(),
+            BlackBoxFunc::GetRandom => BlackBoxFuncCall::GetRandom { output: outputs[0] },
         };
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
