@@ -10,7 +10,10 @@ pub use self::execute::{execute_program, execute_program_with_profiling};
 pub use self::fuzz::{
     FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus, run_fuzzing_harness,
 };
-pub use self::test::{TestStatus, run_test};
+pub use self::test::{
+    TestStatus, check_expected_failure_message, run_test, test_status_program_compile_fail,
+    test_status_program_compile_pass,
+};
 
 mod check;
 mod compile;

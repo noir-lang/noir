@@ -186,7 +186,10 @@ where
 /// that a constraint was never satisfiable.
 /// An example of this is the program `assert(false)`
 /// In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
-fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunction) -> TestStatus {
+pub fn test_status_program_compile_fail(
+    err: CompileError,
+    test_function: &TestFunction,
+) -> TestStatus {
     // The test has failed compilation, but it should never fail. Report error.
     if !test_function.should_fail() {
         return TestStatus::CompileError(err.into());
@@ -199,7 +202,7 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 ///
 /// We now check whether execution passed/failed and whether it should have
 /// passed/failed to determine the test status.
-fn test_status_program_compile_pass(
+pub fn test_status_program_compile_pass(
     test_function: &TestFunction,
     abi: &Abi,
     debug: &[DebugInfo],
@@ -239,7 +242,7 @@ fn test_status_program_compile_pass(
     )
 }
 
-fn check_expected_failure_message(
+pub fn check_expected_failure_message(
     test_function: &TestFunction,
     failed_assertion: Option<String>,
     error_diagnostic: Option<CustomDiagnostic>,

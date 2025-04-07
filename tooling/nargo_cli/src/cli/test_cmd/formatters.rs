@@ -24,7 +24,7 @@ use super::TestResult;
 /// to humans rely on the `sync` events to show a more predictable output (package by package),
 /// and formatters that output to a machine-readable format (like JSON) rely on the `async`
 /// events to show things as soon as they happen, regardless of a package ordering.
-pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
+pub(crate) trait Formatter: Send + Sync + RefUnwindSafe {
     fn package_start_async(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
 
     fn package_start_sync(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
@@ -64,7 +64,7 @@ pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
     ) -> std::io::Result<()>;
 }
 
-pub(super) struct PrettyFormatter;
+pub(crate) struct PrettyFormatter;
 
 impl Formatter for PrettyFormatter {
     fn package_start_async(&self, _package_name: &str, _test_count: usize) -> std::io::Result<()> {
