@@ -1020,7 +1020,13 @@ impl SecondaryAttribute {
             SecondaryAttribute::Export => Some("export".to_string()),
             SecondaryAttribute::Field(_) => Some("field".to_string()),
             SecondaryAttribute::Tag(custom) => custom.name(),
-            SecondaryAttribute::Meta(meta) => Some(meta.name.last_name().to_string()),
+            SecondaryAttribute::Meta(meta) => match &meta.name {
+                MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
+                MetaAttributeName::Resolved(_) => {
+                    // TODO: Resolve the expression to get the name
+                    None
+                }
+            },
             SecondaryAttribute::Abi(_) => Some("abi".to_string()),
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
@@ -1066,7 +1072,7 @@ impl fmt::Display for SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MetaAttribute {
-    pub name: Path,
+    pub name: MetaAttributeName,
     pub arguments: Vec<Expression>,
     pub location: Location,
 }
@@ -1083,6 +1089,22 @@ impl Display for MetaAttribute {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum MetaAttributeName {
+    /// For example `foo::bar` in `#[foo::bar(...)]`
+    Path(Path),
+    /// For example `$expr` in `#[$expr(...)]` inside a `quote { ... }` expression.
+    Resolved(ExprId),
+}
+
+impl Display for MetaAttributeName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetaAttributeName::Path(path) => path.fmt(f),
+            MetaAttributeName::Resolved(_) => write!(f, "(quoted)"),
+        }
+    }
+}
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAttribute {
     pub contents: String,
