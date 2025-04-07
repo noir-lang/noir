@@ -130,6 +130,7 @@
         "indexmap",
         "injective",
         "Inlines",
+        "insta",
         "instrumenter",
         "interner",
         "interners",

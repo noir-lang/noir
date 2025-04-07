@@ -438,11 +438,11 @@ impl<'a> FunctionContext<'a> {
 
         // Find a type we can produce in the current scope which we can pass as input
         // to the operations we selected, and it returns the desired output.
-        fn collect_input_types<'a, 'b, K: Ord>(
+        fn collect_input_types<'a, K: Ord>(
             op: BinaryOp,
-            type_out: &'a Type,
-            scope: &'b Scope<K>,
-        ) -> Vec<&'b Type> {
+            type_out: &Type,
+            scope: &'a Scope<K>,
+        ) -> Vec<&'a Type> {
             scope
                 .types_produced()
                 .filter(|type_in| types::can_binary_op_return_from_input(&op, type_in, type_out))
