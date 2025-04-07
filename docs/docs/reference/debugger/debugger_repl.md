@@ -1,7 +1,7 @@
 ---
 title: REPL Debugger
 description:
-  Noir Debugger REPL options and commands. 
+  Noir Debugger REPL options and commands.
 keywords:
   [
     Nargo,
@@ -20,19 +20,28 @@ Runs the Noir REPL debugger. If a `WITNESS_NAME` is provided the debugger writes
 
 ### Options
 
-| Option                | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
+| Option                            | Description                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------------- |
 | `-p, --prover-name <PROVER_NAME>` | The name of the toml file which contains the inputs for the prover [default: Prover]|
-| `--package <PACKAGE>` | The name of the package to debug                             |
-| `--print-acir`        | Display the ACIR for compiled circuit                        |
-| `--deny-warnings`     | Treat all warnings as errors                                 |
-| `--silence-warnings`  | Suppress warnings                                            |
-| `-h, --help`          | Print help                                                   |
+| `--package <PACKAGE>`             | The name of the package to debug                                                    |
+| `--print-acir`                    | Display the ACIR for compiled circuit                                               |
+| `--test-name <TEST_NAME>`         | The name (or substring) of the test function to debug                               |
+| `--oracle-resolver <RESOLVER_URL>`| JSON RPC url to solve oracle calls                                                  |
+| `-h, --help`                      | Print help                                                                          |
 
 None of these options are required.
 
 :::note
 Since the debugger starts by compiling the target package, all Noir compiler options are also available. Check out the [compiler reference](../nargo_commands.md#nargo-compile) to learn more about the compiler options.
+:::
+
+:::note
+If the `--test-name` option is provided the debugger will debug the matching function instead of the package `main` function.
+This argument must only match one function. If the given name matches with more than one test function the debugger will not start.
+:::
+
+:::note
+For debugging aztec-contract tests that interact with the TXE ([see further details here](https://docs.aztec.network/developers/guides/smart_contracts/testing)), a JSON RPC server URL must be provided by setting the `--oracle-resolver` option
 :::
 
 ## REPL commands
@@ -53,6 +62,7 @@ Available commands:
   out                              step until a new source location is reached
                                    and the current stack frame is finished
   break LOCATION:OpcodeLocation    add a breakpoint at an opcode location
+  break line:i64                   add a breakpoint at an opcode associated to the given source code line
   over                             step until a new source location is reached
                                    without diving into function calls
   restart                          restart the debugging session
@@ -94,7 +104,7 @@ Step until the next Noir source code location. While other commands, such as [`i
 ```
 
 
-Using `next` here would cause the debugger to jump to the definition of `deep_entry_point` (if available). 
+Using `next` here would cause the debugger to jump to the definition of `deep_entry_point` (if available).
 
 If you want to step over `deep_entry_point` and go straight to line 8, use [the `over` command](#over) instead.
 
@@ -129,11 +139,11 @@ Step until the end of the current function call. For example:
   7 ->     assert(deep_entry_point(x) == 4);
   8        multiple_values_entry_point(x);
   9    }
- 10    
+ 10
  11    unconstrained fn returns_multiple_values(x: u32) -> (u32, u32, u32, u32) {
  12    ...
  ...
- 55    
+ 55
  56    unconstrained fn deep_entry_point(x: u32) -> u32 {
  57 ->     level_1(x + 1)
  58    }
@@ -180,7 +190,7 @@ Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcode
 	...
 	1.43 |   Return
 2    EXPR [ (1, _1) -2 ]
-``` 
+```
 
 The `->` here shows the debugger paused at an ACIR opcode: `BRILLIG`, at index 1, which denotes an unconstrained code block is about to start.
 
@@ -249,6 +259,10 @@ In this example, issuing a `break 1.2` command adds break on opcode 1.2, as deno
 
 Running [the `continue` command](#continue-c) at this point would cause the debugger to execute the program until opcode 1.2.
 
+#### `break [line]` (or shorthand `b [line]`)
+
+Similar to `break [opcode]`, but instead of selecting the opcode by index selects the opcode location by matching the source code location
+
 #### `delete [Opcode]` (or shorthand `d [Opcode]`)
 
 Deletes a breakpoint at an opcode location. Usage is analogous to [the `break` command](#).
@@ -260,7 +274,7 @@ Deletes a breakpoint at an opcode location. Usage is analogous to [the `break` c
 Show variable values available at this point in execution.
 
 :::note
-The ability to inspect variable values from the debugger depends on compilation to be run in a special debug instrumentation mode. This instrumentation weaves variable tracing code with the original source code. 
+The ability to inspect variable values from the debugger depends on compilation to be run in a special debug instrumentation mode. This instrumentation weaves variable tracing code with the original source code.
 
 So variable value inspection comes at the expense of making the resulting ACIR bytecode bigger and harder to understand and optimize.
 
