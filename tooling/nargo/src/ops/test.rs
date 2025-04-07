@@ -75,7 +75,8 @@ where
                         Ok(s) if s == "stdout" => Box::new(std::io::stdout()),
                         Ok(s) => Box::new(
                             OpenOptions::new()
-                                .create_new(true)
+                                .create(true)
+                                .truncate(true)
                                 .write(true)
                                 .open(PathBuf::from(s))
                                 .unwrap(),
