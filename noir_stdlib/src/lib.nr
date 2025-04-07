@@ -107,14 +107,9 @@ where
 
 pub fn wrapping_mul<T>(x: T, y: T) -> T
 where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
+    T: Wapping,
 {
-    // Perform u128 wrapping multiplication by casting x and y to u128.
-    // For u64 and below, the 'high' u64 limbs will be 0 so the u128
-    // multiplication will be simplified to a normal field multiplication
-    // and the cast to the primitive type will perform the wrapping.
-    AsPrimitive::as_(wrapping_mul128(x.as_(), y.as_()))
+    x.wrapping_mul(y)
 }
 
 global two_pow_64: Field = 0x10000000000000000;
@@ -151,6 +146,42 @@ pub fn wrapping_mul128(x: Field, y: Field) -> Field {
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
+
+trait Wapping {
+    fn wrapping_mul(self, y: Self) -> Self;
+}
+
+impl Wapping for u64 {
+    fn wrapping_mul(self: u64, y: u64) -> u64 {
+        //AsPrimitive::as_(self.as_()* y.as_())
+        ((self as Field) * (y as Field)) as u64
+    }
+}
+impl Wapping for u32 {
+    fn wrapping_mul(self: u32, y: u32) -> u32 {
+        ((self as Field) * (y as Field)) as u32
+    }
+}
+impl Wapping for u16 {
+    fn wrapping_mul(self: u16, y: u16) -> u16 {
+        ((self as Field) * (y as Field)) as u16
+    }
+}
+impl Wapping for u8 {
+    fn wrapping_mul(self: u8, y: u8) -> u8 {
+        ((self as Field) * (y as Field)) as u8
+    }
+}
+impl Wapping for bool {
+    fn wrapping_mul(self: bool, y: bool) -> bool {
+        ((self as Field) * (y as Field)) as bool
+    }
+}
+impl Wapping for u128 {
+    fn wrapping_mul(self: u128, y: u128) -> u128 {
+        wrapping_mul128(self as Field, y as Field) as u128
+    }
+}
 
 mod tests {
     use super::wrapping_mul;
