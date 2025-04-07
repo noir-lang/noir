@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744044310856,
+  "lastUpdate": 1744053752381,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "14488e5f0476fff0a957e8509a9be64165c7a329",
-          "message": "chore: move Instruction::has_side_effects and similar functions into their relevant SSA passes (#7822)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-03-27T12:56:47Z",
-          "tree_id": "d430ef68e3b8b4917e297e416d46498d52981f48",
-          "url": "https://github.com/noir-lang/noir/commit/14488e5f0476fff0a957e8509a9be64165c7a329"
-        },
-        "date": 1743081413331,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.076,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.305,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.798,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.533,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.028,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -11338,6 +11274,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 0.532,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e13142b000d75b81d1e0e9d92236d8a040631ec9",
+          "message": "feat(perf): optimise array index checks in loops (#7893)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-07T19:00:32Z",
+          "tree_id": "51f730c5c949262f89b30da0536a86c615b11a8b",
+          "url": "https://github.com/noir-lang/noir/commit/e13142b000d75b81d1e0e9d92236d8a040631ec9"
+        },
+        "date": 1744053747708,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.303,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.788,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.529,
             "unit": "s"
           },
           {
