@@ -15,8 +15,8 @@ use noirc_evaluator::{
     errors::{InternalError, RuntimeError},
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
-        SsaProgramArtifact, function_builder::FunctionBuilder, ir::instruction::ErrorType, ir::call_stack::CallStack,
-        optimize_ssa_builder_into_acir
+        SsaProgramArtifact, function_builder::FunctionBuilder, ir::call_stack::CallStack,
+        ir::instruction::ErrorType, optimize_ssa_builder_into_acir,
     },
 };
 
@@ -24,18 +24,15 @@ use std::panic::AssertUnwindSafe;
 
 /// Optimizes the given FunctionBuilder into ACIR
 /// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
-/// and to catch panics... It cannot be catched with just catch_unwind. 
+/// and to catch panics... It cannot be catched with just catch_unwind.
 fn optimize_into_acir(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa = builder.finish();
     log::debug!("SSA: {}", format!("{}", ssa));
-    let builder = SsaBuilder {
-        ssa,
-        ssa_logging: SsaLogging::All,
-        print_codegen_timings: false,
-    };
+    // change to SsaLogging::All to see triage final ssa.
+    let builder = SsaBuilder { ssa, ssa_logging: SsaLogging::None, print_codegen_timings: false };
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let hook_message = panic_message.clone();
@@ -48,7 +45,7 @@ fn optimize_into_acir(
         } else {
             format!("Unknown panic: {:?}", panic_info)
         };
-        
+
         if let Some(location) = panic_info.location() {
             let loc_info = format!(" at {}:{}", location.file(), location.line());
             *hook_message.lock().unwrap() = message + &loc_info;
@@ -64,14 +61,13 @@ fn optimize_into_acir(
         Ok(r) => r,
         Err(_) => {
             let error_msg = panic_message.lock().unwrap().clone();
-            Err(RuntimeError::InternalError(InternalError::General { 
+            Err(RuntimeError::InternalError(InternalError::General {
                 message: format!("Panic occurred: {}", error_msg),
-                call_stack: CallStack::default() 
+                call_stack: CallStack::default(),
             }))
         }
     }
 }
-
 
 /// Converts the generated ACIR into a circuit artifact
 /// its taken from noirc_evaluator::ssa::convert_generated_acir_into_circuit,

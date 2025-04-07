@@ -11,7 +11,6 @@ use crate::base_context::Instructions;
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
-
 impl Instructions {
     fn is_supported(&self) -> bool {
         !matches!(

@@ -76,7 +76,10 @@ impl Fuzzer {
                     );
                 }
                 (None, Some(constant_result)) => {
-                    println!("Constant result is {:?}, but non-constant program failed to execute", constant_result);
+                    println!(
+                        "Constant result is {:?}, but non-constant program failed to execute",
+                        constant_result
+                    );
                 }
                 // both are None
                 _ => {}

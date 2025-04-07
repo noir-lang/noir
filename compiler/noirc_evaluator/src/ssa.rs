@@ -102,7 +102,6 @@ pub fn optimize_ssa_builder_into_acir(
     let mut ssa = optimize_all(builder, options)?;
 
     let mut ssa_level_warnings = vec![];
-
     drop(ssa_gen_span_guard);
 
     let used_globals_map = std::mem::take(&mut ssa.used_globals);
@@ -146,7 +145,8 @@ pub fn optimize_ssa_builder_into_acir(
     };
 
     drop(ssa_gen_span_guard);
-
+    let _formatted_ssa = format!("{}", ssa);
+    // println!("SSA: {:?}", _formatted_ssa);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
     })?;
