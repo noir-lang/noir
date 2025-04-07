@@ -43,6 +43,33 @@
 //! Additionally we currently only decrement reference counts at the end of the function when
 //! a parameter goes out of scope. These means reference counts likely trend upward over time
 //! until the array is eventually mutated and it is reset back to 1.
+//!
+//! --------------------------------- EXPERIMENTAL OWNERSHIP RULES ---------------------------------
+//!
+//! This pass currently contains two sets of ownership rules. There is the current default set of
+//! rules described above, and there is the set of rules enabled by `Context::experimental_ownership_feature`.
+//! The experimental ownership rules aim to be less ad-hoc than the current rules with the goal of
+//! making it easier for users to see where clones occur - and possibly forcing users to write
+//! their own clones manually. These rules treat each variable roughly as a variable in Rust which
+//! implements `Copy`:
+//! - Variables are copied on each use, except for the last use where they are moved.
+//!   - If a variable's last use is in a loop that it was not defined in, it is copied instead of moved.
+//!   - The last use analysis isn't sophisticated on struct fields. It will count `a.b` and `a.c`
+//!     both as uses of `a`. Even if both could conceptually be moved, only the last usage will be
+//!     moved and the first (say `a.b`) will still be cloned.
+//! - Dereferences always clone.
+//! - Certain expressions will avoid cloning or delay where clones are performed:
+//!   - Reference expressions `&e` will not clone `e` but may still clone variables used within.
+//!     - E.g. `&foo.bar` will not clone but `&foo(bar)` may still clone `foo` or `bar`.
+//!   - Dereferences will attempt to extract a field first if possible.
+//!     - E.g. `(*self).b.c` is transformed to `*(self.b.c)` where the `*` operation also clones.
+//!   - Ordinary member access will also delay clones.
+//!     - E.g. `self.b.c` is compiled as `self.b.c.clone()` over `self.clone().b.c`
+//!   - Array indexing `a[i]` will avoid cloning `a`. The extracted element is always cloned.
+//!
+//! Most of this logic is contained in this file except for the last use analysis which is in the
+//! `last_uses` module. That module contains a separate pass run on each function before this pass
+//! to find the last use of each local variable to identify where moves can occur.
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{
@@ -334,7 +361,7 @@ impl Context {
             Expression::While(while_expr) => self.handle_while(while_expr),
             Expression::If(if_expr) => self.handle_if(if_expr),
             Expression::Match(match_expr) => self.handle_match(match_expr),
-            Expression::Tuple(elems) => self.handle_tuple(elems),
+            Expression::Tuple(elements) => self.handle_tuple(elements),
             Expression::ExtractTupleField(..) => self.handle_extract_expression(expr),
             Expression::Call(call) => self.handle_call(call),
             Expression::Let(let_expr) => self.handle_let(let_expr),
@@ -389,6 +416,7 @@ impl Context {
         // When experimental ownership is enabled, we may clone identifiers. We want to avoid
         // cloning the entire object though if we're only accessing one field of it so we check
         // here to move the clone to the outermost extract expression instead.
+        // E.g. we want to change `a.clone().b.c` to `a.b.c.clone()`.
         if let Some((should_clone, tuple_type)) = self.handle_extract_expression_rec(tuple) {
             if let Some(elements) = unwrap_tuple_type(tuple_type) {
                 if should_clone && contains_array_or_str_type(&elements[*index]) {
@@ -400,8 +428,8 @@ impl Context {
         }
     }
 
-    /// Traverse an expression comprised of only identifiers and tuple field extractions
-    /// returning whether we should clone the result and the type of that result.
+    /// Traverse an expression comprised of only identifiers, tuple field extractions, and
+    /// dereferences returning whether we should clone the result and the type of that result.
     /// Returns None if a different expression variant was found.
     fn handle_extract_expression_rec(&mut self, expr: &mut Expression) -> Option<(bool, Type)> {
         match expr {
@@ -429,8 +457,7 @@ impl Context {
     }
 
     /// Under the experimental alternate ownership scheme, whenever an ident is used it is
-    /// always cloned unless it is the last use of the ident (not in a loop). To simplify this
-    /// analysis we always clone here then remove the last clone later if possible.
+    /// always cloned unless it is the last use of the ident (not in a loop).
     fn should_clone_ident(&self, ident: &Ident) -> bool {
         if self.experimental_ownership_feature {
             if let Definition::Local(local_id) = &ident.definition {
