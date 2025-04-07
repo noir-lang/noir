@@ -206,8 +206,12 @@ fn register_value(
             let v = register_value(tracer, value, typ);
             ValueRecord::Reference { dereferenced: Box::new(v), mutable: *mutable, type_id }
         }
+        PrintableType::Function { arguments: _, return_type: _, env: _, unconstrained } => {
+            let type_name = if *unconstrained { "unconstrained fn" } else { "fn" };
+            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::FunctionKind, type_name);
+            ValueRecord::Raw { r: "fn".to_string(), type_id }
+        }
         //PrintableType::Enum { name, variants } => todo!(),
-        //PrintableType::Function { arguments, return_type, env, unconstrained } => todo!(),
         _ => {
             // TODO(stanm): cover all types and remove `warn!`.
             warn!("not implemented yet: type that is not Field: {:?}", typ);
