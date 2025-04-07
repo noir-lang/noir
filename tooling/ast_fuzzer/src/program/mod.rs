@@ -279,7 +279,7 @@ fn make_name(mut id: usize, is_global: bool) -> String {
         if id == 0 {
             break;
         }
-        id -= 26;
+        id /= 26;
     }
     name.reverse();
     let name = name.into_iter().collect::<String>();
@@ -293,9 +293,9 @@ mod tests {
     #[test]
     fn test_make_name() {
         for (i, n) in
-            [(0, "a"), (1, "b"), (24, "y"), (25, "z"), (26, "aa"), (27, "ab"), (26 * 2 + 1, "aab")]
+            [(0, "a"), (1, "b"), (24, "y"), (25, "z"), (26, "ba"), (27, "bb"), (26 * 2 + 3, "cd")]
         {
-            assert_eq!(make_name(i, false), n);
+            assert_eq!(make_name(i, false), n, "{i} should be {n}");
         }
     }
 }
