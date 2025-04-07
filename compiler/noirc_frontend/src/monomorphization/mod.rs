@@ -1068,8 +1068,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
-        let typ = Self::convert_type(typ, location)?;
         let expr = if let Some(seen_global) = self.globals.get(&id) {
+            let typ = Self::convert_type(typ, location)?;
             let ident = ast::Ident {
                 location: Some(location),
                 definition: Definition::Global(*seen_global),
@@ -1103,7 +1103,7 @@ impl<'interner> Monomorphizer<'interner> {
             if !is_closure {
                 let new_id = self.next_global_id();
                 self.globals.insert(id, new_id);
-
+                let typ = Self::convert_type(typ, location)?;
                 self.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 let ident = ast::Ident {
                     location: Some(location),
