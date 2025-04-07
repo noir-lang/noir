@@ -82,7 +82,7 @@ impl Flags {
     const NESTED: Self = Self { allow_blocks: false, allow_if_then: true };
     /// In `if` conditions avoid nesting more ifs, like `if if if false ...`.
     const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
-    /// In `for` ranges we can use `if` expressions, but let's not do blocks
+    /// In `for` ranges we can use `if` expressions, but let's not do blocks.
     const RANGE: Self = Self { allow_blocks: false, allow_if_then: true };
 }
 

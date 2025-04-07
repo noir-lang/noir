@@ -50,9 +50,20 @@ impl Freq {
     }
 
     /// Like `enabled`, but if `cond` is `false` it redistributes the probability
-    /// to the remaining keys, as if the current one never existed.
+    /// to the remaining keys, pretending to works as if the current one never existed.
     ///
     /// To work correctly, `enabled_when` calls should precede `enabled`s.
+    ///
+    /// It's not guaranteed to prevent any distortions; for example it can happen that
+    /// the first key we check is enabled by `cond`, but we skip it because `x` is higher
+    /// than its weight, only to then realize that all following keys are disabled.
+    /// In this case the weight of the first check was different than if we considered
+    /// all conditions up front, summed up the remaining weights, and then chose `x`
+    /// accordingly. Doing so could potentially slow things down.
+    ///
+    /// As a workaround, we should
+    /// * check keys which are more likely to be disabled up front
+    /// * have a default case at the end which is always enabled
     pub fn enabled_when(&mut self, key: &str, cond: bool) -> bool {
         if cond {
             self.enabled(key)
