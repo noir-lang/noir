@@ -107,10 +107,13 @@ where
 
 fn wrapping_mul<T>(x: T, y: T) -> T
 where
-    T: WappingMul,
+    T: ops::arith::WappingMul,
 {
     x.wrapping_mul(y)
 }
+
+#[builtin(as_witness)]
+pub fn as_witness(x: Field) {}
 
 global two_pow_64: Field = 0x10000000000000000;
 /// Splits a 128 bits number into two 64 bits limbs
@@ -142,45 +145,6 @@ pub fn wrapping_mul128(x: Field, y: Field) -> Field {
     let high = x_lo as Field * y_hi as Field + x_hi as Field * y_lo as Field + carry;
     let hi = high as u64 as Field;
     (lo + two_pow_64 * hi)
-}
-
-#[builtin(as_witness)]
-pub fn as_witness(x: Field) {}
-
-trait WappingMul {
-    fn wrapping_mul(self, y: Self) -> Self;
-}
-
-impl WappingMul for u64 {
-    fn wrapping_mul(self: u64, y: u64) -> u64 {
-        //AsPrimitive::as_(self.as_()* y.as_())
-        ((self as Field) * (y as Field)) as u64
-    }
-}
-impl WappingMul for u32 {
-    fn wrapping_mul(self: u32, y: u32) -> u32 {
-        ((self as Field) * (y as Field)) as u32
-    }
-}
-impl WappingMul for u16 {
-    fn wrapping_mul(self: u16, y: u16) -> u16 {
-        ((self as Field) * (y as Field)) as u16
-    }
-}
-impl WappingMul for u8 {
-    fn wrapping_mul(self: u8, y: u8) -> u8 {
-        ((self as Field) * (y as Field)) as u8
-    }
-}
-impl WappingMul for bool {
-    fn wrapping_mul(self: bool, y: bool) -> bool {
-        ((self as Field) * (y as Field)) as bool
-    }
-}
-impl WappingMul for u128 {
-    fn wrapping_mul(self: u128, y: u128) -> u128 {
-        wrapping_mul128(self as Field, y as Field) as u128
-    }
 }
 
 mod tests {
