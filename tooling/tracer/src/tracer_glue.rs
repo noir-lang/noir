@@ -238,7 +238,6 @@ fn convert_params_to_args_vec(tracer: &mut Tracer, frame: &StackFrame) -> Vec<Fu
     let mut result = Vec::new();
     for param_index in &frame.function_param_indexes {
         let variable = &frame.variables[*param_index];
-        // TODO(stanm): maybe don't duplicate values?
         let value_record = register_value(tracer, &variable.value, &variable.typ);
         result.push(tracer.arg(&variable.name, value_record));
     }
