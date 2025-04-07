@@ -110,7 +110,43 @@ where
     T: AsPrimitive<Field>,
     Field: AsPrimitive<T>,
 {
-    AsPrimitive::as_(x.as_() * y.as_())
+    // Perform u128 wrapping multiplication by casting x and y to u128.
+    // For u64 and below, the 'high' u64 limbs will be 0 so the u128
+    // multiplication will be simplified to a normal field multiplication
+    // and the cast to the primitive type will perform the wrapping.
+    AsPrimitive::as_(wrapping_mul128(x.as_(), y.as_()))
+}
+
+global two_pow_64: Field = 0x10000000000000000;
+/// Splits a 128 bits number into two 64 bits limbs
+unconstrained fn split64(x: Field) -> (u64, u64) {
+    let lo = x as u64;
+    let hi = ((x - lo as Field) / two_pow_64) as u64;
+    (lo, hi)
+}
+
+/// Split a 128 bits number into two 64 bits limbs
+/// It will fail if the number is more than 128 bits
+fn split_into_64_bit_limbs(x: Field) -> (u64, u64) {
+    // Safety: the limbs are constrained below
+    let (x_lo, x_hi) = unsafe { split64(x) };
+    assert(x as Field == x_lo as Field + x_hi as Field * two_pow_64);
+    (x_lo, x_hi)
+}
+
+#[field(bn254)]
+pub fn wrapping_mul128(x: Field, y: Field) -> Field {
+    let (x_lo, x_hi) = split_into_64_bit_limbs(x);
+    let (y_lo, y_hi) = split_into_64_bit_limbs(y);
+    // Multiplication using the limbs:(x_lo + 2**64*x_hi)*(y_lo + 2**64*y_hi)=x_lo*y_lo+...
+    // and skipping the terms over 2**128
+    // Working with u64 limbs ensures that we cannot overflow the field modulus.
+    let low = x_lo as Field * y_lo as Field;
+    let lo = low as u64 as Field;
+    let carry = (low - lo) / two_pow_64;
+    let high = x_lo as Field * y_hi as Field + x_hi as Field * y_lo as Field + carry;
+    let hi = high as u64 as Field;
+    (lo + two_pow_64 * hi)
 }
 
 #[builtin(as_witness)]
@@ -124,10 +160,8 @@ mod tests {
         super::static_assert(1 == 2, "custom message");
     }
 
-    #[test(should_fail)]
+    #[test]
     fn test_wrapping_mul() {
-        // This currently fails.
-        // See: https://github.com/noir-lang/noir/issues/7528
         let zero: u128 = 0;
         let one: u128 = 1;
         let two_pow_64: u128 = 0x10000000000000000;
