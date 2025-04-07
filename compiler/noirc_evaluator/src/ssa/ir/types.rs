@@ -115,7 +115,7 @@ mod props {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let signed = prop_oneof!(Just(8), Just(16), Just(32), Just(64));
-            let unsigned = prop_oneof!(Just(8), Just(16), Just(32), Just(64), Just(128));
+            let unsigned = prop_oneof!(Just(1), Just(8), Just(16), Just(32), Just(64), Just(128));
             prop_oneof![
                 signed.prop_map(|bit_size| NumericType::Signed { bit_size }),
                 unsigned.prop_map(|bit_size| NumericType::Unsigned { bit_size }),
