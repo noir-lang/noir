@@ -17,6 +17,7 @@ pub use self::test::{
 
 mod check;
 mod compile;
+pub mod debug;
 mod execute;
 mod fuzz;
 mod optimize;
