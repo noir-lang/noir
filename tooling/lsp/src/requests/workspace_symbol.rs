@@ -5,8 +5,8 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use convert_case::{Case, Casing};
 use fm::{FILE_EXTENSION, FileManager, FileMap};
+use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use lsp_types::{SymbolKind, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse};
 use nargo::parse_all;
 use noirc_errors::{Location, Span};
@@ -19,7 +19,7 @@ use noirc_frontend::{
 };
 use walkdir::WalkDir;
 
-use crate::{CachedWorkspaceSymbol, LspState, name_match::snake_name_matches};
+use crate::LspState;
 
 use super::to_lsp_location;
 
@@ -32,8 +32,6 @@ pub(crate) fn on_workspace_symbol_request(
     };
 
     let query = &params.query;
-    let query_lowercase = query.to_lowercase();
-    let query_snake_case = query.to_case(Case::Snake);
 
     // Source code for files we cached override those that are read from disk.
     let mut overrides: HashMap<&Path, &str> = HashMap::new();
@@ -90,29 +88,25 @@ pub(crate) fn on_workspace_symbol_request(
         all_symbols.extend(std::mem::take(gatherer.symbols));
     }
 
+    let matcher = SkimMatcherV2::default();
+
     // Finally, we filter the symbols based on the query
     // (Note: we could filter them as we gather them above, but doing this in one go is simpler)
     let symbols = all_symbols
         .into_iter()
-        .filter_map(|symbol| {
-            let name = &symbol.symbol.name;
-            let name_lowercase = name.to_lowercase();
-            (name_lowercase.contains(&query_lowercase)
-                || snake_name_matches(&symbol.name_in_snake_case, &query_snake_case))
-            .then_some(symbol.symbol)
-        })
+        .filter(|symbol| matcher.fuzzy_match(&symbol.name, query).is_some())
         .collect::<Vec<_>>();
 
     future::ready(Ok(Some(WorkspaceSymbolResponse::Nested(symbols))))
 }
 
 struct WorkspaceSymboGatherer<'symbols, 'files> {
-    symbols: &'symbols mut Vec<CachedWorkspaceSymbol>,
+    symbols: &'symbols mut Vec<WorkspaceSymbol>,
     files: &'files FileMap,
 }
 
 impl<'symbols, 'files> WorkspaceSymboGatherer<'symbols, 'files> {
-    fn new(symbols: &'symbols mut Vec<CachedWorkspaceSymbol>, files: &'files FileMap) -> Self {
+    fn new(symbols: &'symbols mut Vec<WorkspaceSymbol>, files: &'files FileMap) -> Self {
         Self { symbols, files }
     }
 
@@ -134,17 +128,10 @@ impl<'symbols, 'files> WorkspaceSymboGatherer<'symbols, 'files> {
         };
 
         let name = name.to_string();
-        let symbol = WorkspaceSymbol {
-            name: name.clone(),
-            kind,
-            tags: None,
-            container_name,
-            location: lsp_types::OneOf::Left(location),
-            data: None,
-        };
-        let cached_symbol =
-            CachedWorkspaceSymbol { symbol, name_in_snake_case: name.to_case(Case::Snake) };
-        self.symbols.push(cached_symbol);
+        let location = lsp_types::OneOf::Left(location);
+        let symbol =
+            WorkspaceSymbol { name, kind, tags: None, container_name, location, data: None };
+        self.symbols.push(symbol);
     }
 }
 
