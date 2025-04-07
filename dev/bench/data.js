@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744031842437,
+  "lastUpdate": 1744032081892,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "162ef86508404c365abdc8559c0843c896c357a5",
-          "message": "fix: Fixes signed integer mutations in the fuzzers (#7815)",
-          "timestamp": "2025-03-26T16:05:11Z",
-          "tree_id": "a6a595c19384512c7c66299c763bdc5ebc411dd2",
-          "url": "https://github.com/noir-lang/noir/commit/162ef86508404c365abdc8559c0843c896c357a5"
-        },
-        "date": 1743006956568,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.074,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.306,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.797,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.528,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.027,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf",
+          "message": "chore: add timeouts to rust CI (#7923)",
+          "timestamp": "2025-04-07T12:50:32Z",
+          "tree_id": "d158b5331580426b8542de8496cd0e14dd1e8737",
+          "url": "https://github.com/noir-lang/noir/commit/93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf"
+        },
+        "date": 1744032077634,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.075,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.306,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.79,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.536,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.8,
             "unit": "s"
           },
           {
