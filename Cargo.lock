@@ -3465,7 +3465,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",

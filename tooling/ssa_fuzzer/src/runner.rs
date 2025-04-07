@@ -6,7 +6,6 @@ use acvm::{
     },
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use nargo::PrintOutput;
 use nargo::errors::NargoError;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::ops::execute_program;
@@ -37,14 +36,12 @@ fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
 ) -> Result<WitnessStack<FieldElement>, NargoError<FieldElement>> {
-    let result = execute_program(
+    execute_program(
         program,
         initial_witness.clone(),
         &B::default(),
-        &mut DefaultForeignCallBuilder::default().with_output(PrintOutput::None).build(),
-    );
-
-    result
+        &mut DefaultForeignCallBuilder::default().build(),
+    )
 }
 
 /// High level function to execute the given program with the given initial witness
