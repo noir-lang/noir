@@ -376,16 +376,7 @@
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#378" id="378">378</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -711,15 +702,6 @@
             BinaryOp::Sub { .. } =&gt; BinaryOp::Sub { unchecked: <span class="bool-val">true </span>},
             BinaryOp::Mul { .. } =&gt; BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
             <span class="kw">_ </span>=&gt; <span class="self">self</span>,
-        }
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_unchecked(<span class="self">self</span>) -&gt; bool {
-        <span class="kw">match </span><span class="self">self </span>{
-            BinaryOp::Add { unchecked }
-            | BinaryOp::Sub { unchecked }
-            | BinaryOp::Mul { unchecked } =&gt; unchecked,
-            <span class="kw">_ </span>=&gt; <span class="bool-val">true</span>,
         }
     }
 }
