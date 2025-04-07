@@ -198,7 +198,7 @@ impl Context {
 
         let main_function_signature = function_signatures[0].clone();
 
-        let globals = self.globals.into_iter().map(|(id, (_name, _typ, val))| (id, val)).collect();
+        let globals = self.globals.into_iter().collect();
 
         Program {
             functions,

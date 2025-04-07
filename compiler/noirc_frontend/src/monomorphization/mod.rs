@@ -78,7 +78,7 @@ struct Monomorphizer<'interner> {
     /// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
     globals: HashMap<node_interner::GlobalId, GlobalId>,
 
-    finished_globals: HashMap<GlobalId, ast::Expression>,
+    finished_globals: HashMap<GlobalId, (String, ast::Type, ast::Expression)>,
 
     /// Queue of functions to monomorphize next each item in the queue is a tuple of:
     /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl, is_unconstrained, location)
@@ -1068,8 +1068,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
+        let typ = Self::convert_type(typ, location)?;
         let expr = if let Some(seen_global) = self.globals.get(&id) {
-            let typ = Self::convert_type(typ, location)?;
             let ident = ast::Ident {
                 location: Some(location),
                 definition: Definition::Global(*seen_global),
@@ -1104,8 +1104,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let new_id = self.next_global_id();
                 self.globals.insert(id, new_id);
 
-                self.finished_globals.insert(new_id, expr);
-                let typ = Self::convert_type(typ, location)?;
+                self.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 let ident = ast::Ident {
                     location: Some(location),
                     definition: Definition::Global(new_id),
