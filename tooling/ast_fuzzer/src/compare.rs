@@ -2,7 +2,9 @@ use acir::{FieldElement, native_types::WitnessStack};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr, bail};
-use nargo::{NargoError, PrintOutput, foreign_calls::DefaultForeignCallBuilder};
+use nargo::{
+    NargoError, PrintOutput, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder,
+};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::monomorphization::ast::Program;
@@ -64,9 +66,18 @@ impl CompareResult {
     pub fn return_value_or_err(&self) -> eyre::Result<Option<&InputValue>> {
         match self {
             CompareResult::BothFailed(e1, e2) => {
-                // For now raise an error to catch anything unexpected, but in the future if
-                // both fail the same way (e.g. assertion failure) then it should be okay.
-                bail!("both programs failed: {e1} - {e2}\n{e1:?}\n{e2:?}")
+                match (e1, e2) {
+                    (
+                        NargoError::ExecutionError(ExecutionError::AssertionFailed(p1, _, _)),
+                        NargoError::ExecutionError(ExecutionError::AssertionFailed(p2, _, _)),
+                    ) if p1 == p2 => {
+                        // Both programs failed the same way.
+                        Ok(None)
+                    }
+                    _ => {
+                        bail!("both programs failed: {e1} - {e2}\n{e1:?}\n{e2:?}")
+                    }
+                }
             }
             CompareResult::LeftFailed(e, _) => {
                 bail!("first program failed: {e}")

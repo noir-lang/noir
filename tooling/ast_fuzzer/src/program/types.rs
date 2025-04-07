@@ -168,6 +168,8 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
             matches!(op, Add | Subtract | Multiply | Divide)
         }
         Type::Integer(_, _) => {
+            // i1 and u1 are very easy to overflow, so we might want to disable those,
+            // to not get trivial assertion errors.
             matches!(op, Add | Subtract | Multiply | Divide | ShiftLeft | ShiftRight | Modulo)
         }
         Type::Reference(typ, _) => can_binary_op_return(op, typ),
