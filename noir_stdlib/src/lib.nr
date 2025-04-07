@@ -105,7 +105,7 @@ where
     AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
 }
 
-pub fn wrapping_mul<T>(x: T, y: T) -> T
+fn wrapping_mul<T>(x: T, y: T) -> T
 where
     T: Wapping,
 {
