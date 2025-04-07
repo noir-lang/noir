@@ -6,7 +6,6 @@ use noirc_printable_type::{PrintableType, PrintableValue};
 use runtime_tracing::{EventLogKind, FullValueRecord, Line, Tracer, ValueRecord};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
-use tracing::warn;
 
 /// Stores the trace accumulated in `tracer` in the specified directory. The trace is stored as
 /// multiple JSON files.
