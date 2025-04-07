@@ -755,50 +755,7 @@
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
 <a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a>
-<a href="#770" id="770">770</a>
-<a href="#771" id="771">771</a>
-<a href="#772" id="772">772</a>
-<a href="#773" id="773">773</a>
-<a href="#774" id="774">774</a>
-<a href="#775" id="775">775</a>
-<a href="#776" id="776">776</a>
-<a href="#777" id="777">777</a>
-<a href="#778" id="778">778</a>
-<a href="#779" id="779">779</a>
-<a href="#780" id="780">780</a>
-<a href="#781" id="781">781</a>
-<a href="#782" id="782">782</a>
-<a href="#783" id="783">783</a>
-<a href="#784" id="784">784</a>
-<a href="#785" id="785">785</a>
-<a href="#786" id="786">786</a>
-<a href="#787" id="787">787</a>
-<a href="#788" id="788">788</a>
-<a href="#789" id="789">789</a>
-<a href="#790" id="790">790</a>
-<a href="#791" id="791">791</a>
-<a href="#792" id="792">792</a>
-<a href="#793" id="793">793</a>
-<a href="#794" id="794">794</a>
-<a href="#795" id="795">795</a>
-<a href="#796" id="796">796</a>
-<a href="#797" id="797">797</a>
-<a href="#798" id="798">798</a>
-<a href="#799" id="799">799</a>
-<a href="#800" id="800">800</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
@@ -885,8 +842,12 @@
 <span class="kw">impl</span>&lt;F: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>FunctionInput&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.input {
-            ConstantOrWitnessEnum::Constant(constant) =&gt; <span class="macro">write!</span>(f, <span class="string">"{constant}"</span>),
-            ConstantOrWitnessEnum::Witness(witness) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, witness.<span class="number">0</span>),
+            ConstantOrWitnessEnum::Constant(constant) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"({constant}, {})"</span>, <span class="self">self</span>.num_bits)
+            }
+            ConstantOrWitnessEnum::Witness(witness) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"(_{}, {})"</span>, witness.<span class="number">0</span>, <span class="self">self</span>.num_bits)
+            }
         }
     }
 }
@@ -1263,80 +1224,33 @@
     }
 }
 
-<span class="kw">const </span>ABBREVIATION_LIMIT: usize = <span class="number">5</span>;
-
-<span class="kw">fn </span>get_inputs_string&lt;F: std::fmt::Display&gt;(inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;]) -&gt; String {
-    <span class="comment">// Once a vectors length gets above this limit,
-    // instead of listing all of their elements, we use ellipses
-    // to abbreviate them
-    </span><span class="kw">let </span>should_abbreviate_inputs = inputs.len() &lt;= ABBREVIATION_LIMIT;
-
-    <span class="kw">if </span>should_abbreviate_inputs {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
-        <span class="kw">for </span>(index, inp) <span class="kw">in </span>inputs.iter().enumerate() {
-            result += <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"({})"</span>, inp);
-            <span class="comment">// Add a comma, unless it is the last entry
-            </span><span class="kw">if </span>index != inputs.len() - <span class="number">1 </span>{
-                result += <span class="string">", "</span>;
-            }
-        }
-        result
-    } <span class="kw">else </span>{
-        <span class="kw">let </span>first = inputs.first().unwrap();
-        <span class="kw">let </span>last = inputs.last().unwrap();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
-        result += <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"({})...({})"</span>, first, last,);
-
-        result
-    }
-}
-
-<span class="kw">fn </span>get_outputs_string(outputs: <span class="kw-2">&amp;</span>[Witness]) -&gt; String {
-    <span class="kw">let </span>should_abbreviate_outputs = outputs.len() &lt;= ABBREVIATION_LIMIT;
-
-    <span class="kw">if </span>should_abbreviate_outputs {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
-        <span class="kw">for </span>(index, output) <span class="kw">in </span>outputs.iter().enumerate() {
-            result += <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"_{}"</span>, output.witness_index());
-            <span class="comment">// Add a comma, unless it is the last entry
-            </span><span class="kw">if </span>index != outputs.len() - <span class="number">1 </span>{
-                result += <span class="string">", "</span>;
-            }
-        }
-        result
-    } <span class="kw">else </span>{
-        <span class="kw">let </span>first = outputs.first().unwrap();
-        <span class="kw">let </span>last = outputs.last().unwrap();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
-        result += <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"(_{},...,_{})"</span>, first.witness_index(), last.witness_index());
-        result
-    }
-}
-
 <span class="kw">impl</span>&lt;F: std::fmt::Display + Copy&gt; std::fmt::Display <span class="kw">for </span>BlackBoxFuncCall&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">let </span>uppercase_name = <span class="self">self</span>.name().to_uppercase();
         <span class="macro">write!</span>(f, <span class="string">"BLACKBOX::{uppercase_name} "</span>)<span class="question-mark">?</span>;
         <span class="comment">// INPUTS
-        </span><span class="macro">write!</span>(f, <span class="string">"["</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>inputs_str = get_inputs_string(<span class="kw-2">&amp;</span><span class="self">self</span>.get_inputs_vec());
+        </span><span class="kw">let </span>inputs_str = <span class="kw-2">&amp;</span><span class="self">self
+            </span>.get_inputs_vec()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::&lt;Vec&lt;String&gt;&gt;()
+            .join(<span class="string">", "</span>);
 
-        <span class="macro">write!</span>(f, <span class="string">"{inputs_str}"</span>)<span class="question-mark">?</span>;
-        <span class="macro">write!</span>(f, <span class="string">"] "</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">"[{inputs_str}]"</span>)<span class="question-mark">?</span>;
+
+        <span class="macro">write!</span>(f, <span class="string">" "</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// OUTPUTS
-        </span><span class="macro">write!</span>(f, <span class="string">"[ "</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>outputs_str = get_outputs_string(<span class="kw-2">&amp;</span><span class="self">self</span>.get_outputs_vec());
+        </span><span class="kw">let </span>outputs_str = <span class="kw-2">&amp;</span><span class="self">self
+            </span>.get_outputs_vec()
+            .iter()
+            .map(|i| <span class="macro">format!</span>(<span class="string">"_{}"</span>, i.<span class="number">0</span>))
+            .collect::&lt;Vec&lt;String&gt;&gt;()
+            .join(<span class="string">", "</span>);
 
-        <span class="macro">write!</span>(f, <span class="string">"{outputs_str}"</span>)<span class="question-mark">?</span>;
-
-        <span class="macro">write!</span>(f, <span class="string">"]"</span>)<span class="question-mark">?</span>;
-
-        <span class="macro">write!</span>(f, <span class="string">""</span>)
+        <span class="macro">write!</span>(f, <span class="string">"[{outputs_str}]"</span>)
     }
 }
 
