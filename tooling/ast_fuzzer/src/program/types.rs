@@ -180,7 +180,6 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
         Type::Integer(_, _) => {
             matches!(op, Add | Subtract | Multiply | Divide | ShiftLeft | ShiftRight | Modulo)
         }
-        Type::Reference(typ, _) => can_binary_op_return(op, typ),
         _ => false,
     }
 }
@@ -204,7 +203,6 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
                 || op.is_bitwise()
                 || matches!(op, BinaryOp::Modulo)
         }
-        (Type::Array(_, _), Type::Bool) | (Type::Tuple(_), Type::Bool) => op.is_equality(),
         (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
         _ => false,
     }
