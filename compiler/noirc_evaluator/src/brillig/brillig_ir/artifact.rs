@@ -266,6 +266,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     }
 
     /// Returns true if the opcode is a jump instruction
+    #[expect(deprecated)]
     fn is_jmp_instruction(instruction: &BrilligOpcode<F>) -> bool {
         matches!(
             instruction,
@@ -312,15 +313,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Jump { location: resolved_location };
                 }
-                BrilligOpcode::JumpIfNot { condition, location } => {
-                    assert_eq!(
-                        location, 0,
-                        "location is not zero, which means that the jump label does not need resolving"
-                    );
 
-                    self.byte_code[*location_of_jump] =
-                        BrilligOpcode::JumpIfNot { condition, location: resolved_location };
-                }
                 BrilligOpcode::JumpIf { condition, location } => {
                     assert_eq!(
                         location, 0,
@@ -338,6 +331,10 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Call { location: resolved_location };
+                }
+                #[expect(deprecated)]
+                BrilligOpcode::JumpIfNot { .. } => {
+                    unreachable!("JumpIfNot is deprecated and should not be emitted")
                 }
                 _ => unreachable!(
                     "all jump labels should point to a jump instruction in the bytecode"
