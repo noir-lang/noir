@@ -66,7 +66,7 @@ impl CompareResult {
             CompareResult::BothFailed(e1, e2) => {
                 // For now raise an error to catch anything unexpected, but in the future if
                 // both fail the same way (e.g. assertion failure) then it should be okay.
-                bail!("both programs failed: {e1}; {e2}")
+                bail!("both programs failed: {e1} - {e2}\n{e1:?}\n{e2:?}")
             }
             CompareResult::LeftFailed(e, _) => {
                 bail!("first program failed: {e}")

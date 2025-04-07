@@ -407,7 +407,8 @@ impl<'a> FunctionContext<'a> {
             self.gen_expr(u, typ, max_depth.saturating_sub(1), Flags::NESTED)
                 .map(|rhs| Some(expr::unary(op, rhs, typ.clone())))
         };
-        if types::is_signed(typ) {
+        if types::is_numeric(typ) {
+            // Assume we already checked with `can_unary_return` that it's signed.
             make_unary(UnaryOp::Minus)
         } else if types::is_bool(typ) {
             make_unary(UnaryOp::Not)

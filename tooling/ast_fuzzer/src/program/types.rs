@@ -129,13 +129,9 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     }
 }
 
-/// Check if the type works with `UnaryOp::Minus`
-pub(crate) fn is_signed(typ: &Type) -> bool {
-    match typ {
-        Type::Field => true,
-        Type::Integer(signedness, _) => signedness.is_signed(),
-        _ => false,
-    }
+/// Check if the type is a number.
+pub(crate) fn is_numeric(typ: &Type) -> bool {
+    matches!(typ, Type::Field | Type::Integer(_, _))
 }
 
 /// Check if a type is `Unit`.
@@ -150,7 +146,12 @@ pub(crate) fn is_bool(typ: &Type) -> bool {
 
 /// Can the type be returned by some `UnaryOp`.
 pub(crate) fn can_unary_return(typ: &Type) -> bool {
-    is_bool(typ) || is_signed(typ)
+    match typ {
+        Type::Field => true,
+        Type::Bool => true,
+        Type::Integer(sign, size) => sign.is_signed() && size.bit_size() > 1,
+        _ => false,
+    }
 }
 
 /// Can the type be returned by some `BinaryOp`.
