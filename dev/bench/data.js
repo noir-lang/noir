@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744032092867,
+  "lastUpdate": 1744032343853,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "162ef86508404c365abdc8559c0843c896c357a5",
-          "message": "fix: Fixes signed integer mutations in the fuzzers (#7815)",
-          "timestamp": "2025-03-26T16:05:11Z",
-          "tree_id": "a6a595c19384512c7c66299c763bdc5ebc411dd2",
-          "url": "https://github.com/noir-lang/noir/commit/162ef86508404c365abdc8559c0843c896c357a5"
-        },
-        "date": 1743007289771,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.24,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1bfce71e6c8b962bec99adfda280a80c4921f209"
         },
         "date": 1744032087396,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 474.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf",
+          "message": "chore: add timeouts to rust CI (#7923)",
+          "timestamp": "2025-04-07T12:50:32Z",
+          "tree_id": "d158b5331580426b8542de8496cd0e14dd1e8737",
+          "url": "https://github.com/noir-lang/noir/commit/93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf"
+        },
+        "date": 1744032339484,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
