@@ -24,7 +24,7 @@ use lsp_types::{
     CodeLens,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
-        PrepareRenameRequest, References, Rename, SignatureHelpRequest,
+        PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
 use nargo::{
@@ -57,6 +57,7 @@ use requests::{
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
     on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
     on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
+    on_workspace_symbol_request,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -64,6 +65,7 @@ use tower::Service;
 
 mod attribute_reference_finder;
 mod modules;
+mod name_match;
 mod notifications;
 mod requests;
 mod solver;
@@ -169,6 +171,7 @@ impl NargoLspService {
             .request::<Completion, _>(on_completion_request)
             .request::<SignatureHelpRequest, _>(on_signature_help_request)
             .request::<CodeActionRequest, _>(on_code_action_request)
+            .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
