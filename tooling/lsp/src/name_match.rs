@@ -18,6 +18,11 @@ use convert_case::{Case, Casing};
 /// name_matches("compute_merkle_root", "oot") == false
 pub(crate) fn name_matches(name: &str, prefix: &str) -> bool {
     let name = name.to_case(Case::Snake);
+    snake_name_matches(&name, prefix)
+}
+
+/// Like `name_matches` but assumes `name` is already in snake-case.
+pub(crate) fn snake_name_matches(name: &str, prefix: &str) -> bool {
     let name_parts: Vec<&str> = name.split('_').collect();
 
     let mut last_index: i32 = -1;

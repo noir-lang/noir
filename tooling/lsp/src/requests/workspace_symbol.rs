@@ -16,7 +16,7 @@ use noirc_frontend::ast::{
 };
 use walkdir::WalkDir;
 
-use crate::{LspState, name_match::name_matches};
+use crate::{CachedWorkspaceSymbol, LspState, name_match::snake_name_matches};
 
 use super::to_lsp_location;
 
@@ -39,9 +39,14 @@ pub(crate) fn on_workspace_symbol_request(
         overrides.insert(Path::new(path), source);
     }
 
-    let mut file_manager = FileManager::new(root_path.as_path());
     let mut all_symbols = Vec::new();
 
+    // Here we traverse all Noir files in the workspace, parsing those for which we don't know
+    // their symbols. This isn't the best way to implement WorkspaceSymbol but it's actually pretty
+    // fast, simple, and works very well. An alternative could be to process packages independently,
+    // cache their symbols, and re-cache them or invalidate them on changes, but it's a much more complex
+    // code that might yield marginal performance improvements.
+    let mut file_manager = FileManager::new(root_path.as_path());
     for entry in WalkDir::new(root_path).sort_by_file_name() {
         let Ok(entry) = entry else {
             continue;
@@ -83,10 +88,12 @@ pub(crate) fn on_workspace_symbol_request(
 
     let symbols = all_symbols
         .into_iter()
-        .filter(|symbol| {
-            let name = &symbol.name;
+        .filter_map(|symbol| {
+            let name = &symbol.symbol.name;
             let name_lowercase = name.to_lowercase();
-            name_lowercase.contains(&query_lowercase) || name_matches(name, &query_snake_case)
+            (name_lowercase.contains(&query_lowercase)
+                || snake_name_matches(&symbol.name_in_snake_case, &query_snake_case))
+            .then_some(symbol.symbol)
         })
         .collect::<Vec<_>>();
 
@@ -94,12 +101,12 @@ pub(crate) fn on_workspace_symbol_request(
 }
 
 struct WorkspaceSymboGatherer<'symbols, 'files> {
-    symbols: &'symbols mut Vec<WorkspaceSymbol>,
+    symbols: &'symbols mut Vec<CachedWorkspaceSymbol>,
     files: &'files FileMap,
 }
 
 impl<'symbols, 'files> WorkspaceSymboGatherer<'symbols, 'files> {
-    fn new(symbols: &'symbols mut Vec<WorkspaceSymbol>, files: &'files FileMap) -> Self {
+    fn new(symbols: &'symbols mut Vec<CachedWorkspaceSymbol>, files: &'files FileMap) -> Self {
         Self { symbols, files }
     }
 
@@ -120,14 +127,18 @@ impl<'symbols, 'files> WorkspaceSymboGatherer<'symbols, 'files> {
             return;
         };
 
-        self.symbols.push(WorkspaceSymbol {
-            name: name.to_string(),
+        let name = name.to_string();
+        let symbol = WorkspaceSymbol {
+            name: name.clone(),
             kind,
             tags: None,
             container_name,
             location: lsp_types::OneOf::Left(location),
             data: None,
-        });
+        };
+        let cached_symbol =
+            CachedWorkspaceSymbol { symbol, name_in_snake_case: name.to_case(Case::Snake) };
+        self.symbols.push(cached_symbol);
     }
 }
 

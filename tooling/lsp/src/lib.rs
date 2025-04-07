@@ -59,6 +59,7 @@ use requests::{
     on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
     on_workspace_symbol_request,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
@@ -102,7 +103,7 @@ pub struct LspState {
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
-    workspace_symbol_cache: HashMap<PathBuf, Vec<WorkspaceSymbol>>,
+    workspace_symbol_cache: HashMap<PathBuf, Vec<CachedWorkspaceSymbol>>,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -119,6 +120,12 @@ struct PackageCacheData {
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct CachedWorkspaceSymbol {
+    symbol: WorkspaceSymbol,
+    name_in_snake_case: String,
 }
 
 impl LspState {
