@@ -62,10 +62,10 @@ impl Program {
         mut self,
         next_local_id: u32,
         next_ident_id: u32,
-        experimental_ownership_feature: bool,
+        _experimental_ownership_feature: bool,
     ) -> Self {
         let mut context = Context {
-            experimental_ownership_feature,
+            experimental_ownership_feature: true,
             next_ident_id,
             next_local_id,
             variables_to_move: Default::default(),
