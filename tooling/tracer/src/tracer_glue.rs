@@ -211,7 +211,13 @@ fn register_value(
             let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::FunctionKind, type_name);
             ValueRecord::Raw { r: "fn".to_string(), type_id }
         }
-        //PrintableType::Enum { name, variants } => todo!(),
+        PrintableType::Enum { .. } => {
+            // Enums are an unstable, experimental Noir feature.
+            // Even when enabled with -Z enums, they don't seem to become visible in the debugger, so we can't
+            // implement them. Therefore, this code is unreachable in practice. Once debugger support for enums is
+            // added, we need to implement this as well.
+            todo!("Tracing support for enums is not yet implemented")
+        }
         _ => {
             // TODO(stanm): cover all types and remove `warn!`.
             warn!("not implemented yet: type that is not Field: {:?}", typ);
