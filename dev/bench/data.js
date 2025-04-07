@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744031838198,
+  "lastUpdate": 1744031842437,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3e3a2c8ef7de29631580a43f2f4d03d1c2309613",
-          "message": "feat: Add Hash impls for EmbeddedCurvePoint and EmbeddedCurveScalar (#6970)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-03-26T15:47:29Z",
-          "tree_id": "f10ce40c34a12205e4b3379bb2c03cf74d42425d",
-          "url": "https://github.com/noir-lang/noir/commit/3e3a2c8ef7de29631580a43f2f4d03d1c2309613"
-        },
-        "date": 1743006204430,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.074,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.795,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.534,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.029,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -11353,6 +11289,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1bfce71e6c8b962bec99adfda280a80c4921f209",
+          "message": "chore!: remove poseidon from stdlib (#7650)\n\nCo-authored-by: Khashayar Barooti <kashbrti@gmail.com>\nCo-authored-by: Khashayar Barooti <khashayar@aztecprotocol.com>",
+          "timestamp": "2025-04-07T12:48:50Z",
+          "tree_id": "3d6fc1ffb8454a1a8063b28189d7d3a3e28af87b",
+          "url": "https://github.com/noir-lang/noir/commit/1bfce71e6c8b962bec99adfda280a80c4921f209"
+        },
+        "date": 1744031838053,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.076,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.306,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.029,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.794,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.532,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.027,
             "unit": "s"
           }
         ]
