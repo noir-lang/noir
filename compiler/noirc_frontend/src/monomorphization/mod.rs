@@ -856,7 +856,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
             HirPattern::Tuple(patterns, _) => {
                 let fields = unwrap_tuple_type(typ);
-                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields))
+                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields), typ)
             }
             HirPattern::Struct(_, patterns, location) => {
                 let fields = unwrap_struct_type(typ, location)?;
@@ -871,7 +871,7 @@ impl<'interner> Monomorphizer<'interner> {
                     (pattern, field_type)
                 });
 
-                self.unpack_tuple_pattern(value, patterns_iter)
+                self.unpack_tuple_pattern(value, patterns_iter, typ)
             }
         }
     }
@@ -880,6 +880,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         value: ast::Expression,
         fields: impl Iterator<Item = (HirPattern, HirType)>,
+        tuple_type: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let fresh_id = self.next_local_id();
 
@@ -895,8 +896,8 @@ impl<'interner> Monomorphizer<'interner> {
             let mutable = false;
             let definition = Definition::Local(fresh_id);
             let name = i.to_string();
-            let typ = Self::convert_type(&field_type, location)?;
 
+            let typ = Self::convert_type(tuple_type, location)?;
             let location = Some(location);
             let new_rhs =
                 ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
@@ -1366,6 +1367,23 @@ impl<'interner> Monomorphizer<'interner> {
                             item_kind: "function",
                             item_name,
                         });
+                    }
+                }
+                // If we find one in `all_generics` it means it's a generic on the type
+                // the function is in.
+                if let Some(Type::DataType(typ, ..)) = &meta.self_type {
+                    for generic in &meta.all_generics {
+                        if generic.type_var.id() == id {
+                            let typ = typ.borrow();
+                            let item_name = typ.name.to_string();
+                            let item_kind = if typ.is_struct() { "struct" } else { "enum" };
+                            return Err(MonomorphizationError::NoDefaultTypeInItem {
+                                location,
+                                generic_name: generic.name.to_string(),
+                                item_kind,
+                                item_name,
+                            });
+                        }
                     }
                 }
             }

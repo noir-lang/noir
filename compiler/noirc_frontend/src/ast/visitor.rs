@@ -24,8 +24,8 @@ use crate::{
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
     MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, UnsafeExpression,
+    UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -458,6 +458,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_unresolved_generic(&mut self, _: &UnresolvedGeneric) -> bool {
+        true
+    }
+
     fn visit_function_return_type(&mut self, _: &FunctionReturnType) -> bool {
         true
     }
@@ -612,6 +616,8 @@ impl NoirFunction {
             attribute.accept(AttributeTarget::Function, visitor);
         }
 
+        visit_unresolved_generics(&self.def.generics, visitor);
+
         for param in &self.def.parameters {
             param.typ.accept(visitor);
         }
@@ -634,6 +640,8 @@ impl NoirTraitImpl {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        visit_unresolved_generics(&self.impl_generics, visitor);
+
         self.r#trait.accept(visitor);
         self.object_type.accept(visitor);
 
@@ -711,6 +719,8 @@ impl NoirTrait {
         for attribute in &self.attributes {
             attribute.accept(AttributeTarget::Trait, visitor);
         }
+
+        visit_unresolved_generics(&self.generics, visitor);
 
         for bound in &self.bounds {
             bound.accept(visitor);
@@ -1604,6 +1614,28 @@ impl Pattern {
     }
 }
 
+impl UnresolvedGeneric {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_unresolved_generic(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        match self {
+            UnresolvedGeneric::Variable(_ident, trait_bounds) => {
+                for trait_bound in trait_bounds {
+                    trait_bound.accept(visitor);
+                }
+            }
+            UnresolvedGeneric::Numeric { ident: _, typ } => {
+                typ.accept(visitor);
+            }
+            UnresolvedGeneric::Resolved(_quoted_type_id, _location) => (),
+        }
+    }
+}
+
 impl SecondaryAttribute {
     pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
         if visitor.visit_secondary_attribute(self, target) {
@@ -1640,5 +1672,11 @@ fn visit_expressions(expressions: &[Expression], visitor: &mut impl Visitor) {
 fn visit_unresolved_types(unresolved_type: &[UnresolvedType], visitor: &mut impl Visitor) {
     for unresolved_type in unresolved_type {
         unresolved_type.accept(visitor);
+    }
+}
+
+fn visit_unresolved_generics(generics: &[UnresolvedGeneric], visitor: &mut impl Visitor) {
+    for generic in generics {
+        generic.accept(visitor);
     }
 }

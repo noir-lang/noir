@@ -85,8 +85,12 @@ impl<F: AcirField> FunctionInput<F> {
 impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.input {
-            ConstantOrWitnessEnum::Constant(constant) => write!(f, "{constant}"),
-            ConstantOrWitnessEnum::Witness(witness) => write!(f, "{}", witness.0),
+            ConstantOrWitnessEnum::Constant(constant) => {
+                write!(f, "({constant}, {})", self.num_bits)
+            }
+            ConstantOrWitnessEnum::Witness(witness) => {
+                write!(f, "(_{}, {})", witness.0, self.num_bits)
+            }
         }
     }
 }
@@ -463,80 +467,33 @@ impl<F: Copy> BlackBoxFuncCall<F> {
     }
 }
 
-const ABBREVIATION_LIMIT: usize = 5;
-
-fn get_inputs_string<F: std::fmt::Display>(inputs: &[FunctionInput<F>]) -> String {
-    // Once a vectors length gets above this limit,
-    // instead of listing all of their elements, we use ellipses
-    // to abbreviate them
-    let should_abbreviate_inputs = inputs.len() <= ABBREVIATION_LIMIT;
-
-    if should_abbreviate_inputs {
-        let mut result = String::new();
-        for (index, inp) in inputs.iter().enumerate() {
-            result += &format!("({})", inp);
-            // Add a comma, unless it is the last entry
-            if index != inputs.len() - 1 {
-                result += ", ";
-            }
-        }
-        result
-    } else {
-        let first = inputs.first().unwrap();
-        let last = inputs.last().unwrap();
-
-        let mut result = String::new();
-        result += &format!("({})...({})", first, last,);
-
-        result
-    }
-}
-
-fn get_outputs_string(outputs: &[Witness]) -> String {
-    let should_abbreviate_outputs = outputs.len() <= ABBREVIATION_LIMIT;
-
-    if should_abbreviate_outputs {
-        let mut result = String::new();
-        for (index, output) in outputs.iter().enumerate() {
-            result += &format!("_{}", output.witness_index());
-            // Add a comma, unless it is the last entry
-            if index != outputs.len() - 1 {
-                result += ", ";
-            }
-        }
-        result
-    } else {
-        let first = outputs.first().unwrap();
-        let last = outputs.last().unwrap();
-
-        let mut result = String::new();
-        result += &format!("(_{},...,_{})", first.witness_index(), last.witness_index());
-        result
-    }
-}
-
 impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
         // INPUTS
-        write!(f, "[")?;
 
-        let inputs_str = get_inputs_string(&self.get_inputs_vec());
+        let inputs_str = &self
+            .get_inputs_vec()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
 
-        write!(f, "{inputs_str}")?;
-        write!(f, "] ")?;
+        write!(f, "[{inputs_str}]")?;
+
+        write!(f, " ")?;
 
         // OUTPUTS
-        write!(f, "[ ")?;
 
-        let outputs_str = get_outputs_string(&self.get_outputs_vec());
+        let outputs_str = &self
+            .get_outputs_vec()
+            .iter()
+            .map(|i| format!("_{}", i.0))
+            .collect::<Vec<String>>()
+            .join(", ");
 
-        write!(f, "{outputs_str}")?;
-
-        write!(f, "]")?;
-
-        write!(f, "")
+        write!(f, "[{outputs_str}]")
     }
 }
 
