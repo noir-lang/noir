@@ -62,6 +62,10 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
 
     let lhs_is_one = lhs_value.is_some_and(|lhs| lhs.is_one());
     let rhs_is_one = rhs_value.is_some_and(|rhs| rhs.is_one());
+    let lhs_is_max =
+        lhs_value.is_some_and(|lhs| lhs_type.max_value().is_ok_and(|max_value| lhs == max_value));
+    let rhs_is_max =
+        rhs_value.is_some_and(|rhs| rhs_type.max_value().is_ok_and(|max_value| rhs == max_value));
 
     match binary.operator {
         BinaryOp::Add { .. } => {
@@ -253,6 +257,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             }
             if lhs == rhs {
                 return SimplifyResult::SimplifiedTo(lhs);
+            }
+
+            if lhs_is_max || rhs_is_max {
+                let max = dfg.make_constant(lhs_type.max_value().unwrap(), lhs_type);
+                return SimplifyResult::SimplifiedTo(max);
             }
         }
         BinaryOp::Xor => {
