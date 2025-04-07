@@ -21,6 +21,7 @@ impl Instructions {
                 | Instructions::AddUnchecked { .. }
                 | Instructions::SubUnchecked { .. }
                 | Instructions::MulUnchecked { .. }
+                | Instructions::BigCastAndBack { .. }
         )
     }
 }

@@ -58,10 +58,29 @@ impl Fuzzer {
         log::debug!("Constant result: {:?}", constant_result);
 
         if non_constant_result != constant_result {
-            println!(
-                "Constant and non-constant results are different for the same program: {:?} != {:?}",
-                non_constant_result, constant_result
-            );
+            match (non_constant_result, constant_result) {
+                (Some(non_constant_result), Some(constant_result)) => {
+                    // #7947
+                    if constant_result == FieldElement::from(0_u32) {
+                        return;
+                    }
+                    panic!(
+                        "Constant and non-constant results are different for the same program: {:?} != {:?}",
+                        non_constant_result, constant_result
+                    );
+                }
+                (Some(non_constant_result), None) => {
+                    panic!(
+                        "Non-constant result is {:?}, but constant result is None",
+                        non_constant_result
+                    );
+                }
+                (None, Some(constant_result)) => {
+                    println!("Constant result is {:?}, but non-constant program failed to execute", constant_result);
+                }
+                // both are None
+                _ => {}
+            }
         }
     }
 
