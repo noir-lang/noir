@@ -266,6 +266,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b964d184e89d9b6b67dd2715bc8e74cf3107fb2b529990c90cf517326150bf4"
 
 [[package]]
+name = "arbitrary"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dde20b3d026af13f561bdd0f15edf01fc734f0dafcedbaf42bba506a9517f223"
+
+[[package]]
 name = "ark-bls12-381"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -871,6 +877,8 @@ version = "1.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c736e259eea577f443d5c86c304f9f4ae0295c43f3ba05c21f1d66b5f06001af"
 dependencies = [
+ "jobserver",
+ "libc",
  "shlex",
 ]
 
@@ -1820,6 +1828,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "function_name"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1ab577a896d09940b5fe12ec5ae71f9d8211fff62c919c03a3750a9901e98a7"
+dependencies = [
+ "function_name-proc-macro",
+]
+
+[[package]]
+name = "function_name-proc-macro"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673464e1e314dd67a0fd9544abc99e8eb28d0c7e3b69b033bcff9b2d00b87333"
+
+[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2623,6 +2646,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
+name = "jobserver"
+version = "0.1.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48d1dbcbbeb6a7fec7e059840aa538bd62aaccf972c7346c4d9d2059312853d0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2822,6 +2854,16 @@ name = "libc"
 version = "0.2.170"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "875b3680cb2f8f71bdcf9a30f38d48282f5d3c95cbf9b3fa57269bb5d5c06828"
+
+[[package]]
+name = "libfuzzer-sys"
+version = "0.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf78f52d400cf2d84a3a973a78a592b4adc535739e0a5597a0da6f0c357adc75"
+dependencies = [
+ "arbitrary",
+ "cc",
+]
 
 [[package]]
 name = "libredox"
@@ -3223,6 +3265,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_ast_fuzzer"
+version = "1.0.0-beta.3"
+dependencies = [
+ "acir",
+ "arbitrary",
+ "bn254_blackbox_solver",
+ "build-data",
+ "color-eyre",
+ "im",
+ "nargo",
+ "noir_fuzzer",
+ "noirc_abi",
+ "noirc_evaluator",
+ "noirc_frontend",
+ "proptest",
+ "rand",
+ "strum",
+]
+
+[[package]]
+name = "noir_ast_fuzzer_fuzz"
+version = "1.0.0-beta.3"
+dependencies = [
+ "acir",
+ "color-eyre",
+ "libfuzzer-sys",
+ "noir_ast_fuzzer",
+ "noirc_evaluator",
+ "noirc_frontend",
+]
+
+[[package]]
 name = "noir_debugger"
 version = "1.0.0-beta.3"
 dependencies = [
@@ -3511,6 +3585,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "cfg-if",
  "chrono",
+ "function_name",
  "fxhash",
  "im",
  "iter-extended",
@@ -3520,6 +3595,7 @@ dependencies = [
  "num-traits",
  "petgraph",
  "proptest",
+ "proptest-derive",
  "rayon",
  "serde",
  "serde_json",
@@ -3542,6 +3618,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "cfg-if",
  "fm",
+ "function_name",
  "fxhash",
  "im",
  "iter-extended",

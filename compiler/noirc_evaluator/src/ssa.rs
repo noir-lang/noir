@@ -14,6 +14,7 @@ use std::{
 };
 
 use crate::{
+    acir::ssa::Artifacts,
     brillig::BrilligOptions,
     errors::{RuntimeError, SsaReport},
 };
@@ -36,7 +37,7 @@ use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast
 use ssa_gen::Ssa;
 use tracing::{Level, span};
 
-use crate::acir::{Artifacts, GeneratedAcir};
+use crate::acir::GeneratedAcir;
 
 mod checks;
 pub(super) mod function_builder;
@@ -236,6 +237,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
         // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
+        .run_pass(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck")
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).

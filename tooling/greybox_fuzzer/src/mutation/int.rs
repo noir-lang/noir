@@ -250,6 +250,31 @@ fn add_sub_pow_2_update<
     };
     u128_to_field(result_int.as_())
 }
+
+/// Perform an integer binary operation on 2 field elements according to `mutation_operation`. Get field as a result
+fn add_sub_pow_2_update_signed<
+    T: WrappingAdd
+        + WrappingSub
+        + HasBits
+        + BitXor<Output = T>
+        + BitAnd<Output = T>
+        + BitOr<Output = T>
+        + AsPrimitive<i128>
+        + PrimInt,
+>(
+    lhs: &FieldElement,
+    prng: &mut XorShiftRng,
+) -> FieldElement {
+    let width = T::BITS;
+    let lhs_int = T::from(field_to_i128(lhs, width)).expect("Should convert");
+    let update = T::from(1i128 << prng.gen_range(0..(width - 1))).expect("Should convert");
+    let result_int = if prng.gen_range(0..2).is_zero() {
+        lhs_int.wrapping_add(&update)
+    } else {
+        lhs_int.wrapping_sub(&update)
+    };
+    i128_to_field(result_int.as_(), width)
+}
 /// Perform an unsigned integer binary operation on 2 field elements according to `mutation_operation`. Get field as a result
 fn add_sub_xor_and_or_unsigned<
     T: WrappingAdd
@@ -358,18 +383,27 @@ impl<'a> IntMutator<'a> {
 
     /// Get one of the fixed values in place of the original value
     fn substitute_signed_int_with_fixed_value(&mut self, width: u32) -> InputValue {
-        InputValue::Field(i128_to_field(
-            match BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION.select(self.prng) {
-                FixedIntSubstitutionOptions::Minimum => {
-                    FIXED_SIGNED_VALUES[self.prng.gen_range(0..width as usize)]
-                }
-                FixedIntSubstitutionOptions::Maximum => {
-                    FIXED_SIGNED_VALUES[self.prng.gen_range(64..(64 + width) as usize)]
-                }
-                FixedIntSubstitutionOptions::Pow2 => 2i128.pow(self.prng.gen_range(0..width)),
-            },
-            width,
-        ))
+        let value = match BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION.select(self.prng) {
+            FixedIntSubstitutionOptions::Minimum => {
+                FIXED_SIGNED_VALUES[self.prng.gen_range(0..width as usize)]
+            }
+            FixedIntSubstitutionOptions::Maximum => {
+                FIXED_SIGNED_VALUES[self.prng.gen_range(64..(64 + width) as usize)]
+            }
+            FixedIntSubstitutionOptions::Pow2 => 2i128.pow(self.prng.gen_range(0..(width - 1))),
+        };
+        let checked_value = match width {
+            8 => value.clamp(i8::MIN as i128, i8::MAX as i128),
+            16 => value.clamp(i16::MIN as i128, i16::MAX as i128),
+            32 => value.clamp(i32::MIN as i128, i32::MAX as i128),
+            64 => value.clamp(i64::MIN as i128, i64::MAX as i128),
+            128 => value,
+            _ => {
+                panic!("Shouldn't be reachable")
+            }
+        };
+
+        InputValue::Field(i128_to_field(checked_value, width))
     }
 
     /// Negate a signed value
@@ -451,11 +485,11 @@ impl<'a> IntMutator<'a> {
 
     fn perform_pow_2_update_signed(&mut self, input: &FieldElement, width: u32) -> InputValue {
         InputValue::Field(match width {
-            8 => add_sub_pow_2_update::<i8>(input, self.prng),
-            16 => add_sub_pow_2_update::<i16>(input, self.prng),
-            32 => add_sub_pow_2_update::<i32>(input, self.prng),
-            64 => add_sub_pow_2_update::<i64>(input, self.prng),
-            128 => add_sub_pow_2_update::<i128>(input, self.prng),
+            8 => add_sub_pow_2_update_signed::<i8>(input, self.prng),
+            16 => add_sub_pow_2_update_signed::<i16>(input, self.prng),
+            32 => add_sub_pow_2_update_signed::<i32>(input, self.prng),
+            64 => add_sub_pow_2_update_signed::<i64>(input, self.prng),
+            128 => add_sub_pow_2_update_signed::<i128>(input, self.prng),
             _ => {
                 panic!("Shouldn't be reachable")
             }
@@ -466,7 +500,7 @@ impl<'a> IntMutator<'a> {
         InputValue::Field(match width {
             8 => add_sub_pow_2_update::<u8>(input, self.prng),
             16 => add_sub_pow_2_update::<u16>(input, self.prng),
-            32 => add_sub_pow_2_update::<i32>(input, self.prng),
+            32 => add_sub_pow_2_update::<u32>(input, self.prng),
             64 => add_sub_pow_2_update::<u64>(input, self.prng),
             128 => add_sub_pow_2_update::<u128>(input, self.prng),
             _ => {
@@ -477,7 +511,8 @@ impl<'a> IntMutator<'a> {
     /// Perform a mutation on a signed int
     fn mutate_signed(&mut self, input: &FieldElement, width: u32) -> InputValue {
         let initial_i128 = field_to_i128(input, width);
-        match BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng) {
+        let mutation_type = BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng);
+        match mutation_type {
             IntTopLevelMutationOptions::FixedSubstitution => {
                 self.substitute_signed_int_with_fixed_value(width)
             }
@@ -538,9 +573,10 @@ impl<'a> IntMutator<'a> {
     /// Add or subtract a small signed value to input
     fn sub_add_small_value_unsigned(&mut self, input: &u128, width: u32) -> InputValue {
         let update = self.prng.gen_range(u8::MIN..=u8::MAX);
+        let is_add = self.prng.gen_range(0..2).is_zero();
 
         // Probability of addition and subtraction is equal
-        if self.prng.gen_range(0..2).is_zero() {
+        if is_add {
             InputValue::Field(match width {
                 8 => wrapping_add_small_unsigned::<u8>(input, update),
                 16 => wrapping_add_small_unsigned::<u16>(input, update),
