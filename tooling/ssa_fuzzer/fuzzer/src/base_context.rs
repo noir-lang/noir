@@ -184,8 +184,8 @@ impl FuzzerContext {
         }
 
         let index = index % array.length;
-        let acir_value = u32_to_id_value(value % (self.acir_ids.len() as u32));
-        let brillig_value = u32_to_id_value(value % (self.brillig_ids.len() as u32));
+        let acir_value = u32_to_id_value(self.acir_ids[value as usize % self.acir_ids.len()]);
+        let brillig_value = u32_to_id_value(self.brillig_ids[value as usize % self.brillig_ids.len()]);
 
         let acir_return_id = self.acir_builder.insert_array_set(acir_array_id, index, acir_value);
         let brillig_return_id =

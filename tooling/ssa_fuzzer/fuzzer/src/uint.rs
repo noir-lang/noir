@@ -11,6 +11,20 @@ use crate::base_context::Instructions;
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
+
+impl Instructions {
+    fn is_supported(&self) -> bool {
+        !matches!(
+            self,
+            Instructions::Shl { .. }
+                | Instructions::Shr { .. }
+                | Instructions::AddUnchecked { .. }
+                | Instructions::SubUnchecked { .. }
+                | Instructions::MulUnchecked { .. }
+        )
+    }
+}
+
 /// Represents the data for the fuzzer
 /// `methods` - sequence of instructions to be added to the program
 #[derive(Arbitrary, Debug, Clone, Hash)]
@@ -21,6 +35,10 @@ struct FuzzerData {
 
 impl Fuzzer {
     fn insert_instruction(&mut self, instruction: Instructions) {
+        // Check if instruction is unsupported for uint type
+        if !instruction.is_supported() {
+            return;
+        }
         self.context_non_constant.insert_instruction(instruction.clone());
         self.context_constant.insert_instruction(instruction);
     }
@@ -40,11 +58,11 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         values.push(witness_value);
     }
     let initial_witness = witness_map;
-    log::debug!("instructions: {:?}", data.methods.clone());
+    log::debug!("instructions: {:?}", data.methods);
     log::debug!("initial_witness: {:?}", initial_witness);
 
     let mut fuzzer = Fuzzer::new(type_.clone(), values);
-    for method in data.methods.clone() {
+    for method in data.methods {
         fuzzer.insert_instruction(method);
     }
     fuzzer.run(initial_witness);

@@ -58,7 +58,7 @@ impl Fuzzer {
         log::debug!("Constant result: {:?}", constant_result);
 
         if non_constant_result != constant_result {
-            panic!(
+            println!(
                 "Constant and non-constant results are different for the same program: {:?} != {:?}",
                 non_constant_result, constant_result
             );

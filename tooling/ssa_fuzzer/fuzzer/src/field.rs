@@ -74,11 +74,11 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         values.push(witness_value);
     }
     let initial_witness = witness_map;
-    log::debug!("instructions: {:?}", data.methods.clone());
+    log::debug!("instructions: {:?}", data.methods);
     log::debug!("initial_witness: {:?}", initial_witness);
 
     let mut fuzzer = Fuzzer::new(type_.clone(), values);
-    for method in data.methods.clone() {
+    for method in data.methods {
         fuzzer.insert_instruction(method);
     }
     fuzzer.run(initial_witness);

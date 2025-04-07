@@ -16,7 +16,7 @@ use noirc_evaluator::{
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
         SsaProgramArtifact, function_builder::FunctionBuilder, ir::instruction::ErrorType,
-        optimize_ssa_builder_into_acir,
+        optimize_ssa_builder_into_acir
     },
 };
 
