@@ -149,7 +149,17 @@ pub(crate) fn can_unary_return(typ: &Type) -> bool {
     match typ {
         Type::Field => true,
         Type::Bool => true,
-        Type::Integer(sign, size) => sign.is_signed() && size.bit_size() > 1,
+        Type::Integer(sign, size) => {
+            // What can we apply `UnaryOp::Minus` to.
+            // The number has to be signed, otherwise it doesn't have a negative.
+            sign.is_signed() &&
+            // i1 range is -1..0, so unless it's 0 it will fail
+            size.bit_size() > 1 &&
+            // i128 is not a type the user can declare, but trying to use minus with it
+            // would involve a truncation to 129 bits, which wants to convert to u128,
+            // and 2**129 wouldn't fit into that, and we end up with a division by zero
+            size.bit_size() < 128
+        }
         _ => false,
     }
 }
@@ -168,8 +178,6 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
             matches!(op, Add | Subtract | Multiply | Divide)
         }
         Type::Integer(_, _) => {
-            // i1 and u1 are very easy to overflow, so we might want to disable those,
-            // to not get trivial assertion errors.
             matches!(op, Add | Subtract | Multiply | Divide | ShiftLeft | ShiftRight | Modulo)
         }
         Type::Reference(typ, _) => can_binary_op_return(op, typ),
@@ -182,9 +190,13 @@ pub(crate) fn can_binary_op_take(op: &BinaryOp, typ: &Type) -> bool {
     match typ {
         Type::Field => op.is_valid_for_field_type(),
         Type::Bool => op.is_comparator() || op.is_bitwise(),
-        Type::Integer(_, _) => {
+        Type::Integer(_, size) => {
+            let size = size.bit_size();
+            // i1 and u1 are very easy to overflow, so we might want to disable those, to not get trivial assertion errors.
+            // i128 is not a type a user can define, and the truncation that gets added after binary operations to
+            // limit it to 129 bits results in division by zero during compilation.
             op.is_comparator()
-                || op.is_arithmetic()
+                || (op.is_arithmetic() && size != 1 && size != 128)
                 || op.is_bitshift()
                 || op.is_bitwise()
                 || matches!(op, BinaryOp::Modulo)
