@@ -4548,6 +4548,25 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 
 #[named]
 #[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_for_generic_impl() {
+    let src = r#"
+    pub struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        fn one() {}
+    }
+    
+    fn main() {
+        Foo::one();
+             ^^^ Type annotation needed
+             ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
 fn unconstrained_type_parameter_in_impl() {
     let src = r#"
         pub struct Foo<T> {}

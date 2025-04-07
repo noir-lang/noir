@@ -31,11 +31,7 @@ use num_bigint::BigUint;
 
 mod brillig_directive;
 
-/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
-/// This index should be used when adding a Brillig call during code generation.
-/// Code generation should then keep track of that unresolved call opcode which will be resolved with the
-/// correct function index after code generation.
-pub(super) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
+pub(crate) use brillig_directive::{BrilligStdLib, BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
@@ -96,23 +92,6 @@ pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
 pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
 
 pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) enum BrilligStdlibFunc {
-    Inverse,
-    Quotient,
-    ToLeBytes,
-}
-
-impl BrilligStdlibFunc {
-    pub(crate) fn get_generated_brillig<F: AcirField>(&self) -> GeneratedBrillig<F> {
-        match self {
-            BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
-            BrilligStdlibFunc::Quotient => brillig_directive::directive_quotient(),
-            BrilligStdlibFunc::ToLeBytes => brillig_directive::directive_to_radix(),
-        }
-    }
-}
 
 impl<F: AcirField> GeneratedAcir<F> {
     /// Returns the current witness index.
