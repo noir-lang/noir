@@ -98,35 +98,7 @@ fn insert_all_files_for_package_into_file_manager(
         .parent()
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
-    for entry in WalkDir::new(entry_path_parent).sort_by_file_name() {
-        let Ok(entry) = entry else {
-            continue;
-        };
-
-        if !entry.file_type().is_file() {
-            continue;
-        }
-
-        if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
-            continue;
-        };
-
-        let path = entry.into_path();
-
-        // Avoid reading the source if the file is already there
-        if file_manager.has_file(&path) {
-            continue;
-        }
-
-        let source = if let Some(src) = overrides.get(path.as_path()) {
-            src.to_string()
-        } else {
-            std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
-        };
-
-        file_manager.add_file_with_source(path.as_path(), source);
-    }
+    insert_all_files_under_path_into_file_manager(file_manager, entry_path_parent, overrides);
 
     insert_all_files_for_packages_dependencies_into_file_manager(
         package,
@@ -155,6 +127,42 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
                 );
             }
         }
+    }
+}
+
+pub fn insert_all_files_under_path_into_file_manager(
+    file_manager: &mut FileManager,
+    path: &std::path::Path,
+    overrides: &HashMap<&std::path::Path, &str>,
+) {
+    for entry in WalkDir::new(path).sort_by_file_name() {
+        let Ok(entry) = entry else {
+            continue;
+        };
+
+        if !entry.file_type().is_file() {
+            continue;
+        }
+
+        if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
+            continue;
+        };
+
+        let path = entry.into_path();
+
+        // Avoid reading the source if the file is already there
+        if file_manager.has_file(&path) {
+            continue;
+        }
+
+        let source = if let Some(src) = overrides.get(path.as_path()) {
+            src.to_string()
+        } else {
+            std::fs::read_to_string(path.as_path())
+                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
+        };
+
+        file_manager.add_file_with_source(path.as_path(), source);
     }
 }
 
