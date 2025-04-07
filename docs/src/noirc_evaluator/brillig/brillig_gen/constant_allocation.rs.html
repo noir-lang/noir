@@ -223,10 +223,12 @@
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the usage of constants in a given function and decides an allocation point for them.
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the usage of constants in a given function and decides an allocation point for them.
 //! The allocation point will be the common dominator of all the places where the constant is used.
 //! By allocating in the common dominator, we can cache the constants for all subsequent uses.
-</span><span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+
+</span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
@@ -241,7 +243,7 @@
 
 <span class="kw">use </span><span class="kw">super</span>::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
 
-<span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+<span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>InstructionLocation {
     Instruction(InstructionId),
     Terminator,
@@ -249,10 +251,10 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ConstantAllocation {
-    constant_usage: HashMap&lt;ValueId, HashMap&lt;BasicBlockId, Vec&lt;InstructionLocation&gt;&gt;&gt;,
-    allocation_points: HashMap&lt;BasicBlockId, HashMap&lt;InstructionLocation, Vec&lt;ValueId&gt;&gt;&gt;,
+    constant_usage: BTreeMap&lt;ValueId, BTreeMap&lt;BasicBlockId, Vec&lt;InstructionLocation&gt;&gt;&gt;,
+    allocation_points: BTreeMap&lt;BasicBlockId, BTreeMap&lt;InstructionLocation, Vec&lt;ValueId&gt;&gt;&gt;,
     dominator_tree: DominatorTree,
-    blocks_within_loops: HashSet&lt;BasicBlockId&gt;,
+    blocks_within_loops: BTreeSet&lt;BasicBlockId&gt;,
 }
 
 <span class="kw">impl </span>ConstantAllocation {
@@ -262,8 +264,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>dominator_tree = DominatorTree::with_cfg_and_post_order(<span class="kw-2">&amp;</span>cfg, <span class="kw-2">&amp;</span>post_order);
         <span class="kw">let </span>blocks_within_loops = find_all_blocks_within_loops(func, <span class="kw-2">&amp;</span>cfg, <span class="kw-2">&amp;mut </span>dominator_tree);
         <span class="kw">let </span><span class="kw-2">mut </span>instance = ConstantAllocation {
-            constant_usage: HashMap::default(),
-            allocation_points: HashMap::default(),
+            constant_usage: BTreeMap::default(),
+            allocation_points: BTreeMap::default(),
             dominator_tree,
             blocks_within_loops,
         };
@@ -389,7 +391,7 @@
         current_block
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashSet&lt;ValueId&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;ValueId&gt; {
         <span class="self">self</span>.constant_usage.keys().copied().collect()
     }
 }
@@ -403,8 +405,8 @@
     func: <span class="kw-2">&amp;</span>Function,
     cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
     dominator_tree: <span class="kw-2">&amp;mut </span>DominatorTree,
-) -&gt; HashSet&lt;BasicBlockId&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>blocks_in_loops = HashSet::default();
+) -&gt; BTreeSet&lt;BasicBlockId&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>blocks_in_loops = BTreeSet::default();
     <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
         <span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
         <span class="kw">let </span>successors = block.successors();
@@ -424,8 +426,8 @@
     header: BasicBlockId,
     back_edge_start: BasicBlockId,
     cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
-) -&gt; HashSet&lt;BasicBlockId&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>blocks = HashSet::default();
+) -&gt; BTreeSet&lt;BasicBlockId&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>blocks = BTreeSet::default();
     blocks.insert(header);
 
     <span class="kw">let </span><span class="kw-2">mut </span>insert = |block, stack: <span class="kw-2">&amp;mut </span>Vec&lt;BasicBlockId&gt;| {
