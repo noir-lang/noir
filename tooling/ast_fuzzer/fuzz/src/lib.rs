@@ -45,7 +45,7 @@ where
     let res = result.return_value_or_err();
 
     if res.is_err() {
-        for (i, ast) in asts(&inputs).into_iter().enumerate() {
+        for (i, ast) in asts(inputs).into_iter().enumerate() {
             eprintln!("AST {}:\n{}", i + 1, ast);
         }
         eprintln!("Inputs:\n{:?}", inputs.input_map);
