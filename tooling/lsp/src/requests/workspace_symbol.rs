@@ -10,9 +10,12 @@ use fm::{FILE_EXTENSION, FileManager, FileMap};
 use lsp_types::{SymbolKind, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse};
 use nargo::parse_all;
 use noirc_errors::{Location, Span};
-use noirc_frontend::ast::{
-    Ident, LetStatement, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait,
-    NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, Visitor,
+use noirc_frontend::{
+    ast::{
+        Ident, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+        NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, Visitor,
+    },
+    parser::ParsedSubModule,
 };
 use walkdir::WalkDir;
 
@@ -143,8 +146,9 @@ impl<'symbols, 'files> WorkspaceSymboGatherer<'symbols, 'files> {
 }
 
 impl Visitor for WorkspaceSymboGatherer<'_, '_> {
-    fn visit_module_declaration(&mut self, module: &ModuleDeclaration, _span: Span) {
-        self.push_symbol(&module.ident, SymbolKind::MODULE);
+    fn visit_parsed_submodule(&mut self, submodule: &ParsedSubModule, _: Span) -> bool {
+        self.push_symbol(&submodule.name, SymbolKind::MODULE);
+        true
     }
 
     fn visit_noir_function(&mut self, noir_function: &NoirFunction, _span: Span) -> bool {
@@ -220,5 +224,71 @@ impl Visitor for WorkspaceSymboGatherer<'_, '_> {
 
         self.push_symbol(name, SymbolKind::CONSTANT);
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use lsp_types::{
+        PartialResultParams, SymbolKind, WorkDoneProgressParams, WorkspaceSymbolParams,
+        WorkspaceSymbolResponse,
+    };
+    use tokio::test;
+
+    use crate::{on_workspace_symbol_request, test_utils};
+
+    #[test]
+    async fn test_workspace_symbol() {
+        let (mut state, _) = test_utils::init_lsp_server("document_symbol").await;
+
+        let response = on_workspace_symbol_request(
+            &mut state,
+            WorkspaceSymbolParams {
+                query: String::new(),
+                partial_result_params: PartialResultParams::default(),
+                work_done_progress_params: WorkDoneProgressParams::default(),
+            },
+        )
+        .await
+        .expect("Could not execute on_document_symbol_request")
+        .unwrap();
+
+        let WorkspaceSymbolResponse::Nested(symbols) = response else {
+            panic!("Expected Nested response, got {:?}", response);
+        };
+
+        assert_eq!(symbols.len(), 8);
+
+        assert_eq!(&symbols[0].name, "foo");
+        assert_eq!(symbols[0].kind, SymbolKind::FUNCTION);
+        assert!(symbols[0].container_name.is_none());
+
+        assert_eq!(&symbols[1].name, "SomeStruct");
+        assert_eq!(symbols[1].kind, SymbolKind::STRUCT);
+        assert!(symbols[1].container_name.is_none());
+
+        assert_eq!(&symbols[2].name, "new");
+        assert_eq!(symbols[2].kind, SymbolKind::FUNCTION);
+        assert_eq!(symbols[2].container_name.as_ref().unwrap(), "SomeStruct");
+
+        assert_eq!(&symbols[3].name, "SomeTrait");
+        assert_eq!(symbols[3].kind, SymbolKind::INTERFACE);
+        assert!(symbols[3].container_name.is_none());
+
+        assert_eq!(&symbols[4].name, "some_method");
+        assert_eq!(symbols[4].kind, SymbolKind::FUNCTION);
+        assert_eq!(symbols[4].container_name.as_ref().unwrap(), "SomeTrait");
+
+        assert_eq!(&symbols[5].name, "some_method");
+        assert_eq!(symbols[5].kind, SymbolKind::FUNCTION);
+        assert_eq!(symbols[5].container_name.as_ref().unwrap(), "SomeStruct");
+
+        assert_eq!(&symbols[6].name, "submodule");
+        assert_eq!(symbols[6].kind, SymbolKind::MODULE);
+        assert!(symbols[6].container_name.is_none());
+
+        assert_eq!(&symbols[7].name, "SOME_GLOBAL");
+        assert_eq!(symbols[7].kind, SymbolKind::CONSTANT);
+        assert!(symbols[7].container_name.is_none());
     }
 }
