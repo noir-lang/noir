@@ -1,9 +1,10 @@
-use poseidon::poseidon::PoseidonHasher;
 use std::default::Default;
 use std::hash::Hasher;
+use std::hash::poseidon::PoseidonHasher;
 
 use ec::consts::te::baby_jubjub;
 use ec::tecurve::affine::Point as TEPoint;
+
 
 fn main(
     msg: pub Field,

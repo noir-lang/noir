@@ -51,7 +51,6 @@ jobs:
     name: "Run tests (partition ${{matrix.partition}})"
     runs-on: ubuntu-22.04
     needs: [build-test-artifacts]
-    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

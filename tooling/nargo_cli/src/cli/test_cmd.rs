@@ -14,8 +14,9 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    foreign_calls::DefaultForeignCallBuilder, insert_all_files_for_workspace_into_file_manager,
-    ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
+    PrintOutput, foreign_calls::DefaultForeignCallBuilder,
+    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
+    prepare_package, workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
@@ -511,13 +512,13 @@ impl<'a> TestRunner<'a> {
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         let blackbox_solver = S::default();
-        let mut output_buffer = Vec::new();
+        let mut output_string = String::new();
 
         let test_status = nargo::ops::run_test(
             &blackbox_solver,
             &mut context,
             test_function,
-            &mut output_buffer,
+            PrintOutput::String(&mut output_string),
             &self.args.compile_options,
             |output, base| {
                 DefaultForeignCallBuilder {
@@ -530,10 +531,6 @@ impl<'a> TestRunner<'a> {
                 .build_with_base(base)
             },
         );
-
-        let output_string =
-            String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
-
         (test_status, output_string)
     }
 

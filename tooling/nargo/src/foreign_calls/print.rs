@@ -8,19 +8,27 @@ use noirc_printable_type::{PrintableType, PrintableValueDisplay};
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
-/// Handle `println` calls.
 #[derive(Debug, Default)]
-pub struct PrintForeignCallExecutor<W> {
-    output: W,
+pub enum PrintOutput<'a> {
+    #[default]
+    None,
+    Stdout,
+    String(&'a mut String),
 }
 
-impl<W> PrintForeignCallExecutor<W> {
-    pub fn new(output: W) -> Self {
+/// Handle `println` calls.
+#[derive(Debug, Default)]
+pub struct PrintForeignCallExecutor<'a> {
+    output: PrintOutput<'a>,
+}
+
+impl<'a> PrintForeignCallExecutor<'a> {
+    pub fn new(output: PrintOutput<'a>) -> Self {
         Self { output }
     }
 }
 
-impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCallExecutor<W> {
+impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
     /// Print has certain information encoded in the call arguments.
     /// Below we outline the expected inputs.
     ///
@@ -54,11 +62,15 @@ impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCal
 
                 let display_values: PrintableValueDisplay<F> =
                     try_from_params(foreign_call_inputs)?;
+                let display_string =
+                    format!("{display_values}{}", if skip_newline { "" } else { "\n" });
 
-                if skip_newline {
-                    write!(self.output, "{display_values}").expect("write should succeed");
-                } else {
-                    writeln!(self.output, "{display_values}").expect("write should succeed");
+                match &mut self.output {
+                    PrintOutput::None => (),
+                    PrintOutput::Stdout => print!("{display_string}"),
+                    PrintOutput::String(string) => {
+                        string.push_str(&display_string);
+                    }
                 }
 
                 Ok(ForeignCallResult::default())

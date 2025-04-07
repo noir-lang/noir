@@ -1,3 +1,5 @@
+use std::hash::poseidon2;
+
 fn main(input: [Field; 2]) -> pub Field {
-    poseidon::poseidon2::Poseidon2::hash(input, input.len())
+    poseidon2::Poseidon2::hash(input, input.len())
 }

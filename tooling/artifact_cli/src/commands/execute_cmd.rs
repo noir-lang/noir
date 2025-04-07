@@ -8,8 +8,9 @@ use crate::{
     errors::CliError,
     execution::{self, ExecutionResults},
 };
-use nargo::foreign_calls::{
-    DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
+use nargo::{
+    PrintOutput,
+    foreign_calls::{DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor},
 };
 use noirc_driver::CompiledProgram;
 
@@ -121,7 +122,7 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
     };
 
     let mut foreign_call_executor = DefaultForeignCallBuilder {
-        output: std::io::stdout(),
+        output: PrintOutput::Stdout,
         enable_mocks: false,
         resolver_url: args.oracle_resolver.clone(),
         root_path: None,

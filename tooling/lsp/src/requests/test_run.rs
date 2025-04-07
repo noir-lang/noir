@@ -3,6 +3,7 @@ use std::future::{self, Future};
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
+    PrintOutput,
     foreign_calls::DefaultForeignCallBuilder,
     ops::{TestStatus, run_test},
 };
@@ -86,7 +87,7 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                std::io::stdout(),
+                PrintOutput::Stdout,
                 &CompileOptions::default(),
                 |output, base| {
                     DefaultForeignCallBuilder {

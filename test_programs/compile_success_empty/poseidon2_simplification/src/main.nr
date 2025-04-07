@@ -1,4 +1,4 @@
-use poseidon::poseidon2;
+use std::hash::poseidon2;
 
 fn main() {
     let digest = poseidon2::Poseidon2::hash([0], 1);
