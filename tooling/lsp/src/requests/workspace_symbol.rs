@@ -78,8 +78,9 @@ pub(crate) fn on_workspace_symbol_request(
         }
     }
 
+    // Here we parse all files for which we don't know their symbols yet,
+    // figure out the symbols and store them in the cache.
     let parsed_files = parse_all(&file_manager);
-
     for (file_id, (parsed_module, _)) in parsed_files {
         let path = file_manager.path(file_id).unwrap().to_path_buf();
         let mut symbols = Vec::new();
@@ -89,6 +90,8 @@ pub(crate) fn on_workspace_symbol_request(
         all_symbols.extend(std::mem::take(gatherer.symbols));
     }
 
+    // Finally, we filter the symbols based on the query
+    // (Note: we could filter them as we gather them above, but doing this in one go is simpler)
     let symbols = all_symbols
         .into_iter()
         .filter_map(|symbol| {
