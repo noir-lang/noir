@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744019858438,
+  "lastUpdate": 1744029276169,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9f47761dd66a3f6837c2aab0962084220fc2c61e",
-          "message": "fix: proper use of add_unsafe in unconstrained (#7816)",
-          "timestamp": "2025-03-26T15:18:29Z",
-          "tree_id": "dfe58521024a4c053e34b08fe794ff5d7d121aaa",
-          "url": "https://github.com/noir-lang/noir/commit/9f47761dd66a3f6837c2aab0962084220fc2c61e"
-        },
-        "date": 1743003661797,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.074,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.793,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.529,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 17.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8e493657a8c5d86eac7a15e178bfe5904600b372",
+          "message": "chore: let `nargo test` write to stdout, not stderr (#7944)",
+          "timestamp": "2025-04-07T12:13:20Z",
+          "tree_id": "35d49f20f93ec4e449d6aeff90d35adbdd3b3bf5",
+          "url": "https://github.com/noir-lang/noir/commit/8e493657a8c5d86eac7a15e178bfe5904600b372"
+        },
+        "date": 1744029271702,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.075,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.305,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.789,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.528,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18,
             "unit": "s"
           },
           {
