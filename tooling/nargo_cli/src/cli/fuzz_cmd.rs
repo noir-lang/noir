@@ -6,7 +6,7 @@ use clap::Args;
 use fm::FileManager;
 use nargo::{
     FuzzExecutionConfig, FuzzFolderConfig, insert_all_files_for_workspace_into_file_manager,
-    ops::FuzzingRunStatus,
+    ops::{FuzzingRunStatus, check_crate_and_report_errors},
     package::{CrateName, Package},
     parse_all, prepare_package,
     workspace::Workspace,
@@ -18,7 +18,7 @@ use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use noir_artifact_cli::fs::inputs::write_inputs_to_file;
