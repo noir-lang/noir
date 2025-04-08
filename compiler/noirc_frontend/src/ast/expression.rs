@@ -343,7 +343,7 @@ impl BinaryOpKind {
         matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
     }
 
-    /// `+`, `-`, `*`, `/`
+    /// `+`, `-`, `*`, `/` and `%`
     pub fn is_arithmetic(self) -> bool {
         matches!(
             self,
@@ -351,6 +351,7 @@ impl BinaryOpKind {
                 | BinaryOpKind::Subtract
                 | BinaryOpKind::Multiply
                 | BinaryOpKind::Divide
+                | BinaryOpKind::Modulo
         )
     }
 

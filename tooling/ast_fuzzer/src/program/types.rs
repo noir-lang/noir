@@ -212,7 +212,6 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
             (op.is_arithmetic() && size != 1 && size != 128 && size_in <= size_out)
                 || op.is_bitshift()
                 || op.is_bitwise()
-                || matches!(op, BinaryOp::Modulo)
         }
         (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
         _ => false,
