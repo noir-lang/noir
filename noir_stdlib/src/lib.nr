@@ -23,6 +23,8 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
+use convert::AsPrimitive;
+
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(print)]
@@ -86,69 +88,37 @@ pub fn assert_constant<T>(x: T) {}
 #[builtin(static_assert)]
 pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
-// TEMPORARY: this will be marked as deprecated, but is temporary commented
-// to check for any remaining usages.
-// pub fn wrapping_add<T>(x: T, y: T) -> T
-// where
-//     T: AsPrimitive<Field>,
-//     Field: AsPrimitive<T>,
-// {
-//     AsPrimitive::as_(x.as_() + y.as_())
-// }
-
-// pub fn wrapping_sub<T>(x: T, y: T) -> T
-// where
-//     T: AsPrimitive<Field>,
-//     Field: AsPrimitive<T>,
-// {
-//     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-//     AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
-// }
-
-// fn wrapping_mul<T>(x: T, y: T) -> T
-// where
-//     T: ops::arith::Wapping,
-// {
-//     x.wrapping_mul(y)
-// }
+#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_add(y)")]
+pub fn wrapping_add<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    AsPrimitive::as_(x.as_() + y.as_())
+}
+#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_sub(y)")]
+pub fn wrapping_sub<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
+    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
+}
+#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_mul(y)")]
+pub fn wrapping_mul<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    AsPrimitive::as_(x.as_() * y.as_())
+}
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
 
-global two_pow_64: Field = 0x10000000000000000;
-/// Splits a 128 bits number into two 64 bits limbs
-unconstrained fn split64(x: Field) -> (u64, u64) {
-    let lo = x as u64;
-    let hi = ((x - lo as Field) / two_pow_64) as u64;
-    (lo, hi)
-}
-
-/// Split a 128 bits number into two 64 bits limbs
-/// It will fail if the number is more than 128 bits
-fn split_into_64_bit_limbs(x: Field) -> (u64, u64) {
-    // Safety: the limbs are constrained below
-    let (x_lo, x_hi) = unsafe { split64(x) };
-    assert(x as Field == x_lo as Field + x_hi as Field * two_pow_64);
-    (x_lo, x_hi)
-}
-
-#[field(bn254)]
-pub fn wrapping_mul128(x: Field, y: Field) -> Field {
-    let (x_lo, x_hi) = split_into_64_bit_limbs(x);
-    let (y_lo, y_hi) = split_into_64_bit_limbs(y);
-    // Multiplication using the limbs:(x_lo + 2**64*x_hi)*(y_lo + 2**64*y_hi)=x_lo*y_lo+...
-    // and skipping the terms over 2**128
-    // Working with u64 limbs ensures that we cannot overflow the field modulus.
-    let low = x_lo as Field * y_lo as Field;
-    let lo = low as u64 as Field;
-    let carry = (low - lo) / two_pow_64;
-    let high = x_lo as Field * y_hi as Field + x_hi as Field * y_lo as Field + carry;
-    let hi = high as u64 as Field;
-    (lo + two_pow_64 * hi)
-}
-
 mod tests {
-    use super::ops::arith::Wrapping;
+    use super::ops::arith::WrappingMul;
 
     #[test(should_fail_with = "custom message")]
     fn test_static_assert_custom_message() {

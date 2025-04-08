@@ -349,119 +349,168 @@ impl Neg for i64 {
 }
 // docs:end:neg-trait-impls
 
-pub trait Wrapping {
-    fn wrapping_mul(self, y: Self) -> Self;
+pub trait WrappingAdd {
     fn wrapping_add(self, y: Self) -> Self;
+}
+pub trait WrappingSub {
     fn wrapping_sub(self, y: Self) -> Self;
 }
-
-impl Wrapping for u64 {
+pub trait WrappingMul {
+    fn wrapping_mul(self, y: Self) -> Self;
+}
+impl WrappingMul for u64 {
     fn wrapping_mul(self: u64, y: u64) -> u64 {
         wrapping_mul_hlp(self, y)
     }
+}
+impl WrappingAdd for u64 {
     fn wrapping_add(self: u64, y: u64) -> u64 {
         wrapping_add_hlp(self, y)
     }
+}
+
+impl WrappingSub for u64 {
     fn wrapping_sub(self: u64, y: u64) -> u64 {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for u32 {
+impl WrappingMul for u32 {
     fn wrapping_mul(self: u32, y: u32) -> u32 {
         wrapping_mul_hlp(self, y)
     }
+}
+
+impl WrappingAdd for u32 {
     fn wrapping_add(self: u32, y: u32) -> u32 {
         wrapping_add_hlp(self, y)
     }
+}
+
+impl WrappingSub for u32 {
     fn wrapping_sub(self: u32, y: u32) -> u32 {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for u16 {
+impl WrappingMul for u16 {
     fn wrapping_mul(self: u16, y: u16) -> u16 {
         wrapping_mul_hlp(self, y)
     }
+}
+impl WrappingAdd for u16 {
     fn wrapping_add(self: u16, y: u16) -> u16 {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for u16 {
     fn wrapping_sub(self: u16, y: u16) -> u16 {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for u8 {
+impl WrappingMul for u8 {
     fn wrapping_mul(self: u8, y: u8) -> u8 {
         wrapping_mul_hlp(self, y)
     }
+}
+
+impl WrappingAdd for u8 {
     fn wrapping_add(self: u8, y: u8) -> u8 {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for u8 {
+
     fn wrapping_sub(self: u8, y: u8) -> u8 {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for bool {
+impl WrappingMul for bool {
     fn wrapping_mul(self: bool, y: bool) -> bool {
         wrapping_mul_hlp(self, y)
     }
+}
+impl WrappingAdd for bool {
     fn wrapping_add(self: bool, y: bool) -> bool {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for bool {
     fn wrapping_sub(self: bool, y: bool) -> bool {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for u128 {
+impl WrappingMul for u128 {
     fn wrapping_mul(self: u128, y: u128) -> u128 {
-        crate::wrapping_mul128(self as Field, y as Field) as u128
+        wrapping_mul128_hlp(self as Field, y as Field) as u128
     }
+}
+impl WrappingAdd for u128 {
     fn wrapping_add(self: u128, y: u128) -> u128 {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for u128 {
     fn wrapping_sub(self: u128, y: u128) -> u128 {
         wrapping_sub_hlp(self, y)
     }
 }
 
-impl Wrapping for i64 {
+impl WrappingMul for i64 {
     fn wrapping_mul(self: i64, y: i64) -> i64 {
         wrapping_mul_hlp(self, y)
     }
+}
+impl WrappingAdd for i64 {
     fn wrapping_add(self: i64, y: i64) -> i64 {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for i64 {
     fn wrapping_sub(self: i64, y: i64) -> i64 {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for i32 {
+
+impl WrappingMul for i32 {
     fn wrapping_mul(self: i32, y: i32) -> i32 {
         wrapping_mul_hlp(self, y)
     }
+}
+impl WrappingAdd for i32 {
     fn wrapping_add(self: i32, y: i32) -> i32 {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for i32 {
     fn wrapping_sub(self: i32, y: i32) -> i32 {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for i16 {
+impl WrappingMul for i16 {
     fn wrapping_mul(self: i16, y: i16) -> i16 {
         wrapping_mul_hlp(self, y)
     }
+}
+impl WrappingAdd for i16 {
     fn wrapping_add(self: i16, y: i16) -> i16 {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for i16 {
     fn wrapping_sub(self: i16, y: i16) -> i16 {
         wrapping_sub_hlp(self, y)
     }
 }
-impl Wrapping for i8 {
+impl WrappingMul for i8 {
     fn wrapping_mul(self: i8, y: i8) -> i8 {
         wrapping_mul_hlp(self, y)
     }
+}
+impl WrappingAdd for i8 {
     fn wrapping_add(self: i8, y: i8) -> i8 {
         wrapping_add_hlp(self, y)
     }
+}
+impl WrappingSub for i8 {
     fn wrapping_sub(self: i8, y: i8) -> i8 {
         wrapping_sub_hlp(self, y)
     }
@@ -490,4 +539,36 @@ where
     Field: AsPrimitive<T>,
 {
     AsPrimitive::as_(x.as_() * y.as_())
+}
+
+global two_pow_64: Field = 0x10000000000000000;
+/// Splits a 128 bits number into two 64 bits limbs
+unconstrained fn split64(x: Field) -> (u64, u64) {
+    let lo = x as u64;
+    let hi = ((x - lo as Field) / two_pow_64) as u64;
+    (lo, hi)
+}
+
+/// Split a 128 bits number into two 64 bits limbs
+/// It will fail if the number is more than 128 bits
+fn split_into_64_bit_limbs(x: Field) -> (u64, u64) {
+    // Safety: the limbs are constrained below
+    let (x_lo, x_hi) = unsafe { split64(x) };
+    assert(x as Field == x_lo as Field + x_hi as Field * two_pow_64);
+    (x_lo, x_hi)
+}
+
+#[field(bn254)]
+fn wrapping_mul128_hlp(x: Field, y: Field) -> Field {
+    let (x_lo, x_hi) = split_into_64_bit_limbs(x);
+    let (y_lo, y_hi) = split_into_64_bit_limbs(y);
+    // Multiplication using the limbs:(x_lo + 2**64*x_hi)*(y_lo + 2**64*y_hi)=x_lo*y_lo+...
+    // and skipping the terms over 2**128
+    // Working with u64 limbs ensures that we cannot overflow the field modulus.
+    let low = x_lo as Field * y_lo as Field;
+    let lo = low as u64 as Field;
+    let carry = (low - lo) / two_pow_64;
+    let high = x_lo as Field * y_hi as Field + x_hi as Field * y_lo as Field + carry;
+    let hi = high as u64 as Field;
+    (lo + two_pow_64 * hi)
 }

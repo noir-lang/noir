@@ -1,4 +1,4 @@
-use std::ops::Wrapping;
+use std::ops::WrappingSub;
 
 // Testing signed integer division:
 //  7/3  = 2
