@@ -115,61 +115,6 @@ This comes from the optimization removing the use of a dynamic array (i.e. an ar
 
 :::
 
-### Profiling execution traces (unconstrained)
-
-The profiler also provides the ability to flamegraph a Noir program's execution trace. This is useful for identifying and optimizing execution bottlenecks of Noir programs.
-
-The profiler supports profiling fully unconstrained Noir programs at this moment.
-
-#### Updating the demonstrative project
-
-Let's turn our demonstrative program into an unconstrained program by adding an `unconstrained` modifier to the main function:
-
-```rust
-unconstrained fn main(...){...}
-```
-
-Since we are profiling the execution trace, we will also need to provide a set of inputs to execute the program with.
-
-Run `nargo check` to generate a _Prover.toml_ file, which you can fill it in with:
-
-```toml
-ptr = 1
-array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-```
-
-#### Flamegraphing
-
-Let's take a granular look at our program's unconstrained execution trace footprint using the profiler, running:
-
-```sh
-noir-profiler execution-opcodes --artifact-path ./target/program.json --prover-toml-path Prover.toml --output ./target
-```
-
-This is similar to the `opcodes` command, except it additionally takes in the _Prover.toml_ file to profile execution with a specific set of inputs.
-
-Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
-![Brillig Trace "Optimized"](@site/static/img/tooling/profiler/brillig-trace-opt-32.png)
-
-Note that unconstrained Noir functions compile down to Brillig opcodes, which is what the counts in this flamegraph stand for, rather than constrained ACIR opcodes like in the previous section.
-
-:::tip
-
-Optimizing constrained operations through unconstrained rewrites like what we did in [the previous section](#optimizing-array-writes-with-reads) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
-
-For example, we can find a 13.9% match `new_array` in the flamegraph above.
-
-In contrast, if we profile the pre-optimization demonstrative project:
-![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
-
-You will notice that it does not contain `new_array` and executes a total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
-
-As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
-
-This is however good to keep in mind in case you start noticing execution speeds being the bottleneck of your program, or if you are simply looking to optimize your program's execution speeds.
-
-:::
-
 ### Profiling proving backend gates
 
 The profiler further provides the ability to flamegraph a Noir program's proving backend gates footprint. This is useful for fully identifying and optimizing proving bottlenecks of Noir programs.
@@ -233,5 +178,60 @@ As additional reference, this is the flamegraph of the pre-optimization demonstr
 And at array size 2,048:
 
 ![Gates Flamegraph Unoptimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png)
+
+:::
+
+### Profiling execution traces (unconstrained)
+
+The profiler also provides the ability to flamegraph a Noir program's execution trace. This is useful for identifying and optimizing execution bottlenecks of Noir programs.
+
+The profiler supports profiling fully unconstrained Noir programs at this moment.
+
+#### Updating the demonstrative project
+
+Let's turn our demonstrative program into an unconstrained program by adding an `unconstrained` modifier to the main function:
+
+```rust
+unconstrained fn main(...){...}
+```
+
+Since we are profiling the execution trace, we will also need to provide a set of inputs to execute the program with.
+
+Run `nargo check` to generate a _Prover.toml_ file, which you can fill it in with:
+
+```toml
+ptr = 1
+array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+```
+
+#### Flamegraphing
+
+Let's take a granular look at our program's unconstrained execution trace footprint using the profiler, running:
+
+```sh
+noir-profiler execution-opcodes --artifact-path ./target/program.json --prover-toml-path Prover.toml --output ./target
+```
+
+This is similar to the `opcodes` command, except it additionally takes in the _Prover.toml_ file to profile execution with a specific set of inputs.
+
+Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
+![Brillig Trace "Optimized"](@site/static/img/tooling/profiler/brillig-trace-opt-32.png)
+
+Note that unconstrained Noir functions compile down to Brillig opcodes, which is what the counts in this flamegraph stand for, rather than constrained ACIR opcodes like in the previous section.
+
+:::tip
+
+Optimizing constrained operations through unconstrained rewrites like what we did in [the previous section](#optimizing-array-writes-with-reads) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
+
+For example, we can find a 13.9% match `new_array` in the flamegraph above.
+
+In contrast, if we profile the pre-optimization demonstrative project:
+![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
+
+You will notice that it does not contain `new_array` and executes a total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
+
+As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
+
+This is however good to keep in mind in case you start noticing execution speeds being the bottleneck of your program, or if you are simply looking to optimize your program's execution speeds.
 
 :::
