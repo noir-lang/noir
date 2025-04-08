@@ -4,7 +4,7 @@ Thank you for your interest in Noir! There are many ways to participate in the c
 
 ## Asking Questions
 
-The best place to ask general questions about Noir is in the #noir channel on the [Noir discord](https://discord.gg/YpCUTkzTC7).
+The best place to ask general questions about Noir is in the [#general channel](https://discord.com/channels/1113924620781883405/1113924622031798313) on the [Noir discord](https://discord.gg/YpCUTkzTC7).
 
 It might also be helpful to review existing and previous Github issues to see if your question has been answered already.
 

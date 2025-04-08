@@ -28,7 +28,6 @@ use acvm::FieldElement;
 pub use docs::*;
 pub use enumeration::*;
 use noirc_errors::Span;
-use serde::{Deserialize, Serialize};
 pub use statement::*;
 pub use structure::*;
 pub use traits::*;
@@ -38,13 +37,18 @@ use crate::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
+    shared::Signedness,
     token::IntType,
 };
+
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
+
 #[cfg_attr(test, derive(Arbitrary))]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd, EnumIter)]
 pub enum IntegerBitSize {
     One,
     Eight,
@@ -69,7 +73,7 @@ impl IntegerBitSize {
 
 impl IntegerBitSize {
     pub fn allowed_sizes() -> Vec<Self> {
-        vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
+        IntegerBitSize::iter().collect()
     }
 }
 
@@ -135,8 +139,8 @@ pub enum UnresolvedTypeData {
     /// A Trait as return type or parameter of function, including its generics
     TraitAsType(Path, GenericTypeArgs),
 
-    /// &mut T
-    MutableReference(Box<UnresolvedType>),
+    /// &T and &mut T
+    Reference(Box<UnresolvedType>, /*mutable*/ bool),
 
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
@@ -311,7 +315,8 @@ impl std::fmt::Display for UnresolvedTypeData {
                     other => write!(f, "fn[{other}]({args}) -> {ret}"),
                 }
             }
-            MutableReference(element) => write!(f, "&mut {element}"),
+            Reference(element, false) => write!(f, "&{element}"),
+            Reference(element, true) => write!(f, "&mut {element}"),
             Quoted(quoted) => write!(f, "{}", quoted),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
@@ -346,7 +351,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 impl UnresolvedType {
     pub fn is_synthesized(&self) -> bool {
         match &self.typ {
-            UnresolvedTypeData::MutableReference(ty) => ty.is_synthesized(),
+            UnresolvedTypeData::Reference(ty, _) => ty.is_synthesized(),
             UnresolvedTypeData::Named(_, _, synthesized) => *synthesized,
             _ => false,
         }
@@ -424,7 +429,7 @@ impl UnresolvedTypeData {
                 path_is_wildcard || an_arg_is_unresolved
             }
             UnresolvedTypeData::TraitAsType(_path, args) => args.contains_unspecified(),
-            UnresolvedTypeData::MutableReference(typ) => typ.contains_unspecified(),
+            UnresolvedTypeData::Reference(typ, _) => typ.contains_unspecified(),
             UnresolvedTypeData::Tuple(args) => args.iter().any(|arg| arg.contains_unspecified()),
             UnresolvedTypeData::Function(args, ret, env, _unconstrained) => {
                 let args_contains_unspecified = args.iter().any(|arg| arg.contains_unspecified());
@@ -443,21 +448,6 @@ impl UnresolvedTypeData {
             | UnresolvedTypeData::Resolved(_)
             | UnresolvedTypeData::Interned(_)
             | UnresolvedTypeData::Error => false,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-pub enum Signedness {
-    Unsigned,
-    Signed,
-}
-
-impl Signedness {
-    pub fn is_signed(&self) -> bool {
-        match self {
-            Signedness::Unsigned => false,
-            Signedness::Signed => true,
         }
     }
 }
@@ -579,32 +569,6 @@ impl std::fmt::Display for ItemVisibility {
             ItemVisibility::Public => write!(f, "pub"),
             ItemVisibility::Private => Ok(()),
             ItemVisibility::PublicCrate => write!(f, "pub(crate)"),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-/// Represents whether the parameter is public or known only to the prover.
-pub enum Visibility {
-    Public,
-    // Constants are not allowed in the ABI for main at the moment.
-    // Constant,
-    #[default]
-    Private,
-    /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
-    /// it is useful for recursion and is handled by the proving system.
-    /// The u32 value is used to group inputs having the same value.
-    CallData(u32),
-    ReturnData,
-}
-
-impl std::fmt::Display for Visibility {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Public => write!(f, "pub"),
-            Self::Private => write!(f, "priv"),
-            Self::CallData(id) => write!(f, "calldata{id}"),
-            Self::ReturnData => write!(f, "returndata"),
         }
     }
 }

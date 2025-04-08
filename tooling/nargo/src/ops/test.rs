@@ -1,3 +1,5 @@
+use std::{fs::OpenOptions, path::PathBuf};
+
 use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
     acir::{
@@ -14,7 +16,9 @@ use noirc_frontend::hir::{Context, def_map::TestFunction};
 use crate::{
     NargoError,
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{ForeignCallError, ForeignCallExecutor, layers, print::PrintOutput},
+    foreign_calls::{
+        ForeignCallError, ForeignCallExecutor, layers, transcript::LoggingForeignCallExecutor,
+    },
 };
 
 use super::execute_program;
@@ -33,17 +37,18 @@ impl TestStatus {
     }
 }
 
-pub fn run_test<'a, B, F, E>(
+pub fn run_test<'a, W, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    output: PrintOutput<'a>,
+    output: W,
     config: &CompileOptions,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
+    W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement>,
-    F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
     let test_function_has_no_arguments = context
@@ -60,11 +65,32 @@ where
             let compiled_program = crate::ops::transform_program(compiled_program, target_width);
 
             if test_function_has_no_arguments {
+                let ignore_foreign_call_failures =
+                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+                        .is_ok_and(|var| &var == "true");
+
+                let writer: Box<dyn std::io::Write> =
+                    match std::env::var("NARGO_TEST_FOREIGN_CALL_LOG") {
+                        Err(_) => Box::new(std::io::empty()),
+                        Ok(s) if s == "stdout" => Box::new(std::io::stdout()),
+                        Ok(s) => Box::new(
+                            OpenOptions::new()
+                                .create(true)
+                                .truncate(true)
+                                .write(true)
+                                .open(PathBuf::from(s))
+                                .unwrap(),
+                        ),
+                    };
+
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                let inner_executor = build_foreign_call_executor(output, layers::Unhandled);
-                let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
+                let foreign_call_executor =
+                    build_foreign_call_executor(Box::new(output), layers::Unhandled);
+                let foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
+                let mut foreign_call_executor =
+                    LoggingForeignCallExecutor::new(foreign_call_executor, writer);
 
                 let circuit_execution = execute_program(
                     &compiled_program.program,
@@ -80,9 +106,7 @@ where
                     &circuit_execution,
                 );
 
-                let ignore_foreign_call_failures =
-                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
-                        .is_ok_and(|var| &var == "true");
+                let foreign_call_executor = foreign_call_executor.executor;
 
                 if let TestStatus::Fail { .. } = status {
                     if ignore_foreign_call_failures
@@ -112,7 +136,7 @@ where
                  -> Result<WitnessStack<FieldElement>, String> {
                     // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
                     let inner_executor =
-                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+                        build_foreign_call_executor(Box::new(std::io::empty()), layers::Unhandled);
 
                     let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
 
@@ -254,13 +278,13 @@ fn check_expected_failure_message(
 }
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-struct TestForeignCallExecutor<E> {
+pub(crate) struct TestForeignCallExecutor<E> {
     executor: E,
     encountered_unknown_foreign_call: bool,
 }
 
 impl<E> TestForeignCallExecutor<E> {
-    fn new(executor: E) -> Self {
+    pub(crate) fn new(executor: E) -> Self {
         Self { executor, encountered_unknown_foreign_call: false }
     }
 }

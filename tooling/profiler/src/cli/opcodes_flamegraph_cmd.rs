@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use acir::AcirField;
 use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use clap::Args;
@@ -134,7 +135,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
     Ok(())
 }
 
-fn locate_brillig_call<F>(
+fn locate_brillig_call<F: AcirField>(
     brillig_fn_index: usize,
     acir_functions: &[Circuit<F>],
 ) -> Option<(usize, usize)> {

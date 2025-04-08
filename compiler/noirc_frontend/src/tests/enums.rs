@@ -1,11 +1,12 @@
+use crate::elaborator::UnstableFeature;
 use crate::{
-    hir::def_collector::dc_crate::CompilationError,
-    parser::ParserErrorReason,
-    tests::{assert_no_errors, get_program_using_features},
+    assert_no_errors, get_program_using_features, hir::def_collector::dc_crate::CompilationError,
+    parser::ParserErrorReason, tests::Expect,
 };
 
-use super::{check_errors, check_errors_using_features};
+use crate::{check_errors, check_errors_using_features};
 
+#[named]
 #[test]
 fn error_with_duplicate_enum_variant() {
     let src = r#"
@@ -19,9 +20,10 @@ fn error_with_duplicate_enum_variant() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unspecified_unstable_enum() {
     // Enums are experimental - this will need to be updated when they are stabilized
@@ -35,9 +37,10 @@ fn errors_on_unspecified_unstable_enum() {
     }
     "#;
     let no_features = &[];
-    check_errors_using_features(src, no_features);
+    check_errors_using_features!(src, no_features);
 }
 
+#[named]
 #[test]
 fn errors_on_unspecified_unstable_match() {
     // TODO: update this test. Right now it's hard to test because the span happens in the entire
@@ -52,7 +55,7 @@ fn errors_on_unspecified_unstable_match() {
     "#;
 
     let no_features = &[];
-    let errors = get_program_using_features(src, no_features).2;
+    let errors = get_program_using_features!(src, Expect::Success, no_features).2;
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ParseError(error) = &errors[0] else {
@@ -62,6 +65,7 @@ fn errors_on_unspecified_unstable_match() {
     assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
 }
 
+#[named]
 #[test]
 fn errors_on_repeated_match_variables_in_pattern() {
     let src = r#"
@@ -74,9 +78,10 @@ fn errors_on_repeated_match_variables_in_pattern() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn duplicate_field_in_match_struct_pattern() {
     let src = r#"
@@ -93,9 +98,10 @@ fn duplicate_field_in_match_struct_pattern() {
         y: Field,
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn missing_field_in_match_struct_pattern() {
     let src = r#"
@@ -112,9 +118,10 @@ fn missing_field_in_match_struct_pattern() {
         y: Field,
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn no_such_field_in_match_struct_pattern() {
     let src = r#"
@@ -131,9 +138,10 @@ fn no_such_field_in_match_struct_pattern() {
         y: Field,
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn match_integer_type_mismatch_in_pattern() {
     let src = r#"
@@ -148,9 +156,10 @@ fn match_integer_type_mismatch_in_pattern() {
             One(i32),
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn match_shadow_global() {
     let src = r#"
@@ -162,9 +171,10 @@ fn match_shadow_global() {
 
         fn foo() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn match_no_shadow_global() {
     let src = r#"
@@ -177,9 +187,10 @@ fn match_no_shadow_global() {
 
         fn foo() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn constructor_arg_arity_mismatch_in_pattern() {
     let src = r#"
@@ -197,5 +208,185 @@ fn constructor_arg_arity_mismatch_in_pattern() {
             Two(i32, i32),
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn unreachable_match_case() {
+    check_errors!(
+        r#"
+        fn main() {
+            match Opt::Some(Opt::Some(3)) {
+                Opt::Some(_) => (),
+                Opt::None => (),
+                Opt::Some(Opt::Some(_)) => (),
+                ^^^^^^^^^^^^^^^^^^^^^^^ Unreachable match case
+                ~~~~~~~~~~~~~~~~~~~~~~~ This pattern is redundant with one or more prior patterns
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    "#,
+    );
+}
+
+#[named]
+#[test]
+fn match_reachability_errors_ignored_when_there_is_a_type_error() {
+    // No comment on the second `None` case.
+    // Type errors in general mess up reachability errors in match cases.
+    // If we naively change to catch this case (which is easy) we also end up
+    // erroring that the `3 => ()` case is unreachable as well, which is true
+    // but we don't want to annoy users with an extra obvious error. This
+    // behavior matches Rust as well.
+    check_errors!(
+        "
+        fn main() {
+            match Opt::Some(3) {
+                Opt::None => (),
+                Opt::Some(_) => {},
+                Opt::None => (),
+                3 => (),
+                ^ Expected type Opt<Field>, found type Field
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[named]
+#[test]
+fn missing_single_case() {
+    check_errors!(
+        "
+        fn main() {
+            match Opt::Some(3) {
+                  ^^^^^^^^^^^^ Missing case: `Some(_)`
+                Opt::None => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[named]
+#[test]
+fn missing_many_cases() {
+    check_errors!(
+        "
+        fn main() {
+            match Abc::A {
+                  ^^^^^^ Missing cases: `C`, `D`, `E`, and 21 more not shown
+                Abc::A => (),
+                Abc::B => (),
+            }
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}
+
+#[named]
+#[test]
+fn missing_int_ranges() {
+    check_errors!(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match Opt::Some(x) {
+                  ^^^^^^^^^^^^ Missing cases: `None`, `Some(-128..=3)`, `Some(5)`, and 1 more not shown
+                Opt::Some(4) => (),
+                Opt::Some(6) => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[named]
+#[test]
+fn missing_int_ranges_with_negatives() {
+    check_errors!(
+        "
+        fn main() {
+            let x: i32 = -4;
+            match x {
+                  ^ Missing cases: `-2147483648..=-6`, `-4..=-1`, `1..=2`, and 1 more not shown
+                -5 => (),
+                0 => (),
+                3 => (),
+            }
+        }
+    ",
+    );
+}
+
+#[named]
+#[test]
+fn missing_cases_with_empty_match() {
+    check_errors!(
+        "
+        fn main() {
+            match Abc::A {}
+                  ^^^^^^ Missing cases: `A`, `B`, `C`, and 23 more not shown
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}
+
+#[named]
+#[test]
+fn missing_integer_cases_with_empty_match() {
+    check_errors!(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match x {}
+                  ^ Missing cases: `i8` is non-empty
+                  ~ Try adding a match-all pattern: `_`
+        }
+    ",
+    );
+}
+
+#[named]
+#[test]
+fn match_on_empty_enum() {
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features!(
+        "
+        pub fn foo(v: Void) {
+            match v {}
+        }
+        pub enum Void {}
+        fn main() {}
+        ",
+        &features
+    );
 }

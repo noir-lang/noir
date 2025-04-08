@@ -2,7 +2,6 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::ssa::{
     function_builder::data_bus::DataBus,
-    ir::instruction::SimplifyResult,
     opt::pure::{FunctionPurities, Purity},
 };
 
@@ -24,6 +23,9 @@ use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
+use simplify::{SimplifyResult, simplify};
+
+pub(crate) mod simplify;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -32,7 +34,7 @@ use serde_with::serde_as;
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
-    /// Runtime of the [Function] that owns this [DataFlowGraph].
+    /// Runtime of the [function][super::function::Function] that owns this [DataFlowGraph].
     /// This might change during the `runtime_separation` pass where
     /// ACIR functions are cloned as Brillig functions.
     runtime: RuntimeType,
@@ -314,7 +316,7 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
+        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }

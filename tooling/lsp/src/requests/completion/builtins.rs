@@ -104,6 +104,7 @@ impl NodeFinder<'_> {
                     "no_predicates",
                     "recursive",
                     "test",
+                    "fuzz",
                     "varargs",
                 ];
                 self.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
@@ -137,6 +138,15 @@ impl NodeFinder<'_> {
                         None,
                     ));
                 }
+
+                if name_matches("fuzz", prefix) || name_matches("only_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(only_fail_with = \"...\")",
+                        CompletionItemKind::METHOD,
+                        "fuzz(only_fail_with = \"${1:message}\")",
+                        None,
+                    ));
+                }
             }
             AttributeTarget::Let => {
                 if name_matches("allow", prefix) || name_matches("unused_variables", prefix) {
@@ -166,10 +176,11 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
         Keyword::Module => Some("Module"),
         Keyword::Quoted => Some("Quoted"),
-        Keyword::StructDefinition => Some("StructDefinition"),
+        Keyword::StructDefinition => Some("TypeDefinition"),
         Keyword::TraitConstraint => Some("TraitConstraint"),
         Keyword::TraitDefinition => Some("TraitDefinition"),
         Keyword::TraitImpl => Some("TraitImpl"),
+        Keyword::TypeDefinition => Some("TypeDefinition"),
         Keyword::TypedExpr => Some("TypedExpr"),
         Keyword::TypeType => Some("Type"),
         Keyword::UnresolvedType => Some("UnresolvedType"),
@@ -283,6 +294,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::TraitDefinition
         | Keyword::TraitImpl
         | Keyword::Type
+        | Keyword::TypeDefinition
         | Keyword::TypedExpr
         | Keyword::TypeType
         | Keyword::Unchecked

@@ -222,7 +222,7 @@ When you use an attribute, the function with the same name will be called with t
 #[my_struct_attribute]
 struct Foo {}
 
-comptime fn my_struct_attribute(s: StructDefinition) {
+comptime fn my_struct_attribute(s: TypeDefinition) {
     println("Called my_struct_attribute!");
 }
 
@@ -308,10 +308,10 @@ The following is an incomplete list of some `comptime` types along with some use
   - Methods:
     - `fn parameters(self) -> [(Quoted, Type)]`
       - Returns a slice of `(name, type)` pairs for each parameter
-- `StructDefinition`: A struct definition
+- `TypeDefinition`: A struct or enum definition
   - Methods:
     - `fn as_type(self) -> Type`
-      - Returns this `StructDefinition` as a `Type`. Any generics are kept as-is
+      - Returns this `TypeDefinition` as a `Type`. Any generics are kept as-is
     - `fn generics(self) -> [Quoted]`
       - Return the name of each generic on this struct
     - `fn fields(self) -> [(Quoted, Type)]`

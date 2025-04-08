@@ -1,7 +1,5 @@
-use noirc_errors::Located;
-
 use crate::{
-    ast::Ident,
+    check_errors,
     hir::{
         comptime::ComptimeError,
         def_collector::{
@@ -9,21 +7,22 @@ use crate::{
             errors::{DefCollectorErrorKind, DuplicateType},
         },
     },
-    tests::check_errors,
 };
 
-use super::{assert_no_errors, get_program_errors};
+use crate::{assert_no_errors, get_program_errors};
 
 // Regression for #5388
+#[named]
 #[test]
 fn comptime_let() {
     let src = r#"fn main() {
         comptime let my_var = 2;
         assert_eq(my_var, 2);
     }"#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn comptime_code_rejects_dynamic_variable() {
     let src = r#"
@@ -34,9 +33,10 @@ fn comptime_code_rejects_dynamic_variable() {
         assert_eq(my_var, 2);
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn comptime_type_in_runtime_code() {
     let source = "
@@ -44,9 +44,10 @@ fn comptime_type_in_runtime_code() {
                    ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in runtime code
                    ~~~~~~~~~~~~~~~~~~ Comptime-only type used here
     ";
-    check_errors(source);
+    check_errors!(source);
 }
 
+#[named]
 #[test]
 fn macro_result_type_mismatch() {
     let src = r#"
@@ -62,9 +63,10 @@ fn macro_result_type_mismatch() {
             q
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn unquoted_integer_as_integer_token() {
     let src = r#"
@@ -90,13 +92,14 @@ fn unquoted_integer_as_integer_token() {
     fn main() {}
     "#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_references_to_structs_generated_by_macros() {
     let src = r#"
-    comptime fn make_new_struct(_s: StructDefinition) -> Quoted {
+    comptime fn make_new_struct(_s: TypeDefinition) -> Quoted {
         quote { struct Bar {} }
     }
 
@@ -109,15 +112,16 @@ fn allows_references_to_structs_generated_by_macros() {
     }
     "#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_macros_inject_functions_with_name_collisions() {
     // This can't be tested using `check_errors` right now because the two secondary
     // errors land on the same span.
     let src = r#"
-    comptime fn make_colliding_functions(_s: StructDefinition) -> Quoted {
+    comptime fn make_colliding_functions(_s: TypeDefinition) -> Quoted {
         quote { 
             fn foo() {}
         }
@@ -136,7 +140,7 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     }
     "#;
 
-    let mut errors = get_program_errors(src);
+    let mut errors = get_program_errors!(src);
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) =
@@ -145,18 +149,19 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
         panic!("Expected a ComptimeError, got {:?}", errors[0]);
     };
 
-    assert!(matches!(
-        *error,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::Duplicate {
-                typ: DuplicateType::Function,
-                first_def: Ident(Located { contents, .. }),
-                ..
-            },
-        ) if contents == "foo"
-    ));
+    let CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
+        typ: DuplicateType::Function,
+        first_def,
+        ..
+    }) = *error
+    else {
+        panic!("Expected a duplicate error");
+    };
+
+    assert_eq!(first_def.as_str(), "foo");
 }
 
+#[named]
 #[test]
 fn uses_correct_type_for_attribute_arguments() {
     let src = r#"
@@ -174,9 +179,10 @@ fn uses_correct_type_for_attribute_arguments() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_fail_to_parse_macro_on_parser_warning() {
     let src = r#"
@@ -199,5 +205,5 @@ fn does_not_fail_to_parse_macro_on_parser_warning() {
         bar()
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }

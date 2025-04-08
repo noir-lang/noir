@@ -1,6 +1,7 @@
 use noirc_errors::Location;
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    ast::{NoirTrait, Param, Pattern, TraitItem, Visibility},
+    ast::{NoirTrait, Param, Pattern, TraitItem},
     token::{Attributes, Keyword, Token},
 };
 

@@ -43,6 +43,7 @@ impl IntStrategy {
             3 => self.type_max() - offset,
             _ => unreachable!(),
         };
+        let start = start.max(self.type_min()).min(self.type_max());
         Ok(BinarySearch::new(start))
     }
 

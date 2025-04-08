@@ -6,8 +6,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -148,19 +148,6 @@ impl HirExpression {
                 let is_macro_call = false;
                 ExpressionKind::Call(Box::new(CallExpression { func, arguments, is_macro_call }))
             }
-            HirExpression::MethodCall(method_call) => {
-                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                    object: method_call.object.to_display_ast(interner),
-                    method_name: method_call.method.clone(),
-                    arguments: vecmap(method_call.arguments.clone(), |arg| {
-                        arg.to_display_ast(interner)
-                    }),
-                    generics: method_call.generics.clone().map(|option| {
-                        option.iter().map(|generic| generic.to_display_ast()).collect()
-                    }),
-                    is_macro_call: false,
-                }))
-            }
             HirExpression::Constrain(constrain) => {
                 let expr = constrain.0.to_display_ast(interner);
                 let mut arguments = vec![expr];
@@ -198,9 +185,6 @@ impl HirExpression {
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
             HirExpression::Error => ExpressionKind::Error,
-            HirExpression::Comptime(block) => {
-                ExpressionKind::Comptime(block.to_display_ast(interner), location)
-            }
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
                 block: block.to_display_ast(interner),
                 unsafe_keyword_location: location,
@@ -233,7 +217,7 @@ impl HirMatch {
     fn to_display_ast(&self, interner: &NodeInterner, location: Location) -> ExpressionKind {
         match self {
             HirMatch::Success(expr) => expr.to_display_ast(interner).kind,
-            HirMatch::Failure => ExpressionKind::Error,
+            HirMatch::Failure { .. } => ExpressionKind::Error,
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = cond.to_display_ast(interner);
                 let consequence = body.to_display_ast(interner);
@@ -344,7 +328,7 @@ impl HirPattern {
                 let name = match typ.follow_bindings() {
                     Type::DataType(struct_def, _) => {
                         let struct_def = struct_def.borrow();
-                        struct_def.name.0.contents.clone()
+                        struct_def.name.to_string()
                     }
                     // This pass shouldn't error so if the type isn't a struct we just get a string
                     // representation of any other type and use that. We're relying on name
@@ -363,7 +347,7 @@ impl HirIdent {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> Ident {
         let name = interner.definition_name(self.id).to_owned();
-        Ident(Located::from(self.location, name))
+        Ident::new(name, self.location)
     }
 
     fn to_display_expr(
@@ -465,9 +449,9 @@ impl Type {
                 let env = Box::new(env.to_display_ast());
                 UnresolvedTypeData::Function(args, ret, env, *unconstrained)
             }
-            Type::MutableReference(element) => {
+            Type::Reference(element, mutable) => {
                 let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::MutableReference(element)
+                UnresolvedTypeData::Reference(element, *mutable)
             }
             // Type::Forall is only for generic functions which don't store a type
             // in their Ast so they don't need to call to_display_ast for their Forall type.

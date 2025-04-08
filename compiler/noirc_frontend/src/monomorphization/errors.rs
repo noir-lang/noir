@@ -7,15 +7,50 @@ use crate::{
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
-    UnknownConstant { location: Location },
-    NoDefaultType { location: Location },
-    InternalError { message: &'static str, location: Location },
+    UnknownArrayLength {
+        length: Type,
+        err: TypeCheckError,
+        location: Location,
+    },
+    UnknownConstant {
+        location: Location,
+    },
+    NoDefaultType {
+        location: Location,
+    },
+    NoDefaultTypeInItem {
+        location: Location,
+        generic_name: String,
+        item_kind: &'static str,
+        item_name: String,
+    },
+    InternalError {
+        message: &'static str,
+        location: Location,
+    },
     InterpreterError(InterpreterError),
-    ComptimeFnInRuntimeCode { name: String, location: Location },
-    ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
-    CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    ComptimeFnInRuntimeCode {
+        name: String,
+        location: Location,
+    },
+    ComptimeTypeInRuntimeCode {
+        typ: String,
+        location: Location,
+    },
+    CheckedTransmuteFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
+    CheckedCastFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
+    RecursiveType {
+        typ: Type,
+        location: Location,
+    },
 }
 
 impl MonomorphizationError {
@@ -28,7 +63,9 @@ impl MonomorphizationError {
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
-            | MonomorphizationError::NoDefaultType { location, .. } => *location,
+            | MonomorphizationError::RecursiveType { location, .. }
+            | MonomorphizationError::NoDefaultType { location, .. }
+            | MonomorphizationError::NoDefaultTypeInItem { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -54,6 +91,18 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let secondary = "Could not determine type of generic argument".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
+            MonomorphizationError::NoDefaultTypeInItem {
+                location,
+                generic_name,
+                item_kind,
+                item_name,
+            } => {
+                let message = "Type annotation needed".into();
+                let secondary = format!(
+                    "Could not determine the type of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"
+                );
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
             MonomorphizationError::InterpreterError(error) => return error.into(),
             MonomorphizationError::InternalError { message, .. } => message.to_string(),
             MonomorphizationError::ComptimeFnInRuntimeCode { name, location } => {
@@ -65,6 +114,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
                 let message = format!("Comptime-only type `{typ}` used in runtime code");
                 let secondary = "Comptime type used here".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::RecursiveType { typ, location } => {
+                let message = format!("Type `{typ}` is recursive");
+                let secondary = "All types in Noir must have a known size at compile-time".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };

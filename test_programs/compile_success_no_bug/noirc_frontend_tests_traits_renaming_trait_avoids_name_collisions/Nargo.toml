@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_renaming_trait_avoids_name_collisions"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

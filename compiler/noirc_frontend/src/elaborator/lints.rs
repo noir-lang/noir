@@ -1,6 +1,6 @@
 use crate::{
     Type,
-    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    ast::{Ident, NoirFunction, UnaryOp},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -14,9 +14,10 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
+    shared::{Signedness, Visibility},
 };
 
-use noirc_errors::{Located, Location};
+use noirc_errors::Location;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -251,7 +252,7 @@ pub(crate) fn overflowing_int(
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
-    Ident(Located::from(func.name.location, modifiers.name.clone()))
+    Ident::new(modifiers.name.clone(), func.name.location)
 }
 
 /// Check that a recursive function *can* return without endlessly calling itself.
@@ -307,7 +308,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
         HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::MethodCall(e) => check(e.object) && e.arguments.iter().cloned().all(check),
         HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
@@ -323,7 +323,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         | HirExpression::EnumConstructor(_)
         | HirExpression::Quote(_)
         | HirExpression::Unquote(_)
-        | HirExpression::Comptime(_)
         | HirExpression::Error => true,
     }
 }
@@ -338,7 +337,7 @@ fn can_return_without_recursing_match(
 
     match match_expr {
         HirMatch::Success(expr) => check(*expr),
-        HirMatch::Failure => true,
+        HirMatch::Failure { .. } => true,
         HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
         HirMatch::Switch(_, cases, otherwise) => {
             cases.iter().all(|case| check_match(&case.body))

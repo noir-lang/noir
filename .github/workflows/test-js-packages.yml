@@ -26,7 +26,7 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
@@ -64,6 +64,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -75,6 +77,39 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nargo
+          path: ./dist/*
+          retention-days: 3
+
+  build-noir-execute:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build noir-execute
+        run: cargo build --package noir_artifact_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/noir-execute ./dist/noir-execute
+          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-execute-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noir-execute
           path: ./dist/*
           retention-days: 3
 
@@ -167,6 +202,8 @@ jobs:
 
       - name: Build acvm_js
         run: ./.github/scripts/acvm_js-build.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -361,7 +398,7 @@ jobs:
 
   test-integration-node:
     name: Integration Tests (Node)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
@@ -373,6 +410,7 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -402,7 +440,7 @@ jobs:
         run: |
           # Note the lack of spaces between package names.
           PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
-          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
+          yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
         working-directory: ./compiler/integration-tests
@@ -447,7 +485,7 @@ jobs:
         run: |
           # Note the lack of spaces between package names.
           PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
-          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
+          yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
         working-directory: ./compiler/integration-tests
@@ -456,8 +494,8 @@ jobs:
 
   test-examples:
     name: Example scripts
-    runs-on: ubuntu-22.04
-    needs: [build-nargo]
+    runs-on: ubuntu-24.04
+    needs: [build-nargo, build-noir-execute]
     timeout-minutes: 30
 
     steps:
@@ -473,16 +511,24 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
+
+      - name: Download noir-execute binary
+        uses: ./.github/actions/download-noir-execute
 
       - name: Run `prove_and_verify`
         working-directory: ./examples/prove_and_verify
         run: ./test.sh
 
-      - name: Run `codegen_verifier`
-        working-directory: ./examples/codegen_verifier
+      - name: Run `solidity_verifier`
+        working-directory: ./examples/solidity_verifier
+        run: ./test.sh
+
+      - name: Run `oracle_transcript`
+        working-directory: ./examples/oracle_transcript
         run: ./test.sh
 
   external-repo-checks:
@@ -496,6 +542,13 @@ jobs:
 
     name: Check external repo - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
+      - name: Matrix Info
+        run: |
+          echo "repo: ${{ matrix.repo }}"
+          echo "ref: ${{ matrix.ref }}"
+          echo "path: ${{ matrix.path }}"
+          echo "timeout: ${{ matrix.timeout }}"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -522,10 +575,14 @@ jobs:
         id: test_report
         working-directory: ./test-repo/${{ matrix.path }}
         run: |
-          output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
           BEFORE=$SECONDS
-          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.nargo_args }} | tee $output_file
+          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.nargo_args }} | tee $OUTPUT_FILE
           TIME=$(($SECONDS-$BEFORE))
+
+          if [ ! -s $OUTPUT_FILE ]; then
+            # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
+            rm -f $OUTPUT_FILE
+          fi
 
           NAME=${{ matrix.repo }}/${{ matrix.path }}
           # Replace any slashes with underscores
@@ -534,13 +591,9 @@ jobs:
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
           jq --null-input "[{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]" > $TEST_REPORT_NAME.json
-
-          if [ ! -s $output_file ]; then
-            # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
-            rm -f $output_file
-          fi
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+          OUTPUT_FILE: ${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
       - name: Compare test results
         working-directory: ./noir-repo
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl

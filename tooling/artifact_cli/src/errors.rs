@@ -1,5 +1,5 @@
 use acir::FieldElement;
-use nargo::NargoError;
+use nargo::{NargoError, foreign_calls::transcript::TranscriptError};
 use noirc_abi::{
     AbiReturnType,
     errors::{AbiError, InputParserError},
@@ -12,6 +12,9 @@ use thiserror::Error;
 pub enum FilesystemError {
     #[error("Cannot find input file '{0}'")]
     MissingInputFile(PathBuf),
+
+    #[error("Failed to create output file '{0}': {1}")]
+    OutputFileCreationFailed(PathBuf, String),
 
     #[error("Failed to parse input file '{0}': {1}")]
     InvalidInputFile(PathBuf, String),
@@ -38,6 +41,10 @@ pub enum CliError {
     /// Error related to ABI input deserialization
     #[error("Failed to deserialize inputs")]
     InputDeserializationError(#[from] InputParserError),
+
+    /// Error related to oracle transcript deserialization
+    #[error(transparent)]
+    TranscriptError(#[from] TranscriptError),
 
     /// Error related to ABI encoding
     #[error(transparent)]

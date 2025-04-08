@@ -473,8 +473,9 @@ mod proptests {
     use proptest::result::maybe_ok;
     use proptest::strategy;
 
-    use crate::ast::{IntegerBitSize, Signedness};
+    use crate::ast::IntegerBitSize;
     use crate::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
+    use crate::shared::Signedness;
 
     prop_compose! {
         // maximum_size must be non-zero

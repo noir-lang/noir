@@ -4,9 +4,11 @@ use std::sync::{Arc, Mutex, RwLock};
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
-use noirc_frontend::monomorphization::ast::{FuncId, Program};
+use noirc_frontend::ast::BinaryOpKind;
+use noirc_frontend::monomorphization::ast::{
+    self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
+};
+use noirc_frontend::shared::Signedness;
 use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
@@ -22,7 +24,7 @@ use crate::ssa::ir::value::ValueId;
 
 use super::GlobalsGraph;
 use super::value::{Tree, Value, Values};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -170,8 +172,8 @@ impl<'a> FunctionContext<'a> {
         let parameter_value = Self::map_type(parameter_type, |typ| {
             let value = self.builder.add_parameter(typ);
             if mutable {
-                // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
-                self.new_mutable_variable(value, true)
+                // This will wrap any `mut var: T` in a reference
+                self.new_mutable_variable(value)
             } else {
                 value.into()
             }
@@ -182,16 +184,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(
-        &mut self,
-        value_to_store: ValueId,
-        increment_array_rc: bool,
-    ) -> Value {
+    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
-
-        if increment_array_rc {
-            self.builder.increment_array_reference_count(value_to_store);
-        }
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
@@ -217,7 +211,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => Tree::empty(),
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            ast::Type::MutableReference(element) => {
+            ast::Type::Reference(element, _) => {
                 Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
             }
             ast::Type::FmtString(len, fields) => {
@@ -270,7 +264,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
-            ast::Type::MutableReference(element) => {
+            ast::Type::Reference(element, _) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
                 Type::Reference(Arc::new(element))
@@ -597,7 +591,7 @@ impl<'a> FunctionContext<'a> {
     /// Inserts a call instruction at the end of the current block and returns the results
     /// of the call.
     ///
-    /// Compared to self.builder.insert_call, this version will reshape the returned Vec<ValueId>
+    /// Compared to self.builder.insert_call, this version will reshape the returned `Vec<ValueId>`
     /// back into a Values tree of the proper shape.
     pub(super) fn insert_call(
         &mut self,
@@ -728,10 +722,12 @@ impl<'a> FunctionContext<'a> {
     /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
     ///         value contained:
     ///
+    /// ```text
     /// v0 = foo.bar                 ; allocate instruction for bar
     /// v1 = load v0                 ; loading the bar array
     /// v2 = add i1, baz_index       ; field offset for index i1, field baz
     /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
+    /// ```
     ///
     /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
     ///                  construct the larger value as needed until we can `store` to the nearest
@@ -790,7 +786,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, Option<length>) where the lvalue_ref records the
+    /// This will return a triple of (array, index, lvalue_ref, `Option<length>`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
     /// The optional length is for indexing slices rather than arrays since slices
     /// are represented as a tuple in the form: (length, slice contents).
@@ -949,61 +945,6 @@ impl<'a> FunctionContext<'a> {
                 unreachable!(
                     "assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
                 )
-            }
-        }
-    }
-
-    /// Increments the reference count of mutable reference array parameters.
-    /// Any mutable-value (`mut a: [T; N]` versus `a: &mut [T; N]`) are already incremented
-    /// by `FunctionBuilder::add_parameter_to_scope`.
-    /// Returns each array id that was incremented.
-    ///
-    /// This is done on parameters rather than call arguments so that we can optimize out
-    /// paired inc/dec instructions within brillig functions more easily.
-    ///
-    /// Returns the list of parameters incremented, together with the value ID of the arrays they refer to.
-    pub(crate) fn increment_parameter_rcs(&mut self) -> Vec<(ValueId, ValueId)> {
-        let entry = self.builder.current_function.entry_block();
-        let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
-
-        let mut incremented = Vec::default();
-        let mut seen_array_types = HashSet::default();
-
-        for parameter in parameters {
-            // Avoid reference counts for immutable arrays that aren't behind references.
-            let typ = self.builder.current_function.dfg.type_of_value(parameter);
-
-            if let Type::Reference(element) = typ {
-                if element.contains_an_array() {
-                    // If we haven't already seen this array type, the value may be possibly
-                    // aliased, so issue an inc_rc for it.
-                    if seen_array_types.insert(element.get_contained_array().clone()) {
-                        continue;
-                    }
-                    if let Some(id) = self.builder.increment_array_reference_count(parameter) {
-                        incremented.push((parameter, id));
-                    }
-                }
-            }
-        }
-
-        incremented
-    }
-
-    /// Ends a local scope of a function.
-    /// This will issue DecrementRc instructions for any arrays in the given starting scope
-    /// block's parameters. Arrays that are also used in terminator instructions for the scope are
-    /// ignored.
-    pub(crate) fn end_scope(
-        &mut self,
-        mut incremented_params: Vec<(ValueId, ValueId)>,
-        terminator_args: &[ValueId],
-    ) {
-        incremented_params.retain(|(parameter, _)| !terminator_args.contains(parameter));
-
-        for (parameter, original) in incremented_params {
-            if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.decrement_array_reference_count(parameter, original);
             }
         }
     }

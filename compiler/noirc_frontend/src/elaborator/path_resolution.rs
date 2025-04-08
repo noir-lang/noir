@@ -33,6 +33,7 @@ pub enum PathResolutionItem {
     Global(GlobalId),
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
+    SelfMethod(FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
 }
@@ -42,9 +43,14 @@ impl PathResolutionItem {
         match self {
             PathResolutionItem::ModuleFunction(func_id)
             | PathResolutionItem::Method(_, _, func_id)
+            | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
             | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
-            _ => None,
+            PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..) => None,
         }
     }
 
@@ -64,6 +70,7 @@ impl PathResolutionItem {
             PathResolutionItem::Global(..) => "global",
             PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..) => "function",
         }
@@ -79,6 +86,7 @@ pub struct Turbofish {
 /// Any item that can appear before the last segment in a path.
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
+    SelfType,
     Module,
     Type(TypeId, Option<Turbofish>),
     TypeAlias(TypeAliasId, Option<Turbofish>),
@@ -94,12 +102,12 @@ enum MethodLookupResult {
     /// Found a method.
     FoundMethod(PerNs),
     /// Found a trait method and it's currently in scope.
-    FoundTraitMethod(PerNs, TraitId),
+    FoundTraitMethod(PerNs, Ident),
     /// There's only one trait method that matches, but it's not in scope
     /// (we'll warn about this to avoid introducing a large breaking change)
     FoundOneTraitMethodButNotInScope(PerNs, TraitId),
     /// Multiple trait method matches were found and they are all in scope.
-    FoundMultipleTraitMethods(Vec<TraitId>),
+    FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
 impl Elaborator<'_> {
@@ -122,6 +130,7 @@ impl Elaborator<'_> {
     /// is not accessible from the current module (e.g. because it's private).
     pub(super) fn resolve_path(&mut self, mut path: Path) -> PathResolutionResult {
         let mut module_id = self.module_id();
+        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(Type::DataType(datatype, _)) = &self.self_type {
@@ -135,10 +144,11 @@ impl Elaborator<'_> {
 
                 module_id = datatype.id.module_id();
                 path.segments.remove(0);
+                intermediate_item = IntermediatePathResolutionItem::SelfType;
             }
         }
 
-        self.resolve_path_in_module(path, module_id)
+        self.resolve_path_in_module(path, module_id, intermediate_item)
     }
 
     /// Resolves a path in `current_module`.
@@ -147,6 +157,7 @@ impl Elaborator<'_> {
         &mut self,
         path: Path,
         importing_module: ModuleId,
+        intermediate_item: IntermediatePathResolutionItem,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
             Some(ReferencesTracker::new(self.interner))
@@ -155,7 +166,7 @@ impl Elaborator<'_> {
         };
         let (path, module_id, _) =
             resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(path, module_id, importing_module)
+        self.resolve_name_in_module(path, module_id, importing_module, intermediate_item)
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -165,6 +176,7 @@ impl Elaborator<'_> {
         path: Path,
         starting_module: ModuleId,
         importing_module: ModuleId,
+        mut intermediate_item: IntermediatePathResolutionItem,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
@@ -179,8 +191,6 @@ impl Elaborator<'_> {
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
-
-        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
@@ -281,9 +291,8 @@ impl Elaborator<'_> {
                         }
                     }
                     MethodLookupResult::FoundMethod(per_ns) => per_ns,
-                    MethodLookupResult::FoundTraitMethod(per_ns, trait_id) => {
-                        let trait_ = self.interner.get_trait(trait_id);
-                        self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                    MethodLookupResult::FoundTraitMethod(per_ns, name) => {
+                        self.usage_tracker.mark_as_used(importing_module, &name);
                         per_ns
                     }
                     MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) => {
@@ -296,9 +305,9 @@ impl Elaborator<'_> {
                         per_ns
                     }
                     MethodLookupResult::FoundMultipleTraitMethods(vec) => {
-                        let traits = vecmap(vec, |trait_id| {
+                        let traits = vecmap(vec, |(trait_id, name)| {
                             let trait_ = self.interner.get_trait(trait_id);
-                            self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                            self.usage_tracker.mark_as_used(importing_module, &name);
                             self.fully_qualified_trait_path(trait_)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
@@ -380,16 +389,9 @@ impl Elaborator<'_> {
 
         for (trait_id, item) in values.iter() {
             let trait_id = trait_id.expect("The None option was already considered before");
-            let trait_ = self.interner.get_trait(trait_id);
-            let Some(map) = starting_module.scope().types().get(&trait_.name) else {
-                continue;
+            if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
+                results.push((trait_id, name, item));
             };
-            let Some(imported_item) = map.get(&None) else {
-                continue;
-            };
-            if imported_item.0 == ModuleDefId::TraitId(trait_id) {
-                results.push((trait_id, item));
-            }
         }
 
         if results.is_empty() {
@@ -408,13 +410,13 @@ impl Elaborator<'_> {
         }
 
         if results.len() > 1 {
-            let trait_ids = vecmap(results, |(trait_id, _)| trait_id);
+            let trait_ids = vecmap(results, |(trait_id, name, _)| (trait_id, name.clone()));
             return MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
         }
 
-        let (trait_id, item) = results.remove(0);
+        let (_, name, item) = results.remove(0);
         let per_ns = PerNs { types: None, values: Some(*item) };
-        MethodLookupResult::FoundTraitMethod(per_ns, trait_id)
+        MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 }
 
@@ -429,6 +431,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
+            IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),
             IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
             IntermediatePathResolutionItem::Type(type_id, generics) => {
                 PathResolutionItem::Method(type_id, generics, func_id)
