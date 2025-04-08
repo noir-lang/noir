@@ -28,10 +28,11 @@ pub(crate) fn type_depth(typ: &Type) -> usize {
 /// Some types don't compile in Noir, so avoid those as we couldn't
 /// put any related failures into an integration test.
 pub(crate) fn can_be_global(typ: &Type) -> bool {
-    match typ {
-        Type::Integer(_, size) => size.bit_size() > 1,
-        _ => true,
-    }
+    !matches!(
+        typ,
+        Type::Integer(Signedness::Signed, IntegerBitSize::One | IntegerBitSize::HundredTwentyEight)
+            | Type::Integer(Signedness::Unsigned, IntegerBitSize::One)
+    )
 }
 
 /// Collect all the sub-types produced by a type.
