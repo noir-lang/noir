@@ -1,4 +1,4 @@
-use std::ops::Wrapping;
+use std::ops::{WrappingAdd, WrappingMul, WrappingSub};
 
 fn main(x: u8, y: u8) {
     assert(x.wrapping_sub(1) == y);
