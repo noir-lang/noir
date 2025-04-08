@@ -7,7 +7,7 @@ use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
-use fm::{FileId, FileManager};
+use fm::FileId;
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
@@ -15,7 +15,6 @@ use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
-use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
@@ -25,24 +24,23 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttribute;
 use std::collections::HashMap;
-use std::path::Path;
 use tracing::info;
 
 mod abi_gen;
 mod contract;
+mod crate_graph;
 mod debug;
+mod file_manager;
 mod program;
-mod stdlib;
 
 use debug::filter_relevant_files;
 
 pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
+pub use crate_graph::{link_to_debug_crate, prepare_crate, prepare_dependency};
 pub use debug::DebugFile;
+pub use file_manager::file_manager_with_stdlib;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
-
-const STD_CRATE_NAME: &str = "std";
-const DEBUG_CRATE_NAME: &str = "__debug";
 
 pub const GIT_COMMIT: &str = env!("GIT_COMMIT");
 pub const GIT_DIRTY: &str = env!("GIT_DIRTY");
@@ -249,99 +247,6 @@ pub type ErrorsAndWarnings = Vec<CustomDiagnostic>;
 
 /// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
-
-/// Helper method to return a file manager instance with the stdlib already added
-///
-/// TODO: This should become the canonical way to create a file manager and
-/// TODO if we use a File manager trait, we can move file manager into this crate
-/// TODO as a module
-pub fn file_manager_with_stdlib(root: &Path) -> FileManager {
-    let mut file_manager = FileManager::new(root);
-
-    add_stdlib_source_to_file_manager(&mut file_manager);
-    add_debug_source_to_file_manager(&mut file_manager);
-
-    file_manager
-}
-
-/// Adds the source code for the stdlib into the file manager
-fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
-    // Add the stdlib contents to the file manager, since every package automatically has a dependency
-    // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
-    // contents to the file manager. However since the dependency on the stdlib is implicit, we need
-    // to manually add it here.
-    let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
-    for (path, source) in stdlib_paths_with_source {
-        file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
-    }
-}
-
-/// Adds the source code of the debug crate needed to support instrumentation to
-/// track variables values
-fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
-    // Adds the synthetic debug module for instrumentation into the file manager
-    let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
-    file_manager
-        .add_file_with_source_canonical_path(&path_to_debug_lib_file, build_debug_crate_file());
-}
-
-/// Adds the file from the file system at `Path` to the crate graph as a root file
-///
-/// Note: If the stdlib dependency has not been added yet, it's added. Otherwise
-/// this method assumes the root crate is the stdlib (useful for running tests
-/// in the stdlib, getting LSP stuff for the stdlib, etc.).
-pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
-    let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-    let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
-    let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
-
-    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
-
-    if let Some(std_crate_id) = std_crate_id {
-        let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-
-        add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
-
-        root_crate_id
-    } else {
-        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
-    }
-}
-
-pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
-    let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
-    let debug_crate_id = prepare_dependency(context, &path_to_debug_lib_file);
-    add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
-}
-
-// Adds the file from the file system at `Path` to the crate graph
-pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
-    let root_file_id = context
-        .file_manager
-        .name_to_id(file_name.to_path_buf())
-        .unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
-
-    let crate_id = context.crate_graph.add_crate(root_file_id);
-
-    // Every dependency has access to stdlib
-    let std_crate_id = context.stdlib_crate_id();
-    add_dep(context, crate_id, *std_crate_id, STD_CRATE_NAME.parse().unwrap());
-
-    crate_id
-}
-
-/// Adds a edge in the crate graph for two crates
-pub fn add_dep(
-    context: &mut Context,
-    this_crate: CrateId,
-    depends_on: CrateId,
-    crate_name: CrateName,
-) {
-    context
-        .crate_graph
-        .add_dep(this_crate, crate_name, depends_on)
-        .expect("cyclic dependency triggered");
-}
 
 /// Run the lexing, parsing, name resolution, and type checking passes.
 ///
