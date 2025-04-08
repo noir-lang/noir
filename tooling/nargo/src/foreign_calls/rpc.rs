@@ -20,7 +20,8 @@ pub struct RPCForeignCallExecutor {
     /// JSON RPC client to resolve foreign calls
     external_resolver: HttpClient,
     /// External resolver target. We are keeping it to be able to restart httpClient if necessary
-    /// see noir-lang/noir#7463
+    ///
+    /// See [`noir-lang/noir#7463`][https://github.com/noir-lang/noir/issues/7463]
     target_url: String,
     /// Root path to the program or workspace in execution.
     root_path: Option<PathBuf>,
