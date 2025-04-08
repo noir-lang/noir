@@ -479,7 +479,7 @@ impl<'a> FunctionContext<'a> {
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
         // If we have chosen e.g. u8 and need u32 we need to cast.
-        if lhs_type != *typ {
+        if !(lhs_type == *typ || types::is_bool(typ) && op.is_comparator()) {
             expr = expr::cast(expr, typ.clone());
         }
 
