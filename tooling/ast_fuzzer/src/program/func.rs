@@ -562,7 +562,7 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        let typ = self.ctx.gen_type(u, max_depth)?;
+        let typ = self.ctx.gen_type(u, max_depth, false)?;
         let id = self.next_local_id();
         let mutable = bool::arbitrary(u)?;
         let name = make_name(id.0 as usize, false);

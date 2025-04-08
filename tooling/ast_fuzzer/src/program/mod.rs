@@ -12,7 +12,6 @@ use noirc_frontend::{
     },
     shared::{Signedness, Visibility},
 };
-use types::type_depth;
 
 use crate::Config;
 
@@ -94,7 +93,7 @@ impl Context {
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<(Name, Type, Expression)> {
-        let typ = self.gen_type(u, self.config.max_depth)?;
+        let typ = self.gen_type(u, self.config.max_depth, true)?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         let val = expr::gen_literal(u, &typ)?;
@@ -127,7 +126,7 @@ impl Context {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
             let is_mutable = !is_main && bool::arbitrary(u)?;
-            let typ = self.gen_type(u, self.config.max_depth)?;
+            let typ = self.gen_type(u, self.config.max_depth, false)?;
             params.push((id, is_mutable, name, typ));
 
             param_visibilities.push(if is_main {
@@ -145,7 +144,7 @@ impl Context {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             param_visibilities,
-            return_type: self.gen_type(u, self.config.max_depth)?,
+            return_type: self.gen_type(u, self.config.max_depth, false)?,
             return_visibility: if is_main {
                 match u.choose_index(5)? {
                     0 | 1 => Visibility::Public,
@@ -220,11 +219,20 @@ impl Context {
     /// functions.
     ///
     /// With a `max_depth` of 0 only leaf types are created.
-    fn gen_type(&mut self, u: &mut Unstructured, max_depth: usize) -> arbitrary::Result<Type> {
+    fn gen_type(
+        &mut self,
+        u: &mut Unstructured,
+        max_depth: usize,
+        is_global: bool,
+    ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
         if u.ratio(5, 10)? {
-            let existing_types =
-                self.types.iter().filter(|typ| type_depth(typ) <= max_depth).collect::<Vec<_>>();
+            let existing_types = self
+                .types
+                .iter()
+                .filter(|typ| !is_global || types::can_be_global(typ))
+                .filter(|typ| types::type_depth(typ) <= max_depth)
+                .collect::<Vec<_>>();
 
             if !existing_types.is_empty() {
                 return u.choose(&existing_types).map(|typ| (*typ).clone());
@@ -234,32 +242,37 @@ impl Context {
         // Once we hit the maximum depth, stop generating composite types.
         let max_index = if max_depth == 0 { 4 } else { 8 };
 
-        let typ = match u.choose_index(max_index)? {
-            // 4 leaf types
-            0 => Type::Bool,
-            1 => Type::Field,
-            2 => Type::Integer(
-                *u.choose(&[Signedness::Signed, Signedness::Unsigned])?,
-                u.choose_iter(IntegerBitSize::iter())?,
-            ),
-            3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
-            // 2 composite types
-            4 | 5 => {
-                // 1-size tuples look strange, so let's make it minimum 2 fields.
-                let size = u.int_in_range(2..=self.config.max_tuple_size)?;
-                let types = (0..size)
-                    .map(|_| self.gen_type(u, max_depth - 1))
-                    .collect::<Result<Vec<_>, _>>()?;
-                Type::Tuple(types)
+        let mut typ: Type;
+        loop {
+            typ = match u.choose_index(max_index)? {
+                // 4 leaf types
+                0 => Type::Bool,
+                1 => Type::Field,
+                2 => Type::Integer(
+                    *u.choose(&[Signedness::Signed, Signedness::Unsigned])?,
+                    u.choose_iter(IntegerBitSize::iter())?,
+                ),
+                3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
+                // 2 composite types
+                4 | 5 => {
+                    // 1-size tuples look strange, so let's make it minimum 2 fields.
+                    let size = u.int_in_range(2..=self.config.max_tuple_size)?;
+                    let types = (0..size)
+                        .map(|_| self.gen_type(u, max_depth - 1, is_global))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Type::Tuple(types)
+                }
+                6 | 7 => {
+                    let size = u.int_in_range(0..=self.config.max_array_size)?;
+                    let typ = self.gen_type(u, max_depth - 1, is_global)?;
+                    Type::Array(size as u32, Box::new(typ))
+                }
+                _ => unreachable!("unexpected arbitrary type index"),
+            };
+            if !is_global || types::can_be_global(&typ) {
+                break;
             }
-            6 | 7 => {
-                let size = u.int_in_range(0..=self.config.max_array_size)?;
-                let typ = self.gen_type(u, max_depth - 1)?;
-                Type::Array(size as u32, Box::new(typ))
-            }
-            _ => unreachable!("unexpected arbitrary type index"),
-        };
-
+        }
         self.types.insert(typ.clone());
 
         Ok(typ)

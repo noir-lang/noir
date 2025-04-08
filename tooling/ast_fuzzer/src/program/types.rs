@@ -24,6 +24,16 @@ pub(crate) fn type_depth(typ: &Type) -> usize {
     }
 }
 
+/// We can only use globals that can be evaluated at comptime.
+/// Some types don't compile in Noir, so avoid those as we couldn't
+/// put any related failures into an integration test.
+pub(crate) fn can_be_global(typ: &Type) -> bool {
+    match typ {
+        Type::Integer(_, size) => size.bit_size() > 1,
+        _ => true,
+    }
+}
+
 /// Collect all the sub-types produced by a type.
 ///
 /// It's like a _power set_ of the type.
