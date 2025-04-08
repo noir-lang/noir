@@ -102,7 +102,9 @@ pub struct LspState {
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
+    workspace_symbol_cache_initialized: bool,
     workspace_symbol_cache: HashMap<PathBuf, Vec<WorkspaceSymbol>>,
+    workspace_symbol_paths_to_process: HashSet<PathBuf>,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -135,7 +137,9 @@ impl LspState {
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
+            workspace_symbol_cache_initialized: false,
             workspace_symbol_cache: HashMap::new(),
+            workspace_symbol_paths_to_process: HashSet::new(),
             open_documents_count: 0,
             options: Default::default(),
             files_with_errors: HashMap::new(),
@@ -143,8 +147,13 @@ impl LspState {
     }
 
     fn clear_workspace_symbol_cache(&mut self, uri: &Url) {
+        if !self.workspace_symbol_cache_initialized {
+            return;
+        }
+
         if let Ok(path) = uri.to_file_path() {
             self.workspace_symbol_cache.remove(&path);
+            self.workspace_symbol_paths_to_process.insert(path.clone());
         }
     }
 }
@@ -440,18 +449,22 @@ pub fn insert_all_files_for_workspace_into_file_manager(
     workspace: &Workspace,
     file_manager: &mut FileManager,
 ) {
-    // Source code for files we cached override those that are read from disk.
-    let mut overrides: HashMap<&Path, &str> = HashMap::new();
-    for (path, source) in &state.input_files {
-        let path = path.strip_prefix("file://").unwrap();
-        overrides.insert(Path::new(path), source);
-    }
-
+    let overrides = source_code_overrides(&state.input_files);
     nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
         workspace,
         file_manager,
         &overrides,
     );
+}
+
+// Source code for files we cached override those that are read from disk.
+pub fn source_code_overrides(input_files: &HashMap<String, String>) -> HashMap<PathBuf, &str> {
+    let mut overrides: HashMap<PathBuf, &str> = HashMap::new();
+    for (path, source) in input_files {
+        let path = path.strip_prefix("file://").unwrap();
+        overrides.insert(PathBuf::from_str(path).unwrap(), source);
+    }
+    overrides
 }
 
 #[test]

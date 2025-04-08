@@ -1,14 +1,10 @@
-use std::{
-    collections::HashMap,
-    future::{self, Future},
-    path::Path,
-};
+use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FILE_EXTENSION, FileManager, FileMap};
+use fm::{FileManager, FileMap};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use lsp_types::{SymbolKind, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse};
-use nargo::parse_all;
+use nargo::{insert_all_files_under_path_into_file_manager, parse_all};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
@@ -17,9 +13,8 @@ use noirc_frontend::{
     },
     parser::ParsedSubModule,
 };
-use walkdir::WalkDir;
 
-use crate::LspState;
+use crate::{LspState, source_code_overrides};
 
 use super::to_lsp_location;
 
@@ -31,52 +26,38 @@ pub(crate) fn on_workspace_symbol_request(
         return future::ready(Ok(None));
     };
 
-    let query = &params.query;
+    let overrides = source_code_overrides(&state.input_files);
 
-    // Source code for files we cached override those that are read from disk.
-    let mut overrides: HashMap<&Path, &str> = HashMap::new();
-    for (path, source) in &state.input_files {
-        let path = path.strip_prefix("file://").unwrap();
-        overrides.insert(Path::new(path), source);
+    // Prepare a FileManager for files we'll parse, to extract symbols from
+    let mut file_manager = FileManager::new(root_path.as_path());
+
+    // If the cache is not initialized yet, put all files in the workspace in the FileManager
+    if !state.workspace_symbol_cache_initialized {
+        insert_all_files_under_path_into_file_manager(&mut file_manager, &root_path, &overrides);
+        state.workspace_symbol_cache_initialized = true;
     }
 
-    let mut all_symbols = Vec::new();
-
-    // Here we traverse all Noir files in the workspace, parsing those for which we don't know
-    // their symbols. This isn't the best way to implement WorkspaceSymbol but it's actually pretty
-    // fast, simple, and works very well. An alternative could be to process packages independently,
-    // cache their symbols, and re-cache them or invalidate them on changes, but it's a much more complex
-    // code that might yield marginal performance improvements.
-    let mut file_manager = FileManager::new(root_path.as_path());
-    for entry in WalkDir::new(root_path).sort_by_file_name() {
-        let Ok(entry) = entry else {
-            continue;
-        };
-
-        if !entry.file_type().is_file() {
+    // Then add files that we need to re-process
+    for path in std::mem::take(&mut state.workspace_symbol_paths_to_process) {
+        if !path.exists() {
             continue;
         }
 
-        if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
-            continue;
-        };
-
-        let path = entry.into_path();
-        if let Some(symbols) = state.workspace_symbol_cache.get(&path) {
-            all_symbols.extend(symbols.clone());
+        if let Some(source) = overrides.get(path.as_path()) {
+            file_manager.add_file_with_source(path.as_path(), source.to_string());
         } else {
-            let source = if let Some(src) = overrides.get(path.as_path()) {
-                src.to_string()
-            } else {
-                std::fs::read_to_string(path.as_path())
-                    .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
-            };
-
+            let source = std::fs::read_to_string(path.as_path())
+                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
             file_manager.add_file_with_source(path.as_path(), source);
         }
     }
 
-    // Here we parse all files for which we don't know their symbols yet,
+    // Note: what happens if a file is deleted? We don't get notifications when a file is deleted
+    // so we might return symbols for a file that doesn't exist. However, VSCode seems to notice
+    // the file doesn't exist and simply doesn't show the symbol. What if the file is re-created?
+    // In that case we do get a notification so we'll reprocess that file.
+
+    // Parse all files for which we don't know their symbols yet,
     // figure out the symbols and store them in the cache.
     let parsed_files = parse_all(&file_manager);
     for (file_id, (parsed_module, _)) in parsed_files {
@@ -85,16 +66,23 @@ pub(crate) fn on_workspace_symbol_request(
         let mut gatherer = WorkspaceSymboGatherer::new(&mut symbols, file_manager.as_file_map());
         parsed_module.accept(&mut gatherer);
         state.workspace_symbol_cache.insert(path, gatherer.symbols.clone());
-        all_symbols.extend(std::mem::take(gatherer.symbols));
     }
-
-    let matcher = SkimMatcherV2::default();
 
     // Finally, we filter the symbols based on the query
     // (Note: we could filter them as we gather them above, but doing this in one go is simpler)
-    let symbols = all_symbols
-        .into_iter()
-        .filter(|symbol| matcher.fuzzy_match(&symbol.name, query).is_some())
+    let matcher = SkimMatcherV2::default();
+    let symbols = state
+        .workspace_symbol_cache
+        .values()
+        .flat_map(|symbols| {
+            symbols.iter().filter_map(|symbol| {
+                if matcher.fuzzy_match(&symbol.name, &params.query).is_some() {
+                    Some(symbol.clone())
+                } else {
+                    None
+                }
+            })
+        })
         .collect::<Vec<_>>();
 
     future::ready(Ok(Some(WorkspaceSymbolResponse::Nested(symbols))))

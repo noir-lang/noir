@@ -34,7 +34,6 @@ fxhash.workspace = true
 iter-extended.workspace = true
 convert_case = "0.6.0"
 num-bigint.workspace = true
-walkdir = "2.5.0"
 fuzzy-matcher = "0.3.7"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
