@@ -8,13 +8,17 @@ use noirc_evaluator::{
 use noirc_frontend::monomorphization::ast::Program;
 
 // TODO(#7876): Allow specifying options on the command line.
-fn debug_enabled() -> bool {
-    std::env::var("NOIR_AST_FUZZER_DEBUG").map(|s| s == "1" || s == "true").unwrap_or_default()
+fn show_ast() -> bool {
+    std::env::var("NOIR_AST_FUZZER_SHOW_AST").map(|s| s == "1" || s == "true").unwrap_or_default()
+}
+
+fn show_ssa() -> bool {
+    std::env::var("NOIR_AST_FUZZER_SHOW_SSA").map(|s| s == "1" || s == "true").unwrap_or_default()
 }
 
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
     ssa::SsaEvaluatorOptions {
-        ssa_logging: if debug_enabled() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
+        ssa_logging: if show_ssa() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
         brillig_options: BrilligOptions::default(),
         print_codegen_timings: false,
         expression_width: ExpressionWidth::default(),
@@ -29,7 +33,7 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
 
 /// Compile a [Program] into SSA or panic.
 ///
-/// Prints the AST if `NOIR_AST_FUZZER_DEBUG` is set.
+/// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
 pub fn create_ssa_or_die(
     program: Program,
     options: &SsaEvaluatorOptions,
@@ -39,7 +43,7 @@ pub fn create_ssa_or_die(
     // and `std::panic::resume_unwind` to catch any panic
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
-    if debug_enabled() {
+    if show_ast() {
         eprintln!("---\n{program}\n---");
         eprintln!("---\n{program:?}\n---");
     }

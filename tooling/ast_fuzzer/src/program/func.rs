@@ -128,6 +128,9 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate the function body.
     pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // If we don't limit the budget according to the available data,
+        // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
+        self.budget = self.budget.min(u.len());
         let ret = self.decl().return_type.clone();
         self.gen_expr(u, &ret, self.max_depth(), Flags::TOP)
     }

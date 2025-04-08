@@ -37,4 +37,4 @@ cargo +nightly fuzz run -O acir_vs_brillig fuzz/artifacts/acir_vs_brillig/crash-
 
 Note that `cargo fuzz` requires `nightly` build, which can be either turned on with the `cargo +nightly` flag, or by running `rustup default nightly`. Also note that `cargo fuzz run` automatically creates a `--release` build, there is no need for an explicit flag to be passed.
 
-The `NOIR_AST_FUZZER_DEBUG` env var can be used to print the AST before compilation, in case the compiler crashes on the generated program. Otherwise if the execution fails, the output will include the AST, the inputs, and the ACIR/Brillig opcodes.
+The `NOIR_AST_FUZZER_SHOW_AST` env var can be used to print the AST before compilation, in case the compiler crashes on the generated program. Otherwise if the execution fails, the output will include the AST, the inputs, and the ACIR/Brillig opcodes.
