@@ -210,6 +210,10 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
             "Inlining (2nd)",
         )
+        .run_pass(
+            Ssa::array_get_from_if_else_result_optimization,
+            "After Array Get From If Else Result Optimizations:",
+        )
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
         .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
         .run_pass(Ssa::fold_constants, "Constant Folding")
