@@ -22,7 +22,7 @@ pub struct RPCForeignCallExecutor {
     /// External resolver target. We are keeping it to be able to restart httpClient if necessary
     ///
     /// See [`noir-lang/noir#7463`][https://github.com/noir-lang/noir/issues/7463]
-    target_url: String,
+    resolver_url: String,
     /// Root path to the program or workspace in execution.
     root_path: Option<PathBuf>,
     /// Name of the package in execution
@@ -75,7 +75,7 @@ impl RPCForeignCallExecutor {
 
         RPCForeignCallExecutor {
             external_resolver: oracle_resolver,
-            target_url: resolver_url.to_string(),
+            resolver_url: resolver_url.to_string(),
             id,
             root_path,
             package_name,
@@ -136,7 +136,7 @@ where
             // The client is losing connection with the server and it's not being able to manage it
             // so we are re-creating the HttpClient when it happens
             Err(jsonrpsee::core::ClientError::Transport(_)) => {
-                self.external_resolver = build_http_client(&self.target_url);
+                self.external_resolver = build_http_client(&self.resolver_url);
                 let parsed_response = self.send_foreign_call(foreign_call)?;
                 Ok(parsed_response)
             }
