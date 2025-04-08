@@ -5,7 +5,7 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithOneArg, InstructionWithTwoArgs},
     config::NUMBER_OF_VARIABLES_INITIAL,
-    typed_value::{ValueType, TypedValue},
+    typed_value::{TypedValue, ValueType},
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::map::Id;
@@ -13,7 +13,7 @@ use noirc_evaluator::ssa::ir::value::Value;
 use std::collections::HashMap;
 #[derive(Arbitrary, Debug, Clone, Hash)]
 pub(crate) struct Argument {
-    /// Index of the argument in the context of stored variables of this type 
+    /// Index of the argument in the context of stored variables of this type
     /// e.g. if we have variables with ids [0, 1] in u64 vector and variables with ids [5, 8] in fields vector
     /// Argument(Index(0), ValueType::U64) -> id 0
     /// Argument(Index(0), ValueType::Field) -> id 5
@@ -77,7 +77,11 @@ pub(crate) struct FuzzerContext {
     is_constant: bool,
 }
 
-fn get_typed_value_from_map(map: &HashMap<ValueType, Vec<TypedValue>>, type_: ValueType, idx: usize) -> Option<TypedValue> {
+fn get_typed_value_from_map(
+    map: &HashMap<ValueType, Vec<TypedValue>>,
+    type_: ValueType,
+    idx: usize,
+) -> Option<TypedValue> {
     let arr = map.get(&type_);
     if arr.is_none() {
         return None;
@@ -90,7 +94,11 @@ fn get_typed_value_from_map(map: &HashMap<ValueType, Vec<TypedValue>>, type_: Va
     Some(value.unwrap().clone())
 }
 
-fn append_typed_value_to_map(map: &mut HashMap<ValueType, Vec<TypedValue>>, type_: ValueType, value: TypedValue) {
+fn append_typed_value_to_map(
+    map: &mut HashMap<ValueType, Vec<TypedValue>>,
+    type_: ValueType,
+    value: TypedValue,
+) {
     map.entry(type_.clone()).or_insert(Vec::new()).push(value);
 }
 
@@ -107,7 +115,7 @@ impl FuzzerContext {
             acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
             brillig_ids.entry(type_).or_insert(Vec::new()).push(brillig_id);
         }
-        
+
         Self {
             acir_builder,
             brillig_builder,
@@ -120,7 +128,10 @@ impl FuzzerContext {
     }
 
     /// Creates a new fuzzer context with the given values for a constant folding checking
-    pub(crate) fn new_constant(values: Vec<impl Into<FieldElement>>, types: Vec<ValueType>) -> Self {
+    pub(crate) fn new_constant(
+        values: Vec<impl Into<FieldElement>>,
+        types: Vec<ValueType>,
+    ) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
         let mut acir_ids = HashMap::new();
@@ -128,8 +139,14 @@ impl FuzzerContext {
 
         for (value, type_) in values.into_iter().zip(types) {
             let field_element = value.into();
-            acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_builder.insert_constant(field_element, type_.clone()));
-            brillig_ids.entry(type_.clone()).or_insert(Vec::new()).push(brillig_builder.insert_constant(field_element, type_.clone()));
+            acir_ids
+                .entry(type_.clone())
+                .or_insert(Vec::new())
+                .push(acir_builder.insert_constant(field_element, type_.clone()));
+            brillig_ids
+                .entry(type_.clone())
+                .or_insert(Vec::new())
+                .push(brillig_builder.insert_constant(field_element, type_.clone()));
         }
 
         Self {
@@ -150,7 +167,8 @@ impl FuzzerContext {
         instruction: InstructionWithOneArg,
     ) {
         let acir_arg = get_typed_value_from_map(&self.acir_ids, arg.value_type.clone(), arg.index);
-        let brillig_arg = get_typed_value_from_map(&self.brillig_ids, arg.value_type.clone(), arg.index);
+        let brillig_arg =
+            get_typed_value_from_map(&self.brillig_ids, arg.value_type.clone(), arg.index);
         let (acir_arg, brillig_arg) = match (acir_arg, brillig_arg) {
             (Some(acir_arg), Some(brillig_arg)) => (acir_arg, brillig_arg),
             _ => return,
@@ -160,7 +178,11 @@ impl FuzzerContext {
         self.last_value_acir = Some(acir_result.clone());
         self.last_value_brillig = Some(brillig_result.clone());
         append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
-        append_typed_value_to_map(&mut self.brillig_ids, brillig_result.to_value_type(), brillig_result);
+        append_typed_value_to_map(
+            &mut self.brillig_ids,
+            brillig_result.to_value_type(),
+            brillig_result,
+        );
     }
 
     /// Inserts an instruction that takes two arguments
@@ -177,8 +199,10 @@ impl FuzzerContext {
             _ => return,
         };
         let acir_result = instruction(&mut self.acir_builder, acir_lhs, acir_rhs);
-        let brillig_lhs = get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
-        let brillig_rhs = get_typed_value_from_map(&self.brillig_ids, rhs.value_type.clone(), rhs.index);
+        let brillig_lhs =
+            get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
+        let brillig_rhs =
+            get_typed_value_from_map(&self.brillig_ids, rhs.value_type.clone(), rhs.index);
         let (brillig_lhs, brillig_rhs) = match (brillig_lhs, brillig_rhs) {
             (Some(brillig_lhs), Some(brillig_rhs)) => (brillig_lhs, brillig_rhs),
             _ => return,
@@ -187,7 +211,11 @@ impl FuzzerContext {
         self.last_value_acir = Some(acir_result.clone());
         self.last_value_brillig = Some(brillig_result.clone());
         append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
-        append_typed_value_to_map(&mut self.brillig_ids, brillig_result.to_value_type(), brillig_result);
+        append_typed_value_to_map(
+            &mut self.brillig_ids,
+            brillig_result.to_value_type(),
+            brillig_result,
+        );
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
@@ -234,8 +262,10 @@ impl FuzzerContext {
                 });
             }
             Instructions::Cast { lhs, type_ } => {
-                let acir_lhs = get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
-                let brillig_lhs = get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
+                let acir_lhs =
+                    get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
+                let brillig_lhs =
+                    get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
                 let (acir_lhs, brillig_lhs) = match (acir_lhs, brillig_lhs) {
                     (Some(acir_lhs), Some(brillig_lhs)) => (acir_lhs, brillig_lhs),
                     _ => return,
@@ -244,8 +274,16 @@ impl FuzzerContext {
                 let brillig_result = self.brillig_builder.insert_cast(brillig_lhs, type_.clone());
                 self.last_value_acir = Some(acir_result.clone());
                 self.last_value_brillig = Some(brillig_result.clone());
-                append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
-                append_typed_value_to_map(&mut self.brillig_ids, brillig_result.to_value_type(), brillig_result);
+                append_typed_value_to_map(
+                    &mut self.acir_ids,
+                    acir_result.to_value_type(),
+                    acir_result,
+                );
+                append_typed_value_to_map(
+                    &mut self.brillig_ids,
+                    brillig_result.to_value_type(),
+                    brillig_result,
+                );
             }
             Instructions::Mod { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
@@ -294,20 +332,24 @@ impl FuzzerContext {
             }
             _ => {
                 // If no last value was set, use the first value from the first type in each map
-                let first_type = self.acir_ids.keys().next()
-                    .expect("Should have at least one type");
+                let first_type =
+                    self.acir_ids.keys().next().expect("Should have at least one type");
 
-                let acir_result = self.acir_ids.get(first_type)
+                let acir_result = self
+                    .acir_ids
+                    .get(first_type)
                     .and_then(|values| values.first().cloned())
                     .expect("Should have at least one value");
-                
-                let brillig_result = self.brillig_ids.get(first_type)
+
+                let brillig_result = self
+                    .brillig_ids
+                    .get(first_type)
                     .and_then(|values| values.first().cloned())
                     .expect("Should have at least one value");
-                
+
                 self.acir_builder.finalize_function(acir_result);
                 self.brillig_builder.finalize_function(brillig_result);
-            },
+            }
         }
     }
 
@@ -321,8 +363,12 @@ impl FuzzerContext {
             return (Witness(0), Witness(0));
         }
         match (self.last_value_acir.clone(), self.last_value_brillig.clone()) {
-            (Some(_acir_result), Some(_brillig_result)) => (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1)),
-            _ => return (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL)),
+            (Some(_acir_result), Some(_brillig_result)) => {
+                (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1))
+            }
+            _ => {
+                return (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL));
+            }
         }
     }
 
