@@ -473,8 +473,14 @@ impl<'a> FunctionContext<'a> {
         // Generate expressions for LHS and RHS.
         let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
         let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+        let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
-        Ok(Some(expr::binary(lhs_expr, op, rhs_expr)))
+        // If we have chosen e.g. u8 and need u32 we need to cast.
+        if lhs_type != *typ {
+            expr = expr::cast(expr, typ.clone());
+        }
+
+        Ok(Some(expr))
     }
 
     /// Generate a block of statements, finally returning a target type.
