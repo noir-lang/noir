@@ -77,7 +77,7 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     );
 
     brillig_context.codegen_branch(is_rc_one, |brillig_context, _is_rc_one| {
-        // FIXME:
+        // FIXME: https://github.com/noir-lang/noir/issues/7976
         // if is_rc_one {
         //     // We reuse the source vector, moving the metadata to the right (decreasing capacity)
         //     brillig_context.memory_op_instruction(
