@@ -13,11 +13,11 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use crate::base_context::FuzzerContext;
+use crate::base_context::{FuzzerContext, Argument};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_fuzzer::runner::{CompareResults, execute_single, run_and_compare};
-use noirc_evaluator::ssa::ir::types::Type;
+use noir_ssa_fuzzer::typed_value::ValueType;
 
 pub(crate) struct Fuzzer {
     pub(crate) context_non_constant: FuzzerContext,
@@ -25,15 +25,15 @@ pub(crate) struct Fuzzer {
 }
 
 impl Fuzzer {
-    pub(crate) fn new(type_: Type, initial_witness_vector: Vec<impl Into<FieldElement>>) -> Self {
+    pub(crate) fn new(types: Vec<ValueType>, initial_witness_vector: Vec<impl Into<FieldElement>>) -> Self {
         Self {
-            context_non_constant: FuzzerContext::new(type_.clone()),
-            context_constant: FuzzerContext::new_constant(initial_witness_vector, type_),
+            context_non_constant: FuzzerContext::new(types.clone()),
+            context_constant: FuzzerContext::new_constant(initial_witness_vector, types),
         }
     }
 
     /// Finalizes the function for both contexts, executes and compares the results
-    pub(crate) fn run(mut self, initial_witness: WitnessMap<FieldElement>) {
+    pub(crate) fn run(mut self, initial_witness: WitnessMap<FieldElement>, constant_checking_enabled: bool) {
         self.context_non_constant.finalize_function();
         self.context_constant.finalize_function();
 
@@ -49,6 +49,11 @@ impl Fuzzer {
 
         let (acir_return_witness, brillig_return_witness) =
             self.context_constant.get_return_witnesses();
+            
+        if !constant_checking_enabled {
+            return;
+        }
+
         let constant_result = Self::execute_and_compare(
             self.context_constant,
             WitnessMap::new(),
@@ -76,6 +81,7 @@ impl Fuzzer {
                     );
                 }
                 (None, Some(constant_result)) => {
+                    // #7947, non-constant failed due to overflow, but constant succeeded
                     println!(
                         "Constant result is {:?}, but non-constant program failed to execute",
                         constant_result

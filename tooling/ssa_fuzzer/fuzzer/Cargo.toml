@@ -19,15 +19,8 @@ env_logger = "0.11.6"
 path = "../"
 
 [[bin]]
-name = "uint"
-path = "src/uint.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "field"
-path = "src/field.rs"
+name = "base_target"
+path = "src/base_target.rs"
 test = false
 doc = false
 bench = false

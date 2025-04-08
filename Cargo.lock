@@ -3475,6 +3475,7 @@ dependencies = [
  "fxhash",
  "im",
  "iter-extended",
+ "libfuzzer-sys",
  "log",
  "nargo",
  "noirc_abi",

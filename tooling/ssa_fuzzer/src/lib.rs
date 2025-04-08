@@ -4,15 +4,17 @@ pub mod compiler;
 pub mod config;
 pub mod helpers;
 pub mod runner;
+pub mod typed_value;
 
 #[cfg(test)]
 mod tests {
     use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
     use crate::config;
     use crate::runner::{CompareResults, run_and_compare};
+    use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
-    use noirc_evaluator::ssa::ir::{map::Id, types::Type, value::Value};
+    use noirc_evaluator::ssa::ir::types::Type;
     use rand::RngCore;
 
     struct TestHelper {
@@ -21,27 +23,30 @@ mod tests {
     }
 
     impl TestHelper {
-        fn new(typ: Type) -> Self {
+        fn new(types: Vec<ValueType>) -> Self {
             let mut acir_builder = FuzzerBuilder::new_acir();
             let mut brillig_builder = FuzzerBuilder::new_brillig();
-            acir_builder.insert_variables(typ.clone());
-            brillig_builder.insert_variables(typ.clone());
+            for type_ in types {
+                acir_builder.insert_variable(type_.to_ssa_type());
+                brillig_builder.insert_variable(type_.to_ssa_type());
+            }
             Self { acir_builder, brillig_builder }
         }
 
         fn insert_instruction_double_arg(
             &mut self,
             instruction: InstructionWithTwoArgs,
-            first_arg: Id<Value>,
-            second_arg: Id<Value>,
-        ) -> (Id<Value>, Id<Value>) {
-            let acir_return = instruction(&mut self.acir_builder, first_arg, second_arg);
+            first_arg: TypedValue,
+            second_arg: TypedValue,
+        ) -> (TypedValue, TypedValue) {
+            let acir_return =
+                instruction(&mut self.acir_builder, first_arg.clone(), second_arg.clone());
             let brillig_return = instruction(&mut self.brillig_builder, first_arg, second_arg);
             (acir_return, brillig_return)
         }
 
-        fn finalize_function(&mut self, return_value: Id<Value>) {
-            self.acir_builder.finalize_function(return_value);
+        fn finalize_function(&mut self, return_value: TypedValue) {
+            self.acir_builder.finalize_function(return_value.clone());
             self.brillig_builder.finalize_function(return_value);
         }
     }
@@ -77,9 +82,9 @@ mod tests {
         instruction: InstructionWithTwoArgs,
         values: Vec<u64>,
     ) -> FieldElement {
-        let lhs = Id::new(0);
-        let rhs = Id::new(1);
-        let mut test_helper = TestHelper::new(Type::unsigned(128));
+        let lhs = TypedValue::from_value_type(0, &ValueType::U128);
+        let rhs = TypedValue::from_value_type(1, &ValueType::U128);
+        let mut test_helper = TestHelper::new(vec![ValueType::U128, ValueType::U128]);
         let witness_map = get_witness_map(values.clone());
         let initial_witness = witness_map;
         let (acir_result, brillig_result) =

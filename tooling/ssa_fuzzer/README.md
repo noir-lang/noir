@@ -19,15 +19,10 @@ cargo install cargo-fuzz
 
 2. Run fuzzer:
 ```
-cargo fuzz run TARGET --fuzz-dir ./fuzzer
+cargo fuzz run base_target --fuzz-dir ./fuzzer
 ```
 
 or in 5 threads
 ```
-cargo-fuzz run TARGET --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
+cargo-fuzz run base_target --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
 ```
-
-### Supported targets
-
-1. uint
-2. field

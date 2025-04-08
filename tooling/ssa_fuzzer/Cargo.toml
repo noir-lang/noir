@@ -34,6 +34,7 @@ rayon.workspace = true
 cfg-if.workspace = true
 nargo = { path = "../nargo", features = ["rpc"] }
 smallvec = { version = "1.13.2", features = ["serde"] }
+libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
 vec-collections = "0.4.3"
 env_logger = "0.11.6"
 log = "0.4"

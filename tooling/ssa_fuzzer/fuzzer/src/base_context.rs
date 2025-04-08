@@ -4,64 +4,59 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithOneArg, InstructionWithTwoArgs},
-    config,
     config::NUMBER_OF_VARIABLES_INITIAL,
-    helpers::{id_to_int, u32_to_id_value},
+    typed_value::{ValueType, TypedValue},
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::map::Id;
-use noirc_evaluator::ssa::ir::types::Type;
 use noirc_evaluator::ssa::ir::value::Value;
+use std::collections::HashMap;
+#[derive(Arbitrary, Debug, Clone, Hash)]
+pub(crate) struct Argument {
+    /// Index of the argument in the context of stored variables of this type 
+    /// e.g. if we have variables with ids [0, 1] in u64 vector and variables with ids [5, 8] in fields vector
+    /// Argument(Index(0), ValueType::U64) -> id 0
+    /// Argument(Index(0), ValueType::Field) -> id 5
+    /// Argument(Index(1), ValueType::Field) -> id 8
+    index: usize,
+    /// Type of the argument
+    value_type: ValueType,
+}
 
 #[derive(Arbitrary, Debug, Clone, Hash)]
 pub(crate) enum Instructions {
     /// Addition of two values
-    AddChecked { lhs: u32, rhs: u32 },
+    AddChecked { lhs: Argument, rhs: Argument },
     /// Addition of two values without checking for overflow
-    AddUnchecked { lhs: u32, rhs: u32 },
+    AddUnchecked { lhs: Argument, rhs: Argument },
     /// Subtraction of two values
-    SubChecked { lhs: u32, rhs: u32 },
+    SubChecked { lhs: Argument, rhs: Argument },
     /// Subtraction of two values without checking for overflow
-    SubUnchecked { lhs: u32, rhs: u32 },
+    SubUnchecked { lhs: Argument, rhs: Argument },
     /// Multiplication of two values
-    MulChecked { lhs: u32, rhs: u32 },
+    MulChecked { lhs: Argument, rhs: Argument },
     /// Multiplication of two values without checking for overflow
-    MulUnchecked { lhs: u32, rhs: u32 },
+    MulUnchecked { lhs: Argument, rhs: Argument },
     /// Division of two values
-    Div { lhs: u32, rhs: u32 },
+    Div { lhs: Argument, rhs: Argument },
     /// Equality comparison
-    Eq { lhs: u32, rhs: u32 },
+    Eq { lhs: Argument, rhs: Argument },
     /// Modulo operation
-    Mod { lhs: u32, rhs: u32 },
+    Mod { lhs: Argument, rhs: Argument },
     /// Bitwise NOT
-    Not { lhs: u32 },
+    Not { lhs: Argument },
     /// Left shift
-    Shl { lhs: u32, rhs: u32 },
+    Shl { lhs: Argument, rhs: Argument },
     /// Right shift
-    Shr { lhs: u32, rhs: u32 },
-    /// Simple type cast
-    SimpleCast { lhs: u32 },
-    /// Cast to bigger type and back
-    BigCastAndBack { lhs: u32, size: u32 },
-    /// Array element access
-    ArrayGet { array: u32, index: u32 },
-    /// Array element assignment
-    ArraySet { array: u32, index: u32, value: u32 },
-    /// Array creation
-    MakeArray { elements: Vec<u32> },
+    Shr { lhs: Argument, rhs: Argument },
+    /// Cast into type
+    Cast { lhs: Argument, type_: ValueType },
     /// Bitwise AND
-    And { lhs: u32, rhs: u32 },
+    And { lhs: Argument, rhs: Argument },
     /// Bitwise OR
-    Or { lhs: u32, rhs: u32 },
+    Or { lhs: Argument, rhs: Argument },
     /// Bitwise XOR
-    Xor { lhs: u32, rhs: u32 },
-}
-/// Represents an array in the SSA
-#[derive(Copy, Clone)]
-struct Array {
-    acir_id: Id<Value>,
-    brillig_id: Id<Value>,
-    length: u32,
+    Xor { lhs: Argument, rhs: Argument },
 }
 
 /// Main context for the fuzzer containing both ACIR and Brillig builders and their state
@@ -71,166 +66,128 @@ pub(crate) struct FuzzerContext {
     acir_builder: FuzzerBuilder,
     /// Brillig builder
     brillig_builder: FuzzerBuilder,
-    /// Ids of ACIR witnesses stored as u32
-    acir_ids: Vec<u32>,
-    /// Ids of Brillig witnesses stored as u32
-    brillig_ids: Vec<u32>,
-    /// ACIR and Brillig arrays
-    arrays: Vec<Array>,
+    /// Ids of ACIR witnesses stored as TypedValue separated by type
+    acir_ids: HashMap<ValueType, Vec<TypedValue>>,
+    /// Ids of Brillig witnesses stored as TypedValue separated by type
+    brillig_ids: HashMap<ValueType, Vec<TypedValue>>,
+    /// ACIR and Brillig last changed value
+    last_value_acir: Option<TypedValue>,
+    last_value_brillig: Option<TypedValue>,
     /// Whether the context is constant execution
     is_constant: bool,
 }
 
+fn get_typed_value_from_map(map: &HashMap<ValueType, Vec<TypedValue>>, type_: ValueType, idx: usize) -> Option<TypedValue> {
+    let arr = map.get(&type_);
+    if arr.is_none() {
+        return None;
+    }
+    let arr = arr.unwrap();
+    let value = arr.get(idx % arr.len());
+    if value.is_none() {
+        return None;
+    }
+    Some(value.unwrap().clone())
+}
+
+fn append_typed_value_to_map(map: &mut HashMap<ValueType, Vec<TypedValue>>, type_: ValueType, value: TypedValue) {
+    map.entry(type_.clone()).or_insert(Vec::new()).push(value);
+}
+
 impl FuzzerContext {
     /// Creates a new fuzzer context with the given type
-    pub(crate) fn new(type_: Type) -> Self {
+    pub(crate) fn new(types: Vec<ValueType>) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
-        acir_builder.insert_variables(type_.clone());
-        brillig_builder.insert_variables(type_.clone());
-        // by default private variables ids are indexed from 0 to NUMBER_OF_VARIABLES_INITIAL - 1
-        let ids = (0..config::NUMBER_OF_VARIABLES_INITIAL).collect::<Vec<_>>();
-        Self {
-            acir_builder,
-            brillig_builder,
-            acir_ids: ids.clone(),
-            brillig_ids: ids,
-            arrays: vec![],
-            is_constant: false,
+        let mut acir_ids = HashMap::new();
+        let mut brillig_ids = HashMap::new();
+        for type_ in types {
+            let acir_id = acir_builder.insert_variable(type_.to_ssa_type());
+            let brillig_id = brillig_builder.insert_variable(type_.to_ssa_type());
+            acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
+            brillig_ids.entry(type_).or_insert(Vec::new()).push(brillig_id);
         }
-    }
-
-    /// Creates a new fuzzer context with the given values for a constant folding checking
-    pub(crate) fn new_constant(values: Vec<impl Into<FieldElement>>, type_: Type) -> Self {
-        let mut acir_builder = FuzzerBuilder::new_acir();
-        let mut brillig_builder = FuzzerBuilder::new_brillig();
-        acir_builder.set_type(type_.clone());
-        brillig_builder.set_type(type_.clone());
-        let mut acir_ids = vec![];
-        let mut brillig_ids = vec![];
-        for value in values {
-            let field_element = value.into();
-            acir_ids.push(id_to_int(acir_builder.insert_constant(field_element)));
-            brillig_ids.push(id_to_int(brillig_builder.insert_constant(field_element)));
-        }
+        
         Self {
             acir_builder,
             brillig_builder,
             acir_ids,
             brillig_ids,
-            arrays: vec![],
+            last_value_acir: None,
+            last_value_brillig: None,
+            is_constant: false,
+        }
+    }
+
+    /// Creates a new fuzzer context with the given values for a constant folding checking
+    pub(crate) fn new_constant(values: Vec<impl Into<FieldElement>>, types: Vec<ValueType>) -> Self {
+        let mut acir_builder = FuzzerBuilder::new_acir();
+        let mut brillig_builder = FuzzerBuilder::new_brillig();
+        let mut acir_ids = HashMap::new();
+        let mut brillig_ids = HashMap::new();
+
+        for (value, type_) in values.into_iter().zip(types) {
+            let field_element = value.into();
+            acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_builder.insert_constant(field_element, type_.clone()));
+            brillig_ids.entry(type_.clone()).or_insert(Vec::new()).push(brillig_builder.insert_constant(field_element, type_.clone()));
+        }
+
+        Self {
+            acir_builder,
+            brillig_builder,
+            acir_ids,
+            brillig_ids,
+            last_value_acir: None,
+            last_value_brillig: None,
             is_constant: true,
         }
-    }
-
-    /// Creates a new array from a vector of indices of variables
-    pub(crate) fn insert_array(&mut self, elements_indices: &[u32]) {
-        let mut acir_values_ids = vec![];
-        let mut brillig_values_ids = vec![];
-        let acir_len = self.acir_ids.len();
-        let brillig_len = self.brillig_ids.len();
-        for elem in elements_indices {
-            let acir_value_id = self.acir_ids[*elem as usize % acir_len];
-            let brillig_value_id = self.brillig_ids[*elem as usize % brillig_len];
-            acir_values_ids.push(acir_value_id);
-            brillig_values_ids.push(brillig_value_id);
-        }
-        let acir_array = self.acir_builder.insert_make_array(acir_values_ids);
-        let brillig_array = self.brillig_builder.insert_make_array(brillig_values_ids);
-        self.arrays.push(Array {
-            acir_id: acir_array,
-            brillig_id: brillig_array,
-            length: elements_indices.len() as u32,
-        });
-    }
-
-    /// Gets an element from an array at the given index
-    pub(crate) fn insert_array_get(&mut self, array_idx: u32, index: u32) {
-        if self.arrays.is_empty() {
-            // no arrays created
-            return;
-        }
-        // choose array by index
-        let arrays_len = self.arrays.len() as u32;
-        let array = self.arrays[(array_idx % arrays_len) as usize];
-        let acir_array_id = array.acir_id;
-        let brillig_array_id = array.brillig_id;
-
-        if array.length == 0 {
-            return;
-        }
-
-        let index = index % array.length;
-        let acir_return_id = self.acir_builder.insert_array_get(acir_array_id, index);
-        let brillig_return_id = self.brillig_builder.insert_array_get(brillig_array_id, index);
-        self.acir_ids.push(id_to_int(acir_return_id));
-        self.brillig_ids.push(id_to_int(brillig_return_id));
-    }
-
-    /// Sets an element in an array at the given index
-    pub(crate) fn insert_array_set(&mut self, array_idx: u32, index: u32, value: u32) {
-        if self.arrays.is_empty() {
-            // no arrays created
-            return;
-        }
-        // choose array by index
-        let arrays_len = self.arrays.len() as u32;
-        let array = self.arrays[(array_idx % arrays_len) as usize];
-        let acir_array_id = array.acir_id;
-        let brillig_array_id = array.brillig_id;
-
-        if array.length == 0 {
-            return;
-        }
-
-        let index = index % array.length;
-        let acir_value = u32_to_id_value(self.acir_ids[value as usize % self.acir_ids.len()]);
-        let brillig_value =
-            u32_to_id_value(self.brillig_ids[value as usize % self.brillig_ids.len()]);
-
-        let acir_return_id = self.acir_builder.insert_array_set(acir_array_id, index, acir_value);
-        let brillig_return_id =
-            self.brillig_builder.insert_array_set(brillig_array_id, index, brillig_value);
-        self.arrays.push(Array {
-            acir_id: acir_return_id,
-            brillig_id: brillig_return_id,
-            length: array.length,
-        });
     }
 
     /// Inserts an instruction that takes a single argument
     pub(crate) fn insert_instruction_with_single_arg(
         &mut self,
-        arg: u32,
+        arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
-        let acir_len = self.acir_ids.len() as u32;
-        let brillig_len = self.brillig_ids.len() as u32;
-        let acir_arg = u32_to_id_value(self.acir_ids[(arg % acir_len) as usize]);
-        let brillig_arg = u32_to_id_value(self.brillig_ids[(arg % brillig_len) as usize]);
+        let acir_arg = get_typed_value_from_map(&self.acir_ids, arg.value_type.clone(), arg.index);
+        let brillig_arg = get_typed_value_from_map(&self.brillig_ids, arg.value_type.clone(), arg.index);
+        let (acir_arg, brillig_arg) = match (acir_arg, brillig_arg) {
+            (Some(acir_arg), Some(brillig_arg)) => (acir_arg, brillig_arg),
+            _ => return,
+        };
         let acir_result = instruction(&mut self.acir_builder, acir_arg);
         let brillig_result = instruction(&mut self.brillig_builder, brillig_arg);
-        self.acir_ids.push(id_to_int(acir_result));
-        self.brillig_ids.push(id_to_int(brillig_result));
+        self.last_value_acir = Some(acir_result.clone());
+        self.last_value_brillig = Some(brillig_result.clone());
+        append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
+        append_typed_value_to_map(&mut self.brillig_ids, brillig_result.to_value_type(), brillig_result);
     }
 
     /// Inserts an instruction that takes two arguments
     pub(crate) fn insert_instruction_with_double_args(
         &mut self,
-        lhs: u32,
-        rhs: u32,
+        lhs: Argument,
+        rhs: Argument,
         instruction: InstructionWithTwoArgs,
     ) {
-        let acir_len = self.acir_ids.len() as u32;
-        let brillig_len = self.brillig_ids.len() as u32;
-        let acir_lhs = u32_to_id_value(self.acir_ids[(lhs % acir_len) as usize]);
-        let acir_rhs = u32_to_id_value(self.acir_ids[(rhs % acir_len) as usize]);
-        let brillig_lhs = u32_to_id_value(self.brillig_ids[(lhs % brillig_len) as usize]);
-        let brillig_rhs = u32_to_id_value(self.brillig_ids[(rhs % brillig_len) as usize]);
+        let acir_lhs = get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
+        let acir_rhs = get_typed_value_from_map(&self.acir_ids, rhs.value_type.clone(), rhs.index);
+        let (acir_lhs, acir_rhs) = match (acir_lhs, acir_rhs) {
+            (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
+            _ => return,
+        };
         let acir_result = instruction(&mut self.acir_builder, acir_lhs, acir_rhs);
+        let brillig_lhs = get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
+        let brillig_rhs = get_typed_value_from_map(&self.brillig_ids, rhs.value_type.clone(), rhs.index);
+        let (brillig_lhs, brillig_rhs) = match (brillig_lhs, brillig_rhs) {
+            (Some(brillig_lhs), Some(brillig_rhs)) => (brillig_lhs, brillig_rhs),
+            _ => return,
+        };
         let brillig_result = instruction(&mut self.brillig_builder, brillig_lhs, brillig_rhs);
-        self.acir_ids.push(id_to_int(acir_result));
-        self.brillig_ids.push(id_to_int(brillig_result));
+        self.last_value_acir = Some(acir_result.clone());
+        self.last_value_brillig = Some(brillig_result.clone());
+        append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
+        append_typed_value_to_map(&mut self.brillig_ids, brillig_result.to_value_type(), brillig_result);
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
@@ -276,31 +233,19 @@ impl FuzzerContext {
                     builder.insert_eq_instruction(lhs, rhs)
                 });
             }
-            Instructions::SimpleCast { lhs } => {
-                // TODO(sn): makearray([simplecast]) causes panic in compiler
-                self.insert_instruction_with_single_arg(lhs, |builder, lhs| {
-                    builder.insert_simple_cast(lhs)
-                });
-            }
-            Instructions::MakeArray { elements } => {
-                self.insert_array(&elements);
-            }
-            Instructions::ArrayGet { array, index } => {
-                self.insert_array_get(array, index);
-            }
-            Instructions::ArraySet { array, index, value } => {
-                self.insert_array_set(array, index, value);
-            }
-            Instructions::BigCastAndBack { lhs, size } => {
-                let acir_len = self.acir_ids.len() as u32;
-                let brillig_len = self.brillig_ids.len() as u32;
-                let acir_lhs = u32_to_id_value(self.acir_ids[(lhs % acir_len) as usize]);
-                let brillig_lhs = u32_to_id_value(self.brillig_ids[(lhs % brillig_len) as usize]);
-                let acir_result = self.acir_builder.insert_cast_bigger_and_back(acir_lhs, size);
-                let brillig_result =
-                    self.brillig_builder.insert_cast_bigger_and_back(brillig_lhs, size);
-                self.acir_ids.push(id_to_int(acir_result));
-                self.brillig_ids.push(id_to_int(brillig_result));
+            Instructions::Cast { lhs, type_ } => {
+                let acir_lhs = get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
+                let brillig_lhs = get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
+                let (acir_lhs, brillig_lhs) = match (acir_lhs, brillig_lhs) {
+                    (Some(acir_lhs), Some(brillig_lhs)) => (acir_lhs, brillig_lhs),
+                    _ => return,
+                };
+                let acir_result = self.acir_builder.insert_cast(acir_lhs, type_.clone());
+                let brillig_result = self.brillig_builder.insert_cast(brillig_lhs, type_.clone());
+                self.last_value_acir = Some(acir_result.clone());
+                self.last_value_brillig = Some(brillig_result.clone());
+                append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
+                append_typed_value_to_map(&mut self.brillig_ids, brillig_result.to_value_type(), brillig_result);
             }
             Instructions::Mod { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
@@ -342,25 +287,42 @@ impl FuzzerContext {
 
     /// Finalizes the function by setting the return value
     pub(crate) fn finalize_function(&mut self) {
-        let acir_result_index = *self.acir_ids.last().unwrap();
-        let brillig_result_index = *self.brillig_ids.last().unwrap();
-        self.acir_builder.finalize_function(u32_to_id_value(acir_result_index));
-        self.brillig_builder.finalize_function(u32_to_id_value(brillig_result_index));
+        match (self.last_value_acir.clone(), self.last_value_brillig.clone()) {
+            (Some(acir_result), Some(brillig_result)) => {
+                self.acir_builder.finalize_function(acir_result);
+                self.brillig_builder.finalize_function(brillig_result);
+            }
+            _ => {
+                // If no last value was set, use the first value from the first type in each map
+                let first_type = self.acir_ids.keys().next()
+                    .expect("Should have at least one type");
+
+                let acir_result = self.acir_ids.get(first_type)
+                    .and_then(|values| values.first().cloned())
+                    .expect("Should have at least one value");
+                
+                let brillig_result = self.brillig_ids.get(first_type)
+                    .and_then(|values| values.first().cloned())
+                    .expect("Should have at least one value");
+                
+                self.acir_builder.finalize_function(acir_result);
+                self.brillig_builder.finalize_function(brillig_result);
+            },
+        }
     }
 
     /// Returns witnesses for ACIR and Brillig
     /// If program does not have any instruction, it terminated with the last one witness
     /// Resulting WitnessStack of programs contains only variables and return value
-    /// If we did not insert any instructions, WitnessStack contains only variables, so we return the last one
     /// If we inserted some instructions, WitnessStack contains return value, so we return the last one
     /// If we are in constant execution, we in witness stack only return value, so we return the Witness(0)
     pub(crate) fn get_return_witnesses(&self) -> (Witness, Witness) {
         if self.is_constant {
-            (Witness(0), Witness(0))
-        } else if self.acir_ids.len() as u32 != NUMBER_OF_VARIABLES_INITIAL {
-            (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL))
-        } else {
-            (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1))
+            return (Witness(0), Witness(0));
+        }
+        match (self.last_value_acir.clone(), self.last_value_brillig.clone()) {
+            (Some(_acir_result), Some(_brillig_result)) => (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1)),
+            _ => return (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL)),
         }
     }
 

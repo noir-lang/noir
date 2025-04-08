@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use crate::compiler::compile;
-use crate::config::NUMBER_OF_VARIABLES_INITIAL;
-use crate::helpers;
+use crate::helpers::{id_to_int, u32_to_id_value};
+use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
@@ -24,11 +24,11 @@ pub enum FuzzerBuilderError {
 
 /// Inserts binary instruction with two arguments and returns Id of the result
 /// eg add, sub, mul
-pub type InstructionWithTwoArgs = fn(&mut FuzzerBuilder, Id<Value>, Id<Value>) -> Id<Value>;
+pub type InstructionWithTwoArgs = fn(&mut FuzzerBuilder, TypedValue, TypedValue) -> TypedValue;
 
 /// Inserts unary instruction with one argument and returns Id of the result
 /// eg not, SimpleCast(casts variable to current numeric type)
-pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, Id<Value>) -> Id<Value>;
+pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, TypedValue) -> TypedValue;
 
 /// Builder for generating fuzzed SSA functions
 /// Contains a FunctionBuilder and tracks the current numeric type being used
@@ -78,215 +78,272 @@ impl FuzzerBuilder {
     }
 
     /// Inserts initial variables of the given type into the function
-    pub fn insert_variables(&mut self, variable_type: Type) {
-        for _ in 0..NUMBER_OF_VARIABLES_INITIAL {
-            self.builder.add_parameter(variable_type.clone());
-        }
-        self.type_ = variable_type.clone();
-        match variable_type {
-            Type::Numeric(numeric_type) => {
-                self.numeric_type = numeric_type;
-            }
-            _ => {
-                panic!("Unsupported variable type");
-            }
-        }
-    }
-
-    pub fn set_type(&mut self, type_: Type) {
-        self.type_ = type_.clone();
-        match type_ {
-            Type::Numeric(numeric_type) => {
-                self.numeric_type = numeric_type;
-            }
-            _ => {
-                panic!("Unsupported variable type");
-            }
-        }
+    pub fn insert_variable(&mut self, variable_type: Type) -> TypedValue {
+        let id = self.builder.add_parameter(variable_type.clone());
+        TypedValue::new(id, variable_type)
     }
 
     /// Terminates main function block with the given value
-    pub fn finalize_function(&mut self, return_value: Id<Value>) {
-        self.builder.terminate_with_return(vec![return_value]);
+    pub fn finalize_function(&mut self, return_value: TypedValue) {
+        self.builder.terminate_with_return(vec![return_value.value_id]);
     }
 
     /// Inserts an add instruction between two values
-    pub fn insert_add_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: false }, rhs)
+    pub fn insert_add_instruction_checked(
+        &mut self,
+        lhs: TypedValue,
+        rhs: TypedValue,
+    ) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "add") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(
+            lhs.value_id,
+            BinaryOp::Add { unchecked: false },
+            rhs.value_id,
+        );
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     pub fn insert_add_instruction_unchecked(
         &mut self,
-        lhs: Id<Value>,
-        rhs: Id<Value>,
-    ) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Add { unchecked: true }, rhs)
+        lhs: TypedValue,
+        rhs: TypedValue,
+    ) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "unchecked") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(
+            lhs.value_id,
+            BinaryOp::Add { unchecked: true },
+            rhs.value_id,
+        );
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a subtract instruction between two values
-    pub fn insert_sub_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: false }, rhs)
+    pub fn insert_sub_instruction_checked(
+        &mut self,
+        lhs: TypedValue,
+        rhs: TypedValue,
+    ) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "sub") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(
+            lhs.value_id,
+            BinaryOp::Sub { unchecked: false },
+            rhs.value_id,
+        );
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     pub fn insert_sub_instruction_unchecked(
         &mut self,
-        lhs: Id<Value>,
-        rhs: Id<Value>,
-    ) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs)
+        lhs: TypedValue,
+        rhs: TypedValue,
+    ) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "unchecked") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(
+            lhs.value_id,
+            BinaryOp::Sub { unchecked: true },
+            rhs.value_id,
+        );
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a multiply instruction between two values
-    pub fn insert_mul_instruction_checked(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: false }, rhs)
+    pub fn insert_mul_instruction_checked(
+        &mut self,
+        lhs: TypedValue,
+        rhs: TypedValue,
+    ) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "mul") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(
+            lhs.value_id,
+            BinaryOp::Mul { unchecked: false },
+            rhs.value_id,
+        );
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     pub fn insert_mul_instruction_unchecked(
         &mut self,
-        lhs: Id<Value>,
-        rhs: Id<Value>,
-    ) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs)
+        lhs: TypedValue,
+        rhs: TypedValue,
+    ) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "unchecked") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(
+            lhs.value_id,
+            BinaryOp::Mul { unchecked: true },
+            rhs.value_id,
+        );
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a divide instruction between two values
-    pub fn insert_div_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Div, rhs)
+    pub fn insert_div_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "div") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Div, rhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a modulo instruction between two values
-    pub fn insert_mod_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Mod, rhs)
+    pub fn insert_mod_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        let mut lhs = lhs;
+        let mut rhs = rhs;
+        let (lhs, rhs) = match (lhs.supports_mod(), rhs.supports_mod()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                rhs = self.insert_cast(rhs, lhs.to_value_type());
+                (lhs, rhs)
+            }
+            (false, true) => {
+                lhs = self.insert_cast(lhs, rhs.to_value_type());
+                (lhs, rhs)
+            }
+            _ => {
+                // field case, doesn't support mod, cannot balance
+                return lhs;
+            }
+        };
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Mod, rhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a not instruction for the given value
-    pub fn insert_not_instruction(&mut self, lhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_not(lhs)
+    pub fn insert_not_instruction(&mut self, lhs: TypedValue) -> TypedValue {
+        if !lhs.supports_not() {
+            return lhs;
+        }
+        let res = self.builder.insert_not(lhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Inserts a truncate instruction for the given value
-    pub fn insert_truncate(
-        &mut self,
-        value: Id<Value>,
-        bit_size: u32,
-        max_bit_size: u32,
-    ) -> Id<Value> {
-        self.builder.insert_truncate(value, bit_size, max_bit_size)
-    }
-
-    /// Inserts a cast instruction to the current numeric type
-    pub fn insert_simple_cast(&mut self, value: Id<Value>) -> Id<Value> {
-        let v1 = self.builder.insert_cast(value, self.numeric_type);
-        match self.numeric_type {
-            NumericType::Signed { bit_size } => self.insert_truncate(v1, bit_size, bit_size),
-            NumericType::Unsigned { bit_size } => self.insert_truncate(v1, bit_size, bit_size),
-            _ => v1,
-        }
-    }
-
-    /// Inserts a cast to a larger bit size and back to original type
-    pub fn insert_cast_bigger_and_back(&mut self, value: Id<Value>, size: u32) -> Id<Value> {
-        // SSA supports casts to really big sizes, but the program runs for too long
-        // it cannot be introduced with just nargo and noir compiler, so we just skip it
-        if size > 127 {
-            return value;
-        }
-        match self.numeric_type {
-            NumericType::Signed { bit_size: _ } => {
-                let res1 = self.builder.insert_cast(value, NumericType::Signed { bit_size: size });
-
-                self.insert_simple_cast(res1)
-            }
-            NumericType::Unsigned { bit_size: _ } => {
-                let res1 =
-                    self.builder.insert_cast(value, NumericType::Unsigned { bit_size: size });
-
-                self.insert_simple_cast(res1)
-            }
-            NumericType::NativeField => value,
-        }
+    /// Inserts a cast instruction
+    pub fn insert_cast(&mut self, value: TypedValue, cast_type: ValueType) -> TypedValue {
+        let res = self.builder.insert_cast(value.value_id, cast_type.to_numeric_type());
+        TypedValue::new(res, cast_type.to_ssa_type())
     }
 
     /// Inserts an equals comparison instruction between two values
-    pub fn insert_eq_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let res1 = self.builder.insert_binary(lhs, BinaryOp::Eq, rhs);
-
-        self.insert_simple_cast(res1)
+    pub fn insert_eq_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "eq") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Eq, rhs.value_id);
+        TypedValue::new(res, ValueType::Boolean.to_ssa_type())
     }
 
     /// Inserts a less than comparison instruction between two values
-    pub fn insert_lt_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        let res1 = self.builder.insert_binary(lhs, BinaryOp::Lt, rhs);
+    pub fn insert_lt_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "lt") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Lt, rhs.value_id);
+        TypedValue::new(res, ValueType::Boolean.to_ssa_type())
+    }
 
-        self.insert_simple_cast(res1)
+    fn balance_types_for_bitwise_op(
+        &mut self,
+        lhs: TypedValue,
+        rhs: TypedValue,
+    ) -> (TypedValue, TypedValue) {
+        let mut lhs = lhs;
+        let mut rhs = rhs;
+        let (lhs, rhs) = match (lhs.supports_bitwise(), rhs.supports_bitwise()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                rhs = self.insert_cast(rhs, lhs.to_value_type());
+                (lhs, rhs)
+            }
+            (false, true) => {
+                lhs = self.insert_cast(lhs, rhs.to_value_type());
+                (lhs, rhs)
+            }
+            _ => {
+                // field case, doesn't support bitwise, cast to u64
+                // TODO(sn): make something smarter
+                lhs = self.insert_cast(lhs, ValueType::U64);
+                rhs = self.insert_cast(rhs, ValueType::U64);
+                (lhs, rhs)
+            }
+        };
+        (lhs, rhs)
     }
 
     /// Inserts a bitwise AND instruction between two values
-    pub fn insert_and_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::And, rhs)
+    pub fn insert_and_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::And, rhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a bitwise OR instruction between two values
-    pub fn insert_or_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Or, rhs)
+    pub fn insert_or_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Or, rhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Inserts a bitwise XOR instruction between two values
-    pub fn insert_xor_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        self.builder.insert_binary(lhs, BinaryOp::Xor, rhs)
+    /// Inserts a bitwise XOR instruction between two values    
+    pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Xor, rhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
-    pub fn insert_shl_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
+    pub fn insert_shl_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
         // rhs must be 8bit, otherwise compiler will throw panic...
-        match self.numeric_type {
-            NumericType::Signed { bit_size: _ } => {
-                let rhs_value = self.builder.insert_cast(rhs, NumericType::Signed { bit_size: 8 });
-
-                self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value)
-            }
-            NumericType::Unsigned { bit_size: _ } => {
-                let rhs_value =
-                    self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-
-                self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value)
-            }
-            _ => {
-                // field case, doesnt support shift
-                lhs
-            }
+        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
+        let rhs = self.insert_cast(rhs, ValueType::U8);
+        let mut lhs = lhs;
+        if !lhs.compatible_with(&rhs, "shift") {
+            // if field type, cast to u64
+            lhs = self.insert_cast(lhs, ValueType::U64);
         }
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Shl, rhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
-    pub fn insert_shr_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        match self.numeric_type {
-            NumericType::Signed { bit_size: _ } => {
-                let rhs_value =
-                    self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-
-                self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value)
-            }
-            NumericType::Unsigned { bit_size: _ } => {
-                let rhs_value =
-                    self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
-
-                self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value)
-            }
-            _ => {
-                // field case, doesnt support shift
-                lhs
-            }
+    pub fn insert_shr_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
+        let rhs = self.insert_cast(rhs, ValueType::U8);
+        let mut lhs = lhs;
+        if !lhs.compatible_with(&rhs, "shift") {
+            // if field type, cast to u64
+            lhs = self.insert_cast(lhs, ValueType::U64);
         }
+        let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Shr, rhs.value_id);
+        TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Creates an array with the given Ids of values
     pub fn insert_make_array(&mut self, elements: Vec<u32>) -> Id<Value> {
         let mut elems = Vec::new();
         for elem in elements.clone() {
-            elems.push(helpers::u32_to_id_value(elem));
+            elems.push(u32_to_id_value(elem));
         }
         let types = vec![self.type_.clone()];
 
@@ -304,8 +361,13 @@ impl FuzzerBuilder {
         self.builder.insert_array_get(array, index_var, self.type_.clone())
     }
 
-    pub fn insert_constant(&mut self, value: impl Into<FieldElement>) -> Id<Value> {
-        self.builder.numeric_constant(value.into(), self.numeric_type)
+    pub fn insert_constant(
+        &mut self,
+        value: impl Into<FieldElement>,
+        type_: ValueType,
+    ) -> TypedValue {
+        let id = self.builder.numeric_constant(value.into(), type_.to_numeric_type());
+        TypedValue::new(id, type_.to_ssa_type())
     }
 
     /// Sets an element in an array at the given index
@@ -323,7 +385,7 @@ impl FuzzerBuilder {
 
     /// Gets the index of the entry block
     pub fn get_entry_block_index(&mut self) -> u32 {
-        helpers::id_to_int(self.builder.get_current_block_index())
+        id_to_int(self.builder.get_current_block_index())
     }
 
     /// Switches the current block to the given block
@@ -334,7 +396,7 @@ impl FuzzerBuilder {
     /// Inserts a new basic block and returns its index
     pub fn insert_block(&mut self) -> u32 {
         let id = self.builder.insert_block();
-        helpers::id_to_int(id)
+        id_to_int(id)
     }
 
     /// Inserts a return instruction with the given value
