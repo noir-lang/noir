@@ -367,7 +367,10 @@ impl FuzzerContext {
                 (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1))
             }
             _ => {
-                return (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL));
+                return (
+                    Witness(NUMBER_OF_VARIABLES_INITIAL),
+                    Witness(NUMBER_OF_VARIABLES_INITIAL),
+                );
             }
         }
     }
