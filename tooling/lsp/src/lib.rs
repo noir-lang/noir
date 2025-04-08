@@ -65,7 +65,6 @@ use tower::Service;
 
 mod attribute_reference_finder;
 mod modules;
-mod name_match;
 mod notifications;
 mod requests;
 mod solver;
