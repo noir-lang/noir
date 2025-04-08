@@ -360,12 +360,7 @@ impl FuzzerContext {
             (Some(_acir_result), Some(_brillig_result)) => {
                 (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1))
             }
-            _ => {
-                (
-                    Witness(NUMBER_OF_VARIABLES_INITIAL),
-                    Witness(NUMBER_OF_VARIABLES_INITIAL),
-                )
-            }
+            _ => (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL)),
         }
     }
 
