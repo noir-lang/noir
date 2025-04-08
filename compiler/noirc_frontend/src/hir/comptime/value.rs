@@ -10,8 +10,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -24,6 +24,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    shared::Signedness,
     signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
 };
@@ -512,7 +513,7 @@ impl Value {
                 vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let name = Rc::new(interner.get_trait(trait_id).name.0.contents.clone());
+                let name = Rc::new(interner.get_trait(trait_id).name.to_string());
                 let typ = Type::TraitAsType(trait_id, name, generics);
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }

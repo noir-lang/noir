@@ -7,6 +7,7 @@ yanked = "warn"
 
 ignore = [
     "RUSTSEC-2024-0388", # derivative unmaintained
+    "RUSTSEC-2024-0436", # paste unmaintained
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -54,6 +55,8 @@ allow = [
     "MPL-2.0",
     # Boost Software License
     "BSL-1.0",
+    # libfuzzer-sys
+    "NCSA",
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses

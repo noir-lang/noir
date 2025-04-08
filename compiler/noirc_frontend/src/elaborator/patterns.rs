@@ -5,8 +5,8 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        ERROR_IDENT, Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath,
-        UnresolvedType,
+        ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
+        Pattern, TypePath, UnresolvedType,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -17,7 +17,9 @@ use crate::{
         expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
+    node_interner::{
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
+    },
 };
 
 use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
@@ -270,7 +272,7 @@ impl Elaborator<'_> {
 
         for (field, pattern) in fields {
             let (field_type, visibility) = expected_type
-                .get_field_type_and_visibility(&field.0.contents)
+                .get_field_type_and_visibility(field.as_str())
                 .unwrap_or((Type::Error, ItemVisibility::Public));
             let resolved = self.elaborate_pattern_mut(
                 pattern,
@@ -287,7 +289,7 @@ impl Elaborator<'_> {
 
                 self.check_struct_field_visibility(
                     &struct_type.borrow(),
-                    &field.0.contents,
+                    field.as_str(),
                     visibility,
                     field.location(),
                 );
@@ -329,7 +331,7 @@ impl Elaborator<'_> {
         }
 
         let location = name.location();
-        let name = name.0.contents;
+        let name = name.into_string();
         let comptime = self.in_comptime_context();
         let id =
             self.interner.push_definition(name.clone(), mutable, comptime, definition, location);
@@ -383,12 +385,12 @@ impl Elaborator<'_> {
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
 
-        let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        let old_global_value = scope.add_key_value(name.to_string(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
                 first_location: old_global_value.ident.location,
                 second_location: name.location(),
-                name: name.0.contents,
+                name: name.into_string(),
             });
         }
         ident
@@ -403,7 +405,7 @@ impl Elaborator<'_> {
     ) -> Result<(HirIdent, usize), ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
-        let variable = scope_tree.find(&name.0.contents);
+        let variable = scope_tree.find(name.as_str());
 
         let location = name.location();
         if let Some((variable_found, scope)) = variable {
@@ -412,8 +414,8 @@ impl Elaborator<'_> {
             Ok((HirIdent::non_trait_method(id, location), scope))
         } else {
             Err(ResolverError::VariableNotDeclared {
-                name: name.0.contents.clone(),
-                location: name.0.location(),
+                name: name.to_string(),
+                location: name.location(),
             })
         }
     }
@@ -452,7 +454,7 @@ impl Elaborator<'_> {
         let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
             "struct",
-            &struct_type.name.0.contents,
+            struct_type.name.as_str(),
             kinds,
             generics,
             unresolved_turbofish,
@@ -488,7 +490,7 @@ impl Elaborator<'_> {
         let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
             "alias",
-            &type_alias.name.0.contents,
+            type_alias.name.as_str(),
             kinds,
             generics,
             unresolved_turbofish,
@@ -533,7 +535,23 @@ impl Elaborator<'_> {
         })
     }
 
-    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(&mut self, mut variable: Path) -> (ExprId, Type) {
+        // Check if this is `Self::method_name` when we are inside a trait impl and `Self`
+        // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
+        // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
+        // A regular path lookup won't work here for the same reason `TypePath` exists.
+        if let Some(self_type) = &self.self_type {
+            if self.current_trait_impl.is_some()
+                && variable.segments.len() == 2
+                && variable.segments[0].ident.is_self_type_name()
+                && !matches!(self.self_type, Some(Type::DataType(..)))
+            {
+                let ident = variable.segments.remove(1).ident;
+                let typ_location = variable.segments[0].location;
+                return self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location);
+            }
+        }
+
         let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
@@ -542,8 +560,10 @@ impl Elaborator<'_> {
 
         let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
 
-        let definition_kind =
-            self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
+        let definition = self.interner.try_definition(definition_id);
+        let is_comptime_local = !self.in_comptime_context()
+            && definition.is_some_and(DefinitionInfo::is_comptime_local);
+        let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         let mut bindings = TypeBindings::new();
 
@@ -574,14 +594,31 @@ impl Elaborator<'_> {
         let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings);
         self.interner.push_expr_type(id, typ.clone());
 
-        (id, typ)
+        // If this variable it a comptime local variable, use its current value as the final expression
+        if is_comptime_local {
+            let mut interpreter = self.setup_interpreter();
+            let value = interpreter.evaluate(id);
+            // If the value is an error it means the variable already had an error, so don't report it here again
+            // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
+            // but that's not true)
+            if value.is_ok() {
+                let (id, typ) = self.inline_comptime_value(value, location);
+                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
+                (id, typ)
+            } else {
+                (id, typ)
+            }
+        } else {
+            (id, typ)
+        }
     }
 
     /// Solve any generics that are part of the path before the function, for example:
     ///
-    /// foo::Bar::<i32>::baz
-    ///           ^^^^^
-    ///         solve these
+    /// ```noir
+    /// foo::Bar::<i32>::baz   
+    /// ```
+    /// Solve `<i32>` above
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
@@ -594,6 +631,13 @@ impl Elaborator<'_> {
                     Some(generics.generics),
                     generics.location,
                 )
+            }
+            PathResolutionItem::SelfMethod(_) => {
+                if let Some(Type::DataType(_, generics)) = &self.self_type {
+                    generics.clone()
+                } else {
+                    Vec::new()
+                }
             }
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -634,7 +678,14 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
-            _ => Vec::new(),
+            PathResolutionItem::Method(_, None, _)
+            | PathResolutionItem::TraitFunction(_, None, _)
+            | PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::ModuleFunction(..) => Vec::new(),
         }
     }
 
@@ -851,14 +902,32 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
-        let location = path.item.location();
+        let typ_location = path.typ.location;
+        let turbofish = path.turbofish;
         let typ = self.resolve_type(path.typ);
+        self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+    }
+
+    fn elaborate_type_path_impl(
+        &mut self,
+        typ: Type,
+        ident: Ident,
+        turbofish: Option<GenericTypeArgs>,
+        typ_location: Location,
+    ) -> (ExprId, Type) {
+        let ident_location = ident.location();
         let check_self_param = false;
 
-        let Some(method) =
-            self.lookup_method(&typ, &path.item.0.contents, location, check_self_param)
-        else {
-            let error = Expression::new(ExpressionKind::Error, location);
+        self.interner.push_type_ref_location(&typ, typ_location);
+
+        let Some(method) = self.lookup_method(
+            &typ,
+            ident.as_str(),
+            ident_location,
+            typ_location,
+            check_self_param,
+        ) else {
+            let error = Expression::new(ExpressionKind::Error, ident_location);
             return self.elaborate_expression(error);
         };
 
@@ -867,7 +936,7 @@ impl Elaborator<'_> {
             .expect("Expected trait function to be a DefinitionKind::Function");
 
         let generics =
-            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, location).0);
+            turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, ident_location).0);
 
         let id = self.interner.function_definition_id(func_id);
 
@@ -875,15 +944,15 @@ impl Elaborator<'_> {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
             HirMethodReference::TraitMethodId(method_id, generics, _) => {
                 let mut constraint =
-                    self.interner.get_trait(method_id.trait_id).as_constraint(location);
+                    self.interner.get_trait(method_id.trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = generics;
                 ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }
         };
 
-        let ident = HirIdent { location, id, impl_kind };
+        let ident = HirIdent { location: ident_location, id, impl_kind };
         let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
-        self.interner.push_expr_location(id, location);
+        self.interner.push_expr_location(id, ident_location);
 
         let typ = self.type_check_variable(ident, id, generics);
         self.interner.push_expr_type(id, typ.clone());

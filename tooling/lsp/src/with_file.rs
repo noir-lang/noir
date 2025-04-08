@@ -563,7 +563,7 @@ fn generic_type_args_with_file(generics: GenericTypeArgs, file: FileId) -> Gener
 
 fn ident_with_file(ident: Ident, file: FileId) -> Ident {
     let location = location_with_file(ident.location(), file);
-    Ident::new(ident.0.contents, location)
+    Ident::new(ident.into_string(), location)
 }
 
 fn secondary_attributes_with_file(
@@ -975,8 +975,9 @@ fn unresolved_generics_with_file(
 
 fn unresolved_generic_with_file(generic: UnresolvedGeneric, file: FileId) -> UnresolvedGeneric {
     match generic {
-        UnresolvedGeneric::Variable(ident) => {
-            UnresolvedGeneric::Variable(ident_with_file(ident, file))
+        UnresolvedGeneric::Variable(ident, trait_bounds) => {
+            let trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
+            UnresolvedGeneric::Variable(ident_with_file(ident, file), trait_bounds)
         }
         UnresolvedGeneric::Numeric { ident, typ } => UnresolvedGeneric::Numeric {
             ident: ident_with_file(ident, file),

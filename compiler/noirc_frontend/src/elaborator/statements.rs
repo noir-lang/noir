@@ -359,7 +359,7 @@ impl Elaborator<'_> {
             LValue::Ident(ident) => {
                 let mut mutable = true;
                 let location = ident.location();
-                let path = Path::from_single(ident.0.contents, location);
+                let path = Path::from_single(ident.to_string(), location);
                 let ((ident, scope_index), _) = self.get_ident_from_path(path);
 
                 self.resolve_local_variable(ident.clone(), scope_index);
@@ -407,7 +407,7 @@ impl Elaborator<'_> {
                     *mutable_ref = true;
                 };
 
-                let name = &field_name.0.contents;
+                let name = field_name.as_str();
                 let (object_type, field_index) = self
                     .check_field_access(
                         &lhs_type,
@@ -426,6 +426,8 @@ impl Elaborator<'_> {
             LValue::Index { array, index, location } => {
                 let expr_location = index.location;
                 let (index, index_type) = self.elaborate_expression(index);
+
+                self.push_index_to_check(index);
 
                 let expected = self.polymorphic_integer_or_field();
                 self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {

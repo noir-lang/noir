@@ -262,7 +262,8 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Ampersand
             | Token::SliceStart
             | Token::ShiftLeft
-            | Token::ShiftRight => {
+            | Token::ShiftRight
+            | Token::LogicalAnd => {
                 self.last_was_op = true;
                 write!(f, " {token}")
             }
@@ -285,7 +286,6 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::RawStr(..)
             | Token::FmtStr(..)
             | Token::Whitespace(_)
-            | Token::LineComment(..)
             | Token::BlockComment(..)
             | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
@@ -293,6 +293,10 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                     write!(f, " ")?;
                 }
                 write!(f, "{token}")
+            }
+            Token::LineComment(..) => {
+                writeln!(f, "{token}")?;
+                self.write_indent(f)
             }
             Token::EOF => Ok(()),
         }

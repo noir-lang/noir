@@ -9,7 +9,7 @@ use noirc_abi::{
 use noirc_errors::Location;
 use noirc_evaluator::ErrorType;
 use noirc_frontend::TypeBinding;
-use noirc_frontend::ast::{Signedness, Visibility};
+use noirc_frontend::shared::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
     hir_def::{
@@ -198,7 +198,7 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
                 .iter()
                 .map(|(ident, expr_id)| {
                     (
-                        ident.0.contents.to_string(),
+                        ident.to_string(),
                         value_from_hir_expression(
                             context,
                             context.def_interner.expression(expr_id),

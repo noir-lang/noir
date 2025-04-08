@@ -113,3 +113,5 @@ fn test_enum() -> Color {
 fn negative_integer() -> i32 {
     -8
 }
+
+global array: [Field; 3] = [1, 2 + 3, 4];

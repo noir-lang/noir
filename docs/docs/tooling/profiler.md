@@ -126,7 +126,7 @@ This feature depends on the proving backend you are using and whether it support
 Let's take a granular look at our program's proving backend gates footprint using the profiler, running:
 
 ```sh
-noir-profiler gates --artifact-path ./target/program.json --backend-path bb --output ./target
+noir-profiler gates --artifact-path ./target/program.json --backend-path bb --output ./target -- --include_gates_per_opcode
 ```
 
 The `--backend-path` flag takes in the path to your proving backend binary.

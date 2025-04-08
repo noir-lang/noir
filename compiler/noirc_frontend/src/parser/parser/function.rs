@@ -2,12 +2,13 @@ use crate::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
+use crate::shared::Visibility;
 use crate::token::{Attribute, Attributes, Keyword, Token};
 use crate::{ast::UnresolvedGenerics, parser::labels::ParsingRuleLabel};
 use crate::{
     ast::{
         FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
-        UnresolvedTypeData, Visibility,
+        UnresolvedTypeData,
     },
     parser::ParserErrorReason,
 };
@@ -91,7 +92,7 @@ impl Parser<'_> {
             return empty_function(self.previous_token_location);
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
         let parameters = self.parse_function_parameters(allow_self);
 
         let parameters = match parameters {
@@ -171,6 +172,8 @@ impl Parser<'_> {
 
     fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
         loop {
+            self.error_on_outer_doc_comments_on_parameter();
+
             let start_location = self.current_token_location;
 
             let pattern_or_self = if allow_self {
@@ -324,8 +327,8 @@ fn empty_body() -> BlockExpression {
 mod tests {
     use crate::{
         ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, Signedness,
-            StatementKind, UnresolvedTypeData, Visibility,
+            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
+            UnresolvedTypeData,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -335,6 +338,7 @@ mod tests {
                 get_source_with_error_span,
             },
         },
+        shared::{Signedness, Visibility},
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
@@ -607,5 +611,20 @@ mod tests {
 
         assert!(matches!(call.object.kind, ExpressionKind::If(_)));
         assert_eq!(call.method_name.to_string(), "bar");
+    }
+
+    #[test]
+    fn errors_on_doc_comments_on_parameter() {
+        let src = "
+        fn foo(
+            /// Doc comment
+            x: Field,
+        )
+        ";
+        let (_module, errors) = parse_program_with_dummy_file(src);
+        assert_eq!(errors.len(), 1);
+
+        let reason = errors[0].reason().unwrap();
+        assert_eq!(reason, &ParserErrorReason::DocCommentCannotBeAppliedToFunctionParameters);
     }
 }

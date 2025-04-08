@@ -59,7 +59,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parses_mutable_reference_type() {
+        if let Some(typ) = self.parse_reference_type() {
             return Some(typ);
         }
 
@@ -314,7 +314,6 @@ impl Parser<'_> {
         let ret = if self.eat(Token::Arrow) {
             self.parse_type_or_error()
         } else {
-            self.expected_token(Token::Arrow);
             UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
@@ -372,7 +371,20 @@ impl Parser<'_> {
         None
     }
 
-    fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_reference_type(&mut self) -> Option<UnresolvedTypeData> {
+        let start_location = self.current_token_location;
+
+        // This is '&&', which in this context is a double reference type
+        if self.eat(Token::LogicalAnd) {
+            let mutable = self.eat_keyword(Keyword::Mut);
+            let inner_type =
+                UnresolvedTypeData::Reference(Box::new(self.parse_type_or_error()), mutable);
+            let inner_type =
+                UnresolvedType { typ: inner_type, location: self.location_since(start_location) };
+            let typ = UnresolvedTypeData::Reference(Box::new(inner_type), false /* mutable */);
+            return Some(typ);
+        }
+
         // The `&` may be lexed as a slice start if this is an array or slice type
         if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
             let mutable = self.eat_keyword(Keyword::Mut);
@@ -462,11 +474,12 @@ mod tests {
 
     use crate::{
         QuotedType,
-        ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
+        ast::{IntegerBitSize, UnresolvedType, UnresolvedTypeData},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
+        shared::Signedness,
     };
 
     fn parse_type_no_errors(src: &str) -> UnresolvedType {
@@ -628,6 +641,26 @@ mod tests {
     }
 
     #[test]
+    fn parses_double_reference_type() {
+        let src = "&&Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference type")
+        };
+        assert_eq!(typ.typ.to_string(), "&Field");
+    }
+
+    #[test]
+    fn parses_double_reference_mutable_type() {
+        let src = "&&mut Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference type")
+        };
+        assert_eq!(typ.typ.to_string(), "&mut Field");
+    }
+
+    #[test]
     fn parses_named_type_no_generics() {
         let src = "foo::Bar";
         let typ = parse_type_no_errors(src);
@@ -671,6 +704,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_reference_to_array_type() {
+        let src = "&[Field; 10]";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference typ");
+        };
+        let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
+            panic!("Expected an array type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(expr.to_string(), "10");
+    }
+
+    #[test]
     fn parses_empty_function_type() {
         let src = "fn() -> Field";
         let typ = parse_type_no_errors(src);
@@ -703,6 +750,16 @@ mod tests {
             panic!("Expected a function type")
         };
         assert_eq!(ret.typ.to_string(), "Field");
+    }
+
+    #[test]
+    fn parses_function_type_without_return_type() {
+        let src = "fn()";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ else {
+            panic!("Expected a function type")
+        };
+        assert_eq!(ret.typ.to_string(), "()");
     }
 
     #[test]
