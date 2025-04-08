@@ -121,16 +121,6 @@ The profiler further provides the ability to flamegraph a Noir program's proving
 
 This feature depends on the proving backend you are using. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here. Follow the [quick start guide](../getting_started/quick_start.md#proving-backend) to install it if you have not already.
 
-#### Updating the demonstrative project
-
-Let's first revert our demonstrative program into a constrained program by removing the `unconstrained` modifier from the main function:
-
-```rust
-fn main(...){...}
-```
-
-Then recompile the program running `nargo compile`.
-
 #### Flamegraphing
 
 Let's take a granular look at our program's proving backend gates footprint using the profiler, running:
