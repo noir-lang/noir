@@ -17,11 +17,11 @@ Check if the profiler is already installed by running `noir-profiler --version`.
 
 ### Profiling ACIR opcodes
 
-The profiler provides the ability to flamegraph a Noir program's ACIR opcodes footprint. This is useful for _approximately_ identifying and optimizing proving bottlenecks of Noir programs.
+The profiler provides the ability to flamegraph a Noir program's ACIR opcodes footprint. This is useful for _approximately_ identifying constrained execution and proving bottlenecks of Noir programs.
 
 :::note
 
-"_Approximately_" as actual proving speeds depend on the proving backend of choice, and how it interprets the ACIR opcodes.
+"_Approximately_" as execution and proving speeds depend on the constrained execution trace and how the proving backend of choice interprets the ACIR opcodes.
 
 :::
 
@@ -64,7 +64,7 @@ The demonstrative project consists of 387 ACIR opcodes in total. From the flameg
 
 With insight into our program's bottleneck, let's optimize it.
 
-#### Optimizing array writes with reads
+#### Visualizing optimizations
 
 We can improve our program's performance using [unconstrained functions](../noir/concepts/unconstrained.md).
 
@@ -99,7 +99,7 @@ This brings the ACIR opcodes count of our program down to a total of 284 opcodes
 
 ![ACIR Flamegraph Optimized](@site/static/img/tooling/profiler/acir-flamegraph-optimized.png)
 
-#### Searching in flamegraphs
+#### Searching
 
 The `i > ptr` region in the above image is highlighted purple as we were searching for it.
 
@@ -117,9 +117,9 @@ This comes from the optimization removing the use of a dynamic array (i.e. an ar
 
 ### Profiling proving backend gates
 
-The profiler further provides the ability to flamegraph a Noir program's proving backend gates footprint. This is useful for fully identifying and optimizing proving bottlenecks of Noir programs.
+The profiler further provides the ability to flamegraph a Noir program's proving backend gates footprint. This is useful for fully identifying proving bottlenecks of Noir programs.
 
-This feature depends on the proving backend you are using. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here. Follow the [quick start guide](../getting_started/quick_start.md#proving-backend) to install it if you have not already.
+This feature depends on the proving backend you are using and whether it supports the profiler with a gate profiling API. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here. Follow the [quick start guide](../getting_started/quick_start.md#proving-backend) to install it if you have not already.
 
 #### Flamegraphing
 
@@ -173,7 +173,7 @@ And at array size 2,048:
 
 ### Profiling execution traces (unconstrained)
 
-The profiler also provides the ability to flamegraph a Noir program's execution trace. This is useful for identifying and optimizing execution bottlenecks of Noir programs.
+The profiler also provides the ability to flamegraph a Noir program's execution trace. This is useful for identifying execution bottlenecks of Noir programs.
 
 The profiler supports profiling fully unconstrained Noir programs at this moment.
 
@@ -211,14 +211,14 @@ Note that unconstrained Noir functions compile down to Brillig opcodes, which is
 
 :::tip
 
-Optimizing constrained operations through unconstrained rewrites like what we did in [the previous section](#optimizing-array-writes-with-reads) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
+Rewriting constrained operations with unconstrained operations like what we did in [the optimization section](#visualizing-optimizations) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
 
 For example, we can find a 13.9% match `new_array` in the flamegraph above.
 
 In contrast, if we profile the pre-optimization demonstrative project:
 ![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
 
-You will notice that it does not contain `new_array` and executes a total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
+You will notice that it does not contain `new_array` and executes a smaller total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
 
 As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
 
