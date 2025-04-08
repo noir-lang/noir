@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744144803211,
+  "lastUpdate": 1744144812366,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "891c5aa80718ce7049f226b828232976001fbcb8",
-          "message": "fix: show-ssa-pass implies force-compile (#7841)",
-          "timestamp": "2025-03-28T16:46:23Z",
-          "tree_id": "fe920bfd0b4223099b799b125522268e53232f24",
-          "url": "https://github.com/noir-lang/noir/commit/891c5aa80718ce7049f226b828232976001fbcb8"
-        },
-        "date": 1743183385961,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.075,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.305,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.786,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.528,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -11353,6 +11289,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "770bddadbabf2c8166c28452de463a8cf799dbcd",
+          "message": "fix: don't solve `Self` in trait impl method via trait method lookup (#7974)",
+          "timestamp": "2025-04-08T20:16:11Z",
+          "tree_id": "564cf6a1ee977e79aa86836b4b041aa62e91c78f",
+          "url": "https://github.com/noir-lang/noir/commit/770bddadbabf2c8166c28452de463a8cf799dbcd"
+        },
+        "date": 1744144807733,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.304,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.029,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.791,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.524,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.027,
             "unit": "s"
           }
         ]
