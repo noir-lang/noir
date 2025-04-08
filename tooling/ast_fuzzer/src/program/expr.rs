@@ -43,7 +43,9 @@ pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result
                             i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
                         }
                         HundredTwentyEight => {
-                            i128::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
+                            // `ssa_gen::FunctionContext::checked_numeric_constant` doesn't allow negative
+                            // values with 128 bits, so let's stick to the positive range.
+                            i128::arbitrary(u).map(|n| (Field::from(n.abs()), false))?
                         }
                     }
                 } else {
