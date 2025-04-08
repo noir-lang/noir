@@ -23,8 +23,6 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
-use convert::AsPrimitive;
-
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(print)]
@@ -88,29 +86,31 @@ pub fn assert_constant<T>(x: T) {}
 #[builtin(static_assert)]
 pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
-pub fn wrapping_add<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    AsPrimitive::as_(x.as_() + y.as_())
-}
+// TEMPORARY: this will be marked as deprecated, but is temporary commented
+// to check for any remaining usages.
+// pub fn wrapping_add<T>(x: T, y: T) -> T
+// where
+//     T: AsPrimitive<Field>,
+//     Field: AsPrimitive<T>,
+// {
+//     AsPrimitive::as_(x.as_() + y.as_())
+// }
 
-pub fn wrapping_sub<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
-}
+// pub fn wrapping_sub<T>(x: T, y: T) -> T
+// where
+//     T: AsPrimitive<Field>,
+//     Field: AsPrimitive<T>,
+// {
+//     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
+//     AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
+// }
 
-fn wrapping_mul<T>(x: T, y: T) -> T
-where
-    T: ops::arith::WappingMul,
-{
-    x.wrapping_mul(y)
-}
+// fn wrapping_mul<T>(x: T, y: T) -> T
+// where
+//     T: ops::arith::Wapping,
+// {
+//     x.wrapping_mul(y)
+// }
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
@@ -148,7 +148,7 @@ pub fn wrapping_mul128(x: Field, y: Field) -> Field {
 }
 
 mod tests {
-    use super::wrapping_mul;
+    use super::ops::arith::Wrapping;
 
     #[test(should_fail_with = "custom message")]
     fn test_static_assert_custom_message() {
@@ -163,29 +163,29 @@ mod tests {
         let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;
 
         // 1*0==0
-        assert_eq(zero, wrapping_mul(zero, one));
+        assert_eq(zero, zero.wrapping_mul(one));
 
         // 0*1==0
-        assert_eq(zero, wrapping_mul(one, zero));
+        assert_eq(zero, one.wrapping_mul(zero));
 
         // 1*1==1
-        assert_eq(one, wrapping_mul(one, one));
+        assert_eq(one, one.wrapping_mul(one));
 
         // 0 * ( 1 << 64 ) ==  0
-        assert_eq(zero, wrapping_mul(zero, two_pow_64));
+        assert_eq(zero, zero.wrapping_mul(two_pow_64));
 
         // ( 1 << 64 ) * 0 == 0
-        assert_eq(zero, wrapping_mul(two_pow_64, zero));
+        assert_eq(zero, two_pow_64.wrapping_mul(zero));
 
         // 1 * ( 1 << 64 ) == 1 << 64
-        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));
+        assert_eq(two_pow_64, two_pow_64.wrapping_mul(one));
 
         // ( 1 << 64 ) * 1 == 1 << 64
-        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));
+        assert_eq(two_pow_64, one.wrapping_mul(two_pow_64));
 
         // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64
-        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));
+        assert_eq(zero, two_pow_64.wrapping_mul(two_pow_64));
         // -1 * -1 == 1
-        assert_eq(one, wrapping_mul(u128_max, u128_max));
+        assert_eq(one, u128_max.wrapping_mul(u128_max));
     }
 }

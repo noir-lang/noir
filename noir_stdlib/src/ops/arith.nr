@@ -1,3 +1,5 @@
+use crate::convert::AsPrimitive;
+
 // docs:start:add-trait
 pub trait Add {
     fn add(self, other: Self) -> Self;
@@ -347,38 +349,145 @@ impl Neg for i64 {
 }
 // docs:end:neg-trait-impls
 
-pub trait WappingMul {
+pub trait Wrapping {
     fn wrapping_mul(self, y: Self) -> Self;
+    fn wrapping_add(self, y: Self) -> Self;
+    fn wrapping_sub(self, y: Self) -> Self;
 }
 
-impl WappingMul for u64 {
+impl Wrapping for u64 {
     fn wrapping_mul(self: u64, y: u64) -> u64 {
-        //AsPrimitive::as_(self.as_()* y.as_())
-        ((self as Field) * (y as Field)) as u64
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: u64, y: u64) -> u64 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: u64, y: u64) -> u64 {
+        wrapping_sub_hlp(self, y)
     }
 }
-impl WappingMul for u32 {
+impl Wrapping for u32 {
     fn wrapping_mul(self: u32, y: u32) -> u32 {
-        ((self as Field) * (y as Field)) as u32
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: u32, y: u32) -> u32 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: u32, y: u32) -> u32 {
+        wrapping_sub_hlp(self, y)
     }
 }
-impl WappingMul for u16 {
+impl Wrapping for u16 {
     fn wrapping_mul(self: u16, y: u16) -> u16 {
-        ((self as Field) * (y as Field)) as u16
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: u16, y: u16) -> u16 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: u16, y: u16) -> u16 {
+        wrapping_sub_hlp(self, y)
     }
 }
-impl WappingMul for u8 {
+impl Wrapping for u8 {
     fn wrapping_mul(self: u8, y: u8) -> u8 {
-        ((self as Field) * (y as Field)) as u8
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: u8, y: u8) -> u8 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: u8, y: u8) -> u8 {
+        wrapping_sub_hlp(self, y)
     }
 }
-impl WappingMul for bool {
+impl Wrapping for bool {
     fn wrapping_mul(self: bool, y: bool) -> bool {
-        ((self as Field) * (y as Field)) as bool
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: bool, y: bool) -> bool {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: bool, y: bool) -> bool {
+        wrapping_sub_hlp(self, y)
     }
 }
-impl WappingMul for u128 {
+impl Wrapping for u128 {
     fn wrapping_mul(self: u128, y: u128) -> u128 {
         crate::wrapping_mul128(self as Field, y as Field) as u128
     }
+    fn wrapping_add(self: u128, y: u128) -> u128 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: u128, y: u128) -> u128 {
+        wrapping_sub_hlp(self, y)
+    }
+}
+
+impl Wrapping for i64 {
+    fn wrapping_mul(self: i64, y: i64) -> i64 {
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: i64, y: i64) -> i64 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: i64, y: i64) -> i64 {
+        wrapping_sub_hlp(self, y)
+    }
+}
+impl Wrapping for i32 {
+    fn wrapping_mul(self: i32, y: i32) -> i32 {
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: i32, y: i32) -> i32 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: i32, y: i32) -> i32 {
+        wrapping_sub_hlp(self, y)
+    }
+}
+impl Wrapping for i16 {
+    fn wrapping_mul(self: i16, y: i16) -> i16 {
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: i16, y: i16) -> i16 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: i16, y: i16) -> i16 {
+        wrapping_sub_hlp(self, y)
+    }
+}
+impl Wrapping for i8 {
+    fn wrapping_mul(self: i8, y: i8) -> i8 {
+        wrapping_mul_hlp(self, y)
+    }
+    fn wrapping_add(self: i8, y: i8) -> i8 {
+        wrapping_add_hlp(self, y)
+    }
+    fn wrapping_sub(self: i8, y: i8) -> i8 {
+        wrapping_sub_hlp(self, y)
+    }
+}
+
+fn wrapping_add_hlp<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    AsPrimitive::as_(x.as_() + y.as_())
+}
+
+fn wrapping_sub_hlp<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
+    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
+}
+
+fn wrapping_mul_hlp<T>(x: T, y: T) -> T
+where
+    T: AsPrimitive<Field>,
+    Field: AsPrimitive<T>,
+{
+    AsPrimitive::as_(x.as_() * y.as_())
 }
