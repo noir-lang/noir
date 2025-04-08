@@ -68,10 +68,9 @@ pub(crate) fn on_workspace_symbol_request(
     let parsed_files = parse_all(&file_manager);
     for (file_id, (parsed_module, _)) in parsed_files {
         let path = file_manager.path(file_id).unwrap().to_path_buf();
-        let mut symbols = Vec::new();
-        let mut gatherer = WorkspaceSymboGatherer::new(&mut symbols, file_manager.as_file_map());
+        let mut gatherer = WorkspaceSymbolGatherer::new(file_manager.as_file_map());
         parsed_module.accept(&mut gatherer);
-        cache.symbols_per_path.insert(path, gatherer.symbols.clone());
+        cache.symbols_per_path.insert(path, gatherer.symbols);
     }
 
     // Finally, we filter the symbols based on the query
@@ -104,7 +103,7 @@ pub(crate) struct WorkspaceSymbolCache {
 }
 
 impl WorkspaceSymbolCache {
-    pub(crate) fn reprocess_url(&mut self, uri: &Url) {
+    pub(crate) fn reprocess_uri(&mut self, uri: &Url) {
         if !self.initialized {
             return;
         }
@@ -116,14 +115,14 @@ impl WorkspaceSymbolCache {
     }
 }
 
-struct WorkspaceSymboGatherer<'symbols, 'files> {
-    symbols: &'symbols mut Vec<WorkspaceSymbol>,
+struct WorkspaceSymbolGatherer<'files> {
+    symbols: Vec<WorkspaceSymbol>,
     files: &'files FileMap,
 }
 
-impl<'symbols, 'files> WorkspaceSymboGatherer<'symbols, 'files> {
-    fn new(symbols: &'symbols mut Vec<WorkspaceSymbol>, files: &'files FileMap) -> Self {
-        Self { symbols, files }
+impl<'files> WorkspaceSymbolGatherer<'files> {
+    fn new(files: &'files FileMap) -> Self {
+        Self { symbols: Vec::new(), files }
     }
 
     fn to_lsp_location(&self, location: Location) -> Option<lsp_types::Location> {
@@ -151,7 +150,7 @@ impl<'symbols, 'files> WorkspaceSymboGatherer<'symbols, 'files> {
     }
 }
 
-impl Visitor for WorkspaceSymboGatherer<'_, '_> {
+impl Visitor for WorkspaceSymbolGatherer<'_> {
     fn visit_parsed_submodule(&mut self, submodule: &ParsedSubModule, _: Span) -> bool {
         self.push_symbol(&submodule.name, SymbolKind::MODULE);
         true
