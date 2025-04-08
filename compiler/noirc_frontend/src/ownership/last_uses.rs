@@ -1,3 +1,30 @@
+//! This module contains the last use analysis pass which is run on each function before
+//! the ownership pass when the experimental ownership scheme is enabled. This pass does
+//! not run without this experimental flag - and if it did its results would go unused.
+//!
+//! The purpose of this pass is to find which instance of a variable is the variable's
+//! last use. Note that a variable may have multiple last uses. This can happen if the
+//! variable's last use is within an `if` expression or similar. It could be last used
+//! in one place in the `then` branch and in another place in the `else` branch as long
+//! as no code after the `if` expression uses the same variable.
+//!
+//! This pass works by tracking the last use location for each variable with a
+//! "loop index" and a `Branches` enumeration.
+//! - The loop index tracks the loop level the variable was declared in. A variable
+//!   must be cloned in any loop with an index greater than the variable's own loop index.
+//!   Note that "loop index" refers to how nested we are within loops. A function starts
+//!   in index 0, and when we enter the body of a `loop {}` or `for _ in a..b {}`, the index
+//!   increments by 1. So `b` in `loop { for _ in 0..1 { b } }` would have index `2`.
+//! - The `Branches` enumeration holds each current last use of a variable.
+//!   - In the common case this will be `Branches::Direct(ident_id)` indicating that `ident_id`
+//!     is the last use of its variable and it was not moved into an `if` or `match`.
+//!   - When the variable is used within an `if` or `match` its last use will have a value of
+//!     `Branches::IfOrMatch(cases)` with the given nested last uses in each case of the if/match.
+//! - This pass is not sophisticated with regard to struct and tuple fields. It currently
+//!   ignores these entirely and counts each use as a use of the entire variable. This is an
+//!   area for future optimization. E.g. the program `a.b.c; a.e.f` will result in `a` being
+//!   cloned in its entirety in the first statement. Note that this is lessened in the overall
+//!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use fxhash::FxHashMap as HashMap;
@@ -16,13 +43,13 @@ use super::Context;
 /// ```
 /// d's last uses in the above snippet would be:
 /// ```noir
-/// Branches::If {
-///     then_branch: Branches::If {
-///         then_branch: Branches::Direct(3),
-///         else_branch: Branches::None,
-///     },
-///     else_branch: Branches::Direct(4),
-/// }
+/// Branches::IfOrMatch(vec![
+///     Branches::IfOrMatch(vec![
+///         Branches::Direct(3),
+///         Branches::None,
+///     ]),
+///     Branches::Direct(4),
+/// ])
 /// ```
 #[derive(Debug, Clone)]
 pub(super) enum Branches {
@@ -43,7 +70,9 @@ impl Branches {
     }
 }
 
-/// A single path through a `Branches` enum
+/// A single path through a `Branches` enum.
+///
+/// This is used by the context to keep track of where we currently are within a function.
 #[derive(Debug)]
 enum BranchesPath {
     /// We've reached our destination
@@ -53,40 +82,53 @@ enum BranchesPath {
 }
 
 struct LastUseContext {
-    /// This is meant to mirror the structure in `context.last_uses`.
     /// The outer `Vec` is each loop we're currently in, while the `BranchPath` contains
     /// the path to overwrite the last use in any `Branches` enums of the variables we find.
+    /// As a whole, this tracks the current control-flow of the function we're in.
     current_loop_and_branch: Vec<BranchesPath>,
 
     /// Stores the location of each variable's last use
     ///
-    /// Map from each local variable to the last "use instance" of that variable.
-    /// E.g. if the last time a variable is used is the third time it is used (in traversal order)
-    /// then this map will contain the pair `(LocalId(_), 3)`.
+    /// Map from each local variable to the last instance of that variable. Separate uses of
+    /// the same variable are differentiated by that identifier's `IdentId` which is always
+    /// different on separate identifiers, unlike the `LocalId` which is the same for any
+    /// identifier referring to the same underlying definition.
     ///
-    /// Note that when a variable is declared it has 0 uses until the first time it is used after
-    /// being declared where it now has 1 use, etc.
-    ///
-    /// This map is used to move the variable on last use instead of cloning it. Code using this
-    /// should take care to keep track of any loops the variable is used in. E.g. in:
-    /// ```noir
-    /// let x = [1, 2];
-    /// for i in 0 .. 2 {
-    ///     foo(x);
-    /// }
-    /// ```
-    /// The `x` in `foo(x)` should not be counted as a last use since it still must be cloned to
-    /// be used on the next iteration of the loop.
-    ///
-    /// The outer Vec is each loop scope - we always only look at variables declared in the current
-    /// loop scope. Variables declared outside of it should always be cloned when used in loops.
-    /// The inner hashmap maps from id to its last uses in each branch. For most cases this branch
-    /// is just `Branches::Direct { last_use }` but in the case of `if` or `match` expressions, a
-    /// variable may have a last use in each branch which the `Branches` enum tracks.
+    /// Each definition is mapped to a loop index and a Branches enumeration.
+    /// - The loop index tracks how many loops the variable was declared within. It may be moved
+    ///   within the same loop but cannot be moved within a nested loop. E.g:
+    ///   ```noir
+    ///   fn foo() {
+    ///       let x = 2;
+    ///       for _ in 0 .. 2 {
+    ///           let b = true;
+    ///           println((x, b));
+    ///       }
+    ///   }
+    ///   ```
+    ///   In the snippet above, `x` will have loop index 0 which does not match its last use
+    ///   within the for loop (1 loop deep = loop index of 1). However, `b` has loop index 1
+    ///   and thus can be moved into its last use in the loop, in this case the `println` call.
+    /// - The Branches enumeration holds each last use of the variable. This is usually only
+    ///   one use but can be multiple if the last use is spread across several `if` or `match`
+    ///   branches. E.g:
+    ///   ```noir
+    ///   fn bar() {
+    ///       let x = 2;
+    ///       if true {
+    ///           println(x);
+    ///       } else {
+    ///           assert(x < 5);
+    ///       }
+    ///   }
+    ///   ```
+    ///   `x` above has two last uses, one in each if branch.
     last_uses: HashMap<LocalId, (/*loop index*/ usize, Branches)>,
 }
 
 impl Context {
+    /// Traverse the given function and return the last use(s) of each local variable.
+    /// A variable may have multiple last uses if it was last used within a conditional expression.
     pub(super) fn find_last_uses_of_variables(
         function: &Function,
     ) -> HashMap<LocalId, Vec<IdentId>> {
