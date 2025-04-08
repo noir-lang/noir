@@ -21,7 +21,7 @@ use async_lsp::{
 use fm::{FileManager, codespan_files as files};
 use fxhash::FxHashSet;
 use lsp_types::{
-    CodeLens, WorkspaceSymbol,
+    CodeLens,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
         PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
@@ -52,8 +52,8 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    LspInitializationOptions, on_code_action_request, on_code_lens_request, on_completion_request,
-    on_document_symbol_request, on_formatting, on_goto_declaration_request,
+    LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
+    on_completion_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
     on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
     on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
@@ -102,9 +102,7 @@ pub struct LspState {
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
-    workspace_symbol_cache_initialized: bool,
-    workspace_symbol_cache: HashMap<PathBuf, Vec<WorkspaceSymbol>>,
-    workspace_symbol_paths_to_process: HashSet<PathBuf>,
+    workspace_symbol_cache: WorkspaceSymbolCache,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -137,23 +135,10 @@ impl LspState {
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
-            workspace_symbol_cache_initialized: false,
-            workspace_symbol_cache: HashMap::new(),
-            workspace_symbol_paths_to_process: HashSet::new(),
+            workspace_symbol_cache: WorkspaceSymbolCache::default(),
             open_documents_count: 0,
             options: Default::default(),
             files_with_errors: HashMap::new(),
-        }
-    }
-
-    fn clear_workspace_symbol_cache(&mut self, uri: &Url) {
-        if !self.workspace_symbol_cache_initialized {
-            return;
-        }
-
-        if let Ok(path) = uri.to_file_path() {
-            self.workspace_symbol_cache.remove(&path);
-            self.workspace_symbol_paths_to_process.insert(path.clone());
         }
     }
 }

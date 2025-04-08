@@ -30,6 +30,8 @@ use crate::{
     types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
 };
 
+pub(crate) use workspace_symbol::WorkspaceSymbolCache;
+
 // Handlers
 // The handlers for `request` are not `async` because it compiles down to lifetimes that can't be added to
 // the router. To return a future that fits the trait, it is easiest wrap your implementations in an `async {}`

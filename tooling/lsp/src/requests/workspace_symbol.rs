@@ -1,9 +1,13 @@
-use std::future::{self, Future};
+use std::{
+    collections::{HashMap, HashSet},
+    future::{self, Future},
+    path::PathBuf,
+};
 
 use async_lsp::ResponseError;
 use fm::{FileManager, FileMap};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-use lsp_types::{SymbolKind, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse};
+use lsp_types::{SymbolKind, Url, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse};
 use nargo::{insert_all_files_under_path_into_file_manager, parse_all};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
@@ -31,14 +35,16 @@ pub(crate) fn on_workspace_symbol_request(
     // Prepare a FileManager for files we'll parse, to extract symbols from
     let mut file_manager = FileManager::new(root_path.as_path());
 
+    let cache = &mut state.workspace_symbol_cache;
+
     // If the cache is not initialized yet, put all files in the workspace in the FileManager
-    if !state.workspace_symbol_cache_initialized {
+    if !cache.initialized {
         insert_all_files_under_path_into_file_manager(&mut file_manager, &root_path, &overrides);
-        state.workspace_symbol_cache_initialized = true;
+        cache.initialized = true;
     }
 
     // Then add files that we need to re-process
-    for path in std::mem::take(&mut state.workspace_symbol_paths_to_process) {
+    for path in std::mem::take(&mut cache.paths_to_reprocess) {
         if !path.exists() {
             continue;
         }
@@ -65,14 +71,14 @@ pub(crate) fn on_workspace_symbol_request(
         let mut symbols = Vec::new();
         let mut gatherer = WorkspaceSymboGatherer::new(&mut symbols, file_manager.as_file_map());
         parsed_module.accept(&mut gatherer);
-        state.workspace_symbol_cache.insert(path, gatherer.symbols.clone());
+        cache.symbols_per_path.insert(path, gatherer.symbols.clone());
     }
 
     // Finally, we filter the symbols based on the query
     // (Note: we could filter them as we gather them above, but doing this in one go is simpler)
     let matcher = SkimMatcherV2::default();
-    let symbols = state
-        .workspace_symbol_cache
+    let symbols = cache
+        .symbols_per_path
         .values()
         .flat_map(|symbols| {
             symbols.iter().filter_map(|symbol| {
@@ -86,6 +92,28 @@ pub(crate) fn on_workspace_symbol_request(
         .collect::<Vec<_>>();
 
     future::ready(Ok(Some(WorkspaceSymbolResponse::Nested(symbols))))
+}
+
+#[derive(Default)]
+pub(crate) struct WorkspaceSymbolCache {
+    initialized: bool,
+    symbols_per_path: HashMap<PathBuf, Vec<WorkspaceSymbol>>,
+    /// Whenever a file changes we'll add it to this set. Then, when workspace symbols
+    /// are requested we'll reprocess these files in search for symbols.
+    paths_to_reprocess: HashSet<PathBuf>,
+}
+
+impl WorkspaceSymbolCache {
+    pub(crate) fn reprocess_url(&mut self, uri: &Url) {
+        if !self.initialized {
+            return;
+        }
+
+        if let Ok(path) = uri.to_file_path() {
+            self.symbols_per_path.remove(&path);
+            self.paths_to_reprocess.insert(path.clone());
+        }
+    }
 }
 
 struct WorkspaceSymboGatherer<'symbols, 'files> {
