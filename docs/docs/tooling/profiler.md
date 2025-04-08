@@ -147,7 +147,7 @@ This illustrates that number of ACIR opcodes are at best approximations of provi
 
 :::
 
-:::tip
+#### Understanding bottlenecks
 
 Profiling your program with different parameters is good way to understand your program's bottlenecks as it scales.
 
@@ -168,8 +168,6 @@ As additional reference, this is the flamegraph of the pre-optimization demonstr
 And at array size 2,048:
 
 ![Gates Flamegraph Unoptimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png)
-
-:::
 
 ### Profiling execution traces (unconstrained)
 
@@ -209,7 +207,7 @@ Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
 
 Note that unconstrained Noir functions compile down to Brillig opcodes, which is what the counts in this flamegraph stand for, rather than constrained ACIR opcodes like in the previous section.
 
-:::tip
+#### Balancing proving and execution optimizations
 
 Rewriting constrained operations with unconstrained operations like what we did in [the optimization section](#visualizing-optimizations) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
 
@@ -223,5 +221,3 @@ You will notice that it does not contain `new_array` and executes a smaller tota
 As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
 
 This is however good to keep in mind in case you start noticing execution speeds being the bottleneck of your program, or if you are simply looking to optimize your program's execution speeds.
-
-:::
