@@ -10,7 +10,7 @@
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
     "swizzle": "docusaurus swizzle",
-    "version": "yarn version::stables && ./scripts/cut_version.sh"
+    "cut_version": "yarn version::stables && ./scripts/cut_version.sh"
   },
   "dependencies": {
     "@cookbookdev/docsbot": "^4.24.9",
