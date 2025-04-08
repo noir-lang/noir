@@ -73,10 +73,10 @@ impl CompareResult {
                 }
             }
             CompareResult::LeftFailed(e, _) => {
-                bail!("first program failed: {e}")
+                bail!("first program failed: {e}\n{e:?}")
             }
             CompareResult::RightFailed(_, e) => {
-                bail!("second program failed: {e}")
+                bail!("second program failed: {e}\n{e:?}")
             }
             CompareResult::BothPassed(o1, o2) => {
                 if o1.return_value != o2.return_value {
