@@ -281,7 +281,40 @@
 <a href="#280" id="280">280</a>
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 <span class="kw">use </span>jsonrpsee::{
@@ -302,6 +335,10 @@
     </span>id: u64,
     <span class="doccomment">/// JSON RPC client to resolve foreign calls
     </span>external_resolver: HttpClient,
+    <span class="doccomment">/// External resolver target. We are keeping it to be able to restart httpClient if necessary
+    ///
+    /// See [`noir-lang/noir#7463`][&lt;https://github.com/noir-lang/noir/issues/7463&gt;]
+    </span>resolver_url: String,
     <span class="doccomment">/// Root path to the program or workspace in execution.
     </span>root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
     <span class="doccomment">/// Name of the package in execution
@@ -342,17 +379,7 @@
         root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
         package_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>client_builder = HttpClientBuilder::new();
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(timeout)) =
-            std::env::var(<span class="string">"NARGO_FOREIGN_CALL_TIMEOUT"</span>).ok().map(|timeout| timeout.parse())
-        {
-            <span class="kw">let </span>timeout_duration = std::time::Duration::from_millis(timeout);
-            client_builder = client_builder.request_timeout(timeout_duration);
-        };
-
-        <span class="kw">let </span>oracle_resolver =
-            client_builder.build(resolver_url).expect(<span class="string">"Invalid oracle resolver URL"</span>);
+        <span class="kw">let </span>oracle_resolver = build_http_client(resolver_url);
 
         <span class="comment">// Opcodes are executed in the `ProgramExecutor::execute_circuit` one by one in a loop,
         // we don't need a concurrent thread pool.
@@ -364,12 +391,49 @@
 
         RPCForeignCallExecutor {
             external_resolver: oracle_resolver,
+            resolver_url: resolver_url.to_string(),
             id,
             root_path,
             package_name,
             runtime,
         }
     }
+
+    <span class="kw">fn </span>send_foreign_call&lt;F&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        foreign_call: <span class="kw-2">&amp;</span>ForeignCallWaitInfo&lt;F&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ForeignCallResult&lt;F&gt;, jsonrpsee::core::ClientError&gt;
+    <span class="kw">where
+        </span>F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt;,
+    {
+        <span class="kw">let </span>params = ResolveForeignCallRequest {
+            session_id: <span class="self">self</span>.id,
+            function_call: foreign_call.clone(),
+            root_path: <span class="self">self
+                </span>.root_path
+                .clone()
+                .map(|path| path.to_str().unwrap().to_string())
+                .or(<span class="prelude-val">Some</span>(String::new())),
+            package_name: <span class="self">self</span>.package_name.clone().or(<span class="prelude-val">Some</span>(String::new())),
+        };
+        <span class="kw">let </span>encoded_params = <span class="macro">rpc_params!</span>(params);
+        <span class="self">self</span>.runtime.block_on(<span class="kw">async </span>{
+            <span class="self">self</span>.external_resolver.request(<span class="string">"resolve_foreign_call"</span>, encoded_params).<span class="kw">await
+        </span>})
+    }
+}
+
+<span class="kw">fn </span>build_http_client(target: <span class="kw-2">&amp;</span>str) -&gt; HttpClient {
+    <span class="kw">let </span><span class="kw-2">mut </span>client_builder = HttpClientBuilder::new();
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(timeout)) =
+        std::env::var(<span class="string">"NARGO_FOREIGN_CALL_TIMEOUT"</span>).ok().map(|timeout| timeout.parse())
+    {
+        <span class="kw">let </span>timeout_duration = std::time::Duration::from_millis(timeout);
+        client_builder = client_builder.request_timeout(timeout_duration);
+    };
+
+    client_builder.build(target).expect(<span class="string">"Invalid oracle resolver URL"</span>)
 }
 
 <span class="kw">impl</span>&lt;F&gt; ForeignCallExecutor&lt;F&gt; <span class="kw">for </span>RPCForeignCallExecutor
@@ -380,18 +444,20 @@
     /// This method cannot be called from inside a `tokio` runtime, for that to work
     /// we need to offload the execution into a different thread; see the tests.
     </span><span class="kw">fn </span>execute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, foreign_call: <span class="kw-2">&amp;</span>ForeignCallWaitInfo&lt;F&gt;) -&gt; ResolveForeignCallResult&lt;F&gt; {
-        <span class="kw">let </span>encoded_params = <span class="macro">rpc_params!</span>(ResolveForeignCallRequest {
-            session_id: <span class="self">self</span>.id,
-            function_call: foreign_call.clone(),
-            root_path: <span class="self">self</span>.root_path.clone().map(|path| path.to_str().unwrap().to_string()),
-            package_name: <span class="self">self</span>.package_name.clone(),
-        });
+        <span class="kw">let </span>result = <span class="self">self</span>.send_foreign_call(foreign_call);
 
-        <span class="kw">let </span>parsed_response = <span class="self">self</span>.runtime.block_on(<span class="kw">async </span>{
-            <span class="self">self</span>.external_resolver.request(<span class="string">"resolve_foreign_call"</span>, encoded_params).<span class="kw">await
-        </span>})<span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(parsed_response)
+        <span class="kw">match </span>result {
+            <span class="prelude-val">Ok</span>(parsed_response) =&gt; <span class="prelude-val">Ok</span>(parsed_response),
+            <span class="comment">// TODO: This is a workaround for noir-lang/noir#7463
+            // The client is losing connection with the server and it's not being able to manage it
+            // so we are re-creating the HttpClient when it happens
+            </span><span class="prelude-val">Err</span>(jsonrpsee::core::ClientError::Transport(<span class="kw">_</span>)) =&gt; {
+                <span class="self">self</span>.external_resolver = build_http_client(<span class="kw-2">&amp;</span><span class="self">self</span>.resolver_url);
+                <span class="kw">let </span>parsed_response = <span class="self">self</span>.send_foreign_call(foreign_call)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(parsed_response)
+            }
+            <span class="prelude-val">Err</span>(other) =&gt; <span class="prelude-val">Err</span>(ForeignCallError::from(other)),
+        }
     }
 }
 

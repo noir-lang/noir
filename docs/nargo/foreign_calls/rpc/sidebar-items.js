@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["RPCForeignCallExecutor","ResolveForeignCallRequest"],"type":["ResolveForeignCallResult"]};
+window.SIDEBAR_ITEMS = {"fn":["build_http_client"],"struct":["RPCForeignCallExecutor","ResolveForeignCallRequest"],"type":["ResolveForeignCallResult"]};
