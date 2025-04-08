@@ -7,7 +7,7 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::config;
 use noir_ssa_fuzzer::typed_value::ValueType;
 mod base_context;
-use crate::base_context::{Argument, Instructions};
+use crate::base_context::Instructions;
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 

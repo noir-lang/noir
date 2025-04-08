@@ -13,7 +13,7 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use crate::base_context::{Argument, FuzzerContext};
+use crate::base_context::FuzzerContext;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_fuzzer::runner::{CompareResults, execute_single, run_and_compare};

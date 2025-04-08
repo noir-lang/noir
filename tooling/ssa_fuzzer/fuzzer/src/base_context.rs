@@ -8,8 +8,6 @@ use noir_ssa_fuzzer::{
     typed_value::{TypedValue, ValueType},
 };
 use noirc_driver::CompiledProgram;
-use noirc_evaluator::ssa::ir::map::Id;
-use noirc_evaluator::ssa::ir::value::Value;
 use std::collections::HashMap;
 #[derive(Arbitrary, Debug, Clone, Hash)]
 pub(crate) struct Argument {
