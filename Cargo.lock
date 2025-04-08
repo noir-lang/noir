@@ -3277,6 +3277,7 @@ name = "noir_ast_fuzzer"
 version = "1.0.0-beta.4"
 dependencies = [
  "acir",
+ "acvm",
  "arbitrary",
  "bn254_blackbox_solver",
  "build-data",
