@@ -14,7 +14,6 @@ mod tests {
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
-    use noirc_evaluator::ssa::ir::types::Type;
     use rand::RngCore;
 
     struct TestHelper {

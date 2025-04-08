@@ -81,14 +81,10 @@ fn get_typed_value_from_map(
     idx: usize,
 ) -> Option<TypedValue> {
     let arr = map.get(&type_);
-    if arr.is_none() {
-        return None;
-    }
+    arr?;
     let arr = arr.unwrap();
     let value = arr.get(idx % arr.len());
-    if value.is_none() {
-        return None;
-    }
+    value?;
     Some(value.unwrap().clone())
 }
 
@@ -97,7 +93,7 @@ fn append_typed_value_to_map(
     type_: ValueType,
     value: TypedValue,
 ) {
-    map.entry(type_.clone()).or_insert(Vec::new()).push(value);
+    map.entry(type_.clone()).or_default().push(value);
 }
 
 impl FuzzerContext {
@@ -365,10 +361,10 @@ impl FuzzerContext {
                 (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1))
             }
             _ => {
-                return (
+                (
                     Witness(NUMBER_OF_VARIABLES_INITIAL),
                     Witness(NUMBER_OF_VARIABLES_INITIAL),
-                );
+                )
             }
         }
     }
