@@ -2165,7 +2165,13 @@
 <a href="#2164" id="2164">2164</a>
 <a href="#2165" id="2165">2165</a>
 <a href="#2166" id="2166">2166</a>
-<a href="#2167" id="2167">2167</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2167" id="2167">2167</a>
+<a href="#2168" id="2168">2168</a>
+<a href="#2169" id="2169">2169</a>
+<a href="#2170" id="2170">2170</a>
+<a href="#2171" id="2171">2171</a>
+<a href="#2172" id="2172">2172</a>
+<a href="#2173" id="2173">2173</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2788,6 +2794,12 @@
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">fn </span>resolve_trait_static_method_by_self(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
+        <span class="comment">// If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
+        // to solve the path via trait method lookup.
+        </span><span class="kw">if </span><span class="self">self</span>.current_trait_impl.is_some() {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
         <span class="kw">let </span>trait_id = <span class="kw">if let </span><span class="prelude-val">Some</span>(current_trait) = <span class="self">self</span>.current_trait {
             current_trait
         } <span class="kw">else </span>{

@@ -944,15 +944,42 @@
 <a href="#943" id="943">943</a>
 <a href="#944" id="944">944</a>
 <a href="#945" id="945">945</a>
-<a href="#946" id="946">946</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        ERROR_IDENT, Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath,
-        UnresolvedType,
+        ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
+        Pattern, TypePath, UnresolvedType,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -1481,7 +1508,23 @@
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: Path) -&gt; (ExprId, Type) {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>variable: Path) -&gt; (ExprId, Type) {
+        <span class="comment">// Check if this is `Self::method_name` when we are inside a trait impl and `Self`
+        // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
+        // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
+        // A regular path lookup won't work here for the same reason `TypePath` exists.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(self_type) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type {
+            <span class="kw">if </span><span class="self">self</span>.current_trait_impl.is_some()
+                &amp;&amp; variable.segments.len() == <span class="number">2
+                </span>&amp;&amp; variable.segments[<span class="number">0</span>].ident.is_self_type_name()
+                &amp;&amp; !<span class="macro">matches!</span>(<span class="self">self</span>.self_type, <span class="prelude-val">Some</span>(Type::DataType(..)))
+            {
+                <span class="kw">let </span>ident = variable.segments.remove(<span class="number">1</span>).ident;
+                <span class="kw">let </span>typ_location = variable.segments[<span class="number">0</span>].location;
+                <span class="kw">return </span><span class="self">self</span>.elaborate_type_path_impl(self_type.clone(), ident, <span class="prelude-val">None</span>, typ_location);
+            }
+        }
+
         <span class="kw">let </span>unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         <span class="kw">let </span>location = variable.location;
@@ -1832,21 +1875,32 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_type_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypePath) -&gt; (ExprId, Type) {
-        <span class="kw">let </span>location = path.item.location();
-        <span class="kw">let </span>object_location = path.typ.location;
+        <span class="kw">let </span>typ_location = path.typ.location;
+        <span class="kw">let </span>turbofish = path.turbofish;
         <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(path.typ);
+        <span class="self">self</span>.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+    }
+
+    <span class="kw">fn </span>elaborate_type_path_impl(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: Type,
+        ident: Ident,
+        turbofish: <span class="prelude-ty">Option</span>&lt;GenericTypeArgs&gt;,
+        typ_location: Location,
+    ) -&gt; (ExprId, Type) {
+        <span class="kw">let </span>ident_location = ident.location();
         <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
 
-        <span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>typ, object_location);
+        <span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>typ, typ_location);
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.lookup_method(
             <span class="kw-2">&amp;</span>typ,
-            path.item.as_str(),
-            location,
-            object_location,
+            ident.as_str(),
+            ident_location,
+            typ_location,
             check_self_param,
         ) <span class="kw">else </span>{
-            <span class="kw">let </span>error = Expression::new(ExpressionKind::Error, location);
+            <span class="kw">let </span>error = Expression::new(ExpressionKind::Error, ident_location);
             <span class="kw">return </span><span class="self">self</span>.elaborate_expression(error);
         };
 
@@ -1855,7 +1909,7 @@
             .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
 
         <span class="kw">let </span>generics =
-            path.turbofish.map(|turbofish| <span class="self">self</span>.resolve_type_args(turbofish, func_id, location).<span class="number">0</span>);
+            turbofish.map(|turbofish| <span class="self">self</span>.resolve_type_args(turbofish, func_id, ident_location).<span class="number">0</span>);
 
         <span class="kw">let </span>id = <span class="self">self</span>.interner.function_definition_id(func_id);
 
@@ -1863,15 +1917,15 @@
             HirMethodReference::FuncId(<span class="kw">_</span>) =&gt; ImplKind::NotATraitMethod,
             HirMethodReference::TraitMethodId(method_id, generics, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>constraint =
-                    <span class="self">self</span>.interner.get_trait(method_id.trait_id).as_constraint(location);
+                    <span class="self">self</span>.interner.get_trait(method_id.trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = generics;
                 ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: <span class="bool-val">false </span>})
             }
         };
 
-        <span class="kw">let </span>ident = HirIdent { location, id, impl_kind };
+        <span class="kw">let </span>ident = HirIdent { location: ident_location, id, impl_kind };
         <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
-        <span class="self">self</span>.interner.push_expr_location(id, location);
+        <span class="self">self</span>.interner.push_expr_location(id, ident_location);
 
         <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable(ident, id, generics);
         <span class="self">self</span>.interner.push_expr_type(id, typ.clone());
