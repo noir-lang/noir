@@ -173,4 +173,21 @@ impl ValueType {
             ValueType::I128 => NumericType::Signed { bit_size: 128 },
         }
     }
+
+    pub fn bit_length(&self) -> u32 {
+        match self {
+            ValueType::Field => 254,
+            ValueType::Boolean => 1,
+            ValueType::U8 => 8,
+            ValueType::U16 => 16,
+            ValueType::U32 => 32,
+            ValueType::U64 => 64,
+            ValueType::U128 => 128,
+            ValueType::I8 => 8,
+            ValueType::I16 => 16,
+            ValueType::I32 => 32,
+            ValueType::I64 => 64,
+            ValueType::I128 => 128,
+        }
+    }
 }
