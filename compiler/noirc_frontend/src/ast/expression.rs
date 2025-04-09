@@ -302,8 +302,7 @@ impl Expression {
 
 pub type BinaryOp = Located<BinaryOpKind>;
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, strum_macros::EnumIter)]
 pub enum BinaryOpKind {
     Add,
     Subtract,
@@ -337,6 +336,31 @@ impl BinaryOpKind {
                 | BinaryOpKind::Greater
                 | BinaryOpKind::GreaterEqual
         )
+    }
+
+    /// `==` and `!=`
+    pub fn is_equality(self) -> bool {
+        matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
+    }
+
+    /// `+`, `-`, `*`, `/` and `%`
+    pub fn is_arithmetic(self) -> bool {
+        matches!(
+            self,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::Modulo
+        )
+    }
+
+    pub fn is_bitwise(self) -> bool {
+        matches!(self, BinaryOpKind::And | BinaryOpKind::Or | BinaryOpKind::Xor)
+    }
+
+    pub fn is_bitshift(self) -> bool {
+        matches!(self, BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight)
     }
 
     pub fn is_valid_for_field_type(self) -> bool {
