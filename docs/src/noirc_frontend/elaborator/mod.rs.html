@@ -2276,7 +2276,19 @@
 <a href="#2275" id="2275">2275</a>
 <a href="#2276" id="2276">2276</a>
 <a href="#2277" id="2277">2277</a>
-<a href="#2278" id="2278">2278</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2278" id="2278">2278</a>
+<a href="#2279" id="2279">2279</a>
+<a href="#2280" id="2280">2280</a>
+<a href="#2281" id="2281">2281</a>
+<a href="#2282" id="2282">2282</a>
+<a href="#2283" id="2283">2283</a>
+<a href="#2284" id="2284">2284</a>
+<a href="#2285" id="2285">2285</a>
+<a href="#2286" id="2286">2286</a>
+<a href="#2287" id="2287">2287</a>
+<a href="#2288" id="2288">2288</a>
+<a href="#2289" id="2289">2289</a>
+<a href="#2290" id="2290">2290</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -2348,7 +2360,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>options::ElaboratorOptions;
 <span class="kw">pub use </span>options::{FrontendOptions, UnstableFeature};
 <span class="kw">pub use </span>path_resolution::Turbofish;
-<span class="kw">use </span>path_resolution::{PathResolution, PathResolutionItem};
+<span class="kw">use </span>path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
 <span class="kw">use </span>types::bind_ordered_generics;
 
 <span class="kw">use </span><span class="self">self</span>::traits::check_trait_impl_method_matches_declaration;
@@ -3023,7 +3035,7 @@
         <span class="kw">if let </span>UnresolvedGeneric::Numeric { ident, typ } = generic {
             <span class="kw">let </span>unresolved_typ = typ.clone();
             <span class="kw">let </span>typ = <span class="kw">if </span>unresolved_typ.is_type_expression() {
-                <span class="self">self</span>.resolve_type_inner(
+                <span class="self">self</span>.resolve_type_with_kind(
                     unresolved_typ.clone(),
                     <span class="kw-2">&amp;</span>Kind::numeric(Type::default_int_type()),
                 )
@@ -3200,12 +3212,24 @@
     }
 
     <span class="kw">pub fn </span>resolve_trait_bound(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bound: <span class="kw-2">&amp;</span>TraitBound) -&gt; <span class="prelude-ty">Option</span>&lt;ResolvedTraitBound&gt; {
+        <span class="self">self</span>.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
+    }
+
+    <span class="kw">pub fn </span>use_trait_bound(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bound: <span class="kw-2">&amp;</span>TraitBound) -&gt; <span class="prelude-ty">Option</span>&lt;ResolvedTraitBound&gt; {
+        <span class="self">self</span>.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
+    }
+
+    <span class="kw">fn </span>resolve_trait_bound_inner(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        bound: <span class="kw-2">&amp;</span>TraitBound,
+        mode: PathResolutionMode,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;ResolvedTraitBound&gt; {
         <span class="kw">let </span>the_trait = <span class="self">self</span>.lookup_trait_or_error(bound.trait_path.clone())<span class="question-mark">?</span>;
         <span class="kw">let </span>trait_id = the_trait.id;
         <span class="kw">let </span>location = bound.trait_path.location;
 
         <span class="kw">let </span>(ordered, named) =
-            <span class="self">self</span>.resolve_type_args(bound.trait_generics.clone(), trait_id, location);
+            <span class="self">self</span>.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, mode);
 
         <span class="kw">let </span>trait_generics = TraitGenerics { ordered, named };
         <span class="prelude-val">Some</span>(ResolvedTraitBound { trait_id, trait_generics, location })
@@ -3273,7 +3297,7 @@
                     <span class="self">self</span>.desugar_impl_trait_arg(path, args, <span class="kw-2">&amp;mut </span>generics, <span class="kw-2">&amp;mut </span>trait_constraints)
                 }
                 <span class="comment">// Function parameters have Kind::Normal
-                </span><span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type_inner(typ, <span class="kw-2">&amp;</span>Kind::Normal),
+                </span><span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal),
             };
 
             <span class="self">self</span>.check_if_type_is_valid_for_program_input(
@@ -3299,7 +3323,7 @@
             parameter_types.push(typ);
         }
 
-        <span class="kw">let </span>return_type = Box::new(<span class="self">self</span>.resolve_type(func.return_type()));
+        <span class="kw">let </span>return_type = Box::new(<span class="self">self</span>.use_type(func.return_type()));
 
         <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::Function(
             parameter_types,
@@ -3968,7 +3992,7 @@
 
         <span class="kw">let </span>generics = <span class="self">self</span>.add_generics(<span class="kw-2">&amp;</span>alias.type_alias_def.generics);
         <span class="self">self</span>.current_item = <span class="prelude-val">Some</span>(DependencyId::Alias(alias_id));
-        <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(alias.type_alias_def.typ);
+        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(alias.type_alias_def.typ);
 
         <span class="kw">if </span>visibility != ItemVisibility::Private {
             <span class="self">self</span>.check_type_is_not_more_private_then_item(name, visibility, <span class="kw-2">&amp;</span>typ, location);

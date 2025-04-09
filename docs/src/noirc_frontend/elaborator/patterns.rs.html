@@ -1504,7 +1504,7 @@
     ) -&gt; Vec&lt;Type&gt; {
         <span class="kw">let </span>kinds_with_types = kinds.into_iter().zip(turbofish_generics);
         vecmap(kinds_with_types, |(kind, unresolved_type)| {
-            <span class="self">self</span>.resolve_type_inner(unresolved_type, <span class="kw-2">&amp;</span>kind)
+            <span class="self">self</span>.use_type_with_kind(unresolved_type, <span class="kw-2">&amp;</span>kind)
         })
     }
 
@@ -1877,7 +1877,7 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_type_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypePath) -&gt; (ExprId, Type) {
         <span class="kw">let </span>typ_location = path.typ.location;
         <span class="kw">let </span>turbofish = path.turbofish;
-        <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(path.typ);
+        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(path.typ);
         <span class="self">self</span>.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
@@ -1909,7 +1909,7 @@
             .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
 
         <span class="kw">let </span>generics =
-            turbofish.map(|turbofish| <span class="self">self</span>.resolve_type_args(turbofish, func_id, ident_location).<span class="number">0</span>);
+            turbofish.map(|turbofish| <span class="self">self</span>.use_type_args(turbofish, func_id, ident_location).<span class="number">0</span>);
 
         <span class="kw">let </span>id = <span class="self">self</span>.interner.function_definition_id(func_id);
 

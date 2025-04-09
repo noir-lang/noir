@@ -2795,8 +2795,8 @@
             },
         };
 
-        <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constraint.typ.clone());
-        <span class="kw">let </span><span class="prelude-val">Some</span>(trait_bound) = <span class="self">self</span>.resolve_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound) <span class="kw">else </span>{
+        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(constraint.typ.clone());
+        <span class="kw">let </span><span class="prelude-val">Some</span>(trait_bound) = <span class="self">self</span>.use_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound) <span class="kw">else </span>{
             <span class="comment">// resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
             </span><span class="kw">let </span>error = <span class="self">self</span>.interner.push_expr_full(HirExpression::Error, location, Type::Error);

@@ -226,7 +226,15 @@
 <a href="#225" id="225">225</a>
 <a href="#226" id="226">226</a>
 <a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident, Path};
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident, Path};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{LocalModuleId, ModuleId};
 
 <span class="kw">use </span><span class="kw">crate</span>::hir::scope::{Scope <span class="kw">as </span>GenericScope, ScopeTree <span class="kw">as </span>GenericScopeTree};
@@ -241,7 +249,7 @@
 };
 <span class="kw">use crate</span>::{Type, TypeAlias};
 
-<span class="kw">use </span><span class="kw">super</span>::path_resolution::PathResolutionItem;
+<span class="kw">use </span><span class="kw">super</span>::path_resolution::{PathResolutionItem, PathResolutionMode};
 <span class="kw">use </span><span class="kw">super</span>::types::SELF_TYPE_NAME;
 <span class="kw">use super</span>::{Elaborator, ResolverMeta};
 
@@ -310,7 +318,7 @@
         path: Path,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(DefinitionId, PathResolutionItem), ResolverError&gt; {
         <span class="kw">let </span>location = path.location;
-        <span class="kw">let </span>item = <span class="self">self</span>.resolve_path_or_error(path)<span class="question-mark">?</span>;
+        <span class="kw">let </span>item = <span class="self">self</span>.use_path_or_error(path)<span class="question-mark">?</span>;
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(function) = item.function_id() {
             <span class="kw">return </span><span class="prelude-val">Ok</span>((<span class="self">self</span>.interner.function_definition_id(function), item));
@@ -386,9 +394,13 @@
     }
 
     <span class="doccomment">/// Lookup a given struct type by name.
-    </span><span class="kw">pub fn </span>lookup_datatype_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Option</span>&lt;Shared&lt;DataType&gt;&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_datatype_or_error(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: Path,
+        mode: PathResolutionMode,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;Shared&lt;DataType&gt;&gt; {
         <span class="kw">let </span>location = path.location;
-        <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path) {
+        <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error_inner(path, mode) {
             <span class="prelude-val">Ok</span>(item) =&gt; {
                 <span class="kw">if let </span>PathResolutionItem::Type(struct_id) = item {
                     <span class="prelude-val">Some</span>(<span class="self">self</span>.get_type(struct_id))
@@ -419,7 +431,7 @@
         }
 
         <span class="kw">let </span>location = path.location;
-        <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path) {
+        <span class="kw">match </span><span class="self">self</span>.use_path_or_error(path) {
             <span class="prelude-val">Ok</span>(PathResolutionItem::Type(struct_id)) =&gt; {
                 <span class="kw">let </span>struct_type = <span class="self">self</span>.get_type(struct_id);
                 <span class="kw">let </span>generics = struct_type.borrow().instantiate(<span class="self">self</span>.interner);
@@ -445,8 +457,12 @@
         }
     }
 
-    <span class="kw">pub fn </span>lookup_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Option</span>&lt;Shared&lt;TypeAlias&gt;&gt; {
-        <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path) {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_type_alias(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: Path,
+        mode: PathResolutionMode,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;Shared&lt;TypeAlias&gt;&gt; {
+        <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error_inner(path, mode) {
             <span class="prelude-val">Ok</span>(PathResolutionItem::TypeAlias(type_alias_id)) =&gt; {
                 <span class="prelude-val">Some</span>(<span class="self">self</span>.interner.get_type_alias(type_alias_id))
             }

@@ -2171,7 +2171,67 @@
 <a href="#2170" id="2170">2170</a>
 <a href="#2171" id="2171">2171</a>
 <a href="#2172" id="2172">2172</a>
-<a href="#2173" id="2173">2173</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2173" id="2173">2173</a>
+<a href="#2174" id="2174">2174</a>
+<a href="#2175" id="2175">2175</a>
+<a href="#2176" id="2176">2176</a>
+<a href="#2177" id="2177">2177</a>
+<a href="#2178" id="2178">2178</a>
+<a href="#2179" id="2179">2179</a>
+<a href="#2180" id="2180">2180</a>
+<a href="#2181" id="2181">2181</a>
+<a href="#2182" id="2182">2182</a>
+<a href="#2183" id="2183">2183</a>
+<a href="#2184" id="2184">2184</a>
+<a href="#2185" id="2185">2185</a>
+<a href="#2186" id="2186">2186</a>
+<a href="#2187" id="2187">2187</a>
+<a href="#2188" id="2188">2188</a>
+<a href="#2189" id="2189">2189</a>
+<a href="#2190" id="2190">2190</a>
+<a href="#2191" id="2191">2191</a>
+<a href="#2192" id="2192">2192</a>
+<a href="#2193" id="2193">2193</a>
+<a href="#2194" id="2194">2194</a>
+<a href="#2195" id="2195">2195</a>
+<a href="#2196" id="2196">2196</a>
+<a href="#2197" id="2197">2197</a>
+<a href="#2198" id="2198">2198</a>
+<a href="#2199" id="2199">2199</a>
+<a href="#2200" id="2200">2200</a>
+<a href="#2201" id="2201">2201</a>
+<a href="#2202" id="2202">2202</a>
+<a href="#2203" id="2203">2203</a>
+<a href="#2204" id="2204">2204</a>
+<a href="#2205" id="2205">2205</a>
+<a href="#2206" id="2206">2206</a>
+<a href="#2207" id="2207">2207</a>
+<a href="#2208" id="2208">2208</a>
+<a href="#2209" id="2209">2209</a>
+<a href="#2210" id="2210">2210</a>
+<a href="#2211" id="2211">2211</a>
+<a href="#2212" id="2212">2212</a>
+<a href="#2213" id="2213">2213</a>
+<a href="#2214" id="2214">2214</a>
+<a href="#2215" id="2215">2215</a>
+<a href="#2216" id="2216">2216</a>
+<a href="#2217" id="2217">2217</a>
+<a href="#2218" id="2218">2218</a>
+<a href="#2219" id="2219">2219</a>
+<a href="#2220" id="2220">2220</a>
+<a href="#2221" id="2221">2221</a>
+<a href="#2222" id="2222">2222</a>
+<a href="#2223" id="2223">2223</a>
+<a href="#2224" id="2224">2224</a>
+<a href="#2225" id="2225">2225</a>
+<a href="#2226" id="2226">2226</a>
+<a href="#2227" id="2227">2227</a>
+<a href="#2228" id="2228">2228</a>
+<a href="#2229" id="2229">2229</a>
+<a href="#2230" id="2230">2230</a>
+<a href="#2231" id="2231">2231</a>
+<a href="#2232" id="2232">2232</a>
+<a href="#2233" id="2233">2233</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2214,7 +2274,8 @@
 };
 
 <span class="kw">use super</span>::{
-    Elaborator, FunctionContext, UnsafeBlockStatus, lints, path_resolution::PathResolutionItem,
+    Elaborator, FunctionContext, UnsafeBlockStatus, lints,
+    path_resolution::{PathResolutionItem, PathResolutionMode},
 };
 
 <span class="kw">pub const </span>SELF_TYPE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"Self"</span>;
@@ -2226,19 +2287,40 @@
 }
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; Type {
+        <span class="self">self</span>.resolve_type_inner(typ, PathResolutionMode::MarkAsReferenced)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; Type {
+        <span class="self">self</span>.resolve_type_inner(typ, PathResolutionMode::MarkAsUsed)
+    }
+
     <span class="doccomment">/// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; Type {
+    </span><span class="kw">fn </span>resolve_type_inner(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, mode: PathResolutionMode) -&gt; Type {
         <span class="kw">let </span>location = typ.location;
-        <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_inner(typ, <span class="kw-2">&amp;</span>Kind::Normal);
+        <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind_inner(typ, <span class="kw-2">&amp;</span>Kind::Normal, mode);
         <span class="kw">if </span>resolved_type.is_nested_slice() {
             <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
         }
         resolved_type
     }
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
+        <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
+        <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsUsed)
+    }
+
     <span class="doccomment">/// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    </span><span class="kw">pub fn </span>resolve_type_inner(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
+    </span><span class="kw">fn </span>resolve_type_with_kind_inner(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: UnresolvedType,
+        kind: <span class="kw-2">&amp;</span>Kind,
+        mode: PathResolutionMode,
+    ) -&gt; Type {
         <span class="kw">use </span><span class="kw">crate</span>::ast::UnresolvedTypeData::<span class="kw-2">*</span>;
 
         <span class="kw">let </span>location = typ.location;
@@ -2256,12 +2338,12 @@
         <span class="kw">let </span>resolved_type = <span class="kw">match </span>typ.typ {
             FieldElement =&gt; Type::FieldElement,
             Array(size, elem) =&gt; {
-                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_inner(<span class="kw-2">*</span>elem, kind));
+                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>elem, kind, mode));
                 <span class="kw">let </span>size = <span class="self">self</span>.convert_expression_type(size, <span class="kw-2">&amp;</span>Kind::u32(), location);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) =&gt; {
-                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_inner(<span class="kw-2">*</span>elem, kind));
+                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>elem, kind, mode));
                 Type::Slice(elem)
             }
             Expression(expr) =&gt; <span class="self">self</span>.convert_expression_type(expr, kind, location),
@@ -2273,7 +2355,7 @@
             }
             FormatString(size, fields) =&gt; {
                 <span class="kw">let </span>resolved_size = <span class="self">self</span>.convert_expression_type(size, <span class="kw-2">&amp;</span>Kind::u32(), location);
-                <span class="kw">let </span>fields = <span class="self">self</span>.resolve_type_inner(<span class="kw-2">*</span>fields, kind);
+                <span class="kw">let </span>fields = <span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>fields, kind, mode);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Quoted(quoted) =&gt; {
@@ -2292,18 +2374,18 @@
                 Type::Error
             }
             Error =&gt; Type::Error,
-            Named(path, args, <span class="kw">_</span>) =&gt; <span class="self">self</span>.resolve_named_type(path, args),
-            TraitAsType(path, args) =&gt; <span class="self">self</span>.resolve_trait_as_type(path, args),
+            Named(path, args, <span class="kw">_</span>) =&gt; <span class="self">self</span>.resolve_named_type(path, args, mode),
+            TraitAsType(path, args) =&gt; <span class="self">self</span>.resolve_trait_as_type(path, args, mode),
 
-            Tuple(fields) =&gt; {
-                Type::Tuple(vecmap(fields, |field| <span class="self">self</span>.resolve_type_inner(field, kind)))
-            }
+            Tuple(fields) =&gt; Type::Tuple(vecmap(fields, |field| {
+                <span class="self">self</span>.resolve_type_with_kind_inner(field, kind, mode)
+            })),
             Function(args, ret, env, unconstrained) =&gt; {
-                <span class="kw">let </span>args = vecmap(args, |arg| <span class="self">self</span>.resolve_type_inner(arg, kind));
-                <span class="kw">let </span>ret = Box::new(<span class="self">self</span>.resolve_type_inner(<span class="kw-2">*</span>ret, kind));
+                <span class="kw">let </span>args = vecmap(args, |arg| <span class="self">self</span>.resolve_type_with_kind_inner(arg, kind, mode));
+                <span class="kw">let </span>ret = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>ret, kind, mode));
                 <span class="kw">let </span>env_location = env.location;
 
-                <span class="kw">let </span>env = Box::new(<span class="self">self</span>.resolve_type_inner(<span class="kw-2">*</span>env, kind));
+                <span class="kw">let </span>env = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>env, kind, mode));
 
                 <span class="kw">match </span><span class="kw-2">*</span>env {
                     Type::Unit | Type::Tuple(<span class="kw">_</span>) | Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
@@ -2322,14 +2404,21 @@
                 <span class="kw">if </span>!mutable {
                     <span class="self">self</span>.use_unstable_feature(UnstableFeature::Ownership, location);
                 }
-                Type::Reference(Box::new(<span class="self">self</span>.resolve_type_inner(<span class="kw-2">*</span>element, kind)), mutable)
+                Type::Reference(
+                    Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>element, kind, mode)),
+                    mutable,
+                )
             }
-            Parenthesized(typ) =&gt; <span class="self">self</span>.resolve_type_inner(<span class="kw-2">*</span>typ, kind),
+            Parenthesized(typ) =&gt; <span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>typ, kind, mode),
             Resolved(id) =&gt; <span class="self">self</span>.interner.get_quoted_type(id).clone(),
             AsTraitPath(path) =&gt; <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path),
             Interned(id) =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.get_unresolved_type_data(id).clone();
-                <span class="kw">return </span><span class="self">self</span>.resolve_type_inner(UnresolvedType { typ, location }, kind);
+                <span class="kw">return </span><span class="self">self</span>.resolve_type_with_kind_inner(
+                    UnresolvedType { typ, location },
+                    kind,
+                    mode,
+                );
             }
         };
 
@@ -2389,9 +2478,14 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="kw">fn </span>resolve_named_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path, args: GenericTypeArgs) -&gt; Type {
+    <span class="kw">fn </span>resolve_named_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: Path,
+        args: GenericTypeArgs,
+        mode: PathResolutionMode,
+    ) -&gt; Type {
         <span class="kw">if </span>args.is_empty() {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_generic_or_global_type(<span class="kw-2">&amp;</span>path) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_generic_or_global_type(<span class="kw-2">&amp;</span>path, mode) {
                 <span class="kw">return </span>typ;
             }
         }
@@ -2422,9 +2516,9 @@
 
         <span class="kw">let </span>location = path.location;
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(type_alias) = <span class="self">self</span>.lookup_type_alias(path.clone()) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(type_alias) = <span class="self">self</span>.lookup_type_alias(path.clone(), mode) {
             <span class="kw">let </span>id = type_alias.borrow().id;
-            <span class="kw">let </span>(args, <span class="kw">_</span>) = <span class="self">self</span>.resolve_type_args(args, id, location);
+            <span class="kw">let </span>(args, <span class="kw">_</span>) = <span class="self">self</span>.resolve_type_args_inner(args, id, location, mode);
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(item) = <span class="self">self</span>.current_item {
                 <span class="self">self</span>.interner.add_type_alias_dependency(item, id);
@@ -2442,7 +2536,7 @@
             </span><span class="kw">return </span>Type::Alias(type_alias, args);
         }
 
-        <span class="kw">match </span><span class="self">self</span>.lookup_datatype_or_error(path) {
+        <span class="kw">match </span><span class="self">self</span>.lookup_datatype_or_error(path, mode) {
             <span class="prelude-val">Some</span>(data_type) =&gt; {
                 <span class="kw">if </span><span class="self">self</span>.resolving_ids.contains(<span class="kw-2">&amp;</span>data_type.borrow().id) {
                     <span class="self">self</span>.push_err(ResolverError::SelfReferentialType {
@@ -2464,7 +2558,8 @@
                     });
                 }
 
-                <span class="kw">let </span>(args, <span class="kw">_</span>) = <span class="self">self</span>.resolve_type_args(args, data_type.borrow(), location);
+                <span class="kw">let </span>(args, <span class="kw">_</span>) =
+                    <span class="self">self</span>.resolve_type_args_inner(args, data_type.borrow(), location, mode);
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
                     <span class="kw">let </span>dependency_id = data_type.borrow().id;
@@ -2477,14 +2572,19 @@
         }
     }
 
-    <span class="kw">fn </span>resolve_trait_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path, args: GenericTypeArgs) -&gt; Type {
+    <span class="kw">fn </span>resolve_trait_as_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: Path,
+        args: GenericTypeArgs,
+        mode: PathResolutionMode,
+    ) -&gt; Type {
         <span class="comment">// Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
         </span><span class="kw">let </span>location = path.location;
         <span class="kw">let </span>trait_as_type_info = <span class="self">self</span>.lookup_trait_or_error(path).map(|t| t.id);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = trait_as_type_info {
-            <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.resolve_type_args(args, id, location);
+            <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.resolve_type_args_inner(args, id, location, mode);
             <span class="kw">let </span>name = <span class="self">self</span>.interner.get_trait(id).name.to_string();
             <span class="kw">let </span>generics = TraitGenerics { ordered, named };
             Type::TraitAsType(id, Rc::new(name), generics)
@@ -2501,24 +2601,37 @@
         item: TraitId,
         location: Location,
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
-        <span class="self">self</span>.resolve_type_args_inner(args, item, location, <span class="bool-val">false</span>)
+        <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
+        <span class="self">self</span>.resolve_type_or_trait_args_inner(args, item, location, <span class="bool-val">false</span>, mode)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_args(
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_type_args(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         args: GenericTypeArgs,
         item: <span class="kw">impl </span>Generic,
         location: Location,
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
-        <span class="self">self</span>.resolve_type_args_inner(args, item, location, <span class="bool-val">true</span>)
+        <span class="kw">let </span>mode = PathResolutionMode::MarkAsUsed;
+        <span class="self">self</span>.resolve_type_args_inner(args, item, location, mode)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_args_inner(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        args: GenericTypeArgs,
+        item: <span class="kw">impl </span>Generic,
+        location: Location,
+        mode: PathResolutionMode,
+    ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
+        <span class="self">self</span>.resolve_type_or_trait_args_inner(args, item, location, <span class="bool-val">true</span>, mode)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_or_trait_args_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         <span class="kw-2">mut </span>args: GenericTypeArgs,
         item: <span class="kw">impl </span>Generic,
         location: Location,
         allow_implicit_named_args: bool,
+        mode: PathResolutionMode,
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
         <span class="kw">let </span>expected_kinds = item.generics(<span class="self">self</span>.interner);
 
@@ -2534,8 +2647,9 @@
         }
 
         <span class="kw">let </span>ordered_args = expected_kinds.iter().zip(args.ordered_args);
-        <span class="kw">let </span>ordered =
-            vecmap(ordered_args, |(generic, typ)| <span class="self">self</span>.resolve_type_inner(typ, <span class="kw-2">&amp;</span>generic.kind()));
+        <span class="kw">let </span>ordered = vecmap(ordered_args, |(generic, typ)| {
+            <span class="self">self</span>.resolve_type_with_kind_inner(typ, <span class="kw-2">&amp;</span>generic.kind(), mode)
+        });
 
         <span class="kw">let </span><span class="kw-2">mut </span>associated = Vec::new();
 
@@ -2545,6 +2659,7 @@
                 item,
                 location,
                 allow_implicit_named_args,
+                mode,
             );
         } <span class="kw">else if </span>!args.named_args.is_empty() {
             <span class="kw">let </span>item_kind = item.item_kind();
@@ -2560,6 +2675,7 @@
         item: <span class="kw">impl </span>Generic,
         location: Location,
         allow_implicit_named_args: bool,
+        mode: PathResolutionMode,
     ) -&gt; Vec&lt;NamedType&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>seen_args = HashMap::default();
         <span class="kw">let </span><span class="kw-2">mut </span>required_args = item.named_generics(<span class="self">self</span>.interner);
@@ -2584,7 +2700,7 @@
             </span><span class="kw">let </span>expected = required_args.remove(index);
             seen_args.insert(name.to_string(), name.location());
 
-            <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type_inner(typ, <span class="kw-2">&amp;</span>expected.kind());
+            <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type_with_kind_inner(typ, <span class="kw-2">&amp;</span>expected.kind(), mode);
             resolved.push(NamedType { name, typ });
         }
 
@@ -2606,7 +2722,11 @@
         resolved
     }
 
-    <span class="kw">pub fn </span>lookup_generic_or_global_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+    <span class="kw">fn </span>lookup_generic_or_global_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: <span class="kw-2">&amp;</span>Path,
+        mode: PathResolutionMode,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">if </span>path.segments.len() == <span class="number">1 </span>{
             <span class="kw">let </span>name = path.last_name();
             <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.find_generic(name) {
@@ -2618,7 +2738,7 @@
         }
 
         <span class="comment">// If we cannot find a local generic of the same name, try to look up a global
-        </span><span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path.clone()) {
+        </span><span class="kw">match </span><span class="self">self</span>.resolve_path_or_error_inner(path.clone(), mode) {
             <span class="prelude-val">Ok</span>(PathResolutionItem::Global(id)) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
                     <span class="self">self</span>.interner.add_global_dependency(current_item, id);
@@ -2634,7 +2754,7 @@
 
                 <span class="kw">let </span><span class="prelude-val">Some</span>(stmt) = <span class="self">self</span>.interner.get_global_let_statement(id) <span class="kw">else </span>{
                     <span class="kw">if </span><span class="self">self</span>.elaborate_global_if_unresolved(<span class="kw-2">&amp;</span>id) {
-                        <span class="kw">return </span><span class="self">self</span>.lookup_generic_or_global_type(path);
+                        <span class="kw">return </span><span class="self">self</span>.lookup_generic_or_global_type(path, mode);
                     } <span class="kw">else </span>{
                         <span class="kw">let </span>path = path.clone();
                         <span class="self">self</span>.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -2687,7 +2807,8 @@
     ) -&gt; Type {
         <span class="kw">match </span>length {
             UnresolvedTypeExpression::Variable(path) =&gt; {
-                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_named_type(path, GenericTypeArgs::default());
+                <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
+                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 <span class="self">self</span>.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, _span) =&gt; {
@@ -2752,9 +2873,8 @@
             </span><span class="kw">return </span>Type::Error;
         };
 
-        <span class="kw">let </span>(ordered, named) =
-            <span class="self">self</span>.resolve_type_args(path.trait_generics.clone(), trait_id, location);
-        <span class="kw">let </span>object_type = <span class="self">self</span>.resolve_type(path.typ.clone());
+        <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.use_type_args(path.trait_generics.clone(), trait_id, location);
+        <span class="kw">let </span>object_type = <span class="self">self</span>.use_type(path.typ.clone());
 
         <span class="kw">match </span><span class="self">self</span>.interner.lookup_trait_implementation(<span class="kw-2">&amp;</span>object_type, trait_id, <span class="kw-2">&amp;</span>ordered, <span class="kw-2">&amp;</span>named) {
             <span class="prelude-val">Ok</span>(impl_kind) =&gt; <span class="self">self</span>.get_associated_type_from_trait_impl(path, impl_kind),
@@ -2830,7 +2950,7 @@
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">fn </span>resolve_trait_static_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
-        <span class="kw">let </span>path_resolution = <span class="self">self</span>.resolve_path(path.clone()).ok()<span class="question-mark">?</span>;
+        <span class="kw">let </span>path_resolution = <span class="self">self</span>.use_path(path.clone()).ok()<span class="question-mark">?</span>;
         <span class="kw">let </span>func_id = path_resolution.item.function_id()<span class="question-mark">?</span>;
         <span class="kw">let </span>meta = <span class="self">self</span>.interner.try_function_meta(<span class="kw-2">&amp;</span>func_id)<span class="question-mark">?</span>;
         <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(meta.trait_id<span class="question-mark">?</span>);
@@ -2887,7 +3007,7 @@
         <span class="kw">let </span>last_segment = path.pop();
         <span class="kw">let </span>before_last_segment = path.last_segment();
 
-        <span class="kw">let </span>path_resolution = <span class="self">self</span>.resolve_path(path).ok()<span class="question-mark">?</span>;
+        <span class="kw">let </span>path_resolution = <span class="self">self</span>.use_path(path).ok()<span class="question-mark">?</span>;
         <span class="kw">let </span>PathResolutionItem::Type(type_id) = path_resolution.item <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">None</span>;
         };
@@ -3023,7 +3143,7 @@
             UnresolvedTypeData::Unspecified =&gt; {
                 <span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any)
             }
-            <span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type(typ),
+            <span class="kw">_ </span>=&gt; <span class="self">self</span>.use_type(typ),
         }
     }
 

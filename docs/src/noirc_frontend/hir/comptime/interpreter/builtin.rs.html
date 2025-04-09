@@ -3950,7 +3950,7 @@
         <span class="prelude-val">Some</span>(ElaborateReason::EvaluatingComptimeCall(<span class="string">"Quoted::as_trait_constraint"</span>, location));
     <span class="kw">let </span>bound = interpreter
         .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_trait_bound(<span class="kw-2">&amp;</span>trait_bound)
+            elaborator.use_trait_bound(<span class="kw-2">&amp;</span>trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })<span class="question-mark">?</span>;
 
@@ -3968,7 +3968,7 @@
     <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(ElaborateReason::EvaluatingComptimeCall(<span class="string">"Quoted::as_type"</span>, location));
     <span class="kw">let </span>typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_type(typ)
+            elaborator.use_type(typ)
         });
     <span class="prelude-val">Ok</span>(Value::Type(typ))
 }
