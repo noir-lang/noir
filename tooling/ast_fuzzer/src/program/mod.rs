@@ -145,8 +145,10 @@ impl Context {
         let return_visibility = if is_main {
             if types::is_unit(&return_type) {
                 Visibility::Private
+            } else if u.ratio(4, 5)? {
+                Visibility::Public
             } else {
-                if u.ratio(4, 5)? { Visibility::Public } else { Visibility::ReturnData }
+                Visibility::ReturnData
             }
         } else {
             Visibility::Private
