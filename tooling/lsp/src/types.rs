@@ -1,7 +1,7 @@
 use lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
-    SignatureHelpOptions, TypeDefinitionProviderCapability,
+    SignatureHelpOptions, TypeDefinitionProviderCapability, WorkspaceSymbolOptions,
 };
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
@@ -156,6 +156,10 @@ pub(crate) struct ServerCapabilities {
     /// The server provides code action support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) code_action_provider: Option<OneOf<bool, CodeActionOptions>>,
+
+    /// The server provides workspace symbol support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) workspace_symbol_provider: Option<OneOf<bool, WorkspaceSymbolOptions>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
