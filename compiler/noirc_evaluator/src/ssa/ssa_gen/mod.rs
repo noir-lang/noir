@@ -457,7 +457,6 @@ impl FunctionContext<'_> {
                 );
             }
             Type::Array(_, len) => {
-                dbg!(len);
                 let len = self.builder.numeric_constant(*len as u128, NumericType::length_type());
                 self.codegen_access_check(index, len);
             }

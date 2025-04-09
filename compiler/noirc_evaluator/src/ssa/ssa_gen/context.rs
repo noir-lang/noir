@@ -836,7 +836,6 @@ impl<'a> FunctionContext<'a> {
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue, max_length) =
                     self.index_lvalue(array, index, location)?;
-                dbg!(old_array);
                 let element = self.codegen_array_index(
                     old_array,
                     index,
@@ -870,7 +869,7 @@ impl<'a> FunctionContext<'a> {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
                 let array_type = &self.builder.type_of_value(array);
-                dbg!(array_type.clone());
+
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Array(_, len) => {
@@ -888,7 +887,7 @@ impl<'a> FunctionContext<'a> {
                 let mut slice_values = slice.into_value_list(self);
 
                 let array_type = &self.builder.type_of_value(slice_values[1]);
-                dbg!(array_type.clone());
+
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Slice(_) => {
