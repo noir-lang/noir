@@ -118,7 +118,7 @@ mod tests {
     ) {
         let target_dir = test_program_dir
             .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy().to_string()));
+        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();
 
@@ -181,7 +181,7 @@ mod tests {
         let target_dir = test_program_dir
             .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
 
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy().to_string()));
+        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.arg("--json");
 
@@ -273,7 +273,7 @@ mod tests {
     }
 
     fn check_program_artifact(
-        test_program_dir: &PathBuf,
+        test_program_dir: &Path,
         target_dir: &PathBuf,
         force_brillig: ForceBrillig,
         inliner: Inliner,
