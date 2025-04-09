@@ -353,7 +353,7 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
             match token.into_token() {
                 Token::UnquoteMarker(expr_id) => return Some(expr_id),
-                _ => unreachable!(""),
+                _ => unreachable!("Expected only `UnquoteMarker` to have `TokenKind::UnquoteMarker`"),
             }
         }
 
