@@ -603,7 +603,7 @@ jobs:
 
       - name: Check test time limit
         run: |
-          TIME=$(jq '.[0].value' $OUTPUT_FILE)
+          TIME=$(jq '.[0].value' ${{ steps.test_report_name.outputs.test_report_name }}.json)
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "${{ matrix.timeout }}"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             echo "Failing due to test suite exceeding timeout..."
