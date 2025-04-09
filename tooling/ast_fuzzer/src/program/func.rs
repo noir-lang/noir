@@ -543,7 +543,7 @@ impl<'a> FunctionContext<'a> {
             return self.gen_for(u);
         }
 
-        if freq.enabled_when("loop", self.budget > 1) {
+        if freq.enabled_when("loop", self.budget > 1 && self.unconstrained()) {
             return self.gen_loop(u);
         }
 
