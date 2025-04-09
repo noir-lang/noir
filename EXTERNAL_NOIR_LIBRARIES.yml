@@ -2,74 +2,92 @@ define: &AZ_COMMIT c199f2c4ebd3e1045ebab317e1e5f76a0d9a2627
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
+    ref: master
     timeout: 2
     critical: true
   ec:
     repo: noir-lang/ec
+    ref: master
     timeout: 2
     critical: true
   eddsa:
     repo: noir-lang/eddsa
+    ref: master
     timeout: 3
     critical: true
   mimc:
     repo: noir-lang/mimc
+    ref: master
     timeout: 2
     critical: true
   schnorr:
     repo: noir-lang/schnorr
+    ref: master
     timeout: 2
     critical: true
   noir_sort:
     repo: noir-lang/noir_sort
+    ref: main
     timeout: 2
     critical: true
   noir-edwards:
     repo: noir-lang/noir-edwards
+    ref: main
     timeout: 2
     critical: true
   noir-bignum:
     repo: noir-lang/noir-bignum
+    ref: main
     timeout: 90
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
+    ref: main
     timeout: 250
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
+    ref: main
     timeout: 5
     critical: true
   noir_string_search:
     repo: noir-lang/noir_string_search
+    ref: master
     timeout: 2
     critical: true
   sparse_array:
     repo: noir-lang/sparse_array
+    ref: master
     timeout: 2
     critical: true
   noir_rsa:
     repo: noir-lang/noir_rsa
+    ref: main
     timeout: 4
     critical: true
   noir_json_parser:
     repo: noir-lang/noir_json_parser
+    ref: main
     timeout: 12
     critical: true
   sha256:
     repo: noir-lang/sha256
+    ref: main
     timeout: 3
     critical: true
   sha512:
     repo: noir-lang/sha512
+    ref: main
     timeout: 30
     critical: true
   keccak256:
     repo: noir-lang/keccak256
+    ref: main
     timeout: 3
     critical: true
   poseidon:
     repo: noir-lang/poseidon
+    ref: master
     timeout: 3
     critical: true
   aztec_nr:
@@ -144,3 +162,9 @@ libraries:
     path: lib
     timeout: 20
     critical: false
+  tdd:
+    repo: teddav/tdd.nr
+    ref: 03b5c2b02b6f7ffdc8735e0ae104abc26b073541
+    timeout: 20
+    critical: false
+

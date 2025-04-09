@@ -1,0 +1,2 @@
+{"suite":"tdd.nr","name":"tests::test_public_keys"}
+{"suite":"tdd.nr","name":"tests::test_verify_signature"}
