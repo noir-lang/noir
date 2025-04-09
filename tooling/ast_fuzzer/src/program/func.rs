@@ -554,7 +554,6 @@ impl<'a> FunctionContext<'a> {
         // TODO(#7927): Loop
         // TODO(#7928): While
         // TODO(#7926): Match
-        // TODO(#7925): Call
         // TODO(#7931): print
         // TODO(#7932): Constrain
 
