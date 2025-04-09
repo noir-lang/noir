@@ -10,7 +10,7 @@ use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::{
-    read_program_from_file, save_contract_to_file, save_program_to_file,
+    read_program_from_file, save_contract_to_file, save_program_to_dir, save_program_to_file,
 };
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
@@ -246,8 +246,13 @@ fn compile_programs(
         // Check solvability.
         nargo::ops::check_program(&program)?;
         // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
-        save_program_to_file(&program.into(), &package.name, &workspace.target_directory_path())
-            .expect("failed to save program");
+        if let Some(output_file) = &compile_options.program_output_file {
+            save_program_to_file(&program.into(), output_file.clone())
+                .expect("failed to save program");
+        } else {
+            save_program_to_dir(&program.into(), &package.name, &workspace.target_directory_path())
+                .expect("failed to save program");
+        }
 
         Ok(((), warnings))
     };

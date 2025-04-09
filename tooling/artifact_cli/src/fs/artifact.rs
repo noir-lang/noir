@@ -53,13 +53,28 @@ pub fn read_program_from_file(path: &Path) -> Result<ProgramArtifact, CliError> 
     }
 }
 
-pub fn save_program_to_file(
+/// Saves a program artifact inside the given directory.
+/// The name will be the crate's name with a `.json` extension.
+pub fn save_program_to_dir(
     program_artifact: &ProgramArtifact,
     crate_name: &CrateName,
     output_dir: &Path,
 ) -> Result<PathBuf, CliError> {
     let circuit_name: String = crate_name.into();
-    save_build_artifact_to_file(program_artifact, &circuit_name, output_dir)
+    save_build_artifact_to_dir(program_artifact, &circuit_name, output_dir)
+}
+
+/// Saves a program artifact in the given filename.
+/// Parent directories leading to that filename will be created.
+pub fn save_program_to_file(
+    program_artifact: &ProgramArtifact,
+    filename: PathBuf,
+) -> Result<PathBuf, CliError> {
+    if let Some(parent_path) = filename.parent() {
+        std::fs::create_dir_all(parent_path)?;
+    }
+
+    save_build_artifact_to_file(program_artifact, filename)
 }
 
 pub fn save_contract_to_file(
@@ -67,15 +82,22 @@ pub fn save_contract_to_file(
     circuit_name: &str,
     output_dir: &Path,
 ) -> Result<PathBuf, CliError> {
-    save_build_artifact_to_file(compiled_contract, circuit_name, output_dir)
+    save_build_artifact_to_dir(compiled_contract, circuit_name, output_dir)
 }
 
-fn save_build_artifact_to_file<T: ?Sized + serde::Serialize>(
+fn save_build_artifact_to_dir<T: ?Sized + serde::Serialize>(
     build_artifact: &T,
     artifact_name: &str,
     output_dir: &Path,
 ) -> Result<PathBuf, CliError> {
     let artifact_path = output_dir.join(artifact_name).with_extension("json");
+    save_build_artifact_to_file(build_artifact, artifact_path)
+}
+
+fn save_build_artifact_to_file<T: ?Sized + serde::Serialize>(
+    build_artifact: &T,
+    artifact_path: PathBuf,
+) -> Result<PathBuf, CliError> {
     let bytes = serde_json::to_vec(build_artifact)?;
     write_to_file(&bytes, &artifact_path)?;
     Ok(artifact_path)

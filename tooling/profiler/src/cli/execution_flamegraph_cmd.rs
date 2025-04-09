@@ -247,7 +247,7 @@ mod tests {
         };
 
         // Write the artifact to a file
-        let artifact_path = noir_artifact_cli::fs::artifact::save_program_to_file(
+        let artifact_path = noir_artifact_cli::fs::artifact::save_program_to_dir(
             &artifact,
             &CrateName::from_str("test").unwrap(),
             temp_dir.path(),

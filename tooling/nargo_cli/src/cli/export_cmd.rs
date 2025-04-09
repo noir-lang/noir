@@ -1,6 +1,6 @@
 use nargo::errors::CompileError;
 use nargo::ops::report_errors;
-use noir_artifact_cli::fs::artifact::save_program_to_file;
+use noir_artifact_cli::fs::artifact::save_program_to_dir;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
@@ -98,7 +98,7 @@ fn compile_exported_functions(
 
     let export_dir = workspace.export_directory_path();
     for (function_name, program) in exported_programs {
-        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir)?;
+        save_program_to_dir(&program.into(), &function_name.parse().unwrap(), &export_dir)?;
     }
     Ok(())
 }

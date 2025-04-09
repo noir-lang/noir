@@ -25,7 +25,7 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttribute;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 mod abi_gen;
@@ -186,6 +186,10 @@ pub struct CompileOptions {
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
     pub disable_comptime_printing: bool,
+
+    /// Used internally to choose a different file to store the program artifact
+    #[arg(long, hide = true)]
+    pub program_output_file: Option<PathBuf>,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -715,7 +719,8 @@ pub fn compile_no_check(
         || options.force_brillig
         || options.show_ssa
         || options.show_ssa_pass.is_some()
-        || options.emit_ssa;
+        || options.emit_ssa
+        || options.program_output_file.is_some();
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = fxhash::hash64(&program);
