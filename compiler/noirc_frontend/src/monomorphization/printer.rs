@@ -1,6 +1,6 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::ast::UnaryOp;
+use crate::{ast::UnaryOp, shared::Visibility};
 
 use super::ast::{
     Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
@@ -42,7 +42,8 @@ impl AstPrinter {
             self.print_global(id, global, f)?;
         }
         for function in &program.functions {
-            self.print_function(function, f)?;
+            let vis = (function.id == Program::main_id()).then_some(program.return_visibility);
+            self.print_function(function, vis, f)?;
         }
         Ok(())
     }
@@ -59,19 +60,34 @@ impl AstPrinter {
         self.next_line(f)
     }
 
-    pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
+    pub fn print_function(
+        &mut self,
+        function: &Function,
+        return_visibility: Option<Visibility>,
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
             format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
         })
         .join(", ");
 
+        let vis = return_visibility
+            .map(|vis| match vis {
+                Visibility::Private => "".to_string(),
+                Visibility::Public => "pub ".to_string(),
+                Visibility::ReturnData => "return_data ".to_string(),
+                Visibility::CallData(i) => format!("call_data({i}) "),
+            })
+            .unwrap_or_default();
+
         write!(
             f,
-            "{}fn {}({}) -> {} {{",
+            "{}fn {}({}) -> {}{} {{",
             if function.unconstrained { "unconstrained " } else { "" },
             self.fmt_func(&function.name, function.id),
             params,
-            function.return_type
+            vis,
+            function.return_type,
         )?;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;

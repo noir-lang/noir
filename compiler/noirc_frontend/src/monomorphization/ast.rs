@@ -449,7 +449,7 @@ impl std::fmt::Display for Program {
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::AstPrinter::default().print_function(self, f)
+        super::printer::AstPrinter::default().print_function(self, None, f)
     }
 }
 
