@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744222623768,
+  "lastUpdate": 1744222627629,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "632252d427fd2b8b22ce655a7601178ad31c3437",
-          "message": "feat: Remove range constraints on witnesses when use as array index is more restrictive (#7848)",
-          "timestamp": "2025-04-01T10:49:15Z",
-          "tree_id": "83eaacf49a182a1a5706572f4f2c135f6246a61e",
-          "url": "https://github.com/noir-lang/noir/commit/632252d427fd2b8b22ce655a7601178ad31c3437"
-        },
-        "date": 1743506150089,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.86,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 505.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 414.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.24,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "6c014e73b535da7c6e3e183cb10ecca1eebe243b",
           "message": "chore: replace ssa builder usage with parser in test (#7863)",
@@ -14550,6 +14486,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 254.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7e4deb985025563bd4f23b7c47e8c7b3db2fe7ef",
+          "message": "fix(docs): Reduce header image size (#7988)",
+          "timestamp": "2025-04-09T17:46:31Z",
+          "tree_id": "623143d68b9065fc79b07ce2e50719d9287e5f25",
+          "url": "https://github.com/noir-lang/noir/commit/7e4deb985025563bd4f23b7c47e8c7b3db2fe7ef"
+        },
+        "date": 1744222621896,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 474.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.05,
             "unit": "MB"
           },
           {
