@@ -32,6 +32,7 @@ use noirc_artifacts::debug::DebugArtifact;
 use runtime_tracing::{Tracer, TypeKind};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::rc::Rc;
 use tracing::debug;
 
@@ -47,6 +48,32 @@ enum DebugStepResult<Error> {
     Finished,
     /// The debugger reached an error and cannot continue.
     Error(Error),
+}
+
+pub struct StringWriter {
+    target: Rc<RefCell<String>>,
+}
+
+impl StringWriter {
+    pub fn new(target: Rc<RefCell<String>>) -> Self {
+        Self { target }
+    }
+
+    pub fn get_inner(&self) -> Rc<RefCell<String>> {
+        Rc::clone(&self.target)
+    }
+}
+
+impl Write for StringWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let s = String::from_utf8_lossy(buf);
+        self.target.borrow_mut().push_str(&s);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
@@ -68,13 +95,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let print_output = Rc::new(RefCell::new(String::new()));
-        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            nargo::PrintOutput::PrintCallback(Box::new({
-                let print_output_clone = Rc::clone(&print_output);
-                move |s| *Rc::clone(&print_output_clone).borrow_mut() = s
-            })),
-            debug_artifact,
-        ));
+        let writer: StringWriter = StringWriter::new(Rc::clone(&print_output));
+
+        let foreign_call_executor =
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(writer, debug_artifact));
         let debug_context = DebugContext::new(
             blackbox_solver,
             circuit,

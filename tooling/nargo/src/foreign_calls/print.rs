@@ -8,39 +8,19 @@ use noirc_printable_type::{PrintableType, PrintableValueDisplay};
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
-#[derive(Default)]
-pub enum PrintOutput<'a> {
-    #[default]
-    None,
-    Stdout,
-    String(&'a mut String),
-    PrintCallback(Box<dyn Fn(String) + 'a>),
-}
-
-impl std::fmt::Debug for PrintOutput<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::None => write!(f, "None"),
-            Self::Stdout => write!(f, "Stdout"),
-            Self::String(arg0) => f.debug_tuple("String").field(arg0).finish(),
-            Self::PrintCallback(_arg0) => write!(f, "PrintCallback(Box<dyn Fn (String) + 'a)"),
-        }
-    }
-}
-
 /// Handle `println` calls.
 #[derive(Debug, Default)]
-pub struct PrintForeignCallExecutor<'a> {
-    output: PrintOutput<'a>,
+pub struct PrintForeignCallExecutor<W> {
+    output: W,
 }
 
-impl<'a> PrintForeignCallExecutor<'a> {
-    pub fn new(output: PrintOutput<'a>) -> Self {
+impl<W> PrintForeignCallExecutor<W> {
+    pub fn new(output: W) -> Self {
         Self { output }
     }
 }
 
-impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
+impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCallExecutor<W> {
     /// Print has certain information encoded in the call arguments.
     /// Below we outline the expected inputs.
     ///
@@ -74,18 +54,11 @@ impl<F: AcirField> ForeignCallExecutor<F> for PrintForeignCallExecutor<'_> {
 
                 let display_values: PrintableValueDisplay<F> =
                     try_from_params(foreign_call_inputs)?;
-                let display_string =
-                    format!("{display_values}{}", if skip_newline { "" } else { "\n" });
 
-                match &mut self.output {
-                    PrintOutput::None => (),
-                    PrintOutput::Stdout => print!("{display_string}"),
-                    PrintOutput::String(string) => {
-                        string.push_str(&display_string);
-                    }
-                    PrintOutput::PrintCallback(callback_fn) => {
-                        callback_fn(display_string);
-                    }
+                if skip_newline {
+                    write!(self.output, "{display_values}").expect("write should succeed");
+                } else {
+                    writeln!(self.output, "{display_values}").expect("write should succeed");
                 }
 
                 Ok(ForeignCallResult::default())

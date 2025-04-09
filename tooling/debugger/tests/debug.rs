@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
     // Some of these imports are consumed by the injected tests
     use assert_cmd::cargo::cargo_bin;
 
@@ -73,8 +75,39 @@ mod tests {
             )
             .expect("Could not start debugger");
 
-        let num_steps = 16;
-        for _ in 1..=num_steps {
+        let expected_lines_by_command: Vec<VecDeque<&str>> = vec![
+            VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
+            VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
+            VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
+            VecDeque::from([
+                "let x = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from([
+                "let x = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from(["let x = unsafe { baz(x) };", "}"]),
+            VecDeque::from(["let x = unsafe { baz(x) };"]),
+            VecDeque::from(["foo(x);", "fn foo(x: Field) {"]),
+            VecDeque::from(["foo(x);", "fn foo(x: Field) {"]),
+            VecDeque::from([
+                "foo(x);",
+                "let y = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from([
+                "foo(x);",
+                "let y = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from(["foo(x);", "let y = unsafe { baz(x) };", "}"]),
+            VecDeque::from(["foo(x);", "let y = unsafe { baz(x) };"]),
+            VecDeque::from(["foo(x);", "bar(y);", "fn bar(y: Field) {"]),
+            VecDeque::from(["foo(x);", "bar(y);", "fn bar(y: Field) {"]),
+            VecDeque::from(["foo(x);", "bar(y);", "assert(y != 0);"]),
+        ];
+        for mut expected_lines in expected_lines_by_command {
             // While running the debugger, issue a "next" cmd,
             // which should run to the program to the next source line given
             // we haven't set any breakpoints.
@@ -87,71 +120,26 @@ mod tests {
             dbg_session
                 .exp_string(">")
                 .expect("Failed while waiting for debugger to step through program.");
-        }
 
-        let mut lines = vec![];
-        while let Ok(line) = dbg_session.read_line() {
-            if !(line.starts_with(">next") || line.starts_with("At ") || line.starts_with("...")) {
-                lines.push(line);
+            while let Some(expected_line) = expected_lines.pop_front() {
+                let line = loop {
+                    let read_line = dbg_session.read_line().unwrap();
+                    if !(read_line.contains("> next")
+                        || read_line.starts_with("At ")
+                        || read_line.starts_with("..."))
+                    {
+                        break read_line;
+                    }
+                };
+                let ascii_line: String = line.chars().filter(char::is_ascii).collect();
+                let line_expected_to_contain = expected_line.trim();
+                assert!(
+                    ascii_line.contains(line_expected_to_contain),
+                    "{:?}\ndid not contain\n{:?}",
+                    ascii_line,
+                    line_expected_to_contain,
+                );
             }
-        }
-
-        let lines_expected_to_contain: Vec<&str> = vec![
-            "> next",
-            "    let x = unsafe { baz(x) };",
-            "unconstrained fn baz(x: Field) -> Field {",
-            "> next",
-            "    let x = unsafe { baz(x) };",
-            "unconstrained fn baz(x: Field) -> Field {",
-            "> next",
-            "    let x = unsafe { baz(x) };",
-            "}",
-            "> next",
-            "    let x = unsafe { baz(x) };",
-            "> next",
-            "    foo(x);",
-            "fn foo(x: Field) {",
-            "> next",
-            "    foo(x);",
-            "fn foo(x: Field) {",
-            "> next",
-            "    foo(x);",
-            "    let y = unsafe { baz(x) };",
-            "unconstrained fn baz(x: Field) -> Field {",
-            "> next",
-            "    foo(x);",
-            "    let y = unsafe { baz(x) };",
-            "unconstrained fn baz(x: Field) -> Field {",
-            "> next",
-            "    foo(x);",
-            "    let y = unsafe { baz(x) };",
-            "}",
-            "> next",
-            "    foo(x);",
-            "    let y = unsafe { baz(x) };",
-            "> next",
-            "    foo(x);",
-            "    bar(y);",
-            "fn bar(y: Field) {",
-            "> next",
-            "    foo(x);",
-            "    bar(y);",
-            "fn bar(y: Field) {",
-            "> next",
-            "    foo(x);",
-            "    bar(y);",
-            "    assert(y != 0);",
-        ];
-
-        for (line, line_expected_to_contain) in lines.into_iter().zip(lines_expected_to_contain) {
-            let ascii_line: String = line.chars().filter(char::is_ascii).collect();
-            let line_expected_to_contain = line_expected_to_contain.trim_start();
-            assert!(
-                ascii_line.contains(line_expected_to_contain),
-                "{:?}\ndid not contain\n{:?}",
-                ascii_line,
-                line_expected_to_contain,
-            );
         }
 
         // Run the "quit" command

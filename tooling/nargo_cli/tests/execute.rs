@@ -64,7 +64,15 @@ mod tests {
     }
 
     fn delete_test_program_dir_occurrences(string: String, test_program_dir: &Path) -> String {
+        // Assuming `test_program_dir` is "/projects/noir/test_programs/compile_failure/some_program"...
+
+        // `test_program_base_dir` is "/projects/noir/test_programs"
         let test_program_base_dir = test_program_dir.parent().unwrap().parent().unwrap();
+
+        // `root_dir` is "/projects/noir"
+        let root_dir = test_program_base_dir.parent().unwrap();
+
+        // Here we turn the paths into strings and ensure they end with a `/`
         let mut test_program_base_dir = test_program_base_dir.to_string_lossy().to_string();
         if !test_program_base_dir.ends_with('/') {
             test_program_base_dir.push('/');
@@ -75,12 +83,25 @@ mod tests {
             test_program_dir.push('/');
         }
 
-        // We replace both test_program_dir (test_programs/compile_failure/foo) and its ancestor
-        // (test_programs) because in some cases some programs refer to other programs in `test_programs`.
+        // `test_program_dir_without_root is "test_programs/compile_failure".
+        // This one is needed because tests might run from the root of the project and paths
+        // will end up starting with "test_programs/compile_failure/...".
+        let test_program_dir_without_root =
+            test_program_dir.strip_prefix(&root_dir.to_string_lossy().to_string()).unwrap();
+        let test_program_dir_without_root = test_program_dir_without_root
+            .strip_prefix('/')
+            .unwrap_or(test_program_dir_without_root);
+
+        // We replace all of these:
+        // - test_program_dir ("/projects/noir/test_programs/compile_failure/foo")
+        // - test_program_base_dir ("/projects/noir/test_programs")
+        // - test_program_dir_without_root ("test_programs/compile_failure")
         string
             .lines()
             .map(|line| {
-                line.replace(&test_program_dir, "").replace(&test_program_base_dir, "../../")
+                line.replace(&test_program_dir, "")
+                    .replace(&test_program_base_dir, "../../")
+                    .replace(test_program_dir_without_root, "")
             })
             .collect::<Vec<String>>()
             .join("\n")
