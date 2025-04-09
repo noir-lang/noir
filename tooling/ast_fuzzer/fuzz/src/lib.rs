@@ -1,5 +1,6 @@
 use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
+use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
 use noirc_evaluator::{
     brillig::BrilligOptions,
@@ -44,7 +45,7 @@ pub fn create_ssa_or_die(
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
     if show_ast() {
-        eprintln!("---\n{program}\n---");
+        eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
     }
 
     ssa::create_program(program, options).unwrap_or_else(|e| {
@@ -69,7 +70,7 @@ where
 
     if res.is_err() {
         for (i, ast) in asts(inputs).into_iter().enumerate() {
-            eprintln!("AST {}:\n{}", i + 1, ast);
+            eprintln!("AST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
         }
         eprintln!("Inputs:\n{:?}", inputs.input_map);
         eprintln!("Program 1:\n{}", inputs.ssa1.program);

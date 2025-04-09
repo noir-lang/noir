@@ -3,7 +3,7 @@
 use crate::ast::UnaryOp;
 
 use super::ast::{
-    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Type, While,
+    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
 };
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
@@ -11,7 +11,7 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
-    show_id: bool,
+    pub show_id: bool,
 }
 
 impl Default for AstPrinter {
@@ -35,6 +35,16 @@ impl AstPrinter {
 
     fn fmt_func(&self, name: &str, id: FuncId) -> String {
         self.fmt_ident(name, &Definition::Function(id))
+    }
+
+    pub fn print_program(&mut self, program: &Program, f: &mut Formatter) -> std::fmt::Result {
+        for (id, global) in &program.globals {
+            self.print_global(id, global, f)?;
+        }
+        for function in &program.functions {
+            self.print_function(function, f)?;
+        }
+        Ok(())
     }
 
     pub fn print_global(
