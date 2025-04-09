@@ -288,35 +288,12 @@
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
+<a href="#290" id="290">290</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
 <span class="kw">use </span>acvm::acir::circuit::{OpcodeLocation, Program};
 <span class="kw">use </span>acvm::acir::native_types::WitnessStack;
 <span class="kw">use </span>acvm::brillig_vm::BranchToFeatureMap;
 <span class="kw">use </span>acvm::pwg::{
     ACVM, ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples,
-    ResolvedAssertionPayload,
 };
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver};
 <span class="kw">type </span>NargoErrorAndCoverage&lt;F&gt; = (NargoError&lt;F&gt;, <span class="prelude-ty">Option</span>&lt;Vec&lt;u32&gt;&gt;);
@@ -324,7 +301,7 @@
 <span class="kw">use </span>acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 <span class="kw">use </span><span class="kw">crate</span>::NargoError;
-<span class="kw">use </span><span class="kw">crate</span>::errors::{ExecutionError, ResolvedOpcodeLocation};
+<span class="kw">use </span><span class="kw">crate</span>::errors::{ExecutionError, ResolvedOpcodeLocation, execution_error_from};
 <span class="kw">use </span><span class="kw">crate</span>::foreign_calls::ForeignCallExecutor;
 
 <span class="kw">struct </span>ProgramExecutor&lt;<span class="lifetime">'a</span>, F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt; {
@@ -425,7 +402,7 @@
                 }
                 ACVMStatus::Failure(error) =&gt; {
                     <span class="self">self</span>.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
-                    <span class="kw">let </span>call_stack = <span class="kw">match </span><span class="kw-2">&amp;</span>error {
+                    <span class="kw">match </span><span class="kw-2">&amp;</span>error {
                         OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
                             ..
@@ -443,7 +420,6 @@
                                 opcode_location: <span class="kw-2">*</span>opcode_location,
                             };
                             <span class="self">self</span>.call_stack.push(resolved_location);
-                            <span class="prelude-val">Some</span>(<span class="self">self</span>.call_stack.clone())
                         }
                         OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } =&gt; {
                             <span class="kw">let </span>brillig_call_stack =
@@ -452,34 +428,14 @@
                                     opcode_location: <span class="kw-2">*</span>location,
                                 });
                             <span class="self">self</span>.call_stack.extend(brillig_call_stack);
-                            <span class="prelude-val">Some</span>(<span class="self">self</span>.call_stack.clone())
                         }
-                        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+                        <span class="kw">_ </span>=&gt; (),
                     };
 
-                    <span class="kw">let </span>assertion_payload: <span class="prelude-ty">Option</span>&lt;ResolvedAssertionPayload&lt;F&gt;&gt; = <span class="kw">match </span><span class="kw-2">&amp;</span>error {
-                        OpcodeResolutionError::BrilligFunctionFailed { payload, .. }
-                        | OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } =&gt; {
-                            payload.clone()
-                        }
-                        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-                    };
-
-                    <span class="kw">let </span>brillig_function_id = <span class="kw">match </span><span class="kw-2">&amp;</span>error {
-                        OpcodeResolutionError::BrilligFunctionFailed { function_id, .. } =&gt; {
-                            <span class="prelude-val">Some</span>(<span class="kw-2">*</span>function_id)
-                        }
-                        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-                    };
-
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(NargoError::ExecutionError(<span class="kw">match </span>assertion_payload {
-                        <span class="prelude-val">Some</span>(payload) =&gt; ExecutionError::AssertionFailed(
-                            payload,
-                            call_stack.expect(<span class="string">"Should have call stack for an assertion failure"</span>),
-                            brillig_function_id,
-                        ),
-                        <span class="prelude-val">None </span>=&gt; ExecutionError::SolvingError(error, call_stack),
-                    }));
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(NargoError::ExecutionError(execution_error_from(
+                        error,
+                        <span class="kw-2">&amp;</span><span class="self">self</span>.call_stack,
+                    )));
                 }
                 ACVMStatus::RequiresForeignCall(foreign_call) =&gt; {
                     <span class="kw">let </span>foreign_call_result = <span class="self">self</span>.foreign_call_executor.execute(<span class="kw-2">&amp;</span>foreign_call)<span class="question-mark">?</span>;
