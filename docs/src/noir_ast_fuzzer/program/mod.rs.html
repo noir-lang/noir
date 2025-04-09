@@ -263,11 +263,59 @@
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
 <a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
-</span><span class="kw">use </span>expr::gen_expr_literal;
-<span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
+</span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
 <span class="kw">use </span>strum::IntoEnumIterator;
 
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
@@ -282,7 +330,10 @@
 <span class="kw">use </span><span class="kw">crate</span>::Config;
 
 <span class="kw">mod </span>expr;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>freq;
 <span class="kw">mod </span>func;
+<span class="kw">mod </span>scope;
+<span class="kw">mod </span>types;
 
 <span class="doccomment">/// Generate an arbitrary monomorphized AST.
 </span><span class="kw">pub fn </span>arb_program(u: <span class="kw-2">&amp;mut </span>Unstructured, config: Config) -&gt; arbitrary::Result&lt;Program&gt; {
@@ -294,11 +345,21 @@
     <span class="prelude-val">Ok</span>(program)
 }
 
+<span class="doccomment">/// ID of variables in scope.
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="kw">enum </span>VariableId {
+    Local(LocalId),
+    Global(GlobalId),
+}
+
+<span class="doccomment">/// Name of a variable.
+</span><span class="kw">type </span>Name = String;
+
 <span class="doccomment">/// Context to accumulate top level generated item, so we know what we can choose from.
 </span><span class="kw">struct </span>Context {
     config: Config,
-    <span class="doccomment">/// Global variables, with higher IDs able to refer to previous ones.
-    </span>globals: BTreeMap&lt;GlobalId, (Type, Expression)&gt;,
+    <span class="doccomment">/// Global variables.
+    </span>globals: BTreeMap&lt;GlobalId, (Name, Type, Expression)&gt;,
     <span class="doccomment">/// Function signatures generated up front, so we can call any of them,
     /// (except `main`), while generating function bodies.
     </span>function_declarations: BTreeMap&lt;FuncId, FunctionDeclaration&gt;,
@@ -335,9 +396,7 @@
         <span class="kw">let </span>num_globals = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_globals)<span class="question-mark">?</span>;
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..num_globals {
             <span class="kw">let </span>g = <span class="self">self</span>.gen_global(u, i)<span class="question-mark">?</span>;
-            <span class="comment">// The AST only uses globals' names' when they are accessed.
-            // We can just project a name like `GLOBAL{id}` at the time.
-            </span><span class="self">self</span>.globals.insert(GlobalId(i <span class="kw">as </span>u32), g);
+            <span class="self">self</span>.globals.insert(GlobalId(i <span class="kw">as </span>u32), g);
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -346,13 +405,14 @@
     </span><span class="kw">fn </span>gen_global(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
-        _i: usize,
-    ) -&gt; arbitrary::Result&lt;(Type, Expression)&gt; {
-        <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth)<span class="question-mark">?</span>;
-        <span class="comment">// TODO(7878): Can we use e.g. binary expressions here? Based on a few examples
-        // it looked like the compiler already evaluated such expressions into literals.
-        </span><span class="kw">let </span>val = gen_expr_literal(u, <span class="kw-2">&amp;</span>typ)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>((typ, val))
+        i: usize,
+    ) -&gt; arbitrary::Result&lt;(Name, Type, Expression)&gt; {
+        <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+        <span class="comment">// By the time we get to the monomorphized AST the compiler will have already turned
+        // complex global expressions into literals.
+        </span><span class="kw">let </span>val = expr::gen_literal(u, <span class="kw-2">&amp;</span>typ)<span class="question-mark">?</span>;
+        <span class="kw">let </span>name = make_name(i, <span class="bool-val">true</span>);
+        <span class="prelude-val">Ok</span>((name, typ, val))
     }
 
     <span class="doccomment">/// Generate random function names and signatures.
@@ -378,9 +438,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>param_visibilities = Vec::new();
         <span class="kw">for </span>p <span class="kw">in </span><span class="number">0</span>..num_params {
             <span class="kw">let </span>id = LocalId(p <span class="kw">as </span>u32);
-            <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"param{p}"</span>);
+            <span class="kw">let </span>name = make_name(p, <span class="bool-val">false</span>);
             <span class="kw">let </span>is_mutable = !is_main &amp;&amp; bool::arbitrary(u)<span class="question-mark">?</span>;
-            <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth)<span class="question-mark">?</span>;
+            <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
             params.push((id, is_mutable, name, typ));
 
             param_visibilities.push(<span class="kw">if </span>is_main {
@@ -395,10 +455,10 @@
         }
 
         <span class="kw">let </span>decl = FunctionDeclaration {
-            name: <span class="kw">if </span>is_main { <span class="string">"main"</span>.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"function{i}"</span>) },
+            name: <span class="kw">if </span>is_main { <span class="string">"main"</span>.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"func_{i}"</span>) },
             params,
             param_visibilities,
-            return_type: <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth)<span class="question-mark">?</span>,
+            return_type: <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">false</span>)<span class="question-mark">?</span>,
             return_visibility: <span class="kw">if </span>is_main {
                 <span class="kw">match </span>u.choose_index(<span class="number">5</span>)<span class="question-mark">? </span>{
                     <span class="number">0 </span>| <span class="number">1 </span>=&gt; Visibility::Public,
@@ -421,10 +481,12 @@
 
     <span class="doccomment">/// Generate random function bodies.
     </span><span class="kw">fn </span>gen_functions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;()&gt; {
-        <span class="kw">for </span>(id, decl) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.function_declarations {
-            <span class="kw">let </span>body = FunctionContext::new(<span class="self">self</span>, <span class="kw-2">*</span>id).gen_body(u)<span class="question-mark">?</span>;
-            <span class="kw">let </span>function = Function {
-                id: <span class="kw-2">*</span>id,
+        <span class="kw">let </span>ids = <span class="self">self</span>.function_declarations.keys().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">for </span>id <span class="kw">in </span>ids {
+            <span class="kw">let </span>body = FunctionContext::new(<span class="self">self</span>, id).gen_body(u)<span class="question-mark">?</span>;
+            <span class="kw">let </span>decl = <span class="self">self</span>.function_decl(id);
+            <span class="kw">let </span>func = Function {
+                id,
                 name: decl.name.clone(),
                 parameters: decl.params.clone(),
                 body,
@@ -433,7 +495,7 @@
                 inline_type: decl.inline_type,
                 func_sig: decl.signature(),
             };
-            <span class="self">self</span>.functions.insert(<span class="kw-2">*</span>id, function);
+            <span class="self">self</span>.functions.insert(id, func);
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -449,7 +511,7 @@
 
         <span class="kw">let </span>main_function_signature = function_signatures[<span class="number">0</span>].clone();
 
-        <span class="kw">let </span>globals = <span class="self">self</span>.globals.into_iter().map(|(id, (_typ, val))| (id, val)).collect();
+        <span class="kw">let </span>globals = <span class="self">self</span>.globals.into_iter().collect();
 
         Program {
             functions,
@@ -471,11 +533,20 @@
     /// functions.
     ///
     /// With a `max_depth` of 0 only leaf types are created.
-    </span><span class="kw">fn </span>gen_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, max_depth: usize) -&gt; arbitrary::Result&lt;Type&gt; {
+    </span><span class="kw">fn </span>gen_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        max_depth: usize,
+        is_global: bool,
+    ) -&gt; arbitrary::Result&lt;Type&gt; {
         <span class="comment">// See if we can reuse an existing type without going over the maximum depth.
         </span><span class="kw">if </span>u.ratio(<span class="number">5</span>, <span class="number">10</span>)<span class="question-mark">? </span>{
-            <span class="kw">let </span>existing_types =
-                <span class="self">self</span>.types.iter().filter(|typ| type_depth(typ) &lt;= max_depth).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            <span class="kw">let </span>existing_types = <span class="self">self
+                </span>.types
+                .iter()
+                .filter(|typ| !is_global || types::can_be_global(typ))
+                .filter(|typ| types::type_depth(typ) &lt;= max_depth)
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
             <span class="kw">if </span>!existing_types.is_empty() {
                 <span class="kw">return </span>u.choose(<span class="kw-2">&amp;</span>existing_types).map(|typ| (<span class="kw-2">*</span>typ).clone());
@@ -485,47 +556,74 @@
         <span class="comment">// Once we hit the maximum depth, stop generating composite types.
         </span><span class="kw">let </span>max_index = <span class="kw">if </span>max_depth == <span class="number">0 </span>{ <span class="number">4 </span>} <span class="kw">else </span>{ <span class="number">8 </span>};
 
-        <span class="kw">let </span>typ = <span class="kw">match </span>u.choose_index(max_index)<span class="question-mark">? </span>{
-            <span class="comment">// 4 leaf types
-            </span><span class="number">0 </span>=&gt; Type::Bool,
-            <span class="number">1 </span>=&gt; Type::Field,
-            <span class="number">2 </span>=&gt; Type::Integer(
-                <span class="kw-2">*</span>u.choose(<span class="kw-2">&amp;</span>[Signedness::Signed, Signedness::Unsigned])<span class="question-mark">?</span>,
-                u.choose_iter(IntegerBitSize::iter())<span class="question-mark">?</span>,
-            ),
-            <span class="number">3 </span>=&gt; Type::String(u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_array_size)<span class="question-mark">? </span><span class="kw">as </span>u32),
-            <span class="comment">// 2 composite types
-            </span><span class="number">4 </span>| <span class="number">5 </span>=&gt; {
-                <span class="comment">// 1-size tuples look strange, so let's make it minimum 2 fields.
-                </span><span class="kw">let </span>size = u.int_in_range(<span class="number">2</span>..=<span class="self">self</span>.config.max_tuple_size)<span class="question-mark">?</span>;
-                <span class="kw">let </span>types = (<span class="number">0</span>..size)
-                    .map(|<span class="kw">_</span>| <span class="self">self</span>.gen_type(u, max_depth - <span class="number">1</span>))
-                    .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
-                Type::Tuple(types)
+        <span class="kw">let </span><span class="kw-2">mut </span>typ: Type;
+        <span class="kw">loop </span>{
+            typ = <span class="kw">match </span>u.choose_index(max_index)<span class="question-mark">? </span>{
+                <span class="comment">// 4 leaf types
+                </span><span class="number">0 </span>=&gt; Type::Bool,
+                <span class="number">1 </span>=&gt; Type::Field,
+                <span class="number">2 </span>=&gt; Type::Integer(
+                    <span class="kw-2">*</span>u.choose(<span class="kw-2">&amp;</span>[Signedness::Signed, Signedness::Unsigned])<span class="question-mark">?</span>,
+                    u.choose_iter(IntegerBitSize::iter())<span class="question-mark">?</span>,
+                ),
+                <span class="number">3 </span>=&gt; Type::String(u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_array_size)<span class="question-mark">? </span><span class="kw">as </span>u32),
+                <span class="comment">// 2 composite types
+                </span><span class="number">4 </span>| <span class="number">5 </span>=&gt; {
+                    <span class="comment">// 1-size tuples look strange, so let's make it minimum 2 fields.
+                    </span><span class="kw">let </span>size = u.int_in_range(<span class="number">2</span>..=<span class="self">self</span>.config.max_tuple_size)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>types = (<span class="number">0</span>..size)
+                        .map(|<span class="kw">_</span>| <span class="self">self</span>.gen_type(u, max_depth - <span class="number">1</span>, is_global))
+                        .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
+                    Type::Tuple(types)
+                }
+                <span class="number">6 </span>| <span class="number">7 </span>=&gt; {
+                    <span class="kw">let </span>size = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_array_size)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, max_depth - <span class="number">1</span>, is_global)<span class="question-mark">?</span>;
+                    Type::Array(size <span class="kw">as </span>u32, Box::new(typ))
+                }
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected arbitrary type index"</span>),
+            };
+            <span class="kw">if </span>!is_global || types::can_be_global(<span class="kw-2">&amp;</span>typ) {
+                <span class="kw">break</span>;
             }
-            <span class="number">6 </span>| <span class="number">7 </span>=&gt; {
-                <span class="kw">let </span>size = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_array_size)<span class="question-mark">?</span>;
-                <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, max_depth - <span class="number">1</span>)<span class="question-mark">?</span>;
-                Type::Array(size <span class="kw">as </span>u32, Box::new(typ))
-            }
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected arbitrary type index"</span>),
-        };
-
+        }
         <span class="self">self</span>.types.insert(typ.clone());
 
         <span class="prelude-val">Ok</span>(typ)
     }
 }
 
-<span class="doccomment">/// Calculate the depth of a type.
+<span class="doccomment">/// Derive a variable name from the ID.
 ///
-/// Leaf types have a depth of 0.
-</span><span class="kw">fn </span>type_depth(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
-    <span class="kw">match </span>typ {
-        Type::Field | Type::Bool | Type::String(<span class="kw">_</span>) | Type::Unit | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="number">0</span>,
-        Type::Array(<span class="kw">_</span>, typ) =&gt; <span class="number">1 </span>+ type_depth(typ),
-        Type::Tuple(types) =&gt; <span class="number">1 </span>+ types.iter().map(type_depth).max().unwrap_or_default(),
-        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected type: {typ}"</span>),
+/// Start with `a`, `b`, continuing with `aa`, `ab` if we run out of the alphabet.
+</span><span class="kw">fn </span>make_name(<span class="kw-2">mut </span>id: usize, is_global: bool) -&gt; String {
+    <span class="kw">let </span><span class="kw-2">mut </span>name = Vec::new();
+    <span class="kw">let </span>start = <span class="kw">if </span>is_global { <span class="number">65 </span>} <span class="kw">else </span>{ <span class="number">97 </span>};
+    <span class="kw">loop </span>{
+        <span class="kw">let </span>i = id % <span class="number">26</span>;
+        name.push(char::from(start + i <span class="kw">as </span>u8));
+        id -= i;
+        <span class="kw">if </span>id == <span class="number">0 </span>{
+            <span class="kw">break</span>;
+        }
+        id /= <span class="number">26</span>;
+    }
+    name.reverse();
+    <span class="kw">let </span>name = name.into_iter().collect::&lt;String&gt;();
+    <span class="kw">if </span>is_global { <span class="macro">format!</span>(<span class="string">"G_{}"</span>, name) } <span class="kw">else </span>{ name }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">crate</span>::program::make_name;
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_make_name() {
+        <span class="kw">for </span>(i, n) <span class="kw">in
+            </span>[(<span class="number">0</span>, <span class="string">"a"</span>), (<span class="number">1</span>, <span class="string">"b"</span>), (<span class="number">24</span>, <span class="string">"y"</span>), (<span class="number">25</span>, <span class="string">"z"</span>), (<span class="number">26</span>, <span class="string">"ba"</span>), (<span class="number">27</span>, <span class="string">"bb"</span>), (<span class="number">26 </span>* <span class="number">2 </span>+ <span class="number">3</span>, <span class="string">"cd"</span>)]
+        {
+            <span class="macro">assert_eq!</span>(make_name(i, <span class="bool-val">false</span>), n, <span class="string">"{i} should be {n}"</span>);
+        }
     }
 }
 </code></pre></div></section></main></body></html>

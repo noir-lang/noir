@@ -965,7 +965,31 @@
 <a href="#964" id="964">964</a>
 <a href="#965" id="965">965</a>
 <a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
@@ -1269,8 +1293,7 @@
 
 <span class="kw">pub type </span>BinaryOp = Located&lt;BinaryOpKind&gt;;
 
-<span class="attr">#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+<span class="attr">#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, strum_macros::EnumIter)]
 </span><span class="kw">pub enum </span>BinaryOpKind {
     Add,
     Subtract,
@@ -1304,6 +1327,31 @@
                 | BinaryOpKind::Greater
                 | BinaryOpKind::GreaterEqual
         )
+    }
+
+    <span class="doccomment">/// `==` and `!=`
+    </span><span class="kw">pub fn </span>is_equality(<span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
+    }
+
+    <span class="doccomment">/// `+`, `-`, `*`, `/` and `%`
+    </span><span class="kw">pub fn </span>is_arithmetic(<span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(
+            <span class="self">self</span>,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::Modulo
+        )
+    }
+
+    <span class="kw">pub fn </span>is_bitwise(<span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, BinaryOpKind::And | BinaryOpKind::Or | BinaryOpKind::Xor)
+    }
+
+    <span class="kw">pub fn </span>is_bitshift(<span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight)
     }
 
     <span class="kw">pub fn </span>is_valid_for_field_type(<span class="self">self</span>) -&gt; bool {

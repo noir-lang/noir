@@ -182,11 +182,42 @@
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
 <a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<span class="kw">use </span>acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr, bail};
-<span class="kw">use </span>nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
+<span class="kw">use </span>nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 <span class="kw">use </span>noirc_abi::{Abi, InputMap, input_parser::InputValue};
 <span class="kw">use </span>noirc_evaluator::ssa::SsaProgramArtifact;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
@@ -248,15 +279,18 @@
     </span><span class="kw">pub fn </span>return_value_or_err(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>InputValue&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             CompareResult::BothFailed(e1, e2) =&gt; {
-                <span class="comment">// For now raise an error to catch anything unexpected, but in the future if
-                // both fail the same way (e.g. assertion failure) then it should be okay.
-                </span><span class="macro">bail!</span>(<span class="string">"both programs failed: {e1}; {e2}"</span>)
+                <span class="kw">if </span><span class="self">Self</span>::errors_match(e1, e2) {
+                    <span class="comment">// Both programs failed the same way.
+                    </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+                } <span class="kw">else </span>{
+                    <span class="macro">bail!</span>(<span class="string">"both programs failed: {e1} vs {e2}\n{e1:?}\n{e2:?}"</span>)
+                }
             }
             CompareResult::LeftFailed(e, <span class="kw">_</span>) =&gt; {
-                <span class="macro">bail!</span>(<span class="string">"first program failed: {e}"</span>)
+                <span class="macro">bail!</span>(<span class="string">"first program failed: {e}\n{e:?}"</span>)
             }
             CompareResult::RightFailed(<span class="kw">_</span>, e) =&gt; {
-                <span class="macro">bail!</span>(<span class="string">"second program failed: {e}"</span>)
+                <span class="macro">bail!</span>(<span class="string">"second program failed: {e}\n{e:?}"</span>)
             }
             CompareResult::BothPassed(o1, o2) =&gt; {
                 <span class="kw">if </span>o1.return_value != o2.return_value {
@@ -275,6 +309,32 @@
                     <span class="prelude-val">Ok</span>(o1.return_value.as_ref())
                 }
             }
+        }
+    }
+
+    <span class="doccomment">/// Check whether two errors can be considered equivalent.
+    </span><span class="kw">fn </span>errors_match(e1: <span class="kw-2">&amp;</span>NargoError&lt;FieldElement&gt;, e2: <span class="kw-2">&amp;</span>NargoError&lt;FieldElement&gt;) -&gt; bool {
+        <span class="kw">use </span>ExecutionError::<span class="kw-2">*</span>;
+
+        <span class="comment">// For now consider non-execution errors as failures we need to investigate.
+        </span><span class="kw">let </span>NargoError::ExecutionError(ee1) = e1 <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+        <span class="kw">let </span>NargoError::ExecutionError(ee2) = e2 <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+
+        <span class="kw">match </span>(ee1, ee2) {
+            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2,
+            (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; s1 == s2,
+            (SolvingError(s, <span class="kw">_</span>), AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>))
+            | (AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>), SolvingError(s, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>(s, p) {
+                (
+                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
+                    ResolvedAssertionPayload::String(s),
+                ) =&gt; s == <span class="string">"Attempted to divide by zero"</span>,
+                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            },
         }
     }
 }

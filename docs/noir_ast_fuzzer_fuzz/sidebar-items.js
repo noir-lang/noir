@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["create_ssa_or_die","should_print_ast"]};
+window.SIDEBAR_ITEMS = {"fn":["compare_results","create_ssa_or_die","default_ssa_options","show_ast","show_ssa"]};

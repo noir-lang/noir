@@ -2542,8 +2542,7 @@
 <a href="#2541" id="2541">2541</a>
 <a href="#2542" id="2542">2542</a>
 <a href="#2543" id="2543">2543</a>
-<a href="#2544" id="2544">2544</a>
-<a href="#2545" id="2545">2545</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2544" id="2544">2544</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2623,7 +2622,7 @@
     <span class="doccomment">/// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
     </span>globals: HashMap&lt;node_interner::GlobalId, GlobalId&gt;,
 
-    finished_globals: HashMap&lt;GlobalId, ast::Expression&gt;,
+    finished_globals: HashMap&lt;GlobalId, (String, ast::Type, ast::Expression)&gt;,
 
     <span class="doccomment">/// Queue of functions to monomorphize next each item in the queue is a tuple of:
     /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl, is_unconstrained, location)
@@ -3648,9 +3647,8 @@
             </span><span class="kw">if </span>!is_closure {
                 <span class="kw">let </span>new_id = <span class="self">self</span>.next_global_id();
                 <span class="self">self</span>.globals.insert(id, new_id);
-
-                <span class="self">self</span>.finished_globals.insert(new_id, expr);
                 <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(typ, location)<span class="question-mark">?</span>;
+                <span class="self">self</span>.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 <span class="kw">let </span>ident = ast::Ident {
                     location: <span class="prelude-val">Some</span>(location),
                     definition: Definition::Global(new_id),

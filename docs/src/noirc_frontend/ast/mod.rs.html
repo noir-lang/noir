@@ -572,7 +572,8 @@
 <a href="#571" id="571">571</a>
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
-<a href="#574" id="574">574</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
 //! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
@@ -665,7 +666,8 @@
     }
 }
 
-<span class="kw">pub struct </span>InvalidIntegerBitSizeError(<span class="kw">pub </span>u32);
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub struct </span>InvalidIntegerBitSizeError(<span class="kw">pub </span>u32);
 
 <span class="kw">impl </span>TryFrom&lt;u32&gt; <span class="kw">for </span>IntegerBitSize {
     <span class="kw">type </span>Error = InvalidIntegerBitSizeError;

@@ -1,1 +1,1 @@
-searchState.loadedDescShard("noir_ast_fuzzer_fuzz", 0, "Compile a Program into SSA or panic.")
+searchState.loadedDescShard("noir_ast_fuzzer_fuzz", 0, "Compare the execution result and print the inputs if the …\nCompile a Program into SSA or panic.")

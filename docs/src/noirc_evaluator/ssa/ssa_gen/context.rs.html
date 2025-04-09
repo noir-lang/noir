@@ -2110,7 +2110,7 @@
             GlobalsGraph::default(),
         );
         <span class="kw">let </span><span class="kw-2">mut </span>globals = BTreeMap::default();
-        <span class="kw">for </span>(id, global) <span class="kw">in </span>program.globals.iter() {
+        <span class="kw">for </span>(id, (<span class="kw">_</span>, <span class="kw">_</span>, global)) <span class="kw">in </span>program.globals.iter() {
             <span class="kw">let </span>values = context.codegen_expression(global).unwrap();
             globals.insert(<span class="kw-2">*</span>id, values);
         }

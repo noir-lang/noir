@@ -872,7 +872,7 @@
     <span class="kw">pub </span>main_function_signature: FunctionSignature,
     <span class="kw">pub </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
     <span class="kw">pub </span>return_visibility: Visibility,
-    <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, Expression&gt;,
+    <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
     <span class="kw">pub </span>debug_variables: DebugVariables,
     <span class="kw">pub </span>debug_functions: DebugFunctions,
     <span class="kw">pub </span>debug_types: DebugTypes,
@@ -886,7 +886,7 @@
         main_function_signature: FunctionSignature,
         return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
         return_visibility: Visibility,
-        globals: BTreeMap&lt;GlobalId, Expression&gt;,
+        globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -949,8 +949,8 @@
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Program {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">let </span><span class="kw-2">mut </span>printer = <span class="kw">super</span>::printer::AstPrinter::default();
-        <span class="kw">for </span>(id, expr) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.globals {
-            printer.print_global(id, expr, f)<span class="question-mark">?</span>;
+        <span class="kw">for </span>(id, global) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.globals {
+            printer.print_global(id, global, f)<span class="question-mark">?</span>;
         }
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.functions {
             printer.print_function(function, f)<span class="question-mark">?</span>;

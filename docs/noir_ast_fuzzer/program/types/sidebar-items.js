@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["U32","U8"],"fn":["can_be_global","can_binary_op_return","can_binary_op_return_from_input","can_binary_return","can_unary_return","is_bool","is_numeric","is_unit","to_hir_type","type_depth","types_produced"]};

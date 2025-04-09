@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["gen_expr_literal"]};
+window.SIDEBAR_ITEMS = {"fn":["binary","cast","deref","gen_literal","gen_range","ident","ident_inner","index_modulo","modulo","positive_int_literal","range_modulo","u32_literal","unary"]};

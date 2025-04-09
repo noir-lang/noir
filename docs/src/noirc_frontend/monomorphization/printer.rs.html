@@ -388,11 +388,20 @@
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
 <a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::UnaryOp;
 
-<span class="kw">use </span><span class="kw">super</span>::ast::{Definition, Expression, Function, GlobalId, LValue, While};
+<span class="kw">use </span><span class="kw">super</span>::ast::{Definition, Expression, Function, GlobalId, LValue, Type, While};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>std::fmt::{Display, Formatter};
 
@@ -405,11 +414,10 @@
     <span class="kw">pub fn </span>print_global(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: <span class="kw-2">&amp;</span>GlobalId,
-        expr: <span class="kw-2">&amp;</span>Expression,
+        (name, typ, expr): <span class="kw-2">&amp;</span>(String, Type, Expression),
         f: <span class="kw-2">&amp;mut </span>Formatter,
     ) -&gt; std::fmt::Result {
-        <span class="comment">// At the moment globals don't carry their name, nor a type.
-        </span><span class="macro">write!</span>(f, <span class="string">"global $g{} = "</span>, id.<span class="number">0</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">"global {}$g{}: {} = "</span>, name, id.<span class="number">0</span>, typ)<span class="question-mark">?</span>;
         <span class="self">self</span>.print_expr(expr, f)<span class="question-mark">?</span>;
         <span class="macro">write!</span>(f, <span class="string">";"</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.next_line(f)
@@ -423,8 +431,12 @@
 
         <span class="macro">write!</span>(
             f,
-            <span class="string">"fn {}$f{}({}) -&gt; {} {{"</span>,
-            function.name, function.id, params, function.return_type
+            <span class="string">"{}fn {}$f{}({}) -&gt; {} {{"</span>,
+            <span class="kw">if </span>function.unconstrained { <span class="string">"unconstrained " </span>} <span class="kw">else </span>{ <span class="string">"" </span>},
+            function.name,
+            function.id,
+            params,
+            function.return_type
         )<span class="question-mark">?</span>;
         <span class="self">self</span>.indent_level += <span class="number">1</span>;
         <span class="self">self</span>.print_expr_expect_block(<span class="kw-2">&amp;</span>function.body, f)<span class="question-mark">?</span>;
@@ -465,7 +477,13 @@
             }
             Expression::Call(call) =&gt; <span class="self">self</span>.print_call(call, f),
             Expression::Let(let_expr) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"let {}${} = "</span>, let_expr.name, let_expr.id.<span class="number">0</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(
+                    f,
+                    <span class="string">"let {}{}${} = "</span>,
+                    <span class="kw">if </span>let_expr.mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>},
+                    let_expr.name,
+                    let_expr.id.<span class="number">0
+                </span>)<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>let_expr.expression, f)
             }
             Expression::Constrain(expr, ..) =&gt; {
