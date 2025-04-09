@@ -275,3 +275,27 @@ pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expressi
         location: Location::dummy(),
     })
 }
+
+/// Append statements to a given block.
+pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Expression {
+    let Expression::Block(mut block_stmts) = block else {
+        unreachable!("attempted to append statements to a non-block expression: {}", block)
+    };
+
+    block_stmts.extend(statements);
+
+    Expression::Block(block_stmts)
+}
+
+/// Prepend statements to a given block.
+pub(crate) fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expression {
+    let Expression::Block(block_stmts) = block else {
+        unreachable!("attempted to prepend statements to a non-block expression: {}", block)
+    };
+
+    let mut result_statements = vec![];
+    result_statements.extend(statements);
+    result_statements.extend(block_stmts);
+
+    Expression::Block(result_statements)
+}

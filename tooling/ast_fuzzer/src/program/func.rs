@@ -25,6 +25,7 @@ use super::{
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
 /// 2. generate the final HIR function signature
+#[derive(Debug)]
 pub(super) struct FunctionDeclaration {
     pub name: String,
     pub params: Parameters,
@@ -528,7 +529,6 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO(#7927): Loop
         // TODO(#7928): While
         // TODO(#7926): Match
         // TODO(#7925): Call
@@ -541,6 +541,10 @@ impl<'a> FunctionContext<'a> {
 
         if freq.enabled_when("for", self.budget > 1) {
             return self.gen_for(u);
+        }
+
+        if freq.enabled_when("loop", self.budget > 1) {
+            return self.gen_loop(u);
         }
 
         if freq.enabled("drop") {
@@ -682,7 +686,7 @@ impl<'a> FunctionContext<'a> {
             u.choose(&[8, 16, 32, 64]).map(|s| IntegerBitSize::try_from(*s).unwrap())?,
         );
 
-        let max_size = self.ctx.config.max_range_size;
+        let max_size = self.ctx.config.max_loop_size;
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
             // Generate random expression.
             let s = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
@@ -729,4 +733,90 @@ impl<'a> FunctionContext<'a> {
 
         Ok(expr)
     }
+
+    /// Generate a `loop` loop.
+    fn gen_loop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // Declare break index variable visible in the loop body.
+        let idx_type = types::U32;
+        let idx_id = self.next_local_id();
+        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_ident =
+            expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
+
+        // Add a scope which will hold the index variable.
+        //self.locals.add(idx_id, false, idx_name.clone(), idx_type.clone());
+        self.locals.enter();
+
+        // Decrease budget so we don't nest endlessly.
+        self.decrease_budget(1);
+
+        // Initialize index to 0
+        let outer_block = Expression::Block(vec![Expression::Let(Let {
+            id: idx_id,
+            mutable: true,
+            name: idx_name,
+            expression: Box::new(expr::u32_literal(0)),
+        })]);
+
+        let inner_block = self.gen_block(u, &Type::Unit)?;
+        let inner_block = expr::prepend_block(
+            inner_block,
+            vec![Expression::Semi(Box::new(Expression::If(If {
+                condition: Box::new(expr::binary(
+                    Expression::Ident(idx_ident.clone()),
+                    BinaryOp::Equal,
+                    expr::u32_literal(self.ctx.config.max_loop_size as u32),
+                )),
+                consequence: Box::new(Expression::Block(vec![Expression::Break])),
+                alternative: None,
+                typ: Type::Unit,
+            })))],
+        );
+        let inner_block = expr::extend_block(
+            inner_block,
+            vec![Expression::Assign(Assign {
+                lvalue: LValue::Ident(idx_ident.clone()),
+                expression: Box::new(Expression::Clone(Box::new(expr::binary(
+                    Expression::Ident(idx_ident.clone()),
+                    BinaryOp::Add,
+                    expr::u32_literal(1),
+                )))),
+            })],
+        );
+
+        let outer_block =
+            expr::extend_block(outer_block, vec![Expression::Loop(Box::new(inner_block))]);
+
+        // Remove the loop scope.
+        self.locals.exit();
+
+        Ok(outer_block)
+    }
+}
+
+#[test]
+fn test_loop() {
+    let mut u = Unstructured::new(&[0u8; 1]);
+    let mut ctx = Context::default();
+    ctx.config.max_loop_size = 10;
+    ctx.add_main_decl(&mut u);
+    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+    fctx.budget = 2;
+    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap());
+
+    assert!(loop_code.starts_with(
+        r#"{
+    let mut idx_a$0 = 0;
+    loop {
+        if (idx_a$l0 == 10) {
+            break
+        };;
+    "#
+    ));
+
+    assert!(loop_code.ends_with(
+        r#"idx_a$l0 = (idx_a$l0 + 1).clone()
+    }
+}"#
+    ));
 }
