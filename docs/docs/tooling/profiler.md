@@ -133,7 +133,7 @@ The `--backend-path` flag takes in the path to your proving backend binary.
 
 The above command assumes you have Barretenberg (bb) installed and that its path is saved in your PATH. If that is not the case, you can pass in the absolute path to your proving backend binary instead.
 
-Flamegraph of the demonstrative project generated with bb v0.76.4:
+Flamegraph of the optimized demonstrative project generated with bb v0.76.4:
 
 ![Gates Flamegraph Optimized](@site/static/img/tooling/profiler/gates-flamegraph-optimized.png)
 
@@ -153,7 +153,7 @@ Profiling your program with different parameters is good way to understand your 
 
 From the flamegraph above, you will notice that `blackbox::range` contributes the majority of the backend gates. This comes from how Barretenberg UltraHonk uses lookup tables for its range gates under the hood, which comes with a considerable but fixed setup cost in terms of proving gates.
 
-If our array is larger, range gates would become a much smaller percentage of our total circuit. See this flamegraph for the same program but with an array of size 2,048 (versus originally 32) in comparison:
+If our array is larger, range gates would become a much smaller percentage of our total circuit. See this flamegraph for the same optimized program but with an array of size 2,048 (versus originally 32) in comparison:
 
 ![Gates Flamegraph Optimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-optimized-2048.png)
 
