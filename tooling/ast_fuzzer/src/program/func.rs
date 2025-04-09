@@ -736,16 +736,14 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `loop` loop.
     fn gen_loop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // Declare break index variable visible in the loop body.
+        // Declare break index variable visible in the loop body. Do not include it
+        // in the locals the generator would be able to manipulate, as it could
+        // lead to the loop becoming infinite.
         let idx_type = types::U32;
         let idx_id = self.next_local_id();
         let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
         let idx_ident =
             expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
-
-        // Add a scope which will hold the index variable.
-        //self.locals.add(idx_id, false, idx_name.clone(), idx_type.clone());
-        self.locals.enter();
 
         // Decrease budget so we don't nest endlessly.
         self.decrease_budget(1);
@@ -786,9 +784,6 @@ impl<'a> FunctionContext<'a> {
 
         let outer_block =
             expr::extend_block(outer_block, vec![Expression::Loop(Box::new(inner_block))]);
-
-        // Remove the loop scope.
-        self.locals.exit();
 
         Ok(outer_block)
     }
