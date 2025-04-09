@@ -32,7 +32,6 @@ pub trait AcirField:
 
     fn is_zero(&self) -> bool;
     fn is_one(&self) -> bool;
-
     fn pow(&self, exponent: &Self) -> Self;
 
     /// Maximum number of bits needed to represent a field element

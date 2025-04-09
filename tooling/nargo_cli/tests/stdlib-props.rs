@@ -1,22 +1,20 @@
-use std::{cell::RefCell, collections::BTreeMap, path::Path};
+mod common;
+
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 
 use acvm::{AcirField, FieldElement, acir::native_types::WitnessStack};
 use iter_extended::vecmap;
-use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program, parse_all};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
-use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
-};
-use noirc_frontend::hir::Context;
 use proptest::prelude::*;
 
 /// Inputs and expected output of a snippet encoded in ABI format.
 #[derive(Debug)]
 struct SnippetInputOutput {
-    description: String,
-    inputs: BTreeMap<String, InputValue>,
-    expected_output: InputValue,
+    pub description: String,
+    pub inputs: BTreeMap<String, InputValue>,
+    pub expected_output: InputValue,
 }
 impl SnippetInputOutput {
     fn new(inputs: Vec<(&str, InputValue)>, output: InputValue) -> Self {
@@ -34,36 +32,6 @@ impl SnippetInputOutput {
     }
 }
 
-/// Prepare a code snippet.
-fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
-    let root = Path::new("");
-    let file_name = Path::new("main.nr");
-    let mut file_manager = file_manager_with_stdlib(root);
-    file_manager.add_file_with_source(file_name, source).expect(
-        "Adding source buffer to file manager should never fail when file manager is empty",
-    );
-    let parsed_files = parse_all(&file_manager);
-
-    let mut context = Context::new(file_manager, parsed_files);
-    let root_crate_id = prepare_crate(&mut context, file_name);
-
-    (context, root_crate_id)
-}
-
-/// Compile the main function in a code snippet.
-///
-/// Use `force_brillig` to test it as an unconstrained function without having to change the code.
-/// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
-fn prepare_and_compile_snippet(
-    source: String,
-    force_brillig: bool,
-) -> CompilationResult<CompiledProgram> {
-    let (mut context, root_crate_id) = prepare_snippet(source);
-    let options = CompileOptions { force_brillig, ..Default::default() };
-    // TODO: Run nargo::ops::transform_program?
-    compile_main(&mut context, root_crate_id, &options, None)
-}
-
 /// Compile a snippet and run property tests against it by generating random input/output pairs
 /// according to the strategy, executing the snippet with the input, and asserting that the
 /// output it returns is the one we expect.
@@ -72,7 +40,7 @@ fn run_snippet_proptest(
     force_brillig: bool,
     strategy: BoxedStrategy<SnippetInputOutput>,
 ) {
-    let program = match prepare_and_compile_snippet(source.clone(), force_brillig) {
+    let program = match common::prepare_and_compile_snippet(source.clone(), force_brillig) {
         Ok((program, _)) => program,
         Err(e) => panic!("failed to compile program; brillig = {force_brillig}:\n{source}\n{e:?}"),
     };
@@ -156,49 +124,6 @@ fn fuzz_poseidon2_equivalence() {
 
                 SnippetInputOutput::new(inputs, InputValue::Field(output))
                     .with_description(format!("max_len = {max_len}"))
-            })
-            .boxed();
-
-        run_snippet_proptest(source.clone(), false, strategy);
-    }
-}
-
-#[test]
-fn fuzz_poseidon_equivalence() {
-    use light_poseidon::{Poseidon, PoseidonHasher};
-
-    let poseidon_hash = |inputs: &[FieldElement]| {
-        let mut poseidon = Poseidon::<ark_bn254::Fr>::new_circom(inputs.len()).unwrap();
-        let frs: Vec<ark_bn254::Fr> = inputs.iter().map(|f| f.into_repr()).collect::<Vec<_>>();
-        let hash: ark_bn254::Fr = poseidon.hash(&frs).expect("failed to hash");
-        FieldElement::from_repr(hash)
-    };
-
-    // Noir has hashes up to length 16, but the reference library won't work with more than 12.
-    for len in 1..light_poseidon::MAX_X5_LEN {
-        let source = format!(
-            "
-            use std::hash::{{Hash, Hasher}};
-
-            fn main(input: [Field; {len}]) -> pub Field {{
-                let h1 = std::hash::poseidon::bn254::hash_{len}(input);
-                let h2 = {{
-                    let mut hasher = std::hash::poseidon::PoseidonHasher::default();
-                    input.hash(&mut hasher);
-                    hasher.finish()
-                }};
-                assert_eq(h1, h2);
-                h1
-            }}"
-        );
-
-        let strategy = field_vec_strategy(len)
-            .prop_map(move |msg| {
-                let output = poseidon_hash(&msg);
-                let inputs = vec![("input", InputValue::Vec(vecmap(msg, InputValue::Field)))];
-
-                SnippetInputOutput::new(inputs, InputValue::Field(output))
-                    .with_description(format!("len = {len}"))
             })
             .boxed();
 

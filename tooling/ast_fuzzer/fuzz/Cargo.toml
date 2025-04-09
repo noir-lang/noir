@@ -1,0 +1,43 @@
+[package]
+name = "noir_ast_fuzzer_fuzz"
+description = "Targets for the AST fuzzer."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+color-eyre.workspace = true
+libfuzzer-sys.workspace = true
+
+acir.workspace = true
+noirc_evaluator.workspace = true
+noirc_frontend.workspace = true
+
+noir_ast_fuzzer = { path = ".." }
+
+[[bin]]
+name = "init_vs_final"
+path = "fuzz_targets/init_vs_final.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "acir_vs_brillig"
+path = "fuzz_targets/acir_vs_brillig.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "orig_vs_mutant"
+path = "fuzz_targets/orig_vs_mutant.rs"
+test = false
+doc = false
+bench = false
