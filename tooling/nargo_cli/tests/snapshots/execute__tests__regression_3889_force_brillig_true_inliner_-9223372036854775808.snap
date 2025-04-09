@@ -74,7 +74,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "mod Foo {\n    struct NewType {\n        a: Field,\n    }\n}\n\nmod Bar {\n    use crate::Foo::NewType;\n    use crate::Foo::NewType as BarStruct;\n}\n\nmod Baz {\n    struct Works {\n        a: Field,\n    }\n    use crate::Bar::BarStruct;\n    use crate::Bar::NewType;\n}\n\nfn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub Field {\n    works.a + fails.a + also_fails.a\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_3889/src/main.nr"
+      "path": ""
     }
   },
   "names": [

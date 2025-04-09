@@ -25,7 +25,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u32) {\n    // We want to call a foldable function after a call to a function that is set to be inlined\n    assert(increment(x) == x + 1);\n    foo(x);\n}\n\n#[fold]\nfn foo(x: u32) {\n    assert(x == 1);\n}\n\nfn increment(x: u32) -> u32 {\n    x + 1\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/fold_after_inlined_calls/src/main.nr"
+      "path": ""
     }
   },
   "names": [

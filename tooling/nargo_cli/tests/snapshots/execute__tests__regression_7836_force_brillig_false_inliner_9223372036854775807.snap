@@ -25,7 +25,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u32) {\n    if (x == 43) {\n        let _ = foo(x);\n    }\n    assert(foo(x) != 0);\n}\n\nfn foo(input: u32) -> u32 {\n    assert(input != 0);\n    input % 100\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_7836/src/main.nr"
+      "path": ""
     }
   },
   "names": [

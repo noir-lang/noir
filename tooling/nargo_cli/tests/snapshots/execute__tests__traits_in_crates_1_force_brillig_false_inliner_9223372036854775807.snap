@@ -30,7 +30,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/traits_in_crates_1/src/main.nr"
+      "path": ""
     }
   },
   "names": [

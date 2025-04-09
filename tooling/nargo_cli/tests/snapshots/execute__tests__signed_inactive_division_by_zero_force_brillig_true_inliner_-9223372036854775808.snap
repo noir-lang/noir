@@ -53,7 +53,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(a: i32, b: i32, condition: bool) -> pub i32 {\n    if condition {\n        // If `condition` is not set then we should not trigger an assertion failure here.\n        a / b\n    } else {\n        0\n    }\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/signed_inactive_division_by_zero/src/main.nr"
+      "path": ""
     }
   },
   "names": [

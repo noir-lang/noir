@@ -30,7 +30,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(mut x: u32) {\n    if x == 0 {\n        x = (x + 1) / x;\n    } else {\n        x = (x + 1) / x;\n    }\n    assert(x != 0);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_3607/src/main.nr"
+      "path": ""
     }
   },
   "names": [

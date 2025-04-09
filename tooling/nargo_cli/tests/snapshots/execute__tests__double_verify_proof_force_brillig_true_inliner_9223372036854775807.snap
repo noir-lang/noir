@@ -76,7 +76,7 @@ expression: artifact
     },
     "50": {
       "source": "// This circuit aggregates two proofs from `assert_statement`.\nfn main(\n    verification_key: [Field; 114],\n    // This is the proof without public inputs attached.\n    //\n    // This means: the size of this does not change with the number of public inputs.\n    proof: [Field; 93],\n    public_inputs: pub [Field; 1],\n    // This is currently not public. It is fine given that the vk is a part of the circuit definition.\n    // I believe we want to eventually make it public too though.\n    key_hash: Field,\n    proof_b: [Field; 93],\n) {\n    std::verify_proof(verification_key, proof, public_inputs, key_hash);\n\n    std::verify_proof(verification_key, proof_b, public_inputs, key_hash);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/double_verify_proof/src/main.nr"
+      "path": ""
     }
   },
   "names": [

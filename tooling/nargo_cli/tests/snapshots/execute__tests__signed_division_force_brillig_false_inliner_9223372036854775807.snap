@@ -56,7 +56,7 @@ expression: artifact
     },
     "50": {
       "source": "// Testing signed integer division:\n//  7/3  = 2\n// -7/3  = -2\n// -7/-3 = 2\n//  7/-3 = -2\nfn main(mut x: i32, mut y: i32, mut z: i32) {\n    // 7/3 = 2\n    assert(x / y == z);\n    // -7/3 = -2\n    let minus_x = std::wrapping_sub(0, x);\n    let minus_z = std::wrapping_sub(0, z);\n    let minus_y = std::wrapping_sub(0, y);\n    assert(x + minus_x == 0);\n    assert(z + minus_z == 0);\n    assert(minus_x / y == minus_z);\n    // -7/-3 = 2\n    assert(minus_x / minus_y == z);\n    // 7/-3 = -2\n    assert(x / minus_y == minus_z);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/signed_division/src/main.nr"
+      "path": ""
     }
   },
   "names": [

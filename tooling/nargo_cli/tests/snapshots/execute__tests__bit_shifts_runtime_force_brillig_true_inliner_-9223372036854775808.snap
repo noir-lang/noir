@@ -56,7 +56,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u64, y: u8, z: i16) {\n    // runtime shifts on compile-time known values\n    assert(64 << y == 128);\n    assert(64 >> y == 32);\n    // runtime shifts on runtime values\n    assert(x << y == 128);\n    assert(x >> y == 32);\n\n    // Bit-shift with signed integers\n    let mut a: i8 = y as i8;\n    let mut b: i8 = x as i8;\n    assert(b << 1 == -128);\n    assert(b >> 2 == 16);\n    assert(b >> y == 32);\n    a = -a;\n    assert(a << 7 == -128);\n    assert(a << y == -2);\n\n    assert(x >> (x as u8) == 0);\n\n    assert_eq(z >> 3, -97);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/bit_shifts_runtime/src/main.nr"
+      "path": ""
     }
   },
   "names": [

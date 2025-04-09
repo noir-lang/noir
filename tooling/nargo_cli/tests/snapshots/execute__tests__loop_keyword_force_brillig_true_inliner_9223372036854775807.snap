@@ -20,7 +20,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main() {\n    // Safety: test code\n    unsafe {\n        check_loop();\n    }\n\n    check_comptime_loop();\n}\n\nunconstrained fn check_loop() {\n    let mut i = 0;\n    let mut sum = 0;\n\n    loop {\n        if i == 4 {\n            break;\n        }\n\n        if i == 2 {\n            i += 1;\n            continue;\n        }\n\n        sum += i;\n        i += 1;\n    }\n\n    assert_eq(sum, 1 + 3);\n}\n\nfn check_comptime_loop() {\n    comptime {\n        let mut i = 0;\n        let mut sum = 0;\n\n        loop {\n            if i == 4 {\n                break;\n            }\n\n            if i == 2 {\n                i += 1;\n                continue;\n            }\n\n            sum += i;\n            i += 1;\n        }\n\n        assert_eq(sum, 1 + 3);\n    }\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/loop_keyword/src/main.nr"
+      "path": ""
     }
   },
   "names": [

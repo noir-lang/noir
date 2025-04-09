@@ -58,7 +58,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/array_dynamic_main_output/src/main.nr"
+      "path": ""
     }
   },
   "names": [

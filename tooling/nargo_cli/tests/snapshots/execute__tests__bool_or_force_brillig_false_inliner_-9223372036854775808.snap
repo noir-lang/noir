@@ -34,7 +34,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u1, y: u1) {\n    assert(x | y == 1);\n\n    assert(x | y | x == 1);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/bool_or/src/main.nr"
+      "path": ""
     }
   },
   "names": [

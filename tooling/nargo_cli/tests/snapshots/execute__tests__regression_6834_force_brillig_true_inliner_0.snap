@@ -50,7 +50,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(year: u32, min_age: u8) -> pub u32 {\n    if min_age == 0 {\n        (year - 2) / 4\n    } else if year > 1 {\n        (year - 2) / 4\n    } else {\n        0\n    }\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_6834/src/main.nr"
+      "path": ""
     }
   },
   "names": [

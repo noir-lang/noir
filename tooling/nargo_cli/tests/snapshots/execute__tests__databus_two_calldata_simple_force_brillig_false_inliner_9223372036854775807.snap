@@ -63,7 +63,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/databus_two_calldata_simple/src/main.nr"
+      "path": ""
     }
   },
   "names": [

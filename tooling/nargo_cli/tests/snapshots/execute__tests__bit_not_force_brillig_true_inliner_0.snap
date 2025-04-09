@@ -30,7 +30,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(four_as_u32: u32) {\n    let four_as_u8: u8 = 4;\n    let not_four_as_u8: u8 = !four_as_u8;\n    assert_eq(not_four_as_u8, 251);\n\n    let not_four_as_u32: u32 = !four_as_u32;\n    assert_eq(not_four_as_u32, 4294967291);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/bit_not/src/main.nr"
+      "path": ""
     }
   },
   "names": [

@@ -35,11 +35,11 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/traits_in_crates_2/src/main.nr"
+      "path": ""
     },
     "52": {
       "source": "pub struct MyStruct {\n    pub Q: Field,\n}\n\nimpl crate1::MyTrait for MyStruct {\n    fn Add10(&mut self) {\n        self.Q += 10;\n    }\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/traits_in_crates_2/crate2/src/lib.nr"
+      "path": ""
     }
   },
   "names": [

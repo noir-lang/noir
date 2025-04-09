@@ -52,7 +52,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "struct Foo {\n    bar: Field,\n    baz: Field,\n}\n\nfn main(foos: [Foo; 3]) -> pub Field {\n    foos[2].bar + foos[2].baz\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/struct_array_inputs/src/main.nr"
+      "path": ""
     }
   },
   "names": [

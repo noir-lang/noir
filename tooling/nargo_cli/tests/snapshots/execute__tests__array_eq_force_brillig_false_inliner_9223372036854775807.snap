@@ -38,7 +38,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// Simple example of checking where two arrays are equal\nfn main(a: [Field; 32], b: [Field; 32]) {\n    assert(a == b);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/array_eq/src/main.nr"
+      "path": ""
     }
   },
   "names": [

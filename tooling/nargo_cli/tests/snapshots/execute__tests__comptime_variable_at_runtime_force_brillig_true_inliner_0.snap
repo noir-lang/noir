@@ -28,7 +28,7 @@ expression: artifact
     },
     "50": {
       "source": "fn main() {\n    comptime let mut x = 1;\n\n    println(x); // prints 1\n\n    comptime {\n        x += 1;\n    }\n\n    println(x); // prints 2\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/comptime_variable_at_runtime/src/main.nr"
+      "path": ""
     }
   },
   "names": [

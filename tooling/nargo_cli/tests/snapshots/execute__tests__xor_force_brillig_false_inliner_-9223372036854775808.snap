@@ -34,7 +34,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u32, y: pub u32) {\n    let m = x ^ y;\n\n    assert(m != 10);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/xor/src/main.nr"
+      "path": ""
     }
   },
   "names": [

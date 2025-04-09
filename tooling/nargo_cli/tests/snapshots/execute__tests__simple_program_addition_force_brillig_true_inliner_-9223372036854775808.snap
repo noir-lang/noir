@@ -33,7 +33,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// The feature being tested is handling of\n// a binary operation.\nfn main(x: Field) -> pub Field {\n    x + 1\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/simple_program_addition/src/main.nr"
+      "path": ""
     }
   },
   "names": [

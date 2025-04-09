@@ -52,7 +52,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// Testing integer division: 7/3 = 2\nfn main(mut x: u32, y: u32, z: u32) {\n    let a = x % y;\n    assert(x / y == z);\n    assert(a == x - z * y);\n    assert((50 as u64) % (9 as u64) == 5);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/2_div/src/main.nr"
+      "path": ""
     }
   },
   "names": [

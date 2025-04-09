@@ -35,7 +35,7 @@ expression: artifact
   "file_map": {
     "52": {
       "source": "mod foo;\n// An example of the module system\nfn main(x: Field, y: Field) {\n    assert(x != foo::bar::from_bar(y));\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/modules_more/src/main.nr"
+      "path": ""
     }
   },
   "names": [

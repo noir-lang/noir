@@ -35,7 +35,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// Tests a very simple Brillig function.\n//\n// The features being tested is not instruction on brillig\nfn main(x: Field, y: Field) {\n    // Safety: testing context\n    unsafe {\n        assert(false == not_operator(x as bool));\n        assert(true == not_operator(y as bool));\n    }\n}\n\nunconstrained fn not_operator(x: bool) -> bool {\n    !x\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_not/src/main.nr"
+      "path": ""
     }
   },
   "names": [

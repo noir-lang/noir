@@ -33,7 +33,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// A simple program to test mutable variables\nfn main(x: Field) -> pub Field {\n    let mut y = 2;\n    y += x;\n    y\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/simple_mut/src/main.nr"
+      "path": ""
     }
   },
   "names": [

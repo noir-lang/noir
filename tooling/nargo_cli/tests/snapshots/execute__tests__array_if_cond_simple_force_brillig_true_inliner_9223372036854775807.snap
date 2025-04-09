@@ -49,7 +49,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/array_if_cond_simple/src/main.nr"
+      "path": ""
     }
   },
   "names": [

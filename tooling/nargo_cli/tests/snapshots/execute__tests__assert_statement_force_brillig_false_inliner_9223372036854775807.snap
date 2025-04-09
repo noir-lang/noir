@@ -35,7 +35,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// Tests a very simple program.\n//\n// The features being tested is assertion\nfn main(x: Field, y: pub Field) {\n    assert(x == y, \"x and y are not equal\");\n    assert_eq(x, y, \"x and y are not equal\");\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/assert_statement/src/main.nr"
+      "path": ""
     }
   },
   "names": [

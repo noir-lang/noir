@@ -42,7 +42,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "unconstrained fn main(sorted_index: [u32; 2]) {\n    let original = [55, 11];\n\n    let mut sorted = original; // Stores the constant \"original\" into the sorted reference\n    for i in 0..2 {\n        let index = sorted_index[i];\n        let value = original[index];\n        sorted[i] = value; // On first iteration, we should not mutate the original constant array, RC should be > 1\n    }\n\n    assert_eq(sorted[1], 55);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_constant_reference_regression/src/main.nr"
+      "path": ""
     }
   },
   "names": [

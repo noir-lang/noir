@@ -44,7 +44,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main() {\n    let numerator =\n        [790096867046896348, 1063071665130103641, 602707730209562162, 996751591622961462, 28650, 0];\n    unsafe { __udiv_mod(numerator) };\n\n    let denominator = [12, 0, 0, 0, 0, 0];\n    let result = unsafe { __validate_gt_remainder(denominator) };\n    assert(result[4] == 0);\n    assert(result[5] == 0);\n}\n\nunconstrained fn __udiv_mod(remainder_u60: [u64; 6]) {\n    let bit_difference = get_msb(remainder_u60);\n    let accumulator_u60: [u64; 6] = shl(bit_difference);\n}\n\nunconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {\n    let mut addend_u60: [u64; 6] = [0; 6];\n    let mut result_u60: [u64; 6] = [0; 6];\n\n    for i in 0..6 {\n        result_u60[i] = a_u60[i] + addend_u60[i];\n    }\n\n    result_u60\n}\n\nunconstrained fn get_msb(val: [u64; 6]) -> u32 {\n    let mut count = 0;\n    for i in 0..6 {\n        let v = val[(6 - 1) - i];\n        if (v > 0) {\n            count = 60 * ((6 - 1) - i);\n            break;\n        }\n    }\n    count\n}\n\nunconstrained fn shl(shift: u32) -> [u64; 6] {\n    let num_shifted_limbs = shift / 60;\n    let limb_shift = (shift % 60) as u8;\n\n    let mut result = [0; 6];\n    result[num_shifted_limbs] = (1 << limb_shift);\n\n    for i in 1..(6 - num_shifted_limbs) {\n        result[i + num_shifted_limbs] = 0;\n    }\n    result\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_bignum/src/main.nr"
+      "path": ""
     }
   },
   "names": [

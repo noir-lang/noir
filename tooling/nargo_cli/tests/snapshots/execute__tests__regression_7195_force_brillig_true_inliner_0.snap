@@ -35,7 +35,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn bar(y: Field) {\n    assert(y != 0);\n}\n\nfn foo(x: Field) {\n    // Safety: test\n    let y = unsafe { baz(x) };\n    bar(y);\n}\n\nunconstrained fn baz(x: Field) -> Field {\n    x\n}\n\nfn main(x: Field, y: pub Field) {\n    // Safety: test\n    let x = unsafe { baz(x) };\n    foo(x);\n    foo(y);\n    assert(x != y);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_7195/src/main.nr"
+      "path": ""
     }
   },
   "names": [

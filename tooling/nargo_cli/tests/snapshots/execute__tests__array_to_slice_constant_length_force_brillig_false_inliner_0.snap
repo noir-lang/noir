@@ -28,7 +28,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// Regression test for https://github.com/noir-lang/noir/issues/4722\nunconstrained fn return_array(val: Field) -> [Field; 1] {\n    [val; 1]\n}\n\nfn main(val: Field) {\n    // Safety: testing context\n    unsafe {\n        let array = return_array(val);\n        assert_constant(array.as_slice().len());\n    }\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/array_to_slice_constant_length/src/main.nr"
+      "path": ""
     }
   },
   "names": [

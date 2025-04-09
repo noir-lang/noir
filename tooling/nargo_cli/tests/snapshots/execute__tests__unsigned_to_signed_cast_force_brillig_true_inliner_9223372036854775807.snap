@@ -30,7 +30,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u64) {\n    assert_eq(x as i8, -1);\n    assert_eq(x as i16, -1);\n    assert_eq(x as i32, -1);\n    assert_eq(x as i64, -1);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/unsigned_to_signed_cast/src/main.nr"
+      "path": ""
     }
   },
   "names": [

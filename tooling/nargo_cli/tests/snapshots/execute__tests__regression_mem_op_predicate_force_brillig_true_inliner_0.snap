@@ -49,7 +49,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(mut x: [u32; 5], idx: Field) {\n    // We should not hit out of bounds here as we have a predicate\n    // that should not be hit\n    if idx as u32 < 3 {\n        x[idx] = 10;\n    }\n    assert(x[4] == 111);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_mem_op_predicate/src/main.nr"
+      "path": ""
     }
   },
   "names": [

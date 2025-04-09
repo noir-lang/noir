@@ -41,7 +41,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_7143/src/main.nr"
+      "path": ""
     }
   },
   "names": [

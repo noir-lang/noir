@@ -24,7 +24,7 @@ expression: artifact
     },
     "50": {
       "source": "fn main() {\n    let x: i8 = -128;\n    std::println(x);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_3394/src/main.nr"
+      "path": ""
     }
   },
   "names": [

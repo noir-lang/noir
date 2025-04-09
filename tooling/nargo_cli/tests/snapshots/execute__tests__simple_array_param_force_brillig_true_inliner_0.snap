@@ -37,7 +37,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// This program tests:\n// - the allocation of virtual arrays for array params to main\n// - load instructions for such arrays\nfn main(xs: [Field; 2]) -> pub Field {\n    xs[1]\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/simple_array_param/src/main.nr"
+      "path": ""
     }
   },
   "names": [

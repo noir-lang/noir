@@ -42,7 +42,7 @@ expression: artifact
     },
     "50": {
       "source": "fn main(x: u8, y: u8) {\n    assert(std::wrapping_sub(x, 1) == y);\n    assert(std::wrapping_add(y, 1) == x);\n    assert(std::wrapping_mul(y, y) == 1);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/wrapping_operations/src/main.nr"
+      "path": ""
     }
   },
   "names": [

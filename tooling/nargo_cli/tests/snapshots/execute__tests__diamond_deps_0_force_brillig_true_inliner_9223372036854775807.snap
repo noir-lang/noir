@@ -40,15 +40,15 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "use dep1::call_dep1_then_dep2;\nuse dep2::call_dep2;\nuse dep2::RESOLVE_THIS;\n\nfn main(x: Field, y: pub Field) -> pub Field {\n    call_dep1_then_dep2(x, y) + call_dep2(x, y) + RESOLVE_THIS\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/diamond_deps_0/src/main.nr"
+      "path": ""
     },
     "51": {
       "source": "use dep2::call_dep2;\n\npub fn call_dep1_then_dep2(x: Field, y: Field) -> Field {\n    call_dep2(x, y)\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/test_libraries/diamond_deps_1/src/lib.nr"
+      "path": ""
     },
     "52": {
       "source": "global RESOLVE_THIS: Field = 3;\n\npub fn call_dep2(x: Field, y: Field) -> Field {\n    x + y\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/test_libraries/diamond_deps_2/src/lib.nr"
+      "path": ""
     }
   },
   "names": [

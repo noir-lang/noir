@@ -59,7 +59,7 @@ expression: artifact
     },
     "50": {
       "source": "fn main(x: [u8; 5], result: [u8; 32]) {\n    let digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/blake3/src/main.nr"
+      "path": ""
     }
   },
   "names": [

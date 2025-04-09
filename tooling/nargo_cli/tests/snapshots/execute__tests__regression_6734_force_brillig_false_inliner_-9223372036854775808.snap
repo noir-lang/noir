@@ -24,7 +24,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// https://github.com/noir-lang/noir/issues/6734\n\npub fn sub_array_extended<let SRC_LEN: u32, let DST_LEN: u32>(\n    src: [Field; SRC_LEN],\n    offset: u32,\n) -> [Field; DST_LEN] {\n    let available_elements_to_copy = SRC_LEN - offset;\n    let elements_to_copy = if DST_LEN > available_elements_to_copy {\n        available_elements_to_copy\n    } else {\n        DST_LEN\n    };\n\n    let mut dst: [Field; DST_LEN] = std::mem::zeroed();\n    for i in 0..elements_to_copy {\n        dst[i] = src[i + offset];\n    }\n\n    dst\n}\n\nunconstrained fn main() {\n    assert_eq(sub_array_extended([], 0), []);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_6734/src/main.nr"
+      "path": ""
     }
   },
   "names": [

@@ -52,7 +52,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32, y: u32, z: u32) {\n    x += y;\n    assert(x == z);\n\n    x *= 8;\n    assert(x > 9);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/3_add/src/main.nr"
+      "path": ""
     }
   },
   "names": [

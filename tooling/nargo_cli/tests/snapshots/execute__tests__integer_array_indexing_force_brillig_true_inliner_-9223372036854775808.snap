@@ -46,7 +46,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "global ARRAY_LEN: u32 = 3;\n\nfn main(arr: [Field; ARRAY_LEN], x: u32) -> pub Field {\n    let mut value = arr[ARRAY_LEN - 1];\n\n    value += arr[0 as u32];\n    value += arr[1 as Field];\n\n    value + x as Field\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/integer_array_indexing/src/main.nr"
+      "path": ""
     }
   },
   "names": [

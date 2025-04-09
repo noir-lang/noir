@@ -30,7 +30,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: pub Field) {\n    assert(x == y);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/workspace_default_member/a/src/main.nr"
+      "path": ""
     }
   },
   "names": [

@@ -58,7 +58,7 @@ expression: artifact
     },
     "50": {
       "source": "// https://github.com/noir-lang/noir/issues/7744\n\nuse std::embedded_curve_ops::{embedded_curve_add_unsafe, EmbeddedCurvePoint};\n\n// is_active = false\nfn main(is_active: bool) -> pub EmbeddedCurvePoint {\n    let bad = EmbeddedCurvePoint { x: 0, y: 5, is_infinite: false };\n    if is_active {\n        embedded_curve_add_unsafe(bad, bad)\n    } else {\n        bad\n    }\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_7744/src/main.nr"
+      "path": ""
     }
   },
   "names": [

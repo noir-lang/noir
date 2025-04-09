@@ -23,7 +23,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(mut x: Field) {\n    let mut q = 0;\n\n    if x != 10 {\n        q = 2;\n    }\n\n    assert(q == 2);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/negated_jmpif_condition/src/main.nr"
+      "path": ""
     }
   },
   "names": [

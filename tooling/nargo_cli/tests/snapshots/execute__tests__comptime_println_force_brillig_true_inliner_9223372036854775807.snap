@@ -24,7 +24,7 @@ expression: artifact
     },
     "50": {
       "source": "fn main() {\n    let x = comptime {\n        println(\"hello from compile-time!\");\n        1 + 2\n    };\n    println(x);\n\n    comptime {\n        let exp = [1, 2, 3];\n        let quoted = quote {\n            struct Foo { fn foo() { \n            // Some comment\n            [ $exp ]\n            } }\n        };\n\n        println(quoted);\n    }\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/comptime_println/src/main.nr"
+      "path": ""
     }
   },
   "names": [

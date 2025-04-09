@@ -35,7 +35,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) {\n    let z = x == y;\n    let t = z as u8;\n    assert(t == 1);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/cast_bool/src/main.nr"
+      "path": ""
     }
   },
   "names": [

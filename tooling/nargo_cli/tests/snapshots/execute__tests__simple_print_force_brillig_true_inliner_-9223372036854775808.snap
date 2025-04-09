@@ -39,7 +39,7 @@ expression: artifact
     },
     "50": {
       "source": "// Simple program for testing the logging\n// of single witnesses and witness arrays.\nfn main(x: Field, y: pub Field) {\n    std::println(x);\n    std::println([x, y]);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/simple_print/src/main.nr"
+      "path": ""
     }
   },
   "names": [

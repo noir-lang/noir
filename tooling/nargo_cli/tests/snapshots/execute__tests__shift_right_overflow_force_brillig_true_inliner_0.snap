@@ -30,7 +30,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: u8) {\n    // This would previously overflow in ACIR. Now it returns zero.\n    let value = 1 >> x;\n    assert_eq(value, 0);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/shift_right_overflow/src/main.nr"
+      "path": ""
     }
   },
   "names": [

@@ -36,7 +36,7 @@ expression: artifact
     },
     "50": {
       "source": "fn main(input: Field) -> pub Field {\n    std::hash::hash_to_field(&[input])\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/hash_to_field/src/main.nr"
+      "path": ""
     }
   },
   "names": [

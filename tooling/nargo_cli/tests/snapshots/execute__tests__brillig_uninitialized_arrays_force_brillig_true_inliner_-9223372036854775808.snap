@@ -48,7 +48,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_uninitialized_arrays/src/main.nr"
+      "path": ""
     }
   },
   "names": [

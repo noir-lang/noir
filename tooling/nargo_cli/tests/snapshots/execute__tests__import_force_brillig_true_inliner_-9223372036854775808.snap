@@ -51,7 +51,7 @@ expression: artifact
     },
     "51": {
       "source": "mod import;\nuse crate::import::hello;\n\nfn main(x: Field, y: Field) {\n    let _k = std::hash::pedersen_commitment([x]);\n    let _l = hello(x);\n\n    assert(x != import::hello(y));\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/import/src/main.nr"
+      "path": ""
     }
   },
   "names": [

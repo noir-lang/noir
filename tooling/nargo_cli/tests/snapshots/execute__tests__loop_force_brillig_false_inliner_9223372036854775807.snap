@@ -25,7 +25,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "// Tests a very simple program.\n//\n// The features being tested is basic looping.\nfn main(six_as_u32: u32) {\n    assert_eq(loop_excl(4), six_as_u32);\n    assert_eq(loop_incl(3), six_as_u32);\n    assert(plain_loop() == six_as_u32);\n}\n\nfn loop_excl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn loop_incl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..=x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn plain_loop() -> u32 {\n    let mut sum = 0;\n    for i in 0..4 {\n        sum = sum + i;\n    }\n    sum\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/loop/src/main.nr"
+      "path": ""
     }
   },
   "names": [

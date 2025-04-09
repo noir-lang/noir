@@ -62,7 +62,7 @@ expression: artifact
     },
     "50": {
       "source": "fn main(xs: [u8; 3]) {\n    let sorted = xs.sort();\n    assert(sorted[0] == 1);\n    assert(sorted[1] == 2);\n    assert(sorted[2] == 3);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/array_sort/src/main.nr"
+      "path": ""
     }
   },
   "names": [

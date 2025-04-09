@@ -30,7 +30,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: pub Field) {\n    basic_check(x, y);\n}\n\n#[no_predicates]\nfn basic_check(x: Field, y: Field) {\n    assert(x != y);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/no_predicates_basic/src/main.nr"
+      "path": ""
     }
   },
   "names": [

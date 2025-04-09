@@ -71,7 +71,7 @@ expression: artifact
     },
     "50": {
       "source": "// This circuit aggregates two recursive proofs from `double_verify_proof_recursive`.\n// Recursive aggregation is a backend-specific process and it is expected for backends\n// to attach any extra data they may need (e.g. aggregation objects) to their proofs.\n// Whether the proof we are verifying itself contains a recursive proof is expected to be\n// a circuit constant by the barretenberg. Barretenberg hides this circuit constant in the\n// proof serialization. Thus, we must have separate circuits for verifying a normal proof and a recursive proof\n// with two different proof sizes.\nfn main(\n    verification_key: [Field; 114],\n    // This is the proof without user-specified public inputs attached.\n    //\n    // This means: the size of this does not change with the number of public inputs unless\n    // they have been attached by the backend.\n    proof: [Field; 109],\n    public_inputs: pub [Field; 1],\n    // This is currently not public. It is fine given that the vk is a part of the circuit definition.\n    // I believe we want to eventually make it public too though.\n    key_hash: Field,\n    proof_b: [Field; 109],\n) {\n    std::verify_proof(verification_key, proof, public_inputs, key_hash);\n\n    std::verify_proof(verification_key, proof_b, public_inputs, key_hash);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/double_verify_nested_proof/src/main.nr"
+      "path": ""
     }
   },
   "names": [

@@ -60,7 +60,7 @@ expression: artifact
   "file_map": {
     "50": {
       "source": "fn main(a: bool, b: bool, c: u8, d: u8) -> pub u8 {\n    let i = a & b;\n    let j = a ^ b;\n    let k = a | b;\n    let x = c & d;\n    let y = c ^ d;\n    let z = c | d;\n    (i as u8) + (j as u8) + (k as u8) + x + y + z\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/simple_bitwise/src/main.nr"
+      "path": ""
     }
   },
   "names": [

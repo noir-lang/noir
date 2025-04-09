@@ -27,7 +27,7 @@ expression: artifact
     },
     "50": {
       "source": "use std::hash::poseidon2;\n\nglobal len: u32 = 2450 * 2;\nfn main(x: Field) {\n    let ped_input = [x; len];\n    let mut val = poseidon2::Poseidon2::hash(ped_input, len);\n    assert(val != 0);\n}\n",
-      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/bench_2_to_17/src/main.nr"
+      "path": ""
     }
   },
   "names": [
