@@ -52,7 +52,7 @@ impl Default for Config {
             ("if", 10),
             ("for", 20),
             ("let", 20),
-            ("let", 10),
+            ("call", 5),
         ]);
         Self {
             max_globals: 3,

@@ -88,6 +88,9 @@ impl Flags {
     const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
     /// In `for` ranges we can use `if` expressions, but let's not do blocks.
     const RANGE: Self = Self { allow_blocks: false, allow_if_then: true };
+    /// In call arguments we can use `if` expressions, but avoid blocks.
+    /// The arg expressions themselves might call other functions.
+    const CALL: Self = Self { allow_blocks: false, allow_if_then: true };
 }
 
 /// Context used during the generation of a function body.
@@ -251,7 +254,7 @@ impl<'a> FunctionContext<'a> {
 
         // Function calls returning a value.
         if freq.enabled_when("call", self.budget > 0) {
-            if let Some(expr) = self.gen_call(u, typ)? {
+            if let Some(expr) = self.gen_call(u, typ, max_depth)? {
                 return Ok(expr);
             }
         }
@@ -264,7 +267,6 @@ impl<'a> FunctionContext<'a> {
         }
 
         // TODO(#7926): Match
-        // TODO(#7925): Call
 
         // If nothing else worked out we can always produce a random literal.
         expr::gen_literal(u, typ)
@@ -556,6 +558,14 @@ impl<'a> FunctionContext<'a> {
         // TODO(#7931): print
         // TODO(#7932): Constrain
 
+        // Start with `drop`, it doesn't need to be frequent even if others are disabled.
+        if freq.enabled("drop") {
+            if let Some(e) = self.gen_drop(u)? {
+                return Ok(e);
+            }
+        }
+
+        // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
         }
@@ -564,8 +574,8 @@ impl<'a> FunctionContext<'a> {
             return self.gen_for(u);
         }
 
-        if freq.enabled("drop") {
-            if let Some(e) = self.gen_drop(u)? {
+        if freq.enabled_when("call", self.budget > 0) {
+            if let Some(e) = self.gen_call(u, &Type::Unit, self.max_depth())? {
                 return Ok(e);
             }
         }
@@ -757,6 +767,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         u: &mut Unstructured,
         typ: &Type,
+        max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         // Decrease the budget so we avoid a potential infinite nesting of calls.
         self.decrease_budget(1);
@@ -777,7 +788,7 @@ impl<'a> FunctionContext<'a> {
 
         let mut args = Vec::new();
         for typ in &param_types {
-            args.push(self.gen_expr(u, typ, self.max_depth(), Flags::NESTED)?);
+            args.push(self.gen_expr(u, typ, max_depth, Flags::CALL)?);
         }
 
         let call_expr = Expression::Call(Call {
