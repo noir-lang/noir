@@ -3594,6 +3594,7 @@ dependencies = [
  "function_name",
  "fxhash",
  "im",
+ "insta",
  "iter-extended",
  "noirc_errors",
  "noirc_frontend",
