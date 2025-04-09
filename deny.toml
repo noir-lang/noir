@@ -55,6 +55,8 @@ allow = [
     "MPL-2.0",
     # Boost Software License
     "BSL-1.0",
+    # libfuzzer-sys
+    "NCSA",
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses

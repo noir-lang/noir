@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_cannot_assign_unconstrained_and_regular_fn_to_variable"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

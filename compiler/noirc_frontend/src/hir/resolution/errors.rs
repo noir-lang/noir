@@ -192,6 +192,14 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: &'static str },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
+    #[error(
+        "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+    )]
+    NonU32Index { location: Location },
+    #[error(
+        "The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
+    )]
+    UnconstrainedTypeParameter { ident: Ident },
 }
 
 impl ResolverError {
@@ -255,9 +263,8 @@ impl ResolverError {
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
-            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
-                *location
-            }
+            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
+            | ResolverError::NonU32Index { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -267,7 +274,8 @@ impl ResolverError {
             | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
             | ResolverError::OracleMarkedAsConstrained { ident }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { ident }
-            | ResolverError::FoldAttributeOnUnconstrained { ident } => ident.location(),
+            | ResolverError::FoldAttributeOnUnconstrained { ident }
+            | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
             ResolverError::ArrayLengthInterpreter { error } => error.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
@@ -801,6 +809,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::NonU32Index { location } => {
+                Diagnostic::simple_warning(
+                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::UnconstrainedTypeParameter { ident} => {
+                Diagnostic::simple_error(
+                    format!("The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"),
+                    format!("Hint: remove the `{ident}` type parameter"),
+                    ident.location(),
+                )
+            }
         }
     }
 }

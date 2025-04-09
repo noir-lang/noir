@@ -8,7 +8,7 @@ use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use nargo::{NargoError, PrintOutput};
+use nargo::NargoError;
 use noirc_driver::CompiledProgram;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
@@ -48,7 +48,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         raw_source_printing: bool,
     ) -> Self {
         let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             debug_artifact,
         ));
         let context = DebugContext::new(
@@ -344,7 +344,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
     fn restart_session(&mut self) {
         let breakpoints: Vec<DebugLocation> = self.context.iterate_breakpoints().copied().collect();
         let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
+            std::io::stdout(),
             self.debug_artifact,
         ));
         self.context = DebugContext::new(
