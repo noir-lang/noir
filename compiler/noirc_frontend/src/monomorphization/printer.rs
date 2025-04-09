@@ -2,23 +2,48 @@
 
 use crate::ast::UnaryOp;
 
-use super::ast::{Definition, Expression, Function, GlobalId, LValue, Type, While};
+use super::ast::{
+    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Type, While,
+};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
+    show_id: bool,
+}
+
+impl Default for AstPrinter {
+    fn default() -> Self {
+        Self { indent_level: 0, show_id: true }
+    }
 }
 
 impl AstPrinter {
+    fn fmt_ident(&self, name: &str, definition: &Definition) -> String {
+        if self.show_id { format!("{}${}", name, definition) } else { name.to_string() }
+    }
+
+    fn fmt_local(&self, name: &str, id: LocalId) -> String {
+        self.fmt_ident(name, &Definition::Local(id))
+    }
+
+    fn fmt_global(&self, name: &str, id: GlobalId) -> String {
+        self.fmt_ident(name, &Definition::Global(id))
+    }
+
+    fn fmt_func(&self, name: &str, id: FuncId) -> String {
+        self.fmt_ident(name, &Definition::Function(id))
+    }
+
     pub fn print_global(
         &mut self,
         id: &GlobalId,
         (name, typ, expr): &(String, Type, Expression),
         f: &mut Formatter,
     ) -> std::fmt::Result {
-        write!(f, "global {}$g{}: {} = ", name, id.0, typ)?;
+        write!(f, "global {}: {} = ", self.fmt_global(name, *id), typ)?;
         self.print_expr(expr, f)?;
         write!(f, ";")?;
         self.next_line(f)
@@ -26,16 +51,15 @@ impl AstPrinter {
 
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
+            format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
         })
         .join(", ");
 
         write!(
             f,
-            "{}fn {}$f{}({}) -> {} {{",
+            "{}fn {}({}) -> {} {{",
             if function.unconstrained { "unconstrained " } else { "" },
-            function.name,
-            function.id,
+            self.fmt_func(&function.name, function.id),
             params,
             function.return_type
         )?;
@@ -49,7 +73,7 @@ impl AstPrinter {
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
         match expr {
             Expression::Ident(ident) => {
-                write!(f, "{}${}", ident.name, ident.definition)
+                write!(f, "{}", self.fmt_ident(&ident.name, &ident.definition))
             }
             Expression::Literal(literal) => self.print_literal(literal, f),
             Expression::Block(exprs) => self.print_block(exprs, f),
@@ -80,10 +104,9 @@ impl AstPrinter {
             Expression::Let(let_expr) => {
                 write!(
                     f,
-                    "let {}{}${} = ",
+                    "let {}{} = ",
                     if let_expr.mutable { "mut " } else { "" },
-                    let_expr.name,
-                    let_expr.id.0
+                    self.fmt_local(&let_expr.name, let_expr.id),
                 )?;
                 self.print_expr(&let_expr.expression, f)
             }
@@ -234,7 +257,7 @@ impl AstPrinter {
         for_expr: &super::ast::For,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "for {}${} in ", for_expr.index_name, for_expr.index_variable.0)?;
+        write!(f, "for {} in ", self.fmt_local(&for_expr.index_name, for_expr.index_variable))?;
         self.print_expr(&for_expr.start_range, f)?;
         write!(f, " .. ")?;
         self.print_expr(&for_expr.end_range, f)?;
@@ -366,7 +389,7 @@ impl AstPrinter {
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
         match lvalue {
-            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
+            LValue::Ident(ident) => write!(f, "{}", self.fmt_ident(&ident.name, &ident.definition)),
             LValue::Index { array, index, .. } => {
                 self.print_lvalue(array, f)?;
                 write!(f, "[")?;
