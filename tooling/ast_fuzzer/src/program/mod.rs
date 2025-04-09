@@ -141,20 +141,23 @@ impl Context {
             });
         }
 
+        let return_type = self.gen_type(u, self.config.max_depth, false)?;
+        let return_visibility = if is_main {
+            if types::is_unit(&return_type) {
+                Visibility::Private
+            } else {
+                if u.ratio(4, 5)? { Visibility::Public } else { Visibility::ReturnData }
+            }
+        } else {
+            Visibility::Private
+        };
+
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             param_visibilities,
-            return_type: self.gen_type(u, self.config.max_depth, false)?,
-            return_visibility: if is_main {
-                match u.choose_index(5)? {
-                    0 | 1 => Visibility::Public,
-                    2 | 3 => Visibility::Private,
-                    _ => Visibility::ReturnData,
-                }
-            } else {
-                Visibility::Private
-            },
+            return_type,
+            return_visibility,
             inline_type: if is_main {
                 InlineType::default()
             } else {

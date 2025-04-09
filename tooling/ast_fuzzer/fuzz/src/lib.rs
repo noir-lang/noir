@@ -71,16 +71,16 @@ where
 
     if res.is_err() {
         for (i, ast) in asts(inputs).into_iter().enumerate() {
-            eprintln!("AST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
+            eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
         }
         eprintln!(
-            "Inputs:\n{}---",
+            "---\nInputs:\n{}",
             Format::Toml
                 .serialize(&inputs.input_map, &inputs.abi)
                 .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
         );
-        eprintln!("Program 1:\n{}", inputs.ssa1.program);
-        eprintln!("Program 2:\n{}", inputs.ssa2.program);
+        eprintln!("---\nProgram 1:\n{}", inputs.ssa1.program);
+        eprintln!("---\nProgram 2:\n{}", inputs.ssa2.program);
     }
 
     res.map(|_| ())
