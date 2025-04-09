@@ -129,9 +129,9 @@ enum MethodLookupResult {
 ///     std::mem::zeroed()
 /// }
 /// ```
-/// 
+///
 /// Or, for example, a struct used in a impl or trait impl won't be marked as used:
-/// 
+///
 /// ```noir
 /// impl Foo {}
 /// impl Trait for Foo {}
