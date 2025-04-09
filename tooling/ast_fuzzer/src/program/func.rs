@@ -758,6 +758,9 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
     ) -> arbitrary::Result<Option<Expression>> {
+        // Decrease the budget so we avoid a potential infinite nesting of calls.
+        self.decrease_budget(1);
+
         let opts = self
             .call_targets
             .iter()
