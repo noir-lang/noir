@@ -534,7 +534,7 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             &test_name,
             &test_dir,
             "compile",
-            "compile_failure(nargo);",
+            "compile_failure(nargo, test_program_dir);",
             &MatrixConfig::default(),
         );
     }

@@ -2,7 +2,7 @@
 
 use crate::ast::UnaryOp;
 
-use super::ast::{Definition, Expression, Function, LValue, While};
+use super::ast::{Definition, Expression, Function, GlobalId, LValue, Type, While};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
@@ -12,6 +12,18 @@ pub struct AstPrinter {
 }
 
 impl AstPrinter {
+    pub fn print_global(
+        &mut self,
+        id: &GlobalId,
+        (name, typ, expr): &(String, Type, Expression),
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
+        write!(f, "global {}$g{}: {} = ", name, id.0, typ)?;
+        self.print_expr(expr, f)?;
+        write!(f, ";")?;
+        self.next_line(f)
+    }
+
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
             format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
@@ -20,8 +32,12 @@ impl AstPrinter {
 
         write!(
             f,
-            "fn {}$f{}({}) -> {} {{",
-            function.name, function.id, params, function.return_type
+            "{}fn {}$f{}({}) -> {} {{",
+            if function.unconstrained { "unconstrained " } else { "" },
+            function.name,
+            function.id,
+            params,
+            function.return_type
         )?;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
@@ -62,7 +78,13 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
-                write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
+                write!(
+                    f,
+                    "let {}{}${} = ",
+                    if let_expr.mutable { "mut " } else { "" },
+                    let_expr.name,
+                    let_expr.id.0
+                )?;
                 self.print_expr(&let_expr.expression, f)
             }
             Expression::Constrain(expr, ..) => {
