@@ -112,10 +112,6 @@ impl BlackBoxFunc {
         }
     }
 
-    pub fn is_valid_black_box_func_name(op_name: &str) -> bool {
-        BlackBoxFunc::lookup(op_name).is_some()
-    }
-
     pub fn has_side_effects(&self) -> bool {
         match self {
             BlackBoxFunc::RecursiveAggregation

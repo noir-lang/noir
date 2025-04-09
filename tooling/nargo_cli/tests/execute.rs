@@ -35,8 +35,9 @@ mod tests {
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
-        // Enable enums as an unstable feature
+        // Enable enums and ownership as unstable features
         nargo.arg("-Zenums");
+        nargo.arg("-Zownership");
 
         if force_brillig.0 {
             {
@@ -63,6 +64,50 @@ mod tests {
             .join("\n")
     }
 
+    fn delete_test_program_dir_occurrences(string: String, test_program_dir: &Path) -> String {
+        // Assuming `test_program_dir` is "/projects/noir/test_programs/compile_failure/some_program"...
+
+        // `test_program_base_dir` is "/projects/noir/test_programs"
+        let test_program_base_dir = test_program_dir.parent().unwrap().parent().unwrap();
+
+        // `root_dir` is "/projects/noir"
+        let root_dir = test_program_base_dir.parent().unwrap();
+
+        // Here we turn the paths into strings and ensure they end with a `/`
+        let mut test_program_base_dir = test_program_base_dir.to_string_lossy().to_string();
+        if !test_program_base_dir.ends_with('/') {
+            test_program_base_dir.push('/');
+        }
+
+        let mut test_program_dir = test_program_dir.to_string_lossy().to_string();
+        if !test_program_dir.ends_with('/') {
+            test_program_dir.push('/');
+        }
+
+        // `test_program_dir_without_root is "test_programs/compile_failure".
+        // This one is needed because tests might run from the root of the project and paths
+        // will end up starting with "test_programs/compile_failure/...".
+        let test_program_dir_without_root =
+            test_program_dir.strip_prefix(&root_dir.to_string_lossy().to_string()).unwrap();
+        let test_program_dir_without_root = test_program_dir_without_root
+            .strip_prefix('/')
+            .unwrap_or(test_program_dir_without_root);
+
+        // We replace all of these:
+        // - test_program_dir ("/projects/noir/test_programs/compile_failure/foo")
+        // - test_program_base_dir ("/projects/noir/test_programs")
+        // - test_program_dir_without_root ("test_programs/compile_failure")
+        string
+            .lines()
+            .map(|line| {
+                line.replace(&test_program_dir, "")
+                    .replace(&test_program_base_dir, "test_programs/")
+                    .replace(test_program_dir_without_root, "")
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
     fn execution_success(mut nargo: Command, test_program_dir: PathBuf, check_stdout: bool) {
         nargo.assert().success();
 
@@ -73,7 +118,7 @@ mod tests {
 
             let stdout_path = test_program_dir.join("stdout.txt");
             let expected_stdout = if stdout_path.exists() {
-                String::from_utf8(fs::read(stdout_path).unwrap()).unwrap()
+                String::from_utf8(fs::read(stdout_path.clone()).unwrap()).unwrap()
             } else {
                 String::new()
             };
@@ -83,10 +128,14 @@ mod tests {
             let expected_stdout = expected_stdout.trim();
 
             if stdout != expected_stdout {
-                println!(
-                    "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
-                );
-                assert_eq!(stdout, expected_stdout);
+                if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
+                    fs::write(stdout_path, stdout.to_string() + "\n").unwrap();
+                } else {
+                    println!(
+                        "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
+                    );
+                    assert_eq!(stdout, expected_stdout);
+                }
             }
         }
     }
@@ -156,11 +205,44 @@ mod tests {
         nargo.assert().success().stderr(predicate::str::contains("bug:"));
     }
 
-    fn compile_failure(mut nargo: Command) {
+    fn compile_failure(mut nargo: Command, test_program_dir: PathBuf) {
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
+
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
+
+        let stderr_path = test_program_dir.join("stderr.txt");
+
+        let expected_stderr = if stderr_path.exists() {
+            String::from_utf8(fs::read(stderr_path.clone()).unwrap()).unwrap()
+        } else {
+            String::new()
+        };
+
+        // Remove any trailing newlines added by some editors
+        let stderr = stderr.trim();
+        let expected_stderr = expected_stderr.trim();
+
+        if stderr != expected_stderr {
+            if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
+                fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
+            } else {
+                // If the expected stderr is empty this is likely a new test, so we produce the expected output for next time
+                if expected_stderr.is_empty() {
+                    fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
+                }
+
+                println!(
+                    "stderr does not match expected output. Expected:\n{expected_stderr}\n\nActual:\n{stderr}"
+                );
+                assert_eq!(stderr, expected_stderr);
+            }
+        }
     }
 
     // include tests generated by `build.rs`

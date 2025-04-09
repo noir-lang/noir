@@ -90,6 +90,8 @@ jobs:
 
       - name: Run `cargo doc`
         run: cargo doc --no-deps --document-private-items --workspace
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   eslint:
     name: eslint
@@ -125,6 +127,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -184,4 +188,3 @@ jobs:
           env:
             # We treat any skipped or failing jobs as a failure for the workflow as a whole.
             FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
-
