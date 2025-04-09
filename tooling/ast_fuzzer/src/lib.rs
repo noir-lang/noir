@@ -5,8 +5,8 @@ mod program;
 
 pub use abi::program_abi;
 pub use input::arb_inputs;
-pub use program::arb_program;
 use program::freq::Freqs;
+pub use program::{DisplayAstAsNoir, arb_program};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
