@@ -113,7 +113,7 @@ pub trait ProtoCodec<T, R> {
         Self::encode(value).encode_to_vec()
     }
     /// Deserialize a buffer into protobuf and then decode into the domain type.
-    fn deserialize_from_vec(buf: &[u8]) -> eyre::Result<T>
+    fn deserialize_from_slice(buf: &[u8]) -> eyre::Result<T>
     where
         R: prost::Message + Default,
     {

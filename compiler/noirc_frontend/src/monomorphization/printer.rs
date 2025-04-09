@@ -2,7 +2,7 @@
 
 use crate::ast::UnaryOp;
 
-use super::ast::{Definition, Expression, Function, GlobalId, LValue, While};
+use super::ast::{Definition, Expression, Function, GlobalId, LValue, Type, While};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
@@ -15,11 +15,10 @@ impl AstPrinter {
     pub fn print_global(
         &mut self,
         id: &GlobalId,
-        expr: &Expression,
+        (name, typ, expr): &(String, Type, Expression),
         f: &mut Formatter,
     ) -> std::fmt::Result {
-        // At the moment globals don't carry their name, nor a type.
-        write!(f, "global $g{} = ", id.0)?;
+        write!(f, "global {}$g{}: {} = ", name, id.0, typ)?;
         self.print_expr(expr, f)?;
         write!(f, ";")?;
         self.next_line(f)
@@ -77,7 +76,13 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
-                write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
+                write!(
+                    f,
+                    "let {}{}${} = ",
+                    if let_expr.mutable { "mut " } else { "" },
+                    let_expr.name,
+                    let_expr.id.0
+                )?;
                 self.print_expr(&let_expr.expression, f)
             }
             Expression::Constrain(expr, ..) => {
