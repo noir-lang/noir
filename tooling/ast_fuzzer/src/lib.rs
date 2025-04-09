@@ -44,9 +44,16 @@ impl Default for Config {
             ("block", 30),
             ("vars", 20),
             ("literal", 5),
+            ("call", 10),
         ]);
-        let stmt_freqs =
-            Freqs::new(&[("drop", 5), ("assign", 30), ("if", 10), ("for", 20), ("let", 20)]);
+        let stmt_freqs = Freqs::new(&[
+            ("drop", 5),
+            ("assign", 30),
+            ("if", 10),
+            ("for", 20),
+            ("let", 20),
+            ("let", 10),
+        ]);
         Self {
             max_globals: 3,
             max_functions: 5,

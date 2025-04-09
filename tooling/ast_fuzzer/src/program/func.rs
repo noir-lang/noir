@@ -1,5 +1,8 @@
 use nargo::errors::Location;
-use std::fmt::Debug;
+use std::{
+    collections::{BTreeMap, HashSet},
+    fmt::Debug,
+};
 use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
@@ -7,8 +10,8 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Expression, For, FuncId, GlobalId, If, Index, InlineType,
-        LValue, Let, Literal, LocalId, Parameters, Type,
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
+        If, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Type,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -25,6 +28,7 @@ use super::{
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
 /// 2. generate the final HIR function signature
+#[derive(Debug, Clone)]
 pub(super) struct FunctionDeclaration {
     pub name: String,
     pub params: Parameters,
@@ -103,6 +107,9 @@ pub(super) struct FunctionContext<'a> {
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
+    /// All the functions callable from this one, with the types we can
+    /// produce from their return value.
+    call_targets: BTreeMap<FuncId, HashSet<Type>>,
 }
 
 impl<'a> FunctionContext<'a> {
@@ -123,7 +130,14 @@ impl<'a> FunctionContext<'a> {
                 .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        Self { ctx, id, next_local_id, budget, globals, locals }
+        let call_targets = ctx
+            .function_declarations
+            .iter()
+            .skip(1) // Can't call `main`.
+            .map(|(id, decl)| (*id, types::types_produced(&decl.return_type)))
+            .collect();
+
+        Self { ctx, id, next_local_id, budget, globals, locals, call_targets }
     }
 
     /// Generate the function body.
@@ -233,6 +247,13 @@ impl<'a> FunctionContext<'a> {
         // Block of statements returning a value
         if freq.enabled_when("block", allow_blocks) {
             return self.gen_block(u, typ);
+        }
+
+        // Function calls returning a value.
+        if freq.enabled_when("call", self.budget > 0) {
+            if let Some(expr) = self.gen_call(u, typ)? {
+                return Ok(expr);
+            }
         }
 
         // We can always try to just derive a value from the variables we have.
@@ -728,5 +749,53 @@ impl<'a> FunctionContext<'a> {
         self.locals.exit();
 
         Ok(expr)
+    }
+
+    /// Generate a function call to any function in the global context except `main`,
+    /// if the function returns the target type, or something we can use to produce that type.
+    fn gen_call(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Option<Expression>> {
+        let opts = self
+            .call_targets
+            .iter()
+            .filter_map(|(id, types)| types.contains(typ).then_some(id))
+            .collect::<Vec<_>>();
+
+        if opts.is_empty() {
+            return Ok(None);
+        }
+
+        let callee_id = *u.choose_iter(opts)?;
+        let callee = self.ctx.function_decl(callee_id).clone();
+        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+
+        let mut args = Vec::new();
+        for typ in &param_types {
+            args.push(self.gen_expr(u, typ, self.max_depth(), Flags::NESTED)?);
+        }
+
+        let call_expr = Expression::Call(Call {
+            func: Box::new(Expression::Ident(Ident {
+                location: None,
+                definition: Definition::Function(callee_id),
+                mutable: false,
+                name: callee.name.clone(),
+                typ: Type::Function(
+                    param_types,
+                    Box::new(callee.return_type.clone()),
+                    Box::new(Type::Unit),
+                    callee.unconstrained,
+                ),
+            })),
+            arguments: args,
+            return_type: callee.return_type.clone(),
+            location: Location::dummy(),
+        });
+
+        // Derive the final result from the call, e.g. by casting, or accessing a member.
+        self.gen_expr_from_source(u, call_expr, &callee.return_type, typ, self.max_depth())
     }
 }
