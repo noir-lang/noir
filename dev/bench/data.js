@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744222447106,
+  "lastUpdate": 1744222449641,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "632252d427fd2b8b22ce655a7601178ad31c3437",
-          "message": "feat: Remove range constraints on witnesses when use as array index is more restrictive (#7848)",
-          "timestamp": "2025-04-01T10:49:15Z",
-          "tree_id": "83eaacf49a182a1a5706572f4f2c135f6246a61e",
-          "url": "https://github.com/noir-lang/noir/commit/632252d427fd2b8b22ce655a7601178ad31c3437"
-        },
-        "date": 1743505824023,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.68,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.502,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.364,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.006,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.152,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.972,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 137,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.921,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.548,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.416,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7e4deb985025563bd4f23b7c47e8c7b3db2fe7ef",
+          "message": "fix(docs): Reduce header image size (#7988)",
+          "timestamp": "2025-04-09T17:46:31Z",
+          "tree_id": "623143d68b9065fc79b07ce2e50719d9287e5f25",
+          "url": "https://github.com/noir-lang/noir/commit/7e4deb985025563bd4f23b7c47e8c7b3db2fe7ef"
+        },
+        "date": 1744222442198,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.667,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.451,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.238,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.722,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.134,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.862,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.905,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.398,
             "unit": "s"
           }
         ]
