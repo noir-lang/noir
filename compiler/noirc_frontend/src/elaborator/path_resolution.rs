@@ -113,6 +113,29 @@ enum MethodLookupResult {
 /// Determines whether datatypes found along a path are to be marked as referenced
 /// or used (see [`crate::usage_tracker::UsageTracker::mark_as_referenced`]
 /// and [`crate::usage_tracker::UsageTracker::mark_as_used`])
+///
+/// For example, a struct `Foo` won't be marked as used (just as referenced) if it
+/// mentioned in a function parameter:
+///
+/// ```noir
+/// fn method(foo: Foo) {}
+/// ```
+///
+/// However, if it's used in a return type it will be marked as used, even if
+/// it's not explicitly constructed:
+///
+/// ```noir
+/// fn method() -> Foo {
+///     std::mem::zeroed()
+/// }
+/// ```
+/// 
+/// Or, for example, a struct used in a impl or trait impl won't be marked as used:
+/// 
+/// ```noir
+/// impl Foo {}
+/// impl Trait for Foo {}
+/// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum PathResolutionMode {
     MarkAsReferenced,
