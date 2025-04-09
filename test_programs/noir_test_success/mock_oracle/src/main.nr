@@ -157,6 +157,8 @@ fn test_times_called() {
     // Safety: testing context
     unsafe {
         let mock = OracleMock::mock("void_field").returns(10);
+        assert_eq(mock.times_called(), 0);
+
         assert_eq(void_field(), 10);
         assert_eq(void_field(), 10);
         assert_eq(void_field(), 10);
