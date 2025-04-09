@@ -17,11 +17,13 @@ Check if the profiler is already installed by running `noir-profiler --version`.
 
 ### Profiling ACIR opcodes
 
-The profiler provides the ability to flamegraph a Noir program's ACIR opcodes footprint. This is useful for _approximately_ identifying constrained execution and proving bottlenecks of Noir programs.
+The profiler provides the ability to flamegraph a Noir program's ACIR opcodes footprint. This is useful for _approximately_ identifying bottlenecks in constrained execution and proving of Noir programs.
 
 :::note
 
-"_Approximately_" as execution and proving speeds depend on the constrained execution trace and how the proving backend of choice interprets the ACIR opcodes.
+"_Approximately_" as:
+- Execution speeds depend on the constrained execution trace compiled from ACIR opcodes, and
+- Proving speeds depend on the how the proving backend of choice interprets the ACIR opcodes.
 
 :::
 
