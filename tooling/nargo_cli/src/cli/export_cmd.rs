@@ -1,5 +1,5 @@
 use nargo::errors::CompileError;
-use nargo::ops::report_errors;
+use nargo::ops::{check_crate_and_report_errors, report_errors};
 use noir_artifact_cli::fs::artifact::save_program_to_file;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
@@ -17,8 +17,6 @@ use noirc_driver::{CompileOptions, CompiledProgram, compile_no_check};
 use clap::Args;
 
 use crate::errors::CliError;
-
-use super::check_cmd::check_crate_and_report_errors;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
