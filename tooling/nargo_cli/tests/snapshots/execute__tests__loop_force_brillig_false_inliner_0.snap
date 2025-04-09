@@ -4,7 +4,7 @@ expression: artifact
 ---
 {
   "noir_version": "",
-  "hash": "9758760951368702068",
+  "hash": "17987742326519209297",
   "abi": {
     "parameters": [
       {
@@ -24,7 +24,7 @@ expression: artifact
   "debug_symbols": "TYxLCsMwDAXvonUW6Y+Cr1JK8EcOAmMb2S4Uk7tHCQlkp3mDpoND0+aJok8F1KdDSFZXSlGow7hPJeu4UamaK6jb/TEARifX870M4CkgqNe4fAUMUwg0T9eMzD/NpE3AA32L9mLrP5/m/M+cLLrGuJV2J/kV",
   "file_map": {
     "50": {
-      "source": "// Tests a very simple program.\n//\n// The features being tested is basic looping.\nfn main(six_as_u32: u32) {\n    assert_eq(loop_excl(4), six_as_u32);\n    assert_eq(loop_incl(3), six_as_u32);\n    assert(plain_loop() == six_as_u32);\n}\n\nfn loop_excl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn loop_incl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..=x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn plain_loop() -> u32 {\n    let mut sum = 0;\n    for i in 0..4 {\n        sum = sum + i;\n    }\n    sum\n}\n",
+      "source": "// Tests a very simple program.\n//\n// The features being tested is basic looping.\nfn main(six_as_u32: u32) {\n    assert_eq(loop_excl(4), six_as_u32);\n    assert_eq(loop_incl(3), six_as_u32);\n    assert(plain_loop() == six_as_u32);\n    assert(never_loop() == 0);\n}\n\nfn loop_excl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn loop_incl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..=x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn plain_loop() -> u32 {\n    let mut sum = 0;\n    for i in 0..4 {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn never_loop() -> u32 {\n    let mut sum = 0;\n    for i in 4..0 {\n        sum = sum + i;\n    }\n    sum\n}\n",
       "path": ""
     }
   },

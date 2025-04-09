@@ -4,7 +4,7 @@ expression: artifact
 ---
 {
   "noir_version": "",
-  "hash": "3071659744252385960",
+  "hash": "6584708872785656331",
   "abi": {
     "parameters": [],
     "return_type": null,

@@ -4,7 +4,7 @@ expression: artifact
 ---
 {
   "noir_version": "",
-  "hash": "9740327986331390669",
+  "hash": "16262773472885539757",
   "abi": {
     "parameters": [
       {
@@ -29,11 +29,11 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/91XTU+DQBBdClSxMTZ69gd4W1IorSeSthcPHk0T4wFbSUz8Efx0Q5wJr+OUomXVOJdZuo83X4+FeqYxj3wgro2Cycnb4yzukcuqibYZY97IR+QHsO/3WGwk4vbJP7PJNFLq6zH/SUScLvvDnA747QnxrKqGX9ZiwDNO3lPvn9MadcaYU9rn9ZjWkbjHxfwdzsdeKfkPoLbaFpWb2My/dMMfj2hWiZiVo14mzB+44U9Zn6H5bLw3VOaonZu+uMa8657dAq/EyZj4bGN8zCEgnMQzXyjw1+Qd99ReAq/sg2O9TP6TXu6BV+JkTBd6uSH/F/Ti6F2XnIt4+/rMps2Mf6tnVtK6y8xQGyGskRNnNhAYY5qZMX5C/jdnNjLNey6o+o+fzazluH7V9EHOBuOHAj+n67M9deTfzLPMiricFGWRFtttsilkn2obQJ/wXSqfZZmX5PFbuMcKF39zSP3h3hBq98zuXLnHh7TI+JVpOBe0vjD6t11tI9gPlH2+D89eX8HL3IaQh4YPRf6MvyNfz+iV1mMlJ/nsBkp+2Otl9eG1cyCAXHOI/9MaaavFU2qRsxkqeKklxD+Qx14f0una7MZGHWo6lbEZ/wQ5P9K6q061/TadIr6LThG/T6fP5L+qU0/Jr6tOPch1DfHl/wLZn5yu7XE2rWfQ99mdpEW2KbI4nifxSxKnh87ud2xLB1UVEgAA",
-  "debug_symbols": "ldfbioMwEAbgd8m1F5nM5NRXWZZi27QIosXahaX03TcutZQ0UP4bMeLH6IxjmJs6pN31tO2G43hRm6+b6sd9O3fjkFe3e6N2U9f33Wn7elnp5UD+//7LuR2W5WVup1ltyHCj0nDIZ2yzP3Z9Uhur79+NogCLiAqjYUGwMLBgWAgs7AchvhQOFh4WARb1mjtZhXeFYA0LgoWBBcNCYGFh4WDhP4gQShFgEVEhGhbVmhttHsKQlMLAgmEhsLCwcLDwH4R5y26ARUSF1bCoxwhPEbgQTsOCYFGtOWt6CNamFNV6MMVVmLJrXURjeI3G8AQLAwuGhcDCwqKe3bjuahzLjgoaFgSLanaFViFvfR4YFgILC4uAiljNlfD6tQuXf4YIv3kUOIaFhYOFh0WARcTEPa9+2qlrd316jBHH67B/mSrm33MqBozzNO7T4TqlZdR4mTKWvrGmsT4/CC1lJm0b0j5HyZH+AA==",
+  "bytecode": "H4sIAAAAAAAA/91XPU/DQAy9tNdCqBAVzPwAtouafjCAKrUslRALAyPpFwsDEhISW386OmErr8ZJg5pDqF586b08++wXJ41MbhF5K66NghmTd/tZUiOXUxMtM8Z8ko/JN2C/WeNhYxG3Tv6RSwexcr4a8+/FxBmyPswZgN8dEc/dJueXZzHgGSfv8funtEadMeaY9nndpXUs7gnR/4D9cRdK/g04m7fJJkxs5p+G4U861Ktb0atAtUyZ34bh77M+W+an8V5b6aM2N5viGvP2NZsCr8TJmPhsY3zMwRJO4pmvJfCX5APX1J0Dr6xDYL30DkkvT8ArcTJmCL1ckf8Pegn0rktPRbyiOrNpPePffM/eaF2lZ6iNFqyRE3vWEBhj8p4xvkf+kJ9xqfmiOrNpPePcfM/eaV2lZ9p5y54z5OB3vnzObsiH/q7TesaxOib/NrGb+uMPR85x3CbUQeuhhX3ET+j6RDmH3SPP9TBL1r1snfWz5TJdZLJO3hpQJ/z+0bQYFXhjtnsrubsKF2tGzgzc8/N+BryoTa7xrvnB+AeTc97T+szo3+PeOrBvlX2+D9+XTQUvc2tDHhq+JfJn/CN536MPWneVnOS8tUp+WOvp5ttrs9tCrjOI/9caKTtLpJxF9qat4KWWEP9MHmu9S6dzsx0bdajpVMZm/AvkvKJ1VZ1q+2U6RXwVnSK+SKev5H+r00jJr6pOI8h1DvHlfzlZnzFdu/1sUDQ7tXekx9Y959N+NlxkwyS5TpNVmvR3zfkvWZPgNfUTAAA=",
+  "debug_symbols": "ldfdioMwEAXgd8m1F0lmJj99lWUptrVFEC3WLiyl775xqaXEgJwbMeLH0UwkzkOdmsP9sm/783BTu6+H6oZjPbVDn0aPZ6UOY9t17WX/eVnp+WD8//23a93Pw9tUj5PaGUuVavpTOiNJ/tx2jdqJfn5XygRYRFRYDQsDCwsLggXDQjYE+1w4WHhYBFiUa+54Ed5lgjQsDCwsLAgWDAuBhYOF3xAh5CLAIqKCNSyKNbfavoQ1nAsLC4IFw0Jg4WDhN4RdzW6ARUSFaFiUa85vIfmbi4UFwYJhIbBwsPBbIuYiwCKiwmlYFDPILDsOrVa717AwsCjWnGh5DyLKRbEeJHoRku+cPqIZQaMZwcDCwoJgwbAQWBRnl+2y47DN/8iihoWBRXF2md+CV4JgwbAQWARUGF2eLLcsd3ZxRQhPYTxFcOJw4nEScBIx8kyjn3ps60PXvFrI870/fnSU0++1yZrL6zgcm9N9bOY286PDnL+flOT8/CRztY0JlbE6paSkPw==",
   "file_map": {
     "50": {
-      "source": "// Tests a very simple program.\n//\n// The features being tested is basic looping.\nfn main(six_as_u32: u32) {\n    assert_eq(loop_excl(4), six_as_u32);\n    assert_eq(loop_incl(3), six_as_u32);\n    assert(plain_loop() == six_as_u32);\n}\n\nfn loop_excl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn loop_incl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..=x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn plain_loop() -> u32 {\n    let mut sum = 0;\n    for i in 0..4 {\n        sum = sum + i;\n    }\n    sum\n}\n",
+      "source": "// Tests a very simple program.\n//\n// The features being tested is basic looping.\nfn main(six_as_u32: u32) {\n    assert_eq(loop_excl(4), six_as_u32);\n    assert_eq(loop_incl(3), six_as_u32);\n    assert(plain_loop() == six_as_u32);\n    assert(never_loop() == 0);\n}\n\nfn loop_excl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn loop_incl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..=x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn plain_loop() -> u32 {\n    let mut sum = 0;\n    for i in 0..4 {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn never_loop() -> u32 {\n    let mut sum = 0;\n    for i in 4..0 {\n        sum = sum + i;\n    }\n    sum\n}\n",
       "path": ""
     }
   },
