@@ -6,10 +6,9 @@ pub mod opcodes;
 
 use crate::{
     native_types::{Expression, Witness},
-    proto::convert::ProtoSchema,
+    serialization::{bincode_deserialize, bincode_serialize},
 };
 use acir_field::AcirField;
-use noir_protobuf::ProtoCodec as _;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -249,8 +248,9 @@ impl<F: AcirField> Circuit<F> {
 }
 
 impl<F: Serialize + AcirField> Program<F> {
+    /// Serialize and compress the [Program] into bytes.
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = self.bincode_serialize()?;
+        let buf = bincode_serialize(self)?;
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -274,38 +274,13 @@ impl<F: Serialize + AcirField> Program<F> {
     }
 }
 
-impl<F: Serialize + AcirField> Program<F> {
-    /// Serialize the program using `bincode`, which is what we have to use until Barretenberg can read another format.
-    pub(crate) fn bincode_serialize(&self) -> std::io::Result<Vec<u8>> {
-        bincode::serialize(self).map_err(std::io::Error::other)
-    }
-}
-
 impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
-    pub(crate) fn bincode_deserialize(buf: &[u8]) -> std::io::Result<Self> {
-        bincode::deserialize(buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-    }
-}
-
-#[allow(dead_code)] // TODO: Remove once we switch to protobuf
-impl<F: AcirField> Program<F> {
-    /// Serialize the program using `protobuf`, which is what we try to replace `bincode` with.
-    pub(crate) fn proto_serialize(&self) -> Vec<u8> {
-        ProtoSchema::<F>::serialize_to_vec(self)
-    }
-    pub(crate) fn proto_deserialize(buf: &[u8]) -> std::io::Result<Self> {
-        ProtoSchema::<F>::deserialize_from_vec(buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-    }
-}
-
-impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
+    /// Decompress and deserialize bytes into a [Program].
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf = Vec::new();
         gz_decoder.read_to_end(&mut buf)?;
-        let program = Self::bincode_deserialize(&buf)?;
+        let program = bincode_deserialize(&buf)?;
         Ok(program)
     }
 
@@ -524,6 +499,7 @@ mod tests {
 
         use crate::circuit::Program;
         use crate::native_types::{WitnessMap, WitnessStack};
+        use crate::serialization::*;
 
         // It's not possible to set the maximum size of collections via `ProptestConfig`, only an env var,
         // because e.g. the `VecStrategy` uses `Config::default().max_default_size_range`. On top of that,
@@ -577,8 +553,8 @@ mod tests {
         #[test]
         fn prop_program_proto_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = Program::proto_serialize(&program);
-                let de = Program::proto_deserialize(&bz)?;
+                let bz = proto_serialize(&program);
+                let de = proto_deserialize(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
@@ -587,8 +563,18 @@ mod tests {
         #[test]
         fn prop_program_bincode_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = Program::bincode_serialize(&program)?;
-                let de = Program::bincode_deserialize(&bz)?;
+                let bz = bincode_serialize(&program)?;
+                let de = bincode_deserialize(&bz)?;
+                prop_assert_eq!(program, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_program_msgpack_roundtrip() {
+            run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
+                let bz = msgpack_serialize(&program, compact)?;
+                let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
@@ -607,8 +593,8 @@ mod tests {
         #[test]
         fn prop_witness_stack_proto_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = WitnessStack::proto_serialize(&witness);
-                let de = WitnessStack::proto_deserialize(&bz)?;
+                let bz = proto_serialize(&witness);
+                let de = proto_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -617,8 +603,18 @@ mod tests {
         #[test]
         fn prop_witness_stack_bincode_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = WitnessStack::bincode_serialize(&witness)?;
-                let de = WitnessStack::bincode_deserialize(&bz)?;
+                let bz = bincode_serialize(&witness)?;
+                let de = bincode_deserialize(&bz)?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_stack_msgpack_roundtrip() {
+            run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
+                let bz = msgpack_serialize(&witness, compact)?;
+                let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -637,8 +633,8 @@ mod tests {
         #[test]
         fn prop_witness_map_proto_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = WitnessMap::proto_serialize(&witness);
-                let de = WitnessMap::proto_deserialize(&bz)?;
+                let bz = proto_serialize(&witness);
+                let de = proto_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -647,8 +643,18 @@ mod tests {
         #[test]
         fn prop_witness_map_bincode_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = WitnessMap::bincode_serialize(&witness)?;
-                let de = WitnessMap::bincode_deserialize(&bz)?;
+                let bz = bincode_serialize(&witness)?;
+                let de = bincode_deserialize(&bz)?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_map_msgpack_roundtrip() {
+            run_with_max_size_range(10, |(witness, compact): (WitnessMap<TestField>, bool)| {
+                let bz = msgpack_serialize(&witness, compact)?;
+                let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

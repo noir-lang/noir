@@ -62,6 +62,7 @@ pub(super) fn on_did_change_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
+    state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
     let output_diagnostics = false;
@@ -78,6 +79,7 @@ pub(super) fn on_did_close_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
     state.cached_lenses.remove(&params.text_document.uri.to_string());
+    state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     state.open_documents_count -= 1;
 

@@ -1,9 +1,10 @@
 use crate::elaborator::FrontendOptions;
 
-use crate::tests::{check_errors, get_program_with_options};
+use crate::assert_no_errors;
+use crate::tests::Expect;
+use crate::{check_errors, get_program_with_options};
 
-use super::assert_no_errors;
-
+#[named]
 #[test]
 fn trait_inheritance() {
     let src = r#"
@@ -25,9 +26,10 @@ fn trait_inheritance() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics() {
     let src = r#"
@@ -45,9 +47,10 @@ fn trait_inheritance_with_generics() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics_2() {
     let src = r#"
@@ -65,9 +68,10 @@ fn trait_inheritance_with_generics_2() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics_3() {
     let src = r#"
@@ -81,9 +85,10 @@ fn trait_inheritance_with_generics_3() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics_4() {
     let src = r#"
@@ -97,9 +102,10 @@ fn trait_inheritance_with_generics_4() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_dependency_cycle() {
     let src = r#"
@@ -109,9 +115,10 @@ fn trait_inheritance_dependency_cycle() {
         trait Bar: Foo {}
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_missing_parent_implementation() {
     let src = r#"
@@ -129,9 +136,10 @@ fn trait_inheritance_missing_parent_implementation() {
         fn main() {
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unknown_type_in_trait_where_clause() {
     let src = r#"
@@ -141,9 +149,10 @@ fn errors_on_unknown_type_in_trait_where_clause() {
         fn main() {
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
     let src = r#"
@@ -174,9 +183,10 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
     let src = r#"
@@ -198,9 +208,10 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
         fn main() {
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_impl_trait_constraint_is_not_satisfied() {
     let src = r#"
@@ -231,9 +242,10 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
 
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 // Regression test for https://github.com/noir-lang/noir/issues/6314
 // Baz inherits from a single trait: Foo
@@ -249,9 +261,10 @@ fn regression_6314_single_inheritance() {
 
         fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 // Regression test for https://github.com/noir-lang/noir/issues/6314
 // Baz inherits from two traits: Foo and Bar
@@ -289,9 +302,10 @@ fn regression_6314_double_inheritance() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_alias_single_member() {
     let src = r#"
@@ -314,9 +328,10 @@ fn trait_alias_single_member() {
             let _ = baz(x);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_alias_two_members() {
     let src = r#"
@@ -350,9 +365,10 @@ fn trait_alias_two_members() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_alias_polymorphic_inheritance() {
     let src = r#"
@@ -386,11 +402,12 @@ fn trait_alias_polymorphic_inheritance() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently fails with the
 // same errors as the desugared version
+#[named]
 #[test]
 fn trait_alias_polymorphic_where_clause() {
     let src = r#"
@@ -439,13 +456,14 @@ fn trait_alias_polymorphic_where_clause() {
     "#;
 
     // TODO(https://github.com/noir-lang/noir/issues/6467)
-    // assert_no_errors(src);
-    check_errors(src);
+    // assert_no_errors!(src);
+    check_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
 // this just tests that the trait alias has an equivalent error to the expected
 // desugared version
+#[named]
 #[test]
 fn trait_alias_with_where_clause_has_equivalent_errors() {
     let src = r#"
@@ -471,8 +489,15 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
 
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
+}
 
+// TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
+// this just tests that the trait alias has an equivalent error to the expected
+// desugared version
+#[named]
+#[test]
+fn trait_alias_with_where_clause_has_equivalent_errors_2() {
     let alias_src = r#"
         trait Bar {
             fn bar(self) -> Self;
@@ -491,9 +516,10 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
 
         fn main() {}
     "#;
-    check_errors(alias_src);
+    check_errors!(alias_src);
 }
 
+#[named]
 #[test]
 fn removes_assumed_parent_traits_after_function_ends() {
     let src = r#"
@@ -512,9 +538,10 @@ fn removes_assumed_parent_traits_after_function_ends() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
     // Regression test for https://github.com/noir-lang/noir/issues/6420
@@ -563,9 +590,10 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
             let _ = foo.bar();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_crash_on_as_trait_path_with_empty_path() {
     let src = r#"
@@ -578,10 +606,12 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
 
     let allow_parser_errors = true;
     let options = FrontendOptions::test_default();
-    let (_, _, errors) = get_program_with_options(src, allow_parser_errors, options);
+    let (_, _, errors) =
+        get_program_with_options!(src, Expect::Error, allow_parser_errors, options);
     assert!(!errors.is_empty());
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -605,9 +635,10 @@ fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_function_if_it_is_in_scope() {
     let src = r#"
@@ -632,9 +663,10 @@ fn calls_trait_function_if_it_is_in_scope() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_function_if_it_is_only_candidate_in_scope() {
     let src = r#"
@@ -669,9 +701,10 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super() {
     let src = r#"
@@ -699,9 +732,10 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_candidates() {
     let src = r#"
@@ -736,9 +770,10 @@ fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_cand
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
     let src = r#"
@@ -776,9 +811,10 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -804,9 +840,10 @@ fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_me
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_if_it_is_in_scope() {
     let src = r#"
@@ -833,9 +870,10 @@ fn calls_trait_method_if_it_is_in_scope() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candidates() {
     let src = r#"
@@ -872,9 +910,10 @@ fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candid
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     let src = r#"
@@ -914,9 +953,10 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
 {
@@ -946,9 +986,10 @@ fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_de
         let _: u32 = foo.convert();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_checks_trait_default_method_and_errors() {
     let src = r#"
@@ -964,9 +1005,10 @@ fn type_checks_trait_default_method_and_errors() {
 
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_checks_trait_default_method_and_does_not_error() {
     let src = r#"
@@ -979,9 +1021,10 @@ fn type_checks_trait_default_method_and_does_not_error() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_checks_trait_default_method_and_does_not_error_using_self() {
     let src = r#"
@@ -998,9 +1041,10 @@ fn type_checks_trait_default_method_and_does_not_error_using_self() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -1021,9 +1065,10 @@ fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -1045,9 +1090,10 @@ fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_on
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -1069,9 +1115,10 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
         }
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_on_duplicate_impl_with_associated_type() {
     let src = r#"
@@ -1092,9 +1139,10 @@ fn error_on_duplicate_impl_with_associated_type() {
 
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_on_duplicate_impl_with_associated_constant() {
     let src = r#"
@@ -1115,27 +1163,28 @@ fn error_on_duplicate_impl_with_associated_constant() {
 
         fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
 // See https://github.com/noir-lang/noir/issues/6530
+#[named]
 #[test]
 fn regression_6530() {
     let src = r#"
-    pub trait From<T> {
-        fn from(input: T) -> Self;
+    pub trait From2<T> {
+        fn from2(input: T) -> Self;
     }
     
-    pub trait Into<T> {
-        fn into(self) -> T;
+    pub trait Into2<T> {
+        fn into2(self) -> T;
     }
     
-    impl<T, U> Into<T> for U
+    impl<T, U> Into2<T> for U
     where
-        T: From<U>,
+        T: From2<U>,
     {
-        fn into(self) -> T {
-            T::from(self)
+        fn into2(self) -> T {
+            T::from2(self)
         }
     }
     
@@ -1143,8 +1192,8 @@ fn regression_6530() {
         inner: Field,
     }
     
-    impl Into<Field> for Foo {
-        fn into(self) -> Field {
+    impl Into2<Field> for Foo {
+        fn into2(self) -> Field {
             self.inner
         }
     }
@@ -1153,15 +1202,16 @@ fn regression_6530() {
         let foo = Foo { inner: 0 };
     
         // This works:
-        let _: Field = Into::<Field>::into(foo);
+        let _: Field = Into2::<Field>::into2(foo);
     
         // This was failing with 'No matching impl':
-        let _: Field = foo.into();
+        let _: Field = foo.into2();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     let src = r#"
@@ -1184,9 +1234,10 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
         let _ = U60Repr::from2(1);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_turbofish() {
     let src = r#"
@@ -1209,9 +1260,10 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_tur
                                         ^^^^^^^^^ Expected type Field, found type [Field; 3]
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn as_trait_path_in_expression() {
     let src = r#"
@@ -1242,9 +1294,10 @@ fn as_trait_path_in_expression() {
             fn bar<Z>(_x: Z) {}
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_renaming_trait_during_import() {
     // Regression test for https://github.com/noir-lang/noir/issues/7632
@@ -1263,9 +1316,10 @@ fn allows_renaming_trait_during_import() {
         x.foo();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn renaming_trait_avoids_name_collisions() {
     // Regression test for https://github.com/noir-lang/noir/issues/7632
@@ -1286,9 +1340,10 @@ fn renaming_trait_avoids_name_collisions() {
         x.foo();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
     let src = "
@@ -1311,9 +1366,10 @@ fn passes_trait_with_associated_number_to_generic_function() {
         T: Trait,
     {}
     ";
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() {
     let src = "
@@ -1340,5 +1396,101 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
         bar.bar::<Foo>();
     }
     ";
-    assert_no_errors(src);
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_1() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self;
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_magic_value() -> Foo {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_magic_value() -> Bar {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_2() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_3() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    impl MagicNumber for i32 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    impl MagicNumber for i64 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
 }

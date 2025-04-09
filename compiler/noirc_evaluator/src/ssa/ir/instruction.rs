@@ -1,9 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-use acvm::{
-    acir::AcirField,
-    acir::{BlackBoxFunc, circuit::ErrorSelector},
-};
+use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -136,22 +133,7 @@ impl Intrinsic {
             Intrinsic::Hint(Hint::BlackBox) => true,
 
             // Some black box functions have side-effects
-            Intrinsic::BlackBox(func) => matches!(
-                func,
-                BlackBoxFunc::RecursiveAggregation
-                    | BlackBoxFunc::MultiScalarMul
-                    | BlackBoxFunc::EmbeddedCurveAdd
-            ),
-        }
-    }
-
-    /// Intrinsics which only have a side effect due to the chance that
-    /// they can fail a constraint can be deduplicated.
-    pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
-        match self.purity() {
-            Purity::Pure => true,
-            Purity::PureWithPredicate => deduplicate_with_predicate,
-            Purity::Impure => false,
+            Intrinsic::BlackBox(func) => func.has_side_effects(),
         }
     }
 
@@ -164,13 +146,8 @@ impl Intrinsic {
             // directly depend on the corresponding `enable_side_effect` instruction any more.
             // However, to conform with the expectations of `Instruction::can_be_deduplicated` and
             // `constant_folding` we only use this information if the caller shows interest in it.
-            Intrinsic::ToBits(_)
-            | Intrinsic::ToRadix(_)
-            | Intrinsic::BlackBox(
-                BlackBoxFunc::MultiScalarMul
-                | BlackBoxFunc::EmbeddedCurveAdd
-                | BlackBoxFunc::RecursiveAggregation,
-            ) => Purity::PureWithPredicate,
+            Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => Purity::PureWithPredicate,
+            Intrinsic::BlackBox(func) if func.has_side_effects() => Purity::PureWithPredicate,
 
             // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
             Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
@@ -400,12 +377,7 @@ impl Instruction {
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
                     }
-                    BinaryOp::Div | BinaryOp::Mod => {
-                        // Div and Mod require a predicate if the RHS may be zero.
-                        dfg.get_numeric_constant(binary.rhs)
-                            .map(|rhs| rhs.is_zero())
-                            .unwrap_or(true)
-                    }
+                    BinaryOp::Div | BinaryOp::Mod => true,
                     BinaryOp::Add { unchecked: true }
                     | BinaryOp::Sub { unchecked: true }
                     | BinaryOp::Mul { unchecked: true }

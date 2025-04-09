@@ -193,7 +193,7 @@ impl Elaborator<'_> {
         match resolved_type {
             Type::DataType(ref data_type, _) => {
                 // Record the location of the type reference
-                self.interner.push_type_ref_location(resolved_type.clone(), location);
+                self.interner.push_type_ref_location(&resolved_type, location);
                 if !is_synthetic {
                     self.interner.add_type_reference(
                         data_type.borrow().id,
@@ -681,6 +681,12 @@ impl Elaborator<'_> {
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
+        // If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
+        // to solve the path via trait method lookup.
+        if self.current_trait_impl.is_some() {
+            return None;
+        }
+
         let trait_id = if let Some(current_trait) = self.current_trait {
             current_trait
         } else {

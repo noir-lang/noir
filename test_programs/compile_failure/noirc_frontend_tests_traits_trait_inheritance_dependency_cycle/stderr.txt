@@ -1,0 +1,8 @@
+error: Dependency cycle found
+  ┌─ src/main.nr:2:15
+  │
+2 │         trait Foo: Bar {}
+  │               --- 'Foo' recursively depends on itself: Foo -> Bar -> Foo
+  │
+
+Aborting due to 1 previous error
