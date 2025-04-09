@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["VariableId"],"fn":["arb_program","make_name"],"mod":["expr","freq","func","scope","types"],"struct":["Context"],"type":["Name"]};
+window.SIDEBAR_ITEMS = {"enum":["VariableId"],"fn":["arb_program","make_name"],"mod":["expr","freq","func","scope","types"],"struct":["Context","DisplayAstAsNoir"],"type":["Name"]};

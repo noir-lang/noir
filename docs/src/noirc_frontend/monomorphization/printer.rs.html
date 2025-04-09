@@ -397,46 +397,145 @@
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
 <a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::ast::UnaryOp;
+</span><span class="kw">use crate</span>::{ast::UnaryOp, shared::Visibility};
 
-<span class="kw">use </span><span class="kw">super</span>::ast::{Definition, Expression, Function, GlobalId, LValue, Type, While};
+<span class="kw">use </span><span class="kw">super</span>::ast::{
+    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
+};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>std::fmt::{Display, Formatter};
 
-<span class="attr">#[derive(Default)]
+<span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>AstPrinter {
     indent_level: u32,
+    <span class="kw">pub </span>show_id: bool,
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>AstPrinter {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ indent_level: <span class="number">0</span>, show_id: <span class="bool-val">true </span>}
+    }
 }
 
 <span class="kw">impl </span>AstPrinter {
+    <span class="kw">fn </span>fmt_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, definition: <span class="kw-2">&amp;</span>Definition) -&gt; String {
+        <span class="kw">if </span><span class="self">self</span>.show_id { <span class="macro">format!</span>(<span class="string">"{}${}"</span>, name, definition) } <span class="kw">else </span>{ name.to_string() }
+    }
+
+    <span class="kw">fn </span>fmt_local(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, id: LocalId) -&gt; String {
+        <span class="self">self</span>.fmt_ident(name, <span class="kw-2">&amp;</span>Definition::Local(id))
+    }
+
+    <span class="kw">fn </span>fmt_global(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, id: GlobalId) -&gt; String {
+        <span class="self">self</span>.fmt_ident(name, <span class="kw-2">&amp;</span>Definition::Global(id))
+    }
+
+    <span class="kw">fn </span>fmt_func(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, id: FuncId) -&gt; String {
+        <span class="self">self</span>.fmt_ident(name, <span class="kw-2">&amp;</span>Definition::Function(id))
+    }
+
+    <span class="kw">pub fn </span>print_program(<span class="kw-2">&amp;mut </span><span class="self">self</span>, program: <span class="kw-2">&amp;</span>Program, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
+        <span class="kw">for </span>(id, global) <span class="kw">in </span><span class="kw-2">&amp;</span>program.globals {
+            <span class="self">self</span>.print_global(id, global, f)<span class="question-mark">?</span>;
+        }
+        <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span>program.functions {
+            <span class="kw">let </span>vis = (function.id == Program::main_id()).then_some(program.return_visibility);
+            <span class="self">self</span>.print_function(function, vis, f)<span class="question-mark">?</span>;
+        }
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="kw">pub fn </span>print_global(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: <span class="kw-2">&amp;</span>GlobalId,
         (name, typ, expr): <span class="kw-2">&amp;</span>(String, Type, Expression),
         f: <span class="kw-2">&amp;mut </span>Formatter,
     ) -&gt; std::fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">"global {}$g{}: {} = "</span>, name, id.<span class="number">0</span>, typ)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">"global {}: {} = "</span>, <span class="self">self</span>.fmt_global(name, <span class="kw-2">*</span>id), typ)<span class="question-mark">?</span>;
         <span class="self">self</span>.print_expr(expr, f)<span class="question-mark">?</span>;
         <span class="macro">write!</span>(f, <span class="string">";"</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.next_line(f)
     }
 
-    <span class="kw">pub fn </span>print_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
+    <span class="kw">pub fn </span>print_function(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        function: <span class="kw-2">&amp;</span>Function,
+        return_visibility: <span class="prelude-ty">Option</span>&lt;Visibility&gt;,
+        f: <span class="kw-2">&amp;mut </span>Formatter,
+    ) -&gt; std::fmt::Result {
         <span class="kw">let </span>params = vecmap(<span class="kw-2">&amp;</span>function.parameters, |(id, mutable, name, typ)| {
-            <span class="macro">format!</span>(<span class="string">"{}{}$l{}: {}"</span>, <span class="kw">if </span><span class="kw-2">*</span>mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>}, name, id.<span class="number">0</span>, typ)
+            <span class="macro">format!</span>(<span class="string">"{}{}: {}"</span>, <span class="kw">if </span><span class="kw-2">*</span>mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>}, <span class="self">self</span>.fmt_local(name, <span class="kw-2">*</span>id), typ)
         })
         .join(<span class="string">", "</span>);
 
+        <span class="kw">let </span>vis = return_visibility
+            .map(|vis| <span class="kw">match </span>vis {
+                Visibility::Private =&gt; <span class="string">""</span>.to_string(),
+                Visibility::Public =&gt; <span class="string">"pub "</span>.to_string(),
+                Visibility::ReturnData =&gt; <span class="string">"return_data "</span>.to_string(),
+                Visibility::CallData(i) =&gt; <span class="macro">format!</span>(<span class="string">"call_data({i}) "</span>),
+            })
+            .unwrap_or_default();
+
         <span class="macro">write!</span>(
             f,
-            <span class="string">"{}fn {}$f{}({}) -&gt; {} {{"</span>,
+            <span class="string">"{}fn {}({}) -&gt; {}{} {{"</span>,
             <span class="kw">if </span>function.unconstrained { <span class="string">"unconstrained " </span>} <span class="kw">else </span>{ <span class="string">"" </span>},
-            function.name,
-            function.id,
+            <span class="self">self</span>.fmt_func(<span class="kw-2">&amp;</span>function.name, function.id),
             params,
-            function.return_type
+            vis,
+            function.return_type,
         )<span class="question-mark">?</span>;
         <span class="self">self</span>.indent_level += <span class="number">1</span>;
         <span class="self">self</span>.print_expr_expect_block(<span class="kw-2">&amp;</span>function.body, f)<span class="question-mark">?</span>;
@@ -448,7 +547,7 @@
     <span class="kw">pub fn </span>print_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
         <span class="kw">match </span>expr {
             Expression::Ident(ident) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"{}${}"</span>, ident.name, ident.definition)
+                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.fmt_ident(<span class="kw-2">&amp;</span>ident.name, <span class="kw-2">&amp;</span>ident.definition))
             }
             Expression::Literal(literal) =&gt; <span class="self">self</span>.print_literal(literal, f),
             Expression::Block(exprs) =&gt; <span class="self">self</span>.print_block(exprs, f),
@@ -479,11 +578,10 @@
             Expression::Let(let_expr) =&gt; {
                 <span class="macro">write!</span>(
                     f,
-                    <span class="string">"let {}{}${} = "</span>,
+                    <span class="string">"let {}{} = "</span>,
                     <span class="kw">if </span>let_expr.mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>},
-                    let_expr.name,
-                    let_expr.id.<span class="number">0
-                </span>)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.fmt_local(<span class="kw-2">&amp;</span>let_expr.name, let_expr.id),
+                )<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>let_expr.expression, f)
             }
             Expression::Constrain(expr, ..) =&gt; {
@@ -633,7 +731,7 @@
         for_expr: <span class="kw-2">&amp;</span><span class="kw">super</span>::ast::For,
         f: <span class="kw-2">&amp;mut </span>Formatter,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">"for {}${} in "</span>, for_expr.index_name, for_expr.index_variable.<span class="number">0</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">"for {} in "</span>, <span class="self">self</span>.fmt_local(<span class="kw-2">&amp;</span>for_expr.index_name, for_expr.index_variable))<span class="question-mark">?</span>;
         <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>for_expr.start_range, f)<span class="question-mark">?</span>;
         <span class="macro">write!</span>(f, <span class="string">" .. "</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>for_expr.end_range, f)<span class="question-mark">?</span>;
@@ -765,7 +863,7 @@
 
     <span class="kw">fn </span>print_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>LValue, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
         <span class="kw">match </span>lvalue {
-            LValue::Ident(ident) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}${}"</span>, ident.name, ident.definition),
+            LValue::Ident(ident) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.fmt_ident(<span class="kw-2">&amp;</span>ident.name, <span class="kw-2">&amp;</span>ident.definition)),
             LValue::Index { array, index, .. } =&gt; {
                 <span class="self">self</span>.print_lvalue(array, f)<span class="question-mark">?</span>;
                 <span class="macro">write!</span>(f, <span class="string">"["</span>)<span class="question-mark">?</span>;

@@ -78,9 +78,18 @@
 <a href="#77" id="77">77</a>
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
+<span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
+<span class="kw">use </span>noirc_abi::input_parser::Format;
 <span class="kw">use </span>noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{<span class="self">self</span>, SsaEvaluatorOptions, SsaProgramArtifact},
@@ -124,7 +133,7 @@
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
     </span><span class="kw">if </span>show_ast() {
-        <span class="macro">eprintln!</span>(<span class="string">"---\n{program}\n---"</span>);
+        <span class="macro">eprintln!</span>(<span class="string">"---\n{}\n---"</span>, DisplayAstAsNoir(<span class="kw-2">&amp;</span>program));
     }
 
     ssa::create_program(program, options).unwrap_or_else(|e| {
@@ -149,11 +158,16 @@
 
     <span class="kw">if </span>res.is_err() {
         <span class="kw">for </span>(i, ast) <span class="kw">in </span>asts(inputs).into_iter().enumerate() {
-            <span class="macro">eprintln!</span>(<span class="string">"AST {}:\n{}"</span>, i + <span class="number">1</span>, ast);
+            <span class="macro">eprintln!</span>(<span class="string">"---\nAST {}:\n{}"</span>, i + <span class="number">1</span>, DisplayAstAsNoir(ast));
         }
-        <span class="macro">eprintln!</span>(<span class="string">"Inputs:\n{:?}"</span>, inputs.input_map);
-        <span class="macro">eprintln!</span>(<span class="string">"Program 1:\n{}"</span>, inputs.ssa1.program);
-        <span class="macro">eprintln!</span>(<span class="string">"Program 2:\n{}"</span>, inputs.ssa2.program);
+        <span class="macro">eprintln!</span>(
+            <span class="string">"---\nInputs:\n{}"</span>,
+            Format::Toml
+                .serialize(<span class="kw-2">&amp;</span>inputs.input_map, <span class="kw-2">&amp;</span>inputs.abi)
+                .unwrap_or_else(|e| <span class="macro">format!</span>(<span class="string">"failed to serialize inputs: {e}"</span>))
+        );
+        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 1:\n{}"</span>, inputs.ssa1.program);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 2:\n{}"</span>, inputs.ssa2.program);
     }
 
     res.map(|<span class="kw">_</span>| ())

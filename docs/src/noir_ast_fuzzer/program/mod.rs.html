@@ -312,7 +312,25 @@
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
@@ -321,8 +339,9 @@
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>noirc_frontend::{
     ast::IntegerBitSize,
-    monomorphization::ast::{
-        Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type,
+    monomorphization::{
+        ast::{Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type},
+        printer::AstPrinter,
     },
     shared::{Signedness, Visibility},
 };
@@ -454,20 +473,25 @@
             });
         }
 
+        <span class="kw">let </span>return_type = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>return_visibility = <span class="kw">if </span>is_main {
+            <span class="kw">if </span>types::is_unit(<span class="kw-2">&amp;</span>return_type) {
+                Visibility::Private
+            } <span class="kw">else if </span>u.ratio(<span class="number">4</span>, <span class="number">5</span>)<span class="question-mark">? </span>{
+                Visibility::Public
+            } <span class="kw">else </span>{
+                Visibility::ReturnData
+            }
+        } <span class="kw">else </span>{
+            Visibility::Private
+        };
+
         <span class="kw">let </span>decl = FunctionDeclaration {
             name: <span class="kw">if </span>is_main { <span class="string">"main"</span>.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"func_{i}"</span>) },
             params,
             param_visibilities,
-            return_type: <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">false</span>)<span class="question-mark">?</span>,
-            return_visibility: <span class="kw">if </span>is_main {
-                <span class="kw">match </span>u.choose_index(<span class="number">5</span>)<span class="question-mark">? </span>{
-                    <span class="number">0 </span>| <span class="number">1 </span>=&gt; Visibility::Public,
-                    <span class="number">2 </span>| <span class="number">3 </span>=&gt; Visibility::Private,
-                    <span class="kw">_ </span>=&gt; Visibility::ReturnData,
-                }
-            } <span class="kw">else </span>{
-                Visibility::Private
-            },
+            return_type,
+            return_visibility,
             inline_type: <span class="kw">if </span>is_main {
                 InlineType::default()
             } <span class="kw">else </span>{
@@ -611,6 +635,18 @@
     name.reverse();
     <span class="kw">let </span>name = name.into_iter().collect::&lt;String&gt;();
     <span class="kw">if </span>is_global { <span class="macro">format!</span>(<span class="string">"G_{}"</span>, name) } <span class="kw">else </span>{ name }
+}
+
+<span class="doccomment">/// Wrapper around `Program` that prints the AST as close to being able to
+/// copy-paste it as a Noir program as we can get.
+</span><span class="kw">pub struct </span>DisplayAstAsNoir&lt;<span class="lifetime">'a</span>&gt;(<span class="kw">pub </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>Program);
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>DisplayAstAsNoir&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>printer = AstPrinter::default();
+        printer.show_id = <span class="bool-val">false</span>;
+        printer.print_program(<span class="self">self</span>.<span class="number">0</span>, f)
+    }
 }
 
 <span class="attr">#[cfg(test)]
