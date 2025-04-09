@@ -12,17 +12,22 @@ the last key crate is `tooling/nargo_cli` which invokes the compiler through the
 Here's a rough diagram of the compiler's architecture:
 
 ```mermaid
-flowchart LR
-  Source Program --Lexing--> Tokens --Parsing--> AST --Definition Collection--> AST & Definitions --Elaboration--> HIR
+flowchart
+  src[Source Program]
+  astdef[AST & Definitions]
+  mast[Monomorphized AST]
+  mastcd[Monomorphized AST with Clones & Drops]
+  ssaopt[Optimized SSA]
+  brillig[Brillig IR]
 
-  HIR --Monomorphization--> Monomorphized AST --Ownership Analysis--> Monomorphized AST with Clones & Drops --SSA-gen--> SSA
+  src --Lexing--> Tokens --Parsing--> AST --Definition Collection--> astdef --Elaboration--> HIR
 
-  SSA --SSA Optimizations--> Optimized SSA
+  HIR --Monomorphization--> mast --Ownership Analysis--> mastcd --SSA-gen--> SSA
 
-  Optimized SSA --Brillig-gen--> Brillig IR
-  Optimized SSA --ACIR-gen--> ACIR
+  SSA --SSA Optimizations--> ssaopt
 
-  HIR --Comptime Interpreter--> HIR
+  ssaopt --Brillig-gen--> brillig
+  ssaopt --ACIR-gen--> ACIR
 ```
 
 Below is a summary of each compiler pass and which Rust source files may be most useful in understanding the pass.
