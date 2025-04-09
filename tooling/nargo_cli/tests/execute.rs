@@ -288,7 +288,18 @@ mod tests {
 
         let name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
         let name = format!("{}_force_brillig_{}_inliner_{}", name, force_brillig.0, inliner.0);
-        insta::assert_json_snapshot!(name, artifact, {".noir_version" => ""})
+        insta::assert_json_snapshot!(name, artifact, {
+            ".noir_version" => "",
+            ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
+                // Some paths are absolute: clear those out.
+                let value = value.as_str().expect("Expected a string value in a path entry");
+                if value.starts_with("/") {
+                    String::new()
+                } else {
+                    value.to_string()
+                }
+            }),
+        })
     }
 
     fn find_program_artifact_in_dir(dir: &PathBuf) -> Option<PathBuf> {
