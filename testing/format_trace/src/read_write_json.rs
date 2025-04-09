@@ -13,6 +13,7 @@ pub fn save_to_file(dest_filename: String, json_string: String) {
     if !json_string_copy.ends_with('\n') {
         json_string_copy.push('\n');
     }
-    fs::write(&dest_filename, json_string_copy)
-        .unwrap_or_else(|_| panic!("Unable to write to destination file: {}", dest_filename.as_str()));
+    fs::write(&dest_filename, json_string_copy).unwrap_or_else(|_| {
+        panic!("Unable to write to destination file: {}", dest_filename.as_str())
+    });
 }

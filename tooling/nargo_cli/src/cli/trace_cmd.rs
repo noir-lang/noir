@@ -8,9 +8,7 @@ use noir_tracer::tracer_glue::store_trace;
 use noirc_abi::InputMap;
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::{
-    CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 use super::debug_cmd::compile_bin_package_for_debugging;

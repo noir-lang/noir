@@ -5,7 +5,7 @@ use noirc_abi::{
 use std::{collections::BTreeMap, path::Path};
 
 use crate::errors::CliError;
-use noir_artifact_cli::errors::{FilesystemError, CliError as ArtifactCliError};
+use noir_artifact_cli::errors::{CliError as ArtifactCliError, FilesystemError};
 
 /// Returns the circuit's parameters and its return value, if one exists.
 /// # Examples
@@ -31,22 +31,20 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
             // so if the ABI has no parameters we can skip reading the file if it doesn't exist.
             return Ok((BTreeMap::new(), None));
         } else {
-            return Err(CliError::ArtifactError(
-                ArtifactCliError::FilesystemError(
-                    FilesystemError::MissingInputFile(file_path),
-                ),
-            ));
+            return Err(CliError::ArtifactError(ArtifactCliError::FilesystemError(
+                FilesystemError::MissingInputFile(file_path),
+            )));
         }
     }
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
     let mut input_map = match format.parse(&input_string, abi) {
         Ok(input_map) => input_map,
-        Err(input_parser_error) => return Err(CliError::ArtifactError(
-            ArtifactCliError::InputDeserializationError(
-                input_parser_error
-            ),
-        )),
+        Err(input_parser_error) => {
+            return Err(CliError::ArtifactError(ArtifactCliError::InputDeserializationError(
+                input_parser_error,
+            )));
+        }
     };
     let return_value = input_map.remove(MAIN_RETURN_NAME);
 
