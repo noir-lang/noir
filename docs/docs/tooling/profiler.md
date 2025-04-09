@@ -22,8 +22,8 @@ The profiler provides the ability to flamegraph a Noir program's ACIR opcodes fo
 :::note
 
 "_Approximately_" as:
-- Execution speeds depend on the constrained execution trace compiled from ACIR opcodes, and
-- Proving speeds depend on the how the proving backend of choice interprets the ACIR opcodes.
+- Execution speeds depend on the constrained execution trace compiled from ACIR opcodes
+- Proving speeds depend on the how the proving backend of choice interprets the ACIR opcodes
 
 :::
 
