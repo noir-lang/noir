@@ -25,16 +25,10 @@ pub(crate) struct Argument {
 pub(crate) enum Instructions {
     /// Addition of two values
     AddChecked { lhs: Argument, rhs: Argument },
-    /// Addition of two values without checking for overflow
-    AddUnchecked { lhs: Argument, rhs: Argument },
     /// Subtraction of two values
     SubChecked { lhs: Argument, rhs: Argument },
-    /// Subtraction of two values without checking for overflow
-    SubUnchecked { lhs: Argument, rhs: Argument },
     /// Multiplication of two values
     MulChecked { lhs: Argument, rhs: Argument },
-    /// Multiplication of two values without checking for overflow
-    MulUnchecked { lhs: Argument, rhs: Argument },
     /// Division of two values
     Div { lhs: Argument, rhs: Argument },
     /// Equality comparison
@@ -220,29 +214,14 @@ impl FuzzerContext {
                     builder.insert_add_instruction_checked(lhs, rhs)
                 });
             }
-            Instructions::AddUnchecked { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_add_instruction_unchecked(lhs, rhs)
-                });
-            }
             Instructions::SubChecked { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
                     builder.insert_sub_instruction_checked(lhs, rhs)
                 });
             }
-            Instructions::SubUnchecked { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_sub_instruction_unchecked(lhs, rhs)
-                });
-            }
             Instructions::MulChecked { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
                     builder.insert_mul_instruction_checked(lhs, rhs)
-                });
-            }
-            Instructions::MulUnchecked { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_mul_instruction_unchecked(lhs, rhs)
                 });
             }
             Instructions::Div { lhs, rhs } => {

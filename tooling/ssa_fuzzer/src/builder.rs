@@ -106,23 +106,6 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    pub fn insert_add_instruction_unchecked(
-        &mut self,
-        lhs: TypedValue,
-        rhs: TypedValue,
-    ) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "unchecked") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
-        let res = self.builder.insert_binary(
-            lhs.value_id,
-            BinaryOp::Add { unchecked: true },
-            rhs.value_id,
-        );
-        TypedValue::new(res, lhs.type_of_variable)
-    }
-
     /// Inserts a subtract instruction between two values
     pub fn insert_sub_instruction_checked(
         &mut self,
@@ -141,23 +124,6 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    pub fn insert_sub_instruction_unchecked(
-        &mut self,
-        lhs: TypedValue,
-        rhs: TypedValue,
-    ) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "unchecked") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
-        let res = self.builder.insert_binary(
-            lhs.value_id,
-            BinaryOp::Sub { unchecked: true },
-            rhs.value_id,
-        );
-        TypedValue::new(res, lhs.type_of_variable)
-    }
-
     /// Inserts a multiply instruction between two values
     pub fn insert_mul_instruction_checked(
         &mut self,
@@ -171,23 +137,6 @@ impl FuzzerBuilder {
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Mul { unchecked: false },
-            rhs.value_id,
-        );
-        TypedValue::new(res, lhs.type_of_variable)
-    }
-
-    pub fn insert_mul_instruction_unchecked(
-        &mut self,
-        lhs: TypedValue,
-        rhs: TypedValue,
-    ) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "unchecked") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
-        let res = self.builder.insert_binary(
-            lhs.value_id,
-            BinaryOp::Mul { unchecked: true },
             rhs.value_id,
         );
         TypedValue::new(res, lhs.type_of_variable)
@@ -244,13 +193,13 @@ impl FuzzerBuilder {
             Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
             _ => unreachable!("Trying to cast not numeric type"),
         };
-        
+
         let value_id = if init_bit_length > cast_type.bit_length() {
             self.builder.insert_truncate(value.value_id, cast_type.bit_length(), init_bit_length)
         } else {
             value.value_id
         };
-        
+
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
         TypedValue::new(res, cast_type.to_ssa_type())
     }

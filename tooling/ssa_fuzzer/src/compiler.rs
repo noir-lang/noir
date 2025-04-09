@@ -32,7 +32,7 @@ fn optimize_into_acir(
     let ssa = builder.finish();
     log::debug!("SSA: {}", format!("{}", ssa));
     // change to SsaLogging::All to see triage final ssa.
-    let builder = SsaBuilder { ssa, ssa_logging: SsaLogging::None, print_codegen_timings: false };
+    let builder = SsaBuilder { ssa, ssa_logging: SsaLogging::All, print_codegen_timings: false };
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let hook_message = panic_message.clone();

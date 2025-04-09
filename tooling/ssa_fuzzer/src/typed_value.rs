@@ -16,7 +16,6 @@ pub enum ValueType {
     I16,
     I32,
     I64,
-    I128,
 }
 
 #[derive(Debug, Clone)]
@@ -44,7 +43,6 @@ impl TypedValue {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
-            ValueType::I128 => Type::signed(128),
         };
 
         Self { value_id: Id::new(value_id), type_of_variable: type_ }
@@ -64,7 +62,6 @@ impl TypedValue {
             Type::Numeric(NumericType::Signed { bit_size: 16 }) => ValueType::I16,
             Type::Numeric(NumericType::Signed { bit_size: 32 }) => ValueType::I32,
             Type::Numeric(NumericType::Signed { bit_size: 64 }) => ValueType::I64,
-            Type::Numeric(NumericType::Signed { bit_size: 128 }) => ValueType::I128,
             _ => unreachable!("Not numeric type {}", self.type_of_variable),
         }
     }
@@ -114,8 +111,7 @@ impl TypedValue {
 
     /// Helper to check if unchecked operations are supported for this type
     pub fn supports_uncheked(&self) -> bool {
-        // Only field type supports unchecked operations without bugs...
-        self.is_field()
+        false
     }
 
     /// Check if this type can be used in an operation with another type
@@ -152,7 +148,6 @@ impl ValueType {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
-            ValueType::I128 => Type::signed(128),
         }
     }
 
@@ -170,7 +165,6 @@ impl ValueType {
             ValueType::I16 => NumericType::Signed { bit_size: 16 },
             ValueType::I32 => NumericType::Signed { bit_size: 32 },
             ValueType::I64 => NumericType::Signed { bit_size: 64 },
-            ValueType::I128 => NumericType::Signed { bit_size: 128 },
         }
     }
 
@@ -187,7 +181,6 @@ impl ValueType {
             ValueType::I16 => 16,
             ValueType::I32 => 32,
             ValueType::I64 => 64,
-            ValueType::I128 => 128,
         }
     }
 }
