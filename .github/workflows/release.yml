@@ -95,7 +95,7 @@ jobs:
 
       - name: Cut a new version
         working-directory: ./docs
-        run: yarn version ${{ steps.noir-version.outputs.semver }}
+        run: yarn cut_version ${{ steps.noir-version.outputs.semver }}
 
       - name: Configure git
         run: |

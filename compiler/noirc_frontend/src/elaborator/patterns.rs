@@ -5,8 +5,8 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        ERROR_IDENT, Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath,
-        UnresolvedType,
+        ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
+        Pattern, TypePath, UnresolvedType,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -535,7 +535,23 @@ impl Elaborator<'_> {
         })
     }
 
-    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(&mut self, mut variable: Path) -> (ExprId, Type) {
+        // Check if this is `Self::method_name` when we are inside a trait impl and `Self`
+        // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
+        // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
+        // A regular path lookup won't work here for the same reason `TypePath` exists.
+        if let Some(self_type) = &self.self_type {
+            if self.current_trait_impl.is_some()
+                && variable.segments.len() == 2
+                && variable.segments[0].ident.is_self_type_name()
+                && !matches!(self.self_type, Some(Type::DataType(..)))
+            {
+                let ident = variable.segments.remove(1).ident;
+                let typ_location = variable.segments[0].location;
+                return self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location);
+            }
+        }
+
         let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
@@ -886,21 +902,32 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
-        let location = path.item.location();
-        let object_location = path.typ.location;
+        let typ_location = path.typ.location;
+        let turbofish = path.turbofish;
         let typ = self.resolve_type(path.typ);
+        self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+    }
+
+    fn elaborate_type_path_impl(
+        &mut self,
+        typ: Type,
+        ident: Ident,
+        turbofish: Option<GenericTypeArgs>,
+        typ_location: Location,
+    ) -> (ExprId, Type) {
+        let ident_location = ident.location();
         let check_self_param = false;
 
-        self.interner.push_type_ref_location(&typ, object_location);
+        self.interner.push_type_ref_location(&typ, typ_location);
 
         let Some(method) = self.lookup_method(
             &typ,
-            path.item.as_str(),
-            location,
-            object_location,
+            ident.as_str(),
+            ident_location,
+            typ_location,
             check_self_param,
         ) else {
-            let error = Expression::new(ExpressionKind::Error, location);
+            let error = Expression::new(ExpressionKind::Error, ident_location);
             return self.elaborate_expression(error);
         };
 
@@ -909,7 +936,7 @@ impl Elaborator<'_> {
             .expect("Expected trait function to be a DefinitionKind::Function");
 
         let generics =
-            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, location).0);
+            turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, ident_location).0);
 
         let id = self.interner.function_definition_id(func_id);
 
@@ -917,15 +944,15 @@ impl Elaborator<'_> {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
             HirMethodReference::TraitMethodId(method_id, generics, _) => {
                 let mut constraint =
-                    self.interner.get_trait(method_id.trait_id).as_constraint(location);
+                    self.interner.get_trait(method_id.trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = generics;
                 ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }
         };
 
-        let ident = HirIdent { location, id, impl_kind };
+        let ident = HirIdent { location: ident_location, id, impl_kind };
         let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
-        self.interner.push_expr_location(id, location);
+        self.interner.push_expr_location(id, ident_location);
 
         let typ = self.type_check_variable(ident, id, generics);
         self.interner.push_expr_type(id, typ.clone());
