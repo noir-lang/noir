@@ -748,44 +748,41 @@ impl<'a> FunctionContext<'a> {
         // Decrease budget so we don't nest endlessly.
         self.decrease_budget(1);
 
-        // Initialize index to 0
-        let outer_block = Expression::Block(vec![Expression::Let(Let {
+        // Start building the loop harness, initialize index to 0
+        let mut stmts = vec![Expression::Let(Let {
             id: idx_id,
             mutable: true,
             name: idx_name,
             expression: Box::new(expr::u32_literal(0)),
-        })]);
+        })];
 
+        // Get the randomized loop body
         let inner_block = self.gen_block(u, &Type::Unit)?;
-        let inner_block = expr::prepend_block(
-            inner_block,
-            vec![Expression::Semi(Box::new(Expression::If(If {
-                condition: Box::new(expr::binary(
-                    Expression::Ident(idx_ident.clone()),
-                    BinaryOp::Equal,
-                    expr::u32_literal(self.ctx.config.max_loop_size as u32),
-                )),
-                consequence: Box::new(Expression::Block(vec![Expression::Break])),
-                alternative: None,
-                typ: Type::Unit,
-            })))],
-        );
-        let inner_block = expr::extend_block(
-            inner_block,
-            vec![Expression::Assign(Assign {
-                lvalue: LValue::Ident(idx_ident.clone()),
-                expression: Box::new(Expression::Clone(Box::new(expr::binary(
-                    Expression::Ident(idx_ident.clone()),
-                    BinaryOp::Add,
-                    expr::u32_literal(1),
-                )))),
-            })],
-        );
+        let Expression::Block(mut inner_stmts) = inner_block else {
+            unreachable!("generated a non-block expression: {}", inner_block)
+        };
 
-        let outer_block =
-            expr::extend_block(outer_block, vec![Expression::Loop(Box::new(inner_block))]);
+        // Increment the index
+        inner_stmts.push(expr::assign_to_ident(
+            idx_ident.clone(),
+            expr::binary(Expression::Ident(idx_ident.clone()), BinaryOp::Add, expr::u32_literal(1)),
+        ));
 
-        Ok(outer_block)
+        // Put everything into if/else
+        let inner_block = Expression::Block(vec![expr::if_else(
+            expr::binary(
+                Expression::Ident(idx_ident.clone()),
+                BinaryOp::Equal,
+                expr::u32_literal(self.ctx.config.max_loop_size as u32),
+            ),
+            Expression::Block(vec![Expression::Break]),
+            Expression::Block(inner_stmts),
+            Type::Unit,
+        )]);
+
+        stmts.push(Expression::Loop(Box::new(inner_block)));
+
+        Ok(Expression::Block(stmts))
     }
 }
 
@@ -799,18 +796,19 @@ fn test_loop() {
     fctx.budget = 2;
     let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap());
 
+    println!("{loop_code}");
     assert!(loop_code.starts_with(
         r#"{
     let mut idx_a$0 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
-        };;
-    "#
+        } else {"#
     ));
 
     assert!(loop_code.ends_with(
-        r#"idx_a$l0 = (idx_a$l0 + 1).clone()
+        r#"idx_a$l0 = (idx_a$l0 + 1)
+        }
     }
 }"#
     ));

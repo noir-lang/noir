@@ -5,7 +5,8 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Binary, BinaryOp, Cast, Definition, Expression, Ident, Literal, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, If, LValue,
+        Literal, Type, Unary,
     },
     signed_field::SignedField,
 };
@@ -273,6 +274,29 @@ pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expressi
         operator: op,
         rhs: Box::new(rhs),
         location: Location::dummy(),
+    })
+}
+
+/// Make an if/else expression.
+pub(crate) fn if_else(
+    condition: Expression,
+    consequence: Expression,
+    alternative: Expression,
+    typ: Type,
+) -> Expression {
+    Expression::If(If {
+        condition: Box::new(condition),
+        consequence: Box::new(consequence),
+        alternative: Some(Box::new(alternative)),
+        typ,
+    })
+}
+
+/// Make an assign to ident expression.
+pub(crate) fn assign_to_ident(ident: Ident, expression: Expression) -> Expression {
+    Expression::Assign(Assign {
+        lvalue: LValue::Ident(ident.clone()),
+        expression: Box::new(expression),
     })
 }
 
