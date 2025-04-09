@@ -150,7 +150,13 @@ mod tests {
             }
         }
 
-        check_program_artifact(&test_program_dir, &target_dir, force_brillig, inliner);
+        check_program_artifact(
+            "execution_success",
+            &test_program_dir,
+            &target_dir,
+            force_brillig,
+            inliner,
+        );
     }
 
     fn execution_failure(mut nargo: Command) {
@@ -217,7 +223,13 @@ mod tests {
             "expected the number of opcodes to be 0"
         );
 
-        check_program_artifact(&test_program_dir, &target_dir, force_brillig, inliner);
+        check_program_artifact(
+            "compile_success_empty",
+            &test_program_dir,
+            &target_dir,
+            force_brillig,
+            inliner,
+        );
     }
 
     fn compile_success_contract(mut nargo: Command) {
@@ -273,6 +285,7 @@ mod tests {
     }
 
     fn check_program_artifact(
+        prefix: &'static str,
         test_program_dir: &Path,
         target_dir: &PathBuf,
         force_brillig: ForceBrillig,
@@ -287,7 +300,8 @@ mod tests {
         let _ = fs::remove_dir_all(target_dir);
 
         let name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-        let name = format!("{}_force_brillig_{}_inliner_{}", name, force_brillig.0, inliner.0);
+        let name =
+            format!("{}_{}_force_brillig_{}_inliner_{}", prefix, name, force_brillig.0, inliner.0);
         insta::assert_json_snapshot!(name, artifact, {
             ".noir_version" => "",
             ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
