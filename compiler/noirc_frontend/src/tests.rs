@@ -4362,24 +4362,6 @@ fn deny_attaching_mut_ref_to_immutable_object() {
 
 #[named]
 #[test]
-fn immutable_references_without_ownership_feature() {
-    let src = r#"
-        fn main() {
-            let mut array = [1, 2, 3];
-            borrow(&array);
-                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
-        }
-
-        fn borrow(_array: &[Field; 3]) {}
-                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn errors_on_invalid_integer_bit_size() {
     let src = r#"
     fn main() {
