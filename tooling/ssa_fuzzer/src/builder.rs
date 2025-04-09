@@ -238,23 +238,19 @@ impl FuzzerBuilder {
     /// Inserts a cast instruction
     pub fn insert_cast(&mut self, value: TypedValue, cast_type: ValueType) -> TypedValue {
         // if we cast to lower type, we need to truncate
-        let mut init_bit_length = 0;
-        let mut value_id = value.value_id;
-        match value.type_of_variable {
-            Type::Numeric(NumericType::NativeField) => {
-                init_bit_length = 254;
-            }
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                init_bit_length = bit_size;
-            }
-            Type::Numeric(NumericType::Signed { bit_size }) => {
-                init_bit_length = bit_size;
-            }
+        let init_bit_length = match value.type_of_variable {
+            Type::Numeric(NumericType::NativeField) => 254,
+            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+            Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
             _ => unreachable!("Trying to cast not numeric type"),
-        }
-        if init_bit_length > cast_type.bit_length() {
-            value_id = self.builder.insert_truncate(value_id, cast_type.bit_length(), init_bit_length);
-        }
+        };
+        
+        let value_id = if init_bit_length > cast_type.bit_length() {
+            self.builder.insert_truncate(value.value_id, cast_type.bit_length(), init_bit_length)
+        } else {
+            value.value_id
+        };
+        
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
         TypedValue::new(res, cast_type.to_ssa_type())
     }
