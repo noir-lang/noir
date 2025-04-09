@@ -91,6 +91,7 @@ impl From<IntegerBitSize> for u32 {
     }
 }
 
+#[derive(Debug)]
 pub struct InvalidIntegerBitSizeError(pub u32);
 
 impl TryFrom<u32> for IntegerBitSize {

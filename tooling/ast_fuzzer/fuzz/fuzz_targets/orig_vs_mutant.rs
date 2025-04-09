@@ -2,34 +2,19 @@
 //! execution result does not change.
 #![no_main]
 
-use acir::circuit::ExpressionWidth;
 use color_eyre::eyre::{self, Context};
 use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use noir_ast_fuzzer::Config;
 use noir_ast_fuzzer::compare::CompareMutants;
-use noir_ast_fuzzer_fuzz::create_ssa_or_die;
-use noirc_evaluator::brillig::BrilligOptions;
-use noirc_evaluator::ssa;
+use noir_ast_fuzzer_fuzz::{compare_results, create_ssa_or_die, default_ssa_options};
 
 fuzz_target!(|data: &[u8]| {
     fuzz(&mut Unstructured::new(data)).unwrap();
 });
 
 fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let options = ssa::SsaEvaluatorOptions {
-        ssa_logging: ssa::SsaLogging::None,
-        brillig_options: BrilligOptions::default(),
-        print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
-        emit_ssa: None,
-        skip_underconstrained_check: true,
-        skip_brillig_constraints_check: true,
-        enable_brillig_constraints_check_lookback: false,
-        inliner_aggressiveness: 0,
-        max_bytecode_increase_percent: None,
-    };
-
+    let options = default_ssa_options();
     let inputs = CompareMutants::arb(
         u,
         Config::default(),
@@ -42,6 +27,5 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec().wrap_err("exec")?;
 
-    let _ = result.return_value_or_err()?;
-    Ok(())
+    compare_results(&inputs, &result, |inputs| [&inputs.program.0, &inputs.program.1])
 }
