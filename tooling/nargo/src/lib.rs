@@ -23,7 +23,7 @@ use std::{
 };
 
 use fm::{FILE_EXTENSION, FileManager};
-use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
+use noirc_driver::{prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, ParsedFiles, def_map::parse_file},
@@ -40,8 +40,12 @@ pub fn prepare_dependencies(
     for (dep_name, dep) in dependencies.iter() {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
-                let crate_id = prepare_dependency(context, &package.entry_path);
-                add_dep(context, parent_crate, crate_id, dep_name.clone());
+                let crate_id = prepare_dependency(
+                    context,
+                    parent_crate,
+                    dep_name.clone(),
+                    &package.entry_path,
+                );
                 prepare_dependencies(context, crate_id, &package.dependencies);
             }
         }
