@@ -1,10 +1,11 @@
 use std::io::IsTerminal;
+use std::ops::Deref;
 
 use crate::{Location, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
-use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
@@ -225,18 +226,26 @@ pub fn report<'files>(
     let color_choice =
         if std::io::stderr().is_terminal() { ColorChoice::Auto } else { ColorChoice::Never };
     let writer = StandardStream::stderr(color_choice);
+    report_with(&mut writer.lock(), files, custom_diagnostic, deny_warnings)
+}
+
+pub fn report_with<'files>(
+    writer: &mut impl WriteColor,
+    files: &'files impl Files<'files, FileId = fm::FileId>,
+    custom_diagnostic: &CustomDiagnostic,
+    deny_warnings: bool,
+) -> bool {
     let config = term::Config::default();
 
-    let stack_trace = stack_trace(files, &custom_diagnostic.call_stack);
-    let diagnostic = convert_diagnostic(custom_diagnostic, stack_trace, deny_warnings);
-    term::emit(&mut writer.lock(), &config, files, &diagnostic).unwrap();
+    let diagnostic = convert_diagnostic(custom_diagnostic, files, deny_warnings);
+    term::emit(writer, &config, files, &diagnostic).unwrap();
 
     deny_warnings || custom_diagnostic.is_error()
 }
 
-fn convert_diagnostic(
+fn convert_diagnostic<'files>(
     cd: &CustomDiagnostic,
-    stack_trace: String,
+    files: &'files impl Files<'files, FileId = fm::FileId>,
     deny_warnings: bool,
 ) -> Diagnostic<fm::FileId> {
     let diagnostic = match (cd.kind, deny_warnings) {
@@ -260,6 +269,7 @@ fn convert_diagnostic(
         .collect();
 
     let mut notes = cd.notes.clone();
+    let stack_trace = stack_trace(files, &cd.call_stack);
     notes.push(stack_trace);
 
     diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(notes)
@@ -304,4 +314,40 @@ pub fn line_and_column_from_span(source: &str, span: &Span) -> (u32, u32) {
     }
 
     (line, column)
+}
+
+
+#[derive(Default)]
+pub struct ReportBuffer(Vec<u8>);
+
+impl Deref for ReportBuffer {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::io::Write for ReportBuffer {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()
+    }
+}
+
+impl WriteColor for ReportBuffer {
+    fn supports_color(&self) -> bool {
+        false
+    }
+
+    fn set_color(&mut self, _spec: &term::termcolor::ColorSpec) -> std::io::Result<()> {
+      Ok(())
+    }
+
+    fn reset(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
