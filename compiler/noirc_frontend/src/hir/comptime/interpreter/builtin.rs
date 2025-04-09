@@ -537,7 +537,7 @@ fn type_def_has_named_attribute(
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
@@ -2505,7 +2505,7 @@ fn function_def_has_named_attribute(
         }
     }
 
-    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary)))
+    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2878,7 +2878,11 @@ fn module_has_named_attribute(
 
     let name = get_str(interpreter.elaborator.interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, &module_data.attributes)))
+    Ok(Value::Bool(has_named_attribute(
+        &name,
+        &module_data.attributes,
+        interpreter.elaborator.interner,
+    )))
 }
 
 // fn is_contract(self) -> bool

@@ -1011,29 +1011,6 @@ pub enum SecondaryAttribute {
 }
 
 impl SecondaryAttribute {
-    pub(crate) fn name(&self) -> Option<String> {
-        match self {
-            SecondaryAttribute::Deprecated(_) => Some("deprecated".to_string()),
-            SecondaryAttribute::ContractLibraryMethod => {
-                Some("contract_library_method".to_string())
-            }
-            SecondaryAttribute::Export => Some("export".to_string()),
-            SecondaryAttribute::Field(_) => Some("field".to_string()),
-            SecondaryAttribute::Tag(custom) => custom.name(),
-            SecondaryAttribute::Meta(meta) => match &meta.name {
-                MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
-                MetaAttributeName::Resolved(_) => {
-                    // TODO: Resolve the expression to get the name
-                    None
-                }
-            },
-            SecondaryAttribute::Abi(_) => Some("abi".to_string()),
-            SecondaryAttribute::Varargs => Some("varargs".to_string()),
-            SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
-            SecondaryAttribute::Allow(_) => Some("allow".to_string()),
-        }
-    }
-
     pub(crate) fn is_allow_unused_variables(&self) -> bool {
         match self {
             SecondaryAttribute::Allow(string) => string == "unused_variables",
@@ -1115,7 +1092,7 @@ pub struct CustomAttribute {
 }
 
 impl CustomAttribute {
-    fn name(&self) -> Option<String> {
+    pub(crate) fn name(&self) -> Option<String> {
         let mut lexer = Lexer::new_with_dummy_file(&self.contents);
         let token = lexer.next()?.ok()?;
         if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
