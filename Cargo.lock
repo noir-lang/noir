@@ -3311,6 +3311,7 @@ dependencies = [
  "color-eyre",
  "libfuzzer-sys",
  "noir_ast_fuzzer",
+ "noirc_abi",
  "noirc_evaluator",
  "noirc_frontend",
 ]
@@ -3625,6 +3626,7 @@ dependencies = [
  "function_name",
  "fxhash",
  "im",
+ "insta",
  "iter-extended",
  "noirc_arena",
  "noirc_errors",
