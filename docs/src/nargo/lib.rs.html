@@ -186,7 +186,15 @@
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -250,7 +258,7 @@
 <span class="kw">pub fn </span>insert_all_files_for_workspace_into_file_manager_with_overrides(
     workspace: <span class="kw-2">&amp;</span>workspace::Workspace,
     file_manager: <span class="kw-2">&amp;mut </span>FileManager,
-    overrides: <span class="kw-2">&amp;</span>HashMap&lt;<span class="kw-2">&amp;</span>std::path::Path, <span class="kw-2">&amp;</span>str&gt;,
+    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
 ) {
     <span class="kw">let </span><span class="kw-2">mut </span>processed_entry_paths = HashSet::new();
     <span class="kw">for </span>package <span class="kw">in </span>workspace.clone().into_iter() {
@@ -271,7 +279,7 @@
 </span><span class="kw">fn </span>insert_all_files_for_package_into_file_manager(
     package: <span class="kw-2">&amp;</span>Package,
     file_manager: <span class="kw-2">&amp;mut </span>FileManager,
-    overrides: <span class="kw-2">&amp;</span>HashMap&lt;<span class="kw-2">&amp;</span>std::path::Path, <span class="kw-2">&amp;</span>str&gt;,
+    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
     processed_entry_paths: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
 ) {
     <span class="kw">if </span>processed_entry_paths.contains(<span class="kw-2">&amp;</span>package.entry_path) {
@@ -285,7 +293,44 @@
         .parent()
         .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"The entry path is expected to be a single file within a directory and so should have a parent {:?}"</span>, package.entry_path));
 
-    <span class="kw">for </span>entry <span class="kw">in </span>WalkDir::new(entry_path_parent).sort_by_file_name() {
+    insert_all_files_under_path_into_file_manager(file_manager, entry_path_parent, overrides);
+
+    insert_all_files_for_packages_dependencies_into_file_manager(
+        package,
+        file_manager,
+        overrides,
+        processed_entry_paths,
+    );
+}
+
+<span class="comment">// Inserts all files for the dependencies of the package into the file manager
+// too
+</span><span class="kw">fn </span>insert_all_files_for_packages_dependencies_into_file_manager(
+    package: <span class="kw-2">&amp;</span>Package,
+    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
+    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
+    processed_entry_paths: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
+) {
+    <span class="kw">for </span>(<span class="kw">_</span>, dep) <span class="kw">in </span>package.dependencies.iter() {
+        <span class="kw">match </span>dep {
+            Dependency::Local { package } | Dependency::Remote { package } =&gt; {
+                insert_all_files_for_package_into_file_manager(
+                    package,
+                    file_manager,
+                    overrides,
+                    processed_entry_paths,
+                );
+            }
+        }
+    }
+}
+
+<span class="kw">pub fn </span>insert_all_files_under_path_into_file_manager(
+    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
+    path: <span class="kw-2">&amp;</span>std::path::Path,
+    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
+) {
+    <span class="kw">for </span>entry <span class="kw">in </span>WalkDir::new(path).sort_by_file_name() {
         <span class="kw">let </span><span class="prelude-val">Ok</span>(entry) = entry <span class="kw">else </span>{
             <span class="kw">continue</span>;
         };
@@ -313,35 +358,6 @@
         };
 
         file_manager.add_file_with_source(path.as_path(), source);
-    }
-
-    insert_all_files_for_packages_dependencies_into_file_manager(
-        package,
-        file_manager,
-        overrides,
-        processed_entry_paths,
-    );
-}
-
-<span class="comment">// Inserts all files for the dependencies of the package into the file manager
-// too
-</span><span class="kw">fn </span>insert_all_files_for_packages_dependencies_into_file_manager(
-    package: <span class="kw-2">&amp;</span>Package,
-    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
-    overrides: <span class="kw-2">&amp;</span>HashMap&lt;<span class="kw-2">&amp;</span>std::path::Path, <span class="kw-2">&amp;</span>str&gt;,
-    processed_entry_paths: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
-) {
-    <span class="kw">for </span>(<span class="kw">_</span>, dep) <span class="kw">in </span>package.dependencies.iter() {
-        <span class="kw">match </span>dep {
-            Dependency::Local { package } | Dependency::Remote { package } =&gt; {
-                insert_all_files_for_package_into_file_manager(
-                    package,
-                    file_manager,
-                    overrides,
-                    processed_entry_paths,
-                );
-            }
-        }
     }
 }
 

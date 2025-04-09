@@ -400,7 +400,9 @@
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::ops::ControlFlow;
 <span class="kw">use </span>std::path::PathBuf;
 
@@ -464,6 +466,7 @@
 ) -&gt; ControlFlow&lt;<span class="prelude-ty">Result</span>&lt;(), async_lsp::Error&gt;&gt; {
     <span class="kw">let </span>text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
+    state.workspace_symbol_cache.reprocess_uri(<span class="kw-2">&amp;</span>params.text_document.uri);
 
     <span class="kw">let </span>document_uri = params.text_document.uri;
     <span class="kw">let </span>output_diagnostics = <span class="bool-val">false</span>;
@@ -480,6 +483,7 @@
 ) -&gt; ControlFlow&lt;<span class="prelude-ty">Result</span>&lt;(), async_lsp::Error&gt;&gt; {
     state.input_files.remove(<span class="kw-2">&amp;</span>params.text_document.uri.to_string());
     state.cached_lenses.remove(<span class="kw-2">&amp;</span>params.text_document.uri.to_string());
+    state.workspace_symbol_cache.reprocess_uri(<span class="kw-2">&amp;</span>params.text_document.uri);
 
     state.open_documents_count -= <span class="number">1</span>;
 

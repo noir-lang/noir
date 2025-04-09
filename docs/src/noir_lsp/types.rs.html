@@ -244,10 +244,14 @@
 <a href="#243" id="243">243</a>
 <a href="#244" id="244">244</a>
 <a href="#245" id="245">245</a>
-<a href="#246" id="246">246</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::{
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
-    SignatureHelpOptions, TypeDefinitionProviderCapability,
+    SignatureHelpOptions, TypeDefinitionProviderCapability, WorkspaceSymbolOptions,
 };
 <span class="kw">use </span>noirc_frontend::graph::CrateName;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -402,6 +406,10 @@
     <span class="doccomment">/// The server provides code action support.
     </span><span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) code_action_provider: <span class="prelude-ty">Option</span>&lt;OneOf&lt;bool, CodeActionOptions&gt;&gt;,
+
+    <span class="doccomment">/// The server provides workspace symbol support.
+    </span><span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) workspace_symbol_provider: <span class="prelude-ty">Option</span>&lt;OneOf&lt;bool, WorkspaceSymbolOptions&gt;&gt;,
 }
 
 <span class="attr">#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]

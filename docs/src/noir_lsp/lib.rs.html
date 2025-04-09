@@ -461,7 +461,15 @@
 <a href="#460" id="460">460</a>
 <a href="#461" id="461">461</a>
 <a href="#462" id="462">462</a>
-<a href="#463" id="463">463</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -487,7 +495,7 @@
     CodeLens,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
-        PrepareRenameRequest, References, Rename, SignatureHelpRequest,
+        PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
 <span class="kw">use </span>nargo::{
@@ -515,11 +523,12 @@
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 <span class="kw">use </span>requests::{
-    LspInitializationOptions, on_code_action_request, on_code_lens_request, on_completion_request,
-    on_document_symbol_request, on_formatting, on_goto_declaration_request,
+    LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
+    on_completion_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
     on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
     on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
+    on_workspace_symbol_request,
 };
 <span class="kw">use </span>serde_json::Value <span class="kw">as </span>JsonValue;
 <span class="kw">use </span>thiserror::Error;
@@ -563,6 +572,7 @@
     cached_parsed_files: HashMap&lt;PathBuf, (usize, (ParsedModule, Vec&lt;ParserError&gt;))&gt;,
     workspace_cache: HashMap&lt;PathBuf, WorkspaceCacheData&gt;,
     package_cache: HashMap&lt;PathBuf, PackageCacheData&gt;,
+    workspace_symbol_cache: WorkspaceSymbolCache,
     options: LspInitializationOptions,
 
     <span class="comment">// Tracks files that currently have errors, by package root.
@@ -595,6 +605,7 @@
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
+            workspace_symbol_cache: WorkspaceSymbolCache::default(),
             open_documents_count: <span class="number">0</span>,
             options: Default::default(),
             files_with_errors: HashMap::new(),
@@ -632,6 +643,7 @@
             .request::&lt;Completion, <span class="kw">_</span>&gt;(on_completion_request)
             .request::&lt;SignatureHelpRequest, <span class="kw">_</span>&gt;(on_signature_help_request)
             .request::&lt;CodeActionRequest, <span class="kw">_</span>&gt;(on_code_action_request)
+            .request::&lt;WorkspaceSymbolRequest, <span class="kw">_</span>&gt;(on_workspace_symbol_request)
             .notification::&lt;notification::Initialized&gt;(on_initialized)
             .notification::&lt;notification::DidChangeConfiguration&gt;(on_did_change_configuration)
             .notification::&lt;notification::DidOpenTextDocument&gt;(on_did_open_text_document)
@@ -892,18 +904,22 @@
     workspace: <span class="kw-2">&amp;</span>Workspace,
     file_manager: <span class="kw-2">&amp;mut </span>FileManager,
 ) {
-    <span class="comment">// Source code for files we cached override those that are read from disk.
-    </span><span class="kw">let </span><span class="kw-2">mut </span>overrides: HashMap&lt;<span class="kw-2">&amp;</span>Path, <span class="kw-2">&amp;</span>str&gt; = HashMap::new();
-    <span class="kw">for </span>(path, source) <span class="kw">in </span><span class="kw-2">&amp;</span>state.input_files {
-        <span class="kw">let </span>path = path.strip_prefix(<span class="string">"file://"</span>).unwrap();
-        overrides.insert(Path::new(path), source);
-    }
-
+    <span class="kw">let </span>overrides = source_code_overrides(<span class="kw-2">&amp;</span>state.input_files);
     nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
         workspace,
         file_manager,
         <span class="kw-2">&amp;</span>overrides,
     );
+}
+
+<span class="comment">// Source code for files we cached override those that are read from disk.
+</span><span class="kw">pub fn </span>source_code_overrides(input_files: <span class="kw-2">&amp;</span>HashMap&lt;String, String&gt;) -&gt; HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>overrides: HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt; = HashMap::new();
+    <span class="kw">for </span>(path, source) <span class="kw">in </span>input_files {
+        <span class="kw">let </span>path = path.strip_prefix(<span class="string">"file://"</span>).unwrap();
+        overrides.insert(PathBuf::from_str(path).unwrap(), source);
+    }
+    overrides
 }
 
 <span class="attr">#[test]

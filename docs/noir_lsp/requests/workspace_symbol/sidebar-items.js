@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_workspace_symbol_request"],"struct":["WorkspaceSymbolCache","WorkspaceSymbolGatherer"]};
