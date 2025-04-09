@@ -399,6 +399,7 @@ mod test {
             114, 116, 118, 119, 120, 121, 123, 123, 123, 125, 126, 127,
         ];
         assert(sorted == expected);
+    }
 
     #[test]
     fn mapi_empty() {
