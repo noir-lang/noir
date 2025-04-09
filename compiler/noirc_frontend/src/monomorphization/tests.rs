@@ -116,17 +116,17 @@ fn simple_closure_with_no_captured_variables() {
 
     let program = get_monomorphized!(src, Expect::Success).unwrap();
     insta::assert_snapshot!(program, @r"
-    fn main$f0() -> Field {
-        let x$0 = 1;
-        let closure$3 = {
-            let closure_variable$2 = {
-                let env$1 = (x$l0);
+    fn main$f0() -> pub Field {
+        let x$l0 = 1;
+        let closure$l3 = {
+            let closure_variable$l2 = {
+                let env$l1 = (x$l0);
                 (env$l1, lambda$f1)
             };
             closure_variable$l2
         };
         {
-            let tmp$4 = closure$l3;
+            let tmp$l4 = closure$l3;
             tmp$l4.1(tmp$l4.0)
         }
     }
