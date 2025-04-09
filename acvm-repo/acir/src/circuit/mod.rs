@@ -6,7 +6,7 @@ pub mod opcodes;
 
 use crate::{
     native_types::{Expression, Witness},
-    serialization::{deserialize_any_format, serialize_with_format_from_env},
+    serialization::{self, deserialize_any_format, serialize_with_format_from_env},
 };
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -250,7 +250,7 @@ impl<F: AcirField> Circuit<F> {
 impl<F: Serialize + AcirField> Program<F> {
     /// Serialize and compress the [Program] into bytes.
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = serialize_with_format_from_env(self)?;
+        let buf = serialize_with_format_from_env(self, Some(serialization::Format::default()))?;
 
         // Compress the data, which should help with formats that uses field names.
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
