@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "15940644962450072335",
+  "abi": {
+    "parameters": [
+      {
+        "name": "enable",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 4,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9Vau27rRhBd2qTMh2gJCRAgKS6QLklFva58Oxb5EcWyv4O/FyBIlzZluvRpEsTr7FCHhyNK1+LYzgLCUtzhzJkzs7PSciP3X0uePlG4jkMfQX/luk3G6tBXl7XFiLoqK4zRiBiRW+Hbc3wdvicObrJD7tRDIPtNuMhIXxSeq0ciJyO7Y+q/q9a7zHXbyPhXmesm+sj6lxnoNNBf3QQ9PzYH/eyL5EHkzOK0NvZzWbp+QYrIt9goRyKy58hPR/ZzZ5pTi4jsCR7mR65LkWkOeCIai5u+HzKWNF0/fEufPh9AjnPrCuS+h+sfXBfDleJDpPhgmV9P+fvROIfWWgw4PnHTtY1jGIMY+PxA/FjkHPJjNL/XX7rjtUvy4aZxbbsmPpEj4SxFeRrLYCxuunby8D0GO6hLcCQk/134Pgv9BJ6R5+eK/QnZ7+BW7iFHrOtauSfyk6fPt+G6CB+fQ3/JM67Lu2916KsLm9QIrFlcvxO4P2Jubc6t3208nWktaOt3QniYH6wPfmyiYJ0rY+gbjqGdiWLn/6irdP2cjY70zvXjrtlBGYmH8fqwHOJE+40xc/05MyGs7H89DtaFxsWI+qtS4YJrxY1NHM6uFWI/d3pu1iNxHZE9wXNsrgh3qYJ1roxFdJ0qdlLFjrWu2EAX545vdeiry9rCKZh4fopdiVFGsogxh/tv8V9G7OeE1Sq/c8LD/HB+FwrWuTKG/OMY2ikUO5qulDBwrJ0zj9/mpfFLbfAMxk+bn58bP64pl8Qvfue6OHd8q0NfXdaWTsHE8yO3x7EVW9MzcJQKDp5nJdx/izop9nNnOu/beVYSHuaH59mtgnWujPGcu1Xs3Cp2NF1TwsA551tGsm9VJ8V+rvBgEb+pwqtWJ4S7UsE6V8a4Tmp5Uip2rHXFBrj4/41vdeiry9pKbA3Vp1fAsXEKN8dwlAoOxojz8y3qpNjPXT/HLOaZVr8QI8+zmYJ1roxhvcIxtDNT7Gi6SsLAOeeb8Tp3dp3kdc6obg+uc1OF189d57geXbLOvXddvE/jWx366rK2FltD9Yn3etnHof/G2jtt472fs2sZ7/0Y7VsP7v0gP0Nzgfd+tHlimXMjc9LuDSInr1Qr9y+tlUb5OlgrkZ+X1krc07w0P7IRdY1ZK9MRdeXv1Mcx/9tF79TH6Yi6EgMfLc/fVPBOxmgtas/3GL3nWPH5HuTO2/yZYiJjieuffUEeEpL/FXT+Eq5nTo+NbwWMx8q4PCd15OoIHq6luLfN+6WIxXg/+V5sFQqfWLNz1+VT5H8Lvcf+D+HX9oS1dYkxoDz6LXhmCl8FjSF2kTPmsmI/4hN+XLl+fUYOmOvfQ+/9iaIud1o+ae9PtPdjGT2HePisiZYbvGdmvLfXvitvz0YdwTWFcZT/wx145JzV9ue09xiMAeXRb85Z5Ko9i6RgH7N2RwofWo3KXJcvkf/T9fnSzrPhWudb3Jj4s/E44uiAg2OUgN1Ttda5fky1HMDY8FzCePNvraEzmiKDunBd4feNp9ZGS963d4fD6xLzxHXP3Tiyn5D83+E71kL0p34hzsftbvG42j3uNrv9fn2/+4L0O+CuMLD/cPdpX316fNgtFovlvnp4bfu77erufrm+3/60We1WH0/6r51PxHnsm5xxxDOQKC/6EpJPgwKflznM0WdZxZ6X+3pALjrSP+tQ7sVN9552NhLPjIp8+5+96WOUsQLGsMb4Ng3fkS/UJTgSkv8qKJCY4DlPeX6u2E/Jfge3co/X8UKRLxR5H59ZeKj9DQi2x97PeLZJ+vEeY5Pc8Xn9L+F17hnVNAAA",
+  "debug_symbols": "tdvdattAEIbhe9GxD3ZnZ/Ynt1JKcBInGIwdHKdQQu69VrDV1BIqg3hPQpToe/wzfEK2Vh/d0+bh/eV+u38+vHV3Pz663eFxfdoe9uetj89V93Dc7nbbl/vvf+5C/0PT1/5vr+t9v/l2Wh9P3V1UW3Wb/VP/Wz7nn7e7TXdn4fPnqlN1J8ydyO5EcSeqO9G8CQvuRHQnxJ1wz9zcMzf3zM09c3PP3NwzN/fM8/TMS74mqt0mojsh7sT0zIsMiX9ex2q0q8QrLjLClcSNxDOJFxKvJN5AvAQSjyQuJE42tJANLWRDC9nQQja0LG1oyumya8r1Fm8gXgOJRxIXEk8kriRuJJ5JvJA42dC6uKHD6Vwq5QZvgcQjiQuJJxJXEjcSzyReSLySONnQGAKqR1RfWlJN7bKrqo70hOpLa6p6fWfU4kg3VM+oXlC9onoj9RhQPaK6oHpCdbSrcXFXbTjO5DDSM6oXVK+o3khdAqpHVBdUT6iuqI52VdCuCtpVWdpVk3DZ1UbfUUVppJ7CYr1c9SQjPaK6oHpCdUV1Q/WM6gXVK6o3Ule0q7q4qzocZ3R0pqeC6gnVFdUN1TOqF1SvqN5I3QKqo101tKuGdtWWdjUHveyaQxvphupLu5pjvOoxj/SC6hXVG6nngOoR1QXVE6orqhuqL+6qDEeC8aeyxeuS5vWK6o3UFy9NmtcjqguqJ1RXVDdUR7ta0K4WtKsF7WpFu1rRrla0qxXtakW7WtGuVrSrFe1qRbta0a42tKsN7WpDu9rQrja0q43sqkyvcJHhI66EcWTy5c6t0ZXpFRfzjzJZc5F6jYy+/ZTptRHzkeaOTK9imI9Ef0T8keSPqD9i/kj2R/zTj/7pR//0xT998U9f/NMX//SnrzVLGiKaRhHzR/43/dHiMpHij1R/pLkjKfgj0R8RfyS5j8nJfxifviQ5H8n+SPFHqj/S3JHpa3fzkeiPiD/in776p6/O6X+et36tj9v1w25zuUP6+X3/+O2G6dPv183NvdOvx8Pj5un9uOnvov57A3X/zksOK6nx/FT6l5vCSkN/fvT1L60rsdRv9m+4WDlvtvMzOD+LPw==",
+  "file_map": {
+    "50": {
+      "source": "struct bar {\n    enable: [bool; 4],\n    data: [Field; 2],\n    pad: u32,\n}\n\nfn main(enable: [Field; 2]) -> pub [Field; 4] {\n    let mut result = [0; 4];\n    let a: [_; 4] = foo(enable[1]);\n    for i in 0..4 {\n        result[i] = a[i].data[i % 2];\n    }\n    result\n}\n\nfn foo(x: Field) -> [bar; 4] {\n    [\n        bar { enable: [true, true, false, false], data: [x, x + 1], pad: 0 },\n        bar { enable: [true, false, false, false], data: [x + 2, x + 7], pad: 0 },\n        bar { enable: [true, true, false, true], data: [x + 3, x + 5], pad: 0 },\n        bar { enable: [false, false, false, false], data: [x + 4, x - 1], pad: 0 },\n    ]\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/wildcard_type/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

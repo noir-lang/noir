@@ -1,0 +1,73 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "17145319852592804036",
+  "abi": {
+    "parameters": [
+      {
+        "name": "idx",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1USw6CMBDtT1FM3LlwxxFa2kK704UHkVj2nsq7eA4PIsRBS9OdJcHEl0ymPMjjMY8MRi/kXW3hjLui0PsqAo5EOBrhWIRbRLglcBS0ieeDQEfBPR8H6PxLIO+9CXXFL3hcpfRIIXwGgsP1AsLGXrgM/QOdwuN6Ao/vMGf6540+WvJKKVeXTkhx5qVtjOZKN5URRmijL6WR0hllatvYmluhpBOttrIFsTzhAP1t1+sWaAySeKbZTOdAvTn0yNBnwzOPGzAsiXCBhMDeeQN99zjur/fbKXz2CbgLInHyBgAA",
+  "debug_symbols": "ldDLCoMwEAXQf5m1C1Ntrf5KKRLzkEBIQh6FEvz3RmlExE12c+dyZjERKJvCPArFtYPhFUFqgr3QKqUIj23lDFZrch5bDwOquwqYomlCzVIBF5LBcK+XdwVdKXhegtsOmjPoSwGqL0XTZ9G2Z4HKRAqTFVKKeTx+L60/2Ao8SfaPPChyaP3X5CZ7YzVhNFi2Xtq6dP4H",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/databus_two_calldata_simple/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

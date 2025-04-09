@@ -1,0 +1,62 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "16848682576599575677",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "array",
+        "type": {
+          "kind": "array",
+          "length": 1,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VWy07DMBDcNHbbFFVFcETiBlw42H2l5ZQD5T8iknyHP51EeMlkY4FE45Ws2N7xzHq9cZLQt83alvi+gjlpjCn801xndkIuk0B8seJNJo6XZK5ngeCxH/K/+WcmMJ0/nXDzmdCdkv9k9nlG48ObMP5dBpwR+LfMr+Lwm4XneXdDfhK6qcCF1jDmApgLYDpb+z7WIfPwXmPUWlsLh8i5tGsa5g/3zdo6jvY2EXpEw3Mkob+iqHVrE6HH8cj88FmvGeP6eKRPufE+2KfBx+e7bNsD4EK1xbhn6L8I7g/Xr5HnGalWj5HvFXv/Sz54jwtHP8a+FOY455ynJeKFLwOfckOdlR8r0EEujkML/JMfb/xzDmt4/W1Afy70B3EH5jBHkisNzDF+3rZH37/xrasvy2so7n0k30FN/TuId4ICP+JfORdtywGPawg48T9iJvChe0AJTGcbGteiBk4ZO94lXX75e6/cEFP4eXOF5af+B4vrW4sYSOhrgT/68Qr2QJCP4p9xNnlpm13ZlIeyqvaf5Z3g5/xxnqbWr0/nypyburTWbitT/6X/BRPepMMlDAAA",
+  "debug_symbols": "lZHdCoMwDEbfJde98Ke1rK8yhlSNUiit1DoY4ruvGYPJ7nIT+MIJCTkHTDjsS+/CHDcw9wN8HG12MZR0nAKG5Lx3S39tQ0VFVh9+W22guGWbMpiuE4BhAqNlmZ6dRzCqOh8CZM3kGybfMnnJ5BWT75i85vBnSU+bnB08flXNexgv5vJrxT+Ja4ojTntC0vkzSY9rtGh1uaImq/ImlKRAypQSSpd9Zecb",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/regression_7143/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

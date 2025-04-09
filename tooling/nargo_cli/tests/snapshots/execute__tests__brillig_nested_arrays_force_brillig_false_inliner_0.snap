@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "14991988209205674160",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "7ZvbTttKGEbfxde5mPkPc+BVtraqAGkVKQooQKUqyrvXiXCqxlO7q6qlXnCHidcPZhHHn7/xsXvc3L99+bTdf3566e7+O3a7p4f16/Zp328du3D51svzen/eenldH167uxhKXnWb/WP/ZRQ5rbrP292mu/Nw+n/VxVnE4g0iTSTWMiCitz9Fm4iYXJESfkL6jfvDdrfbfvl0e4THLobcmudh+KU9lNvDDKWFSKjviMQ8QipGYuBI5IhwRDliHHGOJI5kjnD7kdsXbl+4feH2hdsXbl+4feH2hdsXbl/m7Eu6RTRwJHJEOKIcMY44R9r25YroyItmjhSOVIxY4EjkiHBEOWIccY5w+8btG7dv3L5z+87tO7fvc/Zt9K5044hzJHEkc6RwpGIkzZ35G8jcmT/pCGnbT2lAahwhyhHjiHMkcSRzpHBk7nP/BjldEtQ5kjSPKKm9gymFUb7IHCkcqRhpp5hpJHJEOKIcMY74DJLr6bdSzDSSOVI4UjHSvlqeDNfCs5LyrKQ8KynPSsqz0uzVcgPhWUl5VlKelZRnJeX2jds3bt+4feP2jds3bt+4feP2jds3bt95UnaelJ0nZedJ2XlSdp6UPXGEZyXnWcl5Vko8KyWelRLPSokn5cSTcuJJOfGknLj9xO0nbj9z+5nbz9x+5vYzT8qZJ+XMk3LmSTnzpJx5Ui6BI3Nn/gYyd+Yfh+vCk3LhSbnwpFx4Ui48KReelEvFSJ373B+Ha7mE6+afLRd950oY31/BRMZEwUSlRLtRmiSab5ec4kDEn/73V0cSjdvV098arksOtyWH+5LD05LD85LDy5LD64LD2zcn/mz46AaLxiWHy5LDdcnhtuDwdqzXOhBa/ZYwTDgmEiYyJgomKiXaeX6SiJgQTGDnjp07du7YeTvImw4XWjYKJu0cP0lUSrRT/CQRMSGYUEwYJhwTTedWr0QdERkTBROVEu3sPklETAgmFBOGCccEdp7xosaMm5p2ZJ8i2ol9koiYEEwoJgwTjomECey8YOcFO6/YecXOK3ZesfOKnVf81628/gi8/Aq8/Aq8/Aq8/ArGEV5+BV5+BV5+fSwRxwi3/7FE/A4WecKrT+HVp/Dqc3aJeAPh1afw6lN4+SW8/BJefikvv5SXX8rLL+Xl1y8WvUwivPr8WCKOkX9jifi4lTNefRqvPo1Xn8arT+PVp/Pq03n16bz6dF59/mLRyyTCq0/n1afz6tN59em8+ky0+uy3vq4P2/X9bnN+8PH84tv+YXgOst98/fY8vDI8Kfl8eHrYPL4dNudnJn88Lnn2299f7K/VL5es/VbMsoo5X65hLptl1Vfz18XMF0B7QK+AxFX/SXwFzq9W/1HQnvfpb4BZvO6R+j1Sv8epP5bv",
+  "file_map": {
+    "50": {
+      "source": "struct Header {\n    params: [Field; 3],\n}\n\nstruct MyNote {\n    plain: Field,\n    array: [Field; 2],\n    header: Header,\n}\n\nunconstrained fn access_nested(notes: [MyNote; 2], x: Field, y: Field) -> Field {\n    notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]\n}\n\nunconstrained fn create_inside_brillig() -> [MyNote; 2] {\n    let header = Header { params: [1, 2, 3] };\n    let note0 = MyNote { array: [1, 2], plain: 3, header };\n    let note1 = MyNote { array: [4, 5], plain: 6, header };\n    [note0, note1]\n}\n\nunconstrained fn assert_inside_brillig(notes: [MyNote; 2], x: Field, y: Field) {\n    assert(access_nested(notes, x, y) == (2 + 4 + 3 + 1));\n}\n\nunconstrained fn create_and_assert_inside_brillig(x: Field, y: Field) {\n    assert_inside_brillig(create_inside_brillig(), x, y);\n}\n\nfn main(x: Field, y: Field) {\n    // Safety: testing context\n    unsafe {\n        let header = Header { params: [1, 2, 3] };\n        let note0 = MyNote { array: [1, 2], plain: 3, header };\n        let note1 = MyNote { array: [4, 5], plain: 6, header };\n\n        assert(access_nested([note0, note1], x, y) == (2 + 4 + 3 + 1));\n\n        let notes = create_inside_brillig();\n        assert_inside_brillig(notes, x, y);\n        create_and_assert_inside_brillig(x, y);\n    }\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_nested_arrays/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "access_nested",
+    "assert_inside_brillig",
+    "create_and_assert_inside_brillig"
+  ]
+}

@@ -1,0 +1,56 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "7311745121465047780",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81WwU7DMAxNumaQTTAEd46cOCTtRrvbDsB/RLT9jn06i7A113MFUhMxS1XS2n7v7SXNqtVPFKdLw7wkz3hgzQFGNy98QiyXU6dOqFMTncXFhIincym/g9GymphfJPzxlvGmxG/dtrFqHIn115ZgZsCvEL/Mg+9uAOf9OMZXjPcO7un+wR7M0X30Abnb03WvzvMNwYvxSXgR2zK8xHviLfOa+acJ/THW4MMr8xXzSvAh09rXmvEp5oli/KvMvmnGh3q4PwXzzghaH4ScZnMj8BiBR8IqWF85wRPzVuhPeUYg5xLwzIQuQ/K0/hnGuC+rP3gkrQXXQOul9dmoS6+WrI9q5+/StXv6AuN/eEr7aa90zlD/+Xulhb54fuF/ankc5w/w3M2Ipj1/xCwA3zDdivEbVu/hfkX041jO0Dk0wQ91GMIudN32KzwyfEU8XGfg79t95/ZDH7z3Vef63/i/AWxSU/OBCwAA",
+  "debug_symbols": "tdbLaoQwGAXgd8k6i5iLUV+llCFqHAIhStRCEd+9SZmCtZ3ZzJyN+MvxSwgEzkZ6267XiwvDOJPmbSN+7MzixpCmbaekjc57d70cPxOWH0X5nZ8nE/I4LyYupCmYpsSGPr1xlf4fnLekUWynf6Kcl7col7+i75QUGolXSLwG4pwh8QKJcyQukLhE4upfXKgfXInH+N1oxssn8cPOhTzjGolXSLwG4oIh8QKJcyQukLh8Fhf67g0VComXSFwj8QqJ10BcMiT+wht6wvc0fZjoTOvtrZwNa+gOXW35nOyptk1x7Gy/RpsL3KG75TOQkso6N5a8Z8Wo4mmNtM4X",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_uninitialized_arrays/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,70 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "10229123039271059191",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 10,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 10,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYzW7bMAyWE9up7WbJ2j3AgN22Hew6WRLsssMOOwwFNmDADsMA5e8wYHsGPfrEVKw/M0oKtFYBCyAkixT5kaIoJZG6a68sRW4cu37geprPVbux7CfXl09rVYe6ylAYox5gHPQA47AHGOMeYEx6gDHtAcZRDzBe9ABjFgBjCJx5hzgjwMh3ZGHp0tLY0gtLE0tTSy8tXVm6Vnf37b0wOkoFnAokFSA64HSAKEEpATLVvogfZVA1Af3n+sz1eOF3WKSrTNjtUv+ynK8y1W4d468z0BlA/5r1x2H0lyOn57Np61fCLs/dmiaWt7CGKINx93s5mwWOhR4L/xX4wraTQPscCXtK7IMS9nMVNO+qSNhjPDI+XBfGLGMaPJHgxebYD+YlwOP9pbr2GuR8uYU8xkKNc5N0vAN971Ub38DjX+TxL+Q5t7m9f47cPvhoGv1y72LTto28h/YnEzpDxSdQvuvrE/h5TG1k1H0binhijDhmFygveBnwYtO2k7vvGOygLsaRCPm37nvi+hTW8Pqpx34q7Ldwe+YwRlLX0DPH8vReeePGhSPKoa+AW8Zd1t9Q96Csdxx7n032Sd4HWCsTMVe7nvz9LvzDenquxk7V6Roo1/lyWZ5R1WH8WHcqbHakX7PfI4ivz+cU+Cj/UTXx/+HG5+4sfjfGJog/a8LxE3Ac5Y/AlAJv6JHHvUa/UV7uDbWpkMf8mKjjPJLnMVA9LqXfeB59OT7w+IgxS8TcF9f7zqM8N/LMnDuPeKdKHu9XocLm12LZ/Pjk3ObzIlsMfJT/5r5zwM/9U/4A2y90ta/1Xs/1djvb6CuhX0EMiwD29aJebm5mm8V6Xuv6w7Pb3y1X23K13+mqqm625e4h+767HOsVNX4P4HsB5VlfIuR/sayl324s33toj+T+npGLTvQHHZ652LTnfO8IfF+xPNvOzTFG5hXAw1pK7dJ9Y7xQF+NIhPwf9817gm8iXj/12L8Q9lu4PXPyfVV45AuPPO3PhvW5Hn3v+vfhwabQj3MSG+cO5fV/PlELBF0aAAA=",
+  "debug_symbols": "lZTBisMgFEX/5a1dJCY+bX5lGIpJTBHEBJMMDCH/Pjq0tJRu7kZ8esSnB+5Bo+v329XHaV6p+zoozIPd/BxzdZyC+uRD8Lfr6zJVZVDNP78uNpZy3WzaqNNKkItjnnA+PfngqFPV+S1ItZ94bh+8fOcVyDPIa5A3IH/BeK5AvgZ5CfINyIN+GfTLoF8G/TLol0G/GvSrQb8a9Kshv2eufmzytg/uHg3THoeXpNh+F/cWGkuaBzfuyZX4eCZH+QhjRF1dchuli0aKVuZ5XXY0C1OXorzfSGHafHlu4A8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/array_dynamic_main_output/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

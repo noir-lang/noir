@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "13143478736738790416",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71XTU/DMAx112ZrCtMm+CPpPrTtxgGJEye4gMShYuvv2E+HSrHqvbmlaEkjVWlkx+/5OUmbhNqW+D6DMSk+T753t7UyYCynEu1r7PPle+v7ibCnAZO1gBsy/t5ttlbJLyD/tfUxY+rDMSPEdzMf5/ncxsdcmjb3Y7mGeE7++9xT+z737xbmxKhtRO3do8Kfse58ru+Q60ToE4jHak6XtSDBiXGzOBqsEsAjulyLBPgFRV2vZQJ4zAf14TqwdkbhulRskw5dKVwOa+TE2BJ3Gke/wfVk/ELRKEY9p8AH9cF6zhSuS8WWdehKAXNATowtcfM4+m2G1pPxC0WjGPXMgQ/qg/W0CtelYpP7QtokjlVwtFhpwFgG8uk7qyPtpcF7m/HHOquNomvfWZ0rXJeKDfeb1JUfHmeAn3TMa+yWxt0jpoPXTNil/873zfgTcpaa9Gk9ZJ9KPgtFK54b8z9P6qXlZnq4ynU9A66RarvqO0uMwmdB1+vajsN1zVyLf3KV556cK+cZuq7BFGzs+zJOvu5BxCXS17p2VuXgI7VIldyHaDHp0OIVtIj0H6hqgd/WVNHCgo/UQrs3oq9RfDOwse8baBHrDqxpwVh3IufsHB5/t3eOcdNzq4PUjwDfgP+HHxdKHtkNPOtdVdbrqq621fG4+a5Qp6bJ+3Bo/NP+cHSH+lSVZbk6utNf+D8S84q7uRMAAA==",
+  "debug_symbols": "ldfNioMwFEDhd8naRX5uYuKrDEOxrS2CaLF2YCh999GhLSUVytkIET+84azuVe2b7eW4afvDcFbV11V1w66e2qGfT9dbobZj23XtcfP6WunlYeT/+/Op7pfjearHSVUpFarp96oyWs/80HaNqry+fRfKeAoCBSUFkYIEgdUUGArsGjBansLnwmEhWHgsAhYlFhGLRIXTWBgscHOHmzvc3OHmDjd3uLnDzR1uLri54OaCmwtuLri54OaCmwtuLri5rDcX+xBSZsJrLNabu/AUMRcWC4eFYOGxCFiUWKw3D+YhyrceiYqgsTBYWCwcFoKFxyJgUX4QUXIRsUhUlBqL9eYp3oU1KRcWC/dB2LepBAuPRcBitbl1T+Hfbh6xSB9EyKeKGguDhWXiNp9+6rGtt11zX84Ol373sqtNv6cmW9tO47Br9pexWRa4l91tuV+UIqZ5ELOMnnSR7PyP+T9/",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    // x = 3\n    let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];\n\n    let fetched_value = array[x - 3];\n    assert(fetched_value[0].0 == 1);\n    assert(fetched_value[0].1[0] == 2);\n    assert(fetched_value[0].2[0] == 3);\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/nested_array_dynamic_simple/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,95 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "2113733316574349459",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 4,
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        }
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1aO2/UQBBex4+Lz3fhBH/E5nzcpQsSeT9aaudxJRItlfkFFDSUdHQU9DQgIVEgGjokkPgl3CY7d9+NZ52EeImMWOm09u7nnZlvZmcfiacuytrs55nnwNS+qT1oU9Cmy4ap05uVrMGxUlc6ei3QcaUFOvoN6uhBnLrSN2gBp2ELdIwa9rvrnNRpAaerLdAxboGO3YZjk3SkGE1mv97s11cXa+28EQ3Syds3H+kJrSeMDkLtZE1iF/C1AwNBv0wdm3oF+htMxFnM5DY5/iQdDWO1XBrW/3x8dFjD4x/T+KGb8dOOGedRuRgfbSG5PsPxb3zAbAJm04LZAsyWBbMNmG0LZgcwOxbMLmB2LZg9wOxZMPuA2bdgDgBzYMEcAubQgjkCzBHDUEy4mTN57jjm8r6qHg7IFpIduZE98pg8pZYPLIrJ7yqn8zvzmDzSh/ND+bdPmHKhj8f6grJqB/WF0Ef+1evEQ8Dx2CI9yDcu1oJZ3E0cx93wFuMu/xfjjvcFZdWO68YdxhaPO98BF7O4O/6f79oVdz7rC8qqHdeNO+nSSuMO4PkQMBiraIMn2OA4fqeO96D5dec+9w/6ALl9yPhxtK5MXfKv+bln0Z+edemUal58xidyRJytIp71xdAXlMtyuuY9ADk4FukRMvy+eb9j6gi+oe8HgvyIyV/SW2hDjvhYvtBGeD2vH5nnxPx0DL03bTSPw8WnyrPUKEuarwNVXQ8Id0dV8zXP5R3oa/rS0jN260I+5jIjsAfx+KyMfdj22NT6/SOzT8rXUQ130trieK1L+4KN3DexG9lXXmdJfldVfeNinY2ZPpwfzOOeWtwV4bcDoY/Hf1eQ0xXktHEs4ga5vGluwTgkf8TKbUzEgo0uz1fIoa6fQDv2haq6B0Q9Q4Z/CWM+Nc+Ul3F9iVmfdK/leu9PtlJ+VhZbQ6YrxnHnlnRFv0SCriHDPzO1jt9PgMdv0H4f2lYYXuIL7Y4YX0EL+Xou8FW316Z4Dkon9oy0Hp9BD+6jEOS69OmA4dG/Uv4kmVIO4Ou/ozNSyjnBvRnKXAFuuP3IZ8jaXpha2pvxcwe2KVW/N+Prv8fG0kXvtaW8xHNowr7dMO/pzcp8nvWAG4nbRC1zR/hXwB3PS/i3tLp9LdcB8Wg36UN8YQz3WB9ySfEcM2zTazTZMT+bK/kMgVwj/rWpJS4lbqQ45DogHu3uML6Q5/lZmL27ir21S/hCPhH/poYvyf66/Lkm4Ps1fCGXa1eQjfz2LLIjC95m/1u1sP+neXYc41f2Wc+i8zvQuW5dxnOtLkHpxB5xXca8xdfluhyly1XiSpqHA1WNpT7rw3U5YXLq7nz18yqz8bJzhEvex5PFP2SQzymOeAmgH/EfzDuetxTYtvGHek7HRTYdFtNiVJye5ifFXTa+LuTjxIH8YjycnNzPT8bHo2ExfPDX5Z9N1k/T9elZkWXZ/dP07DL50p0mzmNd6F4U700RT+OFDP+FsLPfV/PM771Rnsb9qMF5lvp8DKEtKJfbpPtUvGcmPMnullUdqS+BPswxuvTMO/KFY5EeIcN/N+/kE7wbpu8HgvxVJn9Jb6GN3zMnAj4R8No/32g8U6PtTd/Rnctk42Mb141ix8W8ykfF+KQYZ9l6np3l2eiyefUbs39p6gUuAAA=",
+  "debug_symbols": "ldjRboIwFIDhd+k1F23PKW19lWVZUHEhIWhQlyzGdx9dxmYGy/LfGKt8SeEXgd7Mvt1eX1+64XA8m83TzfTHXXPpjsM0ut0rsx27vu9eXx4/Nra8pPy5/fnUDGV4vjTjxWxEbGXaYV/euckfur41m2Dvz5XJFguHhcdCsFAsAhY1FhGLhAVu7qzlxHHiORFOlBNc3rn1IxZkJkEXZH1fUv4iau2CKCer+6ISZ6LLfak5iZys/pBVw0yCX5CMibecOE48J8KJcvJHffvdZUlqTiIniZOMiVhOHCeeE+FEOeH1hdcXXl94feH1lddXXl95feX1ldfXiC9Jun5zEed/GIl5QTImwXLiOPGcCCfKSeBk/ay08n3dX5LISeIkY1JbThwnnpP1s9L5mbi0IMpJ4KTmJHKSOMmYxP/qrxDHiedEOOF34zFwUnMSOUmcZEyS5cRx4jnhz2KJ10+8foL179PorRm7Ztu3X6tBh+uwe1gcuryf2l/rRKfxuGv317EtK0Y/i0Ullreu8t5PUylHqA5VDGVa5Ss3TcJlLcPSyHuZtgzTDKZZfAA=",
+  "file_map": {
+    "50": {
+      "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/databus_two_calldata/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

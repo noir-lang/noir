@@ -1,0 +1,75 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "16853252840822632755",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWbU7DMAx1vxjtGEigCSGBtCMkS7Km/4bEDpJt7X9usNtwF87BQVjAUU3IQIIUDUuVEzd5fn5NkyTwbtX+ucB2sn8y9NZmXiwJxNJALAvE8kCswBjtA8HNcF5BOFFL0S/Rs98Zp1iCLaRs63nLBTds3qy1YlKtF5prrrTazrUQrZa6btZNzRouRcs71YgOwUYReaUH6o+Ez4DoHlPP0T/geBqTY+6RpBabeBKROOVbOrLur7SBmVdMdrxfgZcQ7y+uIK7ITtMqoGns3ezkSHXIsFa36E5IPycxZ6HTwDe6gM/QT1/ubx6fn1b+mBn60tPdfZ9lJP1LL29MfM3kooTPGkTkL0qi/VD6OMwB8N9OYGsPux7frwWId+P8Ofb9BPobkD/G7l3n0LfdbWqCfkWw3Pwhtd2vDTWwtvwKDus5Rh2u/6BWhgchzQ/w8cYKgfz+XhMa7/AKb/wUva3xDtuTL+aPod9r8l18DWrdH+DZrudM9QAvf+GNv8V+RfgDqXv5Q55dbXgnTGeU2W7lxlx6+NZSolPs/FKZemNqzhvJW8nVd/lfAW9KyTsWDQAA",
+  "debug_symbols": "lZFdC4MgFIb/y7n2Qk9bVn9ljLCyEETDbDCi/z4dE/bRLrwRXw+PLzxng0F269QqM9oFmssG2vbCK2tC2qB8Pi2zMDEtXjgPDaOUgDRDvJ12AqPSEpoz3a8EeC5Q5QL1IVCwBBT8C2A0m2CHBPL/BOYRIXROaa2m9sM3jQc7tI4lvj7D8qeeZxNVNlHnEkjziD2km3BKdFpGG3G4mj7JCdHf5zRJ+mZnezmsTkaRbw5jNxYEq7RPrEnBQkfoeQA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: u32, y: call_data(0) u32, z: call_data(0) [u32; 4]) -> return_data u32 {\n    let a = z[x];\n    unsafe {\n        a + foo(y)\n    }\n}\n\n// Use an unconstrained function to force the compiler to avoid inlining\nunconstrained fn foo(x: u32) -> u32 {\n    x + 1\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/databus/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "foo"
+  ]
+}

@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "10940603042412603598",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YTY/TMBCdtHHbNFSt4I8k25Z2JSRWAokrSNw4oPTrygUkJA6ECzck+MfUZYa8TqbZrhrvXtZSZccez3vzxpl4N6KqRdzHdEETJ3+4T7jvwHp3/7vh5+yylicKt03/y2w2S4z4WuQ/TdhnFMZ/Jv4D6Z/12c/rsvKPsQjuYP9LYTyi6nyEil/yFzL+Zw0xy9l5VQbBLlLW8pPSUvCpxThHwJ8gVsSNw2i8ihQeAQ9cE/yh4tp2zYkUnvDR+kgeRDtncJ0Ya3hWcQ1xnIHz6OvR10P5GlG99kQnesHRcxpH12zfxmTXGt8Sg1+btV706rG/mOp6IbeOsscx8R6cy7n3Nf0L7DlVa+IG7boGn5Gx79IcNeUhUP39f6fphfE/F/99iLsd3/lKfA/CcM8lx5GRF6/XC5jHNUfVucJ8y93FKft34PMlj8cGNt6FrHf6pp24F021zOIzpvoZxb24zxm2fbUmtm9UvKFq0VPwq/lbeYhVXFY9OVcnXT/O0cnKP1H7tVmwY4Mf4muubxXPQHdZM2+ClVL9vcRvDO7pnYjjPfd+/SOPrRzq/OpzilokgbSQmIZGrIgp3DrKHseohcx94N76nt71zmPViaZv4Ln6B9a40BpbdR7xtYYbqjT8ymP5271bHnMm8BOXQeJZeR7fgIfOmwNcjIuoOc9aJ7RPlI1vE6qfxb6y6xq+UPOB8oVcnIrxtu95SN0Xy3/v6iEO9u/oOD5S+E7Zf+Zn1Ev6+AKeu0WR76bFrpgXm81sXej66pvomgbALxbT5fpqtl6s5tNi+vze8bfL6012vdsWeZ5fbbLtbfhjHvfKah3fY9/6/Cz1WNvjNxTtv4vt/veDx1IrnIHn7X432EUn+oMPYy4uj+eSsm7fLev2gj0s6xxlLYU1rDG+PeFn1At9CQ+n7H/xs+RkAHtk/8TAHyj8I97GnL5zpYZ9atj7/PwUf9xj7G3/T+2AqfzjnOYmZ8ef6791Xt8pyRgAAA==",
+  "debug_symbols": "ldjBasJAEIDhd8k5h52d2d2sr1JKiRpLIESJWijiuzcRpWUJlP8ijsxHAv962Vu177bXz49+PBzP1ebtVg3HXXvpj+M83e51tZ36Yeg/P/7+XLnlQ+yxfz614zKeL+10qTYx1lU37ucvadaHfuiqTXD397qSAPcj3E9wv4H7me17B/cF7nu4r3Af9vWwr4d9PezrYV8P+yrsq7Cvwr4K+yrsq7Cvwr4K+yrsq7Cvwb4G+xrsa7Cvwb4G+xrsa7Cvwb4G+wbYN8C+AfYNsG9cfX/x7gnESylWn6AxP4WmphSrZ0izPYW5XIqARcQi/SNES9FgkalIDgvBYvVMmb0OicWyYFIs7B+RrBQBi4hFwqLBIlPRrBYUDa//oIVSGBYBi4hFwqLBIlORHRa4R/ZYKBa4YF4vmF8n0TtfioRFg0WmQpzjRDjxnCgnxkngJHKSOIHx7/P01U59ux26583A4Tru/lwUXL5PXXFncJqOu25/nbrl9uD34mA5EuK1FrPHqyyjSC0Sl1EeY5rHPD91fvIP",
+  "file_map": {
+    "50": {
+      "source": "global N: u32 = 10;\n\nunconstrained fn main() {\n    let mut arr = [0; N];\n    let mut mid_change = arr;\n\n    for i in 0..N {\n        if i == N / 2 {\n            mid_change = arr;\n        }\n        arr[i] = 27;\n    }\n\n    // Expect:\n    // arr        = [27, 27, 27, 27, 27, 27, 27, 27, 27, 27]\n    // mid_change = [27, 27, 27, 27, 27, 0, 0, 0, 0, 0]\n    let modified_i = N / 2 + 1;\n    assert_eq(arr[modified_i], 27);\n\n    // Fail here!\n    assert(mid_change[modified_i] != 27);\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_cow_assign/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

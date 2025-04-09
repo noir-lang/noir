@@ -1,0 +1,60 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "7311745121465047780",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWbW7CMAxNSgMEtDFtB9gF9qNpgRbtD9I+NGmnyCg9B0cf0RLxcN0hbYmmWUJJa+f5+cVJkeLLsuNP+nkO76iFmK0fi9+ZiYhVpOQpI/KUwDPrTYA8zjn/ux81iXH+UcTiNckbE78plrUW5xaZf6UBMwF+GfDzNPjFxOM8H87xBcl75Z+xf8Ka4MM+evG+6fF3LU7zBeA5e4W8AVsTvMg9sU68Z+ZugL+zudfhgega/ILRIdHeV5LkE0QTQfLPEusmSb7Ah+qTEe0Uw/WG8UkyV0wexeThsIJvIfg9cqaZdTHPbqhj7PFypg7klpF4nAu/Bt/d+9H1awlrhvYo/0Y77k7RDJ+I+tShPyaib8E3JbnRp0nN6JuBD885tRF5xnpd7hXg0jjKFXtsSnzceZ1DDfnh5I+lcd2c/nCMPL4S/ZoxvyLxxj+jnljH9oc8u9qarrKdXdm2Xe7sLcF3loFOsfPbump25XJXf6wqW60v5sdvAj1P3Lck8d1S0rtFDfBS4Mf4Rz+6ut4gfuje5XShHDCeu98WjFZjso67p/+Lpk9+/AtNUStcS/NwveosxRnbN5u22HR7a4wp22J/6Yx9ApSWANiRDgAA",
+  "debug_symbols": "tdbLaoQwFAbgd8k6i9xj5lVKGbzEISAqXgpFfPcmZQrWWoZ/kY0YOd+fxUnkbKTx1fq4h74dZnJ720g31OUShj6utp2SagpdFx7342fC0oOb7/p5LPu0nJdyWsiNM0uJ75v4JnT0beg8uWm20z+lQphnqVC/St8p4TZneJEz3GUMFyxnOM8ZLnKGy5zhKme4hsKTMLCwsChg4VAhGSw4LAQsrk+S1D9Cy7NQsNCwMLCwsChg4VChGCw4KjTcD33Zj8OtleosDCwsLApYOFQYBgsOCwGLyzsopP33L2oULDQsDCwsLApYOFTYVz0/iT2uPsoplFXnnzNhu/b1YURcPkd/mhbHaah9s04+zY2HkTHtrRRVLg1K6ShpRrWIe8R9vgA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_uninitialized_arrays/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,75 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "15681438610761859435",
+  "abi": {
+    "parameters": [
+      {
+        "name": "ops",
+        "type": {
+          "kind": "array",
+          "length": 15,
+          "type": {
+            "kind": "struct",
+            "path": "SignedDivOp",
+            "fields": [
+              {
+                "name": "lhs",
+                "type": {
+                  "kind": "integer",
+                  "sign": "signed",
+                  "width": 8
+                }
+              },
+              {
+                "name": "rhs",
+                "type": {
+                  "kind": "integer",
+                  "sign": "signed",
+                  "width": 8
+                }
+              },
+              {
+                "name": "result",
+                "type": {
+                  "kind": "integer",
+                  "sign": "signed",
+                  "width": 8
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9WbyW8TSxDG28FOPGNnIbx95e1bnjQ2eUq45QCENQl7IGEZMjaE/V0RQj4gxAFxQOICEn8rFOmyP1e6AlLcQI1k9cz0b6q+qu7p6elJSm5jm3rzK/n9si9LUP7r+jeum/Nltr2tMUBbWSyNJQMahwxo3GFAY9mAxooBjcMGNI4Y0Fg1oDExoDE1oLFmQGPdgMZRAxrHDGgcN6BxwoDGnQY0ThrQuMuAxs8MaPzcgMYvDGj80oDGrwxo/NqAxm8MaPzWgMbvDGj83oDGHwxo/NGAxt0GNP5kQOPPBjT+YkDjrwY0/mZA4+8GNP5hQOOfBjT+ZUDj3wY0/mNA41QEjW83/NBJoumDGn2wog9C9MGFPmjQBwNakKcFb1pQpgVbWhClBUda0KMFM1qQogUfWlChBQtaEKAXbnqhpRdGeiGjFx56oaAJO02IacJJEzqaMO1+86MHPj1Q6YFFDwQacGlAowGDbkjq8NShqMGmnL5x8l/5MvHlENQP8KNcIxF+B2l/Npvp2ndx9O9JXK/tB2+/WSRgM4L+bMTb2dfp2ZexOCiZk9cgux+Y/QpzAJgDCjMPzLzCHATmoMIcAuaQwhwG5rDCHAHmiMIcBeaowhwD5pjCLACzoDCLwCwqzBIwSwpzHJjjCnMCmBMKcxKYkwpzCphTCnMamNMKcwaYMwpzFpizCrMMzLLCnAPmnMKcB+a8wqwAs6Iwq8CsKswFYC4ozEVgLirMJWAuKcxlYC4rTA5MrjBXgLmiMGvArClMAUyhMC1gWgrTBqatMFeBuaow14C5pjDrwKwrzHVgrivMDWBuKMxNYG4qzC1gbinMbWBuK8wdYO4ozF1g7gomgX3nBv3sn56O++xsFqOu/3npIBb2XY7ju1US/pyI0wn/qYs5T9n4gzf0x3pkfnh/lJlOT09J1JU7m+PgukqnPw7aaJ69DzjZt4aAW4T9Jb8ftz9uzEUjtkG2a4uY+dxIx3W37twOznFeOc9V5EVdAnXlTr+f1B+XwQ/aYh0VwS/443FfDsM1fP1EwP+w8N+nO3BO5iUJ8EmAp3e6eb9f8z/qQ8/5GhdzzMmyuONK1mb7lTj2u+9Lw3Hsd++xkTj2m3LMx7ammJbhPNZV3ObxENuxIvhVsLni92sBu0OKXW4/zkcSJR/NgvWkgTjxHkhEnMznvqR76KXrzx2+u+9w/WMbx458GuBl3LSN++Mq1KXv4Rvj4f7L+a0JP3P+ONvW1stv3fXyF4qtBvXIr/sylN9aIMat8lsP8Bg36+H8Yk7rwta78sv376ee3/99+THyi/mqi3xNCNtzA8nXTLuk5EP6rAo9O6PoyTK2NynsS59VoZf13/Ml3c/3/f6o29xnJ4F7sAVXDXAfqk26c2MXbpP0E2uTVOhl/Q8hh49ErsdcuE0eb8GlAU6OQ3h/YnuOCX4ccsjn8R6VbcD8E9DwFGzE6xe9dkiEfelT1nMfLgfyhONORfDPRFypuGZuQHFhv3IBX6jRufD8iJ/f7zuf4/jLncHHNDO70VZvtXZ6ucUYnPBfEfwLf4x54HI7/6DUnskb7T15O/8vL4rptVzm3kHuahH8t2b3FtneditvNBrNImu9y/9rIzcU3qU4AAA=",
+  "debug_symbols": "ldbRaoMwFIDhd8m1F56cxMS+yhjFtmkRRIu1g1F890XZWGkL5b8Rj/gh+IOemzmk3fW0bfvjcDGbj5vphn0ztUOfp9tcmN3Ydl172t5fNuVyiHG9/3Ju+mW8TM04mY1IVZjUH5azmP2x7ZLZ+HL+LExtXwqt/4Tzj0KxcFh4LCosAhYRi5oKKUtOhBPLiXLiOPGcVJwETiInvL7w+sLrC68vvL7w+sLry7v6lX0igZPISY2JLTkRTiwnyonjxHPC61te3/L6ltdXXl95feX1lddXXl95feX1lddXXl95fcfrO17fvasfwhNRThwnnpOKkTlPX83YNrsu/W7Sx2u/v1usp+9zetixz+OwT4frmJZt+3/RXt5JFYsQ1/98HsTVhXi3fviX0fs8hvzM/Nwf",
+  "file_map": {
+    "50": {
+      "source": "struct SignedDivOp {\n    lhs: i8,\n    rhs: i8,\n    result: i8,\n}\n\nfn main(ops: [SignedDivOp; 15]) {\n    for i in 0..15 {\n        assert_eq(ops[i].lhs / ops[i].rhs, ops[i].result);\n    }\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/signed_div/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

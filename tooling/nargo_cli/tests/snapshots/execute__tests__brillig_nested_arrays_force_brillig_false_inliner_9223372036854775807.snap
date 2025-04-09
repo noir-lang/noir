@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "14991988209205674160",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "zZzbbhpNEITfZa+5mD7Mya/y61eEbRIhIWxhO1KEePcsyIsTdrKkA2X6zmOoj1ra1TDt3d12j4v7t29fluuvTy/d3X/bbvX0MH9dPq371bYLh1+9PM/X+9XL63zz2t1RKHnWLdaP/Y/EvJt1X5erRXcXw+7/WUdnJUonEm5KqJZBwnL6KtKUsPJRUsJvkn5xv1muVstvX06PcNtRyC1eDIPpGMrpYYbSknCo7xKmPJJUs4SCXUJ2CdslYpeoXRLtkmSXZLvEXn2yV5/t1Wd79dlefbZXn+3VZ3v12V59tlef7dXnc9XndCqRYJeQXcJ2idglapdEu6RdfT5KZFQXyXZJsUuqWaLBLiG7hO0SsUvULol2ib36aq++2quv9upHe/WjvfrRXv14rvo6SmVUuyTaJckuyXZJsUuqWZLOdf6G5FznTzKStKuf0iCpNJKIXaJ2SbRLkl2S7ZJil5z73D+R7A47qP2WpHlESfRdmNJvG5zZ1rZ7yRfSpzc6BUqvSHp7x3U1OkHpDKULlK5QeoTSE5QOzSpBs0rQrDI0qwzNKkOzytCsMjSrDM0qQ7PK0KzyFbM63j1zRdIlQOkEpTOULlC6QukXZ3VybJKg9AylFyi9IukaoHSC0hlKFyhdoXRoVhWaVYVmVaFZVWhWIzSrEZrVeMWsNgZvAqUrlB6h9ASlZyi9QOlX/A78t3Pdf6M35rkXZ3VykMlQukDpCqVHKD1B6RlKv+J+9W9H67/Qcz2V5GCXkF3CdonYJLvDWVP9vwmaf3u5yLuuhDT9DksdXkJqHL3DSHhGwgsSXoHw9kjzWnBCwhkJFyRckXBkQhmZUEYmlJEJ5UsTqjJ8qulo1yIBCScknJFwQcIVCY9IeELCMxJ+aUK1HuF1BK9AuAYknJBwRsIFCVckPCLhCQnPSDgyoXppQqfOP4oBCScknJFwQcIVCY9IeELCMxJekHBkQhMyoQmZ0IRMaEImNCETmpAJTciEtmeUOdEAJ5mGX+mk2fY0E+Nj6jSg9tzz8320h6k38EFOfLATH+LEhzrxEZ34SE58ZCc+nPTT7KSfFif9tDjpp8VJPy1O+mlx0k+Lk35anPTT4qSfFif9tNymn45OTq7BiQ9y4oOd+BAnPtSJj+jEx2f204nTQmt24qM48VF9+KAQvBghL0bYixHxYkS9GIlejDhpq3+45v8WRpw01j/cSeAGRshLZyUvnZW8dFa6TWcdXzxA6sVI9GIkeTGSvRgpXoxUJ0b4NkOAhpHbTAHGlwnxZ3bWqatDWLwYUS9GohcjyYuR7MVI8WLkNtPVsRG5YmcdXxAlBKUzlC5QusLou371fb5Zzu9Xi/3dsfcPvq0fhptl98vXH8/DI8PttJ83Tw+Lx7fNYn9j7Y97au/fg6qzfiBw2Gn1K8o8o5wPXw8OyzKjEo53vDsIpBfIhyAenjEICvVL+bj27fAcSTNSOj5H+9dQ7Y+kP5qf",
+  "file_map": {
+    "50": {
+      "source": "struct Header {\n    params: [Field; 3],\n}\n\nstruct MyNote {\n    plain: Field,\n    array: [Field; 2],\n    header: Header,\n}\n\nunconstrained fn access_nested(notes: [MyNote; 2], x: Field, y: Field) -> Field {\n    notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]\n}\n\nunconstrained fn create_inside_brillig() -> [MyNote; 2] {\n    let header = Header { params: [1, 2, 3] };\n    let note0 = MyNote { array: [1, 2], plain: 3, header };\n    let note1 = MyNote { array: [4, 5], plain: 6, header };\n    [note0, note1]\n}\n\nunconstrained fn assert_inside_brillig(notes: [MyNote; 2], x: Field, y: Field) {\n    assert(access_nested(notes, x, y) == (2 + 4 + 3 + 1));\n}\n\nunconstrained fn create_and_assert_inside_brillig(x: Field, y: Field) {\n    assert_inside_brillig(create_inside_brillig(), x, y);\n}\n\nfn main(x: Field, y: Field) {\n    // Safety: testing context\n    unsafe {\n        let header = Header { params: [1, 2, 3] };\n        let note0 = MyNote { array: [1, 2], plain: 3, header };\n        let note1 = MyNote { array: [4, 5], plain: 6, header };\n\n        assert(access_nested([note0, note1], x, y) == (2 + 4 + 3 + 1));\n\n        let notes = create_inside_brillig();\n        assert_inside_brillig(notes, x, y);\n        create_and_assert_inside_brillig(x, y);\n    }\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/brillig_nested_arrays/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "access_nested",
+    "assert_inside_brillig",
+    "create_and_assert_inside_brillig"
+  ]
+}

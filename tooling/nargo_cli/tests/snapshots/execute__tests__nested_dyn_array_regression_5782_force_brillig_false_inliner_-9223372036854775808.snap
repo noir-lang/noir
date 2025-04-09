@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "13722226528179470152",
+  "abi": {
+    "parameters": [
+      {
+        "name": "array",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "i",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YUW7DIAx1Qtt13dqtXT53CAjQwN+usmzk/kfY6IiG2q4fw65kNU+KQhTJPJtnG6jgB83385rGIr1r+EUFpxj/v6W3LIOqM1ta7o0JXRuUVu+y9b2z0th+75RT1tnP1mkdnHGd730nvTI6qMF6PSRjAtFWDeeB5Lc8jjFWPAUDjjMCjuRE/yuoMBzwwVVQNQOOc2AiqDmeoLpLPEur3wLP55ZY+IpqrTgIfwFXEn6poO4QiXKtpJgxoOK4BCaVdAlTa+YgqHtgUqFWgNs6OApqxYDjAybHKfPpOD5OC8Ujo9aYHEUiOEsGY/2PKRvVsIZTYJfxDZ4zJvoShTfejcWsizvuTfquAc4KE2n+mz7SPwFy9agYLhRqEIg4PhNwPAD7pjkPZmmV2QJuNnIU55YBxx0QiZMyi0qPs5d4lgr/Bc9nG9vq2GIjou1dGudtNwfS3DfdWhtgkhQNoCXFkO9JxRHnvw4XOb4Ajbk7KjQdAAA=",
+  "debug_symbols": "ldTdioQgFAfwd/G6C7X8qFdZlsHKBkEsrBaWmHdfZ0iYPcjEuet4/r9DcNCDjLbf7zcXpnkl3ddB/DyYzc0hVQdhr6N1MeFZrZuJG+kkq4gNY/qQj4pMzlvSCfr4rggvxYXIcQXi9ce4oiDelOJanfFWgLj4HG9BXJbijOY8Y3C+wgJdBIpmoDkALRYweiXgP7HihnndnII3NRQcLWq0aNBCoIVEC4UWGi1arOAULdA75+id88udw/vHyzuXMguloRBoIdFCXQjN/olU9NF57+6394c0Hf+Y6Ezv7VlOexjeutvvkjvZL3Ee7LhH+5z06qXxfw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/nested_dyn_array_regression_5782/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

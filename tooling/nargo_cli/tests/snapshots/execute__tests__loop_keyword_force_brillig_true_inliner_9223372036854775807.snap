@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "6250402606095065482",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71WsW6DMBA9A4ZQGjVqlw4dunXoYhpaMjL0R6xGfAefXiKd49OT8RBMLKHjuPN79w7boMgPxbagFcOB9GxrtpmI5/M1sG/WjbYG3pT4J9N1dUBfwvqPNWOqbfCNw9+o/6ZinN/J40stjnc3X424fyS/PrbS797flvpfIpob1tqyv4dcgnkEsTzwLIO+ZSI2JNJ0iGjaix6u1XAALHUffdc1UaTH/nLYOj12W84Yr4z1xDyl6B2uK7c3dSA3g5jL/WR7yX1LxFUscH0IrvcIVw6xKlLHDvwyUGNo3S3NowCnBhwVmHfruwrVHeOrInx4plLA17S81zXkGra4f1Kfqc8Cl4CrIf9PUUzp+fuTMY43n3wfZP8I+DXk/7D/sKBjuLHOsbfteLSj/bbnc/dnsU+XIb89/7WqmdndCQAA",
+  "debug_symbols": "tdbRioUgEAbgd/G6i9QxrVdZloOVHQSxsFpY4rz72pKH8FzK3EQj00cMPzIHGU2/Px/WT/NKuq+DuHnQm519rI5XRfpgnbPPx/2Y1OeD8v/+ddH+LNdNh410QlXE+JF0so5fT9aZeBZfPxqpkFcnFere+l0RCni0wKMbPFqW0TJ1UtnmtMKjWzSaAR5dlhBWw9XJaJ3TCo8umzUTb7rJac7KaCkSrWhOczy6LCGcpYFwznJa4NFldwgHlmjI7xAu8Wi88EGNlhCgeDRHmzUU5lrSRH/+tcCjGzxaItGvWP3oYHXvzLUNTbsfbsvR9ruYbE9awjyYcQ/m3Jhuy9IZY2grAZGN9B8=",
+  "file_map": {
+    "50": {
+      "source": "fn main() {\n    // Safety: test code\n    unsafe {\n        check_loop();\n    }\n\n    check_comptime_loop();\n}\n\nunconstrained fn check_loop() {\n    let mut i = 0;\n    let mut sum = 0;\n\n    loop {\n        if i == 4 {\n            break;\n        }\n\n        if i == 2 {\n            i += 1;\n            continue;\n        }\n\n        sum += i;\n        i += 1;\n    }\n\n    assert_eq(sum, 1 + 3);\n}\n\nfn check_comptime_loop() {\n    comptime {\n        let mut i = 0;\n        let mut sum = 0;\n\n        loop {\n            if i == 4 {\n                break;\n            }\n\n            if i == 2 {\n                i += 1;\n                continue;\n            }\n\n            sum += i;\n            i += 1;\n        }\n\n        assert_eq(sum, 1 + 3);\n    }\n}\n",
+      "path": "/Users/asterite/Projects/noir/test_programs/execution_success/loop_keyword/src/main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
