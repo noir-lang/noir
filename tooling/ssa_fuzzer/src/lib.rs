@@ -81,9 +81,9 @@ mod tests {
         instruction: InstructionWithTwoArgs,
         values: Vec<u64>,
     ) -> FieldElement {
-        let lhs = TypedValue::from_value_type(0, &ValueType::U128);
-        let rhs = TypedValue::from_value_type(1, &ValueType::U128);
-        let mut test_helper = TestHelper::new(vec![ValueType::U128, ValueType::U128]);
+        let lhs = TypedValue::from_value_type(0, &ValueType::U64);
+        let rhs = TypedValue::from_value_type(1, &ValueType::U64);
+        let mut test_helper = TestHelper::new(vec![ValueType::U64; 7]);
         let witness_map = get_witness_map(values.clone());
         let initial_witness = witness_map;
         let (acir_result, brillig_result) =
