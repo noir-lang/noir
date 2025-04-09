@@ -150,7 +150,7 @@ mod tests {
             }
         }
 
-        check_program_artifact(&target_dir);
+        check_program_artifact(&test_program_dir, &target_dir, force_brillig, inliner);
     }
 
     fn execution_failure(mut nargo: Command) {
@@ -217,7 +217,7 @@ mod tests {
             "expected the number of opcodes to be 0"
         );
 
-        check_program_artifact(&target_dir);
+        check_program_artifact(&test_program_dir, &target_dir, force_brillig, inliner);
     }
 
     fn compile_success_contract(mut nargo: Command) {
@@ -272,17 +272,23 @@ mod tests {
         }
     }
 
-    fn check_program_artifact(target_dir: &PathBuf) {
-        let Some(artifact_filename) = find_program_artifact_in_dir(target_dir) else {
-            return;
-        };
+    fn check_program_artifact(
+        test_program_dir: &PathBuf,
+        target_dir: &PathBuf,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
+        let artifact_filename =
+            find_program_artifact_in_dir(target_dir).expect("Expected an artifact to exist");
 
         let artifact_file = fs::File::open(&artifact_filename).unwrap();
-        let mut artifact: ProgramArtifact = serde_json::from_reader(artifact_file).unwrap();
-        artifact.noir_version.clear();
+        let artifact: ProgramArtifact = serde_json::from_reader(artifact_file).unwrap();
 
-        let artifact_file = fs::File::create(&artifact_filename).unwrap();
-        serde_json::to_writer(artifact_file, &artifact).unwrap();
+        let _ = fs::remove_dir_all(target_dir);
+
+        let name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let name = format!("{}_force_brillig_{}_inliner_{}", name, force_brillig.0, inliner.0);
+        insta::assert_json_snapshot!(name, artifact, {".noir_version" => ""})
     }
 
     fn find_program_artifact_in_dir(dir: &PathBuf) -> Option<PathBuf> {

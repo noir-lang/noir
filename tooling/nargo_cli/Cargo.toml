@@ -101,6 +101,7 @@ iai = "0.1.1"
 test-case.workspace = true
 lazy_static.workspace = true
 light-poseidon = "0.3.0"
+insta = { version = "1.42.2", features = ["json", "redactions"] }
 
 [[bench]]
 name = "criterion"
