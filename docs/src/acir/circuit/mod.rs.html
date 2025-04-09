@@ -665,7 +665,13 @@
 <a href="#664" id="664">664</a>
 <a href="#665" id="665">665</a>
 <a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
 
 </span><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
@@ -673,10 +679,9 @@
 
 <span class="kw">use crate</span>::{
     native_types::{Expression, Witness},
-    proto::convert::ProtoSchema,
+    serialization::{bincode_deserialize, bincode_serialize},
 };
 <span class="kw">use </span>acir_field::AcirField;
-<span class="kw">use </span>noir_protobuf::ProtoCodec <span class="kw">as _</span>;
 <span class="kw">pub use </span>opcodes::Opcode;
 <span class="kw">use </span>thiserror::Error;
 
@@ -916,8 +921,9 @@
 }
 
 <span class="kw">impl</span>&lt;F: Serialize + AcirField&gt; Program&lt;F&gt; {
-    <span class="kw">fn </span>write&lt;W: Write&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, writer: W) -&gt; std::io::Result&lt;()&gt; {
-        <span class="kw">let </span>buf = <span class="self">self</span>.bincode_serialize()<span class="question-mark">?</span>;
+    <span class="doccomment">/// Serialize and compress the [Program] into bytes.
+    </span><span class="kw">fn </span>write&lt;W: Write&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, writer: W) -&gt; std::io::Result&lt;()&gt; {
+        <span class="kw">let </span>buf = bincode_serialize(<span class="self">self</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(<span class="kw-2">&amp;</span>buf)<span class="question-mark">?</span>;
         encoder.finish()<span class="question-mark">?</span>;
@@ -941,38 +947,13 @@
     }
 }
 
-<span class="kw">impl</span>&lt;F: Serialize + AcirField&gt; Program&lt;F&gt; {
-    <span class="doccomment">/// Serialize the program using `bincode`, which is what we have to use until Barretenberg can read another format.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bincode_serialize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt; {
-        bincode::serialize(<span class="self">self</span>).map_err(std::io::Error::other)
-    }
-}
-
 <span class="kw">impl</span>&lt;F: AcirField + <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt;&gt; Program&lt;F&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bincode_deserialize(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
-        bincode::deserialize(buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-    }
-}
-
-<span class="attr">#[allow(dead_code)] </span><span class="comment">// TODO: Remove once we switch to protobuf
-</span><span class="kw">impl</span>&lt;F: AcirField&gt; Program&lt;F&gt; {
-    <span class="doccomment">/// Serialize the program using `protobuf`, which is what we try to replace `bincode` with.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>proto_serialize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;u8&gt; {
-        ProtoSchema::&lt;F&gt;::serialize_to_vec(<span class="self">self</span>)
-    }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>proto_deserialize(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
-        ProtoSchema::&lt;F&gt;::deserialize_from_vec(buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-    }
-}
-
-<span class="kw">impl</span>&lt;F: AcirField + <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt;&gt; Program&lt;F&gt; {
-    <span class="kw">fn </span>read&lt;R: Read&gt;(reader: R) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
+    <span class="doccomment">/// Decompress and deserialize bytes into a [Program].
+    </span><span class="kw">fn </span>read&lt;R: Read&gt;(reader: R) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>gz_decoder = flate2::read::GzDecoder::new(reader);
         <span class="kw">let </span><span class="kw-2">mut </span>buf = Vec::new();
         gz_decoder.read_to_end(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
-        <span class="kw">let </span>program = <span class="self">Self</span>::bincode_deserialize(<span class="kw-2">&amp;</span>buf)<span class="question-mark">?</span>;
+        <span class="kw">let </span>program = bincode_deserialize(<span class="kw-2">&amp;</span>buf)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(program)
     }
 
@@ -1191,6 +1172,7 @@
 
         <span class="kw">use </span><span class="kw">crate</span>::circuit::Program;
         <span class="kw">use </span><span class="kw">crate</span>::native_types::{WitnessMap, WitnessStack};
+        <span class="kw">use </span><span class="kw">crate</span>::serialization::<span class="kw-2">*</span>;
 
         <span class="comment">// It's not possible to set the maximum size of collections via `ProptestConfig`, only an env var,
         // because e.g. the `VecStrategy` uses `Config::default().max_default_size_range`. On top of that,
@@ -1244,8 +1226,8 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_program_proto_roundtrip() {
             run_with_max_size_range(<span class="number">100</span>, |program: Program&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = Program::proto_serialize(<span class="kw-2">&amp;</span>program);
-                <span class="kw">let </span>de = Program::proto_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = proto_serialize(<span class="kw-2">&amp;</span>program);
+                <span class="kw">let </span>de = proto_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(program, de);
                 <span class="prelude-val">Ok</span>(())
             });
@@ -1254,8 +1236,18 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_program_bincode_roundtrip() {
             run_with_max_size_range(<span class="number">100</span>, |program: Program&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = Program::bincode_serialize(<span class="kw-2">&amp;</span>program)<span class="question-mark">?</span>;
-                <span class="kw">let </span>de = Program::bincode_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = bincode_serialize(<span class="kw-2">&amp;</span>program)<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = bincode_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="macro">prop_assert_eq!</span>(program, de);
+                <span class="prelude-val">Ok</span>(())
+            });
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>prop_program_msgpack_roundtrip() {
+            run_with_max_size_range(<span class="number">100</span>, |(program, compact): (Program&lt;TestField&gt;, bool)| {
+                <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>program, compact)<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = msgpack_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(program, de);
                 <span class="prelude-val">Ok</span>(())
             });
@@ -1274,8 +1266,8 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_witness_stack_proto_roundtrip() {
             run_with_max_size_range(<span class="number">10</span>, |witness: WitnessStack&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = WitnessStack::proto_serialize(<span class="kw-2">&amp;</span>witness);
-                <span class="kw">let </span>de = WitnessStack::proto_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = proto_serialize(<span class="kw-2">&amp;</span>witness);
+                <span class="kw">let </span>de = proto_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(witness, de);
                 <span class="prelude-val">Ok</span>(())
             });
@@ -1284,8 +1276,18 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_witness_stack_bincode_roundtrip() {
             run_with_max_size_range(<span class="number">10</span>, |witness: WitnessStack&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = WitnessStack::bincode_serialize(<span class="kw-2">&amp;</span>witness)<span class="question-mark">?</span>;
-                <span class="kw">let </span>de = WitnessStack::bincode_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = bincode_serialize(<span class="kw-2">&amp;</span>witness)<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = bincode_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="macro">prop_assert_eq!</span>(witness, de);
+                <span class="prelude-val">Ok</span>(())
+            });
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>prop_witness_stack_msgpack_roundtrip() {
+            run_with_max_size_range(<span class="number">10</span>, |(witness, compact): (WitnessStack&lt;TestField&gt;, bool)| {
+                <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>witness, compact)<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = msgpack_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(witness, de);
                 <span class="prelude-val">Ok</span>(())
             });
@@ -1304,8 +1306,8 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_witness_map_proto_roundtrip() {
             run_with_max_size_range(<span class="number">10</span>, |witness: WitnessMap&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = WitnessMap::proto_serialize(<span class="kw-2">&amp;</span>witness);
-                <span class="kw">let </span>de = WitnessMap::proto_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = proto_serialize(<span class="kw-2">&amp;</span>witness);
+                <span class="kw">let </span>de = proto_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(witness, de);
                 <span class="prelude-val">Ok</span>(())
             });
@@ -1314,8 +1316,18 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_witness_map_bincode_roundtrip() {
             run_with_max_size_range(<span class="number">10</span>, |witness: WitnessMap&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = WitnessMap::bincode_serialize(<span class="kw-2">&amp;</span>witness)<span class="question-mark">?</span>;
-                <span class="kw">let </span>de = WitnessMap::bincode_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = bincode_serialize(<span class="kw-2">&amp;</span>witness)<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = bincode_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
+                <span class="macro">prop_assert_eq!</span>(witness, de);
+                <span class="prelude-val">Ok</span>(())
+            });
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>prop_witness_map_msgpack_roundtrip() {
+            run_with_max_size_range(<span class="number">10</span>, |(witness, compact): (WitnessMap&lt;TestField&gt;, bool)| {
+                <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>witness, compact)<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = msgpack_deserialize(<span class="kw-2">&amp;</span>bz)<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(witness, de);
                 <span class="prelude-val">Ok</span>(())
             });

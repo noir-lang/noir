@@ -275,7 +275,7 @@
         <span class="self">Self</span>::encode(value).encode_to_vec()
     }
     <span class="doccomment">/// Deserialize a buffer into protobuf and then decode into the domain type.
-    </span><span class="kw">fn </span>deserialize_from_vec(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; eyre::Result&lt;T&gt;
+    </span><span class="kw">fn </span>deserialize_from_slice(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; eyre::Result&lt;T&gt;
     <span class="kw">where
         </span>R: prost::Message + Default,
     {

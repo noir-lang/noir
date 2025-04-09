@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["bincode_deserialize","bincode_serialize","msgpack_deserialize","msgpack_serialize","proto_deserialize","proto_serialize"]};

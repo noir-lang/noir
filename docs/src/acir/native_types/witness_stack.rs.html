@@ -115,32 +115,14 @@
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Read;
+<a href="#117" id="117">117</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Read;
 
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>flate2::Compression;
 <span class="kw">use </span>flate2::bufread::GzDecoder;
 <span class="kw">use </span>flate2::bufread::GzEncoder;
-<span class="kw">use </span>noir_protobuf::ProtoCodec <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>thiserror::Error;
-
-<span class="kw">use </span><span class="kw">crate</span>::proto::convert::ProtoSchema;
 
 <span class="kw">use </span><span class="kw">super</span>::WitnessMap;
 
@@ -216,18 +198,6 @@
 <span class="kw">impl</span>&lt;F: <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt;&gt; WitnessStack&lt;F&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bincode_deserialize(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, WitnessStackError&gt; {
         bincode::deserialize(buf).map_err(|e| WitnessStackError(e.into()))
-    }
-}
-
-<span class="attr">#[allow(dead_code)]
-</span><span class="kw">impl</span>&lt;F: AcirField&gt; WitnessStack&lt;F&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>proto_serialize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;u8&gt; {
-        ProtoSchema::&lt;F&gt;::serialize_to_vec(<span class="self">self</span>)
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>proto_deserialize(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, WitnessStackError&gt; {
-        ProtoSchema::&lt;F&gt;::deserialize_from_vec(buf)
-            .map_err(|e| SerializationError::Deserialize(e.to_string()).into())
     }
 }
 

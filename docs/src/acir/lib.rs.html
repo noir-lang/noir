@@ -155,7 +155,8 @@
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
 <a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), forbid(unsafe_code))] </span><span class="comment">// `std::env::set_var` is used in tests.
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), forbid(unsafe_code))] </span><span class="comment">// `std::env::set_var` is used in tests.
 </span><span class="attr">#![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -164,6 +165,7 @@
 </span><span class="kw">pub mod </span>circuit;
 <span class="kw">pub mod </span>native_types;
 <span class="kw">mod </span>proto;
+<span class="kw">mod </span>serialization;
 
 <span class="kw">pub use </span>acir_field;
 <span class="kw">pub use </span>acir_field::{AcirField, FieldElement};
