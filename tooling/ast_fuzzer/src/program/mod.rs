@@ -18,8 +18,10 @@ use crate::Config;
 mod expr;
 pub(crate) mod freq;
 mod func;
+mod rewrite;
 mod scope;
 mod types;
+mod visitor;
 
 /// Generate an arbitrary monomorphized AST.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
@@ -184,6 +186,28 @@ impl Context {
             self.functions.insert(id, func);
         }
         Ok(())
+    }
+
+    /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
+    fn rewrite_recursive(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
+        // Collect recursive functions, ie. the ones which call other functions.
+        let callers = self
+            .functions
+            .iter_mut()
+            .filter_map(|(id, func)| {
+                let mut has_call = rewrite::HasCall::default();
+                visitor::visit_expr(&mut has_call, &mut func.body);
+                has_call.0.then_some(*id)
+            })
+            .collect::<Vec<_>>();
+
+        // If `main` is recursive, initialize a depth variable in it with the maximum value.
+        // If a non-main function is recursive:
+        //  * add a depth parameter to it
+        //  * return random value if it's 0
+        //  * decrement it and carry on with the rest of the program if not
+        // Rewrite all calls to pass the depth variable
+        todo!()
     }
 
     /// Return the generated [Program].
