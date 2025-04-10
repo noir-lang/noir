@@ -199,7 +199,20 @@
 <a href="#198" id="198">198</a>
 <a href="#199" id="199">199</a>
 <a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
@@ -223,6 +236,8 @@
     </span>result: ForeignCallResult&lt;F&gt;,
     <span class="doccomment">/// How many times should this mock be called before it is removed
     </span>times_left: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+    <span class="doccomment">/// How many times this mock was actually called
+    </span>times_called: u32,
 }
 
 <span class="kw">impl</span>&lt;F&gt; MockedCall&lt;F&gt; {
@@ -234,6 +249,7 @@
             last_called_params: <span class="prelude-val">None</span>,
             result: ForeignCallResult { values: <span class="macro">vec!</span>[] },
             times_left: <span class="prelude-val">None</span>,
+            times_called: <span class="number">0</span>,
         }
     }
 }
@@ -341,6 +357,13 @@
                 <span class="self">self</span>.mocked_responses.retain(|response| response.id != id);
                 <span class="prelude-val">Ok</span>(ForeignCallResult::default())
             }
+            <span class="prelude-val">Some</span>(ForeignCall::GetTimesCalled) =&gt; {
+                <span class="kw">let </span>(id, <span class="kw">_</span>) = <span class="self">Self</span>::extract_mock_id(<span class="kw-2">&amp;</span>foreign_call.inputs)<span class="question-mark">?</span>;
+                <span class="kw">let </span>mock =
+                    <span class="self">self</span>.find_mock_by_id(id).unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"Unknown mock id {}"</span>, id));
+                <span class="kw">let </span>times_called = mock.times_called;
+                <span class="prelude-val">Ok</span>(ForeignCallResult::from(F::from(times_called)))
+            }
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">let </span>mock_response_position = <span class="self">self
                     </span>.mocked_responses
@@ -359,6 +382,9 @@
                     mock.last_called_params = <span class="prelude-val">Some</span>(foreign_call.inputs.clone());
 
                     <span class="kw">let </span>result = mock.result.values.clone();
+
+                    <span class="comment">// Update the total number of calls to the mock
+                    </span>mock.times_called += <span class="number">1</span>;
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(times_left) = <span class="kw-2">&amp;mut </span>mock.times_left {
                         <span class="kw-2">*</span>times_left -= <span class="number">1</span>;
