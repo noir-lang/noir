@@ -36,8 +36,11 @@ pub(crate) fn add_recursion_depth(
             types::U32,
         );
         let depth_ident = Expression::Ident(depth_ident_inner.clone());
+        let depth_decreased =
+            expr::binary(depth_ident.clone(), BinaryOpKind::Subtract, expr::u32_literal(1));
 
         if is_main {
+            // In main we initialize the depth to its maximum value.
             let init_depth = expr::let_var(
                 depth_id,
                 false,
@@ -46,6 +49,8 @@ pub(crate) fn add_recursion_depth(
             );
             expr::prepend(&mut func.body, init_depth);
         } else {
+            // In non-main we look at the depth and return a random value if it's zero,
+            // otherwise decrease it by one and continue with the original body.
             func.parameters.push((depth_id, true, depth_name.clone(), types::U32));
             func.func_sig.0.push(func::hir_param(true, &types::U32, Visibility::Private));
 
@@ -55,19 +60,19 @@ pub(crate) fn add_recursion_depth(
                 expr::if_then(
                     expr::equal(depth_ident.clone(), expr::u32_literal(0)),
                     default_return,
-                    Some(Expression::Block(vec![expr::assign(depth_ident_inner, body)])),
+                    Some(Expression::Block(vec![
+                        expr::assign(depth_ident_inner, depth_decreased.clone()),
+                        body,
+                    ])),
                     func.return_type.clone(),
                 )
             });
         }
 
         // Update calls to pass along the depth.
-        let decrease_depth =
-            expr::binary(depth_ident, BinaryOpKind::Subtract, expr::u32_literal(1));
-
         visit_expr_mut(&mut func.body, &mut |expr| {
             if let Expression::Call(call) = expr {
-                call.arguments.push(decrease_depth.clone());
+                call.arguments.push(depth_ident.clone());
                 if let Expression::Ident(func) = call.func.as_mut() {
                     if let Type::Function(param_types, _, _, _) = &mut func.typ {
                         param_types.push(types::U32)
