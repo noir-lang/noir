@@ -171,8 +171,9 @@ fn register_value(
                 let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Struct, name);
                 let mut field_values = vec![];
                 for (field_name, field_type) in fields {
-                    let field_value =
-                        struc.get(field_name).unwrap_or_else(|| panic!("field value missing: {field_name}"));
+                    let field_value = struc
+                        .get(field_name)
+                        .unwrap_or_else(|| panic!("field value missing: {field_name}"));
                     field_values.push(register_value(tracer, field_value, field_type));
                 }
                 ValueRecord::Struct { field_values, type_id }
