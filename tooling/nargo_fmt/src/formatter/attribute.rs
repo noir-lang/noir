@@ -92,8 +92,8 @@ impl Formatter<'_> {
             | SecondaryAttributeKind::Allow(_) => {
                 self.format_one_arg_attribute();
             }
-            SecondaryAttributeKind::Tag(custom_attribute) => {
-                self.write_and_skip_span_without_formatting(custom_attribute.span);
+            SecondaryAttributeKind::Tag(_) => {
+                self.write_and_skip_span_without_formatting(attribute.location.span);
             }
             SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);

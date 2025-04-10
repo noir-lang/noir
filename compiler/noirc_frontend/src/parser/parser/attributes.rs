@@ -126,7 +126,7 @@ impl Parser<'_> {
         }
 
         let location = self.location_since(start_location);
-        let kind = SecondaryAttributeKind::Tag(CustomAttribute { contents, span: location.span });
+        let kind = SecondaryAttributeKind::Tag(CustomAttribute { contents });
         let attr = SecondaryAttribute { kind, location };
         Attribute::Secondary(attr)
     }
@@ -477,8 +477,6 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use noirc_errors::Span;
-
     use crate::{
         parser::{Parser, parser::tests::expect_no_errors},
         token::{Attribute, FunctionAttributeKind, SecondaryAttributeKind, TestScope},
@@ -521,7 +519,6 @@ mod tests {
         };
         expect_no_errors(&parser.errors);
         assert_eq!(custom.contents, "hello");
-        assert_eq!(custom.span, Span::from(0..src.len() as u32));
     }
 
     #[test]

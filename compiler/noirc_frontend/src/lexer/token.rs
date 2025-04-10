@@ -1114,8 +1114,6 @@ impl Display for MetaAttribute {
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAttribute {
     pub contents: String,
-    // The span of the entire attribute, including leading `#[` and trailing `]`
-    pub span: Span,
 }
 
 impl CustomAttribute {
