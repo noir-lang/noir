@@ -112,19 +112,19 @@ fn main() {
 
 ### Wrapping methods
 
-Although integer overflow is expected to error, some use-cases rely on wrapping. For these use-cases, the standard library provides `wrapping` variants of certain common operations:
+Although integer overflow is expected to error, some use-cases rely on wrapping. For these use-cases, the standard library provides `wrapping` variants of certain common operations via Wrapping traits in std::ops
 
 ```rust
-fn wrapping_add<T>(x: T, y: T) -> T;
-fn wrapping_sub<T>(x: T, y: T) -> T;
-fn wrapping_mul<T>(x: T, y: T) -> T;
+ fn wrapping_add(self, y: Self) -> Self;
+ fn wrapping_sub(self, y: Self) -> Self;
+ fn wrapping_mul(self, y: Self) -> Self;
 ```
 
 Example of how it is used:
 
 ```rust
-
+use std::ops::WrappingAdd
 fn main(x: u8, y: u8) -> pub u8 {
-    std::wrapping_add(x, y)
+    x.wrapping_add(y)
 }
 ```
