@@ -197,7 +197,7 @@ pub(crate) fn simplify(
             }
             None
         }
-        Instruction::Allocate { .. } => None,
+        Instruction::Allocate => None,
         Instruction::Load { .. } => None,
         Instruction::Store { .. } => None,
         Instruction::IncrementRc { .. } => None,
