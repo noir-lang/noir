@@ -307,7 +307,8 @@ mod tests {
             },
             {
             insta::assert_json_snapshot!(snapshot_name, artifact, {
-                ".noir_version" => "",
+                ".noir_version" => "[noir_version]",
+                ".hash" => "[hash]",
                 ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
                     // Some paths are absolute: clear those out.
                     let value = value.as_str().expect("Expected a string value in a path entry");

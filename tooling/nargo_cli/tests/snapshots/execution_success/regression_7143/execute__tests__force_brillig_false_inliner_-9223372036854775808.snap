@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "6369484378566127421",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -34,16 +34,16 @@ expression: artifact
       },
       "visibility": "public"
     },
-    "error_types": {}
-  },
-  "bytecode": "H4sIAAAAAAAA/9VRQQ6EMAhsqw+CAhZu+5Vttv7/CauxMUSP6sFJCMNlmMnEsGFYZuw89ju68Xc48OS4x6dvuIjgft6oi2/wODzgcS/tTqPpodAEE3MruSHhF7JVFWCpk6KiqPyyEjVlLVatgCFTw1mM5i62FjIeMvuiPE/hjD/RIIK8IQMAAA==",
-  "debug_symbols": "lY3LCsMgEEX/ZdYu2tKm4K+UEnyMYUBURi0Uyb/HhASyzfLcM3NvA4u6TiMFFzPITwMfjSoUQ6cG9y3KSYWVclFcQA6DAAwW5Ps5C3DkEeTrNn8FPK6cd9BM3tM0njd7/FNMSnvc0dVgTrb802GO/8TRoK2Ma9Pmev0C",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",
-      "path": ""
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
     }
   },
+  "bytecode": "H4sIAAAAAAAA/61RSQrDMAy0nZxLnyJZUizd+o7eaupc+s32Xw3UAdfkFg8M2mAYNN79EDbOtfcbp1p3ttjnW61wDjhQC1qfYbBPP1ArNFoEC3NJsSDhA6JlFWDJi6KiqDyjEhVlTZYtgSFTwVWM1io2dTn1/dz9w7n/TH1zP95fL/f36+M6fAG3NfcwPAIAAA==",
+  "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
+  "file_map": {},
   "names": [
     "main"
   ],

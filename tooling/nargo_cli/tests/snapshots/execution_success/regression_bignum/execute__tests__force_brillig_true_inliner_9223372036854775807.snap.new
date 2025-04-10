@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 309
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ava7rRBBeJ05i5+cmuogC0dAhgQR27NhxxRWiQryEs447HgAhoTQ8GRIdJRU8AD0NJcdh5/jLZLxJyDocpLPS0Tre2W9+dmZ2vHs81TbP9L66oxFIbB5C83sA48Onv3fmd3Rfi0PG1yX+NkrTUNDPofxJaDC9fvAjwu/J/tHE4Hx1aPFRF+IbPP3N4HmuWv/oS39avz71f8+i88zoOvROdUVZ/HtkKeus1vsyLvNyt650CPo5wd/rSJeRjspK75NNEQKmE/ztpkrqXOv108M+WRP+yBV+VW3WOi3LpK72RZIR/tgVPrSs3peEP+kBv2kLgxmotpHfEW/Mhw79PPcYP6VO/Uwx/lMmq+u87zF+JA+3D8Ua2W4qyLoSxjBGcQz5TAU+EtbQIZbvEGvkEGvsEIvih9ZsAPO8jp748Hc0V8qNLveBlZL3GeTt98M7k/KmQ/yNlDeVclvD9Ze7kud9cdqPfWLyU17DKGOzz+F980d10Ei1sYFzfRhH+jVgftOB6QEmj298ngOWJMOIyUD0membHBt6MibqNbPoRfQFYM4Z5kK1zZbfif6NQL8AGpJnyWTAuZz3yMiOuYnri/Rfmr6x7RcMcybIh3YnH5V8aga43KeIbgC4oTA3FPR2mQdJFlojH+SZC/KMGP3XTK83YKuhxSZ8zZAvrmvI+C4Y30aOpWEg5XTijTG4ZDpIcwaCHoEgF4+la+lJD1z/uYVeyheIvwD+Xb7kWebzXC7hBIIOPL7J3mGH3O/M7+i+dnV9S/wfVd9K+cJW30oxthLGMI/hGPKZC3xesdxh0ZrhGnsdPfHh73h9i3wcfnvGPM9MVbsnSnlGksdzJk8a8f1hBDwwx/A9mui/NX0TS2+NQZ9z3qGdH4A+TfNhzGX+afi8D3I0j1RvH+U/nNpR+u5Fer7/SP6KdrL564KNYQ7m3334m/j4Ah+iJ/tiHcrPx476M/rvTI91qFQzTQH/+w7eXXX4uIP3n4D5g3leCrLzWnMs2CFUve4jEfcXrIsCQdeBOvcN9LURe/ej6RusT712DvdHm49KddaY2cfZmelp01KseYz3SztTG/cjT3xrbuH7F86VcgWPfam2mQl8JKzJK9a/wrKdqb1Uf+/r7tDm7wPBrrf6+6uPvhx/xzX2Onriw99xPlLddE1cvbRv177jSlo/W1y9frv+f7BcfrvaaoVLZ+s/wXucd+3ZOtH/Dpg/m+elMJ/X9NLZYN93TcSLajKs6YeCDQeMHp/RFvTuF9NLNT3Gry2mV+rcdtxW0vcB0tMdhGRr/t1JtL5qzyWQfsJ0JfpfTS/dcblcs7eAe0mHLnv4Fnvwux7vRnsQ/W/MHj3dWYr2IF4zZf+eJnkDwV63noHwM2gFvDGW5mzsmrN4iY8k16U7Ky6X7c4K+fgWPbis4w56PCNB+j9M34x/ZgSUzs/wnOMoE4z1fX5GehzlP5zqLfkC0g867IT03JZNW6nz9QvYGK8DEUPKrxgjtvtBmov7ouSvPI7CCzy74qjr7pjfsRH9X6a/5DP/5Zkr+gX3GZsPKHV7XPNvR4zlCRvDNeN+J+XBa30Gz1/pfLRPu+fbf+qXo6wGn2o13nwYR/rAAOD/c1B/z9lgnZdxnZR1uSmrKtUl36Oahv/b6Zr/ervNivUuSvNK11WaPJq/3mQ7nW7KaB8fxXk0/yzN4u223OpM10Wqdw/Xv8jqIkl2cVJU+yLOLvFfmufxoR3HPNa0iflNNTqnx+8VpP/AADRx+SHLlSOBX0P3iYXO6+iPGMI7/3D6Ljyc0w8P5/TP94OHcxlpbAZjmGObNje/0V6IRXKMGP3HBoDWJIA5NH8l8A8Y/xO5hXeY4znWUHiHe/JHLG+h7q7PX448GT6+47KR7/QRV2WebPU61fluk5RJ9vC8+pTScl3mcVyk8T6NN5f4/w3UY9WaFTMAAA==",
+  "debug_symbols": "zZzRaus6EEX/Jc95kEYjzUx/5VIOaZseAiEtaXvhUvrv1z7UbrFNypAzZr+UOmjvLDLeYyeS9b552N+9/f51OD0+vWxu/nnfHJ/ud6+Hp1N39P6x3dydD8fj4fev7y9vUv8nlz/jX553p/7w5XV3ft3cZLLtZn966P4rqdM/Ho77zU1NH7fbTWa3oroVza0Qt0LdCvMqKLkV2a0gt8Jdc3LXnNw1J3fNyV1zctec3DUv7poXd82Lu+bFXfPirnlx17ws15zboGjyXbGdDWVKn0OZ6fJQJfkcqqRTDgHhUBAOw+DgNesyuirLhKOmFTlkGKqapxwZhINAOAoIB4NwVBCOBsKxZv9oY/9QmnIoCIdhcLQ1+6kNrpam50dbsX8Y1YGDy5SjgXAICIeCcBgGhyQQjgzCQSAcIP1DGIQDpI/J1X1MRw6zy0NzajrYJpl+gxFdkSQnGmxznl5zxVBINMGQ5FVJ8heJTUkIhqTAkPCaJMwjCdcpSYUhaTAkAkOiMCSGQmIJhiTDkBAMSYEhgemxBtNjDabHGkyPNZgeazA9NieYJtvdR+GgwLTZnFbts/qFYjZDYRyUioPScFAEB0VxUFbttrWOKDpdK9B9V8RByTgohINScFAYB6XioDQclDW7LY2/KmfiPENRHBSDQaGEg1JwUNZMENUyosym0DOFJeiPu4a6W6R7SaHuOdSdQt1LqDuHui9eRykPEwg0m93Jy8tLL0vEL1G/xNwSTn5J9kvILyl+Cfsl/uqzv/rsrz77q8/+6ld/9au/+tVf/eUVmN2Vc5DID5lveZifbbnM3DnUvYa6t1B3CXXXUHeLdF9eW/jX3HOoO4W6h2a1hWa1hWa1hWa1hWa1hWa1hWZVQrMqoVmV0KzK1Vkdf35ptc3cOdS9hrq3UHcJdddQd4t01xTqnkPdKdQ9NKsamlUNzaqGZlVDs6qhWdXQrFpoVi00qxaaVbv6fJfhceY2n9Wwq88ZG4ZK4pm775y57fcfSH5J9kvILyl+Cfsl1S9pfslyH7Lh9q7Mnjuj5Rn+yxL7STI92Wl5xvyyJPsl5JcsVr+MUy+FbCZhv6T+ICk8kzS/RPwSdUsoBfYtoms7uqThIX7JdeZOoe4l1J1D3a+9Gkkenj2SMusY1ELdJdRd/97nvuBuke4lhbrnUHcKvIOhUkLdOdS9hrq3UHcJdddQd4t05xTqDrNyhZbnXKNQ2heKzlEqDkrDQREclFVXxF1a5URsMCg14aBkHBTCQSk4KIyDUnFQQFZPfnRH/+7Oh93dcf+5Q+rj2+n+24apr/897yd7pz6fn+73D2/nfb+L6tcGqn1T6G4StmR62z8v0R9W21Lj/rDPKbXaHUr3rt07/w8=",
+  "file_map": {
+    "50": {
+      "source": "fn main() {\n    let numerator =\n        [790096867046896348, 1063071665130103641, 602707730209562162, 996751591622961462, 28650, 0];\n    unsafe { __udiv_mod(numerator) };\n\n    let denominator = [12, 0, 0, 0, 0, 0];\n    let result = unsafe { __validate_gt_remainder(denominator) };\n    assert(result[4] == 0);\n    assert(result[5] == 0);\n}\n\nunconstrained fn __udiv_mod(remainder_u60: [u64; 6]) {\n    let bit_difference = get_msb(remainder_u60);\n    let accumulator_u60: [u64; 6] = shl(bit_difference);\n}\n\nunconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {\n    let mut addend_u60: [u64; 6] = [0; 6];\n    let mut result_u60: [u64; 6] = [0; 6];\n\n    for i in 0..6 {\n        result_u60[i] = a_u60[i] + addend_u60[i];\n    }\n\n    result_u60\n}\n\nunconstrained fn get_msb(val: [u64; 6]) -> u32 {\n    let mut count = 0;\n    for i in 0..6 {\n        let v = val[(6 - 1) - i];\n        if (v > 0) {\n            count = 60 * ((6 - 1) - i);\n            break;\n        }\n    }\n    count\n}\n\nunconstrained fn shl(shift: u32) -> [u64; 6] {\n    let num_shifted_limbs = shift / 60;\n    let limb_shift = (shift % 60) as u8;\n\n    let mut result = [0; 6];\n    result[num_shifted_limbs] = (1 << limb_shift);\n\n    for i in 1..(6 - num_shifted_limbs) {\n        result[i + num_shifted_limbs] = 0;\n    }\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

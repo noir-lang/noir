@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 309
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "value",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VW227bMAylL3LrDMWKNX0esLdtGCBZdi2/5WE/4jTxd/jTG7diQ9NqizYU2hAwZIv04dEhLSuBJysOVwlLS/y48aPVd3W9b6u9sabXVbd1ja6b7Z0zzjSu2VXO2r2rXdttu1Z3prZ7MzSdHfSTpQRLn2gxeWZyPE3mcVIy8jluUrlf0kefZiYB+TpKcwRJjvkbBRNMVi1yRO6SaBVIz4BjLsnxXAuVnQFHBcKfc0JIUku/boeJikDXXsRcfCEsQEGII+6pP/xJjNAeH2oQrpX1Y8nmp3clDxIlwZXGd7pu+QFQmL8tCWZM/DwOvr7wOP/HOT6wvBmLC71zBcsNCGNwHTH66FDnJrJOFeIXkeqMuimiXRZYE+a/gnmt0B8aAeY1BZZrBVF72Ly2Nsofe+OaxXMNXsJS78T6zJpSrWlNH2PGoy9lvpz4FPOpcbnGy8P1k8SFvkGM+0Pu/zKNYu7PsfaFyW4C/GmuyS5GeDbUIyNzqCvqfEnjma8kvnyc51n555zkoVjIQ7H43/75ux8L8g6+fx3IX7D8M96BOa5LGYgvA/FT//7y99/8NfXQPzKH/+F8POaQqnPrjgc/rIeC+d4CLL9i8ZV/XjEN8FvafJDn0PZmsP3QN/1uV9/3Pxg+1ZHqhOMtyOulyblrHQf/+VxB7Zbcr9k66fl0I8QB8bAPFCwtZT66H1J+iTw/w7lkgVxoN35ckznU8wFEjBwY8RQAAA==",
+  "debug_symbols": "lZLRCoQgEEX/ZZ59UKut7VeWCCsLQSysFhbx31cjl5Bg8fHO3DPzcK+BgXf71Ao1zivULwNy7tkmZuWUAXyM1oUpr9aN6Q3qR4WAqwHq8mkRjEJyqAtsGwQkzU7T7FmaPb+zE0pOP8loBBR3AMUBoLiKgMctQH4AiYHyzweaRUCVBjjRaSGlmNprjG78ZlqwTvJTjrvqL9vts4RN4Bc993zYNfeXQhfMkUFGUE582r4deYEK3Fjrnn8B",
+  "file_map": {
+    "50": {
+      "source": "fn main(value: Field, index: u32) {\n    let mut args = &[0, 1];\n    args[index] = value;\n    // Safety: n/a\n    unsafe { store(args) };\n    // Dummy test to remove the 'underconstraint bug'\n    assert(args[0] + args[1] != 0);\n}\n\npub unconstrained fn store(_: [Field]) {}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "store",
+    "directive_invert"
+  ]
+}

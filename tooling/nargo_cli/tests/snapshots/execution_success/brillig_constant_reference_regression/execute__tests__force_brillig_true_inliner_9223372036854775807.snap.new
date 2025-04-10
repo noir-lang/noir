@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 309
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "sorted_index",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VX207DMAx1uqZbN02b4AmJN+A9veyCxMOQmAQvIPEH3ca+o5/OAnHnuqEbWwKWqlzs+By7jrsJ+BZhHi0h2cMxgLqgbmFGdZ4kDn0pXxyFB45fElgSaxPUvZsxZue1vuMw4JjhuvQ/V/k0tsTnkH8WQ714HftPY+LTg3/VNX6eyr1/HguQEe34mQ6xWRKbJbPBeDy979xzvtIhNJsVxoLYoR/sTDA8YHECw++D19pMBMNDPjw/OB+iTbnnI5guLJtxoE6W9Ti09HbPFbHjtRUQu1syvzNzz/U49dwf1GVLzLjXLaGS6j6TPcwr5rlH7ZkuJrqwrOP0zTokONQX8pDM/sasR2aMyBk8P7bgRwy/xtuyx/MSW+xji320e67NfGAeXUMveAaaNb8wozpLshnvZ+58qxXeF3p/eS+TZP8/ellVK+C1t1a9TDI+PD+0l2ldZOE6tuho7VEdxYksODZfVa2C129d0sZVWPiMoFkz0d9wTTlXSbjKltx1iQ4c5k4yPvdm1H3jjWD+hjP3+XCET4DT35lg547lh/aPLfw6Fn62e9YWD60lyeIRlngO8aX3VDLbZzN6/o2nLohfYFgD2P8fC0v3+LO5UoiL330J9XcFDF8y+1ez7v8Qx+JEnttZkWyzYltMis0mXxc8T1oCkifX+OvJdLXOJ4X6SPQyPYT/CU8dOO/1EAAA",
+  "debug_symbols": "lZXLaoUwEIbfJesscp2or1LKwUs8BEQlaqGI796kWBDr5t+IE/6PmeRbzM4632zvVxj7aWHVx86Gqa3XMI2p2g/OmhiGIbxf12Mm8kcXv/llrsdcLmsdV1Y5xZkfu/RjEt2HwbPKiuOTM11ieSPAvATzCsxrMG/AvAXzBOYdmAf9mke/SpQnoNSdsAImJEwomNAwYWDCwgTBxKNvZeiPIHknCpgoUYJg5wQ7J9g5wc4Jdk4WfiuCCdg5PTo3Qp6Ekf/uUaKEEzAhMeJI1VcdQ90M/lxc/Ta2lz22fs/+ttLmOLW+26LPy+2y11JrZbm2aQ6ZJ3eauyIXeShX8kKmfqnnDw==",
+  "file_map": {
+    "50": {
+      "source": "unconstrained fn main(sorted_index: [u32; 2]) {\n    let original = [55, 11];\n\n    let mut sorted = original; // Stores the constant \"original\" into the sorted reference\n    for i in 0..2 {\n        let index = sorted_index[i];\n        let value = original[index];\n        sorted[i] = value; // On first iteration, we should not mutate the original constant array, RC should be > 1\n    }\n\n    assert_eq(sorted[1], 55);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

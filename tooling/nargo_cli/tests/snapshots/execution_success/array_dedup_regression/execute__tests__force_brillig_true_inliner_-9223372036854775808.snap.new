@@ -1,0 +1,63 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 309
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2azW7TQBCA14mdxPlp0qYt9BU4+TdOD0iVyiNwQOLkOA1CAlQBEuKCfEGCt6YbduzJeNwWmC05dKXK693Zb352d7yO66i6OObqknvFyFyYa/BvJRRkBayhtxWQmZuKb+47qL8r6KxP9Eryl0GS+ox/gvbHvmHajA8wLfCDvuG8KGs+9UWhK8jRMbp/Yup4nYHMwPRDfWrqPhljY/4tzk8wZ+zvIN90uSzrPiWoe2Ri+YbEEuZKUFe1Dl15dgRsT55d7c+ePDsBdl+encJeGiC2Q+YZ507BNb1wiD6ldvOPIvqHxFbpHOgQfWAPjQ/sO4jdkLF1xvRh33Af1jNk9HAsV5DlCbJ6gixY71PVjB/MB80X0nnXITFykR9UJ/hDY4rzjUfanpmr9uc9GkPza5dpo7Gj+wLHx9Zz3Wf8FeSn9vLqMqB51daZip49pfiQf7hzlI5XjNrxevVUvZ7wWA/1Y/kMMRemrs8EU9XcB3RfDu3EttqXI8PD+5LLkx0ij+vYZ2h7bq7cvsRnky7Tdtu+dO/B4s541N9ei7zb4s8l8ufa1OGc3C3r8Xj+dHFRn+SzX+v5hOxozEe56/dYNeOE5WmcJoz8WDXjNCPyONf4zDjBGKwnjK2KxOQA6fZJ3xT14XVNS5fcY5/0PPxEXCqH63gc3m9c/vGI/NpcdWxfEibNEXSf9FtswHsAy7gtNrxStc8TZ5fJ5UbujERz42vEnDm8nUrJrFmwh8u7eCyW9RhZekaDPpcZrwu8V1JWYa6+aq5ByVx/hLhKNfPgusUfpfg1CmuFe366iBsj/7bxKeX9y5a/n2VbW8s6znTPYv0ekX9n7vF6xf5c/KWdmywPN3G+ydN8vU6KnM6DQrEbWdCfZ/GyiJIiW6VxHi8eXH+S5lmRZ2F4noRXSZjepR/yca+s+/GzVZe+uYf8SeWB5xH5LyB78/fV1GHPe4w+LffjFjmn5bplMG1uudvml035btmUB93Dsmkj9I1QH37u6zI29zhemAV2eET+u7mHORmgMTB+xugfEP07djNtOHdQVpdpA3k9P9+AZ67Yd+nfNbY6CR+3Udtg7dz12x/k3AsRW7MV9z4vx48i7n1Vjr9Y0fdVYf45984qyL8C/sAOP+HeieX4cc69dwraH3JnHcH1H3HvHIL8av1MrPCjAvgHduJf8ad2+NXvTTM7/Az4h3bmt9pfR3bsXwJ/boUfV/E/thOf6je/EzvxWQD/1I791W8GT1RdqjOZqT9F7XLniDi5z1kR6x8SW22ca7A+sIfGh36vOWNsnTF99Ixzxug5Y/RwLFeQ5QmyeoKsviBrIMiSjL2/p3YNBVmjPWVJ+jgWZEnO42RP7ToQZE0FWZI5ZybIOhRkHQmy9jUXzgVZ+7qHJNeEZP46FmRJ7u19XauP58L/l6Mfz4V/xjoRZEmuCck8IXk22df1dWqRxf2fWYdhOcQvLM+9b+tnFOSk649vP3xWpGAQwDnDvBYDYsKDD9WUS/mqhUttiRmOjQ+N0XK5OI9WQZKti806iR/6Q2eRLlbFzdfO4CrcmnOX/l8ryqGVujIAAA==",
+  "debug_symbols": "tdrRSuNAFIfxd8l1L+b8J2fmjK+yiFSNUiit1LqwiO++ibRuicHlu+iNNHK+VPm1NJzmvXsc7t+e7za7p/1rd/PrvdvuH9bHzX43Hr1/rLr7w2a73TzfXf66S9MPK5/zry/r3XT4elwfjt2Nx6obdo/jgzbWT5vtMD5MH7erziqcDzjf2LwSnDc4Lzif4XwP5x3OQ19BX0FfQd8MfTP0zdA3Q98MfTP0zYu+ZvUUmMW8qLgIXDRa9AkXhgvhItPCF/+q2k5BpPm842fA4o7FHYs7Fi9YvGDxgsXLsnjWuch1XvS4cFwUXCybq30V3/7zwEWjRU24MFwIFxkXy+ben4vil8Xq22g0O4025a9R6fPkfs2Tl2uevF7z5HHNk7crnjzSNU++/Ab5+sSx8NmLNxZfvLJ0KmTzi4xwXBRcVFwELhotWsLFoofS+SNHml8CNOEi46L/XzH/AGmOi4KLioughaWEk+UL3p/ehbZ8xftjsnzJ+3NiPBFPMk96njhPCk8qT7h+z/Wd6zvXd67vXN+5vnN95/rO9Z3rO9cvXL9w/cL1C9cvXL9w/cL1C9cvXL9w/cr1K9evXL9y/cr1K9evXL9y/cr1K9cPrh9cP7h+cP3g+sH1g+sH1w+uH1y/cf3G9RvXb1y/cf3G9RvXb1y/cf2G9ZUST4wn4knmSc8T50nhSeVJ8ITrG9c3rm9c37i+cX3j+sb1jesb1zeuL64vri+uL64vri+uL64vri+uL66fuX7m+pnrZ66fuX7m+pnrZ67Pd33iuz7xXZ/4rk981ye+6xPf9Ynv+sR3feK7PvFdn/iuT3zXJ77rE9/1ie/6xHd94rs+8V2f+K5PfNcnvusT3/WJ7/rEd33iuz7xXZ+Wd321P3//Ui/uiTknhSeVJR/j0e/1YbO+3w6nmySf3nYPF/dMHv+8DLPbJ18O+4fh8e0wTDdS/ruHcvI185Xlcjt94TQdpryyFNPhRKnSVqo2Puv4zH8B",
+  "file_map": {
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "unconstrained fn main(x: u32) {\n    let a1 = [1, 2, 3, 4, 5];\n\n    for i in 0..5 {\n        let mut a2 = [1, 2, 3, 4, 5];\n        a2[x + i] = 128;\n        println(a2);\n\n        if i != 0 {\n            assert(a2[x + i - 1] != 128);\n        }\n    }\n\n    // Can't use `== [1, 2, 3, 4, 5]` here, that make_array may get\n    // deduplicated to equal a1 in the bugged version\n    assert_eq(a1[0], 1);\n    assert_eq(a1[1], 2);\n    assert_eq(a1[2], 3);\n    assert_eq(a1[3], 4);\n    assert_eq(a1[4], 5);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

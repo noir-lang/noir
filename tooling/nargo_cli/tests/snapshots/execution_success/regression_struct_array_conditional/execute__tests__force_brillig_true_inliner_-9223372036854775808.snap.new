@@ -1,0 +1,103 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 309
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "struct",
+            "path": "foo",
+            "fields": [
+              {
+                "name": "value",
+                "type": {
+                  "kind": "field"
+                }
+              },
+              {
+                "name": "counter",
+                "type": {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 8
+                }
+              },
+              {
+                "name": "dummy",
+                "type": {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 8
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 8
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldvbSiNLFIDhd8l1LrpqnX2VzTB4iENAVKJuGMR3n2SwR0mXLf+N2OKHwb8WtMv06+Zmd/Xy6+f+/vbhaXPx3+vm7uH68nn/cH+8en3bbq4O+7u7/a+fn7+8mU4frP/9/qfHy/vT5dPz5eF5c9Gzbze7+5vTZ370t/u73ebCprcf240JFoqFYeFYBBaJRVHh07qQqZ2LhkXHQrBQLAwLxyKwSCyKisDNAzePYXOxmIXluRAsFAvDwrEILBKLoiInLBoWuHni5ombJ26euHni5ombJ25euHnh5oWbF25euHnh5oWbF25euHnh5m2aOGmcdE6EE+XEOHFOgpPkhNdvvH7j9Ruv33j9xus3Xr/x+o3Xb7x+G9bXXu9EZTonfeKkcdI5EU6UE+PEOQlOkhNeX3h94fWF1xdeX3h94fWF1xdeX3h94fWV11deX3l95fWV11deX3l95fWV11de33h94/WN1zde33h94/WN1zde33h94/Wd13de33l95/XHCzC1nInVORlvp7z8ncTUF2R4xkLmnxJqC2KcOCfxDfHFb2y8Plonhcl4gbROhl0iZSYZC9I5EU7G9SNXiHHinAQnyUlhMl4lpeo7SWsLMqyf9kEWf/KMl0nrRDhRTowT5yQ4SU6Kkj7eKa2TxknnRDhRTuybw+++IM5JcJKcDOvXNJNq54Pcxzulah9k8Rsb75TWSedEOFFOjBPnJDhJTgqTzut3Xr/z+p3XH++UPh3+vpiX8U5pnTgnwck4pcy31qVyTsYLonUi9G68f7G6iWkmoQtinDgnwUlyUph8sbr5dweri/ux/sXqZpV0ToQT5cQ4cU6Ck+SE1/9idbNKGiedE+GEz77x2Tc++8Zn3/jsG6/vvL7z+s7rO68/fg+WTfO82LSYl/GbsNaJcxKcJCeFyfidWOukcdI5EU7G9XU+MKaLAzNeqa0T5yQ4SU4Kk/FKbZ00Tjon8g2xxY1iKifGiXMSnCQnhUnx+sXrF69fwgmf/eKzX3z2i89+8dkvPPsyTZw0TjonwolyYpw4J8FJcsLrN16/8fqN1x+v1Czmf6VZTguinBgnzklwkpwUJuOV2jppnHROeP3O63dev/P6ndfvvH7n9cdbOJ/mLZw3WZDGSedEOFFOjBPnJDhJTgqT8a7PdT4wbosDM971rZPOiXCinBgnzklwkpyM6/v8UJTn+b/SxL6tXwvSOOmcCCfKiXHinPD6xuuPd32rxPnsO59957PvfPadz77z2Xc++87rO6/vvH7w+sHrB68fvH7w+sHrB68fvH7w+gHrvx2v/r887C+v7nbvT8jfvtxff3pg/vn34+7s2fnHw8P17ublsDs9Rf/xAP3pFEnpVpudXsrp6nihP07PC50usm8l43TZ/n5n20rJ8RUcX8Uf",
+  "file_map": {
+    "50": {
+      "source": "struct foo {\n    value: Field,\n    counter: u8,\n    dummy: u8,\n}\nstruct bar {\n    dummy: [u8; 3],\n    value: Field,\n    counter: u8,\n}\nstruct bar_field {\n    dummy: [Field; 3],\n    value: Field,\n    counter: u8,\n}\nfn main(x: [foo; 3], y: u32, z: u32) -> pub u8 {\n    let a = [y, z, x[y].counter as u32];\n    let mut b = [bar { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    let mut c = [bar_field { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    for i in 0..3 {\n        b[i].value = x[i].value;\n        b[i].counter = x[i].counter;\n        b[i].dummy[0] = x[i].dummy;\n        c[i].value = x[i].value;\n        c[i].counter = x[i].counter;\n        c[i].dummy[0] = x[i].dummy as Field;\n    }\n    if z == 0 {\n        // offset\n        assert(y as u8 < x[y].counter);\n        assert(y <= a[y]);\n        // first element is compatible\n        assert(y as u8 < b[y].counter);\n        // fallback\n        assert(y as u8 < c[y].counter);\n    }\n    x[0].counter\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

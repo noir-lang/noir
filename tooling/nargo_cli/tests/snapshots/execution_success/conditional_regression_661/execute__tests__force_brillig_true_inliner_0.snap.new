@@ -1,0 +1,64 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 309
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZvY7TQBAe/yXnoCgR1Eh0INHYifMDFRIhdyfxAhQUJncpeAEKGhfQQMcbICHxmmTJDhl/HjtG5w0cYiVrbe/sfLOzM99sHI/2Ldxdnrg3zadqY5lntk9u1tIOdSWesN2VvV6H9rqy0b8FNga3wMbQgY0/WwQBajYsUIKXQM6077aPbe+L8Q6dmsaA26X+ZZLlsbK+Du2fxkKnA/0z1h+60Z/0rZ4XRVk/AW4ActocllkLmXWNzLmQOa+RuRAyFzUyl0LmEmSG9t6jqs3sVxdxvYu7ueN9y4ZU3isS62TsyA32zAM8onLMEOAPyGmOpB7gsT3oH97rIcsUB3twLCyq6+CxSIzx/p7trvtCTostlnsk7h/be94zlzzoKt5Nu6fYL7FM6xf0q7E/AvGO/cp+PpPyMBaLsbAo4wzscyhwpC62IwL5h/Z5ZPuemMPzxwp+D/BLdivv0C+xIh8r8r3d9cDe36FDbX5eHPR1uaesf+VGf2rWYHLgo9XXhtMc8emkLacx/qk4LQR7mjgNOZ/njqnKjxwzQwXHq+nZBnznAw7ukWmuz0lYAyKq+kvyUwTyr21vcuwp2Oyojs7Z9z2qNh7rC2zkDdkCeJZ2mxz7LPSiHGJKf/XBF47qx6SphtfVFOm7Xo28jAcpvxa++Qo6fcUG6d9Vse9HLezzj6wnAvngyHp8WA/Lv1TWo51/kU8d5WNrPuV3A3J3/kkEnwZgD/qniU957lgZ43kj0uPgBD5PMIdC0jnQF2vFdcj8Q458ZXsTY99gfVqcy3dYI7SY1uoHy5l8eG/v//NyGb+ON5s4y1fsacoRLZ4Ru1cjz/ownt7a/nc5y2UNIjrOWYx/Ks5qqiFEzZyFuaXx2b/MWe9s/6c5Szsr4JxjtWlVlHVpOebyO0J2PUnQ1oiaOUKzh6i7HMFz0AfAdfW94y6sR2LJ3+Zh0T3+YrnPG9P4u0hE1Voj8SOQ/2SfB8o6bvKHxHaRp9tpvs1n+dVVtsnRTwR+kr//u8wDT5mn5TjrQuy6Wsb6MO6+2F6rZRLvRLza+hstnr9d/c/T5mxBVK1l2reEJs71YEzihArOWBmT39P+Rl14RkLu6Tqns1m+2OSLNH2SpddZOjuW013j54vpcjPJNos3s2k+nR/llB8lVauWbSAAAA==",
+  "debug_symbols": "tdndavJAEAbge8lxDnZ2dvbHW/n4KFFjCYQoUQtFvPcmYqxNlpa3dE7ElX3ehUzWDNlLsa3X59eXptvtj8Xq36Vo95vq1Oy7YXS5lsW6b9q2eX15/rkw44dzt/nHQ9WNw+Op6k/Fiowpi7rbjt9o8LumrYuVmOv/snACCw+LAIsIi4QKMbAgWFhYMCzyNSeaBPm5EFhk62HJ3YVlMxcJFd7AgmBhYcGwcLDI1sOyfYgwFx4WARYRFgkVIV/zx91uOT6LcjHV8TTVfZ06hpNmuP27cGfn4awZ7jTDRTPca4YHzfCoGZ4Uw6PRDCfNcM0dGrEdOgoHC4GFh0WARYRFQkUysCBY5Bstl6YmyMtcOFgILDwsAiwiLBIqhoY1S1geJP3+4Ts0warp9u/SF/8cZFg13ammi2q6V00PqulRNT1pppNRTSfVdNW9SthevRGHE8GJx0nAScRJgok1OCGcwB0b2XzLJmEiy8eeFZz4H0jgBQk4iThJMGGDE4KJy64i7O9EnFkQwon9ibgFYZw4nAhOsveY2KmBE15e5ICTiJMEk/x72+8J4cTihHHicCI4wasvePUFrP51GL1VfVOt2/p+sLE7d5unc47T+6GeHXkc+v2m3p77ejz8+Dz3GK/8sBCnW7M0DIi5JI63J9I49FSS52HNYd0P",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: u32, mut c: [u32; 4]) {\n    // Regression for issue #661:\n    let mut c_661: [u32; 1] = [0];\n    if a > 5 {\n        c_661 = issue_661_foo(issue_661_bar(c), a);\n    } else {\n        c_661 = issue_661_foo(issue_661_bar(c), a + 2);\n    }\n    assert(c_661[0] < 20000);\n}\n\nfn test5(a: u32) {\n    if a > 1 {\n        let q = a / 2;\n        assert(q == 2);\n    }\n}\n\nfn issue_661_foo(array: [u32; 4], b: u32) -> [u32; 1] {\n    [array[0] + b]\n}\n\nfn issue_661_bar(a: [u32; 4]) -> [u32; 4] {\n    let mut b: [u32; 4] = [0; 4];\n    b[0] = a[0] + 1;\n    b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
