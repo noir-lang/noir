@@ -13,21 +13,21 @@ Here's a rough diagram of the compiler's architecture:
 
 ```mermaid
 flowchart
-  src[Source Program]
-  astdef[AST & Definitions]
-  mast[Monomorphized AST]
-  mastcd[Monomorphized AST with Clones & Drops]
-  ssaopt[Optimized SSA]
+  source[Source Program]
+  ast_and_definitions[AST & Definitions]
+  monomorphized_ast[Monomorphized AST]
+  ownership_ast[Monomorphized AST with Clones & Drops]
+  optimized_ssa[Optimized SSA]
   brillig[Brillig IR]
 
-  src --Lexing--> Tokens --Parsing--> AST --Definition Collection--> astdef --Elaboration--> HIR
+  source --Lexing--> Tokens --Parsing--> AST --Definition Collection--> ast_and_definitions --Elaboration--> HIR
 
-  HIR --Monomorphization--> mast --Ownership Analysis--> mastcd --SSA-gen--> SSA
+  HIR --Monomorphization--> monomorphized_ast --Ownership Analysis--> ownership_ast --SSA-gen--> SSA
 
-  SSA --SSA Optimizations--> ssaopt
+  SSA --SSA Optimizations--> optimized_ssa
 
-  ssaopt --Brillig-gen--> brillig
-  ssaopt --ACIR-gen--> ACIR
+  optimized_ssa --Brillig-gen--> brillig
+  optimized_ssa --ACIR-gen--> ACIR
 ```
 
 Below is a summary of each compiler pass and which Rust source files may be most useful in
