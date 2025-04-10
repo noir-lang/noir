@@ -252,7 +252,6 @@ impl<'brillig> Context<'brillig> {
             );
         }
 
-        let cache = self.get_constraint_map(side_effects_enabled_var);
         // Map a terminator in place, replacing any ValueId in the terminator with the
         // resolved version of that value id from the simplification cache's internal value mapping.
         let mut terminator = function.dfg[block_id].take_terminator();
