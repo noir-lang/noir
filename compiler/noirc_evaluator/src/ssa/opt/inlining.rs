@@ -787,15 +787,21 @@ mod test {
     use acvm::{FieldElement, acir::AcirField};
     use noirc_frontend::monomorphization::ast::InlineType;
 
-    use crate::{assert_ssa_snapshot, ssa::{
-        function_builder::FunctionBuilder, ir::{
-            basic_block::BasicBlockId,
-            function::RuntimeType,
-            instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::{NumericType, Type},
-        }, opt::inlining::inline_info::compute_bottom_up_order, Ssa
-    }};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                basic_block::BasicBlockId,
+                function::RuntimeType,
+                instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::inlining::inline_info::compute_bottom_up_order,
+        },
+    };
 
     #[test]
     fn basic_inlining() {
