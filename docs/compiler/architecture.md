@@ -160,6 +160,10 @@ necessary before calling into the `compiler/noirc_driver` crate to invoke the co
 
 ## Debugger
 
+The debugger for Noir code can be found in `tooling/debugger`. The debugger works by inserting extra
+instrumentation in the form of function calls (see `compile_program_with_debug_instrumenter`) then
+executing the resulting ACIR & Brillig code itself.
+
 ## Fuzzer
 
 ## AST Fuzzer
