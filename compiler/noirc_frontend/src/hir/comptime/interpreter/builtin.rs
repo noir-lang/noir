@@ -863,7 +863,7 @@ fn quoted_as_trait_constraint(
         Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_trait_bound(&trait_bound)
+            elaborator.use_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
@@ -881,7 +881,7 @@ fn quoted_as_type(
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_type(typ)
+            elaborator.use_type(typ)
         });
     Ok(Value::Type(typ))
 }
@@ -1411,7 +1411,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat(element).take(length as usize).collect();
+                let array = std::iter::repeat_n(element, length as usize).collect();
                 Value::Array(array, Type::Array(length_type, elem))
             } else {
                 // Assume we can resolve the length later

@@ -289,3 +289,103 @@ fn resolves_trait_where_clause_in_the_correct_module() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn considers_struct_as_constructed_if_impl_method_is_called() {
+    let src = "
+    struct Bar {}
+
+    impl Bar {
+        fn foo() {}
+    }
+
+    pub fn main() {
+        Bar::foo()
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn considers_struct_as_constructed_if_trait_method_is_called() {
+    let src = "
+    struct Bar {}
+
+    pub trait Foo {
+        fn foo();
+    }
+
+    impl Foo for Bar {
+        fn foo() {}
+    }
+
+    pub fn main() {
+        Bar::foo()
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn considers_struct_as_constructed_if_mentioned_in_let_type() {
+    let src = "
+    struct Bar {}
+
+    pub fn main() {
+        let array = [];
+        let _: Bar = array[0];
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn considers_struct_as_constructed_if_mentioned_in_return_type() {
+    let src = "
+    struct Bar {}
+
+    fn main() {
+        let _ = foo();
+    }
+
+    fn foo() -> Bar {
+        let array = [];
+        array[0]
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn considers_struct_as_constructed_if_passed_in_generic_args_in_constructor() {
+    let src = "
+    struct Bar {}
+
+    struct Generic<T> {}
+
+    fn main() {
+        let _ = Generic::<Bar> {};
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn considers_struct_as_constructed_if_passed_in_generic_args_in_function_call() {
+    let src = "
+    struct Bar {}
+
+    fn foo<T>() {}
+
+    fn main() {
+        let _ = foo::<Bar>();
+    }
+    ";
+    assert_no_errors!(src);
+}
