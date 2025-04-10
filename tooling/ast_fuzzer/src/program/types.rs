@@ -201,7 +201,10 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
         (Type::Field, Type::Field) => op.is_valid_for_field_type() && !op.is_equality(),
         (Type::Field, Type::Bool) => op.is_equality(),
         (Type::Bool, Type::Bool) => op.is_comparator() || op.is_bitwise(),
-        (Type::Integer(_, _), Type::Bool) => op.is_comparator(),
+        (Type::Integer(sign, size), Type::Bool) => {
+            // AcirContext::less_than_signed would cause overflow with 128 bits
+            op.is_comparator() && !(sign.is_signed() && size.bit_size() == 128)
+        }
         (Type::Integer(sign_in, size_in), Type::Integer(sign_out, size_out))
             if sign_in == sign_out =>
         {
@@ -210,7 +213,7 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
             (op.is_arithmetic() && size != 1 && size != 128 && size_in <= size_out)
-                || op.is_bitshift()
+                || op.is_bitshift() && size != 128
                 || op.is_bitwise()
         }
         (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
