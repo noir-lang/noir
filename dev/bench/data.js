@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744295644211,
+  "lastUpdate": 1744295646799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "29e8fb4767e0786c87a3c36bd95f3d0caf314675",
-          "message": "feat: add basic comptime correctness tests (#7825)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-04-01T15:07:34Z",
-          "tree_id": "fd5cf084da8cbfcff28fb559cce20c9e6ee90f22",
-          "url": "https://github.com/noir-lang/noir/commit/29e8fb4767e0786c87a3c36bd95f3d0caf314675"
-        },
-        "date": 1743521804966,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 504.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 413.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 293.53,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/48891b16b69e00aba29583455c2c286fba174ce2"
         },
         "date": 1744294940952,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 474.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7a283159995ea853768b405899e327e7bbaf9172",
+          "message": "chore: add `teddav/tdd.nr` to external repo checks (#7994)",
+          "timestamp": "2025-04-10T13:51:54Z",
+          "tree_id": "7ceda9fc48957055ad12054a3cbe1548becc7596",
+          "url": "https://github.com/noir-lang/noir/commit/7a283159995ea853768b405899e327e7bbaf9172"
+        },
+        "date": 1744295638133,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
