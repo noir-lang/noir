@@ -1411,7 +1411,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat(element).take(length as usize).collect();
+                let array = std::iter::repeat_n(element, length as usize).collect();
                 Value::Array(array, Type::Array(length_type, elem))
             } else {
                 // Assume we can resolve the length later
