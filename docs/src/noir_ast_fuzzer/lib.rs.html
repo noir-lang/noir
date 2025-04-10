@@ -62,7 +62,13 @@
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
 <span class="kw">pub mod </span>compare;
 <span class="kw">mod </span>input;
 <span class="kw">mod </span>program;
@@ -92,7 +98,7 @@
     <span class="doccomment">/// Maximum size for arrays.
     </span><span class="kw">pub </span>max_array_size: usize,
     <span class="doccomment">/// Maximum size of for loop ranges, which affects unrolling in ACIR.
-    </span><span class="kw">pub </span>max_range_size: usize,
+    </span><span class="kw">pub </span>max_loop_size: usize,
     <span class="doccomment">/// Frequency of expressions that produce a value.
     </span><span class="kw">pub </span>expr_freqs: Freqs,
     <span class="doccomment">/// Frequency of statements that don't produce a value.
@@ -109,8 +115,14 @@
             (<span class="string">"vars"</span>, <span class="number">20</span>),
             (<span class="string">"literal"</span>, <span class="number">5</span>),
         ]);
-        <span class="kw">let </span>stmt_freqs =
-            Freqs::new(<span class="kw-2">&amp;</span>[(<span class="string">"drop"</span>, <span class="number">5</span>), (<span class="string">"assign"</span>, <span class="number">30</span>), (<span class="string">"if"</span>, <span class="number">10</span>), (<span class="string">"for"</span>, <span class="number">20</span>), (<span class="string">"let"</span>, <span class="number">20</span>)]);
+        <span class="kw">let </span>stmt_freqs = Freqs::new(<span class="kw-2">&amp;</span>[
+            (<span class="string">"drop"</span>, <span class="number">5</span>),
+            (<span class="string">"assign"</span>, <span class="number">30</span>),
+            (<span class="string">"if"</span>, <span class="number">10</span>),
+            (<span class="string">"for"</span>, <span class="number">10</span>),
+            (<span class="string">"loop"</span>, <span class="number">10</span>),
+            (<span class="string">"let"</span>, <span class="number">20</span>),
+        ]);
         <span class="self">Self </span>{
             max_globals: <span class="number">3</span>,
             max_functions: <span class="number">5</span>,
@@ -120,7 +132,7 @@
             max_depth: <span class="number">2</span>,
             max_tuple_size: <span class="number">5</span>,
             max_array_size: <span class="number">4</span>,
-            max_range_size: <span class="number">10</span>,
+            max_loop_size: <span class="number">10</span>,
             expr_freqs,
             stmt_freqs,
         }

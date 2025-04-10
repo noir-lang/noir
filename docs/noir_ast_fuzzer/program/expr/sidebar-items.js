@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["binary","cast","deref","gen_literal","gen_range","ident","ident_inner","index_modulo","modulo","positive_int_literal","range_modulo","u32_literal","unary"]};
+window.SIDEBAR_ITEMS = {"fn":["assign_to_ident","binary","cast","deref","extend_block","gen_literal","gen_range","ident","ident_inner","if_else","index_modulo","modulo","positive_int_literal","prepend_block","range_modulo","u32_literal","unary"]};
