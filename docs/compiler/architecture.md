@@ -156,6 +156,8 @@ necessary before calling into the `compiler/noirc_driver` crate to invoke the co
 
 ## Noir Language Server
 
+## Formatter
+
 ## Debugger
 
 ## Fuzzer
