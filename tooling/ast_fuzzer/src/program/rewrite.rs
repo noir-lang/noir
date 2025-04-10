@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use arbitrary::Unstructured;
 use noirc_frontend::{
     ast::BinaryOpKind,
-    monomorphization::ast::{Expression, LocalId, Program, Type},
+    monomorphization::ast::{Definition, Expression, LocalId, Program, Type},
     shared::Visibility,
 };
 
@@ -15,13 +15,15 @@ pub(crate) fn add_recursion_depth(
     u: &mut Unstructured,
 ) -> arbitrary::Result<()> {
     // Collect recursive functions, ie. the ones which call other functions.
-    let callers = ctx
+    let recursive_functions = ctx
         .functions
         .iter()
         .filter_map(|(id, func)| expr::has_call(&func.body).then_some(*id))
         .collect::<HashSet<_>>();
 
-    for (func_id, func) in ctx.functions.iter_mut().filter(|(id, _)| callers.contains(id)) {
+    for (func_id, func) in
+        ctx.functions.iter_mut().filter(|(id, _)| recursive_functions.contains(id))
+    {
         let is_main = *func_id == Program::main_id();
         // We'll need a new ID for variables or parameters. We could speed this up by
         // 1) caching this value in a "function meta" construct, or
@@ -72,12 +74,21 @@ pub(crate) fn add_recursion_depth(
         // Update calls to pass along the depth.
         visit_expr_mut(&mut func.body, &mut |expr| {
             if let Expression::Call(call) = expr {
-                call.arguments.push(depth_ident.clone());
-                if let Expression::Ident(func) = call.func.as_mut() {
-                    if let Type::Function(param_types, _, _, _) = &mut func.typ {
-                        param_types.push(types::U32)
-                    }
+                let Expression::Ident(func) = call.func.as_mut() else {
+                    unreachable!("functions are called by ident");
+                };
+                let Definition::Function(func_id) = func.definition else {
+                    unreachable!("function definition expected");
+                };
+                // If the callee isn't recursive, it won't have the extra parameter.
+                if !recursive_functions.contains(&func_id) {
+                    return true;
                 }
+                let Type::Function(param_types, _, _, _) = &mut func.typ else {
+                    unreachable!("function type expected");
+                };
+                param_types.push(types::U32);
+                call.arguments.push(depth_ident.clone());
             }
             true
         });
