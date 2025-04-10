@@ -305,7 +305,7 @@ pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expressi
 /// Check if an `Expression` contains any `Call` in any of its descendants.
 pub(crate) fn has_call(expr: &Expression) -> bool {
     let mut has_call = false;
-    visit_expr(expr, |expr| {
+    visit_expr(expr, &mut |expr| {
         has_call |= matches!(expr, Expression::Call(_));
         // Once we know there is a call, we can stop visiting more nodes.
         !has_call

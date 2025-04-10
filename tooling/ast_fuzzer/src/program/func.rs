@@ -819,7 +819,7 @@ impl<'a> FunctionContext<'a> {
 /// Find the next local ID we can use to add variables to a [Function] during mutations.
 pub(crate) fn next_local_id(func: &Function) -> u32 {
     let mut next = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
-    visit_expr(&func.body, |expr| {
+    visit_expr(&func.body, &mut |expr| {
         if let Expression::Let(let_) = expr {
             next = next.max(let_.id.0 + 1);
         };

@@ -65,7 +65,7 @@ pub(crate) fn add_recursion_depth(
         let decrease_depth =
             expr::binary(depth_ident, BinaryOpKind::Subtract, expr::u32_literal(1));
 
-        visit_expr_mut(&mut func.body, |expr| {
+        visit_expr_mut(&mut func.body, &mut |expr| {
             if let Expression::Call(call) = expr {
                 call.arguments.push(decrease_depth.clone());
                 if let Expression::Ident(func) = call.func.as_mut() {
