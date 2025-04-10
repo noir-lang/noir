@@ -42,6 +42,7 @@ enum VariableId {
 /// Name of a variable.
 type Name = String;
 
+#[derive(Default)]
 /// Context to accumulate top level generated item, so we know what we can choose from.
 struct Context {
     config: Config,
@@ -169,6 +170,13 @@ impl Context {
         };
 
         Ok(decl)
+    }
+
+    /// Generate and add main (for testing)
+    #[cfg(test)]
+    fn add_main_decl(&mut self, u: &mut Unstructured) {
+        let d = self.gen_function_decl(u, 0).unwrap();
+        self.function_declarations.insert(FuncId(0u32), d);
     }
 
     /// Generate random function bodies.
