@@ -214,6 +214,8 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// Index of the next opcode to be executed.
     instruction_pointer: usize,
 
+    /// A mapping of witnesses to their solved values
+    /// The map is updated as the ACVM executes.
     witness_map: WitnessMap<F>,
 
     brillig_solver: Option<BrilligSolver<'a, F, B>>,
@@ -408,6 +410,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.status.clone()
     }
 
+    /// Executes a single opcode using the dedicated solver.
+    ///
+    /// Foreign or Acir Calls are deferred to the caller, which will
+    /// either instantiate a new ACVM to execute the called ACIR function
+    /// or a custom implementation to execute the foreign call.
+    /// Then it will resume execution of the current ACVM with the results of the call.
     pub fn solve_opcode(&mut self) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {
@@ -443,6 +451,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.handle_opcode_resolution(resolution)
     }
 
+    /// Returns the status of the ACVM
+    /// If the status is in error, it converts the error into 'OpcodeResolutionError'
     fn handle_opcode_resolution(
         &mut self,
         resolution: Result<(), OpcodeResolutionError<F>>,
@@ -524,6 +534,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }))
     }
 
+    /// Solves a Brillig Call opcode, which represents a call to an unconstrained function.
+    /// It first handle the predicate and returns zero values if the predicate is false.
+    /// Then it executes (or resumes execution) the Brillig function using a Brillig VM.
     fn solve_brillig_call_opcode(
         &mut self,
     ) -> Result<Option<ForeignCallWaitInfo<F>>, OpcodeResolutionError<F>> {
@@ -610,6 +623,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
+    // This function is used by the debugger
     pub fn step_into_brillig(&mut self) -> StepResult<'a, F, B> {
         let Opcode::BrilligCall { id, inputs, outputs, predicate } =
             &self.opcodes[self.instruction_pointer]
@@ -651,6 +665,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
+    // This function is used by the debugger
     pub fn finish_brillig_with_solver(&mut self, solver: BrilligSolver<'a, F, B>) -> ACVMStatus<F> {
         if !matches!(self.opcodes[self.instruction_pointer], Opcode::BrilligCall { .. }) {
             unreachable!("Not executing a Brillig/BrilligCall opcode");
@@ -659,6 +674,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.solve_opcode()
     }
 
+    /// Defer execution of the ACIR call opcode to the caller, or finalize the execution.
+    /// 1. It first handle the predicate and return zero values if the predicate is false.
+    /// 2. If the results of the execution are not available, it issues a 'AcirCallWaitInfo'
+    ///     to notify the caller that it (the caller) needs to execute the ACIR function.
+    /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.
     pub fn solve_call_opcode(
         &mut self,
     ) -> Result<Option<AcirCallWaitInfo<F>>, OpcodeResolutionError<F>> {
@@ -756,8 +776,8 @@ pub fn input_to_value<F: AcirField>(
     }
 }
 
-// TODO: There is an issue open to decide on whether we need to get values from Expressions
-// TODO versus just getting values from Witness
+/// Returns the concrete value for a particular expression
+/// If the value cannot be computed, it returns an 'OpcodeNotSolvable' error.
 pub fn get_value<F: AcirField>(
     expr: &Expression<F>,
     initial_witness: &WitnessMap<F>,

@@ -122,7 +122,7 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     call_stack: Vec<usize>,
     /// The solver for blackbox functions
     black_box_solver: &'a B,
-    // The solver for big integers
+    // The solver for big integers, it is used by the blackbox solver
     bigint_solver: BrilligBigIntSolver,
     // Flag that determines whether we want to profile VM.
     profiling_active: bool,
@@ -213,6 +213,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
+    /// Provide the results of a Foreign Call to the VM
+    /// and resume execution of the VM.
     pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
         if self.foreign_call_counter < self.foreign_call_results.len() {
             panic!("No unresolved foreign calls");
@@ -402,6 +404,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     pub fn get_fuzzing_trace(&self) -> Vec<u32> {
         self.fuzzer_trace.clone()
     }
+
+    /// Execute a single opcode:
+    /// 1. Retrieve the current opcode using the program counter
+    /// 2. Execute the opcode.
+    ///     For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the lhs and rhs addresses,
+    ///     compute the sum and write it to the 'result' memory address.
+    /// 3. Update the program counter, usually by incrementing it.
+    ///
+    /// - Control flow opcodes will will jump around the bytecode by setting the program counter.
+    /// - Foreign call opcode pause the VM until the foreign call results are available
+    /// - Function call opcode backup the current program counter into the call stack and jump to the function entry point.
+    ///     stack frame for function calls are handled during codegen.
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
@@ -709,6 +723,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
     }
 
+    /// Write a foreign call results to the VM memory.
+    ///
+    /// We match the expected types with the actual results.
+    /// However foreign call results does not support nested structures:
+    /// They are either a single integer value or a vector of integer values (field elements).
+    /// Therefore, nested arrays returned from foreign call results are flattened.
+    /// If the expected array sizes do not match the actual size, we reconstruct the nested
+    /// structure from the flatten output array.
     fn write_foreign_call_result(
         &mut self,
         destinations: &[ValueOrArray],
