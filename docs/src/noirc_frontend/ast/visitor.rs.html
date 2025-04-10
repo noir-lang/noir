@@ -1680,7 +1680,9 @@
 <a href="#1679" id="1679">1679</a>
 <a href="#1680" id="1680">1680</a>
 <a href="#1681" id="1681">1681</a>
-<a href="#1682" id="1682">1682</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::Span;
 
 <span class="kw">use crate</span>::{
@@ -1700,7 +1702,7 @@
     },
     parser::{Item, ItemKind, ParsedSubModule},
     signed_field::SignedField,
-    token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens},
+    token::{FmtStrFragment, MetaAttribute, MetaAttributeName, SecondaryAttribute, Tokens},
 };
 
 <span class="kw">use super</span>::{
@@ -3340,7 +3342,9 @@
     }
 
     <span class="kw">pub fn </span>accept_children(<span class="kw-2">&amp;</span><span class="self">self</span>, visitor: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Visitor) {
-        <span class="self">self</span>.name.accept(visitor);
+        <span class="kw">if let </span>MetaAttributeName::Path(path) = <span class="kw-2">&amp;</span><span class="self">self</span>.name {
+            path.accept(visitor);
+        }
         visit_expressions(<span class="kw-2">&amp;</span><span class="self">self</span>.arguments, visitor);
     }
 }

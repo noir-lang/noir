@@ -690,13 +690,27 @@
 <a href="#689" id="689">689</a>
 <a href="#690" id="690">690</a>
 <a href="#691" id="691">691</a>
-<a href="#692" id="692">692</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserErrorReason;
 <span class="kw">use </span><span class="kw">crate</span>::parser::labels::ParsingRuleLabel;
-<span class="kw">use </span><span class="kw">crate</span>::token::{Attribute, FunctionAttribute, FuzzingScope, MetaAttribute, TestScope, Token};
+<span class="kw">use </span><span class="kw">crate</span>::token::{
+    Attribute, FunctionAttribute, FuzzingScope, MetaAttribute, MetaAttributeName, TestScope, Token,
+};
 <span class="kw">use </span><span class="kw">crate</span>::token::{CustomAttribute, SecondaryAttribute};
 
 <span class="kw">use </span><span class="kw">super</span>::Parser;
@@ -830,8 +844,9 @@
         {
             <span class="comment">// This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
             </span><span class="kw">let </span>path = Path::from_single(<span class="self">self</span>.token.to_string(), <span class="self">self</span>.current_token_location);
+            <span class="kw">let </span>name = MetaAttributeName::Path(path);
             <span class="self">self</span>.bump();
-            <span class="self">self</span>.parse_meta_attribute(path, start_location)
+            <span class="self">self</span>.parse_meta_attribute(name, start_location)
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(path) = <span class="self">self</span>.parse_path_no_turbofish() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() {
                 <span class="kw">if </span>ident.as_str() == <span class="string">"test" </span>{
@@ -848,15 +863,24 @@
                 }
             } <span class="kw">else </span>{
                 <span class="comment">// This is a Meta attribute with the syntax `path(arg1, arg2, .., argN)`
-                </span><span class="self">self</span>.parse_meta_attribute(path, start_location)
+                </span><span class="kw">let </span>name = MetaAttributeName::Path(path);
+                <span class="self">self</span>.parse_meta_attribute(name, start_location)
             }
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(expr_id) = <span class="self">self</span>.eat_unquote_marker() {
+            <span class="comment">// This is a Meta attribute with the syntax `$expr(arg1, arg2, .., argN)`
+            </span><span class="kw">let </span>name = MetaAttributeName::Resolved(expr_id);
+            <span class="self">self</span>.parse_meta_attribute(name, start_location)
         } <span class="kw">else </span>{
             <span class="self">self</span>.expected_label(ParsingRuleLabel::Path);
             <span class="self">self</span>.parse_tag_attribute(start_location)
         }
     }
 
-    <span class="kw">fn </span>parse_meta_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: Path, start_location: Location) -&gt; Attribute {
+    <span class="kw">fn </span>parse_meta_attribute(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        name: MetaAttributeName,
+        start_location: Location,
+    ) -&gt; Attribute {
         <span class="kw">let </span>arguments = <span class="self">self</span>.parse_arguments().unwrap_or_default();
         <span class="self">self</span>.skip_until_right_bracket();
         Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
@@ -928,7 +952,7 @@
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
             <span class="kw">_ </span>=&gt; Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
-                name: Path::from_ident(ident.clone()),
+                name: MetaAttributeName::Path(Path::from_ident(ident.clone())),
                 arguments,
                 location: <span class="self">self</span>.location_since(start_location),
             })),

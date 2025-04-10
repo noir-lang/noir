@@ -2161,14 +2161,7 @@
 <a href="#2160" id="2160">2160</a>
 <a href="#2161" id="2161">2161</a>
 <a href="#2162" id="2162">2162</a>
-<a href="#2163" id="2163">2163</a>
-<a href="#2164" id="2164">2164</a>
-<a href="#2165" id="2165">2165</a>
-<a href="#2166" id="2166">2166</a>
-<a href="#2167" id="2167">2167</a>
-<a href="#2168" id="2168">2168</a>
-<a href="#2169" id="2169">2169</a>
-<a href="#2170" id="2170">2170</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2163" id="2163">2163</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -2573,15 +2566,8 @@
 
     <span class="doccomment">/// ResolvedExpression = unquote_marker
     </span><span class="kw">fn </span>parse_resolved_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::UnquoteMarker) {
-            <span class="kw">match </span>token.into_token() {
-                Token::UnquoteMarker(expr_id) =&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Resolved(expr_id)),
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">""</span>),
-            }
-        }
-
-        <span class="prelude-val">None
-    </span>}
+        <span class="prelude-val">Some</span>(ExpressionKind::Resolved(<span class="self">self</span>.eat_unquote_marker()<span class="question-mark">?</span>))
+    }
 
     <span class="doccomment">/// InternedExpression = interned_expr
     </span><span class="kw">fn </span>parse_interned_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExpressionKind&gt; {

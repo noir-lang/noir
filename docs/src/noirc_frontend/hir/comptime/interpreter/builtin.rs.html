@@ -3085,7 +3085,11 @@
 <a href="#3084" id="3084">3084</a>
 <a href="#3085" id="3085">3085</a>
 <a href="#3086" id="3086">3086</a>
-<a href="#3087" id="3087">3087</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3087" id="3087">3087</a>
+<a href="#3088" id="3088">3088</a>
+<a href="#3089" id="3089">3089</a>
+<a href="#3090" id="3090">3090</a>
+<a href="#3091" id="3091">3091</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3624,7 +3628,7 @@
 
     <span class="kw">let </span>name = get_str(interner, name)<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(<span class="kw-2">&amp;</span>name, interner.type_attributes(<span class="kw-2">&amp;</span>type_id))))
+    <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(<span class="kw-2">&amp;</span>name, interner.type_attributes(<span class="kw-2">&amp;</span>type_id), interner)))
 }
 
 <span class="doccomment">/// fn fields(self, generic_args: [Type]) -&gt; [(Quoted, Type)]
@@ -5592,7 +5596,7 @@
         }
     }
 
-    <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(name, <span class="kw-2">&amp;</span>modifiers.attributes.secondary)))
+    <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(name, <span class="kw-2">&amp;</span>modifiers.attributes.secondary, interner)))
 }
 
 <span class="kw">fn </span>function_def_hash(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
@@ -5965,7 +5969,11 @@
 
     <span class="kw">let </span>name = get_str(interpreter.elaborator.interner, name)<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(<span class="kw-2">&amp;</span>name, <span class="kw-2">&amp;</span>module_data.attributes)))
+    <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(
+        <span class="kw-2">&amp;</span>name,
+        <span class="kw-2">&amp;</span>module_data.attributes,
+        interpreter.elaborator.interner,
+    )))
 }
 
 <span class="comment">// fn is_contract(self) -&gt; bool

@@ -386,9 +386,14 @@
 <a href="#385" id="385">385</a>
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, SecondaryAttribute,
-    TestScope, Token,
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
+    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, MetaAttributeName,
+    SecondaryAttribute, TestScope, Token,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::chunks::ChunkGroup;
@@ -559,7 +564,12 @@
     <span class="kw">fn </span>format_meta_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, meta_attribute: MetaAttribute) {
         <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// #[
         </span><span class="self">self</span>.skip_comments_and_whitespace();
-        <span class="self">self</span>.format_path(meta_attribute.name);
+        <span class="kw">match </span>meta_attribute.name {
+            MetaAttributeName::Path(path) =&gt; <span class="self">self</span>.format_path(path),
+            MetaAttributeName::Resolved(<span class="kw">_</span>) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Resolved MetaAttributeName should not happen when formatting a file"</span>)
+            }
+        }
         <span class="self">self</span>.skip_comments_and_whitespace();
         <span class="kw">if </span><span class="self">self</span>.is_at(Token::LeftParen) {
             <span class="kw">let </span>comments_count_before_arguments = <span class="self">self</span>.written_comments_count;

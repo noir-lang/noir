@@ -1322,8 +1322,7 @@
 <a href="#1321" id="1321">1321</a>
 <a href="#1322" id="1322">1322</a>
 <a href="#1323" id="1323">1323</a>
-<a href="#1324" id="1324">1324</a>
-<a href="#1325" id="1325">1325</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1324" id="1324">1324</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -2336,23 +2335,6 @@
 }
 
 <span class="kw">impl </span>SecondaryAttribute {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            SecondaryAttribute::Deprecated(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"deprecated"</span>.to_string()),
-            SecondaryAttribute::ContractLibraryMethod =&gt; {
-                <span class="prelude-val">Some</span>(<span class="string">"contract_library_method"</span>.to_string())
-            }
-            SecondaryAttribute::Export =&gt; <span class="prelude-val">Some</span>(<span class="string">"export"</span>.to_string()),
-            SecondaryAttribute::Field(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"field"</span>.to_string()),
-            SecondaryAttribute::Tag(custom) =&gt; custom.name(),
-            SecondaryAttribute::Meta(meta) =&gt; <span class="prelude-val">Some</span>(meta.name.last_name().to_string()),
-            SecondaryAttribute::Abi(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"abi"</span>.to_string()),
-            SecondaryAttribute::Varargs =&gt; <span class="prelude-val">Some</span>(<span class="string">"varargs"</span>.to_string()),
-            SecondaryAttribute::UseCallersScope =&gt; <span class="prelude-val">Some</span>(<span class="string">"use_callers_scope"</span>.to_string()),
-            SecondaryAttribute::Allow(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"allow"</span>.to_string()),
-        }
-    }
-
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_allow_unused_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
             SecondaryAttribute::Allow(string) =&gt; string == <span class="string">"unused_variables"</span>,
@@ -2391,7 +2373,7 @@
 
 <span class="attr">#[derive(PartialEq, Eq, Debug, Clone)]
 </span><span class="kw">pub struct </span>MetaAttribute {
-    <span class="kw">pub </span>name: Path,
+    <span class="kw">pub </span>name: MetaAttributeName,
     <span class="kw">pub </span>arguments: Vec&lt;Expression&gt;,
     <span class="kw">pub </span>location: Location,
 }
@@ -2408,6 +2390,22 @@
     }
 }
 
+<span class="attr">#[derive(PartialEq, Eq, Debug, Clone)]
+</span><span class="kw">pub enum </span>MetaAttributeName {
+    <span class="doccomment">/// For example `foo::bar` in `#[foo::bar(...)]`
+    </span>Path(Path),
+    <span class="doccomment">/// For example `$expr` in `#[$expr(...)]` inside a `quote { ... }` expression.
+    </span>Resolved(ExprId),
+}
+
+<span class="kw">impl </span>Display <span class="kw">for </span>MetaAttributeName {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            MetaAttributeName::Path(path) =&gt; path.fmt(f),
+            MetaAttributeName::Resolved(<span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"(quoted)"</span>),
+        }
+    }
+}
 <span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>CustomAttribute {
     <span class="kw">pub </span>contents: String,
@@ -2418,7 +2416,7 @@
 }
 
 <span class="kw">impl </span>CustomAttribute {
-    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(<span class="kw-2">&amp;</span><span class="self">self</span>.contents);
         <span class="kw">let </span>token = lexer.next()<span class="question-mark">?</span>.ok()<span class="question-mark">?</span>;
         <span class="kw">if let </span>Token::Ident(ident) = token.into_token() { <span class="prelude-val">Some</span>(ident) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}

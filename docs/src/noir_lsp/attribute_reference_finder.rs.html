@@ -113,7 +113,10 @@
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="doccomment">/// If the cursor is on an custom attribute, this struct will try to resolve its
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="doccomment">/// If the cursor is on an custom attribute, this struct will try to resolve its
 /// underlying function and return a ReferenceId to it.
 /// This is needed in hover and go-to-definition because when an annotation generates
 /// code, that code ends up residing in the attribute definition (it ends up having the
@@ -133,7 +136,7 @@
     },
     node_interner::ReferenceId,
     parser::ParsedSubModule,
-    token::MetaAttribute,
+    token::{MetaAttribute, MetaAttributeName},
     usage_tracker::UsageTracker,
 };
 
@@ -209,7 +212,10 @@
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
-        <span class="kw">let </span>path = attribute.name.clone();
+        <span class="kw">let </span>MetaAttributeName::Path(path) = attribute.name.clone() <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+
         <span class="comment">// The path here must resolve to a function and it's a simple path (can't have turbofish)
         // so it can (and must) be solved as an import.
         </span><span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((module_def_id, <span class="kw">_</span>, <span class="kw">_</span>))) = resolve_import(

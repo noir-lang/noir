@@ -2009,7 +2009,11 @@
 <a href="#2008" id="2008">2008</a>
 <a href="#2009" id="2009">2009</a>
 <a href="#2010" id="2010">2010</a>
-<a href="#2011" id="2011">2011</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2011" id="2011">2011</a>
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2045,7 +2049,7 @@
     hir_def::traits::Trait,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{MetaAttribute, Token, Tokens},
+    token::{MetaAttribute, MetaAttributeName, Token, Tokens},
 };
 <span class="kw">use </span>sort_text::underscore_sort_text;
 
@@ -3841,11 +3845,15 @@
     </span>}
 
     <span class="kw">fn </span>visit_meta_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attribute: <span class="kw-2">&amp;</span>MetaAttribute, target: AttributeTarget) -&gt; bool {
-        <span class="kw">if </span><span class="self">self</span>.byte_index == attribute.name.location.span.end() <span class="kw">as </span>usize {
-            <span class="self">self</span>.suggest_builtin_attributes(<span class="kw-2">&amp;</span>attribute.name.to_string(), target);
+        <span class="kw">let </span>MetaAttributeName::Path(path) = <span class="kw-2">&amp;</span>attribute.name <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        };
+
+        <span class="kw">if </span><span class="self">self</span>.byte_index == path.location.span.end() <span class="kw">as </span>usize {
+            <span class="self">self</span>.suggest_builtin_attributes(<span class="kw-2">&amp;</span>path.to_string(), target);
         }
 
-        <span class="self">self</span>.find_in_path(<span class="kw-2">&amp;</span>attribute.name, RequestedItems::OnlyAttributeFunctions(target));
+        <span class="self">self</span>.find_in_path(path, RequestedItems::OnlyAttributeFunctions(target));
 
         <span class="bool-val">true
     </span>}
