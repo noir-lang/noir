@@ -736,6 +736,10 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `loop` loop.
     fn gen_loop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // For now, the only way to break out of the loop is the guard
+        // condition implemented below, as Break or Continue currently don't figure in
+        // generated expressions. This should be amended in TODO(#7928): While
+
         // Declare break index variable visible in the loop body. Do not include it
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
@@ -794,19 +798,25 @@ fn test_loop() {
     let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
 
     println!("{loop_code}");
-    assert!(loop_code.starts_with(
-        &r#"{
+    assert!(
+        loop_code.starts_with(
+            &r#"{
     let mut idx_a$0 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
-        } else {"#.replace(" ",""))
+        } else {"#
+                .replace(" ", "")
+        )
     );
 
-    assert!(loop_code.ends_with(
-        &r#"idx_a$l0 = (idx_a$l0 + 1)
+    assert!(
+        loop_code.ends_with(
+            &r#"idx_a$l0 = (idx_a$l0 + 1)
         }
     }
-}"#.replace(" ", ""))
+}"#
+            .replace(" ", "")
+        )
     );
 }
