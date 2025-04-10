@@ -15,6 +15,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
     shared::{Signedness, Visibility},
+    token::FunctionAttributeKind,
 };
 
 use noirc_errors::Location;
@@ -46,18 +47,27 @@ pub(super) fn inlining_attributes(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if modifiers.is_unconstrained {
-        if modifiers.attributes.is_no_predicates() {
+    if !modifiers.is_unconstrained {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    let location = attribute.location;
+    match &attribute.kind {
+        FunctionAttributeKind::NoPredicates => {
             let ident = func_meta_name_ident(func, modifiers);
-            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident })
-        } else if modifiers.attributes.is_foldable() {
-            let ident = func_meta_name_ident(func, modifiers);
-            Some(ResolverError::FoldAttributeOnUnconstrained { ident })
-        } else {
-            None
+            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-    } else {
-        None
+        FunctionAttributeKind::Fold => {
+            let ident = func_meta_name_ident(func, modifiers);
+            Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
+        }
+        FunctionAttributeKind::Foreign(_)
+        | FunctionAttributeKind::Builtin(_)
+        | FunctionAttributeKind::Oracle(_)
+        | FunctionAttributeKind::Test(_)
+        | FunctionAttributeKind::InlineAlways
+        | FunctionAttributeKind::FuzzingHarness(_) => None,
     }
 }
 
@@ -68,7 +78,7 @@ pub(super) fn low_level_function_outside_stdlib(
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        modifiers.attributes.function().is_some_and(|func| func.is_low_level());
+        modifiers.attributes.function().is_some_and(|func| func.kind.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
@@ -82,7 +92,8 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function = modifiers.attributes.function().is_some_and(|func| func.is_oracle());
+    let is_oracle_function =
+        modifiers.attributes.function().is_some_and(|func| func.kind.is_oracle());
     if is_oracle_function && !modifiers.is_unconstrained {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleMarkedAsConstrained { ident })
@@ -105,7 +116,7 @@ pub(super) fn oracle_called_from_constrained_function(
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call = function_attributes.function().is_some_and(|func| func.is_oracle());
+    let is_oracle_call = function_attributes.function().is_some_and(|func| func.kind.is_oracle());
     if is_oracle_call {
         Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } else {

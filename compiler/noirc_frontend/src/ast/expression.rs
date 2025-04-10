@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
-use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
+use crate::token::{Attributes, FmtStrFragment, FunctionAttributeKind, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -531,7 +531,7 @@ impl FunctionDefinition {
 
     pub fn is_test(&self) -> bool {
         if let Some(attribute) = self.attributes.function() {
-            matches!(attribute, FunctionAttribute::Test(..))
+            matches!(attribute.kind, FunctionAttributeKind::Test(..))
         } else {
             false
         }

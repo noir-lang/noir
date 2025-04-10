@@ -18,7 +18,7 @@ use crate::{
     },
     parser::{Item, ItemKind, ParsedSubModule},
     signed_field::SignedField,
-    token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens},
+    token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, SecondaryAttributeKind, Tokens},
 };
 
 use super::{
@@ -521,6 +521,14 @@ pub trait Visitor {
     fn visit_secondary_attribute(
         &mut self,
         _: &SecondaryAttribute,
+        _target: AttributeTarget,
+    ) -> bool {
+        true
+    }
+
+    fn visit_secondary_attribute_kind(
+        &mut self,
+        _: &SecondaryAttributeKind,
         _target: AttributeTarget,
     ) -> bool {
         true
@@ -1644,7 +1652,19 @@ impl SecondaryAttribute {
     }
 
     pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if let SecondaryAttribute::Meta(meta_attribute) = self {
+        self.kind.accept(target, visitor);
+    }
+}
+
+impl SecondaryAttributeKind {
+    pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
+        if visitor.visit_secondary_attribute_kind(self, target) {
+            self.accept_children(target, visitor);
+        }
+    }
+
+    pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
+        if let SecondaryAttributeKind::Meta(meta_attribute) = self {
             meta_attribute.accept(target, visitor);
         }
     }

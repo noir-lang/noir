@@ -577,7 +577,7 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
 
 pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
     for attribute in attributes {
-        if let Some(attribute_name) = attribute.name() {
+        if let Some(attribute_name) = attribute.kind.name() {
             if name == attribute_name {
                 return true;
             }

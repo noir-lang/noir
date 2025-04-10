@@ -121,9 +121,9 @@ pub enum ResolverError {
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
-    NoPredicatesAttributeOnUnconstrained { ident: Ident },
+    NoPredicatesAttributeOnUnconstrained { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
-    FoldAttributeOnUnconstrained { ident: Ident },
+    FoldAttributeOnUnconstrained { ident: Ident, location: Location },
     #[error("expected type, found numeric generic parameter")]
     NumericGenericUsedForType { name: String, location: Location },
     #[error("Invalid array length construction")]
@@ -264,7 +264,9 @@ impl ResolverError {
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
-            | ResolverError::NonU32Index { location } => *location,
+            | ResolverError::NonU32Index { location }
+            | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
+            | ResolverError::FoldAttributeOnUnconstrained { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -273,8 +275,6 @@ impl ResolverError {
             | ResolverError::NecessaryPub { ident }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
             | ResolverError::OracleMarkedAsConstrained { ident }
-            | ResolverError::NoPredicatesAttributeOnUnconstrained { ident }
-            | ResolverError::FoldAttributeOnUnconstrained { ident }
             | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
             ResolverError::ArrayLengthInterpreter { error } => error.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
@@ -610,21 +610,21 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::NoPredicatesAttributeOnUnconstrained { ident } => {
+            ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("misplaced #[no_predicates] attribute on unconstrained function {ident}. Only allowed on constrained functions"),
                     "misplaced #[no_predicates] attribute".to_string(),
-                    ident.location(),
+                    *location,
                 );
 
                 diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
                 diag
             }
-            ResolverError::FoldAttributeOnUnconstrained { ident } => {
+            ResolverError::FoldAttributeOnUnconstrained { ident, location } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("misplaced #[fold] attribute on unconstrained function {ident}. Only allowed on constrained functions"),
                     "misplaced #[fold] attribute".to_string(),
-                    ident.location(),
+                    *location,
                 );
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());

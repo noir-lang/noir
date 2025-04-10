@@ -21,7 +21,7 @@ use crate::{
     hir_def::expr::{HirExpression, HirIdent},
     node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TypeId},
     parser::{Item, ItemKind},
-    token::{MetaAttribute, SecondaryAttribute},
+    token::{MetaAttribute, SecondaryAttribute, SecondaryAttributeKind},
 };
 
 use super::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};
@@ -160,7 +160,7 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) {
-        if let SecondaryAttribute::Meta(attribute) = attribute {
+        if let SecondaryAttributeKind::Meta(attribute) = &attribute.kind {
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.collect_comptime_attribute_name_on_item(
                     attribute,
