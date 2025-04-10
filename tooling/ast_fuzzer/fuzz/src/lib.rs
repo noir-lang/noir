@@ -21,6 +21,7 @@ fn show_ssa() -> bool {
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
     ssa::SsaEvaluatorOptions {
         ssa_logging: if show_ssa() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
+        optimization_level: OptimizationLevel::All,
         brillig_options: BrilligOptions::default(),
         print_codegen_timings: false,
         expression_width: ExpressionWidth::default(),

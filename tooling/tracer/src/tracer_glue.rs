@@ -168,11 +168,11 @@ fn register_value(
         }
         PrintableType::Struct { name, fields } => {
             if let PrintableValue::Struct(struc) = value {
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Struct, &name);
+                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Struct, name);
                 let mut field_values = vec![];
                 for (field_name, field_type) in fields {
                     let field_value =
-                        struc.get(field_name).expect(&format!("field value missing: {field_name}"));
+                        struc.get(field_name).unwrap_or_else(|| panic!("field value missing: {field_name}"));
                     field_values.push(register_value(tracer, field_value, field_type));
                 }
                 ValueRecord::Struct { field_values, type_id }
@@ -182,7 +182,7 @@ fn register_value(
         }
         PrintableType::Unit => {
             let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Raw, "()");
-            ValueRecord::Raw { r: "()".to_string(), type_id: type_id }
+            ValueRecord::Raw { r: "()".to_string(), type_id }
         }
         PrintableType::Tuple { types } => {
             if let PrintableValue::Vec { array_elements, is_slice } = value {
