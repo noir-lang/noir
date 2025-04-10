@@ -927,10 +927,6 @@ impl FunctionAttributeKind {
         }
     }
 
-    pub fn is_foreign(&self) -> bool {
-        matches!(self, FunctionAttributeKind::Foreign(_))
-    }
-
     pub fn is_oracle(&self) -> bool {
         matches!(self, FunctionAttributeKind::Oracle(_))
     }

@@ -105,15 +105,6 @@ impl NoirFunction {
     pub fn span(&self) -> Span {
         self.location().span
     }
-
-    pub fn foreign(&self) -> Option<&FunctionDefinition> {
-        match &self.kind {
-            FunctionKind::LowLevel => {}
-            _ => return None,
-        }
-        assert!(self.function_attribute().unwrap().kind.is_foreign());
-        Some(&self.def)
-    }
 }
 
 impl From<FunctionDefinition> for NoirFunction {
