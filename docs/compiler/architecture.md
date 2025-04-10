@@ -156,6 +156,15 @@ necessary before calling into the `compiler/noirc_driver` crate to invoke the co
 
 ## Noir Language Server
 
+The `tooling/lsp` crate provides the implementation of the `nargo lsp` command. This command implements
+the server side of the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
+(LSP) and is invoked by the client side of the protocol
+(for example by the [vscode-noir](https://github.com/noir-lang/vscode-noir) client).
+LSP provides many features like completion, go-to-definition, hover information and inlay hints. Each
+of these is implemented in a file inside `tooling/lsp/src/requests`. Most of these features rely on
+running the compiler frontend to get type information like available types and methods. Other features
+just rely on parsing (for example listing all symbols in the current file).
+
 ## Formatter
 
 The `tooling/nargo_fmt` crate provides the implementation of the `nargo fmt` command. The formatter
