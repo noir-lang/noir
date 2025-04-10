@@ -929,20 +929,7 @@
 <a href="#928" id="928">928</a>
 <a href="#929" id="929">929</a>
 <a href="#930" id="930">930</a>
-<a href="#931" id="931">931</a>
-<a href="#932" id="932">932</a>
-<a href="#933" id="933">933</a>
-<a href="#934" id="934">934</a>
-<a href="#935" id="935">935</a>
-<a href="#936" id="936">936</a>
-<a href="#937" id="937">937</a>
-<a href="#938" id="938">938</a>
-<a href="#939" id="939">939</a>
-<a href="#940" id="940">940</a>
-<a href="#941" id="941">941</a>
-<a href="#942" id="942">942</a>
-<a href="#943" id="943">943</a>
-<a href="#944" id="944">944</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#931" id="931">931</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1618,19 +1605,6 @@
             {
                 <span class="bool-val">true
             </span>}
-            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-        }
-    }
-
-    <span class="doccomment">/// Arrays are represented as `[RC, ...items]` where RC stands for reference count.
-    /// By the time of Brillig generation we expect all constant indices
-    /// to already account for the extra offset from the RC.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_safe_brillig_index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: ValueId, array: ValueId) -&gt; bool {
-        <span class="attr">#[allow(clippy::match_like_matches_macro)]
-        </span><span class="kw">match </span>(<span class="self">self</span>.type_of_value(array), <span class="self">self</span>.get_numeric_constant(index)) {
-            (Type::Array(elements, len), <span class="prelude-val">Some</span>(index)) =&gt; {
-                (index.to_u128() - <span class="number">1</span>) &lt; (len <span class="kw">as </span>u128 * elements.len() <span class="kw">as </span>u128)
-            }
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }

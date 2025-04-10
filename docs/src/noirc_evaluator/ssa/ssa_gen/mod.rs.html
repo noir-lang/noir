@@ -1130,7 +1130,12 @@
 <a href="#1129" id="1129">1129</a>
 <a href="#1130" id="1130">1130</a>
 <a href="#1131" id="1131">1131</a>
-<a href="#1132" id="1132">1132</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a>
+<a href="#1135" id="1135">1135</a>
+<a href="#1136" id="1136">1136</a>
+<a href="#1137" id="1137">1137</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1577,8 +1582,25 @@
         <span class="kw">let </span>type_size = <span class="self">Self</span>::convert_type(element_type).size_of_type();
         <span class="kw">let </span>type_size =
             <span class="self">self</span>.builder.numeric_constant(type_size <span class="kw">as </span>u128, NumericType::length_type());
-        <span class="comment">// This shouldn't overflow as we are reaching for an initial array offset
-        // (otherwise it would have overflowed when creating the array)
+
+        <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(array);
+
+        <span class="comment">// Checks for index Out-of-bounds
+        </span><span class="kw">match </span>array_type {
+            Type::Slice(<span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.codegen_access_check(
+                    index,
+                    length.expect(<span class="string">"ICE: a length must be supplied for checking index"</span>),
+                );
+            }
+            Type::Array(<span class="kw">_</span>, len) =&gt; {
+                <span class="kw">let </span>len = <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>len <span class="kw">as </span>u128, NumericType::length_type());
+                <span class="self">self</span>.codegen_access_check(index, len);
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
+        }
+
+        <span class="comment">// This shouldn't overflow because the initial index is within array bounds
         </span><span class="kw">let </span>base_index = <span class="self">self</span>.builder.set_location(location).insert_binary(
             index,
             BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
@@ -1589,17 +1611,6 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::map_type(element_type, |typ| {
             <span class="kw">let </span>offset = <span class="self">self</span>.make_offset(base_index, field_index);
             field_index += <span class="number">1</span>;
-
-            <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(array);
-            <span class="kw">match </span>array_type {
-                Type::Slice(<span class="kw">_</span>) =&gt; {
-                    <span class="self">self</span>.codegen_slice_access_check(index, length);
-                }
-                Type::Array(..) =&gt; {
-                    <span class="comment">// Nothing needs to done to prepare an array access on an array
-                </span>}
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
-            }
 
             <span class="comment">// Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
@@ -1612,11 +1623,10 @@
     <span class="doccomment">/// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    </span><span class="kw">fn </span>codegen_slice_access_check(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: ValueId, length: <span class="prelude-ty">Option</span>&lt;ValueId&gt;) {
+    </span><span class="kw">fn </span>codegen_access_check(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: ValueId, length: ValueId) {
         <span class="kw">let </span>index = <span class="self">self</span>.make_array_index(index);
         <span class="comment">// We convert the length as an array index type for comparison
-        </span><span class="kw">let </span>array_len = <span class="self">self
-            </span>.make_array_index(length.expect(<span class="string">"ICE: a length must be supplied for indexing slices"</span>));
+        </span><span class="kw">let </span>array_len = <span class="self">self</span>.make_array_index(length);
 
         <span class="kw">let </span>is_offset_out_of_bounds = <span class="self">self</span>.builder.insert_binary(index, BinaryOp::Lt, array_len);
         <span class="kw">let </span>true_const = <span class="self">self</span>.builder.numeric_constant(<span class="bool-val">true</span>, NumericType::bool());
@@ -2128,10 +2138,10 @@
                         one,
                     );
 
-                    <span class="self">self</span>.codegen_slice_access_check(arguments[<span class="number">2</span>], <span class="prelude-val">Some</span>(len_plus_one));
+                    <span class="self">self</span>.codegen_access_check(arguments[<span class="number">2</span>], len_plus_one);
                 }
                 Intrinsic::SliceRemove =&gt; {
-                    <span class="self">self</span>.codegen_slice_access_check(arguments[<span class="number">2</span>], <span class="prelude-val">Some</span>(arguments[<span class="number">0</span>]));
+                    <span class="self">self</span>.codegen_access_check(arguments[<span class="number">2</span>], arguments[<span class="number">0</span>]);
                 }
                 <span class="kw">_ </span>=&gt; {
                     <span class="comment">// Do nothing as the other intrinsics do not require checks
