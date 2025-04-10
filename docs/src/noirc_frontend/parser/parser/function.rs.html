@@ -628,7 +628,63 @@
 <a href="#627" id="627">627</a>
 <a href="#628" id="628">628</a>
 <a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
@@ -769,8 +825,22 @@
             }
 
             <span class="prelude-val">None
-        </span>} <span class="kw">else </span>{
-            <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_block().unwrap_or_else(empty_body))
+        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>(block) = <span class="self">self</span>.parse_block() {
+            <span class="prelude-val">Some</span>(block)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>expected_tokens = Vec::new();
+            <span class="kw">if </span><span class="macro">matches!</span>(return_type, FunctionReturnType::Default(<span class="kw">_</span>)) {
+                expected_tokens.push(Token::Arrow);
+            }
+            <span class="kw">if </span>where_clause.is_empty() {
+                expected_tokens.push(Token::Keyword(Keyword::Where));
+            }
+            <span class="kw">if </span>allow_optional_body {
+                expected_tokens.push(Token::Semicolon);
+            }
+            expected_tokens.push(Token::LeftBrace);
+            <span class="self">self</span>.expected_one_of_tokens(<span class="kw-2">&amp;</span>expected_tokens);
+            <span class="prelude-val">Some</span>(empty_body())
         };
 
         FunctionDefinitionWithOptionalBody {
@@ -962,7 +1032,7 @@
         },
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, ParserErrorReason,
+            ItemKind, Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
@@ -1067,7 +1137,7 @@
     </span><span class="kw">fn </span>parse_function_unclosed_parentheses() {
         <span class="kw">let </span>src = <span class="string">"fn foo(x: i32,"</span>;
         <span class="kw">let </span>(module, errors) = parse_program_with_dummy_file(src);
-        <span class="macro">assert_eq!</span>(errors.len(), <span class="number">1</span>);
+        <span class="macro">assert!</span>(!errors.is_empty());
         <span class="macro">assert_eq!</span>(module.items.len(), <span class="number">1</span>);
         <span class="kw">let </span>item = <span class="kw-2">&amp;</span>module.items[<span class="number">0</span>];
         <span class="kw">let </span>ItemKind::Function(noir_function) = <span class="kw-2">&amp;</span>item.kind <span class="kw">else </span>{
@@ -1249,13 +1319,55 @@
         fn foo(
             /// Doc comment
             x: Field,
-        )
+        ) {}
         "</span>;
         <span class="kw">let </span>(_module, errors) = parse_program_with_dummy_file(src);
         <span class="macro">assert_eq!</span>(errors.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>reason = errors[<span class="number">0</span>].reason().unwrap();
         <span class="macro">assert_eq!</span>(reason, <span class="kw-2">&amp;</span>ParserErrorReason::DocCommentCannotBeAppliedToFunctionParameters);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>errors_on_missing_function_braces_1() {
+        <span class="kw">let </span>src = <span class="string">"
+          fn foo() struct Foo {}
+                   ^^^^^^
+          "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let _ </span>= parser.parse_program();
+
+        <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Unexpected 'struct', expected one of 'where', '{', '-&gt;'"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>errors_on_missing_function_braces_2() {
+        <span class="kw">let </span>src = <span class="string">"
+          fn foo() -&gt; Field struct Foo {}
+                            ^^^^^^
+          "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let _ </span>= parser.parse_program();
+
+        <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Unexpected 'struct', expected one of 'where', '{'"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>errors_on_missing_function_braces_3() {
+        <span class="kw">let </span>src = <span class="string">"
+          fn foo&lt;T&gt;() -&gt; Field where T: Trait struct Foo {}
+                                              ^^^^^^
+          "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let _ </span>= parser.parse_program();
+
+        <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a '{' but found 'struct'"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -602,7 +602,7 @@
         } <span class="kw">else </span>{
             <span class="kw">let </span>expected = expected.iter().map(ToString::to_string).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().join(<span class="string">", "</span>);
 
-            <span class="macro">write!</span>(f, <span class="string">"Unexpected {:?}, expected one of {}{}"</span>, <span class="self">self</span>.found, expected, reason_str)
+            <span class="macro">write!</span>(f, <span class="string">"Unexpected '{}', expected one of {}{}"</span>, <span class="self">self</span>.found, expected, reason_str)
         }
     }
 }
