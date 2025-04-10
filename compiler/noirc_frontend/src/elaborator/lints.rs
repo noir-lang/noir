@@ -92,11 +92,15 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function =
-        modifiers.attributes.function().is_some_and(|func| func.kind.is_oracle());
-    if is_oracle_function && !modifiers.is_unconstrained {
+    if modifiers.is_unconstrained {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if matches!(attribute.kind, FunctionAttributeKind::Oracle(_)) {
         let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::OracleMarkedAsConstrained { ident })
+        let location = attribute.location;
+        Some(ResolverError::OracleMarkedAsConstrained { ident, location })
     } else {
         None
     }

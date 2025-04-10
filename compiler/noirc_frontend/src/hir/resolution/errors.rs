@@ -87,7 +87,7 @@ pub enum ResolverError {
     )]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
-    OracleMarkedAsConstrained { ident: Ident },
+    OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot be called directly from constrained functions")]
     UnconstrainedOracleReturnToConstrained { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -266,7 +266,8 @@ impl ResolverError {
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
             | ResolverError::NonU32Index { location }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
-            | ResolverError::FoldAttributeOnUnconstrained { location, .. } => *location,
+            | ResolverError::FoldAttributeOnUnconstrained { location, .. }
+            | ResolverError::OracleMarkedAsConstrained { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -274,7 +275,6 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
-            | ResolverError::OracleMarkedAsConstrained { ident }
             | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
             ResolverError::ArrayLengthInterpreter { error } => error.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
@@ -505,11 +505,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.location(),
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
-                error.to_string(),
-                "Oracle functions must have the `unconstrained` keyword applied".into(),
-                ident.location(),
-            ),
+            ResolverError::OracleMarkedAsConstrained { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
+                diagnostic
+            },
             ResolverError::UnconstrainedOracleReturnToConstrained { location } => Diagnostic::simple_error(
                 error.to_string(),
                 "This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime".into(),
