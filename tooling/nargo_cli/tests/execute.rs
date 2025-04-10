@@ -37,6 +37,10 @@ mod tests {
         nargo.arg("-Zenums");
         nargo.arg("-Zownership");
 
+        // TODO: disable
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
         if force_brillig.0 {
             {
                 nargo.arg("--force-brillig");
