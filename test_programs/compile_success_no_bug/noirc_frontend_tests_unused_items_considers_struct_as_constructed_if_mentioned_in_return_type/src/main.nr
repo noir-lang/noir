@@ -1,12 +1,9 @@
 
-    struct Bar {}
+    pub struct Bar {}
 
-    fn main() {
-        let _ = foo();
-    }
-
-    fn foo() -> Bar {
-        let array = [];
+    pub fn foo(array: [Bar; 1]) -> Bar {
         array[0]
     }
+
+    fn main() {}
     
