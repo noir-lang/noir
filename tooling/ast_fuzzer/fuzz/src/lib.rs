@@ -5,7 +5,7 @@ use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::{
     brillig::BrilligOptions,
-    ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
+    ssa::{self, OptimizationLevel, SsaEvaluatorOptions, SsaProgramArtifact},
 };
 use noirc_frontend::monomorphization::ast::Program;
 
