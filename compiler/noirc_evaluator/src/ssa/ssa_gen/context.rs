@@ -1021,7 +1021,7 @@ impl SharedContext {
             GlobalsGraph::default(),
         );
         let mut globals = BTreeMap::default();
-        for (id, global) in program.globals.iter() {
+        for (id, (_, _, global)) in program.globals.iter() {
             let values = context.codegen_expression(global).unwrap();
             globals.insert(*id, values);
         }

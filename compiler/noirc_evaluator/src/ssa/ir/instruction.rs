@@ -352,7 +352,7 @@ impl Instruction {
             | Instruction::RangeCheck { .. }
             | Instruction::Noop
             | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
-            Instruction::Allocate { .. }
+            Instruction::Allocate
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
             | Instruction::Call { .. } => InstructionResultType::Unknown,
@@ -619,7 +619,7 @@ impl Instruction {
                 f(*address);
                 f(*value);
             }
-            Instruction::Allocate { .. } => (),
+            Instruction::Allocate => (),
             Instruction::ArrayGet { array, index } => {
                 f(*array);
                 f(*index);

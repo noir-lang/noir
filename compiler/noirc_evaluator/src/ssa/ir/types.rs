@@ -15,7 +15,6 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -97,6 +96,32 @@ impl NumericType {
                 _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
             },
             other => Err(format!("Cannot get max value for type: {other}")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod props {
+    use proptest::{
+        prelude::{Arbitrary, BoxedStrategy, Just, Strategy as _},
+        prop_oneof,
+    };
+
+    use super::NumericType;
+
+    impl Arbitrary for NumericType {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let signed = prop_oneof!(Just(8), Just(16), Just(32), Just(64));
+            let unsigned = prop_oneof!(Just(1), Just(8), Just(16), Just(32), Just(64), Just(128));
+            prop_oneof![
+                signed.prop_map(|bit_size| NumericType::Signed { bit_size }),
+                unsigned.prop_map(|bit_size| NumericType::Unsigned { bit_size }),
+                Just(NumericType::NativeField),
+            ]
+            .boxed()
         }
     }
 }

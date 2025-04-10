@@ -144,3 +144,9 @@ libraries:
     path: lib
     timeout: 20
     critical: false
+  tdd:
+    repo: teddav/tdd.nr
+    ref: 4bebfb361f2e5175d23376645310eecca96749a5
+    timeout: 20
+    critical: false
+

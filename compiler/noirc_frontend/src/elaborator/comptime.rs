@@ -21,7 +21,7 @@ use crate::{
     hir_def::expr::{HirExpression, HirIdent},
     node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TypeId},
     parser::{Item, ItemKind},
-    token::{MetaAttribute, SecondaryAttribute},
+    token::{MetaAttribute, MetaAttributeName, SecondaryAttribute},
 };
 
 use super::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};
@@ -185,8 +185,12 @@ impl<'context> Elaborator<'context> {
         self.local_module = attribute_context.attribute_module;
         let location = attribute.location;
 
-        let function =
-            Expression { kind: ExpressionKind::Variable(attribute.name.clone()), location };
+        let kind = match &attribute.name {
+            MetaAttributeName::Path(path) => ExpressionKind::Variable(path.clone()),
+            MetaAttributeName::Resolved(expr_id) => ExpressionKind::Resolved(*expr_id),
+        };
+
+        let function = Expression { kind, location };
         let arguments = attribute.arguments.clone();
 
         // Elaborate the function, rolling back any errors generated in case it is unknown

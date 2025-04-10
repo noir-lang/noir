@@ -1,6 +1,6 @@
 use noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, SecondaryAttribute,
-    TestScope, Token,
+    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, MetaAttributeName,
+    SecondaryAttribute, TestScope, Token,
 };
 
 use crate::chunks::ChunkGroup;
@@ -171,7 +171,12 @@ impl Formatter<'_> {
     fn format_meta_attribute(&mut self, meta_attribute: MetaAttribute) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        self.format_path(meta_attribute.name);
+        match meta_attribute.name {
+            MetaAttributeName::Path(path) => self.format_path(path),
+            MetaAttributeName::Resolved(_) => {
+                unreachable!("Resolved MetaAttributeName should not happen when formatting a file")
+            }
+        }
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
             let comments_count_before_arguments = self.written_comments_count;

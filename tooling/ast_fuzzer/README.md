@@ -26,15 +26,15 @@ orig_vs_mutant
 and execute it with some time or execution limits:
 
 ```shell
-cargo +nightly fuzz run init_vs_final -- -runs=1000 -max_total_time=60 -max_len=1048576
+cargo +nightly fuzz run acir_vs_brillig -- -runs=1000 -max_total_time=60 -max_len=1048576
 ```
 
 If there is an error, `cargo fuzz` will capture the artifacts required for a repeated run under the `artifacts` directory, and will print the command to run it again, which can be done with something like this:
 
 ```shell
-NOIR_AST_FUZZER_DEBUG=1 cargo +nightly fuzz run -O init_vs_final fuzz/artifacts/init_vs_final/crash-fa077fcded882761fcf273eda7f429a833a80a7d
+cargo +nightly fuzz run -O acir_vs_brillig fuzz/artifacts/acir_vs_brillig/crash-9270e36f612ed9022ede3496c97c24cebb6e2301
 ```
 
 Note that `cargo fuzz` requires `nightly` build, which can be either turned on with the `cargo +nightly` flag, or by running `rustup default nightly`. Also note that `cargo fuzz run` automatically creates a `--release` build, there is no need for an explicit flag to be passed.
 
-The `NOIR_AST_FUZZER_DEBUG` env var can be used to print the AST before compilation.
+The `NOIR_AST_FUZZER_SHOW_AST` env var can be used to print the AST before compilation, in case the compiler crashes on the generated program. Otherwise if the execution fails, the output will include the AST, the inputs, and the ACIR/Brillig opcodes.

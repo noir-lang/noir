@@ -62,7 +62,7 @@ pub fn insert_all_files_for_workspace_into_file_manager(
 pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     workspace: &workspace::Workspace,
     file_manager: &mut FileManager,
-    overrides: &HashMap<&std::path::Path, &str>,
+    overrides: &HashMap<PathBuf, &str>,
 ) {
     let mut processed_entry_paths = HashSet::new();
     for package in workspace.clone().into_iter() {
@@ -83,7 +83,7 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
 fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
-    overrides: &HashMap<&std::path::Path, &str>,
+    overrides: &HashMap<PathBuf, &str>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     if processed_entry_paths.contains(&package.entry_path) {
@@ -97,7 +97,44 @@ fn insert_all_files_for_package_into_file_manager(
         .parent()
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
-    for entry in WalkDir::new(entry_path_parent).sort_by_file_name() {
+    insert_all_files_under_path_into_file_manager(file_manager, entry_path_parent, overrides);
+
+    insert_all_files_for_packages_dependencies_into_file_manager(
+        package,
+        file_manager,
+        overrides,
+        processed_entry_paths,
+    );
+}
+
+// Inserts all files for the dependencies of the package into the file manager
+// too
+fn insert_all_files_for_packages_dependencies_into_file_manager(
+    package: &Package,
+    file_manager: &mut FileManager,
+    overrides: &HashMap<PathBuf, &str>,
+    processed_entry_paths: &mut HashSet<PathBuf>,
+) {
+    for (_, dep) in package.dependencies.iter() {
+        match dep {
+            Dependency::Local { package } | Dependency::Remote { package } => {
+                insert_all_files_for_package_into_file_manager(
+                    package,
+                    file_manager,
+                    overrides,
+                    processed_entry_paths,
+                );
+            }
+        }
+    }
+}
+
+pub fn insert_all_files_under_path_into_file_manager(
+    file_manager: &mut FileManager,
+    path: &std::path::Path,
+    overrides: &HashMap<PathBuf, &str>,
+) {
+    for entry in WalkDir::new(path).sort_by_file_name() {
         let Ok(entry) = entry else {
             continue;
         };
@@ -125,35 +162,6 @@ fn insert_all_files_for_package_into_file_manager(
         };
 
         file_manager.add_file_with_source(path.as_path(), source);
-    }
-
-    insert_all_files_for_packages_dependencies_into_file_manager(
-        package,
-        file_manager,
-        overrides,
-        processed_entry_paths,
-    );
-}
-
-// Inserts all files for the dependencies of the package into the file manager
-// too
-fn insert_all_files_for_packages_dependencies_into_file_manager(
-    package: &Package,
-    file_manager: &mut FileManager,
-    overrides: &HashMap<&std::path::Path, &str>,
-    processed_entry_paths: &mut HashSet<PathBuf>,
-) {
-    for (_, dep) in package.dependencies.iter() {
-        match dep {
-            Dependency::Local { package } | Dependency::Remote { package } => {
-                insert_all_files_for_package_into_file_manager(
-                    package,
-                    file_manager,
-                    overrides,
-                    processed_entry_paths,
-                );
-            }
-        }
     }
 }
 

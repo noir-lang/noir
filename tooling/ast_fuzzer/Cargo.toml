@@ -22,6 +22,7 @@ proptest.workspace = true
 strum.workspace = true
 
 acir.workspace = true
+acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 nargo.workspace = true
 noirc_abi.workspace = true
