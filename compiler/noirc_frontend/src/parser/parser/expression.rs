@@ -403,14 +403,7 @@ impl Parser<'_> {
 
     /// ResolvedExpression = unquote_marker
     fn parse_resolved_expr(&mut self) -> Option<ExpressionKind> {
-        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
-            match token.into_token() {
-                Token::UnquoteMarker(expr_id) => return Some(ExpressionKind::Resolved(expr_id)),
-                _ => unreachable!(""),
-            }
-        }
-
-        None
+        Some(ExpressionKind::Resolved(self.eat_unquote_marker()?))
     }
 
     /// InternedExpression = interned_expr
