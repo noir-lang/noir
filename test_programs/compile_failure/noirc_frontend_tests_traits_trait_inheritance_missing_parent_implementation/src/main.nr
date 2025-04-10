@@ -8,6 +8,5 @@
         impl Bar for Struct {}
 
         fn main() {
-            let _ = Struct {}; // silence Struct never constructed warning
         }
     

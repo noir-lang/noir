@@ -293,7 +293,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// This method truncates
     fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
         fn nearest_bytes(num_bits: usize) -> usize {
-            ((num_bits + 7) / 8) * 8
+            num_bits.div_ceil(8) * 8
         }
 
         let num_bytes = nearest_bytes(num_bits);
