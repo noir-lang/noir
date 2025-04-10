@@ -29,6 +29,25 @@ fn purely_sequential_opcodes(c: &mut Criterion) {
     bench_bytecode(c, "purely_sequential_opcodes", &bytecode);
 }
 
+fn perfectly_parallel_opcodes(c: &mut Criterion) {
+    // This bytecode defines a set of constraints such that `w_{i+1} = w_0 + i`.
+    // This allows all opcodes to be solved with a single field inversion assuming perfect batching.
+    let bytecode: Vec<Opcode<FieldElement>> = (1..1000)
+        .map(|witness_index| {
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::one(), Witness(0)),
+                    (-FieldElement::one(), Witness(witness_index)),
+                ],
+                q_c: FieldElement::from(witness_index),
+            })
+        })
+        .collect();
+
+    bench_bytecode(c, "purely_sequential_opcodes", &bytecode);
+}
+
 fn bench_bytecode<F: AcirField>(c: &mut Criterion, benchmark_name: &str, bytecode: &[Opcode<F>]) {
     c.bench_function(benchmark_name, |b| {
         b.iter_batched(
@@ -48,6 +67,6 @@ fn bench_bytecode<F: AcirField>(c: &mut Criterion, benchmark_name: &str, bytecod
 criterion_group! {
     name = execution_benches;
     config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = purely_sequential_opcodes
+    targets = purely_sequential_opcodes, perfectly_parallel_opcodes
 }
 criterion_main!(execution_benches);
