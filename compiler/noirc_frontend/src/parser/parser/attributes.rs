@@ -106,8 +106,6 @@ impl Parser<'_> {
     }
 
     fn parse_tag_attribute(&mut self, start_location: Location) -> Attribute {
-        let contents_start_location = self.current_token_location;
-        let mut contents_location = contents_start_location;
         let mut contents = String::new();
 
         let mut brackets_count = 1; // 1 because of the starting `#[`
@@ -118,7 +116,6 @@ impl Parser<'_> {
             } else if self.at(Token::RightBracket) {
                 brackets_count -= 1;
                 if brackets_count == 0 {
-                    contents_location = self.location_since(contents_start_location);
                     self.bump();
                     break;
                 }
@@ -129,11 +126,7 @@ impl Parser<'_> {
         }
 
         let location = self.location_since(start_location);
-        let kind = SecondaryAttributeKind::Tag(CustomAttribute {
-            contents,
-            span: location.span,
-            contents_span: contents_location.span,
-        });
+        let kind = SecondaryAttributeKind::Tag(CustomAttribute { contents, span: location.span });
         let attr = SecondaryAttribute { kind, location };
         Attribute::Secondary(attr)
     }
@@ -529,7 +522,6 @@ mod tests {
         expect_no_errors(&parser.errors);
         assert_eq!(custom.contents, "hello");
         assert_eq!(custom.span, Span::from(0..src.len() as u32));
-        assert_eq!(custom.contents_span, Span::from(4..src.len() as u32 - 1));
     }
 
     #[test]

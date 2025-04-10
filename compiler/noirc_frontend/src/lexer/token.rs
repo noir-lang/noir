@@ -1116,8 +1116,6 @@ pub struct CustomAttribute {
     pub contents: String,
     // The span of the entire attribute, including leading `#[` and trailing `]`
     pub span: Span,
-    // The span for the attribute contents (what's inside `#[...]`)
-    pub contents_span: Span,
 }
 
 impl CustomAttribute {
