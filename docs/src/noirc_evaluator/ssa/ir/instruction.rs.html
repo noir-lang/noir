@@ -1169,7 +1169,7 @@
             | Instruction::RangeCheck { .. }
             | Instruction::Noop
             | Instruction::EnableSideEffectsIf { .. } =&gt; InstructionResultType::None,
-            Instruction::Allocate { .. }
+            Instruction::Allocate
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
             | Instruction::Call { .. } =&gt; InstructionResultType::Unknown,
@@ -1436,7 +1436,7 @@
                 f(<span class="kw-2">*</span>address);
                 f(<span class="kw-2">*</span>value);
             }
-            Instruction::Allocate { .. } =&gt; (),
+            Instruction::Allocate =&gt; (),
             Instruction::ArrayGet { array, index } =&gt; {
                 f(<span class="kw-2">*</span>array);
                 f(<span class="kw-2">*</span>index);

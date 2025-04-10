@@ -2002,7 +2002,7 @@
                         </span><span class="self">self</span>.update_children(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>results);
                     }
                     <span class="comment">// These instructions won't affect the dependency graph
-                    </span>Instruction::Allocate { .. }
+                    </span>Instruction::Allocate
                     | Instruction::DecrementRc { .. }
                     | Instruction::IncrementRc { .. }
                     | Instruction::MakeArray { .. }
@@ -2315,7 +2315,7 @@
                         }
                     }
                 }
-                Instruction::Allocate { .. }
+                Instruction::Allocate
                 | Instruction::DecrementRc { .. }
                 | Instruction::EnableSideEffectsIf { .. }
                 | Instruction::IncrementRc { .. }

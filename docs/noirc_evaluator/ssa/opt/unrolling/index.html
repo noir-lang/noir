@@ -3,12 +3,15 @@
 <ol>
 <li>Find all loops in the program (<code>find_all_loops</code>)</li>
 <li>For each loop:
-a. If the loop is in our list of loops that previously failed to unroll, skip it.
-b. If we have previously modified any of the blocks in the loop,
-restart from step 1 to refresh the context.
-c. If not, try to unroll the loop. If successful, remember the modified
+<ol>
+<li>If the loop is in our list of loops that previously failed to unroll, skip it.</li>
+<li>If we have previously modified any of the blocks in the loop,
+restart from step 1 to refresh the context.</li>
+<li>If not, try to unroll the loop. If successful, remember the modified
 blocks. If unsuccessful either error if the abort_on_error flag is set,
 or otherwise remember that the loop failed to unroll and leave it unmodified.</li>
+</ol>
+</li>
 </ol>
 <p>Note that this pass also often creates superfluous jmp instructions in the
 program that will need to be removed by a later simplify CFG pass.</p>

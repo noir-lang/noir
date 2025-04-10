@@ -174,14 +174,20 @@ For more context regarding malleability you can reference BIP 0062.</li>
 sums the results.</p>
 <ul>
 <li>input:
-points (witness, N) a vector of x and y coordinates of input
-points <code>[x1, y1, x2, y2,...]</code>.
-scalars (witness, N) a vector of low and high limbs of input
-scalars <code>[s1_low, s1_high, s2_low, s2_high, ...]</code>. (witness, N)
+<ul>
+<li>points (witness, N) a vector of x and y coordinates of input</li>
+<li>points <code>[x1, y1, x2, y2,...]</code>.</li>
+<li>scalars (witness, N) a vector of low and high limbs of input</li>
+<li>scalars <code>[s1_low, s1_high, s2_low, s2_high, ...]</code>. (witness, N)
 For Barretenberg, they must both be less than 128 bits.</li>
+</ul>
+</li>
 <li>output:
-a tuple of <code>x</code> and <code>y</code> coordinates of output.
-Points computed as <code>s_low*P+s_high*2^{128}*P</code></li>
+<ul>
+<li>a tuple of <code>x</code> and <code>y</code> coordinates of output
+points computed as <code>s_low*P+s_high*2^{128}*P</code></li>
+</ul>
+</li>
 </ul>
 <p>Because the Grumpkin scalar field is bigger than the ACIR field, we
 provide 2 ACIR fields representing the low and high parts of the Grumpkin

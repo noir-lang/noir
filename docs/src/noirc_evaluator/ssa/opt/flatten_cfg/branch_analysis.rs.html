@@ -261,18 +261,20 @@
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a></pre></div><pre class="rust"><code><span class="doccomment">//! This is an algorithm for identifying branch starts and ends.
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a></pre></div><pre class="rust"><code><span class="doccomment">//! This is an algorithm for identifying branch starts and ends.
 //!
 //! The algorithm is split into two parts:
 //! 1. The outer part:
-//!    A. An (unrolled) CFG can be though of as a linear sequence of blocks where some nodes split
+//!    1. An (unrolled) CFG can be though of as a linear sequence of blocks where some nodes split
 //!       off, but eventually rejoin to a new node and continue the linear sequence.
-//!    B. Follow this sequence in order, and whenever a split is found call
+//!
+//!    2. Follow this sequence in order, and whenever a split is found call
 //!       `find_join_point_of_branches` and then recur from the join point it returns until the
 //!       return instruction is found.
 //!
 //! 2. The inner part defined by `find_join_point_of_branches`:
-//!    A. For each of the two branches in a jmpif block:
+//!    1. For each of the two branches in a jmpif block:
 //!     - Check if either has multiple predecessors. If so, it is a join point.
 //!     - If not, continue to search the linear sequence of successor blocks from that block.
 //!       - If another split point is found, recur in `find_join_point_of_branches`

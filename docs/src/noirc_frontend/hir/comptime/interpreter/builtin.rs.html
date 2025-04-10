@@ -4498,7 +4498,7 @@
         Type::Array(length_type, elem) =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(length) = length_type.evaluate_to_u32(location) {
                 <span class="kw">let </span>element = zeroed(elem.as_ref().clone(), location);
-                <span class="kw">let </span>array = std::iter::repeat(element).take(length <span class="kw">as </span>usize).collect();
+                <span class="kw">let </span>array = std::iter::repeat_n(element, length <span class="kw">as </span>usize).collect();
                 Value::Array(array, Type::Array(length_type, elem))
             } <span class="kw">else </span>{
                 <span class="comment">// Assume we can resolve the length later

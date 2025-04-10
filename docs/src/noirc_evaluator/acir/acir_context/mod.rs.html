@@ -3192,7 +3192,7 @@
     };
 
     <span class="kw">let </span>bytes_be: Vec&lt;u8&gt; = std::iter::once(most_significant_byte)
-        .chain(std::iter::repeat(<span class="number">0</span>).take(full_bytes <span class="kw">as </span>usize))
+        .chain(std::iter::repeat_n(<span class="number">0</span>, full_bytes <span class="kw">as </span>usize))
         .collect();
 
     F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>bytes_be)

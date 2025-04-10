@@ -3691,7 +3691,9 @@
 <a href="#3690" id="3690">3690</a>
 <a href="#3691" id="3691">3691</a>
 <a href="#3692" id="3692">3692</a>
-<a href="#3693" id="3693">3693</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#3693" id="3693">3693</a>
+<a href="#3694" id="3694">3694</a>
+<a href="#3695" id="3695">3695</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -4780,12 +4782,14 @@
     <span class="doccomment">/// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
     /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
-    ///     in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
-    ///     Thus internal array element type sizes need to be computed to accurately transform the index.
+    ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
+    ///   Thus internal array element type sizes need to be computed to accurately transform the index.
+    ///
     /// - predicate_index is offset, or the index if the predicate is true
+    ///
     /// - new_value is the optional value when the operation is an array_set
-    ///     When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    ///   When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    ///   It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
     </span><span class="kw">fn </span>convert_array_operation_inputs(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_id: ValueId,
@@ -5024,10 +5028,10 @@
     }
 
     <span class="doccomment">/// If `mutate_array` is:
-    /// - true: Mutate the array directly
-    /// - false: Copy the array and generates a write opcode on the new array. This is
-    ///          generally very inefficient and should be avoided if possible. Currently
-    ///          this is controlled by SSA's array set optimization pass.
+    /// - `true`: Mutate the array directly
+    /// - `false`: Copy the array and generates a write opcode on the new array. This is
+    ///   generally very inefficient and should be avoided if possible. Currently
+    ///   this is controlled by SSA's array set optimization pass.
     </span><span class="kw">fn </span>array_set(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: InstructionId,

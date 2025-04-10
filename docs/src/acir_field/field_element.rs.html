@@ -817,7 +817,7 @@
     /// This method truncates
     </span><span class="kw">fn </span>fetch_nearest_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, num_bits: usize) -&gt; Vec&lt;u8&gt; {
         <span class="kw">fn </span>nearest_bytes(num_bits: usize) -&gt; usize {
-            ((num_bits + <span class="number">7</span>) / <span class="number">8</span>) * <span class="number">8
+            num_bits.div_ceil(<span class="number">8</span>) * <span class="number">8
         </span>}
 
         <span class="kw">let </span>num_bytes = nearest_bytes(num_bits);
