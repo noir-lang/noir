@@ -28,7 +28,7 @@ pub(crate) fn add_recursion_depth(
         // 2) using `u32::MAX`, but we wouldn't be able to add caching to `Program`,
         // so eventually we'll need to look at the values to do random mutations.
         let depth_id = LocalId(func::next_local_id(func));
-        let depth_name = "ctx_call_depth".to_string();
+        let depth_name = "ctx_depth".to_string();
         let depth_ident_inner = expr::ident_inner(
             VariableId::Local(depth_id),
             !is_main,
