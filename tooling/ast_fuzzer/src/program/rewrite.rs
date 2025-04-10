@@ -9,7 +9,7 @@ use noirc_frontend::{
 
 use super::{Context, VariableId, expr, func, types, visitor::visit_expr_mut};
 
-/// Find recursive functions and add a `ctx_call_depth` parameter to them.
+/// Find recursive functions and add a `ctx_depth` parameter to them.
 pub(crate) fn add_recursion_depth(
     ctx: &mut Context,
     u: &mut Unstructured,
