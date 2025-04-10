@@ -1,8 +1,8 @@
 error: misplaced #[fold] attribute on unconstrained function foo. Only allowed on constrained functions
-  ┌─ src/main.nr:3:30
+  ┌─ src/main.nr:2:9
   │
-3 │         unconstrained pub fn foo(x: Field, y: Field) {
-  │                              --- misplaced #[fold] attribute
+2 │         #[fold]
+  │         ------- misplaced #[fold] attribute
   │
   = The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point
 

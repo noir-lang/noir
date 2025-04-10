@@ -1398,12 +1398,11 @@ fn ban_mutable_globals() {
 #[named]
 #[test]
 fn deny_inline_attribute_on_unconstrained() {
-    // TODO: improve the error location
     let src = r#"
         #[no_predicates]
+        ^^^^^^^^^^^^^^^^ misplaced #[no_predicates] attribute on unconstrained function foo. Only allowed on constrained functions
+        ~~~~~~~~~~~~~~~~ misplaced #[no_predicates] attribute
         unconstrained pub fn foo(x: Field, y: Field) {
-                             ^^^ misplaced #[no_predicates] attribute on unconstrained function foo. Only allowed on constrained functions
-                             ~~~ misplaced #[no_predicates] attribute
             assert(x != y);
         }
     "#;
@@ -1413,14 +1412,40 @@ fn deny_inline_attribute_on_unconstrained() {
 #[named]
 #[test]
 fn deny_fold_attribute_on_unconstrained() {
-    // TODO: improve the error location
     let src = r#"
         #[fold]
+        ^^^^^^^ misplaced #[fold] attribute on unconstrained function foo. Only allowed on constrained functions
+        ~~~~~~~ misplaced #[fold] attribute
         unconstrained pub fn foo(x: Field, y: Field) {
-                             ^^^ misplaced #[fold] attribute on unconstrained function foo. Only allowed on constrained functions
-                             ~~~ misplaced #[fold] attribute
             assert(x != y);
         }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn deny_oracle_attribute_on_non_unconstrained() {
+    let src = r#"
+        #[oracle(foo)]
+        ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is only valid on unconstrained functions
+        pub fn foo(x: Field, y: Field) {
+               ~~~ Oracle functions must have the `unconstrained` keyword applied
+            assert(x != y);
+        }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn deny_abi_attribute_outside_of_contract() {
+    let src = r#"
+
+        #[abi(foo)]
+        ^^^^^^^^^^^ #[abi(tag)] attributes can only be used in contracts
+        ~~~~~~~~~~~ misplaced #[abi(tag)] attribute
+        global foo: Field = 1;
     "#;
     check_errors!(src);
 }
