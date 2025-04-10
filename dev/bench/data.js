@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744313004082,
+  "lastUpdate": 1744313369492,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ebb5015b27bc3ad5ef6128d3f74721d6ea4a60b4",
-          "message": "feat(parser): better error recovery when identifier doesn't come in constructor (#7887)",
-          "timestamp": "2025-04-02T18:17:50Z",
-          "tree_id": "84863cb8a96b6e5e116d6501231578d86c9c2b44",
-          "url": "https://github.com/noir-lang/noir/commit/ebb5015b27bc3ad5ef6128d3f74721d6ea4a60b4"
-        },
-        "date": 1743620004885,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 504.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 413.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 293.53,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/18e15380677f46da808d637042481295190c47ae"
         },
         "date": 1744312044874,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.96,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.63,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bdcfb66909c081c458f956559dc5980dbeb9155e",
+          "message": "chore(deps): bump koa from 2.14.2 to 2.16.1 (#8013)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2025-04-10T18:58:05Z",
+          "tree_id": "62f22a75169319d15e57d0595f53542ed8644f8b",
+          "url": "https://github.com/noir-lang/noir/commit/bdcfb66909c081c458f956559dc5980dbeb9155e"
+        },
+        "date": 1744313364819,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
