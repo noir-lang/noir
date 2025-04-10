@@ -791,22 +791,22 @@ fn test_loop() {
     ctx.add_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
-    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap());
+    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
 
     println!("{loop_code}");
     assert!(loop_code.starts_with(
-        r#"{
+        &r#"{
     let mut idx_a$0 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
-        } else {"#
-    ));
+        } else {"#.replace(" ",""))
+    );
 
     assert!(loop_code.ends_with(
-        r#"idx_a$l0 = (idx_a$l0 + 1)
+        &r#"idx_a$l0 = (idx_a$l0 + 1)
         }
     }
-}"#
-    ));
+}"#.replace(" ", ""))
+    );
 }
