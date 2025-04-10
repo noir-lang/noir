@@ -23,7 +23,7 @@ struct MockedCall<F> {
     /// How many times should this mock be called before it is removed
     times_left: Option<u64>,
     /// How many times this mock was actually called
-    times_called: u128,
+    times_called: u32,
 }
 
 impl<F> MockedCall<F> {
