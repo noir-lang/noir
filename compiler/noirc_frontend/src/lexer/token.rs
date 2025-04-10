@@ -1011,23 +1011,6 @@ pub enum SecondaryAttribute {
 }
 
 impl SecondaryAttribute {
-    pub(crate) fn name(&self) -> Option<String> {
-        match self {
-            SecondaryAttribute::Deprecated(_) => Some("deprecated".to_string()),
-            SecondaryAttribute::ContractLibraryMethod => {
-                Some("contract_library_method".to_string())
-            }
-            SecondaryAttribute::Export => Some("export".to_string()),
-            SecondaryAttribute::Field(_) => Some("field".to_string()),
-            SecondaryAttribute::Tag(custom) => custom.name(),
-            SecondaryAttribute::Meta(meta) => Some(meta.name.last_name().to_string()),
-            SecondaryAttribute::Abi(_) => Some("abi".to_string()),
-            SecondaryAttribute::Varargs => Some("varargs".to_string()),
-            SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
-            SecondaryAttribute::Allow(_) => Some("allow".to_string()),
-        }
-    }
-
     pub(crate) fn is_allow_unused_variables(&self) -> bool {
         match self {
             SecondaryAttribute::Allow(string) => string == "unused_variables",
@@ -1066,7 +1049,7 @@ impl fmt::Display for SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MetaAttribute {
-    pub name: Path,
+    pub name: MetaAttributeName,
     pub arguments: Vec<Expression>,
     pub location: Location,
 }
@@ -1083,6 +1066,22 @@ impl Display for MetaAttribute {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum MetaAttributeName {
+    /// For example `foo::bar` in `#[foo::bar(...)]`
+    Path(Path),
+    /// For example `$expr` in `#[$expr(...)]` inside a `quote { ... }` expression.
+    Resolved(ExprId),
+}
+
+impl Display for MetaAttributeName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetaAttributeName::Path(path) => path.fmt(f),
+            MetaAttributeName::Resolved(_) => write!(f, "(quoted)"),
+        }
+    }
+}
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAttribute {
     pub contents: String,
@@ -1093,7 +1092,7 @@ pub struct CustomAttribute {
 }
 
 impl CustomAttribute {
-    fn name(&self) -> Option<String> {
+    pub(crate) fn name(&self) -> Option<String> {
         let mut lexer = Lexer::new_with_dummy_file(&self.contents);
         let token = lexer.next()?.ok()?;
         if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
