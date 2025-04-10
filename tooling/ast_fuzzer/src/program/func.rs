@@ -728,8 +728,9 @@ impl<'a> FunctionContext<'a> {
             u.choose(&[8, 16, 32, 64]).map(|s| IntegerBitSize::try_from(*s).unwrap())?,
         );
 
-        let max_size = self.ctx.config.max_range_size;
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
+            // Choosing a maximum range size because changing it immediately brought out some bug around modulo.
+            let max_size = u.int_in_range(1..=self.ctx.config.max_range_size)?;
             // Generate random expression.
             let s = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
             let e = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
@@ -739,6 +740,8 @@ impl<'a> FunctionContext<'a> {
             let e = expr::range_modulo(e, idx_type.clone(), max_size);
             (s, e)
         } else {
+            // `gen_range` will choose a size up to the max.
+            let max_size = self.ctx.config.max_range_size;
             // If the function is constrained, we need a range we can determine at compile time.
             // For now do it with literals, although we should be able to use constant variables as well.
             let (s, e) = expr::gen_range(u, &idx_type, max_size)?;
