@@ -457,7 +457,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner};
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParserError};
-<span class="kw">use </span><span class="kw">crate</span>::token::{FunctionAttribute, FuzzingScope, TestScope};
+<span class="kw">use </span><span class="kw">crate</span>::token::{FunctionAttributeKind, FuzzingScope, TestScope};
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>noirc_arena::{Arena, Index};
 <span class="kw">use </span>noirc_errors::Location;
@@ -654,8 +654,8 @@
             module.value_definitions().filter_map(|id| {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = id.as_function() {
                     <span class="kw">let </span>attributes = interner.function_attributes(<span class="kw-2">&amp;</span>func_id);
-                    <span class="kw">match </span>attributes.function() {
-                        <span class="prelude-val">Some</span>(FunctionAttribute::Test(scope)) =&gt; {
+                    <span class="kw">match </span>attributes.function().map(|attr| <span class="kw-2">&amp;</span>attr.kind) {
+                        <span class="prelude-val">Some</span>(FunctionAttributeKind::Test(scope)) =&gt; {
                             <span class="kw">let </span>location = interner.function_meta(<span class="kw-2">&amp;</span>func_id).name.location;
                             <span class="prelude-val">Some</span>(TestFunction::new(func_id, scope.clone(), location))
                         }
@@ -678,8 +678,8 @@
             module.value_definitions().filter_map(|id| {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = id.as_function() {
                     <span class="kw">let </span>attributes = interner.function_attributes(<span class="kw-2">&amp;</span>func_id);
-                    <span class="kw">match </span>attributes.function() {
-                        <span class="prelude-val">Some</span>(FunctionAttribute::FuzzingHarness(scope)) =&gt; {
+                    <span class="kw">match </span>attributes.function().map(|attr| <span class="kw-2">&amp;</span>attr.kind) {
+                        <span class="prelude-val">Some</span>(FunctionAttributeKind::FuzzingHarness(scope)) =&gt; {
                             <span class="kw">let </span>location = interner.function_meta(<span class="kw-2">&amp;</span>func_id).name.location;
                             <span class="prelude-val">Some</span>(FuzzingHarness::new(func_id, scope.clone(), location))
                         }

@@ -116,7 +116,8 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="doccomment">/// If the cursor is on an custom attribute, this struct will try to resolve its
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a></pre></div><pre class="rust"><code><span class="doccomment">/// If the cursor is on an custom attribute, this struct will try to resolve its
 /// underlying function and return a ReferenceId to it.
 /// This is needed in hover and go-to-definition because when an annotation generates
 /// code, that code ends up residing in the attribute definition (it ends up having the
@@ -207,8 +208,9 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         attribute: <span class="kw-2">&amp;</span>MetaAttribute,
         _target: AttributeTarget,
+        span: Span,
     ) -&gt; bool {
-        <span class="kw">if </span>!<span class="self">self</span>.includes_span(attribute.location.span) {
+        <span class="kw">if </span>!<span class="self">self</span>.includes_span(span) {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 

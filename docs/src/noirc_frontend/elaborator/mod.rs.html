@@ -2288,7 +2288,10 @@
 <a href="#2287" id="2287">2287</a>
 <a href="#2288" id="2288">2288</a>
 <a href="#2289" id="2289">2289</a>
-<a href="#2290" id="2290">2290</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2290" id="2290">2290</a>
+<a href="#2291" id="2291">2291</a>
+<a href="#2292" id="2292">2292</a>
+<a href="#2293" id="2293">2293</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -2300,6 +2303,7 @@
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
     shared::Signedness,
+    token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
 <span class="kw">use crate</span>::{
@@ -2337,7 +2341,6 @@
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
-    token::SecondaryAttribute,
 };
 
 <span class="kw">mod </span>comptime;
@@ -3452,8 +3455,7 @@
         });
         <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         <span class="self">self</span>.run_lint(|elaborator| {
-            lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
-                .map(Into::into)
+            lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
     }
 
@@ -4285,10 +4287,14 @@
 
         <span class="kw">let </span>location = let_stmt.pattern.location();
 
-        <span class="kw">if </span>!<span class="self">self</span>.in_contract()
-            &amp;&amp; let_stmt.attributes.iter().any(|attr| <span class="macro">matches!</span>(attr, SecondaryAttribute::Abi(<span class="kw">_</span>)))
-        {
-            <span class="self">self</span>.push_err(ResolverError::AbiAttributeOutsideContract { location });
+        <span class="kw">if </span>!<span class="self">self</span>.in_contract() {
+            <span class="kw">for </span>attr <span class="kw">in </span><span class="kw-2">&amp;</span>let_stmt.attributes {
+                <span class="kw">if </span><span class="macro">matches!</span>(attr.kind, SecondaryAttributeKind::Abi(<span class="kw">_</span>)) {
+                    <span class="self">self</span>.push_err(ResolverError::AbiAttributeOutsideContract {
+                        location: attr.location,
+                    });
+                }
+            }
         }
 
         <span class="kw">if </span>!let_stmt.comptime &amp;&amp; <span class="macro">matches!</span>(let_stmt.pattern, Pattern::Mutable(..)) {

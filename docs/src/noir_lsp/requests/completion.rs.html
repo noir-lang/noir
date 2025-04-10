@@ -2013,7 +2013,12 @@
 <a href="#2012" id="2012">2012</a>
 <a href="#2013" id="2013">2013</a>
 <a href="#2014" id="2014">2014</a>
-<a href="#2015" id="2015">2015</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a>
+<a href="#2018" id="2018">2018</a>
+<a href="#2019" id="2019">2019</a>
+<a href="#2020" id="2020">2020</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -3844,7 +3849,12 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">fn </span>visit_meta_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attribute: <span class="kw-2">&amp;</span>MetaAttribute, target: AttributeTarget) -&gt; bool {
+    <span class="kw">fn </span>visit_meta_attribute(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        attribute: <span class="kw-2">&amp;</span>MetaAttribute,
+        target: AttributeTarget,
+        _span: Span,
+    ) -&gt; bool {
         <span class="kw">let </span>MetaAttributeName::Path(path) = <span class="kw-2">&amp;</span>attribute.name <span class="kw">else </span>{
             <span class="kw">return </span><span class="bool-val">true</span>;
         };

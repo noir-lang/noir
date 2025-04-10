@@ -391,9 +391,11 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, MetaAttributeName,
-    SecondaryAttribute, TestScope, Token,
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
+    Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
+    MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::chunks::ChunkGroup;
@@ -444,15 +446,17 @@
             <span class="macro">panic!</span>(<span class="string">"Expected attribute start, got: {:?}"</span>, <span class="self">self</span>.token);
         }
 
-        <span class="kw">match </span>attribute {
-            FunctionAttribute::Foreign(<span class="kw">_</span>)
-            | FunctionAttribute::Builtin(<span class="kw">_</span>)
-            | FunctionAttribute::Oracle(<span class="kw">_</span>) =&gt; <span class="self">self</span>.format_one_arg_attribute(),
-            FunctionAttribute::Test(test_scope) =&gt; <span class="self">self</span>.format_test_attribute(test_scope),
-            FunctionAttribute::FuzzingHarness(fuzz_scope) =&gt; <span class="self">self</span>.format_fuzz_attribute(fuzz_scope),
-            FunctionAttribute::Fold
-            | FunctionAttribute::NoPredicates
-            | FunctionAttribute::InlineAlways =&gt; {
+        <span class="kw">match </span>attribute.kind {
+            FunctionAttributeKind::Foreign(<span class="kw">_</span>)
+            | FunctionAttributeKind::Builtin(<span class="kw">_</span>)
+            | FunctionAttributeKind::Oracle(<span class="kw">_</span>) =&gt; <span class="self">self</span>.format_one_arg_attribute(),
+            FunctionAttributeKind::Test(test_scope) =&gt; <span class="self">self</span>.format_test_attribute(test_scope),
+            FunctionAttributeKind::FuzzingHarness(fuzz_scope) =&gt; {
+                <span class="self">self</span>.format_fuzz_attribute(fuzz_scope);
+            }
+            FunctionAttributeKind::Fold
+            | FunctionAttributeKind::NoPredicates
+            | FunctionAttributeKind::InlineAlways =&gt; {
                 <span class="self">self</span>.format_no_args_attribute();
             }
         }
@@ -468,25 +472,25 @@
             <span class="macro">panic!</span>(<span class="string">"Expected attribute start, got: {:?}"</span>, <span class="self">self</span>.token);
         }
 
-        <span class="kw">match </span>attribute {
-            SecondaryAttribute::Deprecated(message) =&gt; {
+        <span class="kw">match </span>attribute.kind {
+            SecondaryAttributeKind::Deprecated(message) =&gt; {
                 <span class="self">self</span>.format_deprecated_attribute(message);
             }
-            SecondaryAttribute::ContractLibraryMethod
-            | SecondaryAttribute::Export
-            | SecondaryAttribute::Varargs
-            | SecondaryAttribute::UseCallersScope =&gt; {
+            SecondaryAttributeKind::ContractLibraryMethod
+            | SecondaryAttributeKind::Export
+            | SecondaryAttributeKind::Varargs
+            | SecondaryAttributeKind::UseCallersScope =&gt; {
                 <span class="self">self</span>.format_no_args_attribute();
             }
-            SecondaryAttribute::Field(<span class="kw">_</span>)
-            | SecondaryAttribute::Abi(<span class="kw">_</span>)
-            | SecondaryAttribute::Allow(<span class="kw">_</span>) =&gt; {
+            SecondaryAttributeKind::Field(<span class="kw">_</span>)
+            | SecondaryAttributeKind::Abi(<span class="kw">_</span>)
+            | SecondaryAttributeKind::Allow(<span class="kw">_</span>) =&gt; {
                 <span class="self">self</span>.format_one_arg_attribute();
             }
-            SecondaryAttribute::Tag(custom_attribute) =&gt; {
-                <span class="self">self</span>.write_and_skip_span_without_formatting(custom_attribute.span);
+            SecondaryAttributeKind::Tag(<span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.write_and_skip_span_without_formatting(attribute.location.span);
             }
-            SecondaryAttribute::Meta(meta_attribute) =&gt; {
+            SecondaryAttributeKind::Meta(meta_attribute) =&gt; {
                 <span class="self">self</span>.format_meta_attribute(meta_attribute);
             }
         }

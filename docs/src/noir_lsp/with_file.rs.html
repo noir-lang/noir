@@ -1023,10 +1023,7 @@
 <a href="#1022" id="1022">1022</a>
 <a href="#1023" id="1023">1023</a>
 <a href="#1024" id="1024">1024</a>
-<a href="#1025" id="1025">1025</a>
-<a href="#1026" id="1026">1026</a>
-<a href="#1027" id="1027">1027</a>
-<a href="#1028" id="1028">1028</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#1025" id="1025">1025</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -1047,7 +1044,7 @@
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
         Attributes, FmtStrFragment, LocatedToken, MetaAttribute, MetaAttributeName,
-        SecondaryAttribute, Token, Tokens,
+        SecondaryAttribute, SecondaryAttributeKind, Token, Tokens,
     },
 };
 
@@ -1606,20 +1603,21 @@
     secondary_attribute: SecondaryAttribute,
     file: FileId,
 ) -&gt; SecondaryAttribute {
-    <span class="kw">match </span>secondary_attribute {
-        SecondaryAttribute::Meta(meta_attribute) =&gt; {
-            SecondaryAttribute::Meta(meta_attribute_with_file(meta_attribute, file))
+    <span class="kw">let </span>kind = <span class="kw">match </span>secondary_attribute.kind {
+        SecondaryAttributeKind::Meta(meta_attribute) =&gt; {
+            SecondaryAttributeKind::Meta(meta_attribute_with_file(meta_attribute, file))
         }
-        SecondaryAttribute::Deprecated(<span class="kw">_</span>)
-        | SecondaryAttribute::ContractLibraryMethod
-        | SecondaryAttribute::Export
-        | SecondaryAttribute::Field(<span class="kw">_</span>)
-        | SecondaryAttribute::Tag(..)
-        | SecondaryAttribute::Abi(<span class="kw">_</span>)
-        | SecondaryAttribute::Varargs
-        | SecondaryAttribute::UseCallersScope
-        | SecondaryAttribute::Allow(<span class="kw">_</span>) =&gt; secondary_attribute,
-    }
+        SecondaryAttributeKind::Deprecated(<span class="kw">_</span>)
+        | SecondaryAttributeKind::ContractLibraryMethod
+        | SecondaryAttributeKind::Export
+        | SecondaryAttributeKind::Field(<span class="kw">_</span>)
+        | SecondaryAttributeKind::Tag(..)
+        | SecondaryAttributeKind::Abi(<span class="kw">_</span>)
+        | SecondaryAttributeKind::Varargs
+        | SecondaryAttributeKind::UseCallersScope
+        | SecondaryAttributeKind::Allow(<span class="kw">_</span>) =&gt; secondary_attribute.kind,
+    };
+    SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
 }
 
 <span class="kw">fn </span>meta_attribute_with_file(meta_attribute: MetaAttribute, file: FileId) -&gt; MetaAttribute {
@@ -1627,11 +1625,7 @@
         MetaAttributeName::Path(path) =&gt; MetaAttributeName::Path(path_with_file(path, file)),
         MetaAttributeName::Resolved(expr_id) =&gt; MetaAttributeName::Resolved(expr_id),
     };
-    MetaAttribute {
-        name,
-        arguments: expressions_with_file(meta_attribute.arguments, file),
-        location: location_with_file(meta_attribute.location, file),
-    }
+    MetaAttribute { name, arguments: expressions_with_file(meta_attribute.arguments, file) }
 }
 
 <span class="kw">fn </span>expressions_with_file(expressions: Vec&lt;Expression&gt;, file: FileId) -&gt; Vec&lt;Expression&gt; {

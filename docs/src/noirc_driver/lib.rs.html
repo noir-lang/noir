@@ -828,7 +828,7 @@
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
 <span class="kw">use </span>noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
-<span class="kw">use </span>noirc_frontend::token::SecondaryAttribute;
+<span class="kw">use </span>noirc_frontend::token::SecondaryAttributeKind;
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>tracing::info;
@@ -1312,7 +1312,7 @@
 
     context.def_interner.get_all_globals().iter().for_each(|global_info| {
         context.def_interner.global_attributes(<span class="kw-2">&amp;</span>global_info.id).iter().for_each(|attr| {
-            <span class="kw">if let </span>SecondaryAttribute::Abi(tag) = attr {
+            <span class="kw">if let </span>SecondaryAttributeKind::Abi(tag) = <span class="kw-2">&amp;</span>attr.kind {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.globals.get_mut(tag) {
                     tagged.push(global_info.id);
                 } <span class="kw">else </span>{
@@ -1325,7 +1325,7 @@
     module.type_definitions().for_each(|id| {
         <span class="kw">if let </span>ModuleDefId::TypeId(struct_id) = id {
             context.def_interner.type_attributes(<span class="kw-2">&amp;</span>struct_id).iter().for_each(|attr| {
-                <span class="kw">if let </span>SecondaryAttribute::Abi(tag) = attr {
+                <span class="kw">if let </span>SecondaryAttributeKind::Abi(tag) = <span class="kw-2">&amp;</span>attr.kind {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.structs.get_mut(tag) {
                         tagged.push(struct_id);
                     } <span class="kw">else </span>{
@@ -1389,9 +1389,9 @@
             .attributes
             .secondary
             .iter()
-            .filter_map(|attr| <span class="kw">match </span>attr {
-                SecondaryAttribute::Tag(attribute) =&gt; <span class="prelude-val">Some</span>(attribute.contents.clone()),
-                SecondaryAttribute::Meta(attribute) =&gt; <span class="prelude-val">Some</span>(attribute.to_string()),
+            .filter_map(|attr| <span class="kw">match </span><span class="kw-2">&amp;</span>attr.kind {
+                SecondaryAttributeKind::Tag(contents) =&gt; <span class="prelude-val">Some</span>(contents.clone()),
+                SecondaryAttributeKind::Meta(attribute) =&gt; <span class="prelude-val">Some</span>(attribute.to_string()),
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
             })
             .collect();

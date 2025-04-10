@@ -1322,7 +1322,13 @@
 <a href="#1321" id="1321">1321</a>
 <a href="#1322" id="1322">1322</a>
 <a href="#1323" id="1323">1323</a>
-<a href="#1324" id="1324">1324</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -1333,8 +1339,6 @@
         InternedUnresolvedTypeData, QuotedTypeId,
     },
 };
-
-<span class="kw">use </span><span class="kw">super</span>::Lexer;
 
 <span class="doccomment">/// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
@@ -2124,15 +2128,18 @@
     /// This is useful for finding out if we should compile a contract method
     /// as an entry point or not.
     </span><span class="kw">pub fn </span>has_contract_library_method(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttribute::ContractLibraryMethod)
+        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttributeKind::ContractLibraryMethod)
     }
 
     <span class="kw">pub fn </span>is_test_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>.function(), <span class="prelude-val">Some</span>(FunctionAttribute::Test(<span class="kw">_</span>)))
+        <span class="macro">matches!</span>(<span class="self">self</span>.function().map(|attr| <span class="kw-2">&amp;</span>attr.kind), <span class="prelude-val">Some</span>(FunctionAttributeKind::Test(<span class="kw">_</span>)))
     }
 
     <span class="kw">pub fn </span>is_fuzzing_harness(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>.function(), <span class="prelude-val">Some</span>(FunctionAttribute::FuzzingHarness(<span class="kw">_</span>)))
+        <span class="macro">matches!</span>(
+            <span class="self">self</span>.function().map(|attr| <span class="kw-2">&amp;</span>attr.kind),
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::FuzzingHarness(<span class="kw">_</span>))
+        )
     }
 
     <span class="doccomment">/// True if these attributes mean the given function is an entry point function if it was
@@ -2146,15 +2153,15 @@
 
     <span class="doccomment">/// Returns note if a deprecated secondary attribute is found
     </span><span class="kw">pub fn </span>get_deprecated_note(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt; {
-        <span class="self">self</span>.secondary.iter().find_map(|attr| <span class="kw">match </span>attr {
-            SecondaryAttribute::Deprecated(note) =&gt; <span class="prelude-val">Some</span>(note.clone()),
+        <span class="self">self</span>.secondary.iter().find_map(|attr| <span class="kw">match </span><span class="kw-2">&amp;</span>attr.kind {
+            SecondaryAttributeKind::Deprecated(note) =&gt; <span class="prelude-val">Some</span>(note.clone()),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         })
     }
 
     <span class="kw">pub fn </span>get_field_attribute(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
         <span class="kw">for </span>secondary <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.secondary {
-            <span class="kw">if let </span>SecondaryAttribute::Field(field) = secondary {
+            <span class="kw">if let </span>SecondaryAttributeKind::Field(field) = <span class="kw-2">&amp;</span>secondary.kind {
                 <span class="kw">return </span><span class="prelude-val">Some</span>(field.to_lowercase());
             }
         }
@@ -2162,29 +2169,29 @@
     </span>}
 
     <span class="kw">pub fn </span>is_foldable(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.function().is_some_and(|func_attribute| func_attribute.is_foldable())
+        <span class="self">self</span>.function().is_some_and(|func_attribute| func_attribute.kind.is_foldable())
     }
 
     <span class="kw">pub fn </span>is_no_predicates(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.function().is_some_and(|func_attribute| func_attribute.is_no_predicates())
+        <span class="self">self</span>.function().is_some_and(|func_attribute| func_attribute.kind.is_no_predicates())
     }
 
     <span class="kw">pub fn </span>has_varargs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttribute::Varargs)
+        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttributeKind::Varargs)
     }
 
     <span class="kw">pub fn </span>has_use_callers_scope(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttribute::UseCallersScope)
+        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttributeKind::UseCallersScope)
     }
 
     <span class="doccomment">/// True if the function is marked with an `#[export]` attribute.
     </span><span class="kw">pub fn </span>has_export(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttribute::Export)
+        <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttributeKind::Export)
     }
 
     <span class="doccomment">/// Check if secondary attributes contain a specific instance.
-    </span><span class="kw">pub fn </span>has_secondary_attr(<span class="kw-2">&amp;</span><span class="self">self</span>, attr: <span class="kw-2">&amp;</span>SecondaryAttribute) -&gt; bool {
-        <span class="self">self</span>.secondary.contains(attr)
+    </span><span class="kw">pub fn </span>has_secondary_attr(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: <span class="kw-2">&amp;</span>SecondaryAttributeKind) -&gt; bool {
+        <span class="self">self</span>.secondary.iter().any(|attr| <span class="kw-2">&amp;</span>attr.kind == kind)
     }
 }
 
@@ -2209,7 +2216,15 @@
 <span class="doccomment">/// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 </span><span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-</span><span class="kw">pub enum </span>FunctionAttribute {
+</span><span class="kw">pub struct </span>FunctionAttribute {
+    <span class="kw">pub </span>kind: FunctionAttributeKind,
+    <span class="kw">pub </span>location: Location,
+}
+
+<span class="doccomment">/// Primary Attributes are those which a function can only have one of.
+/// They change the FunctionKind and thus have direct impact on the IR output
+</span><span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+</span><span class="kw">pub enum </span>FunctionAttributeKind {
     Foreign(String),
     Builtin(String),
     Oracle(String),
@@ -2220,83 +2235,85 @@
     FuzzingHarness(FuzzingScope),
 }
 
-<span class="kw">impl </span>FunctionAttribute {
+<span class="kw">impl </span>FunctionAttributeKind {
     <span class="kw">pub fn </span>builtin(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            FunctionAttribute::Builtin(name) =&gt; <span class="prelude-val">Some</span>(name),
+            FunctionAttributeKind::Builtin(name) =&gt; <span class="prelude-val">Some</span>(name),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
     <span class="kw">pub fn </span>foreign(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            FunctionAttribute::Foreign(name) =&gt; <span class="prelude-val">Some</span>(name),
+            FunctionAttributeKind::Foreign(name) =&gt; <span class="prelude-val">Some</span>(name),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
     <span class="kw">pub fn </span>oracle(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            FunctionAttribute::Oracle(name) =&gt; <span class="prelude-val">Some</span>(name),
+            FunctionAttributeKind::Oracle(name) =&gt; <span class="prelude-val">Some</span>(name),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
-    <span class="kw">pub fn </span>is_foreign(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttribute::Foreign(<span class="kw">_</span>))
-    }
-
     <span class="kw">pub fn </span>is_oracle(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttribute::Oracle(<span class="kw">_</span>))
+        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttributeKind::Oracle(<span class="kw">_</span>))
     }
 
     <span class="kw">pub fn </span>is_low_level(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttribute::Foreign(<span class="kw">_</span>) | FunctionAttribute::Builtin(<span class="kw">_</span>))
+        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttributeKind::Foreign(<span class="kw">_</span>) | FunctionAttributeKind::Builtin(<span class="kw">_</span>))
     }
 
     <span class="kw">pub fn </span>is_foldable(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttribute::Fold)
+        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttributeKind::Fold)
     }
 
     <span class="doccomment">/// Check whether we have an `inline` attribute
     /// Although we also do not want to inline foldable functions,
     /// we keep the two attributes distinct for clarity.
     </span><span class="kw">pub fn </span>is_no_predicates(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttribute::NoPredicates)
+        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttributeKind::NoPredicates)
     }
 
     <span class="doccomment">/// Check whether we have an `inline_always` attribute
     /// This is used to indicate that a function should always be inlined
     /// regardless of the target runtime.
     </span><span class="kw">pub fn </span>is_inline_always(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttribute::InlineAlways)
+        <span class="macro">matches!</span>(<span class="self">self</span>, FunctionAttributeKind::InlineAlways)
     }
 
     <span class="kw">pub fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
         <span class="kw">match </span><span class="self">self </span>{
-            FunctionAttribute::Foreign(<span class="kw">_</span>) =&gt; <span class="string">"foreign"</span>,
-            FunctionAttribute::Builtin(<span class="kw">_</span>) =&gt; <span class="string">"builtin"</span>,
-            FunctionAttribute::Oracle(<span class="kw">_</span>) =&gt; <span class="string">"oracle"</span>,
-            FunctionAttribute::Test(<span class="kw">_</span>) =&gt; <span class="string">"test"</span>,
-            FunctionAttribute::Fold =&gt; <span class="string">"fold"</span>,
-            FunctionAttribute::NoPredicates =&gt; <span class="string">"no_predicates"</span>,
-            FunctionAttribute::InlineAlways =&gt; <span class="string">"inline_always"</span>,
-            FunctionAttribute::FuzzingHarness(<span class="kw">_</span>) =&gt; <span class="string">"fuzz"</span>,
+            FunctionAttributeKind::Foreign(<span class="kw">_</span>) =&gt; <span class="string">"foreign"</span>,
+            FunctionAttributeKind::Builtin(<span class="kw">_</span>) =&gt; <span class="string">"builtin"</span>,
+            FunctionAttributeKind::Oracle(<span class="kw">_</span>) =&gt; <span class="string">"oracle"</span>,
+            FunctionAttributeKind::Test(<span class="kw">_</span>) =&gt; <span class="string">"test"</span>,
+            FunctionAttributeKind::Fold =&gt; <span class="string">"fold"</span>,
+            FunctionAttributeKind::NoPredicates =&gt; <span class="string">"no_predicates"</span>,
+            FunctionAttributeKind::InlineAlways =&gt; <span class="string">"inline_always"</span>,
+            FunctionAttributeKind::FuzzingHarness(<span class="kw">_</span>) =&gt; <span class="string">"fuzz"</span>,
         }
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>FunctionAttribute {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
+        <span class="self">self</span>.kind.fmt(f)
+    }
+}
+
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>FunctionAttributeKind {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            FunctionAttribute::Test(scope) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[test{scope}]"</span>),
-            FunctionAttribute::Foreign(k) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[foreign({k})]"</span>),
-            FunctionAttribute::Builtin(k) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[builtin({k})]"</span>),
-            FunctionAttribute::Oracle(k) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[oracle({k})]"</span>),
-            FunctionAttribute::Fold =&gt; <span class="macro">write!</span>(f, <span class="string">"#[fold]"</span>),
-            FunctionAttribute::NoPredicates =&gt; <span class="macro">write!</span>(f, <span class="string">"#[no_predicates]"</span>),
-            FunctionAttribute::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"#[inline_always]"</span>),
-            FunctionAttribute::FuzzingHarness(scope) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[fuzz{scope}]"</span>),
+            FunctionAttributeKind::Test(scope) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[test{scope}]"</span>),
+            FunctionAttributeKind::Foreign(k) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[foreign({k})]"</span>),
+            FunctionAttributeKind::Builtin(k) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[builtin({k})]"</span>),
+            FunctionAttributeKind::Oracle(k) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[oracle({k})]"</span>),
+            FunctionAttributeKind::Fold =&gt; <span class="macro">write!</span>(f, <span class="string">"#[fold]"</span>),
+            FunctionAttributeKind::NoPredicates =&gt; <span class="macro">write!</span>(f, <span class="string">"#[no_predicates]"</span>),
+            FunctionAttributeKind::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"#[inline_always]"</span>),
+            FunctionAttributeKind::FuzzingHarness(scope) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[fuzz{scope}]"</span>),
         }
     }
 }
@@ -2305,7 +2322,13 @@
 /// They are not able to change the `FunctionKind` and thus do not have direct impact on the IR output
 /// They are often consumed by libraries or used as notices for the developer
 </span><span class="attr">#[derive(PartialEq, Eq, Debug, Clone)]
-</span><span class="kw">pub enum </span>SecondaryAttribute {
+</span><span class="kw">pub struct </span>SecondaryAttribute {
+    <span class="kw">pub </span>kind: SecondaryAttributeKind,
+    <span class="kw">pub </span>location: Location,
+}
+
+<span class="attr">#[derive(PartialEq, Eq, Debug, Clone)]
+</span><span class="kw">pub enum </span>SecondaryAttributeKind {
     Deprecated(<span class="prelude-ty">Option</span>&lt;String&gt;),
     <span class="comment">// This is an attribute to specify that a function
     // is a helper method for a contract and should not be seen as
@@ -2315,7 +2338,7 @@
     Field(String),
 
     <span class="doccomment">/// A custom tag attribute: `#['foo]`
-    </span>Tag(CustomAttribute),
+    </span>Tag(String),
 
     <span class="doccomment">/// An attribute expected to run a comptime function of the same name: `#[foo]`
     </span>Meta(MetaAttribute),
@@ -2334,38 +2357,44 @@
     </span>Allow(String),
 }
 
-<span class="kw">impl </span>SecondaryAttribute {
+<span class="kw">impl </span>SecondaryAttributeKind {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_allow_unused_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
-            SecondaryAttribute::Allow(string) =&gt; string == <span class="string">"unused_variables"</span>,
+            SecondaryAttributeKind::Allow(string) =&gt; string == <span class="string">"unused_variables"</span>,
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_abi(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>, SecondaryAttribute::Abi(<span class="kw">_</span>))
+        <span class="macro">matches!</span>(<span class="self">self</span>, SecondaryAttributeKind::Abi(<span class="kw">_</span>))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contents(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
         <span class="kw">match </span><span class="self">self </span>{
-            SecondaryAttribute::Deprecated(<span class="prelude-val">None</span>) =&gt; <span class="string">"deprecated"</span>.to_string(),
-            SecondaryAttribute::Deprecated(<span class="prelude-val">Some</span>(note)) =&gt; {
+            SecondaryAttributeKind::Deprecated(<span class="prelude-val">None</span>) =&gt; <span class="string">"deprecated"</span>.to_string(),
+            SecondaryAttributeKind::Deprecated(<span class="prelude-val">Some</span>(note)) =&gt; {
                 <span class="macro">format!</span>(<span class="string">"deprecated({note:?})"</span>)
             }
-            SecondaryAttribute::Tag(attribute) =&gt; <span class="macro">format!</span>(<span class="string">"'{}"</span>, attribute.contents),
-            SecondaryAttribute::Meta(meta) =&gt; meta.to_string(),
-            SecondaryAttribute::ContractLibraryMethod =&gt; <span class="string">"contract_library_method"</span>.to_string(),
-            SecondaryAttribute::Export =&gt; <span class="string">"export"</span>.to_string(),
-            SecondaryAttribute::Field(k) =&gt; <span class="macro">format!</span>(<span class="string">"field({k})"</span>),
-            SecondaryAttribute::Abi(k) =&gt; <span class="macro">format!</span>(<span class="string">"abi({k})"</span>),
-            SecondaryAttribute::Varargs =&gt; <span class="string">"varargs"</span>.to_string(),
-            SecondaryAttribute::UseCallersScope =&gt; <span class="string">"use_callers_scope"</span>.to_string(),
-            SecondaryAttribute::Allow(k) =&gt; <span class="macro">format!</span>(<span class="string">"allow({k})"</span>),
+            SecondaryAttributeKind::Tag(contents) =&gt; <span class="macro">format!</span>(<span class="string">"'{}"</span>, contents),
+            SecondaryAttributeKind::Meta(meta) =&gt; meta.to_string(),
+            SecondaryAttributeKind::ContractLibraryMethod =&gt; <span class="string">"contract_library_method"</span>.to_string(),
+            SecondaryAttributeKind::Export =&gt; <span class="string">"export"</span>.to_string(),
+            SecondaryAttributeKind::Field(k) =&gt; <span class="macro">format!</span>(<span class="string">"field({k})"</span>),
+            SecondaryAttributeKind::Abi(k) =&gt; <span class="macro">format!</span>(<span class="string">"abi({k})"</span>),
+            SecondaryAttributeKind::Varargs =&gt; <span class="string">"varargs"</span>.to_string(),
+            SecondaryAttributeKind::UseCallersScope =&gt; <span class="string">"use_callers_scope"</span>.to_string(),
+            SecondaryAttributeKind::Allow(k) =&gt; <span class="macro">format!</span>(<span class="string">"allow({k})"</span>),
         }
     }
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>SecondaryAttribute {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
+        <span class="self">self</span>.kind.fmt(f)
+    }
+}
+
+<span class="kw">impl </span>fmt::Display <span class="kw">for </span>SecondaryAttributeKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">"#[{}]"</span>, <span class="self">self</span>.contents())
     }
@@ -2375,7 +2404,6 @@
 </span><span class="kw">pub struct </span>MetaAttribute {
     <span class="kw">pub </span>name: MetaAttributeName,
     <span class="kw">pub </span>arguments: Vec&lt;Expression&gt;,
-    <span class="kw">pub </span>location: Location,
 }
 
 <span class="kw">impl </span>Display <span class="kw">for </span>MetaAttribute {
@@ -2404,22 +2432,6 @@
             MetaAttributeName::Path(path) =&gt; path.fmt(f),
             MetaAttributeName::Resolved(<span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"(quoted)"</span>),
         }
-    }
-}
-<span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-</span><span class="kw">pub struct </span>CustomAttribute {
-    <span class="kw">pub </span>contents: String,
-    <span class="comment">// The span of the entire attribute, including leading `#[` and trailing `]`
-    </span><span class="kw">pub </span>span: Span,
-    <span class="comment">// The span for the attribute contents (what's inside `#[...]`)
-    </span><span class="kw">pub </span>contents_span: Span,
-}
-
-<span class="kw">impl </span>CustomAttribute {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(<span class="kw-2">&amp;</span><span class="self">self</span>.contents);
-        <span class="kw">let </span>token = lexer.next()<span class="question-mark">?</span>.ok()<span class="question-mark">?</span>;
-        <span class="kw">if let </span>Token::Ident(ident) = token.into_token() { <span class="prelude-val">Some</span>(ident) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
     }
 }
 

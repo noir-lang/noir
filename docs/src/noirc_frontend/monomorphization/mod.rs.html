@@ -2817,14 +2817,14 @@
                 <span class="kw">match </span><span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>id).kind {
                     FunctionKind::LowLevel =&gt; {
                         <span class="kw">let </span>attribute = attributes.function().expect(<span class="string">"all low level functions must contain a function attribute which contains the opcode which it links to"</span>);
-                        <span class="kw">let </span>opcode = attribute.foreign().expect(
+                        <span class="kw">let </span>opcode = attribute.kind.foreign().expect(
                             <span class="string">"ice: function marked as foreign, but attribute kind does not match this"</span>,
                         );
                         Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin =&gt; {
                         <span class="kw">let </span>attribute = attributes.function().expect(<span class="string">"all builtin functions must contain a function attribute which contains the opcode which it links to"</span>);
-                        <span class="kw">let </span>opcode = attribute.builtin().expect(
+                        <span class="kw">let </span>opcode = attribute.kind.builtin().expect(
                             <span class="string">"ice: function marked as builtin, but attribute kind does not match this"</span>,
                         );
                         Definition::Builtin(opcode.to_string())
@@ -2836,7 +2836,7 @@
                     }
                     FunctionKind::Oracle =&gt; {
                         <span class="kw">let </span>attribute = attributes.function().expect(<span class="string">"all oracle functions must contain a function attribute which contains the opcode which it links to"</span>);
-                        <span class="kw">let </span>opcode = attribute.oracle().expect(
+                        <span class="kw">let </span>opcode = attribute.kind.oracle().expect(
                             <span class="string">"ice: function marked as builtin, but attribute kind does not match this"</span>,
                         );
                         Definition::Oracle(opcode.to_string())

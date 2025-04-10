@@ -3097,7 +3097,7 @@
     <span class="kw">let </span>global = global.item;
 
     <span class="kw">let </span>name = global.pattern.name_ident().clone();
-    <span class="kw">let </span>is_abi = global.attributes.iter().any(|attribute| attribute.is_abi());
+    <span class="kw">let </span>is_abi = global.attributes.iter().any(|attribute| attribute.kind.is_abi());
 
     <span class="kw">let </span>global_id = interner.push_empty_global(
         name.clone(),

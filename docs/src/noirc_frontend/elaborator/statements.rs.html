@@ -741,7 +741,7 @@
         }
 
         <span class="kw">let </span>warn_if_unused =
-            !let_stmt.attributes.iter().any(|attr| attr.is_allow_unused_variables());
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow_unused_variables());
 
         <span class="kw">let </span>r#type = annotated_type;
         <span class="kw">let </span>pattern = <span class="self">self</span>.elaborate_pattern_and_store_ids(

@@ -5591,7 +5591,7 @@
 
     <span class="kw">let </span>modifiers = interner.function_modifiers(<span class="kw-2">&amp;</span>func_id);
     <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = modifiers.attributes.function() {
-        <span class="kw">if </span>name == attribute.name() {
+        <span class="kw">if </span>name == attribute.kind.name() {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">true</span>));
         }
     }

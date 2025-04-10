@@ -496,7 +496,9 @@
 <a href="#495" id="495">495</a>
 <a href="#496" id="496">496</a>
 <a href="#497" id="497">497</a>
-<a href="#498" id="498">498</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -504,15 +506,15 @@
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 <span class="kw">use crate</span>::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attributes, FunctionAttribute},
+    token::Attributes,
 };
 <span class="kw">use crate</span>::{hir_def::function::FunctionSignature, token::FmtStrFragment};
+<span class="kw">use crate</span>::{shared::Visibility, token::FunctionAttributeKind};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use </span><span class="kw">super</span>::HirType;
@@ -771,10 +773,12 @@
 
 <span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>Attributes&gt; <span class="kw">for </span>InlineType {
     <span class="kw">fn </span>from(attributes: <span class="kw-2">&amp;</span>Attributes) -&gt; <span class="self">Self </span>{
-        attributes.function().map_or(InlineType::default(), |func_attribute| <span class="kw">match </span>func_attribute {
-            FunctionAttribute::Fold =&gt; InlineType::Fold,
-            FunctionAttribute::NoPredicates =&gt; InlineType::NoPredicates,
-            FunctionAttribute::InlineAlways =&gt; InlineType::InlineAlways,
+        attributes.function().map_or(InlineType::default(), |func_attribute| <span class="kw">match </span><span class="kw-2">&amp;</span>func_attribute
+            .kind
+        {
+            FunctionAttributeKind::Fold =&gt; InlineType::Fold,
+            FunctionAttributeKind::NoPredicates =&gt; InlineType::NoPredicates,
+            FunctionAttributeKind::InlineAlways =&gt; InlineType::InlineAlways,
             <span class="kw">_ </span>=&gt; InlineType::default(),
         })
     }

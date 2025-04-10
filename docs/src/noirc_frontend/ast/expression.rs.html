@@ -1001,7 +1001,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 <span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
-<span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
+<span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, FmtStrFragment, FunctionAttributeKind, Token, Tokens};
 <span class="kw">use crate</span>::{Kind, Type};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1522,7 +1522,7 @@
 
     <span class="kw">pub fn </span>is_test(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = <span class="self">self</span>.attributes.function() {
-            <span class="macro">matches!</span>(attribute, FunctionAttribute::Test(..))
+            <span class="macro">matches!</span>(attribute.kind, FunctionAttributeKind::Test(..))
         } <span class="kw">else </span>{
             <span class="bool-val">false
         </span>}

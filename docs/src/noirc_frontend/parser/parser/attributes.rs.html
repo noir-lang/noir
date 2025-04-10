@@ -702,16 +702,77 @@
 <a href="#701" id="701">701</a>
 <a href="#702" id="702">702</a>
 <a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserErrorReason;
 <span class="kw">use </span><span class="kw">crate</span>::parser::labels::ParsingRuleLabel;
 <span class="kw">use </span><span class="kw">crate</span>::token::{
-    Attribute, FunctionAttribute, FuzzingScope, MetaAttribute, MetaAttributeName, TestScope, Token,
+    Attribute, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
+    MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
-<span class="kw">use </span><span class="kw">crate</span>::token::{CustomAttribute, SecondaryAttribute};
 
 <span class="kw">use </span><span class="kw">super</span>::Parser;
 <span class="kw">use </span><span class="kw">super</span>::parse_many::without_separator;
@@ -809,8 +870,6 @@
     }
 
     <span class="kw">fn </span>parse_tag_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start_location: Location) -&gt; Attribute {
-        <span class="kw">let </span>contents_start_location = <span class="self">self</span>.current_token_location;
-        <span class="kw">let </span><span class="kw-2">mut </span>contents_location = contents_start_location;
         <span class="kw">let </span><span class="kw-2">mut </span>contents = String::new();
 
         <span class="kw">let </span><span class="kw-2">mut </span>brackets_count = <span class="number">1</span>; <span class="comment">// 1 because of the starting `#[`
@@ -821,7 +880,6 @@
             } <span class="kw">else if </span><span class="self">self</span>.at(Token::RightBracket) {
                 brackets_count -= <span class="number">1</span>;
                 <span class="kw">if </span>brackets_count == <span class="number">0 </span>{
-                    contents_location = <span class="self">self</span>.location_since(contents_start_location);
                     <span class="self">self</span>.bump();
                     <span class="kw">break</span>;
                 }
@@ -831,11 +889,10 @@
             <span class="self">self</span>.bump();
         }
 
-        Attribute::Secondary(SecondaryAttribute::Tag(CustomAttribute {
-            contents,
-            span: <span class="self">self</span>.location_since(start_location).span,
-            contents_span: contents_location.span,
-        }))
+        <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+        <span class="kw">let </span>kind = SecondaryAttributeKind::Tag(contents);
+        <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+        Attribute::Secondary(attr)
     }
 
     <span class="kw">fn </span>parse_non_tag_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start_location: Location) -&gt; Attribute {
@@ -883,11 +940,10 @@
     ) -&gt; Attribute {
         <span class="kw">let </span>arguments = <span class="self">self</span>.parse_arguments().unwrap_or_default();
         <span class="self">self</span>.skip_until_right_bracket();
-        Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
-            name,
-            arguments,
-            location: <span class="self">self</span>.location_since(start_location),
-        }))
+        <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+        <span class="kw">let </span>kind = SecondaryAttributeKind::Meta(MetaAttribute { name, arguments });
+        <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+        Attribute::Secondary(attr)
     }
 
     <span class="kw">fn </span>parse_ident_attribute_other_than_test_and_fuzz(
@@ -897,65 +953,99 @@
     ) -&gt; Attribute {
         <span class="kw">let </span>arguments = <span class="self">self</span>.parse_arguments().unwrap_or_default();
         <span class="self">self</span>.skip_until_right_bracket();
+        <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
         <span class="kw">match </span>ident.as_str() {
             <span class="string">"abi" </span>=&gt; <span class="self">self</span>.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                Attribute::Secondary(SecondaryAttribute::Abi(name))
+                <span class="kw">let </span>kind = SecondaryAttributeKind::Abi(name);
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                Attribute::Secondary(attr)
             }),
             <span class="string">"allow" </span>=&gt; <span class="self">self</span>.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                Attribute::Secondary(SecondaryAttribute::Allow(name))
+                <span class="kw">let </span>kind = SecondaryAttributeKind::Allow(name);
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                Attribute::Secondary(attr)
             }),
             <span class="string">"builtin" </span>=&gt; {
                 <span class="self">self</span>.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                    Attribute::Function(FunctionAttribute::Builtin(name))
+                    <span class="kw">let </span>kind = FunctionAttributeKind::Builtin(name);
+                    <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+                    Attribute::Function(attr)
                 })
             }
-            <span class="string">"deprecated" </span>=&gt; <span class="self">self</span>.parse_deprecated_attribute(ident, arguments),
+            <span class="string">"deprecated" </span>=&gt; {
+                <span class="kw">let </span>kind = <span class="self">self</span>.parse_deprecated_attribute(ident, arguments);
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                Attribute::Secondary(attr)
+            }
             <span class="string">"contract_library_method" </span>=&gt; {
-                <span class="kw">let </span>attr = Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod);
+                <span class="kw">let </span>kind = SecondaryAttributeKind::ContractLibraryMethod;
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                <span class="kw">let </span>attr = Attribute::Secondary(attr);
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
             <span class="string">"export" </span>=&gt; {
-                <span class="kw">let </span>attr = Attribute::Secondary(SecondaryAttribute::Export);
+                <span class="kw">let </span>kind = SecondaryAttributeKind::Export;
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                <span class="kw">let </span>attr = Attribute::Secondary(attr);
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
             <span class="string">"field" </span>=&gt; <span class="self">self</span>.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                Attribute::Secondary(SecondaryAttribute::Field(name))
+                <span class="kw">let </span>kind = SecondaryAttributeKind::Field(name);
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                Attribute::Secondary(attr)
             }),
             <span class="string">"fold" </span>=&gt; {
-                <span class="kw">let </span>attr = Attribute::Function(FunctionAttribute::Fold);
+                <span class="kw">let </span>kind = FunctionAttributeKind::Fold;
+                <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+                <span class="kw">let </span>attr = Attribute::Function(attr);
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
             <span class="string">"foreign" </span>=&gt; {
                 <span class="self">self</span>.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                    Attribute::Function(FunctionAttribute::Foreign(name))
+                    <span class="kw">let </span>kind = FunctionAttributeKind::Foreign(name);
+                    <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+                    Attribute::Function(attr)
                 })
             }
             <span class="string">"inline_always" </span>=&gt; {
-                <span class="kw">let </span>attr = Attribute::Function(FunctionAttribute::InlineAlways);
+                <span class="kw">let </span>kind = FunctionAttributeKind::InlineAlways;
+                <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+                <span class="kw">let </span>attr = Attribute::Function(attr);
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
             <span class="string">"no_predicates" </span>=&gt; {
-                <span class="kw">let </span>attr = Attribute::Function(FunctionAttribute::NoPredicates);
+                <span class="kw">let </span>kind = FunctionAttributeKind::NoPredicates;
+                <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+                <span class="kw">let </span>attr = Attribute::Function(attr);
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
             <span class="string">"oracle" </span>=&gt; {
                 <span class="self">self</span>.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                    Attribute::Function(FunctionAttribute::Oracle(name))
+                    <span class="kw">let </span>kind = FunctionAttributeKind::Oracle(name);
+                    <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+                    Attribute::Function(attr)
                 })
             }
             <span class="string">"use_callers_scope" </span>=&gt; {
-                <span class="kw">let </span>attr = Attribute::Secondary(SecondaryAttribute::UseCallersScope);
+                <span class="kw">let </span>kind = SecondaryAttributeKind::UseCallersScope;
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                <span class="kw">let </span>attr = Attribute::Secondary(attr);
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
             <span class="string">"varargs" </span>=&gt; {
-                <span class="kw">let </span>attr = Attribute::Secondary(SecondaryAttribute::Varargs);
+                <span class="kw">let </span>kind = SecondaryAttributeKind::Varargs;
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                <span class="kw">let </span>attr = Attribute::Secondary(attr);
                 <span class="self">self</span>.parse_no_args_attribute(ident, arguments, attr)
             }
-            <span class="kw">_ </span>=&gt; Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
-                name: MetaAttributeName::Path(Path::from_ident(ident.clone())),
-                arguments,
-                location: <span class="self">self</span>.location_since(start_location),
-            })),
+            <span class="kw">_ </span>=&gt; {
+                <span class="kw">let </span>kind = SecondaryAttributeKind::Meta(MetaAttribute {
+                    name: MetaAttributeName::Path(Path::from_ident(ident.clone())),
+                    arguments,
+                });
+                <span class="kw">let </span>attr = SecondaryAttribute { kind, location };
+                Attribute::Secondary(attr)
+            }
         }
     }
 
@@ -963,9 +1053,9 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ident: <span class="kw-2">&amp;</span>Ident,
         <span class="kw-2">mut </span>arguments: Vec&lt;Expression&gt;,
-    ) -&gt; Attribute {
+    ) -&gt; SecondaryAttributeKind {
         <span class="kw">if </span>arguments.is_empty() {
-            <span class="kw">return </span>Attribute::Secondary(SecondaryAttribute::Deprecated(<span class="prelude-val">None</span>));
+            <span class="kw">return </span>SecondaryAttributeKind::Deprecated(<span class="prelude-val">None</span>);
         }
 
         <span class="kw">if </span>arguments.len() &gt; <span class="number">1 </span>{
@@ -978,7 +1068,7 @@
                 },
                 ident.location(),
             );
-            <span class="kw">return </span>Attribute::Secondary(SecondaryAttribute::Deprecated(<span class="prelude-val">None</span>));
+            <span class="kw">return </span>SecondaryAttributeKind::Deprecated(<span class="prelude-val">None</span>);
         }
 
         <span class="kw">let </span>argument = arguments.remove(<span class="number">0</span>);
@@ -987,10 +1077,10 @@
                 ParserErrorReason::DeprecatedAttributeExpectsAStringArgument,
                 argument.location,
             );
-            <span class="kw">return </span>Attribute::Secondary(SecondaryAttribute::Deprecated(<span class="prelude-val">None</span>));
+            <span class="kw">return </span>SecondaryAttributeKind::Deprecated(<span class="prelude-val">None</span>);
         };
 
-        Attribute::Secondary(SecondaryAttribute::Deprecated(<span class="prelude-val">Some</span>(message)))
+        SecondaryAttributeKind::Deprecated(<span class="prelude-val">Some</span>(message))
     }
 
     <span class="kw">fn </span>parse_test_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start_location: Location) -&gt; Attribute {
@@ -1031,7 +1121,10 @@
             TestScope::None
         };
 
-        Attribute::Function(FunctionAttribute::Test(scope))
+        <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+        <span class="kw">let </span>kind = FunctionAttributeKind::Test(scope);
+        <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+        Attribute::Function(attr)
     }
 
     <span class="kw">fn </span>parse_fuzz_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start_location: Location) -&gt; Attribute {
@@ -1067,7 +1160,10 @@
             FuzzingScope::None
         };
 
-        Attribute::Function(FunctionAttribute::FuzzingHarness(scope))
+        <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
+        <span class="kw">let </span>kind = FunctionAttributeKind::FuzzingHarness(scope);
+        <span class="kw">let </span>attr = FunctionAttribute { kind, location };
+        Attribute::Function(attr)
     }
 
     <span class="kw">fn </span>parse_single_name_attribute&lt;F&gt;(
@@ -1155,186 +1251,194 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>noirc_errors::Span;
-
     <span class="kw">use crate</span>::{
         parser::{Parser, parser::tests::expect_no_errors},
-        token::{Attribute, FunctionAttribute, SecondaryAttribute, TestScope},
+        token::{Attribute, FunctionAttributeKind, SecondaryAttributeKind, TestScope},
     };
 
-    <span class="kw">fn </span>parse_inner_secondary_attribute_no_errors(src: <span class="kw-2">&amp;</span>str, expected: SecondaryAttribute) {
+    <span class="kw">fn </span>parse_inner_secondary_attribute_no_errors(src: <span class="kw-2">&amp;</span>str, expected: SecondaryAttributeKind) {
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>attribute = parser.parse_inner_attribute();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="macro">assert_eq!</span>(attribute.unwrap(), expected);
+        <span class="macro">assert_eq!</span>(attribute.unwrap().kind, expected);
     }
 
-    <span class="kw">fn </span>parse_attribute_no_errors(src: <span class="kw-2">&amp;</span>str, expected: Attribute) {
+    <span class="kw">fn </span>parse_function_attribute_no_errors(src: <span class="kw-2">&amp;</span>str, expected: FunctionAttributeKind) {
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>(attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="macro">assert_eq!</span>(attribute, expected);
+        <span class="kw">let </span>Attribute::Function(attribute) = attribute <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected function attribute"</span>);
+        };
+        <span class="macro">assert_eq!</span>(attribute.kind, expected);
+    }
+
+    <span class="kw">fn </span>parse_secondary_attribute_no_errors(src: <span class="kw-2">&amp;</span>str, expected: SecondaryAttributeKind) {
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
+        <span class="kw">let </span>(attribute, _span) = parser.parse_attribute().unwrap();
+        expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
+        <span class="kw">let </span>Attribute::Secondary(attribute) = attribute <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected secondary attribute"</span>);
+        };
+        <span class="macro">assert_eq!</span>(attribute.kind, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_as_tag() {
         <span class="kw">let </span>src = <span class="string">"#!['hello]"</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
-        <span class="kw">let </span><span class="prelude-val">Some</span>(SecondaryAttribute::Tag(custom)) = parser.parse_inner_attribute() <span class="kw">else </span>{
+        <span class="kw">let </span>SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected inner tag attribute"</span>);
         };
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="macro">assert_eq!</span>(custom.contents, <span class="string">"hello"</span>);
-        <span class="macro">assert_eq!</span>(custom.span, Span::from(<span class="number">0</span>..src.len() <span class="kw">as </span>u32));
-        <span class="macro">assert_eq!</span>(custom.contents_span, Span::from(<span class="number">4</span>..src.len() <span class="kw">as </span>u32 - <span class="number">1</span>));
+        <span class="macro">assert_eq!</span>(contents, <span class="string">"hello"</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_as_tag_with_nested_brackets() {
         <span class="kw">let </span>src = <span class="string">"#!['hello[1]]"</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
-        <span class="kw">let </span><span class="prelude-val">Some</span>(SecondaryAttribute::Tag(custom)) = parser.parse_inner_attribute() <span class="kw">else </span>{
+        <span class="kw">let </span>SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected inner tag attribute"</span>);
         };
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="macro">assert_eq!</span>(custom.contents, <span class="string">"hello[1]"</span>);
+        <span class="macro">assert_eq!</span>(contents, <span class="string">"hello[1]"</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_deprecated() {
         <span class="kw">let </span>src = <span class="string">"#![deprecated]"</span>;
-        <span class="kw">let </span>expected = SecondaryAttribute::Deprecated(<span class="prelude-val">None</span>);
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Deprecated(<span class="prelude-val">None</span>);
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_deprecated_with_message() {
         <span class="kw">let </span>src = <span class="string">"#![deprecated(\"use something else\")]"</span>;
-        <span class="kw">let </span>expected = SecondaryAttribute::Deprecated(<span class="prelude-val">Some</span>(<span class="string">"use something else"</span>.to_string()));
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Deprecated(<span class="prelude-val">Some</span>(<span class="string">"use something else"</span>.to_string()));
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_contract_library_method() {
         <span class="kw">let </span>src = <span class="string">"#![contract_library_method]"</span>;
-        <span class="kw">let </span>expected = SecondaryAttribute::ContractLibraryMethod;
+        <span class="kw">let </span>expected = SecondaryAttributeKind::ContractLibraryMethod;
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_export() {
         <span class="kw">let </span>src = <span class="string">"#![export]"</span>;
-        <span class="kw">let </span>expected = SecondaryAttribute::Export;
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Export;
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_varargs() {
         <span class="kw">let </span>src = <span class="string">"#![varargs]"</span>;
-        <span class="kw">let </span>expected = SecondaryAttribute::Varargs;
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Varargs;
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_inner_attribute_use_callers_scope() {
         <span class="kw">let </span>src = <span class="string">"#![use_callers_scope]"</span>;
-        <span class="kw">let </span>expected = SecondaryAttribute::UseCallersScope;
+        <span class="kw">let </span>expected = SecondaryAttributeKind::UseCallersScope;
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_abi() {
         <span class="kw">let </span>src = <span class="string">"#[abi(foo)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Secondary(SecondaryAttribute::Abi(<span class="string">"foo"</span>.to_string()));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Abi(<span class="string">"foo"</span>.to_string());
+        parse_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_foreign() {
         <span class="kw">let </span>src = <span class="string">"#[foreign(foo)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::Foreign(<span class="string">"foo"</span>.to_string()));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::Foreign(<span class="string">"foo"</span>.to_string());
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_builtin() {
         <span class="kw">let </span>src = <span class="string">"#[builtin(foo)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::Builtin(<span class="string">"foo"</span>.to_string()));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::Builtin(<span class="string">"foo"</span>.to_string());
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_oracle() {
         <span class="kw">let </span>src = <span class="string">"#[oracle(foo)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::Oracle(<span class="string">"foo"</span>.to_string()));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::Oracle(<span class="string">"foo"</span>.to_string());
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_fold() {
         <span class="kw">let </span>src = <span class="string">"#[fold]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::Fold);
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::Fold;
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_no_predicates() {
         <span class="kw">let </span>src = <span class="string">"#[no_predicates]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::NoPredicates);
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::NoPredicates;
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_inline_always() {
         <span class="kw">let </span>src = <span class="string">"#[inline_always]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::InlineAlways);
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::InlineAlways;
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_field() {
         <span class="kw">let </span>src = <span class="string">"#[field(bn254)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Secondary(SecondaryAttribute::Field(<span class="string">"bn254"</span>.to_string()));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Field(<span class="string">"bn254"</span>.to_string());
+        parse_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_field_with_integer() {
         <span class="kw">let </span>src = <span class="string">"#[field(23)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Secondary(SecondaryAttribute::Field(<span class="string">"23"</span>.to_string()));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Field(<span class="string">"23"</span>.to_string());
+        parse_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_allow() {
         <span class="kw">let </span>src = <span class="string">"#[allow(unused_vars)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Secondary(SecondaryAttribute::Allow(<span class="string">"unused_vars"</span>.to_string()));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = SecondaryAttributeKind::Allow(<span class="string">"unused_vars"</span>.to_string());
+        parse_secondary_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_test_no_scope() {
         <span class="kw">let </span>src = <span class="string">"#[test]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::Test(TestScope::None));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::Test(TestScope::None);
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_test_should_fail() {
         <span class="kw">let </span>src = <span class="string">"#[test(should_fail)]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::Test(TestScope::ShouldFailWith {
-            reason: <span class="prelude-val">None</span>,
-        }));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>expected = FunctionAttributeKind::Test(TestScope::ShouldFailWith { reason: <span class="prelude-val">None </span>});
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_attribute_test_should_fail_with() {
         <span class="kw">let </span>src = <span class="string">"#[test(should_fail_with = \"reason\")]"</span>;
-        <span class="kw">let </span>expected = Attribute::Function(FunctionAttribute::Test(TestScope::ShouldFailWith {
-            reason: <span class="prelude-val">Some</span>(<span class="string">"reason"</span>.to_string()),
-        }));
-        parse_attribute_no_errors(src, expected);
+        <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(<span class="string">"reason"</span>.to_string());
+        <span class="kw">let </span>expected = FunctionAttributeKind::Test(TestScope::ShouldFailWith { reason });
+        parse_function_attribute_no_errors(src, expected);
     }
 
     <span class="attr">#[test]
@@ -1343,7 +1447,10 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>(attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="kw">let </span>Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute <span class="kw">else </span>{
+        <span class="kw">let </span>Attribute::Secondary(attribute) = attribute <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected secondary attribute"</span>);
+        };
+        <span class="kw">let </span>SecondaryAttributeKind::Meta(meta) = attribute.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected meta attribute"</span>);
         };
         <span class="macro">assert_eq!</span>(meta.name.to_string(), <span class="string">"foo"</span>);
@@ -1356,7 +1463,10 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>(attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="kw">let </span>Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute <span class="kw">else </span>{
+        <span class="kw">let </span>Attribute::Secondary(attribute) = attribute <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected secondary attribute"</span>);
+        };
+        <span class="kw">let </span>SecondaryAttributeKind::Meta(meta) = attribute.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected meta attribute"</span>);
         };
         <span class="macro">assert_eq!</span>(meta.name.to_string(), <span class="string">"dep"</span>);
@@ -1369,7 +1479,10 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>(attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="kw">let </span>Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute <span class="kw">else </span>{
+        <span class="kw">let </span>Attribute::Secondary(attribute) = attribute <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected secondary attribute"</span>);
+        };
+        <span class="kw">let </span>SecondaryAttributeKind::Meta(meta) = attribute.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected meta attribute"</span>);
         };
         <span class="macro">assert_eq!</span>(meta.name.to_string(), <span class="string">"foo"</span>);
@@ -1383,7 +1496,10 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>(attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="kw">let </span>Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute <span class="kw">else </span>{
+        <span class="kw">let </span>Attribute::Secondary(attribute) = attribute <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected secondary attribute"</span>);
+        };
+        <span class="kw">let </span>SecondaryAttributeKind::Meta(meta) = attribute.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected meta attribute"</span>);
         };
         <span class="macro">assert_eq!</span>(meta.name.to_string(), <span class="string">"foo::bar"</span>);
@@ -1400,10 +1516,16 @@
         <span class="macro">assert_eq!</span>(attributes.len(), <span class="number">2</span>);
 
         <span class="kw">let </span>(attr, <span class="kw">_</span>) = attributes.remove(<span class="number">0</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(attr, Attribute::Function(FunctionAttribute::Test(TestScope::None))));
+        <span class="kw">let </span>Attribute::Function(attr) = attr <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected function attribute"</span>);
+        };
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(attr.kind, FunctionAttributeKind::Test(TestScope::None)));
 
         <span class="kw">let </span>(attr, <span class="kw">_</span>) = attributes.remove(<span class="number">0</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(attr, Attribute::Secondary(SecondaryAttribute::Deprecated(<span class="prelude-val">None</span>))));
+        <span class="kw">let </span>Attribute::Secondary(attr) = attr <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected secondary attribute"</span>);
+        };
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(attr.kind, SecondaryAttributeKind::Deprecated(<span class="prelude-val">None</span>)));
     }
 }
 </code></pre></div></section></main></body></html>

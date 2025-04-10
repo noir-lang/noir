@@ -826,7 +826,11 @@
 <a href="#825" id="825">825</a>
 <a href="#826" id="826">826</a>
 <a href="#827" id="827">827</a>
-<a href="#828" id="828">828</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -913,9 +917,9 @@
     <span class="attr">#[error(
         <span class="string">"Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     </span>)]
-    </span>LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    </span>LowLevelFunctionOutsideOfStdlib { location: Location },
     <span class="attr">#[error(<span class="string">"Usage of the `#[oracle]` function attribute is only valid on unconstrained functions"</span>)]
-    </span>OracleMarkedAsConstrained { ident: Ident },
+    </span>OracleMarkedAsConstrained { ident: Ident, location: Location },
     <span class="attr">#[error(<span class="string">"Oracle functions cannot be called directly from constrained functions"</span>)]
     </span>UnconstrainedOracleReturnToConstrained { location: Location },
     <span class="attr">#[error(<span class="string">"Dependency cycle found, '{item}' recursively depends on itself: {cycle} "</span>)]
@@ -949,9 +953,9 @@
     <span class="attr">#[error(<span class="string">"Self-referential types are not supported"</span>)]
     </span>SelfReferentialType { location: Location },
     <span class="attr">#[error(<span class="string">"#[no_predicates] attribute is only allowed on constrained functions"</span>)]
-    </span>NoPredicatesAttributeOnUnconstrained { ident: Ident },
+    </span>NoPredicatesAttributeOnUnconstrained { ident: Ident, location: Location },
     <span class="attr">#[error(<span class="string">"#[fold] attribute is only allowed on constrained functions"</span>)]
-    </span>FoldAttributeOnUnconstrained { ident: Ident },
+    </span>FoldAttributeOnUnconstrained { ident: Ident, location: Location },
     <span class="attr">#[error(<span class="string">"expected type, found numeric generic parameter"</span>)]
     </span>NumericGenericUsedForType { name: String, location: Location },
     <span class="attr">#[error(<span class="string">"Invalid array length construction"</span>)]
@@ -1092,17 +1096,17 @@
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
-            | ResolverError::NonU32Index { location } =&gt; <span class="kw-2">*</span>location,
+            | ResolverError::NonU32Index { location }
+            | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
+            | ResolverError::FoldAttributeOnUnconstrained { location, .. }
+            | ResolverError::OracleMarkedAsConstrained { location, .. }
+            | ResolverError::LowLevelFunctionOutsideOfStdlib { location } =&gt; <span class="kw-2">*</span>location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
             | ResolverError::NoSuchField { field: ident, .. }
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
-            | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
-            | ResolverError::OracleMarkedAsConstrained { ident }
-            | ResolverError::NoPredicatesAttributeOnUnconstrained { ident }
-            | ResolverError::FoldAttributeOnUnconstrained { ident }
             | ResolverError::UnconstrainedTypeParameter { ident } =&gt; ident.location(),
             ResolverError::ArrayLengthInterpreter { error } =&gt; error.location(),
             ResolverError::PathResolutionError(path_resolution_error) =&gt; {
@@ -1328,16 +1332,20 @@
                     <span class="kw-2">*</span>location,
                 )
             },
-            ResolverError::LowLevelFunctionOutsideOfStdlib { ident } =&gt; Diagnostic::simple_error(
+            ResolverError::LowLevelFunctionOutsideOfStdlib { location } =&gt; Diagnostic::simple_error(
                 <span class="string">"Definition of low-level function outside of standard library"</span>.into(),
                 <span class="string">"Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"</span>.into(),
-                ident.location(),
+                <span class="kw-2">*</span>location,
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } =&gt; Diagnostic::simple_error(
-                error.to_string(),
-                <span class="string">"Oracle functions must have the `unconstrained` keyword applied"</span>.into(),
-                ident.location(),
-            ),
+            ResolverError::OracleMarkedAsConstrained { ident, location } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                );
+                diagnostic.add_secondary(<span class="string">"Oracle functions must have the `unconstrained` keyword applied"</span>.into(), ident.location());
+                diagnostic
+            },
             ResolverError::UnconstrainedOracleReturnToConstrained { location } =&gt; Diagnostic::simple_error(
                 error.to_string(),
                 <span class="string">"This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime"</span>.into(),
@@ -1438,21 +1446,21 @@
                     <span class="kw-2">*</span>location,
                 )
             },
-            ResolverError::NoPredicatesAttributeOnUnconstrained { ident } =&gt; {
+            ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"misplaced #[no_predicates] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
                     <span class="string">"misplaced #[no_predicates] attribute"</span>.to_string(),
-                    ident.location(),
+                    <span class="kw-2">*</span>location,
                 );
 
                 diag.add_note(<span class="string">"The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions"</span>.to_owned());
                 diag
             }
-            ResolverError::FoldAttributeOnUnconstrained { ident } =&gt; {
+            ResolverError::FoldAttributeOnUnconstrained { ident, location } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"misplaced #[fold] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
                     <span class="string">"misplaced #[fold] attribute"</span>.to_string(),
-                    ident.location(),
+                    <span class="kw-2">*</span>location,
                 );
 
                 diag.add_note(<span class="string">"The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point"</span>.to_owned());

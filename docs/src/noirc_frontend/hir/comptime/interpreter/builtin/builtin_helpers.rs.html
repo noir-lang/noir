@@ -684,7 +684,13 @@
 <a href="#683" id="683">683</a>
 <a href="#684" id="684">684</a>
 <a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::{hash::Hasher, rc::Rc};
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -698,7 +704,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirExpression;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::Lexer;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{Parser, ParserError};
-<span class="kw">use </span><span class="kw">crate</span>::token::{LocatedToken, MetaAttributeName};
+<span class="kw">use </span><span class="kw">crate</span>::token::{LocatedToken, MetaAttributeName, SecondaryAttributeKind};
 <span class="kw">use crate</span>::{DataType, Kind, Shared};
 <span class="kw">use crate</span>::{
     QuotedType, Type,
@@ -1282,13 +1288,19 @@
     attribute: <span class="kw-2">&amp;</span>SecondaryAttribute,
     interner: <span class="kw-2">&amp;</span>NodeInterner,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-    <span class="kw">match </span>attribute {
-        SecondaryAttribute::Deprecated(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"deprecated"</span>.to_string()),
-        SecondaryAttribute::ContractLibraryMethod =&gt; <span class="prelude-val">Some</span>(<span class="string">"contract_library_method"</span>.to_string()),
-        SecondaryAttribute::Export =&gt; <span class="prelude-val">Some</span>(<span class="string">"export"</span>.to_string()),
-        SecondaryAttribute::Field(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"field"</span>.to_string()),
-        SecondaryAttribute::Tag(custom) =&gt; custom.name(),
-        SecondaryAttribute::Meta(meta) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>meta.name {
+    <span class="kw">match </span><span class="kw-2">&amp;</span>attribute.kind {
+        SecondaryAttributeKind::Deprecated(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"deprecated"</span>.to_string()),
+        SecondaryAttributeKind::ContractLibraryMethod =&gt; {
+            <span class="prelude-val">Some</span>(<span class="string">"contract_library_method"</span>.to_string())
+        }
+        SecondaryAttributeKind::Export =&gt; <span class="prelude-val">Some</span>(<span class="string">"export"</span>.to_string()),
+        SecondaryAttributeKind::Field(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"field"</span>.to_string()),
+        SecondaryAttributeKind::Tag(contents) =&gt; {
+            <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(contents);
+            <span class="kw">let </span>token = lexer.next()<span class="question-mark">?</span>.ok()<span class="question-mark">?</span>;
+            <span class="kw">if let </span>Token::Ident(ident) = token.into_token() { <span class="prelude-val">Some</span>(ident) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+        }
+        SecondaryAttributeKind::Meta(meta) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>meta.name {
             MetaAttributeName::Path(path) =&gt; <span class="prelude-val">Some</span>(path.last_name().to_string()),
             MetaAttributeName::Resolved(expr_id) =&gt; {
                 <span class="kw">let </span>HirExpression::Ident(ident, <span class="kw">_</span>) = interner.expression(expr_id) <span class="kw">else </span>{
@@ -1297,10 +1309,10 @@
                 interner.try_definition(ident.id).map(|def| def.name.clone())
             }
         },
-        SecondaryAttribute::Abi(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"abi"</span>.to_string()),
-        SecondaryAttribute::Varargs =&gt; <span class="prelude-val">Some</span>(<span class="string">"varargs"</span>.to_string()),
-        SecondaryAttribute::UseCallersScope =&gt; <span class="prelude-val">Some</span>(<span class="string">"use_callers_scope"</span>.to_string()),
-        SecondaryAttribute::Allow(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"allow"</span>.to_string()),
+        SecondaryAttributeKind::Abi(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"abi"</span>.to_string()),
+        SecondaryAttributeKind::Varargs =&gt; <span class="prelude-val">Some</span>(<span class="string">"varargs"</span>.to_string()),
+        SecondaryAttributeKind::UseCallersScope =&gt; <span class="prelude-val">Some</span>(<span class="string">"use_callers_scope"</span>.to_string()),
+        SecondaryAttributeKind::Allow(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"allow"</span>.to_string()),
     }
 }
 

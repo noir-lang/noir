@@ -2270,7 +2270,7 @@
     },
     shared::Signedness,
     signed_field::SignedField,
-    token::SecondaryAttribute,
+    token::SecondaryAttributeKind,
 };
 
 <span class="kw">use super</span>::{
@@ -2551,7 +2551,7 @@
                         </span>.interner
                         .type_attributes(<span class="kw-2">&amp;</span>data_type.borrow().id)
                         .iter()
-                        .any(|attr| <span class="macro">matches!</span>(attr, SecondaryAttribute::Abi(<span class="kw">_</span>)))
+                        .any(|attr| <span class="macro">matches!</span>(attr.kind, SecondaryAttributeKind::Abi(<span class="kw">_</span>)))
                 {
                     <span class="self">self</span>.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: data_type.borrow().name.location(),

@@ -131,23 +131,14 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>noirc_errors::{Location, Span};
 
 <span class="kw">use crate</span>::{
     ast::{FunctionReturnType, Ident, Param},
     shared::Visibility,
-    token::{Attributes, FunctionAttribute, SecondaryAttribute},
+    token::{Attributes, FunctionAttribute, FunctionAttributeKind, SecondaryAttribute},
 };
 
 <span class="kw">use super</span>::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -247,29 +238,20 @@
     <span class="kw">pub fn </span>span(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {
         <span class="self">self</span>.location().span
     }
-
-    <span class="kw">pub fn </span>foreign(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FunctionDefinition&gt; {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.kind {
-            FunctionKind::LowLevel =&gt; {}
-            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
-        }
-        <span class="macro">assert!</span>(<span class="self">self</span>.function_attribute().unwrap().is_foreign());
-        <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.def)
-    }
 }
 
 <span class="kw">impl </span>From&lt;FunctionDefinition&gt; <span class="kw">for </span>NoirFunction {
     <span class="kw">fn </span>from(fd: FunctionDefinition) -&gt; <span class="self">Self </span>{
         <span class="comment">// The function type is determined by the existence of a function attribute
-        </span><span class="kw">let </span>kind = <span class="kw">match </span>fd.attributes.function() {
-            <span class="prelude-val">Some</span>(FunctionAttribute::Builtin(<span class="kw">_</span>)) =&gt; FunctionKind::Builtin,
-            <span class="prelude-val">Some</span>(FunctionAttribute::Foreign(<span class="kw">_</span>)) =&gt; FunctionKind::LowLevel,
-            <span class="prelude-val">Some</span>(FunctionAttribute::Test { .. }) =&gt; FunctionKind::Normal,
-            <span class="prelude-val">Some</span>(FunctionAttribute::FuzzingHarness { .. }) =&gt; FunctionKind::Normal,
-            <span class="prelude-val">Some</span>(FunctionAttribute::Oracle(<span class="kw">_</span>)) =&gt; FunctionKind::Oracle,
-            <span class="prelude-val">Some</span>(FunctionAttribute::Fold) =&gt; FunctionKind::Normal,
-            <span class="prelude-val">Some</span>(FunctionAttribute::NoPredicates) =&gt; FunctionKind::Normal,
-            <span class="prelude-val">Some</span>(FunctionAttribute::InlineAlways) =&gt; FunctionKind::Normal,
+        </span><span class="kw">let </span>kind = <span class="kw">match </span>fd.attributes.function().map(|attr| <span class="kw-2">&amp;</span>attr.kind) {
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::Builtin(<span class="kw">_</span>)) =&gt; FunctionKind::Builtin,
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::Foreign(<span class="kw">_</span>)) =&gt; FunctionKind::LowLevel,
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::Test { .. }) =&gt; FunctionKind::Normal,
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::FuzzingHarness { .. }) =&gt; FunctionKind::Normal,
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::Oracle(<span class="kw">_</span>)) =&gt; FunctionKind::Oracle,
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::Fold) =&gt; FunctionKind::Normal,
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::NoPredicates) =&gt; FunctionKind::Normal,
+            <span class="prelude-val">Some</span>(FunctionAttributeKind::InlineAlways) =&gt; FunctionKind::Normal,
             <span class="prelude-val">None </span>=&gt; FunctionKind::Normal,
         };
 
