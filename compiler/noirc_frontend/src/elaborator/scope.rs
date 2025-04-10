@@ -13,7 +13,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::PathResolutionItem;
+use super::path_resolution::{PathResolutionItem, PathResolutionMode};
 use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, ResolverMeta};
 
@@ -82,7 +82,7 @@ impl Elaborator<'_> {
         path: Path,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
         let location = path.location;
-        let item = self.resolve_path_or_error(path)?;
+        let item = self.use_path_or_error(path)?;
 
         if let Some(function) = item.function_id() {
             return Ok((self.interner.function_definition_id(function), item));
@@ -158,9 +158,13 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given struct type by name.
-    pub fn lookup_datatype_or_error(&mut self, path: Path) -> Option<Shared<DataType>> {
+    pub(super) fn lookup_datatype_or_error(
+        &mut self,
+        path: Path,
+        mode: PathResolutionMode,
+    ) -> Option<Shared<DataType>> {
         let location = path.location;
-        match self.resolve_path_or_error(path) {
+        match self.resolve_path_or_error_inner(path, mode) {
             Ok(item) => {
                 if let PathResolutionItem::Type(struct_id) = item {
                     Some(self.get_type(struct_id))
@@ -191,7 +195,7 @@ impl Elaborator<'_> {
         }
 
         let location = path.location;
-        match self.resolve_path_or_error(path) {
+        match self.use_path_or_error(path) {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
@@ -217,8 +221,12 @@ impl Elaborator<'_> {
         }
     }
 
-    pub fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error(path) {
+    pub(super) fn lookup_type_alias(
+        &mut self,
+        path: Path,
+        mode: PathResolutionMode,
+    ) -> Option<Shared<TypeAlias>> {
+        match self.resolve_path_or_error_inner(path, mode) {
             Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
                 Some(self.interner.get_type_alias(type_alias_id))
             }
