@@ -32,7 +32,7 @@ cargo +nightly fuzz run acir_vs_brillig -- -runs=1000 -max_total_time=60 -max_le
 If there is an error, `cargo fuzz` will capture the artifacts required for a repeated run under the `artifacts` directory, and will print the command to run it again, which can be done with something like this:
 
 ```shell
-cargo +nightly fuzz run -O acir_vs_brillig fuzz/artifacts/acir_vs_brillig/crash-9270e36f612ed9022ede3496c97c24cebb6e2301
+cargo +nightly fuzz run acir_vs_brillig fuzz/artifacts/acir_vs_brillig/crash-9270e36f612ed9022ede3496c97c24cebb6e2301
 ```
 
 Note that `cargo fuzz` requires `nightly` build, which can be either turned on with the `cargo +nightly` flag, or by running `rustup default nightly`. Also note that `cargo fuzz run` automatically creates a `--release` build, there is no need for an explicit flag to be passed.

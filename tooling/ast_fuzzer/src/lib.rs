@@ -65,8 +65,8 @@ impl Default for Config {
             max_depth: 2,
             max_tuple_size: 5,
             max_array_size: 4,
-            max_range_size: 10,
-            max_call_depth: 10,
+            max_range_size: 5,
+            max_call_depth: 5,
             expr_freqs,
             stmt_freqs,
         }
