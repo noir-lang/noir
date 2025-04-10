@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "13722226528179470152",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -33,11 +33,15 @@ expression: artifact
       "2920182694213909827": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+1YUW7DIAx1Qtt13dqtXT53CAjQwN+usmzk/kfY6IiG2q4fw65kNU+KQhTJPJtnG6jgB83385rGIr1r+EUFpxj/v6W3LIOqM1ta7o0JXRuUVu+y9b2z0th+75RT1tnP1mkdnHGd730nvTI6qMF6PSRjAtFWDeeB5Lc8jjFWPAUDjjMCjuRE/yuoMBzwwVVQNQOOc2AiqDmeoLpLPEur3wLP55ZY+IpqrTgIfwFXEn6poO4QiXKtpJgxoOK4BCaVdAlTa+YgqHtgUqFWgNs6OApqxYDjAybHKfPpOD5OC8Ujo9aYHEUiOEsGY/2PKRvVsIZTYJfxDZ4zJvoShTfejcWsizvuTfquAc4KE2n+mz7SPwFy9agYLhRqEIg4PhNwPAD7pjkPZmmV2QJuNnIU55YBxx0QiZMyi0qPs5d4lgr/Bc9nG9vq2GIjou1dGudtNwfS3DfdWhtgkhQNoCXFkO9JxRHnvw4XOb4Ajbk7KjQdAAA=",
-  "debug_symbols": "ldTdioQgFAfwd/G6C7X8qFdZlsHKBkEsrBaWmHdfZ0iYPcjEuet4/r9DcNCDjLbf7zcXpnkl3ddB/DyYzc0hVQdhr6N1MeFZrZuJG+kkq4gNY/qQj4pMzlvSCfr4rggvxYXIcQXi9ce4oiDelOJanfFWgLj4HG9BXJbijOY8Y3C+wgJdBIpmoDkALRYweiXgP7HihnndnII3NRQcLWq0aNBCoIVEC4UWGi1arOAULdA75+id88udw/vHyzuXMguloRBoIdFCXQjN/olU9NF57+6394c0Hf+Y6Ezv7VlOexjeutvvkjvZL3Ee7LhH+5z06qXxfw==",
+  "bytecode": "H4sIAAAAAAAA/+1ZzXKCMBBeQItStf5U69FDHyDhR+DW5+itWrj0Ndv3alMTm8HIwew6zcjOOIEEly+7336B4MHB1j+/Z3kcyNaHP/Pg1NT4i2yZnXFf85WwbZpWeVzxhL+xuNwVGUuz3bbgBc+K7D0ukqQq0iIvd2XOSp4mFa+zMqmlswDRV88Qj2ZcsGIQIPiqD1YZ4Nr65upAj4WKT18FJJCt6Ng0AASEAbsw0bFMNO8hkqZPlMgm4TDIjZQLZioQxFyzczFgdoZSdNQY7wgwkgO9lJzVgfj7ayqvD+4pbyjbgQqIUl7RsWkAwFZehOX6qLwh4CnaANxQ3hA65fXh/2McEmAkB2qpvHkbTlviR3hzjomJz6ly5QLxI7gS8W0JdQ+dkmLGgArjCBxR0hGgKem+IxQdxjE4olATwF06XCTUxAGMD5gYu8qnwzjtEuVGRc0wMartDbUvJPRflKxgwwxODVvG53iTScVcBPHUtoyoOvHEPZfnPpj3vZDuf9Ov9AtAVg/PwUShBoEI4yMBxl/D/napB9NWZZaAW40uknPpAMYVEJGTsopsX2fbcNoS/wlvzplYVtUSK0z4XsljfdnVDeneN720rsGRolgDWlHU+jNp0MBseobT+/rHvunk9fPjS7/u/syYisVAtkPZRto44kfteNjAg+yfhXBqkSEOzfj1DP/zzpz7jbbtWq/F79gwpnwuZKvjVfP4BqhGhKFqJQAA",
+  "debug_symbols": "lZXbisMgFEX/xec8aIyX5FeGoeRiihCSYJKBIfTfa0uE1krDfvN41lJhc3AnnWm268WO/bSQ6mcnw9TWq51GX+2EPbeWuR4f1bLWbiWVZBkxY+cX8paR3g6GVILefjOSYzjH8ALDBYbLFC5EwFWEq6+4ohGuMbzEcEZBnoF8MlitDr4UMc+/82XMJ6NlNAiMfdwgYCMZMFM0GDqPDQUb+sz4eFUy6ZwXh5EXPJ4xChsMNnLY4LBRwIaADQkbCjY0bMCZczhzfpp5PIM8nbmUwVA6NjhsFLAhTgzN3gxfNM4Og71eXj8yv/1XO1s3gznKfhvbl+76P4dO8Gc3tabbnHmc9Oz54+8=",
   "file_map": {
     "50": {
       "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
@@ -47,5 +51,7 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
 }

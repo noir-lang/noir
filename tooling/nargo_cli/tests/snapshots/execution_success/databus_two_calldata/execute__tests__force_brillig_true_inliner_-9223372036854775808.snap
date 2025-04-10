@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "2113733316574349459",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -68,9 +68,9 @@ expression: artifact
         "error_kind": "string",
         "string": "array ref-count underflow detected"
       },
-      "16761564377371454734": {
+      "14225679739041873922": {
         "error_kind": "string",
-        "string": "Array index out of bounds"
+        "string": "Index out of bounds"
       },
       "17843811134343075018": {
         "error_kind": "string",
@@ -78,8 +78,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+1aO2/UQBBex4+Lz3fhBH/E5nzcpQsSeT9aaudxJRItlfkFFDSUdHQU9DQgIVEgGjokkPgl3CY7d9+NZ52EeImMWOm09u7nnZlvZmcfiacuytrs55nnwNS+qT1oU9Cmy4ap05uVrMGxUlc6ei3QcaUFOvoN6uhBnLrSN2gBp2ELdIwa9rvrnNRpAaerLdAxboGO3YZjk3SkGE1mv97s11cXa+28EQ3Syds3H+kJrSeMDkLtZE1iF/C1AwNBv0wdm3oF+htMxFnM5DY5/iQdDWO1XBrW/3x8dFjD4x/T+KGb8dOOGedRuRgfbSG5PsPxb3zAbAJm04LZAsyWBbMNmG0LZgcwOxbMLmB2LZg9wOxZMPuA2bdgDgBzYMEcAubQgjkCzBHDUEy4mTN57jjm8r6qHg7IFpIduZE98pg8pZYPLIrJ7yqn8zvzmDzSh/ND+bdPmHKhj8f6grJqB/WF0Ef+1evEQ8Dx2CI9yDcu1oJZ3E0cx93wFuMu/xfjjvcFZdWO68YdxhaPO98BF7O4O/6f79oVdz7rC8qqHdeNO+nSSuMO4PkQMBiraIMn2OA4fqeO96D5dec+9w/6ALl9yPhxtK5MXfKv+bln0Z+edemUal58xidyRJytIp71xdAXlMtyuuY9ADk4FukRMvy+eb9j6gi+oe8HgvyIyV/SW2hDjvhYvtBGeD2vH5nnxPx0DL03bTSPw8WnyrPUKEuarwNVXQ8Id0dV8zXP5R3oa/rS0jN260I+5jIjsAfx+KyMfdj22NT6/SOzT8rXUQ130trieK1L+4KN3DexG9lXXmdJfldVfeNinY2ZPpwfzOOeWtwV4bcDoY/Hf1eQ0xXktHEs4ga5vGluwTgkf8TKbUzEgo0uz1fIoa6fQDv2haq6B0Q9Q4Z/CWM+Nc+Ul3F9iVmfdK/leu9PtlJ+VhZbQ6YrxnHnlnRFv0SCriHDPzO1jt9PgMdv0H4f2lYYXuIL7Y4YX0EL+Xou8FW316Z4Dkon9oy0Hp9BD+6jEOS69OmA4dG/Uv4kmVIO4Ou/ozNSyjnBvRnKXAFuuP3IZ8jaXpha2pvxcwe2KVW/N+Prv8fG0kXvtaW8xHNowr7dMO/pzcp8nvWAG4nbRC1zR/hXwB3PS/i3tLp9LdcB8Wg36UN8YQz3WB9ySfEcM2zTazTZMT+bK/kMgVwj/rWpJS4lbqQ45DogHu3uML6Q5/lZmL27ir21S/hCPhH/poYvyf66/Lkm4Ps1fCGXa1eQjfz2LLIjC95m/1u1sP+neXYc41f2Wc+i8zvQuW5dxnOtLkHpxB5xXca8xdfluhyly1XiSpqHA1WNpT7rw3U5YXLq7nz18yqz8bJzhEvex5PFP2SQzymOeAmgH/EfzDuetxTYtvGHek7HRTYdFtNiVJye5ifFXTa+LuTjxIH8YjycnNzPT8bHo2ExfPDX5Z9N1k/T9elZkWXZ/dP07DL50p0mzmNd6F4U700RT+OFDP+FsLPfV/PM771Rnsb9qMF5lvp8DKEtKJfbpPtUvGcmPMnullUdqS+BPswxuvTMO/KFY5EeIcN/N+/kE7wbpu8HgvxVJn9Jb6GN3zMnAj4R8No/32g8U6PtTd/Rnctk42Mb141ix8W8ykfF+KQYZ9l6np3l2eiyefUbs39p6gUuAAA=",
-  "debug_symbols": "ldjRboIwFIDhd+k1F23PKW19lWVZUHEhIWhQlyzGdx9dxmYGy/LfGKt8SeEXgd7Mvt1eX1+64XA8m83TzfTHXXPpjsM0ut0rsx27vu9eXx4/Nra8pPy5/fnUDGV4vjTjxWxEbGXaYV/euckfur41m2Dvz5XJFguHhcdCsFAsAhY1FhGLhAVu7qzlxHHiORFOlBNc3rn1IxZkJkEXZH1fUv4iau2CKCer+6ISZ6LLfak5iZys/pBVw0yCX5CMibecOE48J8KJcvJHffvdZUlqTiIniZOMiVhOHCeeE+FEOeH1hdcXXl94feH1lddXXl95feX1ldfXiC9Jun5zEed/GIl5QTImwXLiOPGcCCfKSeBk/ay08n3dX5LISeIkY1JbThwnnpP1s9L5mbi0IMpJ4KTmJHKSOMmYxP/qrxDHiedEOOF34zFwUnMSOUmcZEyS5cRx4jnhz2KJ10+8foL179PorRm7Ztu3X6tBh+uwe1gcuryf2l/rRKfxuGv317EtK0Y/i0Ullreu8t5PUylHqA5VDGVa5Ss3TcJlLcPSyHuZtgzTDKZZfAA=",
+  "bytecode": "H4sIAAAAAAAA/+1ZO4/TQBBen+0kzlvwR+KLcwndnXTvV0vt5C41Eh2VewpKKjp6GpCQKBANHRJI/CCydzuXL+NZJ8d5QUasZK298+28dmZ2s/HUbesuHs+8B6b3Te/BmIIx3XZNP3hYi0vkNXClo1cBHbcqoKNfoo4exKkrfYMK+DSsgI61ktfddU2qV8CnjQroGFVAx2bJsUk6Uoy2Fk978XTU7V57N4gG6eLtm0k6oXXC6CDUi6yd2AR8IWNw0E/TR6bfAnqJhTiOmNwy+U8Go2GkVlvJ+t/wxwUrmf+U+Idu+A/qhs9+tuSPtpBcn+H4HB8wB4A5sGAOAXNowRwB5siCOQbMsQVzApgTC+YUMKcWzBlgziyYc8CcWzAXgLmwYC4Bc8kwFBNuciZJHMdc0lH5HwdkC8muuZE98pg8pVZ/sCgmv6mc5nfsMXmkD/cP1d8OYbKlPh6jBVneDqKFQKP11fvEHuB4bJEetDYu9oJF3E0cx93wL8Zd8i/GHacFWd6O+8YdxhaPO9+BLxZxN/1f76oVdz6jBVnejvvGnXRppXHn8H4BGIxVtMETbHAcv3PHZ9DkvrnP1wfXAH27x/zjaF+Zu/S/9s9ji/70rls9U3fNZ/5EH5HPGohntAhoQbYqp2m+A5CDvEiPkOHPzHfP9DWYQ/P7gvwak7+itzCGPuK8fGGM8Dqv9817yzw6ht6ZMcrjcDlVeZYeZUn52lf5/YBwPZWv17yW14FW9qWlZ+zWjdaYy6yBPYjHd2Xsw7GnptffH5h9Ur2uFfhO2lsc73WDjmAjX5vIjeyN91mS31T5tXGxz0ZMH+4frOOeWt4V4dy+QOPx3xTkNAU5VeRFvkFfPrS2YBzSekTKbUxEgo0u7sJazP6y9W+70T93TscY0P0zGEdaqPJnWPRzyPCvgOdz8077Cu6PEaNJ93JF9RnxbcYrFGz02Dy0KxR4hQz/wvQ6fj9uoJ8PY1sMXxfwqGfI7EFbaW7RuZV8GwCtzP1A++AT6MHtxTOxS//0GR59JdUikinFI99LHf3euDvnkA14zkGZW+AbHqN4DgzZ2EvTS+ccfobHMaWKzzl8L/UYL910bZTOkDyfOyCz6LxF+K6A7wCG/EayMR66jIZ6RRa9sDYgL17zCP/a9FJtkHSXfE74noDvAqbO7EE/9CyybfbwWkf4NwX2SPoV5XJfwPcK7EFb+xvIRvu7Ftk1C77H7Cf8W7W0/4d5l+otnv11C4Dmut5iDvF6W5Qvum2yRlLM9VV+XXqMhjnVYXLW7eMNZuO6s4pLv48nyz+tac0pj3gLgI749+Ybz6QKbNv9TT3n4zSeD9N5OkqvrpJZ+ojx143WuOVAfjoeTmbbyWw8HQ3T4c4flz8b7UxnySgdXMf6c3udfOneB/NYN7o7wrslxBO/kOE/E3bxfDHv/G4Q5Wnc9wKcZ+lveAhjQbY6Jt054V0c4Ul2M8vrSLQW0LDG6NY23+gv5EV6hAz/zXzTmuD9Gc3vC/IbTP6K3sIYv4trCfiWgNfr85X4mR5tL/se40Ym449jXDeKHRd5tUip8Swdx/GTJL5O4tG6vPoF3z1SlykrAAA=",
+  "debug_symbols": "ldfbioMwEAbgd8m1FzOZHPsqy1Jsa4sgWqxdWErffaNUt2wCy38jRv0wcZI481Cn5nC/7Nv+PNzU7uOhuuFYT+3Qp9bjWanD2HZde9m/X1Y0H0Jcnr9d635u3qZ6nNROhCrV9Kf5jJM/t12jdpaen5WKBAuGhYaFwMLAwsLCwcLDIsACjjkT4YRxonEiODE4gSPPXB6LlZVYk5HyW0J8EUOUEYeT4gwz4ldi8rEEnBTnmDEbsRnRhBPGiS4TuxGdEcGJwYktf2TaPnJOHE48TgJOIkyEcMI40TgRnBic4NEXPPqCR1/w6AsefYNH3wi8wZryzu/XVSk+ZsTixOHE4yTgJMLEEk7Kq5Jk+yXlRONEcGJwYnHicFJelaxXwiEjAScRJo7+GUuBME40TgQnBs6UHJ6POTwfcx4nAScRJp5wwjjRGHmm1lc9tvWha17V7fneH9+K3en72vype6/jcGxO97GZK+Df4nceIAdfaQqpK/Occrbydsn451tpm+NASzqbmppipZlTD1IvfgA=",
   "file_map": {
     "50": {
       "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",

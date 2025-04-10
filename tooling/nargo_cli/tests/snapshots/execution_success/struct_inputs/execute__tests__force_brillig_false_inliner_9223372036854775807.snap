@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "18198017208326837581",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {

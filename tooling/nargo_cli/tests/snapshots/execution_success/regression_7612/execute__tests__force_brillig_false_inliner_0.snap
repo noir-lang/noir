@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "4550974181173491707",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -48,10 +48,15 @@ expression: artifact
       }
     ],
     "return_type": null,
-    "error_types": {}
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
   },
-  "bytecode": "H4sIAAAAAAAA/9VYUZKCMAwtFFcR+Fr99whtAS1/XmUd8f5HWBkbN2arP7zOaGY6KW2JLy9pa8jUTZpr+w797Np00FPbibE86IKtl0Jjx6Bbs++68eBG29of44aT703Xn/beetv7/ux8246+84fhNBzMYLt2tJd+aC/mJjmzZeaJ5Xh1SsA6kKWA4DXQVgH0NxWHRcSumScPfpuZohIm/eJDcH4BY5MS5xKH09FhSAfIFKuJh+UL/GaeONoPGsTLeLlJDuQYeaasgHmVq/hFBbJvEsXcrj4AY4nESJdmrh43UiaeERuAJ22p8Jd1CcS4BpIs+VVYv5MlGpKDVBgrJEb69yM3Azr5qzclIlxQZ4VPVksdzm0ddENE0zVfq79TiMamRbvEQdEYZ+9OV/MxuoDR1kB/G3CypCgZ6gRxrnEYDa/J73Wt+n+ASKG5Uugtex9ZdpL9TRr7Zhnxccv6G+En5+YIwkD2eHnwjPeFWLsS+DI8Piux6MhvkdB3oQ0b2z7BumZ2gDF1ZL9KYz+aM2vWr8Qcxa6IvJc9ec6FfrX21Te1JjJHNilWHC/58QvcT6UI7BMAAA==",
-  "debug_symbols": "ldNNCoMwEAXgu8zahdHGv6uUIlGjBEIiMRaKePdGURAplLebN49vdrNQJ5t5qJXp7UTVcyFtW+GVNSEtlOyraRRmS5MXzlPFeBmRNF2YsnKNqFdaUsXj9RVRioIHCvhPUOQHSOL0BjIU5CgoUFCigMWwYLBIYJHC4vFHMH4XHBYZLHJYFJgIoXFKazXU1/8K67dwSjRaHrGfTXtp/Wc8m9OPzraym53cLu1dOP8F",
+  "bytecode": "H4sIAAAAAAAA/9VYS27CMBCdfCiEJFWlwp4j2E4Czq7n6K6IsOk123uVKB46mMAmzxI8KRr/Mnnz8S8RDShPz8qVo9OTONk/G68tdjIV431w24eTldrWdbczna70lzLt3jaqbvZbq61ubHMwtqo6W9tdu293qtV11elj01ZHNSAWutQ0aMk3CUk4cc4iIPkEqCsF2hvKh+mIXjUNF3ariaAA/G7Z/UCTSJEAmufsSXi+AGMekuccx9PwJsALZx+r3g/zO/zVNBieDwnIL91xQAz0MXItXRB2LRnboEH6VaCY68UTcMyQHPmwENPlRIq8OmICyKTNCH9IyYAcl0An+/4lrN3BEg3pg1AccyRHPv34kwGd/PmDOsJtUAfCJ6vmgvRt4WTJjuZtvqD/VYjb+kGbwEFJMMaejc6nczSOoy6A9pbgZAlxVSoCxLnAcVTyX8T5Pk/XC4hsZ8ycjOnt9fPn+5fO9QGZJ9dCB/IqzvpXYfQreTwnzxb53cyznwi/88irg4/Y6+OxC49fhOenfS7JyLcY706uRNv6Btel0AOMqWH9eRj9ozmzFOXc6+PYpSPvRTfqsSfvjb33n7Ec6WOdHCvJl+34A0zPwscAFQAA",
+  "debug_symbols": "ldNBCoMwEAXQu8zahUkaNV6lFIkaJRASibFQxLs3ihYRocxu/nze7GaGVtVTX2nbuRHK5wzGNTJoZ2OagW6rcZB2TWOQPkBJuEhA2TZOmVgS6LRRUPJ0eSXAsOCBBfwWCLYDmtILyG5Bkf8Au4AcCwosEFhAUrQgaEHRgqHFAy34H0H4VWRokaNFgRYCJ2KovTZG99X5I+P6Lb2WtVF77CbbnNrwGY7m8IN3jWonr9ZLWxfPfwE=",
   "file_map": {
     "50": {
       "source": "pub struct Data {\n    fields: [Field; 1],\n    counter: u32,\n}\n\nfn main(array: call_data(0) [Data; 1], x: bool) {\n    let index = if x { 0 } else { 1 };\n    if index != 0 {\n        assert(array[index - 1].counter < 3);\n    }\n}\n",

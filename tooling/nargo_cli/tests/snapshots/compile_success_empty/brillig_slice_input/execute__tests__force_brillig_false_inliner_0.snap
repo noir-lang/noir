@@ -3,14 +3,14 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "9084184003198307343",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [],
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/+1ZWYsTQRDubCbJTo5N0J8hyEyO3Y0gLMuusg8iKyqCIIw5HsQXBUHwZQTBv216rTLf1FTu6XWPbgjd01Vdx1d9patk8qU0+wVmvbJH9XeqQ9FvZZVnvxP6jnYrcQhyi5Z/HPWT0OSxKND+XggyHcgfhCJ+BcuPaiTnLM3KN0JvWfBpY1rULpk8D/vhYh7N4uwap5jlV93I7zFuFcCurPjE+lsmGyuma7Ux2ZgaoatunM7heJlvaD/PjY7glxgsklXZUNb/jCliXRX21NzYE7H8fUfy2d9Q8RfXfU3423BjT5/XSB3sKQndTTe6B+uuQdZfF7a6WoNNk48N4sNxajFPOrcnFLQgzfvBtArQOL523j0C/5CG9uBa5bnaMfm5Uged2tnCOg+hfQRjbLlIs/YY4/ysGjq+M8QPl+DBPtZSk8H9qoY+jh/jtI/8ghYCLUizeur0HYAelMV2VAT/gL7bVFdhDI/vKPqrQn/GbqUPMZKyykof89s9+zG1G/Sz8+sz9fGcxHv3Jucz6uL5gufICdXRjqVj8udrZYFeV+dRVfhekPzY8XnadXyexvKOh7GwmJ1CP+7PFaPfM0pAR/7nIPOc2m0xBudIQ5FxQbXF4iu1HZ+xvWVnCK7rpsBAOwPlHQQxCBVZ8m4hY/NS6GT5GBscWwM68r8Bma+ETO2ehfHeF7YiLQS5p8JfxELeu9n/vRV+cOwPgFbk3Y7taQNuZZOP9wHQkf891Rajb8JHHmNAJmK9J/jbCj/6zfYwvi2gtdfQjf5wTENlvAt8O4Cf5hvij/wjqjV8NbyW4dtR+NFvtqet4IVjJb4yFk1Bk98NRY52fsr9RtufcM3IdVpXdOKewlgF6ZyvqNgfHf/9H3dlK8nn2MsSAB35v9A3+sF1sIOd06MknvaSaTJIxuP+KHkg5NvCc6fhQP9ocPhx1B8k0SS2n93r1j85Ho6j4XSSxHHcHUeTVfp/U/uWv+FObvkb7tC/4a4u1/CG2/VvuFsX/4a7xG/U799w/RvuXX/DfQL+IQ3t2fQN1/G66bt+q/Hr5l/x6wZortfNqtzHObSfwRhbXqRZe4xxfscb+9zHnH9R7uOMvm9y7uMptTH38YP6fO5jdfG5j+X2r8p9XEI/7s+b5j7egszX1N409/GOaovFT2rf59zHB6Fz29zHGGQmQmZRuY9L4e99yH18otpi9Ev46HMfu+c+OP+p4etzH9vlPnhPuem5D6p87qNg/ZvmPv4AsqlPywgvAAA=",
+  "bytecode": "H4sIAAAAAAAA/+1YS2/TQBDeJHYSO0/Bz0BCdhI3LRJSVbWgHhAqAsQJySSNBBInLiBx8E8nW2bI5/HGThovtHRXivYxs988dsa7mYYqtsb656ndWpP6r9QHYl1jtda/U5pHh7U4ANy68Y+jWRqooi9q1H8aAKYF/CQQ51czftQhnPMsj6+E3JbgM+0Z0Lihijxsh404Wp+zbT/FjN+2gz9lv/ngu5bBJpY/UPmzYrqpVyp/pkrICpXVGI7LbEP9OTbGgl/6YBuWvyfWvzxT9HVb6NOxo0/E+F1L+GxvYLAX874j7O3Z0WfGORKCPg0hu29HdrJrDrL8UOhqKwf7qng26B8+pwHzZBt9AkHzsqIdTPOBxuer4+4J2Ic01AdzlWN1rIqxEoJM093CMo9gPIc9ul1meX2Usn5XnVh+M8SPS/zBNnYylfP7TQ9rfH7spy7yC1oANC/Lywlp7oEcxGI9fMGf0HxEfRv28P6xQX5byM/pbVhDH0mslmGN+fU3+ymNe/TT8bWkNY5JfHfvcz+jLI4XvEdOqY8ObGNVvF/9LXJt3UdtYXtN+LHl+3Ri+T6N5RsPz0L77AzW8fvsK/M7owF05H8JmBc0Hok9GCM9A8Yl9doXX2hs+Y6dlt0hmNd94QPTHSjfIOiDwIAl3xbybF4LmYyPZ4N7O0BH/neA+UZgmt5ZeN5doSvSAsA9E/aiL+S7m+1vVtjB/EODjqh3U/CPDPxD4OkLXQdAG+0gG2Ohu4PsMl3HBn7UYSh0Rdm4V+oq7eoLmpz3DDim77rMA1Pe4FnK+AkNMjHW2VdetuGrK9/nx7//X9zoSvicS7J5QEf+zzRHO7j3DtBzNU/j1TRdpUm6XM4W6SOBrxvHTs+C/EVy9GkxS9LoOtbTSZX8nzS+57W963te2ztxtb3q9hdqexNX27t1c7W9ErtRvqvtudre/17bewb2IQ312be2ZzlvZrb/w7u8+dNc3gDNdt5U1cQvYPwC9uj2Ksvro5T1N97S1cQ3/Ntq4uc0v8s18ec0xpr4N1pzNfHq5mri5fpX1cSvYB2/z/vWxN8D5lsa71sT/0C99sUPGj/kmvhHIfO2NfElYKYCs66a+JWw19XEXU3cFD/bauIc63e9Jv6d5g+9Jv4Ldz3JHDgrAAA=",
   "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
   "file_map": {},
   "names": [

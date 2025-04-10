@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "7311745121465047780",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -29,9 +29,9 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "16761564377371454734": {
+      "14225679739041873922": {
         "error_kind": "string",
-        "string": "Array index out of bounds"
+        "string": "Index out of bounds"
       },
       "17843811134343075018": {
         "error_kind": "string",
@@ -39,8 +39,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/81WwU7DMAxNumaQTTAEd46cOCTtRrvbDsB/RLT9jn06i7A113MFUhMxS1XS2n7v7SXNqtVPFKdLw7wkz3hgzQFGNy98QiyXU6dOqFMTncXFhIincym/g9GymphfJPzxlvGmxG/dtrFqHIn115ZgZsCvEL/Mg+9uAOf9OMZXjPcO7un+wR7M0X30Abnb03WvzvMNwYvxSXgR2zK8xHviLfOa+acJ/THW4MMr8xXzSvAh09rXmvEp5oli/KvMvmnGh3q4PwXzzghaH4ScZnMj8BiBR8IqWF85wRPzVuhPeUYg5xLwzIQuQ/K0/hnGuC+rP3gkrQXXQOul9dmoS6+WrI9q5+/StXv6AuN/eEr7aa90zlD/+Xulhb54fuF/ankc5w/w3M2Ipj1/xCwA3zDdivEbVu/hfkX041jO0Dk0wQ91GMIudN32KzwyfEU8XGfg79t95/ZDH7z3Vef63/i/AWxSU/OBCwAA",
-  "debug_symbols": "tdbLaoQwGAXgd8k6i5iLUV+llCFqHAIhStRCEd+9SZmCtZ3ZzJyN+MvxSwgEzkZ6267XiwvDOJPmbSN+7MzixpCmbaekjc57d70cPxOWH0X5nZ8nE/I4LyYupCmYpsSGPr1xlf4fnLekUWynf6Kcl7col7+i75QUGolXSLwG4pwh8QKJcyQukLhE4upfXKgfXInH+N1oxssn8cPOhTzjGolXSLwG4oIh8QKJcyQukLh8Fhf67g0VComXSFwj8QqJ10BcMiT+wht6wvc0fZjoTOvtrZwNa+gOXW35nOyptk1x7Gy/RpsL3KG75TOQkso6N5a8Z8Wo4mmNtM4X",
+  "bytecode": "H4sIAAAAAAAA/7VWS27CMBC1QwwxFaVqD9BdV13E+RCWLNreww3NOTh6sepRhodDVGGPFPkz4zdvnicBKf4sOz/Sz3O2h0YxBz+W95mJiFWm5Ckj8pSMZ3Y1YeT5PORv/aghxvkXEYvXkDcm/r5sOi0uLTL/WjPMBPgV4edp8MuVx/k4XeILyLvxa94/dIZ8vI8+va84P49inG8ZnrMvlpewNeBF7old4jszLxP8nT14Hd5BV/KLgA6J7r6WkE+AJgLyrxPrJiEf8UF9MtBOBbg+BXwS5iqQRwXyhLAyOJdP5HF+PbF/EFF0q7AeNcOL+CyZT8TjYxTwefWj6/sK+ND3h2sZumuKLwLxKxZD9W7F9Z0VcI5rg++qhP05TRXEv92oOftnzctAfHajZt5n/Czmnno/NgEcOue+X/Sbmp9Gf6x+7vbjn5iFxyft0XLm5/HGr9eMP435HTyHzpqhtoNt7fHY9PYZ8AXoFDt/3+6++6a15Y9xy2ou/y/JOlM+gQsAAA==",
+  "debug_symbols": "tdbLaoQwGAXgd8k6i1zN6KuUMkSNQyBEiVoo4rs3KVOwttPN9GzEX45fRIycjfSuXW9XH4dxJs3LRsLY2cWPMU/bTkmbfAj+dj1eJqwcePWZnycbyzgvNi2k4cxQ4mKfz4TO9w8+ONJottMfUSGqe1Sob9FXSrhB4hckXgNxwZA4R+ICiUskrpC4/hWX+gvX8m/8YbTgFRI3SPyCxGsgLhkS50/ih09RqjMukLhE4gqJayReIXGDxJ/doUKah39FWQNxxZD4P+7QE77n6c0mb9vg7uVsWGN36GrL++ROtW1KY+f6NblS4A7drbwDpaiqS2Mpz6wZ1SKvkdf5AA==",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",

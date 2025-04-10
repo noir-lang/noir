@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "17182825642253591879",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -56,9 +56,9 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
-      "16761564377371454734": {
+      "14225679739041873922": {
         "error_kind": "string",
-        "string": "Array index out of bounds"
+        "string": "Index out of bounds"
       },
       "17843811134343075018": {
         "error_kind": "string",
@@ -66,8 +66,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/91YS07DMBB1EiclRQgE10AipglpF0gsCv2xAQmJbejnHDk6sfCQ10kiVGoXlZEsO5nn+bwZu0o98SW9anhmLc0ciKYQ5sHMyX6iLNpKdGy+43g9i/G6itG3zKl0zGlwBJzKI4gxPIIYI8u9SdJrLEzw+jDoBtMF1ARFTN+2R8u7mWMz+6C32LAqZn5t2h8m6TIW22I5/kFsbEo39nOyH7qxn1Dtx2VtH3MhvwHD8T0BYB4B89iBeQLMUwdmAphJB2YKmGkHZgaYWQdmDpg5w5yZNR64scFQfVycj6p/M8f1v6Xc8EeO8iTfkRvfA4/5E6KuB+rIf184PWvKY/4oHs4P1fqMMGUdD9fJspkH6ULQUX1PqnENON5bFEcM+dvmouo71/dO+od9l/3HvguYTpbNPHbtO+REAi6H9ZDZXpT1Hl5PR3fkh8uzoOtz1RG/gBx7pfgW0gXwjjgnnk4Qz3Qx6GS57advniX4QVsUR8jwd+b53MwR7KH9Fy3+I+Z/K+6Wd8gRtxW0vCO87tEbsz41Q/fXM+0Rbn8H+RkMRX0G8U4IQY/4e+KiGq+Axz0CbOKHus/wbfdAyDBazkXzXooOw1e6L1/jHfkKLPLlt/DlMSzaQn65b4or6sB7LH/CL0Sd/5tZ656n7xVZ1jZs1S0f1h+NdOeEov2PLgl6xL+Y5z7kKCDvh1/GuckLtRkUmyIrVqt0WVwy+1p84Mm2//VwtEpGm3WhlLpdJetD+0+zIl8WuVKjVK1Tlf3k/xN3H8SmuRQAAA==",
-  "debug_symbols": "ldPdCoMgFAfwdznXXmhqWq8yxrCyIYiF1WBE7z4d+6J1c27EI/7wcOS/Qmeb5XpxoR8mqE8r+KE1sxtCqtaNQBOd9+56+T0Gmhepnven0YRcTrOJM9SMKgI2dGnHePK98xZqSbczAanRosKKkqIFQ4sCLThaiENRfAT/ExItSrRQaKHRosIKRdHi+M959RZC7EWBFhwtBE5sqbqZ6Ezj7Suu/RLan/TO99HugjzGobXdEm2O9DfNuVkhiBSpD5bnqUqiWS7yqLQkWqX30psP",
+  "bytecode": "H4sIAAAAAAAA/91YbY+UMBAuUOBYczmjf8NEugvH+sX44fbe1C+amPiR425/Bz9dGmfk2aFdY67VrJOQFubpvDwzLYFE/ZRyuhKaaxoztRTGfKCxfp6YgLZqG1saOd4kYLyxYkwDc6ojc5qdAKf6BGLMTyDGInBvspSLCQVvN4NtMFtAS1Ah9K41Vr7TWNGYgj5gw5pK+A1pf1s3Q6UOJXD8m4ps6jj2O7afx7Ffc+2vxtk+5sJ+M4GTazLA7ACz82CuAXPtwdwA5saDuQXMrQdzB5g7D+YeMPcCc05z3HBXhOH6xNgfU/+2keu/5tzwJcd5su8iju9NIvwpNdcDdex/paLuNZMIfxyP5Idrfc6YcY5H6vS4zIN1Oei4vmfT9QZwsrc4jgryD83F1Hexz53mH/Zd+z/2XSZ0elzm8ad9h5xowHUw3wrbH8d5jaxnpDPyIeZesPV57YlfQY7lqH4J6zJ4xpwzT2eIF7oKdHo89LOiew1+0BbHkQv8Jd1f0FjAGl7/0uG/EP4P4nY8Q46krczxjPG2R9/S/AVdtr8+8xoVdQ+uuV+Zt1zNexDPBH0kHqXCfsxgPO9ptJx8BZ++cwN/BKQCXzrwhcBYuVDLd0Ap8o/0XdDI3Hz1SEGP+N0RvrQj/+wIX8fOZRdfuF7ymjhs5Y58EhFX4cEnIn/Gf1Jz/t9obvcUfw/pcbYRqm7ddv4o5TMtV+4faRr0iP9C9yvIkcfn/ITYd73Zb/p93/aPj83QvxL2raTAU2j/Q3v5MDRtXz8Ze7v+2/4n193Qd8a8a8xTY9rf+f8BskmKDhkVAAA=",
+  "debug_symbols": "ldPNCoQgEADgd5mzh0pL61WWJawsBNEwW1iid19d9ieiy1zEET/8mZkNBtWtU6vt6BZobhsY18ugnY3RthPovDZGT+1xGbI0VMV7/zJLm8IlSB+gyTNOQNkhznIa/aiNgqbM9juBiqIFQ4sSLSq04Ggh0KK+FMVP0LPgGVrkaHGdc1p/BWNnQdGCoUWJE3uMHtJr2Rn1KfNxtf2h6sNzVqcGmL3r1bB6lVrh3wXpeYyRksV75CkDnBNRpCB9rqiIEPG8eOYL",
   "file_map": {
     "50": {
       "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",

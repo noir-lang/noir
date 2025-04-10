@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "17145319852592804036",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -55,11 +55,15 @@ expression: artifact
       "5019202896831570965": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+1USw6CMBDtT1FM3LlwxxFa2kK704UHkVj2nsq7eA4PIsRBS9OdJcHEl0ymPMjjMY8MRi/kXW3hjLui0PsqAo5EOBrhWIRbRLglcBS0ieeDQEfBPR8H6PxLIO+9CXXFL3hcpfRIIXwGgsP1AsLGXrgM/QOdwuN6Ao/vMGf6540+WvJKKVeXTkhx5qVtjOZKN5URRmijL6WR0hllatvYmluhpBOttrIFsTzhAP1t1+sWaAySeKbZTOdAvTn0yNBnwzOPGzAsiXCBhMDeeQN99zjur/fbKXz2CbgLInHyBgAA",
-  "debug_symbols": "ldDLCoMwEAXQf5m1C1Ntrf5KKRLzkEBIQh6FEvz3RmlExE12c+dyZjERKJvCPArFtYPhFUFqgr3QKqUIj23lDFZrch5bDwOquwqYomlCzVIBF5LBcK+XdwVdKXhegtsOmjPoSwGqL0XTZ9G2Z4HKRAqTFVKKeTx+L60/2Ao8SfaPPChyaP3X5CZ7YzVhNFi2Xtq6dP4H",
+  "bytecode": "H4sIAAAAAAAA/9VWS07DMBCdfGiTpi1ICCR2PYKdT+PsYMEl2BFINqw4FReBDefgINSKnUxdpxtPpOZJ0SRja/z8Jn6yBx22h+devXuHJ1BRPjsj51tygSUXWnJXltxC5UK1vg+n8FR8VJG5gVPUajs0Frqutbl+wVpEKsZmk2IlIEYwoWAZ2+d5U6YNz/grS6taFCwv6r3ggheieE9FljUiF2VVVyWreJ41vC2qtFW1IvdamarF4okaaf5wrjwjul4w2VsfhoOiD6XmjMcwqNYf04i5gcMMOK4oOc7U8d6A/ueyOl6i4loLoh1PJnYGgUt2vATonGQ9USOpHS8BWscLYbgi6G95nVjAcFXx0RwMKh5jWjE3zML5NhNw7JtJSZTQoo827XogtoQCYjOUdXdwDJ9Y0+WF6hAgHSSWMFyFQpTT0CZhGoiJAL3HvaY325fvjx887/rM2K2Kd39PD5+/X8+Yg0Rk1F+h8YBOo1TXT6apz7C+YOwFrwu9Vh1sRu2NfPtGPDfXzOPcxjKma+p+Yb56H/9bDy/UKA8AAA==",
+  "debug_symbols": "ldJNCoMwEAXgu8zahTFaq1cpRaJGCYRE8lMowbs3SlOkupndvHl8s5oAI+/93Ak1aQvtI4DUA3NCq5gCkHzf2YWpLVrHjIOW5HUGXI1xInTNYBKSQ1vl6zMDQtCiQAuKFiVaVGhxuxTFT9CTqNHifilok0RZ/osGJ2LojZBSzN3xE+L6xYxgveTfOHk1HFr3XlKT/GL0wEdv+HZp7+L5Dw==",
   "file_map": {
     "50": {
       "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",
@@ -69,5 +73,7 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
 }

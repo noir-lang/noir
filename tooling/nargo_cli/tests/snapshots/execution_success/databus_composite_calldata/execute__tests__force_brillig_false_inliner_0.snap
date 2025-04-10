@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "17053811144686172435",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -93,11 +93,15 @@ expression: artifact
       "5019202896831570965": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+2d+VITSxTGDwHkwt0X773eRSO4r9OTSZggIuKKiIiIuCvB4K6Iuz6A5ZP4Lj6HDyInzlgttPwzX1f5VXVXpQIn1OQ3p385p2eYmrTJp/F66fE2+7lt6dGePesoL4u1OWIlR6zdEetwxDodsTWOWJcj9p0j1u2I9Thi3ztiPzhiPzpiPzliPztivzhivzpivzlivztifzhiax2xPx2xvxyxvx2xdY7YP47Yv47Yf47Y/47YekdsgyNWdsQ2ZjF75K4OZ8+VqJYkzf64aSpmNorrjbQaJdVGLTWpqabVG3FaqTTTJO2vN+r9Ud0klaaZr9Yr89GnsdnaVlRw+OTcguM0Pjm34jgbPjm34TjnfHJuh3Gamn6utH53ZttT99UrnTPNx3ZZOUrL9icqNuJeYG524LiikrWv9kBt/2t+RMWGQebAF+NOJKNKrI9ea5LyhYnGdeGhguvCQhcSunDQhYIuDHQhoI1fG702dm3k2ri1UWtj1kasjVcbrTZWbaTaOLVRamPURqiNTxudNra8kW20kpZzsIkEnSRPjLs8MH6eNCSo/aksWuV2A7lYq9xuAsY9SEbWKgJNgifGvUJSRexkFq0ikWCrCKOcEQGjERI5I6CccZDTxASMFSGRMwbKmQQ5TULAWBUSOROgnLUgp6kRMPYLiZw1oJxpkNOkBIx1IZEzBco5EOQ0AwSM+4REzgGgnINBTjNIwLhfSOQcBMo5FOQ0QwSMB4REziGgnMNBTjNMwHhQSOTcBZRzBMhlXyil2y2L+MxD3AfMwyEcF+2FG8gc+GI8jGRkrabQJHhiPOKBsTXQ1dS2vmgVOSrYVs9YRY4SMB6TUEWwSfDEeFxIqoidzKJVZFSwVYRRzlECxhNCIucoUM6xIKcZI2A8KSRyjgHlHA9ymnECxlNCIuc4UM6JIKeZIGA8LSRyTgDlnAxymkkCxjNCIuckUM6pIKeZImA8KyRyTgHlnA5ymmkCxnNCIuc0UM6ZIKeZIWA8LyRyzgDlvBDkNBcIGC8KiZwjQDl9/f8Svc9V4D5fwnHF9sUgut2yyKpzX5QdeNRugHnwegeeyzjOxCfnFRxnmt9QoyPbnt4xRvOg77HNcqtDVg4Qg7dC20vAeFVImsFVoMDXYFymxrpSweXAH+N1IZHzGlDOWSAXq5yzBIwNIZFzFijnXJDTzBEw3hASOeeAcjaDnKZJwDiPZNRJ0rvx5QcI15ceWpr1EzAvKwf6YOgmbmdi3Zc1lnh6MKTbv5z9XspeXz5A7+9twvsIGG8hGXWiOoVvoqBJ8MR42wNja6Bbm53MolXmjmBbG6OcdwgY7wq4tXVZYqr5dy1Zu4RvEhnOid0TcCtgPHnJ0LPve2BsjZJH0KKt4AGMi/fkJS4H/hgfComcD4ByLgh2ncIo5wIB4yMhkXMBKOdikNMsEjA+FhI5F4FyPglymicEjE+RjDpJ+vUh+QGCrhm0NOsn4GkW07/pltVPCnYL32QzHAk+QzKWsslmmyhoEjwxPvfA2BrolmEns2jLeCHYlsEo5wsCxpcCbhk9lphq/ktL1h7hm0SGc02vhKTC2Gcvi1YYXzvdDt5n4Nd2fXGPmqL5ew3Mn30Ftm63LOLVo03fcB7y9fIma/+/ha/o0zVt3zKmnNM+IBvJntd+OLju0ft3R6yXWlc+f+21N6u8puMjmslhn4R5AAA=",
-  "debug_symbols": "ldjdasIwGIDhe8mxB/n7ki/eyhijapVCqVJ1MMR7n8oK0naU9zAJT6C8pIHczK7eXA9fTbc/ns3642ba47a6NMfuMbqZEF9z51PVPYfnS9VfzNoVtzJ1tzNrb919ZfZNW5u12PvnygTBImGRsVAsChXRYuGw8FgELHDziJtH3Dzi5hE3j7i54OaCmwtuLri54OaCmwtuLri54OaCmyfcPOHmCTdPuHnCzdNi8zwWCYvZ5t6WQTgdC8WiUJEtFg4Lj0XAImIhWCQscPOMm2fcXHFzxc0VN1fcXHFzxc0VN1fcXHFzxc0Lbl6W/u3ejsV885AHIWksAhZxQWQ/FvPNdfjyMLkNSsIiY6FYFCqctZw4TjwngZPIiXCSOFlsnyZEOSmYOMuJ48RzEjhZqu/8hAgns/WDiwPxMiGZE+WkYOItJ44Tz0ngJHIiCyRMDrJPnGROlJOCSbCcLNUPk1MZPCdLZ3+GzNePYSCTK9/Nv9X9Tx6DTd+0bXP4en8lfEx/V31Tbdr6b7i/dtu31cvPaVgZ/Kk/buvdta+fO73WHtv/Ag==",
+  "bytecode": "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",
+  "debug_symbols": "ldjBauMwFEDRf9E6Cz09PVnKrwxDcRKnGIwTnGRgCP33pqWGErk1dymJo81FstHdHbrd7fWlH4+ni9v+ubvhtG+v/Wl8jO5O8+fc5dyOH8PLtZ2ubitFNq4bD24bvLxt3LEfOrc1//Z347RQET0WgkXAQrGIWBgWCYsGC9w84uaGmxtubri54eaGmxtubri54eaGmxtunnDzhJsn3Dzh5gk3T7h5ws0Tbp5w87TavHkSjcdCsAhYKBYRi8XmwZdZSH4WCYsGi4xFoSJ7LASLgIViEbHAzTNunnHzjJtn3Lzg5gU3L7h5wc0Lbl5w84KbF9y84OZl7W4P/kmIX46uzUwsVUQ4CSukCRVRTiInxkniZLl9nktq9ZUWnzkpmIjnRDgJnCgnkRPjJHHC6wuvL6v1q1MZPCfCSeBEOYmcGCdr9aU6+6HhJHNSMFHPiXCyWF8lziRYRZSTyIlxkjhpOMmcFEyWH+x+J7JCtLqUYuBEOYmcGCeJk7X6Wt0wMXOydvZrsvx0p1FnUv/DLL/d/Uweg93UD0P/+vL9Nfox/a+d+nY3dF/D423cf1u9/j/PK7M/T6d9d7hN3cdOn2uP7d8B",
   "file_map": {
     "50": {
       "source": "struct Foo {\n    x: u32,\n    y: [u32; 10],\n}\n\nfn main(\n    foos: call_data(0) [Foo; 2],\n    values: call_data(0) [[[u32; 2]; 2]; 3],\n    zero: u32,\n    one: u32,\n) -> pub u32 {\n    assert_eq(foos[zero].x + 1, foos[one].x);\n    assert_eq(foos[zero].y[3] + 2, foos[one].y[4]);\n    assert_eq(values[zero][one][zero], values[one][zero][one]);\n    foos[zero].x + foos[one].y[0]\n}\n",
@@ -107,5 +111,7 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
 }

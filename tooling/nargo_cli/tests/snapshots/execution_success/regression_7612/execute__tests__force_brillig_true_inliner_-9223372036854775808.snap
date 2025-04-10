@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "12091625883036440340",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -49,9 +49,9 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "16761564377371454734": {
+      "14225679739041873922": {
         "error_kind": "string",
-        "string": "Array index out of bounds"
+        "string": "Index out of bounds"
       },
       "17843811134343075018": {
         "error_kind": "string",
@@ -59,8 +59,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VXwW7bMAylHCupkgYpts8YMEhJOqeXoYe1wK7bLhuwg7Ek3+FP37SSzTMtpC1iCggkixTfI0VJjKOnVv37OR7XMEc8L2OCudzuuY+XtTSirWjF0RlwtOBZGfGkiSKtk6Lk1G/uA/eYVJMRnQ4Kd0z7u7htQsG/EflvAti0tF/b2I8ztvOl69snhStzD90plg9qjeg8gs4j6OQm/hjt99Y4Xusl9WNU8s3bYG+cwsN9QZngz8k0N5NTeMJHx6dS8ZnZ8Ili/8rIvvgbCv5i/GfK34VR/CUX58BH5+K1Dfb6tbko+HPF1SoXr2m4NxgfycWl6HQnPkHJ6m7oh8g8yGR/c959AP9QhnzwfpBcvaFhrghv43OTjM9Neuu5WfH3FGRBxTW8Ma64XuwuqfwWoQxrJXnLsu1PdBo3PDZ+25qgOI19v70v8Ees3GYd9eL+v4c5ORdyTq5QX8kCyOqujzPn7xpw0Jbw8Er/lr9X3E9hjay/KeBPFX6Pd2FOxyUU9ENBP+feRx4v+Jdz6Afo6Tcbc3BC5RyQFgpz99zHC5vgSW3lz3DxSvc7+P/ZnmvSXN0ZrqWY6vrRuM5fO4Vb0fm9Nr4Lnu9s3JtJITa6trOqu3Wt6WlYa5ZyU/S/cp/P2i/QxzXoo4O5Sun7F2IifFY03COv4mXxVkT+r6DPYymf3Bk+NB6f5BWfbwrX6k17p/xBrHwXyb20oFONUHfjc2l2T/8fcpN30FP/fJHC90r/J39jDS19fQHPY9Om46Y9trftfr/90+qYEcRsYYB/2N3t493x0KaU1vt4eAn/L1fHqZ/9FAAA",
-  "debug_symbols": "ldTbasQgEAbgd5lrLzzE6ORVSllMYhZBTDBJoYS8e7Us7RIWlrkRR/xwYOQ/YPT9fr+FNM0rdB8HxHlwW5hTqY6TQZ9DjOF+ez4GXhdtf++vi0u1XDeXN+iERgY+jWXXYvFTiB46zc9PBhqpopUvBaqHkFxehSKLhiz0S2HNn1BX0ZKFIQtLFkgVhpOFIAtJFoosGrIgz9y8m7nQV2HIwpIFUoXlZCFo4izVl8vB9dE/Ymfa0/CUQtv34i+BtOR58OOefY2m/1SqX6FRTKvSh6id24ZZrEVtCjlDWd4rb/4A",
+  "bytecode": "H4sIAAAAAAAA/7VX204CMRCdXbtguQSin2Fidrktj5gI8Ul90cTHFeQ79tO10glnh4ISOk1Ib9M5Z6an25LQrqQ/v8S3DYyRH+c2wZgrC1/nl5Uioq9ci2OiwFGDZ6rEk64EaSmKUFAfvra+RlFdRQzaCtyY/uf5pLSB+CLyH1vwqenf6PjP297PY930TwKXx5b1PpdLsYZtVmCzAhtXOB6l/Z4o52vUp2aOQrFlOtjjRODhvuAc43dIVZtFIvCYj8xPKvLT1uGTs/9rJf8crw3Ei/lvi3i7SvlnLXaAj9RiTwd79F8tMn5HcNXSYo8O9wbzw1rss02952PFnKkP4+C5DOZ4f53u7iA+nEM++H1grQ7pUCvMW/ncFMrnpjj33Ax8vwVzVuTVnplXXM9++xS+i3AO30p8lznfM9q3S99WvttKKzjF/r7dBvgjlivtmhp5/61hjM8Fn5NrtBdzFuZM3cTp+L4BHPTFPDJhP/X9ga9bsIbXDwP4LYHf4B0Yk3mxAXsbsHfau/ftrv85Db3yGlK9s0en7uzQOeCziO+pDGI6phf0i7nC+8IGxhZx4sxlHNkJLpmwffG126sHfa6F5Jqc4Hpqr7it/Z1IBK45wis9kt8nXzvdvx/Jr8bbWXJiziaQ5xAfisenkHp8FrhK5z+/EfEgltM7a79L+zvT1PG5lPOdjlzheyGj5v8GEviZsH/zfXxTcm0u4Lktq2I7rrbVtNpsJutK5syVFPIUG389nX2uJ9Mq/ypcd/QX/jdI4cNjDRQAAA==",
+  "debug_symbols": "ldPBCoQgEAbgd5mzB60061WWJawsBLEwW1iid19dWjaiy1zEET9GHP4Net2uY2PcMC1QPzawU6eCmVystp1A6421ZmzOx0DTItj3/jIrl8olKB+gZrwioF0fd6KKfjBWQ83p/iQgMrTgt6LKD5HR7CoEWpRoIdGiwoqSogVDi/t5yPInGL+KHC0KtOBoIdCixIk9Vi/ljWqtPoIxrK475SS8Z32JzOynTver1yk8/9ykLyxywvP4DpamLCmRPBVpgFIQKWO/2PMD",
   "file_map": {
     "50": {
       "source": "pub struct Data {\n    fields: [Field; 1],\n    counter: u32,\n}\n\nfn main(array: call_data(0) [Data; 1], x: bool) {\n    let index = if x { 0 } else { 1 };\n    if index != 0 {\n        assert(array[index - 1].counter < 3);\n    }\n}\n",

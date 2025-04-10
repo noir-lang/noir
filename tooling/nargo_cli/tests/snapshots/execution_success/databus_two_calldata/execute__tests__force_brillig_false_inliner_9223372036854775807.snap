@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "4306045364600934685",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -63,11 +63,15 @@ expression: artifact
       "5019202896831570965": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+1a207CQBCdtiiiiAqiICJ99LHbC2zf9MEPkVje/Sr/xe/wQ2RxGrdN5aVnEyfhJJuS2WY4s3N2Tyj16AfhdjzyZ287Ar52eM6OHTXEjhti3YbYSUOs1xA75VhgDWI+R/x9Hsd8a97GE1+jliBrXYB5lQSOF0iOATevwwm7LIgeN9zj4fN9h4biOV464LhD8H+VVyk6iZZpWqziQiXqNYrztc6iNFsvtdIq09lbrJOk0Kle5et8FeUqTQq1yfJkw8mugAton3gmb0hV1JvflvsQyN3wNqdwuZmHtWHg8z11gDiov9YpagcRGxmpQ7EW6gngOEI3SqI1SmjUtQOOO6CtEaioStFt7WVMbqzR5A1Jrp1IED+yd2LtxBfA8YYOdiKiUbcOOO6AthOgoipFt7WTCbmxE5M3JLl2IkH8yN6JPaUCARyn6EZJ3FGHRmHJOlsE5AMsVxzvHHBsJNrWX2eE9SSJgpoJ4HhPQgQ1xxGNpQpqLoDjAwkR1AJHNJEqqIUAjiE5EpQPJnoGFKcrn0fX3AfW7MqK0DWfA2t2dVqiax4Aaw6BNZsfVx36/aPY7EGjSdOjAa+DV5svUb4NUuYoX/2pvzlSh/3wuc/X8dfz9P3z48W+b7RnbrJnzuAbmmbPSDslAAA=",
-  "debug_symbols": "ldTRisMgEAXQf/E5DzqareZXlqWYxBRBTDDJQgn99yallpIGyn1zHI54HXBhravny9nHrh9Z9buw0Dd28n1cq4WdHlvjYONWjZNNE6sUlwVzsd1W5lawzgfHqpLf/gqmUWAOgaAMhN4BwWEhvlzqUxAs5JGQ2ryC871QsChh8YOOQ5zg19XwWxlUEEeTk0CTE6HJScI5FCzgmdPxzFWZRUl7cTxzybNQH0LDwqBCclgIWBAsJCwUJtaiTj4Efzm/f8Xr9r9N3tbBPctujs1bd7oOuZP9kPrGtXNy20mP3nr8HQ==",
+  "bytecode": "H4sIAAAAAAAA/+1b207bQBAdO2mBUCDlfmnBQKFQClrHCThvrdT+RN9KCS996lf1R9qXfkc/pCzMqMvi+GXPWhkpI1mTzNqjs3M545WShB7k4u76xJ+Tu6vFun13ZZ7tWYXteYVtpsI2W2Gbq7B12NZmTCk9lYT1B9YmTHKEr9sHuamAG+o7lw9uLJZYd/3EdTmArrQiBqwwl/3+6Ko3yov8q+kNr8uB6Q+uL8u8zAfl4KZXFsWo7JdXw+vhlRnm/WKU3w6GvVv2tRTuq2BfphspkX7BheJcwuXCtDi/kmPbOLZRnzu4U2fdFRSGcXEyYZKTAowvkRiVst43whdXJests16RgAjrWUPmAZhk1lsmHJusREokmvWWCct6luWkYewrh33FsK8UHcZur5Tv8wWFY1ysTJioYL7VCBjvBd24QIp+tOnQhlgDBtAlQ+s3o8eCbuZ1wjazfV2RZl73Lisp3+MLCEM+Lk4mTFQ0MrIOG32FSQg2+Ro7uG2w3pSASNdaQ+YBQDOhG7DQV5gNwrHJZqREollvA5cLo/VQltDkY9yiKaM1dijbZr0jARFGs4bMAzDJjLZNOKbYiZRINKNtE5bRNB62NDDaqwgY7wXdkEDqfbTp0EJ/DQygS3LWb0Z6Dygaih+Zu0bHeUqwKdDYAWWX9Z4ERCrdGjIPAJo93ICFjvNdwrHHXqREosf5LmHHucYDSkqTjzGjKaM1dkDZZ30gARFGs4bMAzDJjLZPOKY4iJRINKPtE5bRNB5QNDDaYQSM94JuyCzSpkML/Q0wgC7JWb92z1oPKBqKH5m7Rsd5i/SN8yPWxxIQqXRryDwAaPZwAxY6zo8Ixx7HpGOcH9F0nLdo8jG+RWLUOnqmicKCjRYE5K9RYmE8iYCxEmgoRZ8CN621oE4VYHxHSgrqDAe0p7WgzhRgfE9KCuocB7TQWlDnCjBeUKSCSsFA54HFGWvOo/f8ArjnWKMIvecF4J5jsSV6z4vAPSMb2h6u2vT/V9+2B21N2hwtchwSb11E/tohPuQPb/7fQHzpVHxOqbv45df33+593Zq1VdZrfz9u/fjz87O7tlPzXFazdljj86TmufOaNVPjczDmORkAs6znWHecdeChuCf+5+P4NzP0VNwamPfWpPfaFc8lY76nnq6717e7toWKNfG5wtrFK/v4B5zzQy3KPQAA",
+  "debug_symbols": "ldbbioMwEAbgd8m1F0lmoomvsizFQywBUfGwsEjffbXUUjSw/Hcm4QvK/DO4itqXy/0WuqafRP61iravijn03bZaRfbcmoai21fTXIyzyCkzifBdvT+5RyKa0HqRG/n4ToRFgUOBkrBQMcGSXoLlRWhYECwYFgYWKSyiFWelD6HsWVhYuH/e6iK0hEW05mTd+8vlWWhYECwYza42sEhhAXe5tmiutEMFSVjAfU5wnxOhaSdGs0sGFimaRIJrTvBoJ3i2MzzbGa45wzVneLYzPNsZnu2coknkDM0VW1g4NIkm3uecHcKos1Cw0LAgWMRrzuYt9FnEa07yEHwRKSwyWFhYOFSkEhYKFhoT26IcQ9uG++3zF3jb/inGUJStfy2bpas+Tuff4Tg5/DD2la+X0e83Pc+26/8A",
   "file_map": {
     "50": {
       "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
@@ -77,5 +81,7 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
 }

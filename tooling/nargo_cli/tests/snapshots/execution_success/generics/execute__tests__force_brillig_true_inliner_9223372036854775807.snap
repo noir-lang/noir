@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "16890757602039149127",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -28,9 +28,9 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       },
-      "16761564377371454734": {
+      "14225679739041873922": {
         "error_kind": "string",
-        "string": "Array index out of bounds"
+        "string": "Index out of bounds"
       },
       "17843811134343075018": {
         "error_kind": "string",
@@ -38,8 +38,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/71X0U6rQBAdWpDSlnsb/ZFdwJYmPtREX33RxMQ3lPIdfroh7ujpdEATdp2kWWB2zzkzszvQiD4tcr/eYjfO6Nx4zsGNZppZj1gmpM4okM6TJEc0bOx7cWMm1vf+uceAM8HrE7821TZT4vOov8wAMwB+wfhxGHyTOpy791N8Erw5nR5eXMM+3GP3zrdwfr7+564zgRei7qjJd96uFP3MtXKxPkA+MJfJyNpEzL0S+UoCxXMJuCS4tFp5bFRWq5VHfPUMecQvc5EvzCNzX4SpWxUJPqLT80uCf0lB95GNBB/rkfnhWnPuUkXrRvHJPZgqPKnCo2HNPGKN9cloYGQe+Yx55Lno7eBGM9E2NNyDtH4+NYbYfwx2Q+d1lHWIPcYQ6AwXGzrvTxd/w/3Ve9Mw+IbxF2Hwv76/8DvPC7Y1Jge9JPLU16OE5+hL6Lt/4NoF+HH+DjC37rr/hvhPw32GOZcir1otcf4KuOYj8SVi/o0b+xie3LWmT7731kLLwd2baVYyVw5650pO1iIenn8L8TwL/byGaPzdJTXgfIx7KfK1Al8u1qH2FeBqa2V/XoO+MSz08X2q4GjviKF1M0VfJnBmA3x435u2L7n//fZMMnf8/j3P1/7b1cZwTuYOPwFNaDH4cf6ju8ca8RhP0NntGtuVTddcN21bvTXyu743/J/im7+o6+2+eDXVrn3r2qr8a/5jvW/Nvjs21tqiNcef+D8AHNd8npkSAAA=",
-  "debug_symbols": "tdhta8IwEAfw75LXfXF5vvSrjDGqRimUVmodDPG7Lx2uligbnLk3QuT++RV6CeUuYhc358NH2++Hk6jfLqIbts3UDn1aXa6V2Ixt17WHj/XfAuYfaX/qT8emn5enqRknUWNQlYj9TtQBZMrv2y6K2sK1eiiVIG+lUoZ16XslpOPc3HNujpybh2ebS7xHEFSWUUDISEJGETKakDGEjCVkHCHjCRkkZAh9oAl9oAl9oAl9oJ/3gfd4z5h/jg2iX4oRc8BwA5YbcNyAfx0I4H6LA/gcQG4gMAMGuAFZAFDLSw7a5IDiBjQ3YJgBW+IduOWyC+4BsNxAgasioF6AADnguQHkBgIz4IAbeL1NFSx3kQKZd5FT3IDmBgw3YLkBxw14bgDLAkrnQGAGPJQA7B3IP7x8kZMMfwCKGyhxkjUugHE5YLgBywpc0+qzGdtm08XbYGV/7rerOcv0dYzZyOU4Dtu4O49xHr6s5i5zP6bnQp2eW869g6ZCl4zkfAM=",
+  "bytecode": "H4sIAAAAAAAA/71X226DMAw1LZRSSofWHwmXFvYwqZO2171s0qS9URjf0U+f2OLWuIZNIqmlKgE75/iSmNSBX3H0rxNXjzO4FrQ56FFNk8QglrLpp2PJz16SHRgW1H3qMWDrO/3cYMAB4zWJX6p8HwjxGfQ/CwimBfwU8V07+MrXOM+nPj4w3gj6h5euQR3dYy9at9R6nG/0PGB4NupOfTKdt63gP3KFOtZXkg+aS29krcdstyxfnqV47gkuMC6pVgYbVSLVyiC+eIYM4mcRyxfNI3Iv7NQtdxgfQP/8AuNfgdV9lDiMD/3h+cFaY+58wddY0PE96As8vsAjYc0MYo31SWdgRB7+Dnn4uejkoEc1UWIY7kFSP58ag2s+hiSG6zryOrgGY7B0htMYrvvT4jbc597r28FXiL+0g3++f/F7pOn8rOAiRrATpSKSD2B16Oqdk/dU58GlP9G1S6Kn9iXBLPS8u6PcwXAfQ86Q1U3aK9R+TbjmI/F5zP5Rj10M73ou+ecM8NGchCM5QfsnwvfBMPG+CjD+7UL7jWAfEZuQxbMmug1bR31fE1xpLe/PEfFvDIvq8NkXcKRvxNC6meDfiuHMBvjocyfSvsH+998zg/3APV3sTPWdolQKczLX+B7xiYpL9NT+TT+vSBw4uhP8bIsqabOqrXZV0+R1xe/1ndD/Kab507LcP6RHlRdN3TZ5dmv+erc/1vmuUl/Jjzt/8X8DkaKhI5kSAAA=",
+  "debug_symbols": "tdhta8IwEAfw75LXfXGXx0u/yhijapRCaaXWwRC/+9LhaomyQcy9ESL3z6/opS13EbuwOR8+2n4/nET9dhHdsG2mdujj6nKtxGZsu649fKy/FjB/oPmpPx2bfl6epmacRE1eViL0O1F7wJjft10QtYFr9VCKgLdSRL8ufa8EWs7NHefmxLm5f7Y50j1CIJOMhIwMZmRkRkZlZHRGxmRkbEbGZWQoI5PRByqjD1RGH6iMPlDP+8A5umf0P8eGyC3FRCmguQHDDVhuwL0OeLC/xR5cChA34JkBDdwAFgDk8id7pVNAcgOKG9DMgCnxE9nlZuftA2C5gRInmdQCeEgB4gY8M2CBG0BuQHIDihvQ3MDrz2QJy+1aAqYHzVpuwHEDVBaQKgU8M+CgBGDuQPpe5LAEAH8AkhtQBQBFC6BtCmhuwLAC17j6bMa22XThNvfYn/vtagwyfR1DMhE5jsM27M5jmGcjq7HI3I/xukjF68a5d0hXZKMRnW8=",
   "file_map": {
     "50": {
       "source": "struct Bar<T> {\n    one: Field,\n    two: Field,\n    other: T,\n}\n\nfn foo<T>(bar: Bar<T>) {\n    assert(bar.one == bar.two);\n}\n\nstruct BigInt<let N: u32> {\n    limbs: [u32; N],\n}\n\nimpl<let N: u32> BigInt<N> {\n    // `N` is in scope of all methods in the impl\n    fn first(first: BigInt<N>, second: BigInt<N>) -> Self {\n        assert(first.limbs != second.limbs);\n        first\n    }\n\n    fn second(first: BigInt<N>, second: Self) -> Self {\n        assert(first.limbs != second.limbs);\n        second\n    }\n}\n\nimpl Bar<Field> {\n    fn get_other(self) -> Field {\n        self.other\n    }\n}\n\nimpl<T> Bar<T> {\n    // This is to test that we can use turbofish on methods as well\n    fn zeroed<A>(_self: Self) -> A {\n        std::mem::zeroed()\n    }\n}\n\nfn main(x: Field, y: Field) {\n    let bar1: Bar<Field> = Bar { one: x, two: y, other: 0 };\n    let bar2 = Bar { one: x, two: y, other: [0] };\n\n    foo(bar1);\n    foo(bar2);\n    // Test generic impls\n    let int1 = BigInt { limbs: [1] };\n    let int2 = BigInt { limbs: [2] };\n    let BigInt { limbs } = int1.second(int2).first(int1);\n    assert(limbs == int2.limbs);\n    // Test impl exclusively for Bar<Field>\n    assert(bar1.get_other() == bar1.other);\n    // Expected type error\n    // assert(bar2.get_other() == bar2.other);\n    let one = x;\n    let two = y;\n    let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };\n    assert(nested_generics.other.other == bar1.get_other());\n\n    // Test turbofish operator\n    foo::<Field>(bar1);\n\n    // Test that turbofish works on methods and that it uses the generics on the methods\n    // While still handling the generic on the impl (T in this case) that is implicitly added\n    // to the method.\n    assert(bar1.zeroed::<u32>() == 0);\n\n    let _ = regression_2055([1, 2, 3]);\n}\n\nfn regression_2055<let LEN: u32>(bytes: [u8; LEN]) -> Field {\n    let mut f = 0;\n    let mut b = 1;\n    let mut len = LEN - 1; // FAILS\n    for i in 0..LEN {\n        let j = len - i;\n        f += (bytes[j] as Field) * b;\n        b *= 256;\n    }\n    f\n}\n",

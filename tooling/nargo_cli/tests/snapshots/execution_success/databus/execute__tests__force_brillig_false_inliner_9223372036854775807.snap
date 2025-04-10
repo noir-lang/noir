@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: artifact
 ---
 {
-  "noir_version": "",
-  "hash": "16853252840822632755",
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
   "abi": {
     "parameters": [
       {
@@ -52,14 +52,18 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VWbU7DMAx1vxjtGEigCSGBtCMkS7Km/4bEDpJt7X9usNtwF87BQVjAUU3IQIIUDUuVEzd5fn5NkyTwbtX+ucB2sn8y9NZmXiwJxNJALAvE8kCswBjtA8HNcF5BOFFL0S/Rs98Zp1iCLaRs63nLBTds3qy1YlKtF5prrrTazrUQrZa6btZNzRouRcs71YgOwUYReaUH6o+Ez4DoHlPP0T/geBqTY+6RpBabeBKROOVbOrLur7SBmVdMdrxfgZcQ7y+uIK7ITtMqoGns3ezkSHXIsFa36E5IPycxZ6HTwDe6gM/QT1/ubx6fn1b+mBn60tPdfZ9lJP1LL29MfM3kooTPGkTkL0qi/VD6OMwB8N9OYGsPux7frwWId+P8Ofb9BPobkD/G7l3n0LfdbWqCfkWw3Pwhtd2vDTWwtvwKDus5Rh2u/6BWhgchzQ/w8cYKgfz+XhMa7/AKb/wUva3xDtuTL+aPod9r8l18DWrdH+DZrudM9QAvf+GNv8V+RfgDqXv5Q55dbXgnTGeU2W7lxlx6+NZSolPs/FKZemNqzhvJW8nVd/lfAW9KyTsWDQAA",
-  "debug_symbols": "lZFdC4MgFIb/y7n2Qk9bVn9ljLCyEETDbDCi/z4dE/bRLrwRXw+PLzxng0F269QqM9oFmssG2vbCK2tC2qB8Pi2zMDEtXjgPDaOUgDRDvJ12AqPSEpoz3a8EeC5Q5QL1IVCwBBT8C2A0m2CHBPL/BOYRIXROaa2m9sM3jQc7tI4lvj7D8qeeZxNVNlHnEkjziD2km3BKdFpGG3G4mj7JCdHf5zRJ+mZnezmsTkaRbw5jNxYEq7RPrEnBQkfoeQA=",
+  "bytecode": "H4sIAAAAAAAA/9VYS27bMBClPo4ty06DBkFRoAV8BFIiLWqXAs0lupNtadNVb+Db9CLtJufIQWIhM9aYoRwgGgXJAMZQo+Hjm0eKohyIJ1scftfQDg6/CHxrKycWeGKhJxZ5YrEnNoFYTLBcQy634OUwUxxYzZNtPXSHYitsUC2m4GfuJM1AQGrRiILlcq11XWS1ylUls3JjjdRms7bKKmPNLrN5Xltti3JTFrJUOq9VY8qsAazpcKwcsORspIl0F9xQnlO+uZD0wUGuIcx5DPFAPLfw/a2Joz4JI6+wp34mfNm3RuQwU8kH4Djn5Bg7JKlxEw8YiVO+KZLFp7INrJxiuHdjxllQqeB7iheCV2TUdOHRlHs3u3inOkRQKy66C3Idkxia720gerRrLTnGri5//fv9n+Zdgb95+PH1z/3fO7f/6hlGxyESvDsj4nLjW6nXiTg1Zv55Ik6PtmPog5gj4Es8ev7cd/huLYJ4zHP7tPeXovuMcHPa09yl6NqfoL0Ef0ewsP+Y2h7WhhlZW3Ut+vVMQYcvb1CrhJckHV+I088+4Rnf3Yd8+Yg3cfJvwLc1fof28kz/VHR7Tbzn16Cw3cs92necqR7CGX/i5H+D6znhL0jdt6/k2RSVavKqqUy12+lt9dnBby0kOnGPr01VbKtCqVKrWivz0vgzaCcePRjXbJaQMUfAP+591OaknTr3UIPY0y/ouQ4dfy733GF56bmHmPj3DuWLdTwCCAr4TgcSAAA=",
+  "debug_symbols": "lZLLCsMgEEX/ZdYudGyev1JKMIkJgphgTKGE/Hs1VOgjXbjzOpy5cJgNetmuY6PMMC1QXzfQUyecmoxPGzB6/C2zMCEuTlgHNaOUgDR9eF12AoPSEuqM7jcCjCUTmEzwU4KzSPDim7gkE9kpgcV/Ik8jfGit0lqNzYdzeog/XYY5vpZh/lNfJBNlMlGlEkjTiN2nu7BKtFoGG2G4mi7K8dE95jiJ+mY7dbJfrQwi3xyGbuQEy3iXWBHOfIfveQI=",
   "file_map": {
     "50": {
       "source": "fn main(mut x: u32, y: call_data(0) u32, z: call_data(0) [u32; 4]) -> return_data u32 {\n    let a = z[x];\n    unsafe {\n        a + foo(y)\n    }\n}\n\n// Use an unconstrained function to force the compiler to avoid inlining\nunconstrained fn foo(x: u32) -> u32 {\n    x + 1\n}\n",
@@ -70,6 +74,7 @@ expression: artifact
     "main"
   ],
   "brillig_names": [
-    "foo"
+    "foo",
+    "directive_integer_quotient"
   ]
 }
