@@ -73,15 +73,16 @@ pub(super) fn inlining_attributes(
 
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
-    func: &FuncMeta,
     modifiers: &FunctionModifiers,
     crate_id: CrateId,
 ) -> Option<ResolverError> {
-    let is_low_level_function =
-        modifiers.attributes.function().is_some_and(|func| func.kind.is_low_level());
-    if !crate_id.is_stdlib() && is_low_level_function {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
+    if crate_id.is_stdlib() {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if attribute.kind.is_low_level() {
+        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { location: attribute.location })
     } else {
         None
     }
