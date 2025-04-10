@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744314767960,
+  "lastUpdate": 1744315100656,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "702cb9c2fe10b77b440c001596032d8a42867f16",
-          "message": "feat: SSA gen unit tests (#7868)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-04-02T18:53:49Z",
-          "tree_id": "70f16f72451fab9b390ba5b9fece6c94f8614083",
-          "url": "https://github.com/noir-lang/noir/commit/702cb9c2fe10b77b440c001596032d8a42867f16"
-        },
-        "date": 1743621937250,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 504.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 413.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 293.53,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/bdcfb66909c081c458f956559dc5980dbeb9155e"
         },
         "date": 1744313364819,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.96,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.63,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "01bc35d2a402096744a310a6ceeda129270bb1f5",
+          "message": "chore: bump external pinned commits (#8015)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
+          "timestamp": "2025-04-10T19:23:09Z",
+          "tree_id": "75179a9345fb763206a4c46078ead3f0692ab95a",
+          "url": "https://github.com/noir-lang/noir/commit/01bc35d2a402096744a310a6ceeda129270bb1f5"
+        },
+        "date": 1744315095857,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
