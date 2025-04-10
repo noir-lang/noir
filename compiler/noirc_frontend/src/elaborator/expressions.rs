@@ -404,12 +404,7 @@ impl Elaborator<'_> {
             let typ = self.interner.definition_type(id);
             if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
             {
-                let definition = self.interner.definition(id);
-
-                self.push_err(TypeCheckError::MutableCaptureWithoutRef {
-                    name,
-                    location: definition.location,
-                });
+                self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
             }
         }
     }
