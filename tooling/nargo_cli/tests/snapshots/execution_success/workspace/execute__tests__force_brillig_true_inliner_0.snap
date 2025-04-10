@@ -4,7 +4,7 @@ expression: artifact
 ---
 {
   "noir_version": "",
-  "hash": "11627470343021074974",
+  "hash": "6843422481416182266",
   "abi": {
     "parameters": [
       {
@@ -30,11 +30,11 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VUSw6CMBCdSolWoguNbvQQRVBYstCDNBLOwdFNw1SGWlzo9CWkJTN98+b1I2CAwM9C4riAT7icBkf9H3JGLh1Tp4ik8y2UzgXMG3/GUcF0k2w8YWxYBTRx8de6vKlAf4z6C0U4I/BfHL+Mw6+XyHPvp/zg1d3A9PLSNS5GL/IDYyuMu/kW58rji7HvVBO3b/uAflcrw16PxA/qa/plbcgXYNQtvHoyoI/WT738g6cz1rncef3TWhmM75Ls+etX9eCTRdKPPjh/KCSJ0/wT/q9n+mh+1NlVJu8K05mradvyaXyfLOg5fAEWXxueeQcAAA==",
-  "debug_symbols": "lZDPCsMgDIffJWcPrazr1lcZo1iNRRAV/wyG9N2nZQfpzUvIL3xJ4MsgcEv7qoy0AZZXBm05i8qakvJBYPNKa7Wv7RiGWsbp5INjpsYQmY+w3CYCaAQs01i2pdJ4tm8C472Tnzv5Ryf/7OPp0MMfJX2YV2zT+Fcpk+GN2fh1eJHsvOUoksequzFdP1NK6FzOltM/",
+  "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAztZEQn0YN40a8YgsKRg37IIuE7+HRDbKWbw4NsTUhL2r2+vjIEvE3gM5pEv4Jvo5oWvV5mRUAsHZOniMTzQ5THAuaFP6NXYC9pzCcBB1YeTqHwG13dlGe+gPxLxTAj4F8IX8bB12vEuQ82Pjh9d2BfXn6GcvwiPzC3wTzFe4yVgxdj75xTaN1yD3/qleGsR6YH1zX9cTZ1anNHr1jfwYHhgtMrg+k/IIfw/etGa+qbDJMOpAE3yfK8/oTv25k52j959rUp+tL05mq6rnoaV6fR+N5fXIrkqekGAAA=",
+  "debug_symbols": "lZDNCsMgEITfZc8eklDbklcJJZhkDYKo+FMo4rt3LT1Ibl6WneXbgZkMB27pXJWRNsC8ZNB2F1FZQyoXBptXWqtzbc8w1DHyHx+cMFWGKHyE+cYZoDlg5iN9S6WR1qG8GIz3Tv7RyT97+ELqLbwSm8Z/VJnM3iSPH4eXEpy3Ox7JY62jaYLmMg1s4mRL1l8=",
   "file_map": {
-    "51": {
-      "source": "fn main(x: Field, y: pub Field) {\n    assert(x != y);\n}\n",
+    "50": {
+      "source": "fn main(x: Field, y: pub Field) {\n    assert(x == y);\n}\n",
       "path": ""
     }
   },
