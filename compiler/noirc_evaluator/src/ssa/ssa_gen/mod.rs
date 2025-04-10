@@ -451,11 +451,14 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Slice(_) => {
-                self.codegen_access_check(index, length);
+                self.codegen_access_check(
+                    index,
+                    length.expect("ICE: a length must be supplied for checking index"),
+                );
             }
             Type::Array(_, len) => {
                 let len = self.builder.numeric_constant(*len as u128, NumericType::length_type());
-                self.codegen_access_check(index, Some(len));
+                self.codegen_access_check(index, len);
             }
             _ => unreachable!("must have array or slice but got {array_type}"),
         }
@@ -483,11 +486,10 @@ impl FunctionContext<'_> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
+    fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
-        let array_len = self
-            .make_array_index(length.expect("ICE: a length must be supplied for checking index"));
+        let array_len = self.make_array_index(length);
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, NumericType::bool());
@@ -999,10 +1001,10 @@ impl FunctionContext<'_> {
                         one,
                     );
 
-                    self.codegen_access_check(arguments[2], Some(len_plus_one));
+                    self.codegen_access_check(arguments[2], len_plus_one);
                 }
                 Intrinsic::SliceRemove => {
-                    self.codegen_access_check(arguments[2], Some(arguments[0]));
+                    self.codegen_access_check(arguments[2], arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
