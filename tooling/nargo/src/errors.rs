@@ -249,3 +249,36 @@ pub fn try_to_diagnose_runtime_error(
     let error = CustomDiagnostic::simple_error(message, String::new(), location);
     Some(error.with_call_stack(source_locations))
 }
+
+/// Map the given OpcodeResolutionError to the corresponding ExecutionError
+/// In case of resulting in an ExecutionError::AssertionFailedThis it propagates the payload
+pub fn execution_error_from<F: AcirField>(
+    error: OpcodeResolutionError<F>,
+    call_stack: &[ResolvedOpcodeLocation],
+) -> ExecutionError<F> {
+    let (assertion_payload, brillig_function_id) = match &error {
+        OpcodeResolutionError::BrilligFunctionFailed { payload, function_id, .. } => {
+            (payload.clone(), Some(*function_id))
+        }
+        OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => (payload.clone(), None),
+        _ => (None, None),
+    };
+
+    match assertion_payload {
+        Some(payload) => {
+            ExecutionError::AssertionFailed(payload, call_stack.to_owned(), brillig_function_id)
+        }
+        None => {
+            let call_stack = match &error {
+                OpcodeResolutionError::UnsatisfiedConstrain { .. }
+                | OpcodeResolutionError::IndexOutOfBounds { .. }
+                | OpcodeResolutionError::InvalidInputBitSize { .. }
+                | OpcodeResolutionError::BrilligFunctionFailed { .. } => {
+                    Some(call_stack.to_owned())
+                }
+                _ => None,
+            };
+            ExecutionError::SolvingError(error, call_stack)
+        }
+    }
+}

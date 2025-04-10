@@ -41,7 +41,8 @@ use crate::{
 };
 
 use super::{
-    Elaborator, FunctionContext, UnsafeBlockStatus, lints, path_resolution::PathResolutionItem,
+    Elaborator, FunctionContext, UnsafeBlockStatus, lints,
+    path_resolution::{PathResolutionItem, PathResolutionMode},
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -53,19 +54,40 @@ pub(super) struct TraitPathResolution {
 }
 
 impl Elaborator<'_> {
-    /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+        self.resolve_type_inner(typ, PathResolutionMode::MarkAsReferenced)
+    }
+
+    pub(crate) fn use_type(&mut self, typ: UnresolvedType) -> Type {
+        self.resolve_type_inner(typ, PathResolutionMode::MarkAsUsed)
+    }
+
+    /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
+    fn resolve_type_inner(&mut self, typ: UnresolvedType, mode: PathResolutionMode) -> Type {
         let location = typ.location;
-        let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
+        let resolved_type = self.resolve_type_with_kind_inner(typ, &Kind::Normal, mode);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
         resolved_type
     }
 
+    pub(crate) fn resolve_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
+        self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced)
+    }
+
+    pub(crate) fn use_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
+        self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsUsed)
+    }
+
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
+    fn resolve_type_with_kind_inner(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        mode: PathResolutionMode,
+    ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let location = typ.location;
@@ -83,12 +105,12 @@ impl Elaborator<'_> {
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, kind));
+                let elem = Box::new(self.resolve_type_with_kind_inner(*elem, kind, mode));
                 let size = self.convert_expression_type(size, &Kind::u32(), location);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, kind));
+                let elem = Box::new(self.resolve_type_with_kind_inner(*elem, kind, mode));
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr, kind, location),
@@ -100,7 +122,7 @@ impl Elaborator<'_> {
             }
             FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                let fields = self.resolve_type_inner(*fields, kind);
+                let fields = self.resolve_type_with_kind_inner(*fields, kind, mode);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Quoted(quoted) => {
@@ -119,18 +141,18 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
+            Named(path, args, _) => self.resolve_named_type(path, args, mode),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, mode),
 
-            Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, kind)))
-            }
+            Tuple(fields) => Type::Tuple(vecmap(fields, |field| {
+                self.resolve_type_with_kind_inner(field, kind, mode)
+            })),
             Function(args, ret, env, unconstrained) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
-                let ret = Box::new(self.resolve_type_inner(*ret, kind));
+                let args = vecmap(args, |arg| self.resolve_type_with_kind_inner(arg, kind, mode));
+                let ret = Box::new(self.resolve_type_with_kind_inner(*ret, kind, mode));
                 let env_location = env.location;
 
-                let env = Box::new(self.resolve_type_inner(*env, kind));
+                let env = Box::new(self.resolve_type_with_kind_inner(*env, kind, mode));
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
@@ -149,14 +171,21 @@ impl Elaborator<'_> {
                 if !mutable {
                     self.use_unstable_feature(UnstableFeature::Ownership, location);
                 }
-                Type::Reference(Box::new(self.resolve_type_inner(*element, kind)), mutable)
+                Type::Reference(
+                    Box::new(self.resolve_type_with_kind_inner(*element, kind, mode)),
+                    mutable,
+                )
             }
-            Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
+            Parenthesized(typ) => self.resolve_type_with_kind_inner(*typ, kind, mode),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
             AsTraitPath(path) => self.resolve_as_trait_path(*path),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
-                return self.resolve_type_inner(UnresolvedType { typ, location }, kind);
+                return self.resolve_type_with_kind_inner(
+                    UnresolvedType { typ, location },
+                    kind,
+                    mode,
+                );
             }
         };
 
@@ -216,9 +245,14 @@ impl Elaborator<'_> {
         None
     }
 
-    fn resolve_named_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
+    fn resolve_named_type(
+        &mut self,
+        path: Path,
+        args: GenericTypeArgs,
+        mode: PathResolutionMode,
+    ) -> Type {
         if args.is_empty() {
-            if let Some(typ) = self.lookup_generic_or_global_type(&path) {
+            if let Some(typ) = self.lookup_generic_or_global_type(&path, mode) {
                 return typ;
             }
         }
@@ -249,9 +283,9 @@ impl Elaborator<'_> {
 
         let location = path.location;
 
-        if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
+        if let Some(type_alias) = self.lookup_type_alias(path.clone(), mode) {
             let id = type_alias.borrow().id;
-            let (args, _) = self.resolve_type_args(args, id, location);
+            let (args, _) = self.resolve_type_args_inner(args, id, location, mode);
 
             if let Some(item) = self.current_item {
                 self.interner.add_type_alias_dependency(item, id);
@@ -269,7 +303,7 @@ impl Elaborator<'_> {
             return Type::Alias(type_alias, args);
         }
 
-        match self.lookup_datatype_or_error(path) {
+        match self.lookup_datatype_or_error(path, mode) {
             Some(data_type) => {
                 if self.resolving_ids.contains(&data_type.borrow().id) {
                     self.push_err(ResolverError::SelfReferentialType {
@@ -291,7 +325,8 @@ impl Elaborator<'_> {
                     });
                 }
 
-                let (args, _) = self.resolve_type_args(args, data_type.borrow(), location);
+                let (args, _) =
+                    self.resolve_type_args_inner(args, data_type.borrow(), location, mode);
 
                 if let Some(current_item) = self.current_item {
                     let dependency_id = data_type.borrow().id;
@@ -304,14 +339,19 @@ impl Elaborator<'_> {
         }
     }
 
-    fn resolve_trait_as_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
+    fn resolve_trait_as_type(
+        &mut self,
+        path: Path,
+        args: GenericTypeArgs,
+        mode: PathResolutionMode,
+    ) -> Type {
         // Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
         let location = path.location;
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
         if let Some(id) = trait_as_type_info {
-            let (ordered, named) = self.resolve_type_args(args, id, location);
+            let (ordered, named) = self.resolve_type_args_inner(args, id, location, mode);
             let name = self.interner.get_trait(id).name.to_string();
             let generics = TraitGenerics { ordered, named };
             Type::TraitAsType(id, Rc::new(name), generics)
@@ -328,24 +368,37 @@ impl Elaborator<'_> {
         item: TraitId,
         location: Location,
     ) -> (Vec<Type>, Vec<NamedType>) {
-        self.resolve_type_args_inner(args, item, location, false)
+        let mode = PathResolutionMode::MarkAsReferenced;
+        self.resolve_type_or_trait_args_inner(args, item, location, false, mode)
     }
 
-    pub(super) fn resolve_type_args(
+    pub(super) fn use_type_args(
         &mut self,
         args: GenericTypeArgs,
         item: impl Generic,
         location: Location,
     ) -> (Vec<Type>, Vec<NamedType>) {
-        self.resolve_type_args_inner(args, item, location, true)
+        let mode = PathResolutionMode::MarkAsUsed;
+        self.resolve_type_args_inner(args, item, location, mode)
     }
 
     pub(super) fn resolve_type_args_inner(
+        &mut self,
+        args: GenericTypeArgs,
+        item: impl Generic,
+        location: Location,
+        mode: PathResolutionMode,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        self.resolve_type_or_trait_args_inner(args, item, location, true, mode)
+    }
+
+    pub(super) fn resolve_type_or_trait_args_inner(
         &mut self,
         mut args: GenericTypeArgs,
         item: impl Generic,
         location: Location,
         allow_implicit_named_args: bool,
+        mode: PathResolutionMode,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let expected_kinds = item.generics(self.interner);
 
@@ -361,8 +414,9 @@ impl Elaborator<'_> {
         }
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
-        let ordered =
-            vecmap(ordered_args, |(generic, typ)| self.resolve_type_inner(typ, &generic.kind()));
+        let ordered = vecmap(ordered_args, |(generic, typ)| {
+            self.resolve_type_with_kind_inner(typ, &generic.kind(), mode)
+        });
 
         let mut associated = Vec::new();
 
@@ -372,6 +426,7 @@ impl Elaborator<'_> {
                 item,
                 location,
                 allow_implicit_named_args,
+                mode,
             );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
@@ -387,6 +442,7 @@ impl Elaborator<'_> {
         item: impl Generic,
         location: Location,
         allow_implicit_named_args: bool,
+        mode: PathResolutionMode,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
@@ -411,7 +467,7 @@ impl Elaborator<'_> {
             let expected = required_args.remove(index);
             seen_args.insert(name.to_string(), name.location());
 
-            let typ = self.resolve_type_inner(typ, &expected.kind());
+            let typ = self.resolve_type_with_kind_inner(typ, &expected.kind(), mode);
             resolved.push(NamedType { name, typ });
         }
 
@@ -433,7 +489,11 @@ impl Elaborator<'_> {
         resolved
     }
 
-    pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
+    fn lookup_generic_or_global_type(
+        &mut self,
+        path: &Path,
+        mode: PathResolutionMode,
+    ) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
@@ -445,7 +505,7 @@ impl Elaborator<'_> {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.resolve_path_or_error(path.clone()) {
+        match self.resolve_path_or_error_inner(path.clone(), mode) {
             Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
@@ -461,7 +521,7 @@ impl Elaborator<'_> {
 
                 let Some(stmt) = self.interner.get_global_let_statement(id) else {
                     if self.elaborate_global_if_unresolved(&id) {
-                        return self.lookup_generic_or_global_type(path);
+                        return self.lookup_generic_or_global_type(path, mode);
                     } else {
                         let path = path.clone();
                         self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -514,7 +574,8 @@ impl Elaborator<'_> {
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                let typ = self.resolve_named_type(path, GenericTypeArgs::default());
+                let mode = PathResolutionMode::MarkAsReferenced;
+                let typ = self.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 self.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, _span) => {
@@ -579,9 +640,8 @@ impl Elaborator<'_> {
             return Type::Error;
         };
 
-        let (ordered, named) =
-            self.resolve_type_args(path.trait_generics.clone(), trait_id, location);
-        let object_type = self.resolve_type(path.typ.clone());
+        let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
+        let object_type = self.use_type(path.typ.clone());
 
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
             Ok(impl_kind) => self.get_associated_type_from_trait_impl(path, impl_kind),
@@ -657,7 +717,7 @@ impl Elaborator<'_> {
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
-        let path_resolution = self.resolve_path(path.clone()).ok()?;
+        let path_resolution = self.use_path(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
         let the_trait = self.interner.get_trait(meta.trait_id?);
@@ -714,7 +774,7 @@ impl Elaborator<'_> {
         let last_segment = path.pop();
         let before_last_segment = path.last_segment();
 
-        let path_resolution = self.resolve_path(path).ok()?;
+        let path_resolution = self.use_path(path).ok()?;
         let PathResolutionItem::Type(type_id) = path_resolution.item else {
             return None;
         };
@@ -850,7 +910,7 @@ impl Elaborator<'_> {
             UnresolvedTypeData::Unspecified => {
                 self.interner.next_type_variable_with_kind(Kind::Any)
             }
-            _ => self.resolve_type(typ),
+            _ => self.use_type(typ),
         }
     }
 
