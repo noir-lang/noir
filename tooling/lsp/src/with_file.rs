@@ -18,7 +18,8 @@ use noirc_frontend::{
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
-        Attributes, FmtStrFragment, LocatedToken, MetaAttribute, SecondaryAttribute, Token, Tokens,
+        Attributes, FmtStrFragment, LocatedToken, MetaAttribute, MetaAttributeName,
+        SecondaryAttribute, Token, Tokens,
     },
 };
 
@@ -594,8 +595,12 @@ fn secondary_attribute_with_file(
 }
 
 fn meta_attribute_with_file(meta_attribute: MetaAttribute, file: FileId) -> MetaAttribute {
+    let name = match meta_attribute.name {
+        MetaAttributeName::Path(path) => MetaAttributeName::Path(path_with_file(path, file)),
+        MetaAttributeName::Resolved(expr_id) => MetaAttributeName::Resolved(expr_id),
+    };
     MetaAttribute {
-        name: path_with_file(meta_attribute.name, file),
+        name,
         arguments: expressions_with_file(meta_attribute.arguments, file),
         location: location_with_file(meta_attribute.location, file),
     }

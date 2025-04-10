@@ -1377,8 +1377,8 @@ impl Elaborator<'_> {
             },
         };
 
-        let typ = self.resolve_type(constraint.typ.clone());
-        let Some(trait_bound) = self.resolve_trait_bound(&constraint.trait_bound) else {
+        let typ = self.use_type(constraint.typ.clone());
+        let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
