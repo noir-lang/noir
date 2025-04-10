@@ -299,20 +299,25 @@ mod tests {
 
         let _ = fs::remove_dir_all(target_dir);
 
-        let name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-        let name =
-            format!("{}_{}_force_brillig_{}_inliner_{}", prefix, name, force_brillig.0, inliner.0);
-        insta::assert_json_snapshot!(name, artifact, {
-            ".noir_version" => "",
-            ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
-                // Some paths are absolute: clear those out.
-                let value = value.as_str().expect("Expected a string value in a path entry");
-                if value.starts_with("/") {
-                    String::new()
-                } else {
-                    value.to_string()
-                }
-            }),
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/{prefix}/{test_name}")
+            },
+            {
+            insta::assert_json_snapshot!(snapshot_name, artifact, {
+                ".noir_version" => "",
+                ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
+                    // Some paths are absolute: clear those out.
+                    let value = value.as_str().expect("Expected a string value in a path entry");
+                    if value.starts_with("/") {
+                        String::new()
+                    } else {
+                        value.to_string()
+                    }
+                }),
+            })
         })
     }
 
