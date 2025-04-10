@@ -11,7 +11,7 @@ use noirc_frontend::{
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
         ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
-        GlobalId, Ident, Index, InlineType, LValue, Literal, LocalId, Parameters, Type,
+        GlobalId, Ident, Index, InlineType, LValue, Literal, LocalId, Parameters, Program, Type,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -141,11 +141,24 @@ impl<'a> FunctionContext<'a> {
                 .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
+        // Collect all the functions we can call from this one.
         let call_targets = ctx
             .function_declarations
             .iter()
-            .skip(1) // Can't call `main`.
-            .map(|(id, decl)| (*id, types::types_produced(&decl.return_type)))
+            .filter_map(|(callee_id, decl)| {
+                // We can't call `main`.
+                if *callee_id == Program::main_id() {
+                    return None;
+                }
+                // From an ACIR function we can call any Brillig function,
+                // but we avoid creating infinite recursive ACIR calls by
+                // only calling functions with higher IDs than ours,
+                // otherwise the inliner could get stuck.
+                if !decl.unconstrained && *callee_id <= id {
+                    return None;
+                }
+                Some((*callee_id, types::types_produced(&decl.return_type)))
+            })
             .collect();
 
         Self { ctx, id, next_local_id, budget, globals, locals, call_targets }
