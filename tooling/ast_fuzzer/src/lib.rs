@@ -29,6 +29,8 @@ pub struct Config {
     pub max_array_size: usize,
     /// Maximum size of for loop ranges, which affects unrolling in ACIR.
     pub max_range_size: usize,
+    /// Maximum call depth for recursive calls.
+    pub max_call_depth: usize,
     /// Frequency of expressions that produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements that don't produce a value.
@@ -64,6 +66,7 @@ impl Default for Config {
             max_tuple_size: 5,
             max_array_size: 4,
             max_range_size: 10,
+            max_call_depth: 10,
             expr_freqs,
             stmt_freqs,
         }

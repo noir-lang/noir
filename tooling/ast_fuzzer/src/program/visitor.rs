@@ -31,8 +31,8 @@ where
                 visit_expr_mut(expr, &mut visit);
             }
         },
-        Expression::Block(expressions) => {
-            for expr in expressions.iter_mut() {
+        Expression::Block(exprs) => {
+            for expr in exprs.iter_mut() {
                 visit_expr_mut(expr, &mut visit);
             }
         }
@@ -77,12 +77,12 @@ where
                 visit_expr_mut(case, &mut visit);
             }
         }
-        Expression::Tuple(expressions) => {
-            for expr in expressions.iter_mut() {
+        Expression::Tuple(exprs) => {
+            for expr in exprs.iter_mut() {
                 visit_expr_mut(expr, &mut visit);
             }
         }
-        Expression::ExtractTupleField(expression, _) => {
+        Expression::ExtractTupleField(expr, _) => {
             visit_expr_mut(expr, &mut visit);
         }
         Expression::Call(call) => {
@@ -152,12 +152,12 @@ where
         Expression::Ident(_) => {}
         Expression::Literal(literal) => match literal {
             Literal::Array(array_literal) => {
-                for expr in array_literal.contents.iter() {
+                for expr in &array_literal.contents {
                     visit_expr(expr, &mut visit);
                 }
             }
             Literal::Slice(array_literal) => {
-                for expr in array_literal.contents.iter() {
+                for expr in &array_literal.contents {
                     visit_expr(expr, &mut visit);
                 }
             }
@@ -166,8 +166,8 @@ where
                 visit_expr(expr, &mut visit);
             }
         },
-        Expression::Block(expressions) => {
-            for expr in expressions.iter() {
+        Expression::Block(exprs) => {
+            for expr in exprs {
                 visit_expr(expr, &mut visit);
             }
         }
@@ -205,24 +205,24 @@ where
             }
         }
         Expression::Match(match_) => {
-            for case in match_.cases.iter() {
+            for case in &match_.cases {
                 visit_expr(&case.branch, &mut visit);
             }
             if let Some(ref case) = match_.default_case {
                 visit_expr(case, &mut visit);
             }
         }
-        Expression::Tuple(expressions) => {
-            for expr in expressions.iter() {
+        Expression::Tuple(exprs) => {
+            for expr in exprs {
                 visit_expr(expr, &mut visit);
             }
         }
-        Expression::ExtractTupleField(expression, _) => {
+        Expression::ExtractTupleField(expr, _) => {
             visit_expr(expr, &mut visit);
         }
         Expression::Call(call) => {
             visit_expr(&call.func, &mut visit);
-            for arg in call.arguments.iter() {
+            for arg in &call.arguments {
                 visit_expr(arg, &mut visit);
             }
         }

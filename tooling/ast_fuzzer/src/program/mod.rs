@@ -18,6 +18,7 @@ use crate::Config;
 mod expr;
 pub(crate) mod freq;
 mod func;
+mod rewrite;
 mod scope;
 mod types;
 mod visitor;
@@ -28,6 +29,7 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
     ctx.gen_globals(u)?;
     ctx.gen_function_decls(u)?;
     ctx.gen_functions(u)?;
+    ctx.rewrite_functions(u)?;
     let program = ctx.finalize();
     Ok(program)
 }
@@ -188,21 +190,8 @@ impl Context {
     }
 
     /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
-    fn rewrite_recursive(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        // Collect recursive functions, ie. the ones which call other functions.
-        let callers = self
-            .functions
-            .iter_mut()
-            .filter_map(|(id, func)| expr::has_call(&mut func.body).then_some(*id))
-            .collect::<Vec<_>>();
-
-        // If `main` is recursive, initialize a depth variable in it with the maximum value.
-        // If a non-main function is recursive:
-        //  * add a depth parameter to it
-        //  * return random value if it's 0
-        //  * decrement it and carry on with the rest of the program if not
-        // Rewrite all calls to pass the depth variable
-        todo!()
+    fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
+        rewrite::add_recursion_depth(self, u)
     }
 
     /// Return the generated [Program].

@@ -10,8 +10,8 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
-        If, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Type,
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
+        GlobalId, Ident, Index, InlineType, LValue, Literal, LocalId, Parameters, Type,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -23,6 +23,7 @@ use super::{
     make_name,
     scope::{Scope, ScopeStack, Variable},
     types,
+    visitor::visit_expr,
 };
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
@@ -46,22 +47,7 @@ impl FunctionDeclaration {
             .params
             .iter()
             .zip(self.param_visibilities.iter())
-            .map(|((_id, mutable, _name, typ), vis)| {
-                // The pattern doesn't seem to be used in `ssa::create_program`,
-                // apart from its location, so it shouldn't matter what we put into it.
-                let mut pat = HirPattern::Identifier(HirIdent {
-                    location: Location::dummy(),
-                    id: DefinitionId::dummy_id(),
-                    impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
-                });
-                if *mutable {
-                    pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
-                }
-
-                let typ = types::to_hir_type(typ);
-
-                (pat, typ, *vis)
-            })
+            .map(|((_id, mutable, _name, typ), vis)| hir_param(*mutable, typ, *vis))
             .collect();
 
         let return_type =
@@ -69,6 +55,28 @@ impl FunctionDeclaration {
 
         (param_types, return_type)
     }
+}
+
+/// HIR representation of a function parameter.
+pub(crate) fn hir_param(
+    mutable: bool,
+    typ: &Type,
+    vis: Visibility,
+) -> (HirPattern, hir_def::types::Type, Visibility) {
+    // The pattern doesn't seem to be used in `ssa::create_program`,
+    // apart from its location, so it shouldn't matter what we put into it.
+    let mut pat = HirPattern::Identifier(HirIdent {
+        location: Location::dummy(),
+        id: DefinitionId::dummy_id(),
+        impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
+    });
+    if mutable {
+        pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
+    }
+
+    let typ = types::to_hir_type(typ);
+
+    (pat, typ, vis)
 }
 
 /// Control what kind of expressions we can generate, depending on the surrounding context.
@@ -601,7 +609,7 @@ impl<'a> FunctionContext<'a> {
         // Add the variable so we can use it in subsequent expressions.
         self.locals.add(id, mutable, name.clone(), typ.clone());
 
-        Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
+        Ok(expr::let_var(id, mutable, name, expr))
     }
 
     /// Drop a local variable, if we have anything to drop.
@@ -696,12 +704,7 @@ impl<'a> FunctionContext<'a> {
             Some(expr)
         };
 
-        Ok(Expression::If(If {
-            condition: Box::new(condition),
-            consequence: Box::new(consequence),
-            alternative: alternative.map(Box::new),
-            typ: typ.clone(),
-        }))
+        Ok(expr::if_then(condition, consequence, alternative, typ.clone()))
     }
 
     /// Generate a `for` loop.
@@ -811,4 +814,16 @@ impl<'a> FunctionContext<'a> {
         // Derive the final result from the call, e.g. by casting, or accessing a member.
         self.gen_expr_from_source(u, call_expr, &callee.return_type, typ, self.max_depth())
     }
+}
+
+/// Find the next local ID we can use to add variables to a [Function] during mutations.
+pub(crate) fn next_local_id(func: &Function) -> u32 {
+    let mut next = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
+    visit_expr(&func.body, |expr| {
+        if let Expression::Let(let_) = expr {
+            next = next.max(let_.id.0 + 1);
+        };
+        true
+    });
+    next
 }
