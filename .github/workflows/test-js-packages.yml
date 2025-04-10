@@ -593,7 +593,7 @@ jobs:
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
 
       - name: Upload test report
-        if: ${{ matrix.timeout > 10 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
+        if: ${{ matrix.timeout > 20 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.test_report_name.outputs.test_report_name }}
