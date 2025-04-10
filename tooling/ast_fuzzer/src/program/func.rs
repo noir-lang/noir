@@ -801,7 +801,7 @@ fn test_loop() {
     assert!(
         loop_code.starts_with(
             &r#"{
-    let mut idx_a$0 = 0;
+    let mut idx_a$l0 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
