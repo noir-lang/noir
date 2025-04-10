@@ -193,7 +193,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
             "Preprocessing Functions",
         )
-        .run_pass_if(!debug, |ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
+        .run_pass_if(
+            !debug,
+            |ssa| ssa.inline_functions(options.inliner_aggressiveness),
+            "Inlining (1st)",
+        )
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
         .run_pass_if(!debug, Ssa::simplify_cfg, "Simplifying (1st)")
@@ -228,7 +232,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass_if(!debug, Ssa::remove_if_else, "Remove IfElse")
         .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
         .run_pass_if(!debug, Ssa::fold_constants, "Constant Folding")
-        .run_pass_if(!debug, Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained")
+        .run_pass_if(
+            !debug,
+            Ssa::flatten_basic_conditionals,
+            "Simplify conditionals for unconstrained",
+        )
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass_if(!debug, Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal")
@@ -240,8 +248,16 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
         .run_pass_if(!debug, Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
         // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        .run_pass_if(!debug, Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
-        .run_pass_if(!debug, Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck")
+        .run_pass_if(
+            !debug,
+            Ssa::remove_unreachable_functions,
+            "Removing Unreachable Functions (3rd)",
+        )
+        .run_pass_if(
+            !debug,
+            Ssa::remove_truncate_after_range_check,
+            "Removing Truncate after RangeCheck",
+        )
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
@@ -548,11 +564,7 @@ impl SsaBuilder {
     where
         F: FnOnce(Ssa) -> Ssa,
     {
-        if cond {
-            self.run_pass(pass, msg)
-        } else {
-            self
-        }
+        if cond { self.run_pass(pass, msg) } else { self }
     }
 
     /// The same as `run_pass` but for passes that may fail
@@ -560,11 +572,7 @@ impl SsaBuilder {
     where
         F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
     {
-        if cond {
-            self.try_run_pass(pass, msg)
-        } else {
-            Ok(self)
-        }
+        if cond { self.try_run_pass(pass, msg) } else { Ok(self) }
     }
 
     fn print(mut self, msg: &str) -> Self {
