@@ -146,7 +146,7 @@ libraries:
     critical: false
   tdd:
     repo: teddav/tdd.nr
-    ref: 03b5c2b02b6f7ffdc8735e0ae104abc26b073541
+    ref: 4bebfb361f2e5175d23376645310eecca96749a5
     timeout: 20
     critical: false
 
