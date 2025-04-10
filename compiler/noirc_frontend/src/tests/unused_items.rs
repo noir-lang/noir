@@ -332,12 +332,13 @@ fn considers_struct_as_constructed_if_trait_method_is_called() {
 #[test]
 fn considers_struct_as_constructed_if_mentioned_in_let_type() {
     let src = "
-    struct Bar {}
+    pub struct Bar {}
 
-    pub fn main() {
-        let array = [];
+    pub fn foo(array: [Bar; 1]) {
         let _: Bar = array[0];
     }
+
+    fn main() {}
     ";
     assert_no_errors!(src);
 }
@@ -346,16 +347,13 @@ fn considers_struct_as_constructed_if_mentioned_in_let_type() {
 #[test]
 fn considers_struct_as_constructed_if_mentioned_in_return_type() {
     let src = "
-    struct Bar {}
+    pub struct Bar {}
 
-    fn main() {
-        let _ = foo();
-    }
-
-    fn foo() -> Bar {
-        let array = [];
+    pub fn foo(array: [Bar; 1]) -> Bar {
         array[0]
     }
+
+    fn main() {}
     ";
     assert_no_errors!(src);
 }
