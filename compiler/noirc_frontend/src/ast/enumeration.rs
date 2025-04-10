@@ -21,7 +21,7 @@ pub struct NoirEnumeration {
 
 impl NoirEnumeration {
     pub fn is_abi(&self) -> bool {
-        self.attributes.iter().any(|attr| attr.is_abi())
+        self.attributes.iter().any(|attr| attr.kind.is_abi())
     }
 }
 
