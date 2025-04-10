@@ -4,11 +4,11 @@ use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::ParserErrorReason;
 use crate::parser::labels::ParsingRuleLabel;
+use crate::token::SecondaryAttribute;
 use crate::token::{
     Attribute, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
     SecondaryAttributeKind, TestScope, Token,
 };
-use crate::token::{CustomAttribute, SecondaryAttribute};
 
 use super::Parser;
 use super::parse_many::without_separator;
@@ -126,7 +126,7 @@ impl Parser<'_> {
         }
 
         let location = self.location_since(start_location);
-        let kind = SecondaryAttributeKind::Tag(CustomAttribute { contents });
+        let kind = SecondaryAttributeKind::Tag(contents);
         let attr = SecondaryAttribute { kind, location };
         Attribute::Secondary(attr)
     }
@@ -513,24 +513,24 @@ mod tests {
     fn parses_inner_attribute_as_tag() {
         let src = "#!['hello]";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let SecondaryAttributeKind::Tag(custom) = parser.parse_inner_attribute().unwrap().kind
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
         else {
             panic!("Expected inner tag attribute");
         };
         expect_no_errors(&parser.errors);
-        assert_eq!(custom.contents, "hello");
+        assert_eq!(contents, "hello");
     }
 
     #[test]
     fn parses_inner_attribute_as_tag_with_nested_brackets() {
         let src = "#!['hello[1]]";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let SecondaryAttributeKind::Tag(custom) = parser.parse_inner_attribute().unwrap().kind
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
         else {
             panic!("Expected inner tag attribute");
         };
         expect_no_errors(&parser.errors);
-        assert_eq!(custom.contents, "hello[1]");
+        assert_eq!(contents, "hello[1]");
     }
 
     #[test]

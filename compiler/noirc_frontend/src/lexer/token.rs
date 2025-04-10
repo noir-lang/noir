@@ -1014,7 +1014,7 @@ pub enum SecondaryAttributeKind {
     Field(String),
 
     /// A custom tag attribute: `#['foo]`
-    Tag(CustomAttribute),
+    Tag(String),
 
     /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
@@ -1042,7 +1042,11 @@ impl SecondaryAttributeKind {
             }
             SecondaryAttributeKind::Export => Some("export".to_string()),
             SecondaryAttributeKind::Field(_) => Some("field".to_string()),
-            SecondaryAttributeKind::Tag(custom) => custom.name(),
+            SecondaryAttributeKind::Tag(contents) => {
+                let mut lexer = Lexer::new_with_dummy_file(contents);
+                let token = lexer.next()?.ok()?;
+                if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
+            }
             SecondaryAttributeKind::Meta(meta) => Some(meta.name.last_name().to_string()),
             SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
             SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
@@ -1068,7 +1072,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Deprecated(Some(note)) => {
                 format!("deprecated({note:?})")
             }
-            SecondaryAttributeKind::Tag(attribute) => format!("'{}", attribute.contents),
+            SecondaryAttributeKind::Tag(contents) => format!("'{}", contents),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
             SecondaryAttributeKind::ContractLibraryMethod => "contract_library_method".to_string(),
             SecondaryAttributeKind::Export => "export".to_string(),
@@ -1108,19 +1112,6 @@ impl Display for MetaAttribute {
                 self.arguments.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
             write!(f, "{}({})", self.name, args)
         }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub struct CustomAttribute {
-    pub contents: String,
-}
-
-impl CustomAttribute {
-    fn name(&self) -> Option<String> {
-        let mut lexer = Lexer::new_with_dummy_file(&self.contents);
-        let token = lexer.next()?.ok()?;
-        if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
     }
 }
 
