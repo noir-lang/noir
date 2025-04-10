@@ -816,8 +816,13 @@ version = "1.0.0-beta.4"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "criterion",
  "num-bigint",
  "num-traits",
+ "pprof",
+ "proptest",
+ "proptest-derive",
+ "rand",
  "thiserror",
 ]
 
