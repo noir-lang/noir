@@ -301,6 +301,7 @@ pub(crate) fn assign_to_ident(ident: Ident, expression: Expression) -> Expressio
 }
 
 /// Append statements to a given block.
+#[allow(dead_code)]
 pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Expression {
     let Expression::Block(mut block_stmts) = block else {
         unreachable!("attempted to append statements to a non-block expression: {}", block)
@@ -312,6 +313,7 @@ pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Ex
 }
 
 /// Prepend statements to a given block.
+#[allow(dead_code)]
 pub(crate) fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expression {
     let Expression::Block(block_stmts) = block else {
         unreachable!("attempted to prepend statements to a non-block expression: {}", block)

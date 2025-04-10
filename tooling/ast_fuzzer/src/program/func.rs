@@ -757,10 +757,7 @@ impl<'a> FunctionContext<'a> {
         })];
 
         // Get the randomized loop body
-        let inner_block = self.gen_block(u, &Type::Unit)?;
-        let Expression::Block(mut inner_stmts) = inner_block else {
-            unreachable!("generated a non-block expression: {}", inner_block)
-        };
+        let mut inner_stmts = vec![self.gen_block(u, &Type::Unit)?];
 
         // Increment the index
         inner_stmts.push(expr::assign_to_ident(
@@ -775,7 +772,7 @@ impl<'a> FunctionContext<'a> {
                 BinaryOp::Equal,
                 expr::u32_literal(self.ctx.config.max_loop_size as u32),
             ),
-            Expression::Block(vec![Expression::Break]),
+            Expression::Break,
             Expression::Block(inner_stmts),
             Type::Unit,
         )]);
