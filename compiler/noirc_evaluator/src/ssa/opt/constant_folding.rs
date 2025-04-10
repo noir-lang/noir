@@ -256,7 +256,13 @@ impl<'brillig> Context<'brillig> {
         // resolved version of that value id from the simplification cache's internal value mapping.
         let mut terminator = function.dfg[block_id].take_terminator();
         terminator.map_values_mut(|value| {
-            Self::resolve_cache(block_id, &mut function.dfg, dom, self.get_constraint_map(side_effects_enabled_var), value)
+            Self::resolve_cache(
+                block_id,
+                &function.dfg,
+                dom,
+                self.get_constraint_map(side_effects_enabled_var),
+                value,
+            )
         });
         function.dfg[block_id].set_terminator(terminator);
 
