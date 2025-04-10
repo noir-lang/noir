@@ -542,7 +542,7 @@ impl DependencyContext {
                         self.update_children(&arguments, &results);
                     }
                     // These instructions won't affect the dependency graph
-                    Instruction::Allocate { .. }
+                    Instruction::Allocate
                     | Instruction::DecrementRc { .. }
                     | Instruction::IncrementRc { .. }
                     | Instruction::MakeArray { .. }
@@ -855,7 +855,7 @@ impl Context {
                         }
                     }
                 }
-                Instruction::Allocate { .. }
+                Instruction::Allocate
                 | Instruction::DecrementRc { .. }
                 | Instruction::EnableSideEffectsIf { .. }
                 | Instruction::IncrementRc { .. }
