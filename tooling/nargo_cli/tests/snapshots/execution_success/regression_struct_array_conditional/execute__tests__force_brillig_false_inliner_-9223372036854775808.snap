@@ -1,0 +1,90 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "4274198528641234480",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "struct",
+            "path": "foo",
+            "fields": [
+              {
+                "name": "value",
+                "type": {
+                  "kind": "field"
+                }
+              },
+              {
+                "name": "counter",
+                "type": {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 8
+                }
+              },
+              {
+                "name": "dummy",
+                "type": {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 8
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 8
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/+1bbVMaQQwOHLa8qPgCLdo3WmvFWnWXAz2+Of0nMsL//wkl46aky0E78oR6M2ZmZ4+9Jfdskk2y4SjRI13P2s9wXZq1JPTcqtFYOWeskjO2lTP2OmesGloSnl+jOcnzkvAM5vlK8Ynx8ne70Vg9jGkqh/4u9G49SmuKV+puBoPJbX/iU3/v+qNxNnSD4fgm85kfZsOHfpamk2yQ3Y7Go1s38oN04qfDUToNzLZxuHyZ8gnE32k9Afn67QJg3EFirEQgNaGB14HANd5dS8C7BnybhNu1VutuKgGD+LoKzT2rtbHVCL+TCS0T75yWxV7o90UgEkr4Rica40nVCFRiKMSnGupkyuT8HuGMfp+wyrUII7yB4nC/7rqRjuOAXsL9QQEwHhI43C/zwODc1O8DjRUmBL85b94KfVusQjx3i+aHHBnjSbE3rxREIetGhhYQVxtsKPFuRnjwFoENb0aJsicmjtycxu2oZ1mkWE0DGb0ByqVM+WcbFH8r2SJlYIXxLf2nyLSugQHPBggheLkgvKH+5q3l2gn9kViFeA85Y+gxntSNQFUKopAn4uoHXL4DXOMR2FAsIlOHbIsdbk0iRej1HxM2GvOGkyIKXx+HJti31JiUmatqTMrNMaHX/Q637tQS53sczoElzg84nENLnB9xODNLnJ9wOEeWOLs4nPeWOD/jcD5Y4vyCwzmxxHmCwznlOMCtHvhxHGD/zL6P/QrvWd4P3VljPbKMTlasza1HqZzwwKWhPrKO+RWHy8lPvjGh+BvpySNlYIXxFI3RIlE9JbyD+AY2UNmMRTJQpAysMJ4hMRa10A4TwgYL7b3Qn4tVSOmiR4vlDJ5UpEL7GYCXFNp7QFznYEOxKGf0CGx47vFoz/aCOtonYf5Lyvfvuv1O2Ii6RYuE4m+kJ4+UgRXGCypAyndBeOfzA2ygEqCKZKBIGVhhvCTjlA9tWAy4aSAI2AtVG0z7rkJ/LYKWFO+KFtM+nqRf3EYqhRVySfi37xBppKR+V8D1XtPzT/3EOID6+MOw0T9Jl4B20wCuWf5kwdRQ6//bHyTk/RM9P+YhMqxFfVt9JwHKRfi3bPi7vF/r2uq6Fa1TO7M7EAbhJ74oL7UtR/dkbjXCV8Lj8xRRkvMsocPQ6/el2kuw1hUfoE77wr9hwz/XZvS+aUT3RHd5GWFpyedy1K+au+p/IDs594Sn6ErjlXX8Arf5RyXtNQAA",
+  "debug_symbols": "ldbLaoQwGIbhe8l6Fjn8OXkrpQweh4CoeCgUmXuvDipDmlK+nb/hCZp3oSur6mJ53EPX9BPLPlbW9mU+h77bppX5161pyLt9muZ8nFkmnbyxuqv2K/O8sSa0Ncs0f37emOCwEClhvDmE5TIWEhYKFpQSVrlTkI6FhoWBhYWFSwq6hP715h4Vkv/zVIbHQsBCwkLBgmCRbu7UKZyNhYGFhUW6uXV/C48KxWEhYCFhkWzuNB3CaRcLgoWGhYGFhYWDhUcFcVgIWEhYwM0Jbk5wc4KbE9yc4OaUbk6XMPHXWXNYCFhIWChYJJt7cQov4rPSGhYGFhYWDhYeFSbZ3PNLyPh0jYCFhIWCBWFiG4oxtG143N9/grfbX/kY8qKtj7FZuvJtdf4ezpXTD2Nf1tUy1vtOr7Vt+x8=",
+  "file_map": {
+    "50": {
+      "source": "struct foo {\n    value: Field,\n    counter: u8,\n    dummy: u8,\n}\nstruct bar {\n    dummy: [u8; 3],\n    value: Field,\n    counter: u8,\n}\nstruct bar_field {\n    dummy: [Field; 3],\n    value: Field,\n    counter: u8,\n}\nfn main(x: [foo; 3], y: u32, z: u32) -> pub u8 {\n    let a = [y, z, x[y].counter as u32];\n    let mut b = [bar { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    let mut c = [bar_field { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    for i in 0..3 {\n        b[i].value = x[i].value;\n        b[i].counter = x[i].counter;\n        b[i].dummy[0] = x[i].dummy;\n        c[i].value = x[i].value;\n        c[i].counter = x[i].counter;\n        c[i].dummy[0] = x[i].dummy as Field;\n    }\n    if z == 0 {\n        // offset\n        assert(y as u8 < x[y].counter);\n        assert(y <= a[y]);\n        // first element is compatible\n        assert(y as u8 < b[y].counter);\n        // fallback\n        assert(y as u8 < c[y].counter);\n    }\n    x[0].counter\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert",
+    "directive_integer_quotient"
+  ]
+}

@@ -1,0 +1,56 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "9377008657181771658",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "zZxtS+NcEIb/Sz73wzlzXuaMf+VhWarWpVCqVH1gEf/7pmKiJKHL0L3D/UWM5L68cDLT1HOat+5+d/v66+f++PD43N3899YdHu+2L/vHY3/09r7pbk/7w2H/6+f3H3fh/CWmj/Ofn7bH8+Hzy/b00t1EsU23O97336XQ5x/2h113U8L7j00XsztR3InqTqg70dwJ8yYkuBPRnRB3wl1zcddc3DUXd83FXXNx11zcNU/umid3zZO75sld8+SueXLXPC3XPNchUfV7YjM7NUv4PDVnuXxqE/08tUmbeiiJRyPxMA6PvOb1MVJb1qnHmn8PHU5tLU48SiDxiCQeQuKRVvSo43XaZOqRSTwKiUcl8VASj0biYRwedc15agPVwnR+1BXnh0kZPHKaelQSDyXxaCQexuGhgcQjkngIiQfJ/NBM4kEyx/TqOdZGD7PLp8ZQ24ANOn0npW1FkxhkwMY4fc1VYzFpgcYkrmoSv0xsaiI0JonGJK9pkvNoksvUpNCYVBoTpTFpNCbGYmKBxiTSmAiNSaIxoZmxRjNjjWbGGs2MNZoZazQzNgaaIdvfR/Go0IzZGFads+1LxWymknlUCo9K5VFRHpXGo2I0KnHVaVvKqNLCTCXyqAiPSuJRyTwqhUel8qgoj0rjUTEaFeGZtsIzbWXNaSvjYkiUHGcqiUcl86gUHpVGo5LW7CApaVSZ7fyICdZBH/QEpWcovUDpFUpXKL1B6Yak58XXUYnDupfMFiVjjv6I+CPJH8n+SPFHqj+i/kjzR8wdKf7qF3/1i7/6xV/94q9+8Ve/+Ktf/NVf3pDZv3IOEf1Lz9c4bCuoMc3ohqQvb578Z/QIpQuUnqD0DKUXKL1C6QqlQ3u1QntVob2q0F5VaK8qtFcV2qsK7VWF9qpCe1Wv7tXx3y+11BndkPQWoPQIpQuUnqD0DKUXKL1C6QqlQ3u1QXvVoL1q0F41aK8atFcN2qsG7VWD9qohe1XC1de7Dk8DqLNVDQlXXzM2nKohz+i+a+YjUvyR6o+oP9L8EXNHYvBHoj+yPIdsuL1Ls49LyvIK/+VI/ltkdrEvr5hfjlR/RP2Rxeqnceklic0i5o4sr7x+i6RZiy2vkF6OiD+S/JGCnFty7UTXMDwDQ2OZ0RVKb1C6IekpQOkRShcoPUHp1959aRw+qqhpNqlTgdIrlK5QeoPSDUnPAUr/h726QBcoPUHpGUq/+nX10h17rlC6QukNSjckvQQoPULpAqVD36GWDKVDe7VAe7VAe7Wuucf04g45qavukKtfKm2uIjwqiUcl86isusf00m5KqZVHRXlUGo+K0aho4FGh2Y8sKjwqiUcl86jwTFvlmbZKMm3f+6P/t6f99vaw+3zo/cPr8e7bM/Bffj/tJo/Dfzo93u3uX0+784Pxv56Jf55PYm2Tov04f/T0fNhbSivnw/hxWPvD1v/W/jf/AQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main() {\n    let numerator =\n        [790096867046896348, 1063071665130103641, 602707730209562162, 996751591622961462, 28650, 0];\n    unsafe { __udiv_mod(numerator) };\n\n    let denominator = [12, 0, 0, 0, 0, 0];\n    let result = unsafe { __validate_gt_remainder(denominator) };\n    assert(result[4] == 0);\n    assert(result[5] == 0);\n}\n\nunconstrained fn __udiv_mod(remainder_u60: [u64; 6]) {\n    let bit_difference = get_msb(remainder_u60);\n    let accumulator_u60: [u64; 6] = shl(bit_difference);\n}\n\nunconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {\n    let mut addend_u60: [u64; 6] = [0; 6];\n    let mut result_u60: [u64; 6] = [0; 6];\n\n    for i in 0..6 {\n        result_u60[i] = a_u60[i] + addend_u60[i];\n    }\n\n    result_u60\n}\n\nunconstrained fn get_msb(val: [u64; 6]) -> u32 {\n    let mut count = 0;\n    for i in 0..6 {\n        let v = val[(6 - 1) - i];\n        if (v > 0) {\n            count = 60 * ((6 - 1) - i);\n            break;\n        }\n    }\n    count\n}\n\nunconstrained fn shl(shift: u32) -> [u64; 6] {\n    let num_shifted_limbs = shift / 60;\n    let limb_shift = (shift % 60) as u8;\n\n    let mut result = [0; 6];\n    result[num_shifted_limbs] = (1 << limb_shift);\n\n    for i in 1..(6 - num_shifted_limbs) {\n        result[i + num_shifted_limbs] = 0;\n    }\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

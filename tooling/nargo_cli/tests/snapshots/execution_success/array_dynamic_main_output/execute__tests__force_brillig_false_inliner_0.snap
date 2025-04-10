@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "17278240474320724468",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 10,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 10,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9Wa207CQBRFD4g38C6KiAiICI8znZZO3/wVieX/P8GZ0MQmYGLSfR72SU5KQjJZu7PaTidtya5WoafV76Pq2JXfaoVuV/91Qh+HPgl9Gvos9LnsV6s6flZHZ9ZpWuZJaZ39Mkmx8ZlJs83aW28zn30n3rnSpz4vNkVuCpu60m6zwm3Nrh5qY5mG1ZbDBRrf/nUOTLOyXeA50GJEzpMoTxTHSVBifFRgPAja9MofAEOzCjUgYHwSEqGGONCEVaghAeOzkAg1woE6VqFGBIwvQiLUGAeasgo1JmB8FRKhJjjQjFWoCQHjVEiEmuFA16xCzQgY34REqDkONGcVak7A+C4kQi1woJ5VqAUB44eQCLXEgRasQi0JGFeiJFQbDNoDyqm1m4vOfAHMrLXhiM58CcystSeGznwFzKy1bYPOfA3MrLWzgM58A8w8Jcl8C8ys9X6GznwHzKz1CoHOfA/MrLXKRWfuAzMjF2JxkdipxurV8v/n05T6pyzd2hhxLRKfzfFZFe/d8V4Wr+3oepz7vuzXD1jH6OQzIwAA",
+  "debug_symbols": "lY3LCsMgEEX/ZdYu2tAH+CulBB9jGBCVUQtF8u8xIYFsszz3zNzbwKKu00jBxQzy08BHowrF0KnBfYtyUmGlXBQXkK+HAAwW5HuYBTjyCPJ5m78ChivnHTST9zSN580e/xST0h53dDWYky3/dJjjP3E0aCvj2rS5Xr8A",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

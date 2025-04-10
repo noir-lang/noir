@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "1993192227204761286",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/+2WSwqDMBCGY9TWx6ZHmTGJJrtepdJ4/yO0PgrBVihkZhHaDyS4Gb6Z/AzJxEr7/C7inWw7r9upoNfaD51HhTfo3GgNaDP2Fi0aa+6dVcpbbQc3ugEcauVxMk5NsJIFtSAO5PSUdJ4dp2dO56nyrU4euMrgn7OPgq6PZSYv95nioAe56wHiQMp5lAS1/LTgZXBfIUR9w1EmIA4sE3A8UTpK8ZmfGgKT45nBcYF6i4TDjN0iFaFXquGsEnCsRSLhrAjD2fzDiU0Cjq1gCifnio8NJ6dnLcjedhOnZ0vn6We3Yuf5DQ+TqoHvoA4AAA==",
+  "debug_symbols": "ldNBDoMgEAXQu8zahaBS9CpNY1DRkBAwiE0a492LRhvbspkdfyZvNj8s0MlmHmplejtBdV9A21Z4ZU1IC6T7aBqF2dLkhfNQkYwlIE0XXjlfE+iVllAV6fpIgGABxYIMC3IsKLCAYcENCzgWlOji8FWjuyboskm8bUZOwfNfEa+75Ieg9E9E+6bZR7BvEULjlNZqqK9/JYyfwinRaHnEfjbtZetf47k5/ehsK7vZye3Svgvn3w==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    // x = 3\n    let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];\n\n    let fetched_value = array[x - 3];\n    assert(fetched_value[0].0 == 1);\n    assert(fetched_value[0].1[0] == 2);\n    assert(fetched_value[0].2[0] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

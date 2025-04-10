@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "10155361008979798332",
+  "abi": {
+    "parameters": [
+      {
+        "name": "value",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VWwVLCMBBNJSEtiDD6I8UicNAZHOXozdFzR4bvyKdLJGtft0lFTTQznbTZzXtvN5s0mTi2zD22SdefiW4jn43ry9+1eUSsMqXOLJHOVpIzEW5ke3V9weZb+yBiwAXjjYm/LhfLwhNfRP1VAZgJ8K8JX6bBL7XDeTRtfMF4aWxrmlxu2ZyJaG9wxCUb1iHNzw/PhWjep+69YHgpagM1xc7tlUc/cY1drCsW6wDyE0sHr6GI2HPCHqbJ4Wf952nwK1ofDbkZeGIifqpjBf5ZoCcsbiOuEcOKfbb2xYb6qSZnzJ/nIISlv4lVeGwp1nTYEzfyT3q0zgJaY+VEgoaP+aaxkVZbe3dMK+5l6eb8Z17x/6RPyA/WVV9+aN+k/BdgbOqL2Ih/Krr/DvU3WhenrgPXirWPc9FX9MTFbSoQZygHIl4OyozxyYD2jGkl/yXTmep+dcniR66xaO7X0sTnX62PebKNzhUl2ncMwfgV879136NAHJsf6tyv6vm+qvf1Tb3bLd5qnifb8K5Ed0JlGjuelbYN3beEGNEf6xb97+n78Dy4dzqPpenyWb8XN0brl4OWmPcfik2jDqYH+acef3pPrLXq06o9Wn05zgI9YuGYNu2xwnT9MU+acY/Qn9nGYJOM59x9Y60hFulQzP/ZfdM65TCH5s88/LhmnMvHj2cgxxp4xsjf1vYT4blemgYr5v0U95Hd4+9VDSQMJRIAAA==",
+  "debug_symbols": "lZXNaoQwFEbfJWsXyc0kRl+llMGfOARClKiFIr57kyLt4AjDtxGvnEPUs7gb6227Pu4uDOPM6o+N+bFrFjeGNG17wdrovHeP+/NjxvNF6F9+npqQx3lp4sJqzQtmQ59uRLIH5y2rFd8/CyZKkDcgX2E8cZAXIE8gL0H+BvIK5MG+BPYlsC+BfSXYV4J9JdhXgn3ldV9z8GV15hXIa5AvQd6AfIXxNw7yl32Ji0Mgbs4GwYaEjcvKJP4M8WIo2NCwUb75jlfDvDFIno0KNRSHDQEbBBsSM/Y0fTXRNa23x5Id1tA97dzle7Kn9TvFsbP9Gm1exP87OL+sFoXRef/lv6NUoXk6Ih3zAw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(value: Field, index: u32) {\n    let mut args = &[0, 1];\n    args[index] = value;\n    // Safety: n/a\n    unsafe { store(args) };\n    // Dummy test to remove the 'underconstraint bug'\n    assert(args[0] + args[1] != 0);\n}\n\npub unconstrained fn store(_: [Field]) {}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "16448363505892834135",
+  "abi": {
+    "parameters": [
+      {
+        "name": "input",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "16761564377371454734": {
+        "error_kind": "string",
+        "string": "Array index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYwW7TQBAdx+s46yhqBEckbsB1nTrUvXGgrYQEF46c3MQ5gITEH/jTicVO+jxeu7T1VKola9bet29m3u7OOono3xUf78i3jbcRWH5Hou+Tt+5pVz4hl9OKMXoBMc5eQIyxQoydhctBt2LENHxxYn+8td7OoH/CYHMr/E7JX7qitIH8Joz/3IKuCvyFBU4Ffpd6ns/NHb/MhcAyTo6JAXMFmKsBzDVgrgcwN4C5ERjWRWndaOterKirNUEu7Nvo+N5Gwh+JPEn4z0h1jecR9Q/UmPr6cHvFmOYunkj0maafB/clTTeP9loc7zeAk2trBrj30P7g28rrsVSuM+71SM78Lm3odJ3qArxjXVnnBeJFn4U+03T9ZP7ZgB/k4jgSgX/nn8+8ncMYHr8O+J8L/524A++kLjaAtwH8/Hi/9e2lv9s1VPMYUq05uXJd2TB/osN/OmvnOvynmr9Q5s+U9OH9i988cSAn9s91LgV8NGCZS/axr0xwaZ0Rodwwft5ra4GXGgxx2Qdy2UCfxpwuRvJG/6uRWNcDsU6liZmQK5mQi+vFivrfGQ9Z7yE/ZsRPMqEf1IPn3ZLqnnOhekjT8efyGxhzabX8Au+xL6H+9yHqnwj8N+D86tvt2XsW0I/nk/vG1mR2TzypiIfx371tdf3l26z1EsZr1BGOgai/j6R/fEY8nl8zoVca4FI+9woZ69B84Hwh/oe37Xz8FvmH9Art08fqNaY9jzM0XvPl+rr1VnlNuVfAO5RDGtAj9P/C/9YCztk00+d0UTrHufDvlYTC/5cZ6Ef8T/+Mc87WPCHOw0WVH86rQ7Wt9vtiV0ntCbRbKvjfbT/e7opt5eq8fdw8t/+6vNy7y0Nd5Xm+2bv6Pv9/ATb7YLfFFwAA",
+  "debug_symbols": "lZbLioQwEEX/JWsX5lEV078yDI2P2ARExcfAIP77JI3DNI7Q3I145R4iObWoTTS+Wh/30LfDLG4fm+iGulzC0Me07ZmoptB14XF//Szy9DD5sz+PZZ/ivJTTIm7MmfB9E19spNvQeXGjfP/MhJFgX4F9DfYN2Cewz2Dfgv0C7DusT6BfAv0S6JdAvwT6JdAvgX4J9EugXwL9MuiXQb8M+mXQL4N+GfTLoF8G/TLol0G/9vJ+pDMHIB2diQImHEoUl1OnpD4IpdSZkDChYELDhIEJggmGicsZVOp3SJQ2Z6KACYcSLocJCRMKJjRMvHP+nyCYYJiwMFFgxB7TVzmFsur8sRa2a1+/bInL9+hPC+M4DbVv1smn1fFva0yXrmymbfwPmeZC5jKTOacon9HG6OKZ8dwf",
+  "file_map": {
+    "50": {
+      "source": "fn main(input: [u32; 4]) {\n    let mut slice1: [u32] = &[1, 2, 3, 4];\n    if slice1[0] == 3 {\n        slice1[1] = 4;\n    }\n\n    if slice1[1] == 5 {\n        slice1[3] = 6;\n    }\n\n    for i in 0..4 {\n        assert(slice1[i] == input[i]);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

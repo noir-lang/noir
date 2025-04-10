@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "13814878034568404723",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VXS3KDMAy1AdOQTKaZfg7Qme7aBcYQzC6L9iCkgXNw9MatFITqblp7Ec0w/sh+ejzJTpDi2/Lzo6CfQZuInyahPUBb/s90QKwyJk8ZkKckHFHjFHVPmfgXh/AnJIaA15Dk0BxVSI7XmqiQVR6LYy7i3BiXkxeKaEKwTLmv66GtBm10X1bd0TZl3Rz3Vlvd2OZUWWMGW9u2O3Zt2enaDHpsOjMCmAqIFVJAl1zf7SQ9fZ+/grZgayTk4xAoFwWLGxLflrUtxNIC8zcFwYyAXyF+Fge/vAGct2mJL1jcLYxp/eAe9NE6egff6vw8iLn/SLD5ntQTA/0xdT7XyT6yztUW33Ga8ROirbNsWsamPkV8GdHziekT45xSfWLV+f0v/J1t4F1fiSbUj+upDpHyaCSLJ5gmPEfruLppyeIhH65PwrRTHq47j0+yvvLEUZ44PizOgd/5zjZk/mZaxvpqyRyeCTwjK7qe+Qriy6Y5rrM1jDMSh2IhD8XWv8D4Ftqc7MH9O0/8nMVf8PbM0TPBsVLPHK53/yeeoe90xd/CbJrxQtVia+fPJ9ReiWUNChZfsfUaxmv2vlijhz/yHNtej6Yf+6Y/neqP/o7hU82cTp8zVVrNew8AAA==",
+  "debug_symbols": "pZPNDoMgDMffpWcOjsI+fJVlWVDRkBA0qEsW47sPlpE59dLsxp/215a2TFDpYmzuxtVtD/l1AtuWajCtC2qC7H3Vd8pF1Q/KD5AfshMD7apw4nJmUBurIZfZfGNwoAJ8F0CZAIlLgG1cOT9+XDmKVWz8Nzamurn4rTuIwhtrTXNf92sCvvumRaFi0wQkE4JMSDJxJBMnMnEmExcqgRmNmIN6KG9UYXWcajSOrkxDDnJ4dsmS1qDzbamr0eu4EN9diINFZALj34h1CMHEJaQIaV4=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "create_notes"
+  ]
+}

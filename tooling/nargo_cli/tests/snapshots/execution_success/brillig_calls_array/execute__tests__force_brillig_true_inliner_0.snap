@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "",
+  "hash": "9282935796322463473",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VZMW/TUBC+59huHVQ1gg2JDQY2u3bqZisioR2YmJiQTEp/ArMnFlhgY2LiDyAh8fOI6bvm8uX87LR+VD0pei9+57v7vry7d3YMXUmw+hg7D+1oxDiiTeG1Uzumt5NsQFuprxjNPYgx8BDjPxnBjx9QuzCoP3ZM7BiI9dGAoBPwO6T9k7SYJQq+AePPE+DUl/2RH/vpnrXzql7bRywkRtbDe0ZC50zonLXonAudc9BhzJ72xLFnTvMD2s4zxsK+Qz++CwP+CHAS+B+T1/2bGfDH8SA/PD9gnXodj4G1sN7GwWtRvYmjkf3V57HQw70VCL1nYv7czj3vx5nnGpI+cmDma3s1Xct1zotrzCvzvC/1YS0Ra2G96Wdsv4fCj7TFcUSg/9R+P7RjLO7h+yeK/xj8b8StXENeEkU/UfTj1eeJnT+g9bn5sl7b83Fuzv3YP2L7Cz/284ajJse+MKfktSYXnPeyDrHwWiR8a3WURWuoZa35JuyiHvqU+439H9I2F6zn+fxIDcTCear5JFo/fEQKDrJzea0UPP0S90ibJHzKa8zBhNr7FIxf2pLnDeelxjXug7jD1hxsyfvjHrZcvrk/i1v02V4E+i/s2PD8G2x2cbMAPK74AsWWxNz2u8Qt+gHgYf0zBY/nmjFz5YK29zDm1xBn7CfO9KGwS6TvOy23jLiG+eDKrZGDD2krAv03wEf0H/mIWjC08TGvh+Nj3sLH23vEx2IHPkwHHwvgg/XfAR++nnk1PtgXPh9IPc99eu9nN/Y/hlgHjidz1XgZYwDcaX3LhLb3meyNb3L++7bleR9Ose+UwmtYx4k2uZcYpci4b9OTsv9DJQbsSX3lq+scxtpDtHtP+lHwhD0p5mLb3td6UgPzXXtSV7323ZO6fGs9qVHsY09a23GIntQVX1dP2va77NqTflLw+HxXtJJjVy5oew9j/gxx3kVPKt+PhPXw/suTq5rRCL+bimi7Rkr/Eeh/td/HCo7wFnFellV2mVeX1bS6uCiWFfLUSCB4ku9IXGebvP8mvby0pdUkI7A3ElO/ZyHW/25HLffDDjzzuh1P2MOWC0/UgScEPKz/w4En6sCzcODBWmYGxtNWF34qePr8j+HpmaV3L3z9npj0vXg6TDxZ33MKe+FYiXVCeu3luVyTfmLFj2YrHNCWATySe1mnhq6TVZmfLI+KZfl+mlf5cWedHNp/Ma3KZVVm2azIPhTZtMv/X+xSwOuNIQAA",
+  "debug_symbols": "zZrfiuowEIffpde9yCSZTOKrHA6Lf+pSEJWqBw7iu5/2YFWSUgntuHOzbJf8Pr92nFnBuRabanX5/qr328OpWPy6FrvDenmuD/v26nori1VT73b199frnwvV/bD6//nTcbnvLk/nZXMuFuCxLKr9pv0thDa/rXdVsUB1K5OjJoT7Uavo9ejvsrCGE2454cgJd5xw4oR7TnhghKPihAMnnLNDkbNDkbNDkbNDkbNDcWqHWjA9HBK454RP7VCrVQ/XNoI7xQmH+R5LCteccMMJt5xwnFxQ6uEGYrjjhM/YoSncc8IDI5wUJ/xNh2oVv79IZydMdsJmJzA7MfhW1vBIGBp/rM7a+1FnfQwnTrifD44mhgdGuFeccOCE66lw1w8+R3ETesMJtzPCXQxHTrjjhBMnfHKHhv5DlQvx4PKBER7UjPAQw4ETrjnhhhM+tUPp8Q+erBo/6k0/47yNZ1xAIR5OiAcJ8fBCPIIMD1BKighIEdFSRIwUESFDFdQHpyranoqYijgpIiRFxEsRCUJEQEkRASkiWoqIkSJipYhImawgZbKClMkKUiYrSJms+pOTFfuvwdClIiBF5JOT1blehFQiYqSI2B8pzYAIShFxUkRIisgnJyuZhwglIkGIiPmZyTogAlJEtBQRI0VkzsmKCR1Z6Y6VTqx0z0kfXrozqo+YZAkIhlfpxiPhTQTir9xgeO1tPAL5EZ0fGWxIA89IcvvD62TjEXwT0amYy49QfsTnR4arr5+R5PaHV6rGI/AmkixuwPD603jE5EdsfgTzIy4/QvkRnx8J2RFS+ZH86lN+9Sm/+pRffcqs/q29+rNs6uVqV93X5reX/fpli/7891hFC/XH5rCuNpem6lbrn1v13Q1qVxrXiXRlAKtKsNhddo8YPJTgTfua7ev+Aw==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls passing arrays around\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 9);\n        another_entry_point(x);\n    }\n}\n\nunconstrained fn inner(x: [u32; 3]) -> [u32; 3] {\n    [x[0] + 1, x[1] + 1, x[2] + 1]\n}\n\nunconstrained fn entry_point(x: [u32; 3]) -> u32 {\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn nested_fn_that_allocates(value: u32) -> u32 {\n    let x = [value, value, value];\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn another_entry_point(x: [u32; 3]) {\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n    assert(nested_fn_that_allocates(1) == 6);\n    // x should be unchanged\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
