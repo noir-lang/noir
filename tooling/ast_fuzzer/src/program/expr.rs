@@ -287,7 +287,8 @@ pub(crate) fn has_call(expr: &Expression) -> bool {
             has_call = true;
             false
         }
-        _ => has_call,
+        // Once we know there is a call, we can stop visiting more nodes.
+        _ => !has_call,
     });
     has_call
 }
