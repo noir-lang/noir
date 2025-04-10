@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744316439192,
+  "lastUpdate": 1744329566718,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19353,6 +19353,44 @@ window.BENCHMARK_DATA = {
             "name": "test_report_noir-lang_sha512_",
             "value": 29,
             "unit": "s"
+          }
+        ]
+      }
+    ],
+    "ACVM Benchmarks": [
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7fb652c888402f5283ed8ac560a95f02dc2513b8",
+          "message": "chore: add benchmark for ACVM arithmetic solver (#8003)",
+          "timestamp": "2025-04-10T23:42:06Z",
+          "tree_id": "4482b6c97c017d1430182a44d2bd6c18eee4c96f",
+          "url": "https://github.com/noir-lang/noir/commit/7fb652c888402f5283ed8ac560a95f02dc2513b8"
+        },
+        "date": 1744329562038,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3610447,
+            "range": "± 17320",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "purely_sequential_opcodes #2",
+            "value": 3580014,
+            "range": "± 58614",
+            "unit": "ns/iter"
           }
         ]
       }
