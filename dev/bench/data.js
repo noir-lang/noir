@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744311549332,
+  "lastUpdate": 1744312049608,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,70 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "f6b39b1c70930a96f8652a569f92bc5a4fad586e",
-          "message": "feat(parser): improve error recovery when `fn` is missing between mod… (#7884)",
-          "timestamp": "2025-04-02T15:33:01Z",
-          "tree_id": "a9236c4f5b5ff2e1b56e8ce282a49eb73c447734",
-          "url": "https://github.com/noir-lang/noir/commit/f6b39b1c70930a96f8652a569f92bc5a4fad586e"
-        },
-        "date": 1743609643335,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 504.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 413.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 293.53,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "ebb5015b27bc3ad5ef6128d3f74721d6ea4a60b4",
           "message": "feat(parser): better error recovery when identifier doesn't come in constructor (#7887)",
           "timestamp": "2025-04-02T18:17:50Z",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/12fccebbea6d9a6937b83f9badf86c450920acce"
         },
         "date": 1744308574546,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 245.96,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.63,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "18e15380677f46da808d637042481295190c47ae",
+          "message": "chore: improve checking of github urls in `noir_wasm` (#8012)",
+          "timestamp": "2025-04-10T18:36:50Z",
+          "tree_id": "6fc1efb09b6a5e82d3f1cb7c3c19f703a8139c28",
+          "url": "https://github.com/noir-lang/noir/commit/18e15380677f46da808d637042481295190c47ae"
+        },
+        "date": 1744312044874,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
