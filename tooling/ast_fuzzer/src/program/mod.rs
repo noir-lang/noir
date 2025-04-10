@@ -18,7 +18,6 @@ use crate::Config;
 mod expr;
 pub(crate) mod freq;
 mod func;
-mod rewrite;
 mod scope;
 mod types;
 mod visitor;
@@ -194,11 +193,7 @@ impl Context {
         let callers = self
             .functions
             .iter_mut()
-            .filter_map(|(id, func)| {
-                let mut has_call = rewrite::HasCall::default();
-                visitor::visit_expr(&mut has_call, &mut func.body);
-                has_call.0.then_some(*id)
-            })
+            .filter_map(|(id, func)| expr::has_call(&mut func.body).then_some(*id))
             .collect::<Vec<_>>();
 
         // If `main` is recursive, initialize a depth variable in it with the maximum value.

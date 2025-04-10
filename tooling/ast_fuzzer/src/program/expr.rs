@@ -10,7 +10,7 @@ use noirc_frontend::{
     signed_field::SignedField,
 };
 
-use super::{Name, VariableId, types};
+use super::{Name, VariableId, types, visitor::visit_expr_mut};
 
 /// Generate a literal expression according to a type.
 pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
@@ -274,4 +274,17 @@ pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expressi
         rhs: Box::new(rhs),
         location: Location::dummy(),
     })
+}
+
+/// Check if an `Expression` contains any `Call` in any of its descendants.
+pub(crate) fn has_call(expr: &mut Expression) -> bool {
+    let mut has_call = false;
+    visit_expr_mut(expr, |expr| match expr {
+        Expression::Call(_) => {
+            has_call = true;
+            false
+        }
+        _ => has_call,
+    });
+    has_call
 }
