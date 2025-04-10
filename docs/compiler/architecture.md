@@ -158,6 +158,11 @@ necessary before calling into the `compiler/noirc_driver` crate to invoke the co
 
 ## Formatter
 
+The `tooling/nargo_fmt` crate provides the implementation of the `nargo fmt` command. The formatter
+takes an input string, parses it into an AST and, if it there are no syntax errors, traverses the
+AST together with the input string tokens (needed to be aware of whitespace and comments) to produce
+a prettier output string.
+
 ## Debugger
 
 The debugger for Noir code can be found in `tooling/debugger`. The debugger works by inserting extra
