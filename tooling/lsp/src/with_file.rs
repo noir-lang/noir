@@ -599,7 +599,6 @@ fn meta_attribute_with_file(meta_attribute: MetaAttribute, file: FileId) -> Meta
     MetaAttribute {
         name: path_with_file(meta_attribute.name, file),
         arguments: expressions_with_file(meta_attribute.arguments, file),
-        location: location_with_file(meta_attribute.location, file),
     }
 }
 

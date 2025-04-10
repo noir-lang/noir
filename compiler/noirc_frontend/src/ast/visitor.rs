@@ -530,11 +530,17 @@ pub trait Visitor {
         &mut self,
         _: &SecondaryAttributeKind,
         _target: AttributeTarget,
+        _span: Span,
     ) -> bool {
         true
     }
 
-    fn visit_meta_attribute(&mut self, _: &MetaAttribute, _target: AttributeTarget) -> bool {
+    fn visit_meta_attribute(
+        &mut self,
+        _: &MetaAttribute,
+        _target: AttributeTarget,
+        _span: Span,
+    ) -> bool {
         true
     }
 }
@@ -1652,27 +1658,27 @@ impl SecondaryAttribute {
     }
 
     pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        self.kind.accept(target, visitor);
+        self.kind.accept(target, self.location.span, visitor);
     }
 }
 
 impl SecondaryAttributeKind {
-    pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if visitor.visit_secondary_attribute_kind(self, target) {
-            self.accept_children(target, visitor);
+    pub fn accept(&self, target: AttributeTarget, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_secondary_attribute_kind(self, target, span) {
+            self.accept_children(target, span, visitor);
         }
     }
 
-    pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
+    pub fn accept_children(&self, target: AttributeTarget, span: Span, visitor: &mut impl Visitor) {
         if let SecondaryAttributeKind::Meta(meta_attribute) = self {
-            meta_attribute.accept(target, visitor);
+            meta_attribute.accept(target, span, visitor);
         }
     }
 }
 
 impl MetaAttribute {
-    pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if visitor.visit_meta_attribute(self, target) {
+    pub fn accept(&self, target: AttributeTarget, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_meta_attribute(self, target, span) {
             self.accept_children(visitor);
         }
     }

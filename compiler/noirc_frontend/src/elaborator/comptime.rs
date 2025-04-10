@@ -160,10 +160,11 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) {
-        if let SecondaryAttributeKind::Meta(attribute) = &attribute.kind {
+        if let SecondaryAttributeKind::Meta(meta) = &attribute.kind {
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.collect_comptime_attribute_name_on_item(
-                    attribute,
+                    meta,
+                    attribute.location,
                     item.clone(),
                     attribute_context,
                     attributes_to_run,
@@ -178,12 +179,12 @@ impl<'context> Elaborator<'context> {
     fn collect_comptime_attribute_name_on_item(
         &mut self,
         attribute: &MetaAttribute,
+        location: Location,
         item: Value,
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), CompilationError> {
         self.local_module = attribute_context.attribute_module;
-        let location = attribute.location;
 
         let function =
             Expression { kind: ExpressionKind::Variable(attribute.name.clone()), location };

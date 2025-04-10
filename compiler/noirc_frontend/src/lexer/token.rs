@@ -1097,7 +1097,6 @@ impl fmt::Display for SecondaryAttributeKind {
 pub struct MetaAttribute {
     pub name: Path,
     pub arguments: Vec<Expression>,
-    pub location: Location,
 }
 
 impl Display for MetaAttribute {

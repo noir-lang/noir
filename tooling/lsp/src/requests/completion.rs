@@ -1829,7 +1829,12 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
-    fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
+    fn visit_meta_attribute(
+        &mut self,
+        attribute: &MetaAttribute,
+        target: AttributeTarget,
+        _span: Span,
+    ) -> bool {
         if self.byte_index == attribute.name.location.span.end() as usize {
             self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }

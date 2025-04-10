@@ -174,7 +174,7 @@ impl Parser<'_> {
         let arguments = self.parse_arguments().unwrap_or_default();
         self.skip_until_right_bracket();
         let location = self.location_since(start_location);
-        let kind = SecondaryAttributeKind::Meta(MetaAttribute { name, arguments, location });
+        let kind = SecondaryAttributeKind::Meta(MetaAttribute { name, arguments });
         let attr = SecondaryAttribute { kind, location };
         Attribute::Secondary(attr)
     }
@@ -275,7 +275,6 @@ impl Parser<'_> {
                 let kind = SecondaryAttributeKind::Meta(MetaAttribute {
                     name: Path::from_ident(ident.clone()),
                     arguments,
-                    location: self.location_since(start_location),
                 });
                 let attr = SecondaryAttribute { kind, location };
                 Attribute::Secondary(attr)
