@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744299164001,
+  "lastUpdate": 1744299167730,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "645a800d08a16e88242079d2caec842cab51d652",
-          "message": "chore: generate compilation tests from frontend tests (#7753)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-04-01T18:11:35Z",
-          "tree_id": "338857d0c0364e5b3e2aa38bc1bac910aa19ff95",
-          "url": "https://github.com/noir-lang/noir/commit/645a800d08a16e88242079d2caec842cab51d652"
-        },
-        "date": 1743533031259,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 504.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 413.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 293.53,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5c1e18488e9e1d7f7d6b101519c2a80e7137bb35"
         },
         "date": 1744296696269,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 474.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5eaa916e17921ea021802168feac9109eebc0591",
+          "message": "feat: add `loop` generator to AST fuzzer  (#7985)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-04-10T15:06:31Z",
+          "tree_id": "a468e33690e48dc0c2b5437c2f03e5a1ede139b5",
+          "url": "https://github.com/noir-lang/noir/commit/5eaa916e17921ea021802168feac9109eebc0591"
+        },
+        "date": 1744299162464,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
