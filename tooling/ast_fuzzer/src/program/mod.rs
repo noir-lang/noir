@@ -7,8 +7,9 @@ use strum::IntoEnumIterator;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::IntegerBitSize,
-    monomorphization::ast::{
-        Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type,
+    monomorphization::{
+        ast::{Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type},
+        printer::AstPrinter,
     },
     shared::{Signedness, Visibility},
 };
@@ -141,20 +142,25 @@ impl Context {
             });
         }
 
+        let return_type = self.gen_type(u, self.config.max_depth, false)?;
+        let return_visibility = if is_main {
+            if types::is_unit(&return_type) {
+                Visibility::Private
+            } else if u.ratio(4, 5)? {
+                Visibility::Public
+            } else {
+                Visibility::ReturnData
+            }
+        } else {
+            Visibility::Private
+        };
+
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             param_visibilities,
-            return_type: self.gen_type(u, self.config.max_depth, false)?,
-            return_visibility: if is_main {
-                match u.choose_index(5)? {
-                    0 | 1 => Visibility::Public,
-                    2 | 3 => Visibility::Private,
-                    _ => Visibility::ReturnData,
-                }
-            } else {
-                Visibility::Private
-            },
+            return_type,
+            return_visibility,
             inline_type: if is_main {
                 InlineType::default()
             } else {
@@ -305,6 +311,18 @@ fn make_name(mut id: usize, is_global: bool) -> String {
     name.reverse();
     let name = name.into_iter().collect::<String>();
     if is_global { format!("G_{}", name) } else { name }
+}
+
+/// Wrapper around `Program` that prints the AST as close to being able to
+/// copy-paste it as a Noir program as we can get.
+pub struct DisplayAstAsNoir<'a>(pub &'a Program);
+
+impl std::fmt::Display for DisplayAstAsNoir<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut printer = AstPrinter::default();
+        printer.show_id = false;
+        printer.print_program(self.0, f)
+    }
 }
 
 #[cfg(test)]

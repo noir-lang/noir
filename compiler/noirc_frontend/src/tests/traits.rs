@@ -134,7 +134,6 @@ fn trait_inheritance_missing_parent_implementation() {
                      ~~~~~~ The trait `Foo` is not implemented for `Struct`
 
         fn main() {
-            let _ = Struct {}; // silence Struct never constructed warning
         }
     "#;
     check_errors!(src);

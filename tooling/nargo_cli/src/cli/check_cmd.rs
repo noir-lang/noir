@@ -4,17 +4,15 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
-    package::Package, parse_all, prepare_package, workspace::Workspace,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager,
+    ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
+    workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{CompileOptions, CrateId, check_crate, compute_function_abi};
-use noirc_frontend::{
-    hir::{Context, ParsedFiles},
-    monomorphization::monomorphize,
-};
+use noirc_driver::{CompileOptions, check_crate, compute_function_abi};
+use noirc_frontend::{hir::ParsedFiles, monomorphization::monomorphize};
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
@@ -149,17 +147,6 @@ fn create_input_toml_template(
     }
 
     toml::to_string(&map).unwrap()
-}
-
-/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
-/// and errors found.
-pub(crate) fn check_crate_and_report_errors(
-    context: &mut Context,
-    crate_id: CrateId,
-    options: &CompileOptions,
-) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, options);
-    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }
 
 #[cfg(test)]
