@@ -367,7 +367,7 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    pub globals: BTreeMap<GlobalId, Expression>,
+    pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -381,7 +381,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        globals: BTreeMap<GlobalId, Expression>,
+        globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -443,20 +443,13 @@ impl std::ops::IndexMut<FuncId> for Program {
 
 impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut printer = super::printer::AstPrinter::default();
-        for (id, expr) in &self.globals {
-            printer.print_global(id, expr, f)?;
-        }
-        for function in &self.functions {
-            printer.print_function(function, f)?;
-        }
-        Ok(())
+        super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::AstPrinter::default().print_function(self, f)
+        super::printer::AstPrinter::default().print_function(self, None, f)
     }
 }
 

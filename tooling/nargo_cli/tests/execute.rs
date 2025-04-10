@@ -100,7 +100,7 @@ mod tests {
             .lines()
             .map(|line| {
                 line.replace(&test_program_dir, "")
-                    .replace(&test_program_base_dir, "../../")
+                    .replace(&test_program_base_dir, "test_programs/")
                     .replace(test_program_dir_without_root, "")
             })
             .collect::<Vec<String>>()
