@@ -5216,6 +5216,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssa_verification"
+version = "1.0.0-beta.4"
+dependencies = [
+ "clap",
+ "flate2",
+ "noirc_evaluator",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
