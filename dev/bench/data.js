@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744299167730,
+  "lastUpdate": 1744301703956,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "20910cfa8c47e2c8ac65d5fe173d298103f8ffe5",
-          "message": "chore(debug): Add ownership analysis pass (#7860)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-04-01T18:57:05Z",
-          "tree_id": "71a2d5578814638146f89b2cde005f625c6a90ad",
-          "url": "https://github.com/noir-lang/noir/commit/20910cfa8c47e2c8ac65d5fe173d298103f8ffe5"
-        },
-        "date": 1743535209607,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.075,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.303,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.791,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.535,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 18.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.027,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5baadf2fc60230d0be3a60bbf17f29295f224321",
+          "message": "feat(stdlib): Expose the times a mock oracle is called (#7996)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Nicolás Venturo <nicolas.venturo@gmail.com>",
+          "timestamp": "2025-04-10T15:46:45Z",
+          "tree_id": "60d3e217b23581d23a3a11393d72105feb516db5",
+          "url": "https://github.com/noir-lang/noir/commit/5baadf2fc60230d0be3a60bbf17f29295f224321"
+        },
+        "date": 1744301698998,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.303,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.797,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.53,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 18,
             "unit": "s"
           },
           {
