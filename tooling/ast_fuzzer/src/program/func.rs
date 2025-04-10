@@ -25,6 +25,7 @@ use super::{
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
 /// 2. generate the final HIR function signature
+#[derive(Debug)]
 pub(super) struct FunctionDeclaration {
     pub name: String,
     pub params: Parameters,
@@ -528,7 +529,6 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO(#7927): Loop
         // TODO(#7928): While
         // TODO(#7926): Match
         // TODO(#7925): Call
@@ -541,6 +541,10 @@ impl<'a> FunctionContext<'a> {
 
         if freq.enabled_when("for", self.budget > 1) {
             return self.gen_for(u);
+        }
+
+        if freq.enabled_when("loop", self.budget > 1 && self.unconstrained()) {
+            return self.gen_loop(u);
         }
 
         if freq.enabled("drop") {
@@ -682,7 +686,7 @@ impl<'a> FunctionContext<'a> {
             u.choose(&[8, 16, 32, 64]).map(|s| IntegerBitSize::try_from(*s).unwrap())?,
         );
 
-        let max_size = self.ctx.config.max_range_size;
+        let max_size = self.ctx.config.max_loop_size;
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
             // Generate random expression.
             let s = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
@@ -729,4 +733,90 @@ impl<'a> FunctionContext<'a> {
 
         Ok(expr)
     }
+
+    /// Generate a `loop` loop.
+    fn gen_loop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // For now, the only way to break out of the loop is the guard
+        // condition implemented below, as Break or Continue currently don't figure in
+        // generated expressions. This should be amended in TODO(#7928): While
+
+        // Declare break index variable visible in the loop body. Do not include it
+        // in the locals the generator would be able to manipulate, as it could
+        // lead to the loop becoming infinite.
+        let idx_type = types::U32;
+        let idx_id = self.next_local_id();
+        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_ident =
+            expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
+
+        // Decrease budget so we don't nest endlessly.
+        self.decrease_budget(1);
+
+        // Start building the loop harness, initialize index to 0
+        let mut stmts = vec![Expression::Let(Let {
+            id: idx_id,
+            mutable: true,
+            name: idx_name,
+            expression: Box::new(expr::u32_literal(0)),
+        })];
+
+        // Get the randomized loop body
+        let mut inner_stmts = vec![self.gen_block(u, &Type::Unit)?];
+
+        // Increment the index
+        inner_stmts.push(expr::assign_to_ident(
+            idx_ident.clone(),
+            expr::binary(Expression::Ident(idx_ident.clone()), BinaryOp::Add, expr::u32_literal(1)),
+        ));
+
+        // Put everything into if/else
+        let inner_block = Expression::Block(vec![expr::if_else(
+            expr::binary(
+                Expression::Ident(idx_ident.clone()),
+                BinaryOp::Equal,
+                expr::u32_literal(self.ctx.config.max_loop_size as u32),
+            ),
+            Expression::Break,
+            Expression::Block(inner_stmts),
+            Type::Unit,
+        )]);
+
+        stmts.push(Expression::Loop(Box::new(inner_block)));
+
+        Ok(Expression::Block(stmts))
+    }
+}
+
+#[test]
+fn test_loop() {
+    let mut u = Unstructured::new(&[0u8; 1]);
+    let mut ctx = Context::default();
+    ctx.config.max_loop_size = 10;
+    ctx.add_main_decl(&mut u);
+    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+    fctx.budget = 2;
+    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+
+    println!("{loop_code}");
+    assert!(
+        loop_code.starts_with(
+            &r#"{
+    let mut idx_a$l0 = 0;
+    loop {
+        if (idx_a$l0 == 10) {
+            break
+        } else {"#
+                .replace(" ", "")
+        )
+    );
+
+    assert!(
+        loop_code.ends_with(
+            &r#"idx_a$l0 = (idx_a$l0 + 1)
+        }
+    }
+}"#
+            .replace(" ", "")
+        )
+    );
 }
