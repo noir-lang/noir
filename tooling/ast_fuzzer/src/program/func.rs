@@ -7,8 +7,8 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Expression, For, FuncId, GlobalId, If, Index, InlineType,
-        LValue, Let, Literal, LocalId, Parameters, Type,
+        ArrayLiteral, Assign, BinaryOp, Expression, For, FuncId, GlobalId, IdentId, If, Index,
+        InlineType, LValue, Let, Literal, LocalId, Parameters, Type,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -95,6 +95,9 @@ pub(super) struct FunctionContext<'a> {
     /// Every variable created in the function will have an increasing ID,
     /// which does not reset when variables go out of scope.
     next_local_id: u32,
+    /// Every identifier created in the function will have an increasing ID,
+    /// which does not reset when variables go out of scope.
+    next_ident_id: u32,
     /// Number of statements remaining to be generated in the function.
     budget: usize,
     /// Global variables.
@@ -123,7 +126,7 @@ impl<'a> FunctionContext<'a> {
                 .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        Self { ctx, id, next_local_id, budget, globals, locals }
+        Self { ctx, id, next_local_id, budget, globals, locals, next_ident_id: 0 }
     }
 
     /// Generate the function body.
@@ -155,6 +158,13 @@ impl<'a> FunctionContext<'a> {
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
         self.next_local_id += 1;
+        id
+    }
+
+    /// Get and increment the next ident ID.
+    fn next_ident_id(&mut self) -> IdentId {
+        let id = IdentId(self.next_ident_id);
+        self.next_ident_id += 1;
         id
     }
 
@@ -258,7 +268,8 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<Expression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
             let (mutable, src_name, src_type) = self.get_variable(&id).clone();
-            let src_expr = expr::ident(id, mutable, src_name, src_type.clone());
+            let ident_id = self.next_ident_id();
+            let src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
             if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
                 return Ok(Some(expr));
             }
@@ -585,7 +596,14 @@ impl<'a> FunctionContext<'a> {
         // Remove variable so we stop using it.
         self.locals.remove(&id);
 
-        Ok(Some(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), mutable, name, typ)))))
+        let ident_id = self.next_ident_id();
+        Ok(Some(Expression::Drop(Box::new(expr::ident(
+            VariableId::Local(id),
+            ident_id,
+            mutable,
+            name,
+            typ,
+        )))))
     }
 
     /// Assign to a mutable variable, if we have one in scope.
@@ -603,7 +621,8 @@ impl<'a> FunctionContext<'a> {
 
         let id = *u.choose_iter(opts)?;
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
-        let ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
+        let ident_id = self.next_ident_id();
+        let ident = expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone());
         let ident = LValue::Ident(ident);
 
         // For arrays and tuples we can consider assigning to their items.

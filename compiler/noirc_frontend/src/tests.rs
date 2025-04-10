@@ -181,7 +181,13 @@ fn check_errors_with_options(
             panic!("get_monomorphized: test program contains no 'main' function")
         });
 
-        let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
+        let ownership = options.enabled_unstable_features.contains(&UnstableFeature::Ownership);
+        let result = crate::monomorphization::monomorphize(
+            main,
+            &mut context.def_interner,
+            false,
+            ownership,
+        );
         match result {
             Ok(_) => {
                 if primary_spans_with_errors.is_empty() {
@@ -4352,23 +4358,6 @@ fn deny_attaching_mut_ref_to_immutable_object() {
     }
     "#;
     check_errors!(src);
-}
-
-#[named]
-#[test]
-fn immutable_references_with_ownership_feature() {
-    let src = r#"
-        unconstrained fn main() {
-            let mut array = [1, 2, 3];
-            borrow(&array);
-        }
-
-        fn borrow(_array: &[Field; 3]) {}
-    "#;
-
-    let (_, _, errors) =
-        get_program_using_features!(src, Expect::Success, &[UnstableFeature::Ownership]);
-    assert_eq!(errors.len(), 0);
 }
 
 #[named]

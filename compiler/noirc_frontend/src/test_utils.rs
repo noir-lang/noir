@@ -42,7 +42,7 @@ pub fn get_monomorphized(
         .get_main_function(context.root_crate_id())
         .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
 
-    monomorphize(main, &mut context.def_interner, false)
+    monomorphize(main, &mut context.def_interner, false, false)
 }
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
@@ -164,7 +164,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
     let error_to_warn_cases = [
         "cast_256_to_u8_size_checks",
         "enums_errors_on_unspecified_unstable_enum",
-        "immutable_references_without_ownership_feature",
         "imports_warns_on_use_of_private_exported_item",
         "metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
         "resolve_unused_var",
