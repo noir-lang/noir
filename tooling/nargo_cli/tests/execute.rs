@@ -300,6 +300,11 @@ mod tests {
         let _ = fs::remove_dir_all(target_dir);
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        if test_name == "workspace" {
+            // workspace outputs multiple artifacts so we get a non-deterministic result.
+            return;
+        }
+
         let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
         insta::with_settings!(
             {
