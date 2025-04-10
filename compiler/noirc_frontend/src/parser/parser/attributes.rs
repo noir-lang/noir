@@ -4,10 +4,9 @@ use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::ParserErrorReason;
 use crate::parser::labels::ParsingRuleLabel;
-use crate::token::SecondaryAttribute;
 use crate::token::{
     Attribute, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
-    SecondaryAttributeKind, TestScope, Token,
+    MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
 
 use super::Parser;
@@ -137,8 +136,9 @@ impl Parser<'_> {
         {
             // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
             let path = Path::from_single(self.token.to_string(), self.current_token_location);
+            let name = MetaAttributeName::Path(path);
             self.bump();
-            self.parse_meta_attribute(path, start_location)
+            self.parse_meta_attribute(name, start_location)
         } else if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.as_str() == "test" {
@@ -155,15 +155,24 @@ impl Parser<'_> {
                 }
             } else {
                 // This is a Meta attribute with the syntax `path(arg1, arg2, .., argN)`
-                self.parse_meta_attribute(path, start_location)
+                let name = MetaAttributeName::Path(path);
+                self.parse_meta_attribute(name, start_location)
             }
+        } else if let Some(expr_id) = self.eat_unquote_marker() {
+            // This is a Meta attribute with the syntax `$expr(arg1, arg2, .., argN)`
+            let name = MetaAttributeName::Resolved(expr_id);
+            self.parse_meta_attribute(name, start_location)
         } else {
             self.expected_label(ParsingRuleLabel::Path);
             self.parse_tag_attribute(start_location)
         }
     }
 
-    fn parse_meta_attribute(&mut self, name: Path, start_location: Location) -> Attribute {
+    fn parse_meta_attribute(
+        &mut self,
+        name: MetaAttributeName,
+        start_location: Location,
+    ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
         self.skip_until_right_bracket();
         let location = self.location_since(start_location);
@@ -266,7 +275,7 @@ impl Parser<'_> {
             }
             _ => {
                 let kind = SecondaryAttributeKind::Meta(MetaAttribute {
-                    name: Path::from_ident(ident.clone()),
+                    name: MetaAttributeName::Path(Path::from_ident(ident.clone())),
                     arguments,
                 });
                 let attr = SecondaryAttribute { kind, location };

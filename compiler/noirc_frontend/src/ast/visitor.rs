@@ -18,7 +18,10 @@ use crate::{
     },
     parser::{Item, ItemKind, ParsedSubModule},
     signed_field::SignedField,
-    token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, SecondaryAttributeKind, Tokens},
+    token::{
+        FmtStrFragment, MetaAttribute, MetaAttributeName, SecondaryAttribute,
+        SecondaryAttributeKind, Tokens,
+    },
 };
 
 use super::{
@@ -1684,7 +1687,9 @@ impl MetaAttribute {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.name.accept(visitor);
+        if let MetaAttributeName::Path(path) = &self.name {
+            path.accept(visitor);
+        }
         visit_expressions(&self.arguments, visitor);
     }
 }

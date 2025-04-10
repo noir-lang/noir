@@ -10,8 +10,6 @@ use crate::{
     },
 };
 
-use super::Lexer;
-
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
 /// smallest unit of grammar. A parser may (will) decide to parse
@@ -1034,27 +1032,6 @@ pub enum SecondaryAttributeKind {
 }
 
 impl SecondaryAttributeKind {
-    pub(crate) fn name(&self) -> Option<String> {
-        match self {
-            SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
-            SecondaryAttributeKind::ContractLibraryMethod => {
-                Some("contract_library_method".to_string())
-            }
-            SecondaryAttributeKind::Export => Some("export".to_string()),
-            SecondaryAttributeKind::Field(_) => Some("field".to_string()),
-            SecondaryAttributeKind::Tag(contents) => {
-                let mut lexer = Lexer::new_with_dummy_file(contents);
-                let token = lexer.next()?.ok()?;
-                if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
-            }
-            SecondaryAttributeKind::Meta(meta) => Some(meta.name.last_name().to_string()),
-            SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
-            SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
-            SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
-            SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
-        }
-    }
-
     pub(crate) fn is_allow_unused_variables(&self) -> bool {
         match self {
             SecondaryAttributeKind::Allow(string) => string == "unused_variables",
@@ -1099,7 +1076,7 @@ impl fmt::Display for SecondaryAttributeKind {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MetaAttribute {
-    pub name: Path,
+    pub name: MetaAttributeName,
     pub arguments: Vec<Expression>,
 }
 
@@ -1111,6 +1088,23 @@ impl Display for MetaAttribute {
             let args =
                 self.arguments.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
             write!(f, "{}({})", self.name, args)
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum MetaAttributeName {
+    /// For example `foo::bar` in `#[foo::bar(...)]`
+    Path(Path),
+    /// For example `$expr` in `#[$expr(...)]` inside a `quote { ... }` expression.
+    Resolved(ExprId),
+}
+
+impl Display for MetaAttributeName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetaAttributeName::Path(path) => path.fmt(f),
+            MetaAttributeName::Resolved(_) => write!(f, "(quoted)"),
         }
     }
 }
