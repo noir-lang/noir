@@ -10,8 +10,6 @@ on:
   schedule:
     # Run a check at 9 AM UTC
     - cron: "0 9 * * *"
-  pull_request:
-  workflow_dispatch:
 
 jobs:
   build-test-artifacts:
