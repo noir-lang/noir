@@ -82,7 +82,7 @@ pub(crate) struct DataFlowGraph {
     foreign_functions: HashMap<String, ValueId>,
 
     /// All blocks in a function
-    blocks: DenseMap<BasicBlock>,
+    pub(crate) blocks: DenseMap<BasicBlock>,
 
     /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
     /// for that of another. In theory this information is purely used for printing the SSA,
@@ -601,30 +601,6 @@ impl DataFlowGraph {
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
         matches!(self.values[value].get_type().as_ref(), Type::Reference(_))
-    }
-
-    /// Replaces an instruction result with a fresh id.
-    pub(crate) fn replace_result(
-        &mut self,
-        instruction_id: InstructionId,
-        prev_value_id: ValueId,
-    ) -> ValueId {
-        let typ = self.type_of_value(prev_value_id);
-        let results = self.results.get_mut(&instruction_id).unwrap();
-        let res_position = results
-            .iter()
-            .position(|&id| id == prev_value_id)
-            .expect("Result id not found while replacing");
-
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: res_position,
-            instruction: instruction_id,
-        });
-
-        // Replace the value in list of results for this instruction
-        results[res_position] = value_id;
-        value_id
     }
 
     /// Returns all of result values which are attached to this instruction.

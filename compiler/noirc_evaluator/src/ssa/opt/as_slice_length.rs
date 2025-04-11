@@ -1,5 +1,8 @@
+use std::collections::BTreeSet;
+
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
         function::Function,
         instruction::{Instruction, InstructionId, Intrinsic},
         types::{NumericType, Type},
@@ -28,17 +31,23 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn as_slice_optimization(&mut self) {
-        let known_slice_lengths = known_slice_lengths(self);
-        replace_known_slice_lengths(self, known_slice_lengths);
+        let reachable_blocks = self.reachable_blocks();
+        let known_slice_lengths = known_slice_lengths(self, &reachable_blocks);
+        replace_known_slice_lengths(self, known_slice_lengths, reachable_blocks);
     }
 }
 
-fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, u32> {
+fn known_slice_lengths(
+    func: &Function,
+    reachable_blocks: &BTreeSet<BasicBlockId>,
+) -> HashMap<InstructionId, u32> {
     let mut known_slice_lengths = HashMap::default();
-    for block_id in func.reachable_blocks() {
-        let block = &func.dfg[block_id];
+    for block_id in reachable_blocks {
+        let block = &func.dfg[*block_id];
         for instruction_id in block.instructions() {
-            let (target_func, arguments) = match &func.dfg[*instruction_id] {
+            let instruction = &func.dfg[*instruction_id];
+
+            let (target_func, arguments) = match &instruction {
                 Instruction::Call { func, arguments } => (func, arguments),
                 _ => continue,
             };
@@ -62,18 +71,19 @@ fn known_slice_lengths(func: &Function) -> HashMap<InstructionId, u32> {
 fn replace_known_slice_lengths(
     func: &mut Function,
     known_slice_lengths: HashMap<InstructionId, u32>,
+    reachable_blocks: BTreeSet<BasicBlockId>,
 ) {
-    known_slice_lengths.into_iter().for_each(|(instruction_id, known_length)| {
-        let call_returns = func.dfg.instruction_results(instruction_id);
-        let original_slice_length = call_returns[0];
-
-        // We won't use the new id for the original unknown length.
-        // This isn't strictly necessary as a new result will be defined the next time for which the instruction
-        // is reinserted but this avoids leaving the program in an invalid state.
-        func.dfg.replace_result(instruction_id, original_slice_length);
-        let known_length = func.dfg.make_constant(known_length.into(), NumericType::length_type());
-        func.dfg.set_value_from_id(original_slice_length, known_length);
-    });
+    let values_to_replace = known_slice_lengths
+        .into_iter()
+        .map(|(instruction_id, known_length)| {
+            let call_returns = func.dfg.instruction_results(instruction_id);
+            let original_slice_length = call_returns[0];
+            let known_length =
+                func.dfg.make_constant(known_length.into(), NumericType::length_type());
+            (original_slice_length, known_length)
+        })
+        .collect::<HashMap<_, _>>();
+    func.dfg.replace_values_in_blocks(reachable_blocks.into_iter(), &values_to_replace);
 }
 
 #[cfg(test)]
