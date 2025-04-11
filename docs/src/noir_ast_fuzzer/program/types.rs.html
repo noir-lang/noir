@@ -217,7 +217,12 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>noirc_frontend::{
@@ -420,7 +425,12 @@
         (Type::Field, Type::Field) =&gt; op.is_valid_for_field_type() &amp;&amp; !op.is_equality(),
         (Type::Field, Type::Bool) =&gt; op.is_equality(),
         (Type::Bool, Type::Bool) =&gt; op.is_comparator() || op.is_bitwise(),
-        (Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>), Type::Bool) =&gt; op.is_comparator(),
+        (Type::Integer(sign, size), Type::Bool) =&gt; {
+            <span class="comment">// Avoid comparing 128 bit numbers:
+            // `AcirContext::less_than_signed` would cause overflow with i128
+            // `AcirContext::euclidean_division_var` would divide by zero with u128
+            </span>op.is_comparator() &amp;&amp; (op.is_equality() || size.bit_size() != <span class="number">128 </span>|| !sign.is_signed())
+        }
         (Type::Integer(sign_in, size_in), Type::Integer(sign_out, size_out))
             <span class="kw">if </span>sign_in == sign_out =&gt;
         {
@@ -429,8 +439,8 @@
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
             </span>(op.is_arithmetic() &amp;&amp; size != <span class="number">1 </span>&amp;&amp; size != <span class="number">128 </span>&amp;&amp; size_in &lt;= size_out)
-                || op.is_bitshift()
-                || op.is_bitwise()
+                || op.is_bitshift() &amp;&amp; size != <span class="number">128
+                </span>|| op.is_bitwise()
         }
         (Type::Reference(typ, <span class="kw">_</span>), <span class="kw">_</span>) =&gt; can_binary_op_return_from_input(op, typ, output),
         <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,

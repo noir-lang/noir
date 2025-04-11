@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Flags","FunctionContext","FunctionDeclaration"]};
+window.SIDEBAR_ITEMS = {"fn":["hir_param","next_local_id"],"struct":["Flags","FunctionContext","FunctionDeclaration"]};

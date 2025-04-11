@@ -820,8 +820,117 @@
 <a href="#819" id="819">819</a>
 <a href="#820" id="820">820</a>
 <a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
-<span class="kw">use </span>std::fmt::Debug;
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<span class="kw">use </span>std::{
+    collections::{BTreeMap, HashSet},
+    fmt::Debug,
+};
 <span class="kw">use </span>strum::IntoEnumIterator;
 
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
@@ -829,8 +938,8 @@
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{<span class="self">self</span>, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Expression, For, FuncId, GlobalId, If, Index, InlineType,
-        LValue, Let, Literal, LocalId, Parameters, Type,
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
+        GlobalId, Ident, Index, InlineType, LValue, Literal, LocalId, Parameters, Program, Type,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -842,12 +951,13 @@
     make_name,
     scope::{Scope, ScopeStack, Variable},
     types,
+    visitor::visit_expr,
 };
 
 <span class="doccomment">/// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
 /// 2. generate the final HIR function signature
-</span><span class="attr">#[derive(Debug)]
+</span><span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>FunctionDeclaration {
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>params: Parameters,
@@ -865,22 +975,7 @@
             </span>.params
             .iter()
             .zip(<span class="self">self</span>.param_visibilities.iter())
-            .map(|((_id, mutable, _name, typ), vis)| {
-                <span class="comment">// The pattern doesn't seem to be used in `ssa::create_program`,
-                // apart from its location, so it shouldn't matter what we put into it.
-                </span><span class="kw">let </span><span class="kw-2">mut </span>pat = HirPattern::Identifier(HirIdent {
-                    location: Location::dummy(),
-                    id: DefinitionId::dummy_id(),
-                    impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
-                });
-                <span class="kw">if </span><span class="kw-2">*</span>mutable {
-                    pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
-                }
-
-                <span class="kw">let </span>typ = types::to_hir_type(typ);
-
-                (pat, typ, <span class="kw-2">*</span>vis)
-            })
+            .map(|((_id, mutable, _name, typ), vis)| hir_param(<span class="kw-2">*</span>mutable, typ, <span class="kw-2">*</span>vis))
             .collect();
 
         <span class="kw">let </span>return_type =
@@ -888,6 +983,28 @@
 
         (param_types, return_type)
     }
+}
+
+<span class="doccomment">/// HIR representation of a function parameter.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>hir_param(
+    mutable: bool,
+    typ: <span class="kw-2">&amp;</span>Type,
+    vis: Visibility,
+) -&gt; (HirPattern, hir_def::types::Type, Visibility) {
+    <span class="comment">// The pattern doesn't seem to be used in `ssa::create_program`,
+    // apart from its location, so it shouldn't matter what we put into it.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>pat = HirPattern::Identifier(HirIdent {
+        location: Location::dummy(),
+        id: DefinitionId::dummy_id(),
+        impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
+    });
+    <span class="kw">if </span>mutable {
+        pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
+    }
+
+    <span class="kw">let </span>typ = types::to_hir_type(typ);
+
+    (pat, typ, vis)
 }
 
 <span class="doccomment">/// Control what kind of expressions we can generate, depending on the surrounding context.
@@ -907,6 +1024,9 @@
     </span><span class="kw">const </span>CONDITION: <span class="self">Self </span>= <span class="self">Self </span>{ allow_blocks: <span class="bool-val">false</span>, allow_if_then: <span class="bool-val">false </span>};
     <span class="doccomment">/// In `for` ranges we can use `if` expressions, but let's not do blocks.
     </span><span class="kw">const </span>RANGE: <span class="self">Self </span>= <span class="self">Self </span>{ allow_blocks: <span class="bool-val">false</span>, allow_if_then: <span class="bool-val">true </span>};
+    <span class="doccomment">/// In call arguments we can use `if` expressions, but avoid blocks.
+    /// The arg expressions themselves might call other functions.
+    </span><span class="kw">const </span>CALL: <span class="self">Self </span>= <span class="self">Self </span>{ allow_blocks: <span class="bool-val">false</span>, allow_if_then: <span class="bool-val">true </span>};
 }
 
 <span class="doccomment">/// Context used during the generation of a function body.
@@ -926,6 +1046,9 @@
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
     </span>locals: ScopeStack&lt;LocalId&gt;,
+    <span class="doccomment">/// All the functions callable from this one, with the types we can
+    /// produce from their return value.
+    </span>call_targets: BTreeMap&lt;FuncId, HashSet&lt;Type&gt;&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FunctionContext&lt;<span class="lifetime">'a</span>&gt; {
@@ -946,7 +1069,27 @@
                 .map(|(id, mutable, name, typ)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
         );
 
-        <span class="self">Self </span>{ ctx, id, next_local_id, budget, globals, locals }
+        <span class="comment">// Collect all the functions we can call from this one.
+        </span><span class="kw">let </span>call_targets = ctx
+            .function_declarations
+            .iter()
+            .filter_map(|(callee_id, decl)| {
+                <span class="comment">// We can't call `main`.
+                </span><span class="kw">if </span><span class="kw-2">*</span>callee_id == Program::main_id() {
+                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                }
+                <span class="comment">// From an ACIR function we can call any Brillig function,
+                // but we avoid creating infinite recursive ACIR calls by
+                // only calling functions with higher IDs than ours,
+                // otherwise the inliner could get stuck.
+                </span><span class="kw">if </span>!decl.unconstrained &amp;&amp; <span class="kw-2">*</span>callee_id &lt;= id {
+                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                }
+                <span class="prelude-val">Some</span>((<span class="kw-2">*</span>callee_id, types::types_produced(<span class="kw-2">&amp;</span>decl.return_type)))
+            })
+            .collect();
+
+        <span class="self">Self </span>{ ctx, id, next_local_id, budget, globals, locals, call_targets }
     }
 
     <span class="doccomment">/// Generate the function body.
@@ -1058,6 +1201,13 @@
             <span class="kw">return </span><span class="self">self</span>.gen_block(u, typ);
         }
 
+        <span class="comment">// Function calls returning a value.
+        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_call(u, typ, max_depth)<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
+            }
+        }
+
         <span class="comment">// We can always try to just derive a value from the variables we have.
         </span><span class="kw">if </span>freq.enabled(<span class="string">"vars"</span>) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_expr_from_vars(u, typ, max_depth)<span class="question-mark">? </span>{
@@ -1066,7 +1216,6 @@
         }
 
         <span class="comment">// TODO(#7926): Match
-        // TODO(#7925): Call
 
         // If nothing else worked out we can always produce a random literal.
         </span>expr::gen_literal(u, typ)
@@ -1353,10 +1502,22 @@
         <span class="kw">let </span><span class="kw-2">mut </span>freq = Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs)<span class="question-mark">?</span>;
         <span class="comment">// TODO(#7928): While
         // TODO(#7926): Match
-        // TODO(#7925): Call
         // TODO(#7931): print
         // TODO(#7932): Constrain
 
+        // Start with `drop`, it doesn't need to be frequent even if others are disabled.
+        </span><span class="kw">if </span>freq.enabled(<span class="string">"drop"</span>) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_drop(u)<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
+            }
+        }
+
+        <span class="comment">// Get loop out of the way quick, as it's always disabled for ACIR.
+        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"loop"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.unconstrained()) {
+            <span class="kw">return </span><span class="self">self</span>.gen_loop(u);
+        }
+
+        <span class="comment">// Require a positive budget, so that we have some for the block itself and its contents.
         </span><span class="kw">if </span>freq.enabled_when(<span class="string">"if"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
             <span class="kw">return </span><span class="self">self</span>.gen_if(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth(), Flags::TOP);
         }
@@ -1365,12 +1526,8 @@
             <span class="kw">return </span><span class="self">self</span>.gen_for(u);
         }
 
-        <span class="kw">if </span>freq.enabled_when(<span class="string">"loop"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.unconstrained()) {
-            <span class="kw">return </span><span class="self">self</span>.gen_loop(u);
-        }
-
-        <span class="kw">if </span>freq.enabled(<span class="string">"drop"</span>) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_drop(u)<span class="question-mark">? </span>{
+        <span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
             }
         }
@@ -1397,7 +1554,7 @@
         <span class="comment">// Add the variable so we can use it in subsequent expressions.
         </span><span class="self">self</span>.locals.add(id, mutable, name.clone(), typ.clone());
 
-        <span class="prelude-val">Ok</span>(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
+        <span class="prelude-val">Ok</span>(expr::let_var(id, mutable, name, expr))
     }
 
     <span class="doccomment">/// Drop a local variable, if we have anything to drop.
@@ -1492,12 +1649,7 @@
             <span class="prelude-val">Some</span>(expr)
         };
 
-        <span class="prelude-val">Ok</span>(Expression::If(If {
-            condition: Box::new(condition),
-            consequence: Box::new(consequence),
-            alternative: alternative.map(Box::new),
-            typ: typ.clone(),
-        }))
+        <span class="prelude-val">Ok</span>(expr::if_then(condition, consequence, alternative, typ.clone()))
     }
 
     <span class="doccomment">/// Generate a `for` loop.
@@ -1508,8 +1660,9 @@
             u.choose(<span class="kw-2">&amp;</span>[<span class="number">8</span>, <span class="number">16</span>, <span class="number">32</span>, <span class="number">64</span>]).map(|s| IntegerBitSize::try_from(<span class="kw-2">*</span>s).unwrap())<span class="question-mark">?</span>,
         );
 
-        <span class="kw">let </span>max_size = <span class="self">self</span>.ctx.config.max_loop_size;
         <span class="kw">let </span>(start_range, end_range) = <span class="kw">if </span><span class="self">self</span>.unconstrained() &amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>{
+            <span class="comment">// Choosing a maximum range size because changing it immediately brought out some bug around modulo.
+            </span><span class="kw">let </span>max_size = u.int_in_range(<span class="number">1</span>..=<span class="self">self</span>.ctx.config.max_loop_size)<span class="question-mark">?</span>;
             <span class="comment">// Generate random expression.
             </span><span class="kw">let </span>s = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>idx_type, <span class="self">self</span>.max_depth(), Flags::RANGE)<span class="question-mark">?</span>;
             <span class="kw">let </span>e = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>idx_type, <span class="self">self</span>.max_depth(), Flags::RANGE)<span class="question-mark">?</span>;
@@ -1519,6 +1672,8 @@
             <span class="kw">let </span>e = expr::range_modulo(e, idx_type.clone(), max_size);
             (s, e)
         } <span class="kw">else </span>{
+            <span class="comment">// `gen_range` will choose a size up to the max.
+            </span><span class="kw">let </span>max_size = <span class="self">self</span>.ctx.config.max_loop_size;
             <span class="comment">// If the function is constrained, we need a range we can determine at compile time.
             // For now do it with literals, although we should be able to use constant variables as well.
             </span><span class="kw">let </span>(s, e) = expr::gen_range(u, <span class="kw-2">&amp;</span>idx_type, max_size)<span class="question-mark">?</span>;
@@ -1556,6 +1711,58 @@
         <span class="prelude-val">Ok</span>(expr)
     }
 
+    <span class="doccomment">/// Generate a function call to any function in the global context except `main`,
+    /// if the function returns the target type, or something we can use to produce that type.
+    </span><span class="kw">fn </span>gen_call(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+        max_depth: usize,
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+        <span class="comment">// Decrease the budget so we avoid a potential infinite nesting of calls.
+        </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
+
+        <span class="kw">let </span>opts = <span class="self">self
+            </span>.call_targets
+            .iter()
+            .filter_map(|(id, types)| types.contains(typ).then_some(id))
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="kw">if </span>opts.is_empty() {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
+
+        <span class="kw">let </span>callee_id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
+        <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
+        <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
+        <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>param_types {
+            args.push(<span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::CALL)<span class="question-mark">?</span>);
+        }
+
+        <span class="kw">let </span>call_expr = Expression::Call(Call {
+            func: Box::new(Expression::Ident(Ident {
+                location: <span class="prelude-val">None</span>,
+                definition: Definition::Function(callee_id),
+                mutable: <span class="bool-val">false</span>,
+                name: callee.name.clone(),
+                typ: Type::Function(
+                    param_types,
+                    Box::new(callee.return_type.clone()),
+                    Box::new(Type::Unit),
+                    callee.unconstrained,
+                ),
+            })),
+            arguments: args,
+            return_type: callee.return_type.clone(),
+            location: Location::dummy(),
+        });
+
+        <span class="comment">// Derive the final result from the call, e.g. by casting, or accessing a member.
+        </span><span class="self">self</span>.gen_expr_from_source(u, call_expr, <span class="kw-2">&amp;</span>callee.return_type, typ, <span class="self">self</span>.max_depth())
+    }
+
     <span class="doccomment">/// Generate a `loop` loop.
     </span><span class="kw">fn </span>gen_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="comment">// For now, the only way to break out of the loop is the guard
@@ -1570,43 +1777,57 @@
         <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
         <span class="kw">let </span>idx_ident =
             expr::ident_inner(VariableId::Local(idx_id), <span class="bool-val">true</span>, idx_name.clone(), idx_type);
+        <span class="kw">let </span>idx_expr = Expression::Ident(idx_ident.clone());
 
         <span class="comment">// Decrease budget so we don't nest endlessly.
         </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
 
         <span class="comment">// Start building the loop harness, initialize index to 0
-        </span><span class="kw">let </span><span class="kw-2">mut </span>stmts = <span class="macro">vec!</span>[Expression::Let(Let {
-            id: idx_id,
-            mutable: <span class="bool-val">true</span>,
-            name: idx_name,
-            expression: Box::new(expr::u32_literal(<span class="number">0</span>)),
-        })];
+        </span><span class="kw">let </span>let_idx = expr::let_var(idx_id, <span class="bool-val">true</span>, idx_name, expr::u32_literal(<span class="number">0</span>));
 
         <span class="comment">// Get the randomized loop body
-        </span><span class="kw">let </span><span class="kw-2">mut </span>inner_stmts = <span class="macro">vec!</span>[<span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>];
+        </span><span class="kw">let </span><span class="kw-2">mut </span>loop_body = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
 
-        <span class="comment">// Increment the index
-        </span>inner_stmts.push(expr::assign_to_ident(
-            idx_ident.clone(),
-            expr::binary(Expression::Ident(idx_ident.clone()), BinaryOp::Add, expr::u32_literal(<span class="number">1</span>)),
-        ));
+        <span class="comment">// Increment the index in the beginning of the body.
+        </span>expr::prepend(
+            <span class="kw-2">&amp;mut </span>loop_body,
+            expr::assign(
+                idx_ident,
+                expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(<span class="number">1</span>)),
+            ),
+        );
 
         <span class="comment">// Put everything into if/else
-        </span><span class="kw">let </span>inner_block = Expression::Block(<span class="macro">vec!</span>[expr::if_else(
+        </span><span class="kw">let </span>loop_body = expr::if_else(
             expr::binary(
-                Expression::Ident(idx_ident.clone()),
+                idx_expr,
                 BinaryOp::Equal,
                 expr::u32_literal(<span class="self">self</span>.ctx.config.max_loop_size <span class="kw">as </span>u32),
             ),
             Expression::Break,
-            Expression::Block(inner_stmts),
+            loop_body,
             Type::Unit,
-        )]);
+        );
 
-        stmts.push(Expression::Loop(Box::new(inner_block)));
-
-        <span class="prelude-val">Ok</span>(Expression::Block(stmts))
+        <span class="prelude-val">Ok</span>(Expression::Block(<span class="macro">vec!</span>[let_idx, Expression::Loop(Box::new(loop_body))]))
     }
+}
+
+<span class="doccomment">/// Find the next local ID we can use to add variables to a [Function] during mutations.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>next_local_id(func: <span class="kw-2">&amp;</span>Function) -&gt; u32 {
+    <span class="kw">let </span><span class="kw-2">mut </span>next = func.parameters.iter().map(|p| p.<span class="number">0.0 </span>+ <span class="number">1</span>).max().unwrap_or_default();
+    visit_expr(<span class="kw-2">&amp;</span>func.body, <span class="kw-2">&amp;mut </span>|expr| {
+        <span class="kw">let </span>id = <span class="kw">match </span>expr {
+            Expression::Let(let_) =&gt; <span class="prelude-val">Some</span>(let_.id),
+            Expression::For(for_) =&gt; <span class="prelude-val">Some</span>(for_.index_variable),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        };
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = id {
+            next = next.max(id.<span class="number">0 </span>+ <span class="number">1</span>);
+        }
+        <span class="bool-val">true
+    </span>});
+    next
 }
 
 <span class="attr">#[test]
@@ -1627,18 +1848,9 @@
     loop {
         if (idx_a$l0 == 10) {
             break
-        } else {"#
+        } else {
+            idx_a$l0 = (idx_a$l0 + 1);"#
                 </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
-        )
-    );
-
-    <span class="macro">assert!</span>(
-        loop_code.ends_with(
-            <span class="kw-2">&amp;</span><span class="string">r#"idx_a$l0 = (idx_a$l0 + 1)
-        }
-    }
-}"#
-            </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
         )
     );
 }

@@ -325,7 +325,62 @@
 <a href="#324" id="324">324</a>
 <a href="#325" id="325">325</a>
 <a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
 
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
@@ -333,12 +388,12 @@
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
         ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, If, LValue,
-        Literal, Type, Unary,
+        Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
 };
 
-<span class="kw">use super</span>::{Name, VariableId, types};
+<span class="kw">use super</span>::{Name, VariableId, types, visitor::visit_expr};
 
 <span class="doccomment">/// Generate a literal expression according to a type.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>gen_literal(u: <span class="kw-2">&amp;mut </span>Unstructured, typ: <span class="kw-2">&amp;</span>Type) -&gt; arbitrary::Result&lt;Expression&gt; {
@@ -553,6 +608,41 @@
     positive_int_literal(value, types::U32)
 }
 
+<span class="doccomment">/// Create a variable.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>let_var(id: LocalId, mutable: bool, name: String, expr: Expression) -&gt; Expression {
+    Expression::Let(Let { id, mutable, name, expression: Box::new(expr) })
+}
+
+<span class="doccomment">/// Create an `if` expression, with an optional `else`.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>if_then(
+    condition: Expression,
+    consequence: Expression,
+    alternative: <span class="prelude-ty">Option</span>&lt;Expression&gt;,
+    typ: Type,
+) -&gt; Expression {
+    Expression::If(If {
+        condition: Box::new(condition),
+        consequence: Box::new(consequence),
+        alternative: alternative.map(Box::new),
+        typ,
+    })
+}
+
+<span class="doccomment">/// Make an if/else expression.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>if_else(
+    condition: Expression,
+    consequence: Expression,
+    alternative: Expression,
+    typ: Type,
+) -&gt; Expression {
+    if_then(condition, consequence, <span class="prelude-val">Some</span>(alternative), typ)
+}
+
+<span class="doccomment">/// Assign a value to an identifier.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assign(ident: Ident, expr: Expression) -&gt; Expression {
+    Expression::Assign(Assign { lvalue: LValue::Ident(ident), expression: Box::new(expr) })
+}
+
 <span class="doccomment">/// Cast an expression to a target type.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>cast(lhs: Expression, tgt_type: Type) -&gt; Expression {
     Expression::Cast(Cast { lhs: Box::new(lhs), r#type: tgt_type, location: Location::dummy() })
@@ -571,12 +661,12 @@
 
 <span class="doccomment">/// Make a modulo expression.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>modulo(lhs: Expression, rhs: Expression) -&gt; Expression {
-    Expression::Binary(Binary {
-        lhs: Box::new(lhs),
-        operator: BinaryOpKind::Modulo,
-        rhs: Box::new(rhs),
-        location: Location::dummy(),
-    })
+    binary(lhs, BinaryOpKind::Modulo, rhs)
+}
+
+<span class="doccomment">/// Make an `==` expression.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>equal(lhs: Expression, rhs: Expression) -&gt; Expression {
+    binary(lhs, BinaryOpKind::Equal, rhs)
 }
 
 <span class="doccomment">/// Dereference an expression into a target type
@@ -604,30 +694,48 @@
     })
 }
 
-<span class="doccomment">/// Make an if/else expression.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>if_else(
-    condition: Expression,
-    consequence: Expression,
-    alternative: Expression,
-    typ: Type,
-) -&gt; Expression {
-    Expression::If(If {
-        condition: Box::new(condition),
-        consequence: Box::new(consequence),
-        alternative: <span class="prelude-val">Some</span>(Box::new(alternative)),
-        typ,
-    })
+<span class="doccomment">/// Check if an `Expression` contains any `Call` in any of its descendants.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+    <span class="kw">let </span><span class="kw-2">mut </span>has_call = <span class="bool-val">false</span>;
+    visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
+        has_call |= <span class="macro">matches!</span>(expr, Expression::Call(<span class="kw">_</span>));
+        <span class="comment">// Once we know there is a call, we can stop visiting more nodes.
+        </span>!has_call
+    });
+    has_call
 }
 
-<span class="doccomment">/// Make an assign to ident expression.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assign_to_ident(ident: Ident, expression: Expression) -&gt; Expression {
-    Expression::Assign(Assign {
-        lvalue: LValue::Ident(ident.clone()),
-        expression: Box::new(expression),
-    })
+<span class="doccomment">/// Prepend an expression to a destination.
+///
+/// If the destination is a `Block`, it gets prepended with a new statement,
+/// otherwise it's turned into a `Block` first.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>prepend(dst: <span class="kw-2">&amp;mut </span>Expression, expr: Expression) {
+    <span class="kw">if </span>!<span class="macro">matches!</span>(dst, Expression::Block(<span class="kw">_</span>)) {
+        <span class="kw">let </span><span class="kw-2">mut </span>tmp = Expression::Block(<span class="macro">vec!</span>[]);
+        std::mem::swap(dst, <span class="kw-2">&amp;mut </span>tmp);
+        <span class="kw">let </span>Expression::Block(stmts) = dst <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"swapped with empty block"</span>);
+        };
+        stmts.push(tmp);
+    }
+    <span class="kw">let </span>Expression::Block(stmts) = dst <span class="kw">else </span>{
+        <span class="macro">unreachable!</span>(<span class="string">"ensured it's a block"</span>);
+    };
+    <span class="kw">let </span><span class="kw-2">mut </span>new_stmts = <span class="macro">vec!</span>[expr];
+    new_stmts.append(stmts);
+    <span class="kw-2">*</span>stmts = new_stmts;
+}
+
+<span class="doccomment">/// Replace an expression with another one, passing its current value to a function.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace(dst: <span class="kw-2">&amp;mut </span>Expression, f: <span class="kw">impl </span>FnOnce(Expression) -&gt; Expression) {
+    <span class="kw">let </span><span class="kw-2">mut </span>tmp = Expression::Break;
+    std::mem::swap(dst, <span class="kw-2">&amp;mut </span>tmp);
+    <span class="kw-2">*</span>dst = f(tmp);
 }
 
 <span class="doccomment">/// Append statements to a given block.
+///
+/// Panics if `block` is not `Expression::Block`.
 </span><span class="attr">#[allow(dead_code)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend_block(block: Expression, statements: Vec&lt;Expression&gt;) -&gt; Expression {
     <span class="kw">let </span>Expression::Block(<span class="kw-2">mut </span>block_stmts) = block <span class="kw">else </span>{
@@ -640,6 +748,8 @@
 }
 
 <span class="doccomment">/// Prepend statements to a given block.
+///
+/// Panics if `block` is not `Expression::Block`. Consider [prepend] which doesn't.
 </span><span class="attr">#[allow(dead_code)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>prepend_block(block: Expression, statements: Vec&lt;Expression&gt;) -&gt; Expression {
     <span class="kw">let </span>Expression::Block(block_stmts) = block <span class="kw">else </span>{
