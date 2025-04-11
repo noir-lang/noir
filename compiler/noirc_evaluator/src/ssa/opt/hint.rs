@@ -6,7 +6,7 @@ mod tests {
         assert_ssa_snapshot,
         brillig::BrilligOptions,
         errors::RuntimeError,
-        ssa::{Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, optimize_all},
+        ssa::{Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, primary_passes},
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
@@ -29,7 +29,7 @@ mod tests {
             print_codegen_timings: false,
         };
 
-        optimize_all(builder, options)
+        Ok(builder.run_passes(&primary_passes(options))?.finish())
     }
 
     /// Test that the `std::hint::black_box` function prevents some of the optimizations.
