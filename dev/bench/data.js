@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744364689914,
+  "lastUpdate": 1744364698624,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9c94ab1b21c9cc1fd8ff4017ffd7f53bf364bc51",
-          "message": "feat(formatter): improved formatting of long struct patterns (#7899)",
-          "timestamp": "2025-04-03T16:07:49Z",
-          "tree_id": "61c7908861232549f889aab774aa4d7aedaae928",
-          "url": "https://github.com/noir-lang/noir/commit/9c94ab1b21c9cc1fd8ff4017ffd7f53bf364bc51"
-        },
-        "date": 1743697953003,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.711,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.498,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.308,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.228,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.962,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 133,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.968,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.508,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.4,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "880266d3dd6cfd281b842154dad81db17263d062",
+          "message": "chore: add snapshot tests for the build artifacts as produced by test_programs (#7986)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
+          "timestamp": "2025-04-11T09:20:54Z",
+          "tree_id": "2284298d102b772999ed2215cfbcd78df4755942",
+          "url": "https://github.com/noir-lang/noir/commit/880266d3dd6cfd281b842154dad81db17263d062"
+        },
+        "date": 1744364693595,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.663,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.453,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.27,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.946,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.084,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.887,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.846,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.498,
             "unit": "s"
           }
         ]
