@@ -201,9 +201,11 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
         (Type::Field, Type::Field) => op.is_valid_for_field_type() && !op.is_equality(),
         (Type::Field, Type::Bool) => op.is_equality(),
         (Type::Bool, Type::Bool) => op.is_comparator() || op.is_bitwise(),
-        (Type::Integer(sign, size), Type::Bool) => {
-            // AcirContext::less_than_signed would cause overflow with 128 bits
-            op.is_comparator() && !(sign.is_signed() && size.bit_size() == 128)
+        (Type::Integer(_, size), Type::Bool) => {
+            // Avoid comparing 128 bit numbers:
+            // `AcirContext::less_than_signed` would cause overflow with i128
+            // `AcirContext::euclidean_division_var` would divide by zero with u128
+            op.is_comparator() && (op.is_equality() || size.bit_size() != 128)
         }
         (Type::Integer(sign_in, size_in), Type::Integer(sign_out, size_out))
             if sign_in == sign_out =>
