@@ -117,7 +117,10 @@ impl<'a> SsaPass<'a> {
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 
-/// The default, full SSA optimization pipeline.
+/// The default SSA optimization pipeline.
+///
+/// After these passes everything is ready for execution, which is
+/// something we take can advantage of in the [secondary_passes].
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
@@ -192,8 +195,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     ]
 }
 
-/// The second SSA pipeline which executes Brillig functions from the primary
-/// pipeline to fold constants.
+/// The second SSA pipeline, in which we take the Brillig functions compiled after
+/// the primary pipeline, and execute the ones with all-constant arguments, to
+/// replace the calls with the return value.
 pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
         SsaPass::new(
@@ -212,7 +216,15 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-pub(crate) fn optimize_into_acir<S>(
+///
+/// The `primary` SSA passes are applied on the initial SSA.
+/// Then we compile the Brillig functions, and use the output
+/// to run a `secondary` pass, which can use the Brillig
+/// artifacts to do constant folding.
+///
+/// See the [primary_passes] and [secondary_passes] for
+/// the default implementations.
+fn optimize_into_acir<S>(
     program: Program,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
@@ -358,7 +370,7 @@ pub fn create_program(
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
-/// `primary` and `secondary` SSA passes.
+/// `primary` and `secondary` SSA passes. See [optimize_into_acir] for more details.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program_with_passes<S>(
     program: Program,
