@@ -33,6 +33,8 @@ mod tests {
         nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
         // Allow more bytecode in exchange to catch illegal states.
         nargo.arg("--enable-brillig-debug-assertions");
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
 
         // Enable enums and ownership as unstable features
         nargo.arg("-Zenums");
