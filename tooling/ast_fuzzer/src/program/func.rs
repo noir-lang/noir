@@ -855,32 +855,33 @@ impl<'a> FunctionContext<'a> {
         self.decrease_budget(1);
 
         // Start building the loop harness, initialize index to 0
-        let mut stmts = vec![expr::let_var(idx_id, true, idx_name, expr::u32_literal(0))];
+        let let_idx = expr::let_var(idx_id, true, idx_name, expr::u32_literal(0));
 
         // Get the randomized loop body
-        let mut inner_stmts = vec![self.gen_block(u, &Type::Unit)?];
+        let mut loop_body = self.gen_block(u, &Type::Unit)?;
 
-        // Increment the index
-        inner_stmts.push(expr::assign(
-            idx_ident,
-            expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
-        ));
+        // Increment the index in the beginning of the body.
+        expr::prepend(
+            &mut loop_body,
+            expr::assign(
+                idx_ident,
+                expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
+            ),
+        );
 
         // Put everything into if/else
-        let inner_block = Expression::Block(vec![expr::if_else(
+        let loop_body = expr::if_else(
             expr::binary(
                 idx_expr,
                 BinaryOp::Equal,
                 expr::u32_literal(self.ctx.config.max_loop_size as u32),
             ),
             Expression::Break,
-            Expression::Block(inner_stmts),
+            loop_body,
             Type::Unit,
-        )]);
+        );
 
-        stmts.push(Expression::Loop(Box::new(inner_block)));
-
-        Ok(Expression::Block(stmts))
+        Ok(Expression::Block(vec![let_idx, Expression::Loop(Box::new(loop_body))]))
     }
 }
 

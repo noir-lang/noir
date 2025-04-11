@@ -231,7 +231,7 @@ pub(crate) fn let_var(id: LocalId, mutable: bool, name: String, expr: Expression
     Expression::Let(Let { id, mutable, name, expression: Box::new(expr) })
 }
 
-/// Create an `if` expression.
+/// Create an `if` expression, with an optional `else`.
 pub(crate) fn if_then(
     condition: Expression,
     consequence: Expression,
@@ -244,6 +244,16 @@ pub(crate) fn if_then(
         alternative: alternative.map(Box::new),
         typ,
     })
+}
+
+/// Make an if/else expression.
+pub(crate) fn if_else(
+    condition: Expression,
+    consequence: Expression,
+    alternative: Expression,
+    typ: Type,
+) -> Expression {
+    if_then(condition, consequence, Some(alternative), typ)
 }
 
 /// Assign a value to an identifier.
@@ -339,21 +349,6 @@ pub(crate) fn replace(dst: &mut Expression, f: impl FnOnce(Expression) -> Expres
     let mut tmp = Expression::Break;
     std::mem::swap(dst, &mut tmp);
     *dst = f(tmp);
-}
-
-/// Make an if/else expression.
-pub(crate) fn if_else(
-    condition: Expression,
-    consequence: Expression,
-    alternative: Expression,
-    typ: Type,
-) -> Expression {
-    Expression::If(If {
-        condition: Box::new(condition),
-        consequence: Box::new(consequence),
-        alternative: Some(Box::new(alternative)),
-        typ,
-    })
 }
 
 /// Append statements to a given block.

@@ -59,13 +59,13 @@ pub(crate) fn add_recursion_depth(
             let default_return = expr::gen_literal(u, &func.return_type)?;
 
             expr::replace(&mut func.body, |body| {
-                expr::if_then(
+                expr::if_else(
                     expr::equal(depth_expr.clone(), expr::u32_literal(0)),
                     default_return,
-                    Some(Expression::Block(vec![
+                    Expression::Block(vec![
                         expr::assign(depth_ident, depth_decreased.clone()),
                         body,
-                    ])),
+                    ]),
                     func.return_type.clone(),
                 )
             });

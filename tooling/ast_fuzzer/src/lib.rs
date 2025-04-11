@@ -44,7 +44,7 @@ impl Default for Config {
             ("binary", 20),
             ("if", 15),
             ("block", 30),
-            ("vars", 20),
+            ("vars", 25),
             ("literal", 5),
             ("call", 5),
         ]);
