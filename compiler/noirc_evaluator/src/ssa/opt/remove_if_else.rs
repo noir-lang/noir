@@ -62,6 +62,7 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
         let one = FieldElement::one();
         let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
+        let mut values_to_replace = HashMap::default();
 
         for instruction in instructions {
             match &function.dfg[instruction] {
@@ -100,7 +101,8 @@ impl Context {
                     //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
                     // };
 
-                    function.dfg.set_value_from_id(result, value);
+                    values_to_replace.insert(result, value);
+
                     self.array_set_conditionals.insert(result, current_conditional);
                 }
                 Instruction::Call { func, arguments } => {
@@ -144,6 +146,11 @@ impl Context {
                     function.dfg[block].instructions_mut().push(instruction);
                 }
             }
+        }
+
+        if !values_to_replace.is_empty() {
+            let blocks = function.reachable_blocks();
+            function.dfg.replace_values_in_blocks(blocks.into_iter(), &values_to_replace);
         }
     }
 
