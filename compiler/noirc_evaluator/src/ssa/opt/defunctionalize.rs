@@ -439,7 +439,7 @@ fn build_return_block(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::assert_ssa_snapshot;
 
     use super::Ssa;
 
@@ -479,50 +479,49 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
-        let expected = "
-          brillig(inline) fn main f0 {
-            b0(v0: u32):
-              v3 = call f1(Field 2, v0) -> u32
-              v5 = add v0, u32 1
-              v6 = eq v3, v5
-              constrain v3 == v5
-              v8 = call f1(Field 3, v0) -> u32
-              v9 = add v0, u32 1
-              v10 = eq v8, v9
-              constrain v8 == v9
-              return
-          }
-          brillig(inline) fn wrapper f1 {
-            b0(v0: Field, v1: u32):
-              v3 = call f4(v0, v1) -> u32
-              return v3
-          }
-          brillig(inline) fn increment f2 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
-          brillig(inline) fn increment_acir f3 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
-          brillig(inline_always) fn apply f4 {
-            b0(v0: Field, v1: u32):
-              v4 = eq v0, Field 2
-              jmpif v4 then: b2, else: b1
-            b1():
-              constrain v0 == Field 3
-              v9 = call f3(v1) -> u32
-              jmp b3(v9)
-            b2():
-              v6 = call f2(v1) -> u32
-              jmp b3(v6)
-            b3(v2: u32):
-              return v2
-          }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = call f1(Field 2, v0) -> u32
+            v5 = add v0, u32 1
+            v6 = eq v3, v5
+            constrain v3 == v5
+            v8 = call f1(Field 3, v0) -> u32
+            v9 = add v0, u32 1
+            v10 = eq v8, v9
+            constrain v8 == v9
+            return
+        }
+        brillig(inline) fn wrapper f1 {
+          b0(v0: Field, v1: u32):
+            v3 = call f4(v0, v1) -> u32
+            return v3
+        }
+        brillig(inline) fn increment f2 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline) fn increment_acir f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline_always) fn apply f4 {
+          b0(v0: Field, v1: u32):
+            v4 = eq v0, Field 2
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 3
+            v9 = call f3(v1) -> u32
+            jmp b3(v9)
+          b2():
+            v6 = call f2(v1) -> u32
+            jmp b3(v6)
+          b3(v2: u32):
+            return v2
+        }
+        ");
     }
 
     #[test]

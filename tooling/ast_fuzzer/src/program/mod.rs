@@ -19,8 +19,10 @@ use crate::Config;
 mod expr;
 pub(crate) mod freq;
 mod func;
+mod rewrite;
 mod scope;
 mod types;
+mod visitor;
 
 /// Generate an arbitrary monomorphized AST.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
@@ -28,6 +30,7 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
     ctx.gen_globals(u)?;
     ctx.gen_function_decls(u)?;
     ctx.gen_functions(u)?;
+    ctx.rewrite_functions(u)?;
     let program = ctx.finalize();
     Ok(program)
 }
@@ -198,6 +201,11 @@ impl Context {
             self.functions.insert(id, func);
         }
         Ok(())
+    }
+
+    /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
+    fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
+        rewrite::add_recursion_depth(self, u)
     }
 
     /// Return the generated [Program].

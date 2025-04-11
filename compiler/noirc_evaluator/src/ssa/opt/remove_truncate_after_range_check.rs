@@ -79,7 +79,10 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn removes_truncate_after_range_check_with_same_bit_size() {
@@ -94,18 +97,15 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
+        let ssa = ssa.remove_truncate_after_range_check();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             range_check v0 to 64 bits
             range_check v0 to 32 bits
             return v0
         }
-        ";
-
-        let ssa = ssa.remove_truncate_after_range_check();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -120,17 +120,14 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
+        let ssa = ssa.remove_truncate_after_range_check();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             range_check v0 to 16 bits
             return v0
         }
-        ";
-
-        let ssa = ssa.remove_truncate_after_range_check();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
