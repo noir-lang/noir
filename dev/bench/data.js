@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744329750167,
+  "lastUpdate": 1744329819471,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14564,105 +14564,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "702cb9c2fe10b77b440c001596032d8a42867f16",
-          "message": "feat: SSA gen unit tests (#7868)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-04-02T18:53:49Z",
-          "tree_id": "70f16f72451fab9b390ba5b9fece6c94f8614083",
-          "url": "https://github.com/noir-lang/noir/commit/702cb9c2fe10b77b440c001596032d8a42867f16"
-        },
-        "date": 1743621597625,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
-            "value": 39,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
-            "value": 76,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 50,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 171,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
-            "value": 10,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
-            "value": 160,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 53,
-            "unit": "s"
-          },
-          {
-            "name": "Mach-34_noir-zk-regex_packages_noir",
-            "value": 16,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-bignum_",
-            "value": 87,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_bigcurve_",
-            "value": 218,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_sha512_",
-            "value": 27,
-            "unit": "s"
-          },
-          {
-            "name": "olehmisar_noir_webauthn_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "zkemail_noir-jwt_",
-            "value": 3,
-            "unit": "s"
-          },
-          {
-            "name": "zkemail_zkemail.nr_lib",
-            "value": 2,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19347,6 +19248,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_noir-lang_noir_bigcurve_",
             "value": 221,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 29,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7fb652c888402f5283ed8ac560a95f02dc2513b8",
+          "message": "chore: add benchmark for ACVM arithmetic solver (#8003)",
+          "timestamp": "2025-04-10T23:42:06Z",
+          "tree_id": "4482b6c97c017d1430182a44d2bd6c18eee4c96f",
+          "url": "https://github.com/noir-lang/noir/commit/7fb652c888402f5283ed8ac560a95f02dc2513b8"
+        },
+        "date": 1744329814785,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 49,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 88,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 45,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 169,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 159,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 50,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 80,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 213,
             "unit": "s"
           },
           {
