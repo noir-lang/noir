@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744392194519,
+  "lastUpdate": 1744392199548,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf",
-          "message": "chore: add timeouts to rust CI (#7923)",
-          "timestamp": "2025-04-07T12:50:32Z",
-          "tree_id": "d158b5331580426b8542de8496cd0e14dd1e8737",
-          "url": "https://github.com/noir-lang/noir/commit/93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf"
-        },
-        "date": 1744032086703,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.664,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.461,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.338,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.642,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.076,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.854,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 130,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.911,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.476,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.404,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10a6d1af7202e9ba613d138e2c669cbd0f08e267",
+          "message": "fix(fuzz): remove duplicate gen_loop, move unconstrained generators up (#8029)",
+          "timestamp": "2025-04-11T16:56:30Z",
+          "tree_id": "c4e6efec3bb8b68c6023fe40a01a5101c35b48b4",
+          "url": "https://github.com/noir-lang/noir/commit/10a6d1af7202e9ba613d138e2c669cbd0f08e267"
+        },
+        "date": 1744392192938,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.668,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.469,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.348,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.844,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.054,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.932,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 137,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.871,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.454,
             "unit": "s"
           }
         ]
