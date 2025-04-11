@@ -1,0 +1,79 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "tuple",
+            "fields": [
+              {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 1
+              },
+              {
+                "kind": "boolean"
+              },
+              {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 1
+              },
+              {
+                "kind": "string",
+                "length": 2
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 0,
+        "type": {
+          "kind": "boolean"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1XyU4DMQz1dArdaCl0XxA9wTWZpZ258R3cqJhe+E34L2rVhpBxOVC3UiUsRc68JJbz4rH0AtjZfDseaR5sR0iev10sELCKgIUCVt2OuoddCNilcLYmYHUBawjxmgLWEs5eCVhbwDpCvGsB6wpnbwTsVsB6Qrw+YVV6mwqUjd/tibw5zKJAL5YR0lXL0+ViQH4IHoG4cO9hQ4c0tvCIJMZmmSTFKipsbF9MlK+z1CTpepnZzKZZ+hplcVxkSbbK1/nK5DaJC7tJ87jY7GygEGtDiQ317mhOWJRWI2+isxDSPTS25YnLxYj8mAnhAhxB+e/HTQsvKeWi/EHiHwspokKyI9AryrHy4/rFd2h+7mMqvof57+rlPF0uJuSnTAj/LLjgd/UpnFdXn4BegU7hPLu6Rt6n7uoz8nMmhAtwBuWujpsWXlLaXX0Kel19BnpFOYfjdnVzmFlw3gwU7z3Ty9GwhkIbwLexBgtpHTUVaijUTKgXUBOhBkLNgxoHNQ1qGNQsqFFQk6AGQc3Rh7K5BX/3hXU7z+9vH+6+hz1rzGmdfIN801kP9XiKOH7rOPFNDcrWdOYtkPmrCueCPd8Vz/+218ddrC2sccweeTdfvscnv73PBxwQAAA=",
+  "debug_symbols": "ldNNCoMwEAXgu8zahSam/lylFIkaJRASibFQxLs3ioKUbt5u3jy+2c1KvWqXsdF2cDPVz5WM62TQzsa0EsuO3TxJu8c5SB+ozniekLJ9nMp0S2jQRlEt0u2VEGOw4LDIYSFg8YBFAYsSFhUqePpPsLQ6BRPiV2SwYLDgsMhhIWDxgEUBixITMbReG6PH5v6Zcf2WXsvWqDMOi+1ubfhMV3P5ybtO9YtX+6Wji+e/",
+  "file_map": {
+    "50": {
+      "source": "global G_A: [[bool; 0]; 2] = [[], []];\n\nfn main(a: bool, b: [(u1, bool, u1, str<2>); 4]) -> pub [bool; 0] {\n    if (a) {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    } else {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}
