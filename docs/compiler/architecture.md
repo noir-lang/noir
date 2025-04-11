@@ -111,7 +111,7 @@ It can be found in [compiler/noirc_evaluator/src/ssa/ssa_gen/mod.rs](/compiler/n
 
 There are many optimization passes on Noir's SSA. The ordering of these passes is not stable and may
 change over time although this should not be observable without debugging utilities like `--show-ssa`.
-The various ssa passes can be found in [compiler/noirc_evaluator/src/ssa/opt/](/compiler/noirc_evaluator/src/ssa/opt/) and their ordering
+The various SSA passes can be found in [compiler/noirc_evaluator/src/ssa/opt/](/compiler/noirc_evaluator/src/ssa/opt/) and their ordering
 can be found in the `optimize_all` function in [compiler/noirc_evaluator/src/ssa.rs](/compiler/noirc_evaluator/src/ssa.rs).
 
 Note that various SSA passes may have constraints on when they can be performed. For example the
@@ -156,7 +156,21 @@ necessary before calling into the [compiler/noirc_driver](/compiler/noirc_driver
 
 ## Noir Language Server
 
+The [tooling/lsp](/tooling/lsp) crate provides the implementation of the `nargo lsp` command. This command implements
+the server side of the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
+(LSP) and is invoked by the client side of the protocol
+(for example by the [vscode-noir](https://github.com/noir-lang/vscode-noir) client).
+LSP provides many features like completion, go-to-definition, hover information and inlay hints. Each
+of these is implemented in a file inside [tooling/lsp/src/requests](/tooling/lsp/src/requests). Most of these features rely on
+running the compiler frontend to get type information like available types and methods. Other features
+just rely on parsing (for example listing all symbols in the current file).
+
 ## Formatter
+
+The [tooling/nargo_fmt](/tooling/nargo_fmt) crate provides the implementation of the `nargo fmt` command. The formatter
+takes an input string, parses it into an AST and, if there are no syntax errors, traverses the
+AST together with the input string tokens (needed to be aware of whitespace and comments) to produce
+a prettier output string.
 
 ## Debugger
 
@@ -166,4 +180,31 @@ executing the resulting ACIR & Brillig code itself.
 
 ## Fuzzer
 
-## AST Fuzzer
+There are multiple fuzzers in the repo, focusing on different aspects of Noir.
+
+### Input Fuzzer
+
+The [tooling/fuzzer](/tooling/fuzzer) crate contains utilities to generate random `InputMap` according to a circuit ABI
+and bytecode. It is used by `nargo test` to generate input for `#[test]` methods that have parameters.
+
+### Greybox Fuzzer
+
+The [tooling/greybox_fuzzer](/tooling/greybox_fuzzer) crate implements the `noir fuzz` machinery, which is an end-to-end solution
+for fuzzing a Noir program, including generating random inputs and carefully mutating them to provide
+optimal coverage of the circuit by discovering its control flow based on the changes in the output.
+
+### SSA Fuzzer
+
+The [tooling/ssa_fuzzer](/tooling/ssa_fuzzer) crate focuses on crafting SSA with arithmetic and logical operations,
+asserting the equivalence of their execution through ACIR and Brillig. Unlike the _Greybox Fuzzer_,
+it relies on `cargo fuzz` to drive the process.
+
+### AST Fuzzer
+
+The [tooling/ast_fuzzer](/tooling/ast_fuzzer) crate generates random monomorphized AST programs and performs comparative
+testing by comparing execution results between:
+1. ACIR and Brillig
+2. different points in the SSA processing pipeline
+3. the generated program and one that has a number of equivalence mutations applied to it
+
+Like the _SSA Fuzzer_ it requires `cargo fuzz` to run.
