@@ -29,7 +29,7 @@ $NARGO_BACKEND_PATH write_solidity_verifier -k $KEYS/vk -o $contracts_dir/assert
 # Codegen verifier contract for recursion
 recursion_dir=$repo_root/compiler/integration-tests/circuits/recursion
 nargo --program-dir $recursion_dir compile
-$NARGO_BACKEND_PATH OLD_API write_vk -b $recursion_dir/target/recursion.json -o $KEYS/recursion
-$NARGO_BACKEND_PATH OLD_API contract -k $KEYS/recursion -o $contracts_dir/recursion.sol
+$NARGO_BACKEND_PATH write_vk --scheme ultra_honk --oracle_hash keccak -b $recursion_dir/target/recursion.json -o $KEYS
+$NARGO_BACKEND_PATH write_solidity_verifier --scheme ultra_honk -k $KEYS/vk -o $contracts_dir/recursion.sol
 
 rm -rf $KEYS
