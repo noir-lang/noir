@@ -168,7 +168,7 @@ just rely on parsing (for example listing all symbols in the current file).
 ## Formatter
 
 The `tooling/nargo_fmt` crate provides the implementation of the `nargo fmt` command. The formatter
-takes an input string, parses it into an AST and, if it there are no syntax errors, traverses the
+takes an input string, parses it into an AST and, if there are no syntax errors, traverses the
 AST together with the input string tokens (needed to be aware of whitespace and comments) to produce
 a prettier output string.
 
