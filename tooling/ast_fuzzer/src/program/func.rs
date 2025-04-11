@@ -623,12 +623,6 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        if freq.enabled("drop") {
-            if let Some(e) = self.gen_drop(u)? {
-                return Ok(e);
-            }
-        }
-
         if freq.enabled("assign") {
             if let Some(e) = self.gen_assign(u)? {
                 return Ok(e);
