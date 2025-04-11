@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744387858910,
+  "lastUpdate": 1744388534690,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19403,6 +19403,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3232533,
             "range": "± 48990",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "saleel@saleel.xyz",
+            "name": "saleel",
+            "username": "saleel"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b31d409d22fc33f1b857a91432c292d9805ff09b",
+          "message": "fix(docs): fix proof splitting script in solidity guide (#8033)",
+          "timestamp": "2025-04-11T16:01:07Z",
+          "tree_id": "1b8bb2c5cb976d17fbff0c73ada4cd2fe7ff467d",
+          "url": "https://github.com/noir-lang/noir/commit/b31d409d22fc33f1b857a91432c292d9805ff09b"
+        },
+        "date": 1744388529123,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3611531,
+            "range": "± 18432",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3580862,
+            "range": "± 25510",
             "unit": "ns/iter"
           }
         ]
