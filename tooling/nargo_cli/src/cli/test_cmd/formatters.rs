@@ -16,9 +16,9 @@ use super::TestResult;
 /// 3. For each test, one `test_start_async` event
 ///    (there's no `test_start_sync` event because it would happen right before `test_end_sync`)
 /// 4. For each package, sequentially:
-///     a. A `package_start_sync` event
-///     b. One `test_end` event for each test
-///     a. A `package_end` event
+///     1. A `package_start_sync` event
+///     2. One `test_end` event for each test
+///     3. A `package_end` event
 ///
 /// The reason we have some `sync` and `async` events is that formatters that show output
 /// to humans rely on the `sync` events to show a more predictable output (package by package),
@@ -116,7 +116,7 @@ impl Formatter for PrettyFormatter {
         writer.flush()?;
 
         match &test_result.status {
-            TestStatus::Pass { .. } => {
+            TestStatus::Pass => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
                 write!(writer, "ok")?;
                 writer.reset()?;
@@ -138,7 +138,7 @@ impl Formatter for PrettyFormatter {
                     );
                 }
             }
-            TestStatus::Skipped { .. } => {
+            TestStatus::Skipped => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
                 write!(writer, "skipped")?;
                 writer.reset()?;
