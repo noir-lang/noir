@@ -7,18 +7,18 @@ exit_code: 1
 ----- stdout -----
 
 ----- stderr -----
-warning: unused variable removed_slice
-   ┌─ src/main.nr:10:10
-   │
-10 │     let (removed_slice, removed_elem) = slice.remove(10);
-   │          ------------- unused variable
-   │
-
 warning: unused variable removed_elem
    ┌─ src/main.nr:10:25
    │
 10 │     let (removed_slice, removed_elem) = slice.remove(10);
    │                         ------------ unused variable
+   │
+
+warning: unused variable removed_slice
+   ┌─ src/main.nr:10:10
+   │
+10 │     let (removed_slice, removed_elem) = slice.remove(10);
+   │          ------------- unused variable
    │
 
 error: No method named 'push_back' found for type '[Field; 2]'
