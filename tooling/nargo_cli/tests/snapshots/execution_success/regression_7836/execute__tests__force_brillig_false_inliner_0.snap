@@ -1,0 +1,38 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/92VwW6EIBCGFXTV3fTS6qWnPgIIKtz2VWrV93+EasokU4JeHNLYSciwwP5+/OCYJj9Rre3V9dO1cZe3+Fhbhub8gLGny+JcSKylRK/1PLSzVPJTtHY0ndDd2BtpZGe6qTVKzUabwY52EFZqNculs2petpj6NMAZBXjTZJ4uBTwVIyPgWpxYLA9ZQPesh4yOUfzVSyBOBublMYF5BN3sAhc3QwYT6UZhZZFY/8OLkccEzgOmn73MWfL7q3MV0wO4RNq9xl7cXC7AEKhO28S7N1bAQhSM2MSC8PBLMi75hX0oAz7wiJfp3OfdTjdCT4vkmhWRkhvzVjGBK/QgqgPcOI+M94N5G4XcIA1OuG/Qr+PoiyKwxwb1a2+fuFo+iRhAD4pGnuz7nntrS48vpeeTPgsPPAvizeUajTU7rHekQ3imLeg/4ugH78wd9R/eHJxdFvhfuvObeflo7VHBfAnMgSacFeaFfXwD3RXraOUQAAA=",
+  "debug_symbols": "tdRLCoMwEIDhu8zaRWMSX1cpRaJGCYQoUQtFvHujRBArBVtmOTN/vmUmqGQxNrkyddtDdp9At6UYVGvcNAFZV30nzDL1g7ADZGEUgDQVZJTOAdRKS8j4bX4EEF7L6bWcneWc+pyn+zz4CAllviSMHWSOJkdocowmJ2dynPg+Yb/LKZpMbv/RnGx0FB5pgkeHeDTFoxkezfHo6DudHvv4Su+GwiqtVZPvP1C3fgqrRKGlH+vRlLvr8Oq2y/a+s20pq9HKRVpvjn8D",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32) {\n    if (x == 43) {\n        let _ = foo(x);\n    }\n    assert(foo(x) != 0);\n}\n\nfn foo(input: u32) -> u32 {\n    assert(input != 0);\n    input % 100\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert",
+    "directive_integer_quotient"
+  ]
+}

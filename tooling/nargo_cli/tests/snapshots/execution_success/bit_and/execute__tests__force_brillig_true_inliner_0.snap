@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "a",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWzU7DMAx2mnZZmBAIrly4cE5ZUXvcgZ/nqJj6HH10VmGrnuUUtCWTFqnKj53v++ykbg38Nnt4DI5L0fNGPjvsw3mtTogVcuo0V6KzuBKdNpPOo0s7iZ4SYiHeKLAOe499wewJxdZe8KbE70LTeSW+hPq3HjGrPPgN4a/y4AeHOO/jjM9jId5bnBuWS9pDtoLZPoSN37lPYeN39Att68NzB/P4Hsde6MhxX3gsqfP9qOgnrg3G+opz+gjxszdiTD7amcUwqgiGUzQt8TiFxy3wGLHu2NpKwTViXioYfG8l/J+wpzNdsz0pz/SB4YLgkvUBIG2h1+I3yhlUwvdZ6HMXzI0T3CZ5buoQi1/ea24j3xehL1ft1XJDXBb0OsS1W4jXkhhGrH5w7PIfPFbhsQs8Rqzzd/+vGAGO330t3kr419h7JabcZ0hcG5j/n8oxPX/bhUC8dpzzoP3flczO/Vuc30Ti2J2oc2j7etj2Q//W7/fNdy/zNDX+3fsB7sIzGXkNAAA=",
+  "debug_symbols": "ldVLisQgFAXQvTjOQH1qPltpmiIfUwghCfk0NCF7b9OURbCc3EnIE48iT7kH62yzPx9u7KeVVV8HG6a23tw0+uo4M9Ysbhjc83EfZvz6iPx//jrX41WuW71srBKFyZgdO/9Xkve9GyyrND+/MyYKWJSokDwlpKCXkJLHQsBCwoKSgnQQWsZCpYUKwqhYaFgYWOSwSPacVDg5qTIWJSqIw0LAQsKCYKFgoWFhYJHDItlzxcP7UCJ+H1SiQnFYJHuuiAdBeSwkLAgWyZ4rLYIwRSx0Wrz3KD5ObmCRw6LAxOmrn3pxdTPYV9T0+9jekmf7nW0UQvMytbbbF3vF0S2Jrrvgd9LaL+uX/gM=",
+  "file_map": {
+    "50": {
+      "source": "// You can only do bit operations with integers.\n// (Kobi/Daira/Circom/#37) https://github.com/iden3/circom/issues/37\nfn main(x: Field, y: Field, a: Field, b: Field) {\n    let x_as_u8 = x as u8;\n    let y_as_u8 = y as u8;\n\n    assert((x_as_u8 & y_as_u8) == x_as_u8);\n    //bitwise and with 1 bit:\n    let flag = (x == 0) & (y == 16);\n    assert(flag);\n    //bitwise and with odd bits:\n    let a_as_u8 = a as u8;\n    let b_as_u8 = b as u8;\n    assert((a_as_u8 & b_as_u8) == a_as_u8);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

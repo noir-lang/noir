@@ -1,0 +1,76 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/92b127bQBBFKSmOe5fci9y7tSRVKPfe62MeY4T6/0/IjMVFFvS8BLoEMhnggsKlvZqzRSRnpZzXjnfSj+R1jlRIjhzllJcTvLzgFQTvm+B1kXpS3nfB6xa8HsHrFbw+wesXvAHBGxS8IcEbFrwRwRsVvDHBGxe8ouCVBG9C8CYFb0rwpgVvRvBmBW9O8OYFb0HwFgWvLHhLgrcseCuCtyp4a4K3LngbgrcpeFuJx3Pd8/6sIzesd5YcQ1OvVuNGEPuh/9MEzY+oZqq1j3rkR34tqv0KojCMo2rUaH40G6bpV8PYb9WaYcu0w23LdBRB6Oa7nWXC3Hg+1a7pKIJwG9aW8XfAvFn04Y7QrukognAH14fGy3DSI/P8m8VqOgsf0Qdx6zMCN9/dLBPmxvOgAbTJ7wJz3POyXayms/jswz0PtwhsH+55OhYrMk+lizV2893PMmFuHLxY431gjhXv31+sFQ++WOOKl+0iQC/aSjKPsHdpxs/j2goQcykZn5bblyarTs0nk6vwn3eq5fWBAySNh+ksfB5o3xl4FLetbXQ588itdbg1Dre24dY0bC0j4HxIVVKNVCc1SBGpSTogHZKOSMekE9JpwnJOuiBdkq5I16Qb0i3pjnRPeiA9kp5Iz6QX0ivpzWvXhtxAXVhsP/UBxzLwsrkbQjP3A5lDJcwDQOaqEuZBIHNNCfMQkLmuhHkYyNxQwjwCZI6UMI8CmZtKmMeAzAdKmMeBzIdKmItA5iMlzCUg87ES5gkg84kS5kkg86kS5ikg85kS5mkg87kS5hkg84US5lkg86US5jkg85US5nkg87US5gUg840S5kUg860S5jKQ+U4J8xKQ+V4J8zKQ+UEJ8wqQ+VEJ8yqQ+UkJ8xqQ+VkJ8zqQ+UUJ8waQ+VUJ8yaQ+U0J8xaQ+R3IbH87wNHn8NvfHhSS87y/zvvqdj+d98/Lzv/xvivvQ/K+HO9T8b4N72NwXZ/r3Fz35Too1wW5TsZ1I66jcF2Bn7P5uZOfw/i5hO/TF5P2+b6Gr/N83ePrAH8u8ucErxueR1ve17DfY+hNHUvO+QJwPGz7xWzaN90CY8l5XUxx5p1zZ6AcbHv2uzVd3tfIp87Zv+1J5ZfD5+encykI72VjPDkWHc/2529flbhyuDMAAA==",
+  "debug_symbols": "tZfNioMwFEbfJWsXMcnNvfZVhqHYVosgKv4MDNJ3Hy0GxMoUKd/OmJxDJDkLR3XLLsP9XFR53anT16jK+pr2RV1No1E583zXNWk1D7s+bXt1imMTqay6zU/JI1J5UWbqRPrxHSlnDxPuMEG7hOVAOLMl/C5BFAjWayJ6WWqdW5ZairdyRsoFKU8+lftwStbzm6U6HI+N7WYfpHf3ITrsQ/yWiA8T5jCxe5WNCd9h7AvhDhN0mNi9ysbZQHj5/yBIJ8tSMtuyiD+Vu3AhiGQrF6Q8Acq9RspjpNwg5RYpd0g5IeUeKUcW6pGFemShjCyUkYUyslBGFsrIQhlZKCMLZWShjCyUkYUKslBBFirIQgVZqCALFWShgixUkIUKrtBpcGmLsizu5/Vf+vT6J22L9FJmyzAfqutqtv9twkzgm7a+ZrehzWbTc27S/wE=",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {\n    //regression for short-circuit2\n    if 35 == a {\n        assert(false);\n    }\n    bar(a as Field);\n\n    if a == 3 {\n        c = test4();\n    }\n    assert(c[1] != 2);\n    call_intrinsic(x, result);\n}\n\nfn foo() {\n    let mut x = 1;\n    x /= 0;\n}\n\nfn bar(x: Field) {\n    if x == 15 {\n        foo();\n    }\n}\n\nfn call_intrinsic(x: [u8; 5], result: [u8; 32]) {\n    let mut digest = std::hash::blake3(x);\n    digest[0] = 5 as u8;\n    digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n\nfn test4() -> [u32; 4] {\n    let b: [u32; 4] = [1, 2, 3, 4];\n    b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

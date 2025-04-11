@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYS3LCMAxV4oQSwmdR2HRFb2DnA86Oq5RpOHbP0rpIHWMcOmCZAc0wcmLnIT1/npIEjrb4+b1hO0Ofwrkl6HfoZZgpRizpCTcUW1HD5oLagggR6E3Hl3PP+LUTlIhIYi03TdNvq17V6kNW3V63smn3G620anX7Wem67nWjt92+28pONXWvDm1XHRArDceqEUsKiDO5qcNfaJycOWeenG/FtNdRhmsrw+sEzi2JyAtHLmR5zIBzzwIJDT4Hvs06Ysw3FocjGD7pb8UfAe9hwJ23wLyH1s61Rric8/3CyKF9uBjcd7iv8ifwfMo/Rl8QIUSg6XCV3wxaO0FxK79NYqjyj4FvoRbwHMrPmfME4ij/BO6v/GOIo/xlzIBL4Ff+Evg26xQeW/kNh1PgV/4pPLbyF5g3t/JzzvcM4ii/wf1P+bl4QVOCee4C4/pTek/qUaqIOXrzzeWkYjA31k4A2ZOQH1p9zBnjWkRaFNwHzxx4N7VvE/uqBXDGnZS1cKw46FnGbzgV4Zdx8H9fj1ybWO1yIP/M81wycJ06/tLYS5XazNNHmK/o7Xgpj8LxKwuXkUtF+Ms4+N65WlntpZOnzfeOKQbCo7eyHM4tdfporLtnEv74lBuL8PwXGa2ZpXWP+PwGKLUFu+UXAAA=",
+  "debug_symbols": "ldRNCoMwEAXgu8zahSb+X6UUiRolEBKJsVDEuzdKBWkL5e3yMnyzeSQr9bJdxkaZwc5U31bSthNeWRPSSvFxNU/C7Gn2wnmqk6SKSJo+nFixRTQoLanO4u0eUYIChgKOghQFGQpyFBQoKFFQwcXhVf/umsen4OWnYLDgsEhhkcEih0UBixIWFSpYDAu4c/bvgX8LDosUFhkmQmid0lqNzfV/DNcP4ZRotXzHYTHdZeqf0zk5/eRsJ/vFyX3TMQvrXw==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is comparison\nfn main(x: Field, y: Field) {\n    assert(x as u32 < y as u32);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

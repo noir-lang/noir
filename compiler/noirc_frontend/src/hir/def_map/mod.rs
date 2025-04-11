@@ -5,7 +5,7 @@ use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
-use crate::token::{FunctionAttribute, FuzzingScope, TestScope};
+use crate::token::{FunctionAttributeKind, FuzzingScope, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
@@ -202,8 +202,8 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let attributes = interner.function_attributes(&func_id);
-                    match attributes.function() {
-                        Some(FunctionAttribute::Test(scope)) => {
+                    match attributes.function().map(|attr| &attr.kind) {
+                        Some(FunctionAttributeKind::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
                             Some(TestFunction::new(func_id, scope.clone(), location))
                         }
@@ -226,8 +226,8 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let attributes = interner.function_attributes(&func_id);
-                    match attributes.function() {
-                        Some(FunctionAttribute::FuzzingHarness(scope)) => {
+                    match attributes.function().map(|attr| &attr.kind) {
+                        Some(FunctionAttributeKind::FuzzingHarness(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
                             Some(FuzzingHarness::new(func_id, scope.clone(), location))
                         }

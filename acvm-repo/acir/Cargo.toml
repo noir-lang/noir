@@ -57,6 +57,10 @@ bn254 = ["acir_field/bn254"]
 bls12_381 = ["acir_field/bls12_381"]
 arb = ["proptest", "proptest-derive", "brillig/arb"]
 
+[lib]
+# See https://bheisler.github.io/criterion.rs/book/faq.html#cargo-bench-gives-unrecognized-option-errors-for-valid-command-line-options
+bench = false
+
 [[bench]]
 name = "serialization"
 harness = false

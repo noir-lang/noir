@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUQQ6DIBBExbTUeqm9tK9Yo0aPHvoRUsM7eHpLsoTNhnqoMIlZCcvszEgsRECBVbK1iPSsWOEY+oRcEBW6B9/zxKqwlmS/SmhWsbkp+RcYJxXxl1D/oJAzZz6eMwM/nJDnZQM/9+LQ4preIX/m/H2uIry3+K7YmRzfNmP20EX0+1kNer0zryXJJ5GOnnpzqHd01ay3Y/pkpqxuhFewWY0I/xFp08+fFwA/t7IhB58BhST7tP+B68sPH+ufOs2sezNooye9beNb85wc6J36AHrAVfJ9BgAA",
+  "debug_symbols": "lZDLCsMgEEX/ZdYukrRpSn4llGCSMQii4qNQxH/vWLqQ7NwMc4czd3ESHLjFc5VaGA/zkkCZnQdpNKWUGWxOKiXPtT5DV0Z///Hecl2iD9wFmG89A9QHLRN9C6kQ5rHLLwb92Mg/GvmpkX+28JnSmzvJN4V/NSLqvTIVPhYv0qwzOx7RYdFXmaO5DB0bRqql6i8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    assert(x == 1);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

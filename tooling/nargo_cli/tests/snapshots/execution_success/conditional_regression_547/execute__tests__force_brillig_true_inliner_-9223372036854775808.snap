@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VVzW7CMAx2abqtm6ZJ222X7cABIQ6pKD9HJOBBIlCfo48OETZ8dVMuTSxVTmL7i/3FSTO6ScafFwNrWmRtx9qOkyoils0CeT4tIhSwYF2ynoA9j1h4GcglFv7W1uuS+jVHzH9ZMmZKfgQzAb59ZZxD+8DXtXj5pO7lwJg3tsv4C2K8HAFb4lPydj33VWLeqh8a5kp6bt/SXSLtaz+Y41/FY6I6azl3Q30RWwFrUnPovcnVHPP2Nf0DrvbTeyLvxQCmzPFtmSicLBDnOZYzNG3XvuN1O0I228cjnTN+QX1+cP9C+f/x/B3yF21G5NlsXNUsXeNW7nyuT+5b4RNwqHsReZKc9Zuxb7s28Z2xfrl+Ux7r3iaK+8PFvs6pf48k71DPGch3PuCH9Yb8Qn3pOb0AVF4kNo0IAAA=",
+  "debug_symbols": "ldLfCoMgFAbwdznXXvin5epVxggrC0E0zAYjevfpWBDRLs6N+Im/c3O+FXrdLmNj3OBnqB8rWN+paLxLad0ItMFYa8bm+Aw0H6z8/p8n5XKcowoRakELAtr16caq5AdjNdQ3uj0JMIkWd7SosIJTtGBowdFCXAv6V4hrUcpdSHEWlxss6C4Kxs9C4sSW0ksFo1qrf4UaFtcd+hXfkz5VbQq+0/0SdC7doW95T7wkgqWxafQH",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) -> pub Field {\n    // Regression test for issue #547\n    // Warning: it must be kept at the start of main\n    let arr: [u8; 2] = [1, 2];\n    if arr[0] != arr[1] {\n        for i in 0..1 {\n            assert(i != 2);\n        }\n    }\n    // Regression for predicate simplification\n    x + safe_inverse(0)\n}\n\nfn safe_inverse(n: Field) -> Field {\n    if n == 0 {\n        0\n    } else {\n        1 / n\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
