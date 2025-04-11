@@ -374,7 +374,15 @@ mod multi_scalar_mul {
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @"");
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
+            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
+            v11 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, u1 0] : [(Field, Field, u1); 1]
+            return v11
+        }
+        ");
     }
 
     #[cfg(feature = "bn254")]
@@ -393,7 +401,17 @@ mod multi_scalar_mul {
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         //First point is zero, second scalar is zero, so we should be left with the scalar mul of the last point.
-        assert_ssa_snapshot!(ssa, @"");
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [Field; 6]
+            v5 = make_array [Field 0, Field 0, Field 1, v0, v1, Field 0, Field 1, v0, Field 0] : [Field; 9]
+            v6 = make_array [v0, Field 0] : [Field; 2]
+            v7 = make_array [Field 1, v0, Field 0] : [Field; 3]
+            v9 = call multi_scalar_mul(v7, v6) -> [Field; 3]
+            return v9
+        }
+        ");
     }
 
     #[cfg(feature = "bn254")]
@@ -410,7 +428,17 @@ mod multi_scalar_mul {
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         //First and last scalar/point are constant, so we should be left with the msm of the middle point and the folded constant point
-        assert_ssa_snapshot!(ssa, @"");
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
+            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
+            v8 = make_array [v0, Field 0, Field 1, Field 0] : [Field; 4]
+            v12 = make_array [v0, v1, Field 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [Field; 6]
+            v14 = call multi_scalar_mul(v12, v8) -> [Field; 3]
+            return v14
+        }
+        ");
     }
 }
 
