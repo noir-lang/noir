@@ -187,7 +187,7 @@
 
 <span class="doccomment">/// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
-</span><span class="attr">#[derive(Default)]
+</span><span class="attr">#[derive(Default, Clone)]
 </span><span class="kw">pub struct </span>Brillig {
     <span class="doccomment">/// Maps SSA function labels to their brillig artifact
     </span>ssa_function_to_brillig: HashMap&lt;FunctionId, BrilligArtifact&lt;FieldElement&gt;&gt;,
