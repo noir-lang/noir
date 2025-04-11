@@ -100,3 +100,19 @@ jobs:
         env:
           # We treat any cancelled, skipped or failing jobs as a failure for the workflow as a whole.
           FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+
+      - name: Checkout
+        if: ${{ failure() }}
+        uses: actions/checkout@v4
+
+      # Raise an issue if the tests failed
+      - name: Alert on failed publish
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/TESTS_ARE_FAILING_ON_ARM64.md
