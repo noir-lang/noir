@@ -1,7 +1,7 @@
 ---
 title: Using the REPL Debugger
 description:
-  Step-by-step guide on how to debug your Noir circuits with the REPL Debugger. 
+  Step-by-step guide on how to debug your Noir circuits with the REPL Debugger.
 keywords:
   [
     Nargo,
@@ -14,7 +14,7 @@ sidebar_position: 1
 
 #### Pre-requisites
 
-In order to use the REPL debugger, first you need to install recent enough versions of Nargo and vscode-noir. 
+In order to use the REPL debugger, first you need to install recent enough versions of Nargo.
 
 ## Debugging a simple circuit
 
@@ -38,7 +38,7 @@ At ~/noir-examples/recursion/circuits/main/src/main.nr:1:9
   1 -> fn main(x : Field, y : pub Field) {
   2        assert(x != y);
   3    }
-> 
+>
 ```
 
 The debugger displays the current Noir code location, and it is now waiting for us to drive it.
@@ -84,7 +84,7 @@ Some commands operate only for unconstrained functions, such as `memory` and `me
 ```
 > memory
 Unconstrained VM memory not available
-> 
+>
 ```
 
 Before continuing, we can take a look at the initial witness map:
@@ -115,7 +115,7 @@ _1 = 2
 >
 ```
 
-Now we can inspect the current state of local variables. For that we use the `vars` command. 
+Now we can inspect the current state of local variables. For that we use the `vars` command.
 
 ```
 > vars
@@ -162,3 +162,40 @@ Finished execution
 Upon quitting the debugger after a solved circuit, the resulting circuit witness gets saved, equivalent to what would happen if we had run the same circuit with `nargo execute`.
 
 We just went through the basics of debugging using Noir REPL debugger. For a comprehensive reference, check out [the reference page](../../reference/debugger/debugger_repl.md).
+
+## Debugging a test function
+
+Let's debug a simple test:
+
+```rust
+#[noir]
+fn test_simple_equal() {
+    let x = 2;
+    let y = 1 + 1;
+    assert(x == y, "should be equal");
+}
+```
+
+To debug a test function using the REPL debugger, navigate to a Noir project directory inside a terminal, and run the `nargo debug` command passing the `--test-name your_test_name_here` argument.
+
+```bash
+nargo debug --test-name test_simple_equal
+```
+
+After that, the debugger has started and works the same as debugging a main function, you can use any of the above explained commands to control the execution of the test function.
+
+### Test result
+
+The debugger does not end the session automatically. Once you finish debugging the execution of the test function you will notice that the debugger remains in the `Execution finished` state. When you are done debugging the test function you can exit the debugger by using the `quit` command. Once you finish the debugging session you should see the test result.
+
+```text
+$ nargo debug --test-name test_simple_equal
+[simple_noir_project] Starting debugger
+At opcode 0:0 :: BRILLIG CALL func 0: inputs: [], outputs: []
+> continue
+(Continuing execution...)
+Finished execution
+> quit
+[simple_noir_project] Circuit witness successfully solved
+[simple_noir_project] Testing test_simple_equal... ok
+```
