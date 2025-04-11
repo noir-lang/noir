@@ -5,6 +5,7 @@ mod tests {
     use assert_cmd::prelude::*;
     use predicates::prelude::*;
 
+    use serde_json::{Value, json};
     use std::collections::BTreeMap;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -174,7 +175,7 @@ mod tests {
         }
 
         // `compile_success_empty` tests should be able to compile down to an empty circuit.
-        let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {
+        let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {
             {
                 panic!(
                     "JSON was not well-formatted {:?}\n\n{:?}",

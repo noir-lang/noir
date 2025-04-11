@@ -1,0 +1,6 @@
+[package]
+name = "slice"
+type = "bin"
+authors = [""]
+
+[dependencies]

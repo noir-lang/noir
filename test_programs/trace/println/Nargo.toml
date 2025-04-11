@@ -1,0 +1,6 @@
+[package]
+name = "println"
+type = "bin"
+authors = [""]
+
+[dependencies]
