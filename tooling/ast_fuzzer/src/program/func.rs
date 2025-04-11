@@ -609,11 +609,11 @@ impl<'a> FunctionContext<'a> {
             return self.gen_while(u);
         }
 
-        if freq.enabled_when("break", self.in_loop) {
+        if freq.enabled_when("break", self.in_loop && self.unconstrained()) {
             return Ok(Expression::Break);
         }
 
-        if freq.enabled_when("continue", self.in_loop) {
+        if freq.enabled_when("continue", self.in_loop && self.unconstrained()) {
             return Ok(Expression::Continue);
         }
 
