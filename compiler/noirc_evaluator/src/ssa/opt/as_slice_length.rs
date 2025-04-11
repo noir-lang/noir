@@ -73,6 +73,15 @@ fn replace_known_slice_lengths(
     known_slice_lengths: HashMap<InstructionId, u32>,
     reachable_blocks: BTreeSet<BasicBlockId>,
 ) {
+    // We won't use the new id for the original unknown length.
+    // This isn't strictly necessary as a new result will be defined the next time for which the instruction
+    // is reinserted but this avoids leaving the program in an invalid state.
+    for instruction_id in known_slice_lengths.keys() {
+        let call_returns = func.dfg.instruction_results(*instruction_id);
+        let original_slice_length = call_returns[0];
+        func.dfg.replace_result(*instruction_id, original_slice_length);
+    }
+
     let values_to_replace = known_slice_lengths
         .into_iter()
         .map(|(instruction_id, known_length)| {
