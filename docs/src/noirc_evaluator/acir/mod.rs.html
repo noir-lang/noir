@@ -3693,7 +3693,8 @@
 <a href="#3692" id="3692">3692</a>
 <a href="#3693" id="3693">3693</a>
 <a href="#3694" id="3694">3694</a>
-<a href="#3695" id="3695">3695</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#3695" id="3695">3695</a>
+<a href="#3696" id="3696">3696</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -5660,7 +5661,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
+        <span class="kw-2">mut </span>max_bit_size: u32,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="macro">assert_ne!</span>(bit_size, max_bit_size, <span class="string">"Attempted to generate a noop truncation"</span>);
@@ -5681,6 +5682,7 @@
                     </span><span class="kw">let </span>integer_modulus = power_of_two::&lt;FieldElement&gt;(bit_size);
                     <span class="kw">let </span>integer_modulus = <span class="self">self</span>.acir_context.add_constant(integer_modulus);
                     var = <span class="self">self</span>.acir_context.add_var(var, integer_modulus)<span class="question-mark">?</span>;
+                    max_bit_size += <span class="number">1</span>;
                 }
             }
             Value::Param { .. } =&gt; {
