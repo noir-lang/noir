@@ -134,10 +134,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
             "Preprocessing Functions",
         ),
-        SsaPass::new(
-            move |ssa| ssa.inline_functions(options.inliner_aggressiveness),
-            "Inlining (1st)",
-        ),
+        SsaPass::new(move |ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining"),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
@@ -200,10 +197,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 /// replace the calls with the return value.
 pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
-        SsaPass::new(
-            move |ssa| ssa.fold_constants_with_brillig(brillig),
-            "Inlining Brillig Calls Inlining",
-        ),
+        SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
         // It could happen that we inlined all calls to a given brillig function.
         // In that case it's unused so we can remove it. This is what we check next.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
