@@ -94,22 +94,22 @@ pub struct SsaEvaluatorOptions {
 /// An SSA pass reified as a construct we can put into a list,
 /// which facilitates equivalence testing between different
 /// stages of the processing pipeline.
-pub struct SsaPass {
+pub struct SsaPass<'a> {
     msg: &'static str,
-    run: Box<dyn Fn(Ssa) -> Result<Ssa, RuntimeError>>,
+    run: Box<dyn Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a>,
 }
 
-impl SsaPass {
+impl<'a> SsaPass<'a> {
     pub(crate) fn new<F>(f: F, msg: &'static str) -> Self
     where
-        F: Fn(Ssa) -> Ssa + 'static,
+        F: Fn(Ssa) -> Ssa + 'a,
     {
         Self::new_try(move |ssa| Ok(f(ssa)), msg)
     }
 
     pub(crate) fn new_try<F>(f: F, msg: &'static str) -> Self
     where
-        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'static,
+        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
     {
         Self { msg, run: Box::new(f) }
     }
@@ -118,8 +118,7 @@ impl SsaPass {
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 
 /// The default, full SSA optimization pipeline.
-pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
-    let options = options.clone();
+pub fn primary_passes<'a>(options: &'a SsaEvaluatorOptions) -> Vec<SsaPass<'a>> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
@@ -195,8 +194,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 
 /// The second SSA pipeline which executes Brillig functions from the primary
 /// pipeline to fold constants.
-pub fn secondary_passes(_: &SsaEvaluatorOptions, brillig: &Brillig) -> Vec<SsaPass> {
-    let brillig = brillig.clone();
+pub fn secondary_passes<'a>(brillig: &'a Brillig) -> Vec<SsaPass<'a>> {
     vec![
         SsaPass::new(
             move |ssa| ssa.fold_constants_with_brillig(&brillig),
@@ -214,12 +212,16 @@ pub fn secondary_passes(_: &SsaEvaluatorOptions, brillig: &Brillig) -> Vec<SsaPa
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-pub(crate) fn optimize_into_acir(
+pub(crate) fn optimize_into_acir<'a, P, S>(
     program: Program,
-    options: &SsaEvaluatorOptions,
-    primary: impl Fn(&SsaEvaluatorOptions) -> Vec<SsaPass>,
-    secondary: impl Fn(&SsaEvaluatorOptions, &Brillig) -> Vec<SsaPass>,
-) -> Result<ArtifactsAndWarnings, RuntimeError> {
+    options: &'a SsaEvaluatorOptions,
+    primary: P,
+    secondary: S,
+) -> Result<ArtifactsAndWarnings, RuntimeError>
+where
+    P: Fn() -> Vec<SsaPass<'a>>,
+    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
+{
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let builder = SsaBuilder::new(
@@ -229,7 +231,7 @@ pub(crate) fn optimize_into_acir(
         &options.emit_ssa,
     )?;
 
-    let mut ssa = builder.run_passes(&primary(options))?.finish();
+    let mut ssa = builder.run_passes(&primary())?.finish();
 
     let mut ssa_level_warnings = vec![];
 
@@ -248,7 +250,7 @@ pub(crate) fn optimize_into_acir(
         ssa_logging: options.ssa_logging.clone(),
         print_codegen_timings: options.print_codegen_timings,
     }
-    .run_passes(&secondary(options, &brillig))?
+    .run_passes(&secondary(&brillig))?
     .finish();
 
     if !options.skip_underconstrained_check {
@@ -346,22 +348,26 @@ impl SsaProgramArtifact {
 ///
 /// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn create_program(
+pub fn create_program<'a>(
     program: Program,
-    options: &SsaEvaluatorOptions,
+    options: &'a SsaEvaluatorOptions,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
-    create_program_with_passes(program, options, primary_passes, secondary_passes)
+    create_program_with_passes(program, options, || primary_passes(options), secondary_passes)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
 /// `primary` and `secondary` SSA passes.
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn create_program_with_passes(
+pub fn create_program_with_passes<'a, P, S>(
     program: Program,
-    options: &SsaEvaluatorOptions,
-    primary: impl Fn(&SsaEvaluatorOptions) -> Vec<SsaPass>,
-    secondary: impl Fn(&SsaEvaluatorOptions, &Brillig) -> Vec<SsaPass>,
-) -> Result<SsaProgramArtifact, RuntimeError> {
+    options: &'a SsaEvaluatorOptions,
+    primary: P,
+    secondary: S,
+) -> Result<SsaProgramArtifact, RuntimeError>
+where
+    P: Fn() -> Vec<SsaPass<'a>>,
+    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
+{
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
