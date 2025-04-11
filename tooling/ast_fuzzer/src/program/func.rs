@@ -798,9 +798,9 @@ impl<'a> FunctionContext<'a> {
         // Decrease budget so we don't nest for loops endlessly.
         self.decrease_budget(1);
 
-        self.in_loop = true;
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
         let block = self.gen_block(u, &Type::Unit)?;
-        self.in_loop = false;
+        self.in_loop = was_in_loop;
 
         let expr = Expression::For(For {
             index_variable: idx_id,
@@ -890,9 +890,9 @@ impl<'a> FunctionContext<'a> {
         let let_idx = expr::let_var(idx_id, true, idx_name, expr::u32_literal(0));
 
         // Get the randomized loop body
-        self.in_loop = true;
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
         let mut loop_body = self.gen_block(u, &Type::Unit)?;
-        self.in_loop = false;
+        self.in_loop = was_in_loop;
 
         // Increment the index in the beginning of the body.
         expr::prepend(
@@ -942,9 +942,9 @@ impl<'a> FunctionContext<'a> {
         })];
 
         // Get the randomized loop body
-        self.in_loop = true;
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
         let mut loop_body = self.gen_block(u, &Type::Unit)?;
-        self.in_loop = false;
+        self.in_loop = was_in_loop;
 
         // Increment the index in the beginning of the body.
         expr::prepend(
