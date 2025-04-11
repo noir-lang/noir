@@ -126,6 +126,7 @@ Unconstrained SSA functions get converted into Brillig IR. This is a register ba
 resembles a classical programming language IR much more than Noir's constrained IR for constrained
 programs: ACIR. Note that brillig code can be embedded in ACIR code since Noir programs can contain
 both constrained and unconstrained functions.
+In addition to classical integer arithmetic, and because they are native to the Noir language, Brillig IR support also arithmetic operations in a given prime field (see ACIR-gen below).
 
 ### Brillig-gen
 
@@ -136,6 +137,10 @@ The bulk of this pass can be found in [compiler/noirc_evaluator/src/brillig/bril
 ### Brillig VM
 
 Brillig code is executed by the brillig VM. It can be found in [acvm-repo/brillig_vm/src/lib.rs](/acvm-repo/brillig_vm/src/lib.rs).
+The Brillig VM is a register-based VM, using infinite virtual registers, i.e registers are simply allocated
+on the VM memory, which removes the need for register allocation and their associated bookkeeping across function calls.
+Therefore function calls are handled by simply pushing the return address on the callstack, jumping to the function entry point and handling the stack pointer for memory isolation.
+The Brillig VM can also support foreign function calls which are handled externally, allowing to connect to any external service such as a database or a web application.
 
 ## ACIR-gen
 
@@ -145,7 +150,29 @@ for the input SSA. Namely, all functions must be inlined, all loops must be unro
 SSA optimizations we end up with a single large block of SSA containing the entire program, and the ACIR cannot
 be generated any earlier.
 
-## Backend: Executing, proving, and verifying
+The main goal of the ACIR generation is to transform operations written with standard integer arithmetic (e.g. u32, i8, etc..) into operations within a specific prime field. The prime field is defined in `acvm-repo/acir_field/` and is expected to be the scalar field of the proving system. Most of the remaining SSA instructions can be directly converted to ACIR opcodes using mainly arithmetic and range-check opcodes.
+Some dedicated operations, called black box functions, are deferred to the proving system for more efficient proving.
+Similarly, unresolved array operations are deferred to the proving system using specific `Memory` opcodes.
+ACIR specification can be found in `acvm-repo/acir/`
+
+Further transformations of the ACIR bytecode are performed in `acvm-repo/acvm/src/compiler/mod.rs`.
+The transformations are mainly optimizations, except for the `csat` transformation which helps to convert
+the ACIR bytecode to satisfy the `width` required by the proving system.
+
+## Execution
+The compilation outputs a json file under the `target` directory in the project directory. It contains:
+- the ABI, i.e the inputs and outputs of the program and their types
+- the ACIR bytecode, including any Brillig bytecode for unconstrained functions
+- various additional debug information
+
+The program must be executed before a proof can be generated. The execution requires a `prover.toml` in the project directory which contains the program input values, matching the ABI.
+Execution will generate a compressed `.gz` file containing the witness values of all the ACIR opcodes.
+It takes the input values and feed them to the ACIR opcodes, one by one, deducing the witness values of each opcode outputs.
+
+
+## Backend: Proving, and Verifying
+Through the `target` artifacts, Noir provides a generic low-level constraint system (the ACIR bytecode in json format) and the corresponding witness assignments (the `.gz` file) so that a compatible backend can generate a proof.
+Proof generation and verification is the responsibility of the backend.
 
 # Tooling
 
