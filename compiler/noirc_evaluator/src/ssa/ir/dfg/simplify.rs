@@ -229,7 +229,7 @@ pub(crate) fn simplify(
                 if let Instruction::IfElse {
                     then_condition: inner_then_condition,
                     then_value: inner_then_value,
-                    else_condition: inner_else_condition,
+                    else_condition,
                     ..
                 } = dfg[*instruction]
                 {
@@ -237,7 +237,7 @@ pub(crate) fn simplify(
                         let instruction = Instruction::IfElse {
                             then_condition,
                             then_value: inner_then_value,
-                            else_condition: inner_else_condition,
+                            else_condition,
                             else_value,
                         };
                         return SimplifiedToInstruction(instruction);

@@ -1,0 +1,6 @@
+[package]
+name = "return_array_witness_if_cond"
+type = "bin"
+authors = [""]
+
+[dependencies]
