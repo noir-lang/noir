@@ -1,0 +1,68 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWwVKDMBBNCLRix4P14MGrJ72QaSDh5kH6H5HKd/Dp0unusN0GPTTRcWeYZMjjvbebDSDFKbLpkjDPYVTiMhDzBmN1XeiIXFVKn/Kf+MwS+TxrBgkNsxSYlIWxhDEj6ypi0iXTjcnvKmPLQH4R/e9K4MwT8xdp+Ks18LyPMz/NBXUVw/FnFMF0BNMtYPYEs2eYO5hLcamFa7SHO7ZG+x25b6brXszzLcxLppWi/6jf2Pv3EPCPWhvI9ZWs0f0V4GXpebyPPbBawCNfwfCPpN6acdIPlhLhM0Q5Ef8EY+q6bgkvr0vKnpnCSaaXkRopVkfqJ9U7gvcN3bMi4Kdg+GeGwXeOIjxZgAfnq4DumuVKdVdM99h/htUq0d61MuDpuzMW8iPi+dEF8/PCdP/i/GzE/F+Rj/H1rTv17DHUeL4PPHKyTvH4B3UbyCO/wudgvR52fvC1PxxM73mdBKtTbH1Te9t7q3Vr9KfR9W/rN6bRznnXN/3Qmv7jJ/0v1itI9eUMAAA=",
+  "debug_symbols": "ldTRqoQgEAbgd5lrL5zUo/Uqh2WxskUQC6uFJXr31WUXIrqZG2Hk/3BA+DfoXbs+7j4O4wzN/wZh7Ozix5inbWfQJh+Cf9yP18DLgfUnP082lnFebFqg0YaBiz00RmY9+OCgUXy/Mag4MY/EfEXMi6t8rb955OIMJBUoKvijAn0FEPEnUJ+FIYuaKgQnCySLiiwEWUiyUGRx+eUo+E8IdRaaLAxZ1FQhOVkgTex5etrkbRvct5yGNXaHrlpekzvV1pTGzvVrcqXADt1VtpWCSZMXwbKIqpiS+Y38zhs=",
+  "file_map": {
+    "50": {
+      "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32, y: u32, z: u32) {\n    x += y;\n    assert(x == z);\n\n    x *= 8;\n    assert(x > 9);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

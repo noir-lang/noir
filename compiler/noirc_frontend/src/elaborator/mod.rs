@@ -10,6 +10,7 @@ use crate::{
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
     shared::Signedness,
+    token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
 use crate::{
@@ -47,7 +48,6 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
-    token::SecondaryAttribute,
 };
 
 mod comptime;
@@ -1162,8 +1162,7 @@ impl<'context> Elaborator<'context> {
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
-            lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
-                .map(Into::into)
+            lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
     }
 
@@ -1995,10 +1994,14 @@ impl<'context> Elaborator<'context> {
 
         let location = let_stmt.pattern.location();
 
-        if !self.in_contract()
-            && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
-        {
-            self.push_err(ResolverError::AbiAttributeOutsideContract { location });
+        if !self.in_contract() {
+            for attr in &let_stmt.attributes {
+                if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
+                        location: attr.location,
+                    });
+                }
+            }
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {

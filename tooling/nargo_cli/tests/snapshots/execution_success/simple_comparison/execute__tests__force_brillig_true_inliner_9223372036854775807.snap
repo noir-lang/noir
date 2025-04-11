@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUQQ6CMBDc0hKtRg9604v+oAgKRw76kEbCO3i6Ie4m7VJMDO0kpC3bzszuFgR8IfAZoXDMYAra0+JolqGIyGVS+hSJfHpFFjAPil1x1Oz8GJcRE9ZMNyZ/Y6qHDuQX0X+pHc4E/DfiV2n4zQp5noPPD0x3B/7H656hmHvHXhhbY5zme5xrxpei766n2HU7BvyT1hZzPeNawrSHPG8J87V3Ofi5EIcKePpXJ/uhI9j7fMYfcYR6PaLF0SxDkTM/J6ab6g4cWD78DtC/Rw3x9evGGNKVg98HDuXE3f0XXG8CeagFPvvaFn1pe3u3XVe9La8TsDp9AEFAapodCAAA",
+  "debug_symbols": "ldLfCoMgFAbwdznXXvhnrdWrjBFWpxBEw2wwonefjg2iDca5ET/xd0D5VuixXcbGuMHPUF9XsL7T0XiX0roxaIOx1ozN/hh4XkTxuj9P2uU4Rx0i1EJUDND1aSfL5AdjEeqCbzcG4kwWJVlcfgrFP0JdjqKiCsnJQvx5x7eQZKHI4kQWBU1sKd11MLq1+C7UsLhu16/4mPBQtSn4DvslYC7drm/512XJlExj0+gn",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is comparison\nfn main(x: Field, y: Field) {\n    assert(x as u32 < y as u32);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
