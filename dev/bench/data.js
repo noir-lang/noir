@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744392349677,
+  "lastUpdate": 1744392353184,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf",
-          "message": "chore: add timeouts to rust CI (#7923)",
-          "timestamp": "2025-04-07T12:50:32Z",
-          "tree_id": "d158b5331580426b8542de8496cd0e14dd1e8737",
-          "url": "https://github.com/noir-lang/noir/commit/93da30afd2e5cfd4d0a5175a6c4b81c0ef3477bf"
-        },
-        "date": 1744032339484,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 474.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.52,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "9f48104542699ebf483dd48dbc3c28906d8d4d19",
           "message": "chore: replace `PrintOutput` with usage of `std::io::Write` (#7911)",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e0971e4a8777457d685230f0dae98ba2e5dae268"
         },
         "date": 1744392210154,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.72,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10a6d1af7202e9ba613d138e2c669cbd0f08e267",
+          "message": "fix(fuzz): remove duplicate gen_loop, move unconstrained generators up (#8029)",
+          "timestamp": "2025-04-11T16:56:30Z",
+          "tree_id": "c4e6efec3bb8b68c6023fe40a01a5101c35b48b4",
+          "url": "https://github.com/noir-lang/noir/commit/10a6d1af7202e9ba613d138e2c669cbd0f08e267"
+        },
+        "date": 1744392347303,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
