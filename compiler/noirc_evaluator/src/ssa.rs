@@ -193,8 +193,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 }
 
 /// The second SSA pipeline, in which we take the Brillig functions compiled after
-/// the primary pipeline, and execute the ones with all-constant arguments, to
-/// replace the calls with the return value.
+/// the primary pipeline, and execute the ones with all-constant arguments,
+/// to replace the calls with the return value.
 pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
         SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
@@ -218,7 +218,7 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 ///
 /// See the [primary_passes] and [secondary_passes] for
 /// the default implementations.
-pub(crate) fn optimize_into_acir<S>(
+fn optimize_into_acir<S>(
     program: Program,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
@@ -364,7 +364,7 @@ pub fn create_program(
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
-/// `primary` and `secondary` SSA passes. See [optimize_into_acir] for more details.
+/// `primary` and `secondary` SSA passes.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program_with_passes<S>(
     program: Program,
