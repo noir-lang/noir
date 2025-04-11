@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744330092025,
+  "lastUpdate": 1744364408955,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19360,6 +19360,42 @@ window.BENCHMARK_DATA = {
             "name": "purely_sequential_opcodes #2",
             "value": 3580014,
             "range": "± 58614",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "880266d3dd6cfd281b842154dad81db17263d062",
+          "message": "chore: add snapshot tests for the build artifacts as produced by test_programs (#7986)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
+          "timestamp": "2025-04-11T09:20:54Z",
+          "tree_id": "2284298d102b772999ed2215cfbcd78df4755942",
+          "url": "https://github.com/noir-lang/noir/commit/880266d3dd6cfd281b842154dad81db17263d062"
+        },
+        "date": 1744364403888,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3249979,
+            "range": "± 12862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "purely_sequential_opcodes #2",
+            "value": 3221309,
+            "range": "± 29784",
             "unit": "ns/iter"
           }
         ]
