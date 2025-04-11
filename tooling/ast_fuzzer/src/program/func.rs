@@ -920,18 +920,9 @@ fn test_loop() {
     loop {
         if (idx_a$l0 == 10) {
             break
-        } else {"#
+        } else {
+            idx_a$l0 = (idx_a$l0 + 1);"#
                 .replace(" ", "")
-        )
-    );
-
-    assert!(
-        loop_code.ends_with(
-            &r#"idx_a$l0 = (idx_a$l0 + 1)
-        }
-    }
-}"#
-            .replace(" ", "")
         )
     );
 }
