@@ -1578,23 +1578,25 @@ mod control_dependence {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
 
-        assert_ssa_snapshot!(ssa, @r"
+        let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          entry(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
             constrain v4 == u32 12
-            jmp b1(u32 0)
-          b1(v2: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
             v8 = lt v2, u32 4
-            jmpif v8 then: b2, else: b3
-          b2():
+            jmpif v8 then: loop_body, else: exit
+          loop_body():
             v10 = unchecked_add v2, u32 1
-            jmp b1(v10)
-          b3():
+            jmp loop(v10)
+          exit():
             return
         }
-        ");
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1651,38 +1653,40 @@ mod control_dependence {
         // v10 = mul v9, v0
         // constrain v10 == u32 12
         // ```
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v5 = eq v0, u32 5
-            jmp b1(u32 0)
-          b1(v2: u32):
-            v8 = lt v2, u32 4
-            jmpif v8 then: b2, else: b3
-          b2():
-            jmpif v5 then: b4, else: b5
-          b3():
-            v9 = mul v0, v1
-            v10 = mul v9, v0
-            constrain v10 == u32 12
-            jmp b6(u32 0)
-          b4():
-            v15 = mul v0, v1
-            constrain v15 == u32 12
-            jmp b5()
-          b5():
-            v16 = unchecked_add v2, u32 1
-            jmp b1(v16)
-          b6(v3: u32):
-            v12 = lt v3, u32 4
-            jmpif v12 then: b7, else: b8
-          b7():
-            v14 = unchecked_add v3, u32 1
-            jmp b6(v14)
-          b8():
-            return
-        }
-        ");
+        let expected = "
+      brillig(inline) fn main f0 {
+        entry(v0: u32, v1: u32):
+          v5 = eq v0, u32 5
+          jmp loop_1(u32 0)
+        loop_1(v2: u32):
+          v8 = lt v2, u32 4
+          jmpif v8 then: loop_1_cond, else: loop_1_exit
+        loop_1_cond():
+          jmpif v5 then: loop_1_body, else: loop_1_end
+        loop_1_exit():
+          v9 = mul v0, v1
+          v10 = mul v9, v0
+          constrain v10 == u32 12
+          jmp loop_2(u32 0)
+        loop_1_body():
+          v15 = mul v0, v1
+          constrain v15 == u32 12
+          jmp loop_1_end()
+        loop_1_end():
+          v16 = unchecked_add v2, u32 1
+          jmp loop_1(v16)
+        loop_2(v3: u32):
+          v12 = lt v3, u32 4
+          jmpif v12 then: loop_2_body, else: exit
+        loop_2_body():
+          v14 = unchecked_add v3, u32 1
+          jmp loop_2(v14)
+        exit():
+          return
+      }
+      ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1715,22 +1719,24 @@ mod control_dependence {
         // as the loop is never going to be executed.
         // If the constrain were to be hoisted out it could potentially
         // cause the program to fail when it is not meant to fail.
-        assert_ssa_snapshot!(ssa, @r"
+        let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          entry(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            jmp b1(u32 0)
-          b1(v2: u32):
-            jmpif u1 0 then: b2, else: b3
-          b2():
+            jmp loop(u32 0)
+          loop(v2: u32):
+            jmpif u1 0 then: loop_body, else: exit
+          loop_body():
             constrain v4 == u32 12
-            v9 = unchecked_add v2, u32 1
-            jmp b1(v9)
-          b3():
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
             return
         }
-        ");
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1762,23 +1768,25 @@ mod control_dependence {
         // as the loop is never going to be executed.
         // If the constrain were to be hoisted out it could potentially
         // cause the program to fail when it is not meant to fail.
-        assert_ssa_snapshot!(ssa, @r"
+        let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          entry(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            jmp b1(u32 1)
-          b1(v2: u32):
+            jmp loop(u32 1)
+          loop(v2: u32):
             v7 = eq v2, u32 0
-            jmpif v7 then: b2, else: b3
-          b2():
+            jmpif v7 then: loop_body, else: exit
+          loop_body():
             constrain v4 == u32 12
-            v9 = unchecked_add v2, u32 1
-            jmp b1(v9)
-          b3():
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
             return
         }
-        ");
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
@@ -1811,23 +1819,25 @@ mod control_dependence {
         // as that block may potentially never be executed.
         // If the constrain were to be hoisted out it could potentially
         // cause the program to fail when it is not meant to fail.
-        assert_ssa_snapshot!(ssa, @r"
+        let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
+          entry(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            jmp b1(u32 0)
-          b1(v2: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
             v6 = lt v2, v1
-            jmpif v6 then: b2, else: b3
-          b2():
+            jmpif v6 then: loop_body, else: exit
+          loop_body():
             constrain v4 == u32 12
-            v9 = unchecked_add v2, u32 1
-            jmp b1(v9)
-          b3():
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
             return
         }
-        ");
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 
     #[test]
