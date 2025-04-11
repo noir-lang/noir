@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744365070955,
+  "lastUpdate": 1744367955947,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19366,6 +19366,42 @@ window.BENCHMARK_DATA = {
             "name": "purely_sequential_opcodes #2",
             "value": 3221309,
             "range": "± 29784",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3d1f8b2639d0b1faf31c26610d5a0d3b1e386b21",
+          "message": "chore: use insta snapshots for ssa tests (#7989)",
+          "timestamp": "2025-04-11T10:21:52Z",
+          "tree_id": "5c12ebc7bb49e819dd975b2147d56a4b7a8e4e8f",
+          "url": "https://github.com/noir-lang/noir/commit/3d1f8b2639d0b1faf31c26610d5a0d3b1e386b21"
+        },
+        "date": 1744367950260,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3619259,
+            "range": "± 11729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "purely_sequential_opcodes #2",
+            "value": 3585807,
+            "range": "± 14014",
             "unit": "ns/iter"
           }
         ]
