@@ -1,13 +1,63 @@
+use super::{ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 use acir::{
     AcirField,
     native_types::{Expression, Witness, WitnessMap},
 };
-
-use super::{ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, insert_value};
-
 /// An Expression solver will take a Circuit's assert-zero opcodes with witness assignments
 /// and create the other witness variables
 pub(crate) struct ExpressionSolver;
+
+#[derive(Clone)]
+pub(crate) struct Pending_Arithmetic_Opcodes<F: AcirField> {
+    pending_witness_write: Vec<PendingOp<F>>,
+    failures: u32,
+}
+
+impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
+    pub(crate) fn new() -> Self {
+        Self { pending_witness_write: vec![], failures: 0 }
+    }
+
+    pub(crate) fn add_pending_op(&mut self, neumerator: F, denominator: F, witness: Witness) {
+        self.pending_witness_write.push(PendingOp { neumerator, denominator, witness });
+    }
+
+    pub(crate) fn write_pending_ops(
+        &mut self,
+        initial_witness: &mut WitnessMap<F>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        // get the list of denominator
+        let denominator_list: Vec<F> = self
+            .pending_witness_write
+            .clone()
+            .into_iter()
+            .map(|pending_op| pending_op.denominator)
+            .collect();
+        let denominator_invers: Vec<F> = batch_invert(&denominator_list);
+        for i in 0..denominator_list.len() {
+            let pending_op = &self.pending_witness_write[i];
+            let assignment = pending_op.neumerator * denominator_invers[i];
+            insert_value(&pending_op.witness, assignment, initial_witness);
+        }
+        self.pending_witness_write.clear();
+        self.failures = 0;
+        Ok(())
+    }
+}
+
+pub(crate) fn batch_invert<F>(inp_list: &Vec<F>) -> Vec<F>
+where
+    F: AcirField,
+{
+    vec![F::one(); inp_list.len()]
+}
+
+#[derive(Clone)]
+pub(crate) struct PendingOp<F: AcirField> {
+    neumerator: F,
+    denominator: F,
+    witness: Witness,
+}
 
 #[allow(clippy::enum_variant_names)]
 pub(super) enum OpcodeStatus<F> {
@@ -23,6 +73,144 @@ pub(crate) enum MulTerm<F> {
 }
 
 impl ExpressionSolver {
+    /// the solver method along side the the optimization with the pending arithmetic opcodes
+    /// Derives the rest of the witness based on the initial low level variables
+    pub(crate) fn solve_optimized<F: AcirField>(
+        initial_witness: &mut WitnessMap<F>,
+        opcode: &Expression<F>,
+        pending_arithmetic_opcodes: &mut Pending_Arithmetic_Opcodes<F>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
+        // Evaluate multiplication term
+        let mul_result =
+            ExpressionSolver::solve_mul_term(opcode, initial_witness).map_err(|_| {
+                OpcodeResolutionError::OpcodeNotSolvable(
+                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                )
+            })?;
+        // Evaluate the fan-in terms
+        let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
+
+        match (mul_result, opcode_status) {
+            (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
+                // there are too many unknowns that might be because of pending witnesses not being written done.
+                // pending_arithmetic_opcodes.failures += 1;
+                let write_output = pending_arithmetic_opcodes.write_pending_ops(initial_witness);
+                write_output.map_err(|_| {
+                    OpcodeResolutionError::OpcodeNotSolvable(
+                        OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                    )
+                })?;
+                // no we have to solve again to see if the opcode is solvable
+                let mul_result = ExpressionSolver::solve_mul_term(opcode, initial_witness)
+                    .map_err(|_| {
+                        OpcodeResolutionError::OpcodeNotSolvable(
+                            OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                        )
+                    })?;
+                let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
+                ExpressionSolver::solve_optimized(
+                    initial_witness,
+                    opcode,
+                    pending_arithmetic_opcodes,
+                )
+            }
+            (MulTerm::OneUnknown(q, w1), OpcodeStatus::OpcodeSolvable(a, (b, w2))) => {
+                if w1 == w2 {
+                    // We have one unknown so we can solve the equation
+                    let total_sum = a + opcode.q_c;
+                    if (q + b).is_zero() {
+                        if !total_sum.is_zero() {
+                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                                opcode_location: ErrorLocation::Unresolved,
+                                payload: None,
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    } else {
+                        // normally we would do
+                        // let assignment = -total_sum / (q + b);
+                        // insert_value(&w1, assignment, initial_witness)
+                        // but we want to add this to pending_arithmetic_opcodes
+                        pending_arithmetic_opcodes.add_pending_op(total_sum, q + b, w1);
+                        Ok(())
+                    }
+                } else {
+                    // TODO: can we be more specific with this error?
+                    Err(OpcodeResolutionError::OpcodeNotSolvable(
+                        OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                    ))
+                }
+            }
+            (
+                MulTerm::OneUnknown(partial_prod, unknown_var),
+                OpcodeStatus::OpcodeSatisfied(sum),
+            ) => {
+                // We have one unknown in the mul term and the fan-in terms are solved.
+                // Hence the equation is solvable, since there is a single unknown
+                // The equation is: partial_prod * unknown_var + sum + qC = 0
+
+                let total_sum = sum + opcode.q_c;
+                if partial_prod.is_zero() {
+                    if !total_sum.is_zero() {
+                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                            opcode_location: ErrorLocation::Unresolved,
+                            payload: None,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    // normally we would do
+                    // let assignment = -(total_sum / partial_prod);
+                    // insert_value(&unknown_var, assignment, initial_witness)
+                    // but we want to add this to pending_arithmetic_opcodes
+                    pending_arithmetic_opcodes.add_pending_op(total_sum, partial_prod, unknown_var);
+                    Ok(())
+                }
+            }
+            (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
+                // All the variables in the MulTerm are solved and the Fan-in is also solved
+                // There is nothing to solve
+                if !(a + b + opcode.q_c).is_zero() {
+                    Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                        opcode_location: ErrorLocation::Unresolved,
+                        payload: None,
+                    })
+                } else {
+                    Ok(())
+                }
+            }
+            (
+                MulTerm::Solved(total_prod),
+                OpcodeStatus::OpcodeSolvable(partial_sum, (coeff, unknown_var)),
+            ) => {
+                // The variables in the MulTerm are solved nad there is one unknown in the Fan-in
+                // Hence the equation is solvable, since we have one unknown
+                // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
+                let total_sum = total_prod + partial_sum + opcode.q_c;
+                if coeff.is_zero() {
+                    if !total_sum.is_zero() {
+                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                            opcode_location: ErrorLocation::Unresolved,
+                            payload: None,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    // normally we would do
+                    // let assignment = -(total_sum / coeff);
+                    // insert_value(&unknown_var, assignment, initial_witness)
+                    // but we want to add this to pending_arithmetic_opcodes
+                    pending_arithmetic_opcodes.add_pending_op(total_sum, coeff, unknown_var);
+                    Ok(())
+                }
+            }
+        }
+    }
+
     /// Derives the rest of the witness based on the initial low level variables
     pub(crate) fn solve<F: AcirField>(
         initial_witness: &mut WitnessMap<F>,
