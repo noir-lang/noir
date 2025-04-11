@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "a",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYXXPaMBBcGwgfDjSAKQTKf7AwBPOWv1Km8P+f+txqqpsKYedFex64GeYMUja3a0l7doJ/sf372bnrrssp7iNx+dPlIi4MEauoKZeDbYrC10L06YkgHZftwO/gNztpEBTVURSxLD72+8txdzGl+VnsTufqUOwP54/KVOZQHX7tqrK8VPvqeDqfjsXJ7MuLuR5O5eVqozBdAtbVFdaDzs1NA/1i62RyfrnhHIfmr6MXt7a67nuC+0gUdWFwkehrFtyvWSCxxffB26wDIl8tDQeoO+njkAfgHgZs3r0G3rG4QyJv/0AYuk+bbp3g+dx65HImgoiAdiB06wz6bu2LGOvWI/AWaobncGsm51fouPUr2nfrEXTceqxZ8Bh8tx6Dt1kneGy3thpOwHfrCR7brbMG3rG436Dj1hZ3iP+Hgf9o6BvPG26DfXgSH8nMG3QM41neMWh2V3GNwdW02RWm0NEXzDqDrnDq8kwEkY1qB8Ku0E7S7gpT2s0vzBS8A2MGnZvLPtiYnOfQ6QrnaL8rnJK5SOSaBefgd4U5eJt1QeSrpeEC/K5wAe5hwOY9a+Adi/udyNs/ECxu2+9wOng+t166vBJBREA7ELq1naTt1r6IsW69BG+hrvAcbs3k/A4dt35H+269hI5brzULXoPv1mvwNusGj+3WVsMN+G69wWO79aqBdyzuD+i4tcUN3+HIo6FvPFvcBvvwJD6SmS1ZK+lkuh7/xGnQQXOIRmLcQ5dHHgaxc9kJfqaDX/RxHyPvOmvg3635u6Thexrkr+Z+ZV7jmjHBnLvs1ys8hkFeeLhELY3g5zr4tfdq4V3nAU9f709SDYIne6SH+0iDMZkb7pmEX58Ja+nU/C8JWTO595vo+QfioAfkcCYAAA==",
+  "debug_symbols": "ldbNaoQwFIbhe8l6FknOiSbeSimDP3EIiIo/hSJz73WGSZmm2Xw7j+FJCK8LD9H5Zr9dw9hPq6g+DjFMbb2FaTynQ8jnq3Wux8e0bvWyiUrZ4iL82J1Pju4X0YfBi8rI++dFKBRoFBAKGAUGBQUKShRYFDg4HJ4621oregmtZSo0LAgWDAsDiwIWJSwsLBwqtIQF3Fznm5OJwuhU5JsTR1FwKrLNieMZxC4VBhbZ5izjzVn9u3kJCwsLhwqSsFCw0LAgWDAsDCzg5pRvTjIKKlNhYeFQwRIWChYaFgQLhoWBRQELuDnnmxsVRWFTkW9ufs+wf7/Ec2iWMAzhdn3/nztff9VLqJvBv8Z+H9u31e17jivRz8vU+m5f/GOn59q5/Q8=",
+  "file_map": {
+    "50": {
+      "source": "// You can only do bit operations with integers.\n// (Kobi/Daira/Circom/#37) https://github.com/iden3/circom/issues/37\nfn main(x: Field, y: Field, a: Field, b: Field) {\n    let x_as_u8 = x as u8;\n    let y_as_u8 = y as u8;\n\n    assert((x_as_u8 & y_as_u8) == x_as_u8);\n    //bitwise and with 1 bit:\n    let flag = (x == 0) & (y == 16);\n    assert(flag);\n    //bitwise and with odd bits:\n    let a_as_u8 = a as u8;\n    let b_as_u8 = b as u8;\n    assert((a_as_u8 & b_as_u8) == a_as_u8);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

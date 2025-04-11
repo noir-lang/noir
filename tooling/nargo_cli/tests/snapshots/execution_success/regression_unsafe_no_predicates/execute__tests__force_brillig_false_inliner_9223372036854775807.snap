@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "nest",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91YwW7bMAylbTmtMxQt1vRcYLdtF8myaxm7eMB+xFni7/CnL8bE5plRTpVQtAQEySJFPj4xspyM/kt5als/zk6t8P0it2KOmwJ7gnkUfh58r98mJqIvjbhzP859nquE8wAJhZ9DyUWyVr80zbGrj8aaUdf93rW6afcvzjjTuvZQO2uPrnFdv+873ZvGHs3U9nbyAGMSl0ckTl3Z7I+y4YuolIBVAr9l5MJKkXcJBEfymwRrlggrnoo5+A/9UEjY/fZ9Jeb5sBki5V6B39j+nW66SuQXGb+taH1ip+CHfSbwr2+8nz/z2b/MhaBnO7lmaRWtD+LIe9kk5sLcifwJcuHYKk3sOhPxSORJIv6W0tadvFUxHskPj+/YZj7jyYROzZd5sK6c13ksslxonsFO1lYOdj9g/JPWGPJADlkgh5T1darfNnUNhfZA7o+a17FRh3uggM9nwU+KmkN+Ev2+60e6fr5xPdzM9CqF4BM5Ys5u0V7oKtCpeR1n658VxEFfjKMU9t/9873vN7CG1z8E4m9E/BXuwBxyJH0VgTm235zaNz/+4ttSQ794Db3fuRU6O+7psg6UwCq/KIc4WPU7vm/sZ3jf4L0Z1z4EdJgb6jBOGYgT8pUJDKG6Wuqe755qpuicde78AcnnTknnPFEU6NF+8M/4Twv36g04p240kx2nsR0Ph+bv+FX4pys8cf9E8fnS8K2xS+P/9S6N8gTjncgT63qIhIH9cR2UdCm50OF9C/Fl8fEZiaUIxGJ59P0O5pjPf7v6AXoqFAAA",
+  "debug_symbols": "tZLRasQgEEX/xWcfoo4m5ldKWUziLoKYYJJCCfn3aqm0zYaFYdmXwI33XAfnbmSw3Xq7uHAdZ9K+bcSPvVncGJLaCP/+NU8mZDUvJi6kVYwSGwbS1nqn5Oq8Ja2sdnpn5AA/Ti6bv9Z3SsTLkuFlyfK5ZKVKsq4eWyUvoVLUhyHU2RC6RLMKDv4a6W+Qfo3yJ9FF5727Xf4VrcofOF0d8BIGgh93LdGEQhOnLwhMFoKLI9GgCY0lZIUmGJrgaEKgCUATEk0oHLEn9WGiM523uZ35cA19KWuSy+dUTkqdpzj2dlijzcX+7XR+EMEosDQHyzuTmipIV6RrvgA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u8, nest: bool) {\n    if nest {\n        let foo = unsafe_assert([x]);\n        assert(foo != 0);\n    }\n}\n\n#[no_predicates]\npub fn unsafe_assert<let N: u32>(msg: [u8; N]) -> u8 {\n    // Safety: testing context\n    let block = unsafe { get_block(msg) };\n    verify_block(msg, block);\n    block[0]\n}\n\nunconstrained fn get_block<let N: u32>(msg: [u8; N]) -> [u8; 2] {\n    let mut block: [u8; 2] = [0; 2];\n    block[0] = msg[0];\n    block\n}\n\nfn verify_block<let N: u32>(msg: [u8; N], block: [u8; 2]) {\n    assert_eq(block[0], msg[0]);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "get_block",
+    "directive_invert"
+  ]
+}

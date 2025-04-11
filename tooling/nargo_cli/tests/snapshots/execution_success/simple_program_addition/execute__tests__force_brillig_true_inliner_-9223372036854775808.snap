@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAztZESnwYNc9C+2AMLRg37IItl38Om62IVahxe2l5DCSl9f37IJ+EDg4yHJGkdYu2HU62AScmkR0fl3iFjBBaPCuCH5IuHgKqIlFf+g26uC35kT6m8Ucub0J3Bm4Ndb5LlPMz+fxaOC78NBa3aYD+9HUuPxINyhPqdv733vMvtmalj26oA+1AuzAqS9OGhv7jPtW0VyVHM4K3JK71k/zBdTgfwl0w2sf8n+P+P3nugPUa7Q6XprXGOd7ew4tk97YvxAPPQ+vQCmYX51LQYAAA==",
+  "debug_symbols": "lY5LCgMhEETv0msXY5IJiVcZwuCnHQRR8RMI4t2jIQvJLpuiq6kqXgWFohy7cdonYFsF6yXPxrvuaiMgorHWHPv8hmUIXT/5FLgbNmUeMzC6nAmgU+O69b42FoGtS3sQoNf/Gq27J4+GC4tfHF2cnOjyK+APaIheoioRB/JE23Wjd3K69Nk+/QY=",
+  "file_map": {
+    "50": {
+      "source": "// The feature being tested is handling of\n// a binary operation.\nfn main(x: Field) -> pub Field {\n    x + 1\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

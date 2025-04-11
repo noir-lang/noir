@@ -1,3 +1,32 @@
+//! This file contains mechanisms for deterministically mutating a given field value
+//! Types of mutations applied:
+//! 1. Substitutions
+//!     1. With zero
+//!     2. With one
+//!     3. With minus one
+//!     4. With a value from the dictionary (created from analyzing the code of the program and testcases in the corpus)
+//!     5. With a power of 2
+//!     6. With a power of 2 minus 1
+//! 2. Inversions
+//!     1. Negation
+//!     2. Multiplicative inverse
+//! 3. Update with a value that is a power of 2
+//!     1. Addition
+//!     2. Subtraction
+//!     3. Multiplication
+//!     4. Division
+//! 4. Update with a small (1-255) value
+//!     1. Addition
+//!     2. Subtraction
+//!     3. Multiplication
+//! 5. Update with a dictionary value
+//!     1. Addition
+//!     2. Subtraction
+//!     3. Multiplication
+//!
+//! There are configurations for determining probability of each top-level and low-level mutation
+//! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
+
 use super::configurations::{
     BASIC_FIELD_ELEMENT_DICTIONARY_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION,
@@ -12,35 +41,6 @@ use noirc_abi::input_parser::InputValue;
 use rand::{Rng, seq::SliceRandom};
 use rand_xorshift::XorShiftRng;
 
-/// This file contains mechanisms for deterministically mutating a given field value
-/// Types of mutations applied:
-/// 1. Substitutions
-///     a. With zero
-///     b. With one
-///     c. With minus one
-///     d. With a value from the dictionary (created from analyzing the code of the program and testcases in the corpus)
-///     e. With a power of 2
-///     f. With a power of 2 minus 1
-/// 2. Inversions
-///     a. Negation
-///     b. Multiplicative inverse
-/// 3. Update with a value that is a power of 2
-///     a. Addition
-///     b. Subtraction
-///     c. Multiplication
-///     d. Division
-/// 4. Update with a small (1-255) value
-///     a. Addition
-///     b. Subtraction
-///     c. Multiplication
-/// 5. Update with a dictionary value
-///     a. Addition
-///     b. Subtraction
-///     c. Multiplication
-///
-/// There are configurations for determining probability of each top-level and low-level mutation
-/// Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
-///
 const SMALL_VALUE_MAX: u64 = 0xff;
 const SMALL_VALUE_MIN: u64 = 1;
 

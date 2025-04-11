@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUzQrCMAxuXUXr0IM/F32JjG1sxx18keLoc/TRZZDQGKoH1wZGUpJ++b5kVKtoGr0RZ5WomdDDOmsyYkGS6C+jmgd6i37D8lVGsVb0zYk/QtfbhL6M/FuLmCXnQ5gF8GGHOM8Q8aUWxTzVyTvLd2SxrNljnuITxlbcKbH/gvuBS4I/9apR601o5Vx0Pi6NVp87M6xHit9W1F8FT1NoZmeGq0SvWsU3x4T8/YcRgPpWIc6BZsDNsDyvv+P58EXH9CdPP7jGt8673s1z93JyTovxf+sN84P9zakGAAA=",
+  "debug_symbols": "lZDLCsMgEEX/ZdYuYiCP5ldCCSaZBEFUfBSK+O8dSxfSnZth7jDnLk6CE/d4b1JfxsOyJlDmEEEaTSllBruTSsl7q8/QlcGH77+3Qpfog3ABFj6NDFCftM0d8ZdUCMvQ5ScDPjYTUzMxNxOPNiJTegknxa7wJ+mK+qichbfFP33WmQPP6LCIrBzSXHvO+pFqqfoD",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u8) {\n    // Safety: test code\n    let predicate = unsafe { return_true() };\n    let tmp: u8 = if predicate { 0xff } else { 0 };\n\n    let y = tmp & x;\n    assert_eq(y, 1);\n}\n\nunconstrained fn return_true() -> bool {\n    true\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

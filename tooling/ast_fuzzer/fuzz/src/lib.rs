@@ -1,6 +1,8 @@
 use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
+use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
+use noirc_abi::input_parser::Format;
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
@@ -44,7 +46,8 @@ pub fn create_ssa_or_die(
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
     if show_ast() {
-        eprintln!("---\n{program}\n---");
+        // Showing the AST as-is, in case we have problem with IDs.
+        eprintln!("---\n{}\n---", program);
     }
 
     ssa::create_program(program, options).unwrap_or_else(|e| {
@@ -68,12 +71,19 @@ where
     let res = result.return_value_or_err();
 
     if res.is_err() {
+        // Showing the AST as Noir so we can easily create integration tests.
         for (i, ast) in asts(inputs).into_iter().enumerate() {
-            eprintln!("AST {}:\n{}", i + 1, ast);
+            eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
         }
-        eprintln!("Inputs:\n{:?}", inputs.input_map);
-        eprintln!("Program 1:\n{}", inputs.ssa1.program);
-        eprintln!("Program 2:\n{}", inputs.ssa2.program);
+        // Showing the inputs as TOML so we can easily create a Prover.toml file.
+        eprintln!(
+            "---\nInputs:\n{}",
+            Format::Toml
+                .serialize(&inputs.input_map, &inputs.abi)
+                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
+        );
+        eprintln!("---\nProgram 1:\n{}", inputs.ssa1.program);
+        eprintln!("---\nProgram 2:\n{}", inputs.ssa2.program);
     }
 
     res.map(|_| ())

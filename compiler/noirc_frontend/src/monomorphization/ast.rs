@@ -6,15 +6,15 @@ use noirc_errors::{
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
-use crate::shared::Visibility;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attributes, FunctionAttribute},
+    token::Attributes,
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
+use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -273,10 +273,12 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
-            FunctionAttribute::Fold => InlineType::Fold,
-            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+        attributes.function().map_or(InlineType::default(), |func_attribute| match &func_attribute
+            .kind
+        {
+            FunctionAttributeKind::Fold => InlineType::Fold,
+            FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
+            FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
             _ => InlineType::default(),
         })
     }
@@ -443,20 +445,13 @@ impl std::ops::IndexMut<FuncId> for Program {
 
 impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut printer = super::printer::AstPrinter::default();
-        for (id, global) in &self.globals {
-            printer.print_global(id, global, f)?;
-        }
-        for function in &self.functions {
-            printer.print_function(function, f)?;
-        }
-        Ok(())
+        super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::AstPrinter::default().print_function(self, f)
+        super::printer::AstPrinter::default().print_function(self, None, f)
     }
 }
 

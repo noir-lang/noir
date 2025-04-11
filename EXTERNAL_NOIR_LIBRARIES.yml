@@ -1,4 +1,4 @@
-define: &AZ_COMMIT c199f2c4ebd3e1045ebab317e1e5f76a0d9a2627
+define: &AZ_COMMIT aedeabab1504e6c203e8771379b4d18fad0a3e73
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -142,5 +142,10 @@ libraries:
     repo: zkemail/zkemail.nr
     ref: 07053e865447b3167b670f9167f256e971fdb5c8
     path: lib
+    timeout: 20
+    critical: false
+  tdd:
+    repo: teddav/tdd.nr
+    ref: 4bebfb361f2e5175d23376645310eecca96749a5
     timeout: 20
     critical: false

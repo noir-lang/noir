@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "values",
+        "type": {
+          "kind": "array",
+          "length": 6,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWXU7DMAx2uqRbNk1D8IDEG3CBlJVtvMAeuEjEtHPk6CxgM9fLhsaaolqKnMSOv8/OT6vgW8yuKexr1IrpEppCtjVqd5lULcZyuTiqHnAsesBx0AOOugccTQaOX8IveyQdD1XctFgUA8eFEnxDbVEXzN7i5ldW4LYZf+VqbxP5tch/bll9M8RfWBYzQ3w3xDjvYR9f5kLnQEG2faoz57mYityA5ULYOg/2Ugk8EHmCwB9D1jNVKYFHfGR9qD8ln7Dno4RNh8M8yGZCM48oo127ZX7ybBXM74H1H7Gf+Tz6zPfa3ZzImeaGAX6E6jZgc1RXqvOI+wubZTYdmjhjHGuGw2MRDyP873E8Q12yNbT+KoFfCvwG78ScrItN+NuEf/wG3mF/gi2eoRdaA/93z1L7PoPDN1B3w/WJOJkzufI303TDdU6cyjO5GmYru+FaE6fhmVxLZuNr+Toa60ReMi4kMM0vcU/9B/C4a9TuMvESy8DxOhnhuxL8Mn3L3TWLCwJrAvv/ZR3ax1+unCNcet8NqwEXzezc/xXH4yN5rP/Ic7v01Xbut/7Zbzb1h5d1ilKwOn0CAdmEcLUQAAA=",
+  "debug_symbols": "tdXRioQgFAbgd/Hai/RoWq+yLIOVDYJYWC0s0buvLQVhyw7ReBMY//+doOLMqNHV9HwY13YDKj9mZLtajaZz4TQvGFXeWGuej+NtlK0XyH/zQ6/cehxG5UdU5pJhpF2DSkEg9FtjNSp5tuBTFATdoiDJMfqJEYiUuEyJF3dxCTte0AhnWUqcpMTpXbzYoyyDGIeUOEuJ85s4p3yLcmAxnqfERUr8zz9UULnjTP6PE7HjlJw+xeJ9OC0inGfvw7mIcfICz08NerkBlxvscoNfayzh9KW8UZXV215qJ1cf1tT43etoY/W+q3Uzeb3ursPaCqMpYIDwHGR9WVzgnIYRYcwP",
+  "file_map": {
+    "50": {
+      "source": "struct Header {\n    params: [Field; 3],\n}\n\nstruct MyNote {\n    plain: Field,\n    array: [Field; 2],\n    header: Header,\n}\n\nfn access_nested(notes: [MyNote; 2]) -> Field {\n    notes[0].array[1] + notes[1].array[0] + notes[0].plain + notes[1].header.params[0]\n}\n\nunconstrained fn create_inside_brillig(values: [Field; 6]) -> [MyNote; 2] {\n    let header = Header { params: [values[0], values[1], values[2]] };\n    let note0 = MyNote { array: [values[0], values[1]], plain: values[2], header };\n    let note1 = MyNote { array: [values[3], values[4]], plain: values[5], header };\n    [note0, note1]\n}\n\nfn main(values: [Field; 6]) {\n    // Safety: testing context\n    let notes = unsafe { create_inside_brillig(values) };\n    assert(access_nested(notes) == (2 + 4 + 3 + 1));\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

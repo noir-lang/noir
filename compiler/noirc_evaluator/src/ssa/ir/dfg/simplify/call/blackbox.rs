@@ -358,8 +358,8 @@ pub(super) fn simplify_signature(
 #[cfg(feature = "bn254")]
 #[cfg(test)]
 mod multi_scalar_mul {
+    use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
-    use crate::ssa::opt::assert_normalized_ssa_equals;
 
     #[cfg(feature = "bn254")]
     #[test]
@@ -374,16 +374,15 @@ mod multi_scalar_mul {
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        let expected_src = r#"
-            acir(inline) fn main f0 {
-              b0():
-                v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
-                v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
-                v10 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, u1 0] : [(Field, Field, u1); 1]
-                return v10
-            }
-            "#;
-        assert_normalized_ssa_equals(ssa, expected_src);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
+            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
+            v11 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, u1 0] : [(Field, Field, u1); 1]
+            return v11
+        }
+        ");
     }
 
     #[cfg(feature = "bn254")]
@@ -402,18 +401,17 @@ mod multi_scalar_mul {
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         //First point is zero, second scalar is zero, so we should be left with the scalar mul of the last point.
-        let expected_src = r#"
-            acir(inline) fn main f0 {
-              b0(v0: Field, v1: Field):
-                v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [Field; 6]
-                v5 = make_array [Field 0, Field 0, Field 1, v0, v1, Field 0, Field 1, v0, Field 0] : [Field; 9]
-                v6 = make_array [v0, Field 0] : [Field; 2]
-                v7 = make_array [Field 1, v0, Field 0] : [Field; 3]
-                v9 = call multi_scalar_mul(v7, v6) -> [Field; 3]
-                return v9
-            }
-            "#;
-        assert_normalized_ssa_equals(ssa, expected_src);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [Field; 6]
+            v5 = make_array [Field 0, Field 0, Field 1, v0, v1, Field 0, Field 1, v0, Field 0] : [Field; 9]
+            v6 = make_array [v0, Field 0] : [Field; 2]
+            v7 = make_array [Field 1, v0, Field 0] : [Field; 3]
+            v9 = call multi_scalar_mul(v7, v6) -> [Field; 3]
+            return v9
+        }
+        ");
     }
 
     #[cfg(feature = "bn254")]
@@ -430,25 +428,24 @@ mod multi_scalar_mul {
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         //First and last scalar/point are constant, so we should be left with the msm of the middle point and the folded constant point
-        let expected_src = r#"
-            acir(inline) fn main f0 {
-              b0(v0: Field, v1: Field):
-                v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
-                v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
-                v8 = make_array [v0, Field 0, Field 1, Field 0] : [Field; 4]
-                v12 = make_array [v0, v1, Field 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [Field; 6]
-                v14 = call multi_scalar_mul(v12, v8) -> [Field; 3]
-                return v14
-            }
-            "#;
-        assert_normalized_ssa_equals(ssa, expected_src);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
+            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
+            v8 = make_array [v0, Field 0, Field 1, Field 0] : [Field; 4]
+            v12 = make_array [v0, v1, Field 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [Field; 6]
+            v14 = call multi_scalar_mul(v12, v8) -> [Field; 3]
+            return v14
+        }
+        ");
     }
 }
 
 #[cfg(test)]
 mod sha256_compression {
+    use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
-    use crate::ssa::opt::assert_normalized_ssa_equals;
 
     #[test]
     fn is_optimized_out_with_constant_arguments() {
@@ -461,15 +458,14 @@ mod sha256_compression {
                 return v2
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        let expected_src = r#"
-            acir(inline) fn main f0 {
-              b0():
-                v1 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 8]
-                v2 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 16]
-                v11 = make_array [u32 2091193876, u32 1113340840, u32 3461668143, u32 3254913767, u32 3068490961, u32 2551409935, u32 2927503052, u32 3205228454] : [u32; 8]
-                return v11
-            }
-            "#;
-        assert_normalized_ssa_equals(ssa, expected_src);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 8]
+            v2 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 16]
+            v11 = make_array [u32 2091193876, u32 1113340840, u32 3461668143, u32 3254913767, u32 3068490961, u32 2551409935, u32 2927503052, u32 3205228454] : [u32; 8]
+            return v11
+        }
+        ");
     }
 }
