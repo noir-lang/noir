@@ -22,13 +22,12 @@ impl Ssa {
 impl Function {
     pub(crate) fn remove_truncate_after_range_check(&mut self) {
         let mut values_to_replace = HashMap::<ValueId, ValueId>::default();
+        // Keeps the minimum bit size a value was range-checked against
+        let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
 
         let blocks = self.reachable_blocks();
         for block in &blocks {
             let block = *block;
-
-            // Keeps the minimum bit size a value was range-checked against
-            let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
             let mut instructions_to_remove = HashSet::default();
 
             for instruction_id in self.dfg[block].instructions() {
@@ -94,6 +93,8 @@ mod tests {
           b0(v0: Field):
             range_check v0 to 64 bits // This is to make sure we keep the smallest one
             range_check v0 to 32 bits
+            jmp b1()
+          b1():
             v1 = truncate v0 to 32 bits, max_bit_size: 254
             return v1
         }
@@ -106,6 +107,8 @@ mod tests {
           b0(v0: Field):
             range_check v0 to 64 bits
             range_check v0 to 32 bits
+            jmp b1()
+          b1():
             return v0
         }
         ");
