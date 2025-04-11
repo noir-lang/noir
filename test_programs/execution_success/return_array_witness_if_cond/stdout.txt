@@ -1,1 +1,0 @@
-[return_array_witness_if_cond] Circuit output: Vec([Field(1), Field(0)])

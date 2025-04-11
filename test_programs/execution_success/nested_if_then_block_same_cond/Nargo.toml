@@ -1,5 +1,5 @@
 [package]
-name = "return_array_witness_if_cond"
+name = "nested_if_then_block_same_cond"
 type = "bin"
 authors = [""]
 
