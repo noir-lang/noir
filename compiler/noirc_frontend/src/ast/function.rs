@@ -5,7 +5,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{FunctionReturnType, Ident, Param},
     shared::Visibility,
-    token::{Attributes, FunctionAttribute, SecondaryAttribute},
+    token::{Attributes, FunctionAttribute, FunctionAttributeKind, SecondaryAttribute},
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -105,29 +105,20 @@ impl NoirFunction {
     pub fn span(&self) -> Span {
         self.location().span
     }
-
-    pub fn foreign(&self) -> Option<&FunctionDefinition> {
-        match &self.kind {
-            FunctionKind::LowLevel => {}
-            _ => return None,
-        }
-        assert!(self.function_attribute().unwrap().is_foreign());
-        Some(&self.def)
-    }
 }
 
 impl From<FunctionDefinition> for NoirFunction {
     fn from(fd: FunctionDefinition) -> Self {
         // The function type is determined by the existence of a function attribute
-        let kind = match fd.attributes.function() {
-            Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
-            Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
-            Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
-            Some(FunctionAttribute::FuzzingHarness { .. }) => FunctionKind::Normal,
-            Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(FunctionAttribute::Fold) => FunctionKind::Normal,
-            Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
-            Some(FunctionAttribute::InlineAlways) => FunctionKind::Normal,
+        let kind = match fd.attributes.function().map(|attr| &attr.kind) {
+            Some(FunctionAttributeKind::Builtin(_)) => FunctionKind::Builtin,
+            Some(FunctionAttributeKind::Foreign(_)) => FunctionKind::LowLevel,
+            Some(FunctionAttributeKind::Test { .. }) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::FuzzingHarness { .. }) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::Oracle(_)) => FunctionKind::Oracle,
+            Some(FunctionAttributeKind::Fold) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::NoPredicates) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::InlineAlways) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

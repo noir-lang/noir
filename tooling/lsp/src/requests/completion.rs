@@ -1829,7 +1829,12 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
-    fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
+    fn visit_meta_attribute(
+        &mut self,
+        attribute: &MetaAttribute,
+        target: AttributeTarget,
+        _span: Span,
+    ) -> bool {
         let MetaAttributeName::Path(path) = &attribute.name else {
             return true;
         };
