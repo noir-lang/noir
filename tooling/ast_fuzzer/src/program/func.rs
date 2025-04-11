@@ -11,7 +11,7 @@ use noirc_frontend::{
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
         ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
-        GlobalId, Ident, If, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
+        GlobalId, Ident, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
         Type, While,
     },
     node_interner::DefinitionId,
@@ -1041,18 +1041,9 @@ fn test_while() {
     while (!b$l1) {
         if (idx_a$l0 == 10) {
             break
-        } else {"#
+        } else {
+            idx_a$l0 = (idx_a$l0 + 1)"#
                 .replace(" ", "")
-        )
-    );
-
-    assert!(
-        while_code.ends_with(
-            &r#"idx_a$l0 = (idx_a$l0 + 1)
-        }
-    }
-}"#
-            .replace(" ", "")
         )
     );
 }
