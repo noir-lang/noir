@@ -93,7 +93,7 @@ mod tests {
           b0(v0: Field):
             range_check v0 to 64 bits // This is to make sure we keep the smallest one
             range_check v0 to 32 bits
-            jmp b1()
+            jmp b1() // Make sure the optimization is applied across blocks
           b1():
             v1 = truncate v0 to 32 bits, max_bit_size: 254
             return v1
