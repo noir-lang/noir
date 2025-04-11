@@ -926,7 +926,120 @@
 <a href="#925" id="925">925</a>
 <a href="#926" id="926">926</a>
 <a href="#927" id="927">927</a>
-<a href="#928" id="928">928</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashSet},
     fmt::Debug,
@@ -939,7 +1052,8 @@
     hir_def::{<span class="self">self</span>, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
         ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
-        GlobalId, Ident, Index, InlineType, LValue, Literal, LocalId, Parameters, Program, Type,
+        GlobalId, Ident, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
+        Type, While,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -1046,6 +1160,9 @@
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
     </span>locals: ScopeStack&lt;LocalId&gt;,
+    <span class="doccomment">/// Indicator of being in a loop (and hence able to generate
+    /// break and continue statements)
+    </span>in_loop: bool,
     <span class="doccomment">/// All the functions callable from this one, with the types we can
     /// produce from their return value.
     </span>call_targets: BTreeMap&lt;FuncId, HashSet&lt;Type&gt;&gt;,
@@ -1089,7 +1206,7 @@
             })
             .collect();
 
-        <span class="self">Self </span>{ ctx, id, next_local_id, budget, globals, locals, call_targets }
+        <span class="self">Self </span>{ ctx, id, next_local_id, budget, globals, locals, in_loop: <span class="bool-val">false</span>, call_targets }
     }
 
     <span class="doccomment">/// Generate the function body.
@@ -1500,8 +1617,7 @@
     /// for example loops, variable declarations, etc.
     </span><span class="kw">fn </span>gen_stmt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>freq = Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs)<span class="question-mark">?</span>;
-        <span class="comment">// TODO(#7928): While
-        // TODO(#7926): Match
+        <span class="comment">// TODO(#7926): Match
         // TODO(#7931): print
         // TODO(#7932): Constrain
 
@@ -1526,6 +1642,22 @@
             <span class="kw">return </span><span class="self">self</span>.gen_for(u);
         }
 
+        <span class="kw">if </span>freq.enabled_when(<span class="string">"loop"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.unconstrained()) {
+            <span class="kw">return </span><span class="self">self</span>.gen_loop(u);
+        }
+
+        <span class="kw">if </span>freq.enabled_when(<span class="string">"while"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.unconstrained()) {
+            <span class="kw">return </span><span class="self">self</span>.gen_while(u);
+        }
+
+        <span class="kw">if </span>freq.enabled_when(<span class="string">"break"</span>, <span class="self">self</span>.in_loop &amp;&amp; <span class="self">self</span>.unconstrained()) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(Expression::Break);
+        }
+
+        <span class="kw">if </span>freq.enabled_when(<span class="string">"continue"</span>, <span class="self">self</span>.in_loop &amp;&amp; <span class="self">self</span>.unconstrained()) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(Expression::Continue);
+        }
+
         <span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
@@ -1538,16 +1670,25 @@
             }
         }
 
-        <span class="self">self</span>.gen_let(u)
+        <span class="self">self</span>.gen_let(u, <span class="prelude-val">None</span>)
     }
 
-    <span class="doccomment">/// Generate a `Let` statement.
-    </span><span class="kw">fn </span>gen_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
+    <span class="doccomment">/// Generate a `Let` statement, optionally requesting mutability.
+    </span><span class="kw">fn </span>gen_let(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        mutable: <span class="prelude-ty">Option</span>&lt;bool&gt;,
+    ) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="comment">// Generate a type or choose an existing one.
         </span><span class="kw">let </span>max_depth = <span class="self">self</span>.max_depth();
         <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>id = <span class="self">self</span>.next_local_id();
-        <span class="kw">let </span>mutable = bool::arbitrary(u)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>mutable = <span class="kw">match </span>mutable {
+            <span class="prelude-val">Some</span>(m) =&gt; m,
+            <span class="prelude-val">None </span>=&gt; bool::arbitrary(u)<span class="question-mark">?</span>,
+        };
+
         <span class="kw">let </span>name = make_name(id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>);
         <span class="kw">let </span>expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
 
@@ -1692,7 +1833,9 @@
         <span class="comment">// Decrease budget so we don't nest for loops endlessly.
         </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
 
+        <span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
         <span class="kw">let </span>block = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
+        <span class="self">self</span>.in_loop = was_in_loop;
 
         <span class="kw">let </span>expr = Expression::For(For {
             index_variable: idx_id,
@@ -1765,11 +1908,7 @@
 
     <span class="doccomment">/// Generate a `loop` loop.
     </span><span class="kw">fn </span>gen_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
-        <span class="comment">// For now, the only way to break out of the loop is the guard
-        // condition implemented below, as Break or Continue currently don't figure in
-        // generated expressions. This should be amended in TODO(#7928): While
-
-        // Declare break index variable visible in the loop body. Do not include it
+        <span class="comment">// Declare break index variable visible in the loop body. Do not include it
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
         </span><span class="kw">let </span>idx_type = types::U32;
@@ -1786,7 +1925,9 @@
         </span><span class="kw">let </span>let_idx = expr::let_var(idx_id, <span class="bool-val">true</span>, idx_name, expr::u32_literal(<span class="number">0</span>));
 
         <span class="comment">// Get the randomized loop body
-        </span><span class="kw">let </span><span class="kw-2">mut </span>loop_body = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>loop_body = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
+        <span class="self">self</span>.in_loop = was_in_loop;
 
         <span class="comment">// Increment the index in the beginning of the body.
         </span>expr::prepend(
@@ -1810,6 +1951,66 @@
         );
 
         <span class="prelude-val">Ok</span>(Expression::Block(<span class="macro">vec!</span>[let_idx, Expression::Loop(Box::new(loop_body))]))
+    }
+
+    <span class="doccomment">/// Generate a `while` loop.
+    </span><span class="kw">fn </span>gen_while(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
+        <span class="comment">// Declare break index variable visible in the loop body. Do not include it
+        // in the locals the generator would be able to manipulate, as it could
+        // lead to the loop becoming infinite.
+        </span><span class="kw">let </span>idx_type = types::U32;
+        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_local_id();
+        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
+        <span class="kw">let </span>idx_ident =
+            expr::ident_inner(VariableId::Local(idx_id), <span class="bool-val">true</span>, idx_name.clone(), idx_type);
+        <span class="kw">let </span>idx_expr = Expression::Ident(idx_ident.clone());
+
+        <span class="comment">// Decrease budget so we don't nest endlessly.
+        </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
+
+        <span class="comment">// Start building the loop harness, initialize index to 0
+        </span><span class="kw">let </span><span class="kw-2">mut </span>stmts = <span class="macro">vec!</span>[Expression::Let(Let {
+            id: idx_id,
+            mutable: <span class="bool-val">true</span>,
+            name: idx_name,
+            expression: Box::new(expr::u32_literal(<span class="number">0</span>)),
+        })];
+
+        <span class="comment">// Get the randomized loop body
+        </span><span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>loop_body = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
+        <span class="self">self</span>.in_loop = was_in_loop;
+
+        <span class="comment">// Increment the index in the beginning of the body.
+        </span>expr::prepend(
+            <span class="kw-2">&amp;mut </span>loop_body,
+            expr::assign(
+                idx_ident,
+                expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(<span class="number">1</span>)),
+            ),
+        );
+
+        <span class="comment">// Put everything into if/else
+        </span><span class="kw">let </span>inner_block = Expression::Block(<span class="macro">vec!</span>[expr::if_else(
+            expr::binary(
+                idx_expr,
+                BinaryOp::Equal,
+                expr::u32_literal(<span class="self">self</span>.ctx.config.max_loop_size <span class="kw">as </span>u32),
+            ),
+            Expression::Break,
+            loop_body,
+            Type::Unit,
+        )]);
+
+        <span class="comment">// Generate the `while` condition with depth 1
+        </span><span class="kw">let </span>condition = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="number">1</span>, Flags::CONDITION)<span class="question-mark">?</span>;
+
+        stmts.push(Expression::While(While {
+            condition: Box::new(condition),
+            body: Box::new(inner_block),
+        }));
+
+        <span class="prelude-val">Ok</span>(Expression::Block(stmts))
     }
 }
 
@@ -1850,6 +2051,31 @@
             break
         } else {
             idx_a$l0 = (idx_a$l0 + 1);"#
+                </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
+        )
+    );
+}
+
+<span class="attr">#[test]
+</span><span class="kw">fn </span>test_while() {
+    <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">1</span>]);
+    <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
+    ctx.config.max_loop_size = <span class="number">10</span>;
+    ctx.add_main_decl(<span class="kw-2">&amp;mut </span>u);
+    <span class="kw">let </span><span class="kw-2">mut </span>fctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
+    fctx.budget = <span class="number">2</span>;
+    <span class="kw">let </span>while_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, fctx.gen_while(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
+
+    <span class="macro">println!</span>(<span class="string">"{while_code}"</span>);
+    <span class="macro">assert!</span>(
+        while_code.starts_with(
+            <span class="kw-2">&amp;</span><span class="string">r#"{
+    let mut idx_a$l0 = 0;
+    while (!false) {
+        if (idx_a$l0 == 10) {
+            break
+        } else {
+            idx_a$l0 = (idx_a$l0 + 1)"#
                 </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
         )
     );

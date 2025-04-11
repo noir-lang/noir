@@ -73,7 +73,10 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
 <span class="kw">pub mod </span>compare;
 <span class="kw">mod </span>input;
 <span class="kw">mod </span>program;
@@ -125,10 +128,13 @@
         ]);
         <span class="kw">let </span>stmt_freqs = Freqs::new(<span class="kw-2">&amp;</span>[
             (<span class="string">"drop"</span>, <span class="number">5</span>),
+            (<span class="string">"break"</span>, <span class="number">5</span>),
+            (<span class="string">"continue"</span>, <span class="number">5</span>),
             (<span class="string">"assign"</span>, <span class="number">30</span>),
             (<span class="string">"if"</span>, <span class="number">10</span>),
             (<span class="string">"for"</span>, <span class="number">10</span>),
             (<span class="string">"loop"</span>, <span class="number">10</span>),
+            (<span class="string">"while"</span>, <span class="number">10</span>),
             (<span class="string">"let"</span>, <span class="number">20</span>),
             (<span class="string">"call"</span>, <span class="number">5</span>),
         ]);
