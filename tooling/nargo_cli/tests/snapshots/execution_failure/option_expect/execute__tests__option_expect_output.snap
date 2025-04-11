@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+bug: Assertion is always false
+   ┌─ std/option.nr:65:16
+   │
+65 │         assert(self.is_some(), message);
+   │                -------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+   │
+   = Call stack:
+     1. src/main.nr:7:12
+     2. std/option.nr:65:16
+
+bug: Assertion is always false
+  ┌─ src/main.nr:7:12
+  │
+7 │     assert(none.expect(f"Should have the value {inner_value}") == 3);
+  │            -------------------------------------------------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1. src/main.nr:7:12
+
+error: Assertion failed: Should have the value 0x03
+   ┌─ std/option.nr:65:16
+   │
+65 │         assert(self.is_some(), message);
+   │                --------------
+   │
+   = Call stack:
+     1. src/main.nr:7:12
+     2. std/option.nr:65:16
+
+Failed assertion

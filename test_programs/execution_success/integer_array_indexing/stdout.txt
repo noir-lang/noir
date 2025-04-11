@@ -1,1 +1,0 @@
-[integer_array_indexing] Circuit output: Field(8)

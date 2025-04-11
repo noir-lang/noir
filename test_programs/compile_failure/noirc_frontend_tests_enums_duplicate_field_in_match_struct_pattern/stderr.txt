@@ -1,8 +1,0 @@
-error: duplicate field x
-  ┌─ src/main.nr:5:25
-  │
-5 │             Foo { x: _, x: _, y: _ } => {}
-  │                         -
-  │
-
-Aborting due to 1 previous error

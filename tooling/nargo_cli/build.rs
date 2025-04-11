@@ -79,18 +79,11 @@ const INLINER_OVERRIDES: [(&str, i64); 3] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
-    // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
-    "brillig_cast",
-    // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
-    "macros_in_comptime",
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
     // We issue a "experimental feature" warning for all enums until they're stabilized
     "enums",
     "comptime_enums",
 ];
-
-/// Tests for which we don't check that stdout matches the expected output.
-const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -268,10 +261,7 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            &format!(
-                "execution_success(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
-                !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str())
-            ),
+            "execution_success(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
@@ -320,7 +310,7 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            "execution_failure(nargo);",
+            "execution_failure(nargo, test_program_dir);",
             &MatrixConfig::default(),
         );
     }

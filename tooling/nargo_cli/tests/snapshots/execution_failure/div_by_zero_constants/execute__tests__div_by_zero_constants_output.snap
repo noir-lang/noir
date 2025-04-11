@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+bug: Assertion is always false
+  ┌─ src/main.nr:2:20
+  │
+2 │     let a: Field = 3 / 0;
+  │                    ----- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1. src/main.nr:2:20
+
+error: Failed constraint
+  ┌─ src/main.nr:2:20
+  │
+2 │     let a: Field = 3 / 0;
+  │                    -----
+  │
+  = Call stack:
+    1. src/main.nr:2:20
+
+Failed to solve program: 'Cannot satisfy constraint'

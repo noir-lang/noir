@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Definition of low-level function outside of standard library
+  ┌─ src/main.nr:4:1
+  │
+4 │ #[builtin(to_le_bits)]
+  │ ---------------------- Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
+  │
+
+Aborting due to 1 previous error

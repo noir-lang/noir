@@ -11,7 +11,7 @@ mod tests {
     use std::fs;
     use std::io::BufWriter;
     use std::path::{Path, PathBuf};
-    use std::process::Command;
+    use std::process::{Command, Output};
 
     use super::*;
 
@@ -51,6 +51,35 @@ mod tests {
         }
 
         nargo
+    }
+
+    fn snapshot_output(prefix: &'static str, output: Output, test_program_dir: &Path) {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stdout = remove_noise_lines(stdout.to_string());
+        let stdout = delete_test_program_dir_occurrences(stdout, test_program_dir);
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stderr = remove_noise_lines(stderr.to_string());
+        let stderr = delete_test_program_dir_occurrences(stderr, test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/{prefix}/{test_name}"),
+            },
+            {
+                insta::assert_snapshot!(
+                    format!("{test_name}_output"),
+                    &format!(
+                        "success: {:?}\nexit_code: {}\n----- stdout -----\n{}\n----- stderr -----\n{}",
+                        output.status.success(),
+                        output.status.code().unwrap_or(!0),
+                        stdout,
+                        stderr
+                    ),
+                )
+            }
+        );
     }
 
     fn remove_noise_lines(string: String) -> String {
@@ -112,7 +141,6 @@ mod tests {
     fn execution_success(
         mut nargo: Command,
         test_program_dir: PathBuf,
-        check_stdout: bool,
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
@@ -122,33 +150,8 @@ mod tests {
 
         nargo.assert().success();
 
-        if check_stdout {
-            let output = nargo.output().unwrap();
-            let stdout = String::from_utf8(output.stdout).unwrap();
-            let stdout = remove_noise_lines(stdout);
-
-            let stdout_path = test_program_dir.join("stdout.txt");
-            let expected_stdout = if stdout_path.exists() {
-                String::from_utf8(fs::read(stdout_path.clone()).unwrap()).unwrap()
-            } else {
-                String::new()
-            };
-
-            // Remove any trailing newlines added by some editors
-            let stdout = stdout.trim();
-            let expected_stdout = expected_stdout.trim();
-
-            if stdout != expected_stdout {
-                if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                    fs::write(stdout_path, stdout.to_string() + "\n").unwrap();
-                } else {
-                    println!(
-                        "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
-                    );
-                    assert_eq!(stdout, expected_stdout);
-                }
-            }
-        }
+        let output = nargo.output().unwrap();
+        snapshot_output("execution_success", output, &test_program_dir);
 
         check_program_artifact(
             "execution_success",
@@ -159,11 +162,14 @@ mod tests {
         );
     }
 
-    fn execution_failure(mut nargo: Command) {
+    fn execution_failure(mut nargo: Command, test_program_dir: PathBuf) {
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
+
+        let output = nargo.output().unwrap();
+        snapshot_output("execution_failure", output, &test_program_dir);
     }
 
     fn noir_test_success(mut nargo: Command) {
@@ -251,37 +257,7 @@ mod tests {
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
 
         let output = nargo.output().unwrap();
-        let stderr = String::from_utf8(output.stderr).unwrap();
-        let stderr = remove_noise_lines(stderr);
-        let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
-
-        let stderr_path = test_program_dir.join("stderr.txt");
-
-        let expected_stderr = if stderr_path.exists() {
-            String::from_utf8(fs::read(stderr_path.clone()).unwrap()).unwrap()
-        } else {
-            String::new()
-        };
-
-        // Remove any trailing newlines added by some editors
-        let stderr = stderr.trim();
-        let expected_stderr = expected_stderr.trim();
-
-        if stderr != expected_stderr {
-            if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-            } else {
-                // If the expected stderr is empty this is likely a new test, so we produce the expected output for next time
-                if expected_stderr.is_empty() {
-                    fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-                }
-
-                println!(
-                    "stderr does not match expected output. Expected:\n{expected_stderr}\n\nActual:\n{stderr}"
-                );
-                assert_eq!(stderr, expected_stderr);
-            }
-        }
+        snapshot_output("compile_failure", output, &test_program_dir);
     }
 
     fn check_program_artifact(

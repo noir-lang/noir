@@ -1,8 +1,0 @@
-error: bar is a type alias, not a module
-  ┌─ src/main.nr:6:14
-  │
-6 │     use foo::bar::baz;
-  │              ---
-  │
-
-Aborting due to 1 previous error

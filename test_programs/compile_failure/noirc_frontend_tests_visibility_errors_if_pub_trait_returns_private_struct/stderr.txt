@@ -1,8 +1,0 @@
-error: Type `Bar` is more private than item `foo`
-  ┌─ src/main.nr:6:16
-  │
-6 │             fn foo() -> Bar;
-  │                ---
-  │
-
-Aborting due to 1 previous error
