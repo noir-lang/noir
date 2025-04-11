@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744391957710,
+  "lastUpdate": 1744391963730,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "sirasistant@gmail.com",
-            "name": "Álvaro Rodríguez",
-            "username": "sirasistant"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8c4d9a2bb8f3df3ee2e253eaffe7d72ebb2a8ec2",
-          "message": "fix: Fix nondeterminsm on aarch64 vs amd64 (#7942)",
-          "timestamp": "2025-04-07T12:30:00Z",
-          "tree_id": "2039511b059eea13af0456696fac92b499ea0d4c",
-          "url": "https://github.com/noir-lang/noir/commit/8c4d9a2bb8f3df3ee2e253eaffe7d72ebb2a8ec2"
-        },
-        "date": 1744031046694,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.29,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 504.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 413.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 293.54,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6ad8a4847ba4f71a71d2dec6341dee4a549f6f5e"
         },
         "date": 1744389733218,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.72,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4386a985530a8b3de178a887b21d5a07da080dd9",
+          "message": "fix(ssa): Map terminator instructions after constant folding  (#8019)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-04-11T16:41:35Z",
+          "tree_id": "3aaf2d2edce41391e1d6206eda4231395d9f4c61",
+          "url": "https://github.com/noir-lang/noir/commit/4386a985530a8b3de178a887b21d5a07da080dd9"
+        },
+        "date": 1744391957564,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
