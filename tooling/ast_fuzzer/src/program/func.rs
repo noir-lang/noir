@@ -8,7 +8,7 @@ use noirc_frontend::{
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
         ArrayLiteral, Assign, BinaryOp, Expression, For, FuncId, GlobalId, If, Index, InlineType,
-        LValue, Let, Literal, LocalId, Parameters, Type,
+        LValue, Let, Literal, LocalId, Parameters, Type, While,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -104,6 +104,9 @@ pub(super) struct FunctionContext<'a> {
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
+    /// Indicator of being in a loop (and hence able to generate
+    /// break and continue statements)
+    in_loop: bool,
 }
 
 impl<'a> FunctionContext<'a> {
@@ -124,7 +127,7 @@ impl<'a> FunctionContext<'a> {
                 .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        Self { ctx, id, next_local_id, budget, globals, locals }
+        Self { ctx, id, next_local_id, budget, globals, locals, in_loop: false }
     }
 
     /// Generate the function body.
@@ -529,7 +532,6 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO(#7928): While
         // TODO(#7926): Match
         // TODO(#7925): Call
         // TODO(#7931): print
@@ -547,6 +549,18 @@ impl<'a> FunctionContext<'a> {
             return self.gen_loop(u);
         }
 
+        if freq.enabled_when("while", self.budget > 1 && self.unconstrained()) {
+            return self.gen_while(u);
+        }
+
+        if freq.enabled_when("break", self.in_loop) {
+            return Ok(self.gen_break());
+        }
+
+        if freq.enabled_when("continue", self.in_loop) {
+            return Ok(self.gen_continue());
+        }
+
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
                 return Ok(e);
@@ -559,16 +573,25 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        self.gen_let(u)
+        self.gen_let(u, None)
     }
 
-    /// Generate a `Let` statement.
-    fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+    /// Generate a `Let` statement, optionally requesting mutability.
+    fn gen_let(
+        &mut self,
+        u: &mut Unstructured,
+        mutable: Option<bool>,
+    ) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let typ = self.ctx.gen_type(u, max_depth, false)?;
         let id = self.next_local_id();
-        let mutable = bool::arbitrary(u)?;
+
+        let mutable = match mutable {
+            Some(m) => m,
+            None => bool::arbitrary(u)?,
+        };
+
         let name = make_name(id.0 as usize, false);
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
 
@@ -635,6 +658,16 @@ impl<'a> FunctionContext<'a> {
         let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
 
         Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
+    }
+
+    /// Break out of a loop.
+    fn gen_break(&mut self) -> Expression {
+        Expression::Break
+    }
+
+    /// Go to the next interation of a loop.
+    fn gen_continue(&mut self) -> Expression {
+        Expression::Continue
     }
 
     /// Generate an if-then-else statement or expression.
@@ -715,7 +748,9 @@ impl<'a> FunctionContext<'a> {
         // Decrease budget so we don't nest for loops endlessly.
         self.decrease_budget(1);
 
+        self.in_loop = true;
         let block = self.gen_block(u, &Type::Unit)?;
+        self.in_loop = false;
 
         let expr = Expression::For(For {
             index_variable: idx_id,
@@ -736,10 +771,6 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `loop` loop.
     fn gen_loop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // For now, the only way to break out of the loop is the guard
-        // condition implemented below, as Break or Continue currently don't figure in
-        // generated expressions. This should be amended in TODO(#7928): While
-
         // Declare break index variable visible in the loop body. Do not include it
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
@@ -761,7 +792,9 @@ impl<'a> FunctionContext<'a> {
         })];
 
         // Get the randomized loop body
+        self.in_loop = true;
         let mut inner_stmts = vec![self.gen_block(u, &Type::Unit)?];
+        self.in_loop = false;
 
         // Increment the index
         inner_stmts.push(expr::assign_to_ident(
@@ -782,6 +815,62 @@ impl<'a> FunctionContext<'a> {
         )]);
 
         stmts.push(Expression::Loop(Box::new(inner_block)));
+
+        Ok(Expression::Block(stmts))
+    }
+
+    /// Generate a `while` loop.
+    fn gen_while(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // Declare break index variable visible in the loop body. Do not include it
+        // in the locals the generator would be able to manipulate, as it could
+        // lead to the loop becoming infinite.
+        let idx_type = types::U32;
+        let idx_id = self.next_local_id();
+        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_ident =
+            expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
+
+        // Decrease budget so we don't nest endlessly.
+        self.decrease_budget(1);
+
+        // Start building the loop harness, initialize index to 0
+        let mut stmts = vec![Expression::Let(Let {
+            id: idx_id,
+            mutable: true,
+            name: idx_name,
+            expression: Box::new(expr::u32_literal(0)),
+        })];
+
+        self.in_loop = true;
+        let mut inner_stmts = vec![self.gen_block(u, &Type::Unit)?];
+        self.in_loop = false;
+
+        // Increment the index
+        inner_stmts.push(expr::assign_to_ident(
+            idx_ident.clone(),
+            expr::binary(Expression::Ident(idx_ident.clone()), BinaryOp::Add, expr::u32_literal(1)),
+        ));
+
+        // Put everything into if/else
+        let inner_block = Expression::Block(vec![expr::if_else(
+            expr::binary(
+                Expression::Ident(idx_ident.clone()),
+                BinaryOp::Equal,
+                expr::u32_literal(self.ctx.config.max_loop_size as u32),
+            ),
+            Expression::Break,
+            Expression::Block(inner_stmts),
+            Type::Unit,
+        )]);
+
+        // Generate the `while` condition with depth 1, ensuring there is a variable in scope to use
+        stmts.push(self.gen_let(u, Some(true))?);
+        let condition = self.gen_expr(u, &Type::Bool, 1, Flags::CONDITION)?;
+
+        stmts.push(Expression::While(While {
+            condition: Box::new(condition),
+            body: Box::new(inner_block),
+        }));
 
         Ok(Expression::Block(stmts))
     }
@@ -812,6 +901,41 @@ fn test_loop() {
 
     assert!(
         loop_code.ends_with(
+            &r#"idx_a$l0 = (idx_a$l0 + 1)
+        }
+    }
+}"#
+            .replace(" ", "")
+        )
+    );
+}
+
+#[test]
+fn test_while() {
+    let mut u = Unstructured::new(&[0u8; 1]);
+    let mut ctx = Context::default();
+    ctx.config.max_loop_size = 10;
+    ctx.add_main_decl(&mut u);
+    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+    fctx.budget = 2;
+    let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
+
+    println!("{while_code}");
+    assert!(
+        while_code.starts_with(
+            &r#"{
+    let mut idx_a$l0 = 0;
+    let mut b$l1 = (!(!false));
+    while (!b$l1) {
+        if (idx_a$l0 == 10) {
+            break
+        } else {"#
+                .replace(" ", "")
+        )
+    );
+
+    assert!(
+        while_code.ends_with(
             &r#"idx_a$l0 = (idx_a$l0 + 1)
         }
     }
