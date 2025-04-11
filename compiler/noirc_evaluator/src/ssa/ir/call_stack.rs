@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use noirc_errors::Location;
 
-pub(crate) type CallStack = Vec<Location>;
+pub type CallStack = Vec<Location>;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub(crate) struct CallStackId(u32);
+pub struct CallStackId(u32);
 
 impl CallStackId {
     pub(crate) fn root() -> Self {
