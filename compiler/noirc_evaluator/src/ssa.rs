@@ -224,7 +224,7 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 ///
 /// See the [primary_passes] and [secondary_passes] for
 /// the default implementations.
-fn optimize_into_acir<S>(
+pub(crate) fn optimize_into_acir<S>(
     program: Program,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
