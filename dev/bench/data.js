@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744383226545,
+  "lastUpdate": 1744386626761,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19396,6 +19396,42 @@ window.BENCHMARK_DATA = {
             "name": "purely_sequential_opcodes #2",
             "value": 3201477,
             "range": "± 44040",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b92902762a40da7aacbbfd2a020e0d9ad12b7ee7",
+          "message": "chore: correct name of acvm benchmark (#8032)",
+          "timestamp": "2025-04-11T15:33:06Z",
+          "tree_id": "28125eb84aa83005c12cd9a61dd1226e72b5a851",
+          "url": "https://github.com/noir-lang/noir/commit/b92902762a40da7aacbbfd2a020e0d9ad12b7ee7"
+        },
+        "date": 1744386621703,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3609846,
+            "range": "± 10222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3579713,
+            "range": "± 3300",
             "unit": "ns/iter"
           }
         ]
