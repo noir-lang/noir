@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Duplicate definitions of struct field with name x found
+  ┌─ src/main.nr:3:9
+  │
+3 │         x: i32,
+  │         - First struct field found here
+4 │         x: i32,
+  │         - Second struct field found here
+  │
+
+Aborting due to 1 previous error

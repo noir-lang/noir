@@ -1,0 +1,540 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:29:18
+   │
+29 │     assert(slice[x] == 4);
+   │                  -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:30:18
+   │
+30 │     assert(slice[y] == 1);
+   │                  -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:31:11
+   │
+31 │     slice[y] = 0;
+   │           -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:32:18
+   │
+32 │     assert(slice[x] == 4);
+   │                  -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:35:22
+   │
+35 │         assert(slice[x] == 4);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:36:26
+   │
+36 │         slice[x] = slice[x] - 2;
+   │                          -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:36:15
+   │
+36 │         slice[x] = slice[x] - 2;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:37:30
+   │
+37 │         slice[x - 1] = slice[x];
+   │                              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:37:15
+   │
+37 │         slice[x - 1] = slice[x];
+   │               -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:39:15
+   │
+39 │         slice[x] = 0;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:46:18
+   │
+46 │     assert(slice[x] == 4);
+   │                  -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:47:18
+   │
+47 │     assert(slice[y] == 1);
+   │                  -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:48:11
+   │
+48 │     slice[y] = 0;
+   │           -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:49:18
+   │
+49 │     assert(slice[x] == 4);
+   │                  -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:52:22
+   │
+52 │         assert(slice[x] == 4);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:53:26
+   │
+53 │         slice[x] = slice[x] - 2;
+   │                          -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:53:15
+   │
+53 │         slice[x] = slice[x] - 2;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:54:30
+   │
+54 │         slice[x - 1] = slice[x];
+   │                              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:54:15
+   │
+54 │         slice[x - 1] = slice[x];
+   │               -----
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:56:15
+   │
+56 │         slice[x] = 0;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:64:22
+   │
+64 │         assert(slice[x] == 4);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:65:26
+   │
+65 │         slice[x] = slice[x] - 2;
+   │                          -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:65:15
+   │
+65 │         slice[x] = slice[x] - 2;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:67:22
+   │
+67 │         assert(slice[x] == 0);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:74:22
+   │
+74 │         assert(array[x] == 4);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:75:26
+   │
+75 │         array[x] = array[x] - 2;
+   │                          -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:75:15
+   │
+75 │         array[x] = array[x] - 2;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:77:22
+   │
+77 │         assert(array[x] == 0);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:85:22
+   │
+85 │         assert(slice[x] == 0);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:87:22
+   │
+87 │         assert(slice[x] == 4);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:88:26
+   │
+88 │         slice[x] = slice[x] - 2;
+   │                          -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:88:15
+   │
+88 │         slice[x] = slice[x] - 2;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:95:22
+   │
+95 │         assert(slice[x] == 4);
+   │                      -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:96:26
+   │
+96 │         slice[x] = slice[x] - 2;
+   │                          -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:96:15
+   │
+96 │         slice[x] = slice[x] - 2;
+   │               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:102:15
+    │
+102 │         slice[x] = 10;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:106:15
+    │
+106 │         slice[x] = 20;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:107:26
+    │
+107 │         slice[x] = slice[x] + 10;
+    │                          -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:107:15
+    │
+107 │         slice[x] = slice[x] + 10;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:140:22
+    │
+140 │         assert(slice[x] == 0);
+    │                      -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:150:22
+    │
+150 │         assert(slice[x] == 0);
+    │                      -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:151:15
+    │
+151 │         slice[x] = 2;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:153:22
+    │
+153 │         assert(slice[x] == 4);
+    │                      -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:154:26
+    │
+154 │         slice[x] = slice[x] - 2;
+    │                          -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:154:15
+    │
+154 │         slice[x] = slice[x] - 2;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:166:18
+    │
+166 │     assert(slice[x] == 4);
+    │                  -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:167:18
+    │
+167 │     assert(slice[y] == 1);
+    │                  -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:168:11
+    │
+168 │     slice[y] = 0;
+    │           -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:169:18
+    │
+169 │     assert(slice[x] == 4);
+    │                  -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:172:26
+    │
+172 │         slice[x] = slice[x] - 2;
+    │                          -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:172:15
+    │
+172 │         slice[x] = slice[x] - 2;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:174:30
+    │
+174 │             slice[x] = slice[x] + 20;
+    │                              -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:174:19
+    │
+174 │             slice[x] = slice[x] + 20;
+    │                   -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:178:30
+    │
+178 │                 assert(slice[x] == 22);
+    │                              -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:180:23
+    │
+180 │                 slice[x] = 10;
+    │                       -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:187:15
+    │
+187 │         slice[x] = 0;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:199:18
+    │
+199 │     assert(slice[x] == 4);
+    │                  -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:200:18
+    │
+200 │     assert(slice[y] == 2);
+    │                  -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:201:11
+    │
+201 │     slice[y] = 0;
+    │           -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:202:18
+    │
+202 │     assert(slice[x] == 4);
+    │                  -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:205:26
+    │
+205 │         slice[x] = slice[x] - 2;
+    │                          -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:205:15
+    │
+205 │         slice[x] = slice[x] - 2;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:208:30
+    │
+208 │             slice[x] = slice[x] + 20;
+    │                              -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:208:19
+    │
+208 │             slice[x] = slice[x] + 20;
+    │                   -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:211:23
+    │
+211 │                 slice[x] = 5;
+    │                       -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:216:15
+    │
+216 │         slice[x] = 0;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:223:22
+    │
+223 │         assert(slice[x] == 0);
+    │                      -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:224:15
+    │
+224 │         slice[x] = 2;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:226:22
+    │
+226 │         assert(slice[x] == 4);
+    │                      -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:227:26
+    │
+227 │         slice[x] = slice[x] - 2;
+    │                          -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:227:15
+    │
+227 │         slice[x] = slice[x] - 2;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:250:15
+    │
+250 │         slice[x] = 50;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:254:26
+    │
+254 │         slice[x] = slice[x] - 2;
+    │                          -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:254:15
+    │
+254 │         slice[x] = slice[x] - 2;
+    │               -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:273:18
+    │
+273 │     assert(slice[x] == 50);
+    │                  -
+    │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+    ┌─ src/main.nr:282:15
+    │
+282 │         slice[x] = 5;
+    │               -
+    │

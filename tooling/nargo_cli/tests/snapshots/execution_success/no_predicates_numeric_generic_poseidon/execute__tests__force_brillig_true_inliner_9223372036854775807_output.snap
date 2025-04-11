@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[no_predicates_numeric_generic_poseidon] Circuit output: Vec([Field(6872278279389838270893036567391044786500326892747861821719356090893450222580), Field(0), Field(-5081180274701901594238752886449126889223582944913419432375817222547438495029)])
+----- stderr -----
+warning: poseidon2 is private and not visible from the current module
+  ┌─ src/main.nr:1:16
+  │
+1 │ use std::hash::poseidon2::Poseidon2;
+  │                --------- poseidon2 is private
+  │
+
+warning: Poseidon2 is private and not visible from the current module
+  ┌─ src/main.nr:1:27
+  │
+1 │ use std::hash::poseidon2::Poseidon2;
+  │                           --------- Poseidon2 is private
+  │
+
+warning: hash is private and not visible from the current module
+  ┌─ src/main.nr:8:16
+  │
+8 │     Poseidon2::hash(inputs, inputs.len())
+  │                ---- hash is private
+  │

@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Cannot invoke function field 'wrapped' on type 'Foo' as a method
+  ┌─ src/main.nr:8:17
+  │
+8 │                 self.wrapped(1)
+  │                 --------------- to call the function stored in 'wrapped', surround the field access with parentheses: '(', ')'
+  │
+
+Aborting due to 1 previous error

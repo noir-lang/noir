@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: The `#[export]` attribute is disallowed on `impl` methods
+   ┌─ src/main.nr:10:16
+   │
+10 │             fn foo() { }
+   │                ---
+   │
+
+Aborting due to 1 previous error

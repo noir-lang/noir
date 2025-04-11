@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[overlapping_dep_and_mod] Circuit output: Field(11)
+----- stderr -----
+warning: Return variable contains a constant value
+  ┌─ bin/src/main.nr:7:5
+  │
+7 │     foo::bar() + dep::foo::bar()
+  │     ---------------------------- This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
+  │
+  = Call stack:
+    1. bin/src/main.nr:7:5

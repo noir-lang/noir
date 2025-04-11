@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:7:16
+  │
+7 │         assert(entry_point(x[0]) == 7);
+  │                ----------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1. src/main.nr:7:16
+
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:8:16
+  │
+8 │         assert(entry_point(x[1]) == 8);
+  │                ----------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1. src/main.nr:8:16
+
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:9:16
+  │
+9 │         assert(entry_point(x[2]) == 9);
+  │                ----------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1. src/main.nr:9:16

@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+Match { succeeded: true, match_ends: 4, leftover: &[] }
+Match { succeeded: true, match_ends: 4, leftover: &[] }
+Match { succeeded: true, match_ends: 5, leftover: &[] }
+Match { succeeded: true, match_ends: 6, leftover: &[] }
+Match { succeeded: true, match_ends: 0, leftover: &[49, 49, 49] }
+Match { succeeded: true, match_ends: 0, leftover: &[49, 49, 49] }
+Match { succeeded: true, match_ends: 1, leftover: &[49, 49] }
+Match { succeeded: true, match_ends: 2, leftover: &[49] }
+Match { succeeded: true, match_ends: 3, leftover: &[49] }
+----- stderr -----
+warning: struct `Plus` is never constructed
+    ┌─ src/main.nr:156:8
+    │
+156 │ struct Plus<T, let N: u32, let N_PRED: u32> {
+    │        ---- struct is never constructed
+    │

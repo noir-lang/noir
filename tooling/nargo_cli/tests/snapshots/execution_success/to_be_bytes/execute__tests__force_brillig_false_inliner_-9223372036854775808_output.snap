@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[to_be_bytes] Circuit output: Vec([Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(31), Field(33), Field(60)])
+----- stderr -----
+warning: Return variable contains a constant value
+   ┌─ src/main.nr:12:5
+   │
+12 │     bytes
+   │     ----- This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
+   │
+   = Call stack:
+     1. src/main.nr:12:5

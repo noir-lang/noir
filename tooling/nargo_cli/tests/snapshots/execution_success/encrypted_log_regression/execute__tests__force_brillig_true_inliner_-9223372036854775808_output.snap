@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[encrypted_log_regression] Circuit output: Vec([Field(1), Field(2), Field(3), Field(1), Field(2), Field(0), Field(9), Field(8), Field(7), Field(6), Field(5), Field(4), Field(3), Field(2), Field(1)])
+----- stderr -----

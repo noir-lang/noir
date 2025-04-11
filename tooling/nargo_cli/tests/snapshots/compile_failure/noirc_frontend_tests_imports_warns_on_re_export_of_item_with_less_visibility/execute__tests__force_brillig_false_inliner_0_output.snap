@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: cannot re-export baz because it has less visibility than this use statement
+  ┌─ src/main.nr:7:22
+  │
+7 │         pub use bar::baz;
+  │                      --- consider marking baz as pub
+  │
+
+Aborting due to 1 previous error

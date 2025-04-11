@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[inline_decompose_hint_brillig_call] Circuit output: Field(-5201446015539463454305911014159497107782029740116487985773310470301159650207)
+----- stderr -----
+warning: Return variable contains a constant value
+   ┌─ src/main.nr:17:5
+   │
+17 │     address_point.x
+   │     --------------- This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
+   │
+   = Call stack:
+     1. src/main.nr:17:5

@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected 1 argument, but found 2
+  ┌─ src/main.nr:4:17
+  │
+4 │                 Foo::One(_, _) => (),
+  │                 --------
+  │
+
+error: Expected 2 arguments, but found 1
+  ┌─ src/main.nr:5:17
+  │
+5 │                 Foo::Two(_) => (),
+  │                 --------
+  │
+
+Aborting due to 2 previous errors

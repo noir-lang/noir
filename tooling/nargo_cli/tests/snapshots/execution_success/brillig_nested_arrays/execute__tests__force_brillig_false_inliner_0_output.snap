@@ -1,0 +1,66 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:12:20
+   │
+12 │     notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]
+   │                    -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:12:11
+   │
+12 │     notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]
+   │           -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:12:40
+   │
+12 │     notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]
+   │                                        -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:12:31
+   │
+12 │     notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]
+   │                               -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:12:51
+   │
+12 │     notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]
+   │                                                   -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:12:85
+   │
+12 │     notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]
+   │                                                                                     -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:12:68
+   │
+12 │     notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]
+   │                                                                    -
+   │
+
+bug: Input to Brillig function is in a separate subgraph to output
+   ┌─ src/main.nr:37:16
+   │
+37 │         assert(access_nested([note0, note1], x, y) == (2 + 4 + 3 + 1));
+   │                ----------------------------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+   │
+   = Call stack:
+     1. src/main.nr:37:16

@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[array_dynamic_main_output] Circuit output: Vec([Field(0), Field(1), Field(2), Field(3), Field(4), Field(0), Field(6), Field(7), Field(8), Field(9)])
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+  ┌─ src/main.nr:2:7
+  │
+2 │     x[index] = 0;
+  │       -----
+  │
