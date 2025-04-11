@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744392353184,
+  "lastUpdate": 1744394627974,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19478,6 +19478,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3226752,
             "range": "± 31519",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5cc0e23c2ab601d0f10b42ae819b2187c070811",
+          "message": "fix(ssa): Remove OOB checks inserted during DIE (#7995)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-11T17:46:44Z",
+          "tree_id": "8094ee68d21afb0e18809e92555cce871eaaeb84",
+          "url": "https://github.com/noir-lang/noir/commit/d5cc0e23c2ab601d0f10b42ae819b2187c070811"
+        },
+        "date": 1744394621960,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3263839,
+            "range": "± 3746",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3232290,
+            "range": "± 45637",
             "unit": "ns/iter"
           }
         ]
