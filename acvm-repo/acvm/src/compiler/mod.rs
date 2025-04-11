@@ -26,7 +26,7 @@ pub struct AcirTransformationMap {
 
 impl AcirTransformationMap {
     /// Builds a map from a vector of pointers to the old acir opcodes.
-    /// The index of the vector is the new opcode index.
+    /// The index in the vector is the new opcode index.
     /// The value of the vector is the old opcode index pointed.
     fn new(acir_opcode_positions: &[usize]) -> Self {
         let mut old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
@@ -36,6 +36,7 @@ impl AcirTransformationMap {
         AcirTransformationMap { old_indices_to_new_indices }
     }
 
+    /// Returns the new opcode location(s) corresponding to the old opcode.
     pub fn new_locations(
         &self,
         old_location: OpcodeLocation,
@@ -58,6 +59,7 @@ impl AcirTransformationMap {
     }
 }
 
+/// Update the assert messages to point to the new opcode locations.
 fn transform_assert_messages<F: Clone>(
     assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
     map: &AcirTransformationMap,
