@@ -86,7 +86,8 @@ impl<'ssa> Interpreter<'ssa> {
 
         // Loop over blocks & instructions inline here to avoid pushing more
         // call frames (in rust). We only push call frames for function calls which
-        // should be fine.
+        // should prevent stack overflows for all but excessively large call stacks
+        // that may overflow in the brillig vm as well.
         let return_values = loop {
             let block = &dfg[block_id];
 
