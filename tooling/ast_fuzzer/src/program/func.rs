@@ -592,19 +592,6 @@ impl<'a> FunctionContext<'a> {
             return self.gen_loop(u);
         }
 
-        // Require a positive budget, so that we have some for the block itself and its contents.
-        if freq.enabled_when("if", self.budget > 1) {
-            return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
-        }
-
-        if freq.enabled_when("for", self.budget > 1) {
-            return self.gen_for(u);
-        }
-
-        if freq.enabled_when("loop", self.budget > 1 && self.unconstrained()) {
-            return self.gen_loop(u);
-        }
-
         if freq.enabled_when("while", self.budget > 1 && self.unconstrained()) {
             return self.gen_while(u);
         }
@@ -615,6 +602,15 @@ impl<'a> FunctionContext<'a> {
 
         if freq.enabled_when("continue", self.in_loop && self.unconstrained()) {
             return Ok(Expression::Continue);
+        }
+
+        // Require a positive budget, so that we have some for the block itself and its contents.
+        if freq.enabled_when("if", self.budget > 1) {
+            return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
+        }
+
+        if freq.enabled_when("for", self.budget > 1) {
+            return self.gen_for(u);
         }
 
         if freq.enabled_when("call", self.budget > 0) {

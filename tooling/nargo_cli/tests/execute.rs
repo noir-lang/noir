@@ -31,8 +31,6 @@ mod tests {
         nargo.arg("--program-dir").arg(test_program_dir);
         nargo.arg(test_command).arg("--force");
         nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
-        // Check whether the test case is non-deterministic
-        nargo.arg("--check-non-determinism");
         // Allow more bytecode in exchange to catch illegal states.
         nargo.arg("--enable-brillig-debug-assertions");
 

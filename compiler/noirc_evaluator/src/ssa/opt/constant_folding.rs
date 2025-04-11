@@ -234,9 +234,9 @@ impl<'brillig> Context<'brillig> {
         &mut self,
         function: &mut Function,
         dom: &mut DominatorTree,
-        block: BasicBlockId,
+        block_id: BasicBlockId,
     ) {
-        let instructions = function.dfg[block].take_instructions();
+        let instructions = function.dfg[block_id].take_instructions();
 
         // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
@@ -246,12 +246,27 @@ impl<'brillig> Context<'brillig> {
             self.fold_constants_into_instruction(
                 function,
                 dom,
-                block,
+                block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
             );
         }
-        self.block_queue.extend(function.dfg[block].successors());
+
+        // Map a terminator in place, replacing any ValueId in the terminator with the
+        // resolved version of that value id from the simplification cache's internal value mapping.
+        let mut terminator = function.dfg[block_id].take_terminator();
+        terminator.map_values_mut(|value| {
+            Self::resolve_cache(
+                block_id,
+                &function.dfg,
+                dom,
+                self.get_constraint_map(side_effects_enabled_var),
+                value,
+            )
+        });
+        function.dfg[block_id].set_terminator(terminator);
+
+        self.block_queue.extend(function.dfg[block_id].successors());
     }
 
     fn fold_constants_into_instruction(
@@ -334,6 +349,31 @@ impl<'brillig> Context<'brillig> {
         };
     }
 
+    // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
+    // has been constrained to be equal to some simpler value in the current block.
+    //
+    // This allows us to reach a stable final `ValueId` for each instruction input as we add more
+    // constraints to the cache.
+    fn resolve_cache(
+        block: BasicBlockId,
+        dfg: &DataFlowGraph,
+        dom: &mut DominatorTree,
+        cache: &HashMap<ValueId, SimplificationCache>,
+        value_id: ValueId,
+    ) -> ValueId {
+        let resolved_id = dfg.resolve(value_id);
+        match cache.get(&resolved_id) {
+            Some(simplification_cache) => {
+                if let Some(simplified) = simplification_cache.get(block, dom) {
+                    Self::resolve_cache(block, dfg, dom, cache, simplified)
+                } else {
+                    resolved_id
+                }
+            }
+            None => resolved_id,
+        }
+    }
+
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
     fn resolve_instruction(
         instruction_id: InstructionId,
@@ -344,34 +384,9 @@ impl<'brillig> Context<'brillig> {
     ) -> Instruction {
         let mut instruction = dfg[instruction_id].clone();
 
-        // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
-        // has been constrained to be equal to some simpler value in the current block.
-        //
-        // This allows us to reach a stable final `ValueId` for each instruction input as we add more
-        // constraints to the cache.
-        fn resolve_cache(
-            block: BasicBlockId,
-            dfg: &DataFlowGraph,
-            dom: &mut DominatorTree,
-            cache: &HashMap<ValueId, SimplificationCache>,
-            value_id: ValueId,
-        ) -> ValueId {
-            let resolved_id = dfg.resolve(value_id);
-            match cache.get(&resolved_id) {
-                Some(simplification_cache) => {
-                    if let Some(simplified) = simplification_cache.get(block, dom) {
-                        resolve_cache(block, dfg, dom, cache, simplified)
-                    } else {
-                        resolved_id
-                    }
-                }
-                None => resolved_id,
-            }
-        }
-
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
         instruction.map_values_mut(|value_id| {
-            resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
+            Self::resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
         });
         instruction.map_values(|v| dfg.resolve(v))
     }
