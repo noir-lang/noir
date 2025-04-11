@@ -799,11 +799,7 @@
 <a href="#798" id="798">798</a>
 <a href="#799" id="799">799</a>
 <a href="#800" id="800">800</a>
-<a href="#801" id="801">801</a>
-<a href="#802" id="802">802</a>
-<a href="#803" id="803">803</a>
-<a href="#804" id="804">804</a>
-<a href="#805" id="805">805</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#801" id="801">801</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -978,10 +974,6 @@
     /// This is disabled by default.
     </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
     </span><span class="kw">pub </span>pedantic_solving: bool,
-
-    <span class="doccomment">/// Used internally to test for non-determinism in the compiler.
-    </span><span class="attr">#[clap(long, hide = <span class="bool-val">true</span>)]
-    </span><span class="kw">pub </span>check_non_determinism: bool,
 
     <span class="doccomment">/// Unstable features to enable for this current build
     </span><span class="attr">#[arg(value_parser = <span class="macro">clap::value_parser!</span>(UnstableFeature))]
