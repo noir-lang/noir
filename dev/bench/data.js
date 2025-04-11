@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744391504343,
+  "lastUpdate": 1744391575746,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19472,6 +19472,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3222187,
             "range": "± 43683",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10a6d1af7202e9ba613d138e2c669cbd0f08e267",
+          "message": "fix(fuzz): remove duplicate gen_loop, move unconstrained generators up (#8029)",
+          "timestamp": "2025-04-11T16:56:30Z",
+          "tree_id": "c4e6efec3bb8b68c6023fe40a01a5101c35b48b4",
+          "url": "https://github.com/noir-lang/noir/commit/10a6d1af7202e9ba613d138e2c669cbd0f08e267"
+        },
+        "date": 1744391570997,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3256568,
+            "range": "± 2776",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3226752,
+            "range": "± 31519",
             "unit": "ns/iter"
           }
         ]
