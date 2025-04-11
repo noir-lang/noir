@@ -648,7 +648,6 @@ impl<'f> Context<'f> {
                 self.inserter.function.dfg.make_constant(FieldElement::one(), NumericType::bool())
             }
         };
-
         let enable_side_effects = Instruction::EnableSideEffectsIf { condition };
         let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
         self.insert_instruction_with_typevars(enable_side_effects, None, call_stack);
