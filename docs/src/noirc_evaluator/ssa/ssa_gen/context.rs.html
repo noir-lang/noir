@@ -1087,7 +1087,29 @@
 <a href="#1086" id="1086">1086</a>
 <a href="#1087" id="1087">1087</a>
 <a href="#1088" id="1088">1088</a>
-<a href="#1089" id="1089">1089</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1957,11 +1979,33 @@
         <span class="kw">match </span>lvalue {
             LValue::Ident =&gt; <span class="macro">unreachable!</span>(<span class="string">"Cannot assign to a variable without a reference"</span>),
             LValue::Index { old_array: <span class="kw-2">mut </span>array, index, array_lvalue, location } =&gt; {
+                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(array);
+
+                <span class="comment">// Checks for index Out-of-bounds
+                </span><span class="kw">match </span>array_type {
+                    Type::Array(<span class="kw">_</span>, len) =&gt; {
+                        <span class="kw">let </span>len =
+                            <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>len <span class="kw">as </span>u128, NumericType::length_type());
+                        <span class="self">self</span>.codegen_access_check(index, len);
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
+                }
+
                 array = <span class="self">self</span>.assign_lvalue_index(new_value, array, index, location);
                 <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>array_lvalue, array.into());
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>slice_values = slice.into_value_list(<span class="self">self</span>);
+
+                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(slice_values[<span class="number">1</span>]);
+
+                <span class="comment">// Checks for index Out-of-bounds
+                </span><span class="kw">match </span>array_type {
+                    Type::Slice(<span class="kw">_</span>) =&gt; {
+                        <span class="self">self</span>.codegen_access_check(index, slice_values[<span class="number">0</span>]);
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
+                }
 
                 slice_values[<span class="number">1</span>] =
                     <span class="self">self</span>.assign_lvalue_index(new_value, slice_values[<span class="number">1</span>], index, location);
