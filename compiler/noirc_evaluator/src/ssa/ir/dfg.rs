@@ -82,7 +82,7 @@ pub(crate) struct DataFlowGraph {
     foreign_functions: HashMap<String, ValueId>,
 
     /// All blocks in a function
-    pub(crate) blocks: DenseMap<BasicBlock>,
+    blocks: DenseMap<BasicBlock>,
 
     /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
     /// for that of another. In theory this information is purely used for printing the SSA,
