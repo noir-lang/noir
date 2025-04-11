@@ -50,10 +50,13 @@ impl Default for Config {
         ]);
         let stmt_freqs = Freqs::new(&[
             ("drop", 5),
+            ("break", 5),
+            ("continue", 5),
             ("assign", 30),
             ("if", 10),
             ("for", 10),
             ("loop", 10),
+            ("while", 10),
             ("let", 20),
             ("call", 5),
         ]);
