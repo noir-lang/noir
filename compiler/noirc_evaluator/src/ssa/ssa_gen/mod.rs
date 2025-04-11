@@ -687,7 +687,6 @@ impl FunctionContext<'_> {
     /// ```
     fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
         let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
-
         if let Some(result) = self.try_codegen_constant_if(condition, if_expr) {
             return result;
         }
