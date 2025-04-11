@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/62QQQqAMAwEW/FBSZO0yc2vWGz//wRBI5TiTQfC5jQsG8NN9JtZPDdP+AaOLoLM3EpqSLhDsqoCLDUrKorKkZSoKWuxagUMmRp2Meoui//1ulzrsEWY/rdtHk55268IRAEAAA==",
+  "debug_symbols": "TYxLCsMwDAXvonUWKTQbX6WU4I8cBEY2sl0oJnevEhrITvMGzYCArm8rccwVzGtAyt42yqw0YD6nWiwfVJuVBua5TIAcwCyPfYJICfWc97eCE0qJtvUe0fljhaxL+MfY2d9s+5bLXP9FssfQBY/S6TT/Aw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: pub Field) {\n    assert(x == y);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

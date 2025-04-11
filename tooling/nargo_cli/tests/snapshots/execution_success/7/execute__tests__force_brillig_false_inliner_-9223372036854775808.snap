@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9Wa504CQRRGF7Fg772hgr3MbGFnrVjie0jE938E7w0QN/ol/vDzx53kZMlJJDnJILt3qES99SK89l9XhGr/qqv2zVWAGwKuCtwwcCPAjQI3BlwNuHHgJoCbBG4KuGngZoCbBW4OuHngFoBbBG4JuGXgVoBbBW4NuHXgNoDbBG4LuG3gdoDbBa4O3B5w+8AdANcoOd2Luvei6OdeL+/x73u7/Pf6uikcCkfCsXAinApnwrlwIVwKV4ITvBALiZAKmdASciEIhXAt3Ai3wp1wLzwIbeFReBKeo97ntryG+td2/5q4Vpp287jrE//m4qITMpdmnVbwwWche49DknRDGvKiU+Su8GnS9R9ZkXy43hopvZf72/JN3nu5/2weJTYfGmkeIzYfGWmuEZuPjTSPE5tPjDRPEJtPjTRPEpvPjDRPEZvPjTRPE5svjDTPEJsvjTTPEpuvjDTPEZudkeZ5YrM30rxAbI6NNC8SmxMjzUvE5tRI8zKxOTPSvEJsbhlpXiU250aa14jNwUjzOrG5MNK8QWy+NtK8SWy+MdK8RWy+NdK8TWy+M9K8Q2y+N9K8S2x+MNJcJza3jTTvEZsfjTTvE5ufjDQfEJufjTQ3iM0vxObBWbiuZql/cHZejb7O2vVsdfA7Dj2L0rMZPavQ2b3OsnW2q7NOnf3pLExnQzor0dmBPkvrs6U+a+mzh96L672p3qvpvYt+l+t3m/6vr0e93wnoZ0P3SiP6fX0C743OSQwjAAA=",
+  "debug_symbols": "ldVBCoMwEIXhu8zahW2cafUqpZSoUQIhStRCEe/eKApSunm7TIY/m2+RmWpTTu3L+qYbqHjM5LpKj7bzcZpJ3ba7odd+HYdRh5GKK+cJGV/H0z1dEmqsM1RwujwTUve/Ra72QqX5b5GjRZbCxQUurnCh4CKDC4YLgYsbXMDmGWzOsDnD5gybM2zOsDnD5gybM2zOsDnD5gKbC2wusLnA5gKbC2wusLnA5gKbC2gehzJY52z7Ov9D8fqtg9WlM/vYTL46bcdPf2yOvg9dZeopmPWlbRef/wI=",
+  "file_map": {
+    "50": {
+      "source": "// This is the same as Blake2s example.\n//\n// Pre-alpha dependencies must now be prefixed with the word \"dep\".\n// The line below indicates that we would like to pull in the standard library dependency.\nfn main(x: [u8; 5], result: [u8; 32]) {\n    let digest = std::hash::blake2s(x);\n    assert(digest == result);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

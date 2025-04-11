@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 1
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/6WOQQqAMAwELfigpEnazc2vWEz//wQRKgqiF+eysIdh0nSRpifnt4ylf/DdJVRUo+Zg4ZWyNxiptQIGG2zLEAkoqjev5KwS3M2lD9nRNn+0v7EDo/0phPQAAAA=",
+  "debug_symbols": "TYxLCoQwEAXv0msXMoMw5CrDIPl0pCF0QicZkODdjaLgsl7xqoFDU5eZ2McM6tsgRKsLRe7UYDynnDQflIuWAur1GQDZgXpP2wCeAoKaxu3XwQiFQMv8jPT5r4W0CXihr2wftqzpNvc/SbToquBROl3P7w==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u1) {\n    assert(!x == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

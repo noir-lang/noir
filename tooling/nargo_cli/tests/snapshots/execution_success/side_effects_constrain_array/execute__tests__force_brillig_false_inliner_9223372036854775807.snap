@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VTSQ6DMAwkgaoL6qkf6BPsLODc+hVQw/+fUBBOFUWBAwojWZPI1sQeK6JaIee48FnMUTMveM/RRHUpQt2HWUNnjO+VR40DKDeSBWPHjpDQkv0q0tqTod6NrgeHRnucrNMTrIi14BiQeci0W0obZMYDmRoo2cAY9YmGHdRSrIWiYF/ypEWKMov8v1Fy5kWrSfYtqm2E3I35zvyI8nW5WVXQb8/Rh2tmxkd0bpNc+ERNte1NepcJ79WKHd1nJhc0X8xxv2GOH9vQkwg1BQAA",
+  "debug_symbols": "lY9LCsMgFEX38sYZWE1LcSulBL9BEBU/hSLZezUkkEImmb1zL+fCqyAVL/NknPYJ6KuC9YJl412jCrc1SoG5TimzmIHiJxpAOdmvxzKANlYBvaPlPQC+KpCrwngmEDRuAsH/QgMejbVmno6ftfjDomHcqg11ceLQ5m/Ym90P0QslS1R9ae3a/A8=",
+  "file_map": {
+    "50": {
+      "source": "struct Bar {\n    inner: [Field; 3],\n}\n\nfn main(y: pub u32) {\n    let bar = Bar { inner: [100, 101, 102] };\n\n    // The assert inside the if should be hit\n    if y < 10 {\n        assert(bar.inner == [100, 101, 102]);\n    }\n\n    // The assert inside the if should not be hit\n    if y > 10 {\n        assert(bar.inner == [0, 1, 2]);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}
