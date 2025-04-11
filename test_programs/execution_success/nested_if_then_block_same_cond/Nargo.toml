@@ -1,0 +1,6 @@
+[package]
+name = "nested_if_then_block_same_cond"
+type = "bin"
+authors = [""]
+
+[dependencies]
