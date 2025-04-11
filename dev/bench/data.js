@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744391575746,
+  "lastUpdate": 1744391957710,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "sirasistant@gmail.com",
-            "name": "Álvaro Rodríguez",
-            "username": "sirasistant"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8c4d9a2bb8f3df3ee2e253eaffe7d72ebb2a8ec2",
-          "message": "fix: Fix nondeterminsm on aarch64 vs amd64 (#7942)",
-          "timestamp": "2025-04-07T12:30:00Z",
-          "tree_id": "2039511b059eea13af0456696fac92b499ea0d4c",
-          "url": "https://github.com/noir-lang/noir/commit/8c4d9a2bb8f3df3ee2e253eaffe7d72ebb2a8ec2"
-        },
-        "date": 1744031046477,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 297.17,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 630.54,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 224.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 300.75,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7860,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7860,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 299.17,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 346.73,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 316.33,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4386a985530a8b3de178a887b21d5a07da080dd9",
+          "message": "fix(ssa): Map terminator instructions after constant folding  (#8019)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-04-11T16:41:35Z",
+          "tree_id": "3aaf2d2edce41391e1d6206eda4231395d9f4c61",
+          "url": "https://github.com/noir-lang/noir/commit/4386a985530a8b3de178a887b21d5a07da080dd9"
+        },
+        "date": 1744391952289,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 270.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 603.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1560,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 270.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7770,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7780,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 268.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.36,
             "unit": "MB"
           }
         ]
