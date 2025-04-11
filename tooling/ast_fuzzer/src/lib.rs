@@ -29,6 +29,8 @@ pub struct Config {
     pub max_array_size: usize,
     /// Maximum size of for loop ranges, which affects unrolling in ACIR.
     pub max_loop_size: usize,
+    /// Maximum call depth for recursive calls.
+    pub max_call_depth: usize,
     /// Frequency of expressions that produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements that don't produce a value.
@@ -42,16 +44,21 @@ impl Default for Config {
             ("binary", 20),
             ("if", 15),
             ("block", 30),
-            ("vars", 20),
+            ("vars", 25),
             ("literal", 5),
+            ("call", 5),
         ]);
         let stmt_freqs = Freqs::new(&[
             ("drop", 5),
+            ("break", 5),
+            ("continue", 5),
             ("assign", 30),
             ("if", 10),
             ("for", 10),
             ("loop", 10),
+            ("while", 10),
             ("let", 20),
+            ("call", 5),
         ]);
         Self {
             max_globals: 3,
@@ -63,6 +70,7 @@ impl Default for Config {
             max_tuple_size: 5,
             max_array_size: 4,
             max_loop_size: 10,
+            max_call_depth: 5,
             expr_freqs,
             stmt_freqs,
         }

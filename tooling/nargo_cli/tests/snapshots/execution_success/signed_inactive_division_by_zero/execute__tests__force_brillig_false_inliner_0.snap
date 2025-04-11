@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "condition",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "signed",
+        "width": 32
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/+VZTVPbMBBdO44hcdLSkgBtDvTWq+QPIt/4K83U+f8/oQi0ZVEMh/itJxl2JiPHlp/frp5WKzuhF9s8/X6H4+TpNwmtt1/RuaTnXBraLNyT0qEx3mNozTCzCQ7L9NAdjO1CK2PB8ZnGgc5EcPmc73QfkZooBrEyD3XdbcvOVvaPKduda0zd7B6cdbZxzd/SVVXnardtd+3WtLauOrtv2mobsDIA1j4Qm+J8NGOKEog1mijz0F5wQFiAOR2K0nfSFiURTpQ54UR5QdjBjcV3LL9u/2KcSDSThDnOLB8gk8QlYZNEIsZEGjpJIHlLvjNNwjMF3DlQDFp+z0WAQbgqXFMlrn2rJzpxeYxcPAMVEwDW/8SV03kkf3QMtZK/GWhSj0VoFyKuKhMMRV5WVJ78Pb2tshb0WmVpCWWqKJShyRwQa5WKYwHEWirpaTmCdj5LhfmFTnvR97nDc0QnfaTOv9JpL5weIyfdXaw5znqLj6HjcQUejxQ0HjL3AzXzvG5f0ashfWdDx6AAYn0D+OyEz+j5lynNP2CxCX2L9B2owTHfWhRA3pLvtSbhawXcFVAMWn6vRIBBuBpcS5+c/IRAFzDIBLqm81g0kLq8IWwiHitJLUgnSd1qEr5VwL2j005S3u87EWAQrkqF4ld/zxdUoWi8UoTu2H7QeSQ8pMZ/AsdCY774RegGqG32e0OnOffkbnCjEM8JYRcK/kzCOYJjkUb/4z58/TK0/A1vLu4Bci0Zv9DBf/5GHpv8LFVE19j/rOe+5J3/adR+1PejomPZc40xeVci+bIfs6hdC1xgLC3jr3Twe8dqLY5XkZ8y3o8gDozHc2JKh5ZG17hvPGcSPD8bc5n0PIuNNSM3XxzPf9ztV5JqJwAA",
+  "debug_symbols": "ldXBioMwEIDhd8nZQ2dmu+76KstSosYSCFGiLizSd6+WFnr9b5kMfy7fIZvrQ7teLzEP4+yan82lsfNLHPM+bc4eV/Pk8zHNiy+La6TWyoXcH6f6VrkhpuCa8+n2W7kPGpxp8EmDmgZfNPimgZxwIbhQXGBtwdyCvQWDCxYXTC7YXLG5YnPF5orNFZsrNldsrthcsblic8Pmhs0Nmxs2N2xu2NywuUHzfWhLTCleL++f3H7950v0bQrPcVhz97Zd/qfX5tVPZexCv5ZwvPTY7c/fAQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: i32, b: i32, condition: bool) -> pub i32 {\n    if condition {\n        // If `condition` is not set then we should not trigger an assertion failure here.\n        a / b\n    } else {\n        0\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

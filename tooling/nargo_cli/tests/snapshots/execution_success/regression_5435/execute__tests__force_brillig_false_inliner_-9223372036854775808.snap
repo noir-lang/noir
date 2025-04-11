@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "input",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "enable",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VWS3KDMAw1v2lomk0Dm/YSNraD2bHoRUyBc3D0kqlVNKqziqwZj4QxT0/PPzLxa8XeqhBn4TlDrUQxNegbg5fPmWLEkphvnpJwngC3QFha3oxZ+m5RWnnZDZOz0tjp5pRT1tm5c1ovzrh+mIZeDsroRa120GsAS1V3gQRmwpUlmaeUi61g5E05spPNBO/OAKHziMAxg3GfwdekH06OkaneGuFy47t9+9SkPmb+ug6YKfUBzAT48iXgfG0HPq3lbhfx/3aAb057exNHfAlxTb5JMbcJtZfXCH/IdQ61tqRWzEUwcomtA0Z8hf8CBPKP1kNFxjdEhyrRnLyT+nGuszjOq3Ljz9+742+j2A4d8AUpSP6KjP8Iz6+ROsoneK69V6v2q7d+ns23pzrdLY/oBL4V/HpJdL43afD/zi9sLYobUie+B0cmDoCH9wa1nLyDsSfCL+PnpyiXIpIL7Bp8g/pAzx8adh0SSgwAAA==",
+  "debug_symbols": "tZDBCoQgFEX/5a1daKUz9SsxhJWFIBpmA0P076NRUDNtXLQRru/d8+DM0Ip66iupOzNCUc6gTMOdNNqnGcj6NQ5chzQ6bh0UjxSB0C0UBJMFQSeVgILiBf1tZnm2rVJMj6svBMl96PQ+dHaFTgnbCmnCTgUfaiuVkn118opXuZcwmtMNxjD+uU5odINFNx7RjWd0I49rLD69uZW8ViL4C8NJN7tOH91n2Ce78MGaRrSTFUH9wbp/y4SghHmsR38B",
+  "file_map": {
+    "50": {
+      "source": "fn main(input: Field, enable: bool) {\n    if enable {\n        let hash = no_predicate_function(input);\n        // `EnableSideEffects` instruction from above instruction leaks out and removes the predicate from this call,\n        // resulting in execution failure.\n        // Safety: testing context\n        unsafe { fail(hash) };\n    }\n}\n\n#[no_predicates]\nfn no_predicate_function(enable: Field) -> Field {\n    // if-statement ensures that an `EnableSideEffects` instruction is emitted.\n    if enable == 0 {\n        1\n    } else {\n        0\n    }\n}\n\nunconstrained fn fail(_: Field) {\n    assert(false);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "fail",
+    "directive_invert"
+  ]
+}

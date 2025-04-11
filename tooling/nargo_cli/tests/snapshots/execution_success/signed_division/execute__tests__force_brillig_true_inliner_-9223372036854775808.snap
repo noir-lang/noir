@@ -1,0 +1,72 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1av2/TQBQ+23Fsx2kryoQQE0IMCClWUzndOtD+DwwMVksWBiaEmChiQAxMCDEhxIAYmBBiQogBMcACfwESC38HtXpP+fr12U3oXUmlnhTdxf7y3vd+3DufL4HZa+HuJ7Djju0jc7AJZt32g6O1wqGsgU+ewQnhGXriuS8ZApswTU2M+mP7zPYh3I8cGp2RXpfyR4NhmSn2OeS/klmZHc/yYz/yB4mVc21nIh9tEb0R4fg3EWA2ALPRgNkEzCZhFuw4MAd1yT3M4Q26h/kustPdzxkzGS/bcUa6fOQf8nUdv7MKf9GVW1u/k609x1zK8V4THpIzsZXPOgPikzvmI0109Uk+6wyAL/I/Z/vu7ue8HUuOdeH3fcBdaMEFCu64YpKY9piEcxaTEPgi/4vgw0vk69ToMbncggsVnHDEhynhiPFMCZ+BD+U61u2EbBLcFeBwFWT4yAuOA69brLNDNoo9HcCzDLRR8AXZ1fVk1zLINaTL81o98GxbKfkreYRNy+0O3cO8RP9w480D2lTL/wlyGcd8MP+FW0Z2OPbTiH1hFF7oC/YTzzkZc9P8JDbN6ifMGawjHFOHflpjXxiFl1YL5J5Wr6f1k9g0q58wZ/iZIiWdnOcxycoUPpE56HPE4VqgPdMwJlf0C0biy2vhuv0++Mc2sr3wEr82rf19sqOn4PMWvNzDuroA494U8tMW+akiv9egC+9hTqL8fEb5OfBF/HXb199/tcgUG7WawzJv2N73+q+tk9PMJ6yHUrN8zKeoAZMr+gOzf76f5ruffL9le5f5ftv2/zPfRfeCY928B0vBB5GiMyY+i558IXyWSD7rjBtidsf29fy7a8daDVgC3L0WXKzgjism2txEneGcxYT3xcL/PvjwAfk6b4jJwxZcqOCEo7YvxnhyvemDD+U61qce2ST4R8DhMcjwkRccB21fjDp5Xyz+atoXd8lGwT8huzw966v1j/djrp9Dea7hGhApOrn++Y4xz+WmehwT/6e2r2P6zI61/fci4J634GIFd1wxyQ6JSWLmKyZN79BegA9fkq97DTF51YJLFBzPdax/Wj0TfA4+lOtYGzKySfCvgcMbkOEjLzgOfF7BOkOyUezB+scy0EbBvyW7fJ1zafWP643vd/Dog5N4LiL839m+zsv3dixzCPMa38F/aMEFCm5ezqqSOYsJ1z/h/xF8+Il83XQu8rkFlyi4tvqH8ZzmXAT397zOCu4LcPgKMnzkBcdBq3/aeVlg9udwU/3j5z/BfyO7Ik92afVPdOVm4vPOjnv95WjPr3WLdiZ+4PfCqD8m/A/7HWMgfecIPMdlVYxXqnG1Wm1vD7cq9lPdms7TtXdi+LtMubY+Hc/iMN5ouwH9GhftXTj+f4Kv8ZqurU2e8nTI6wM27Uxp1nMHuVbH8TfIZRzr1J4b6nxwnY/D1arcqsqiWBsWN4fFqqt8lOttz2YoQ8sVwdZ6/wJmV1VKfSgAAA==",
+  "debug_symbols": "pdrfauJAFIDxd8m1FzPnzJ9z+irLUmxriyBarF1YSt99Y1HrJrOGL3sjRvwxxo9EM5mP7mn18P5yv94+7966ux8f3Wb3uDysd9t+6+Nz0T3s15vN+uX++uUuHB+if73/7XW5PW6+HZb7Q3cXiyy61fbp+Kz2/nm9WXV3OXz+XHQSsIhYCBaKRcIiY1GwqFgYFri54uaKmyturri54uaKmyturri54uaKmyfcPOHmCTdPuHnCzdNU8ypDUbCoWBgWzeYSw0mI6kDkgEXEQrBQLBIWGYuCRcWi2VyynkUtQ+FUlIBFxEKwUCwSFhmLdnMvJ6HRh6JiYVg4FTVgEbEQLBSLZnPV8zlR0/CIqhmLgkXFwrBwKixgEbEQLBQL3Nxwc8PNDTc33Nwmm9tAeMAiYiFYtJtf/sloHe65JywyFgWLioVh4VTEEDiJnAgnykniJHNSOJlsbyNinDgmMXDSru9nksJo96NwopwkTjInhZPKiXHimLQn524TXl94feH1hdcXXl94feH1hdcXXl95feX1lddXXl95feX1ldfXqfoxjYhx4pikwEmzfkr5TIqMiHCinCROMieFk8qJceKYtKfubhNeP/P6mdfPvH7m9TOvn3n9zOtnXr/w+oXXL7x+4fULr194/cLrl8n6dUSME8ekBk7a9d1OJAcfEeFEOUmcZE4KJ5UT48QxaU/s3Sa8vvH6xusbr2+8vvH6xusbr2+8vvP6zus7r++8vvP6zus7r+9T9SWMiHHilEgInLTvFpV0uQ1ZUr4g6X8Fx9cUUuN5Oknq95ujfI3QnoL6awTz6xG+UJyD2veYyuWap39a/29fdPJj+fhjpTaS7zuLIYxQnoPKHFTnIJuDfAaSMAe1L+Rvx/3HRM4EMoo++61fy/16+bBZnRbkPb9vH6/W5x1+v64GS/Ve97vH1dP7fnVctHe1Xu/45UiQhYR6PGccjxqRflNSP04/1h8=",
+  "file_map": {
+    "12": {
+      "source": "// docs:start:from-trait\npub trait From<T> {\n    fn from(input: T) -> Self;\n}\n// docs:end:from-trait\n\nimpl<T> From<T> for T {\n    fn from(input: T) -> T {\n        input\n    }\n}\n\n// docs:start:into-trait\npub trait Into<T> {\n    fn into(self) -> T;\n}\n\nimpl<T, U> Into<T> for U\nwhere\n    T: From<U>,\n{\n    fn into(self) -> T {\n        T::from(self)\n    }\n}\n// docs:end:into-trait\n\n// docs:start:from-impls\n// Unsigned integers\n\nimpl From<u8> for u32 {\n    fn from(value: u8) -> u32 {\n        value as u32\n    }\n}\n\nimpl From<u8> for u64 {\n    fn from(value: u8) -> u64 {\n        value as u64\n    }\n}\nimpl From<u32> for u64 {\n    fn from(value: u32) -> u64 {\n        value as u64\n    }\n}\n\nimpl From<u8> for u128 {\n    fn from(value: u8) -> u128 {\n        value as u128\n    }\n}\nimpl From<u32> for u128 {\n    fn from(value: u32) -> u128 {\n        value as u128\n    }\n}\nimpl From<u64> for u128 {\n    fn from(value: u64) -> u128 {\n        value as u128\n    }\n}\n\nimpl From<u8> for Field {\n    fn from(value: u8) -> Field {\n        value as Field\n    }\n}\nimpl From<u32> for Field {\n    fn from(value: u32) -> Field {\n        value as Field\n    }\n}\nimpl From<u64> for Field {\n    fn from(value: u64) -> Field {\n        value as Field\n    }\n}\n\nimpl From<u128> for Field {\n    fn from(value: u128) -> Field {\n        value as Field\n    }\n}\n\n// Signed integers\n\nimpl From<i8> for i32 {\n    fn from(value: i8) -> i32 {\n        value as i32\n    }\n}\n\nimpl From<i8> for i64 {\n    fn from(value: i8) -> i64 {\n        value as i64\n    }\n}\nimpl From<i32> for i64 {\n    fn from(value: i32) -> i64 {\n        value as i64\n    }\n}\n\n// Booleans\nimpl From<bool> for u8 {\n    fn from(value: bool) -> u8 {\n        value as u8\n    }\n}\nimpl From<bool> for u32 {\n    fn from(value: bool) -> u32 {\n        value as u32\n    }\n}\nimpl From<bool> for u64 {\n    fn from(value: bool) -> u64 {\n        value as u64\n    }\n}\nimpl From<bool> for i8 {\n    fn from(value: bool) -> i8 {\n        value as i8\n    }\n}\nimpl From<bool> for i32 {\n    fn from(value: bool) -> i32 {\n        value as i32\n    }\n}\nimpl From<bool> for i64 {\n    fn from(value: bool) -> i64 {\n        value as i64\n    }\n}\nimpl From<bool> for Field {\n    fn from(value: bool) -> Field {\n        value as Field\n    }\n}\n// docs:end:from-impls\n\n/// A generic interface for casting between primitive types,\n/// equivalent of using the `as` keyword between values.\n///\n/// # Example\n///\n/// ```\n/// let x: Field = 1234567890;\n/// let y: u8 = x as u8;\n/// let z: u8 = x.as_();\n/// assert_eq(y, z);\n/// ```\npub trait AsPrimitive<T> {\n    /// The equivalent of doing `self as T`.\n    fn as_(self) -> T;\n}\n\n#[generate_as_primitive_impls]\ncomptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {\n    let types = [\n        quote { bool },\n        quote { u8 },\n        quote { u16 },\n        quote { u32 },\n        quote { u64 },\n        quote { u128 },\n        quote { i8 },\n        quote { i16 },\n        quote { i32 },\n        quote { i64 },\n        quote { Field },\n    ];\n\n    let mut impls = &[];\n    for type1 in types {\n        for type2 in types {\n            impls = impls.push_back(\n                quote {\n                impl AsPrimitive<$type1> for $type2 {\n                    fn as_(self) -> $type1 {\n                        self as $type1\n                    }\n                }\n            },\n            );\n        }\n    }\n    impls.join(quote {})\n}\n",
+      "path": "std/convert.nr"
+    },
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "// Testing signed integer division:\n//  7/3  = 2\n// -7/3  = -2\n// -7/-3 = 2\n//  7/-3 = -2\nfn main(mut x: i32, mut y: i32, mut z: i32) {\n    // 7/3 = 2\n    assert(x / y == z);\n    // -7/3 = -2\n    let minus_x = std::wrapping_sub(0, x);\n    let minus_z = std::wrapping_sub(0, z);\n    let minus_y = std::wrapping_sub(0, y);\n    assert(x + minus_x == 0);\n    assert(z + minus_z == 0);\n    assert(minus_x / y == minus_z);\n    // -7/-3 = 2\n    assert(minus_x / minus_y == z);\n    // 7/-3 = -2\n    assert(x / minus_y == minus_z);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

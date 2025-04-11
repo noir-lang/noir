@@ -831,15 +831,18 @@ mod test {
     use im::vector;
     use noirc_frontend::monomorphization::ast::InlineType;
 
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            function::RuntimeType,
-            map::Id,
-            types::{NumericType, Type},
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                function::RuntimeType,
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::assert_normalized_ssa_equals,
         },
-        opt::assert_normalized_ssa_equals,
     };
 
     #[test]
@@ -865,24 +868,24 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.dead_instruction_elimination();
+        ssa.normalize_ids();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: Field):
-                v3 = add v0, Field 2
-                jmp b1(v3)
-              b1(v1: Field):
-                v4 = allocate -> &mut Field
-                store Field 1 at v4
-                v6 = load v4 -> Field
-                v7 = add v6, Field 1
-                v8 = add v6, Field 2
-                call assert_constant(v7)
-                return v8
-            }
-            ";
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = add v0, Field 2
+            jmp b1(v3)
+          b1(v1: Field):
+            v4 = allocate -> &mut Field
+            store Field 1 at v4
+            v6 = load v4 -> Field
+            v7 = add v6, Field 1
+            v8 = add v6, Field 2
+            call assert_constant(v7)
+            return v8
+        }
+        ");
     }
 
     #[test]
@@ -897,16 +900,15 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: Field):
-                v2 = add v0, Field 1
-                return v2
-            }
-            ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ");
     }
 
     #[test]
@@ -921,16 +923,14 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                v2 = array_get v0, index u32 0 -> Field
-                return v2
-            }
-            ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        ");
     }
 
     #[test]
@@ -1018,10 +1018,11 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
 
         // We expect the output to be unchanged
         // Except for the repeated inc_rc instructions
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [u32; 2]):
             inc_rc v0
@@ -1030,10 +1031,7 @@ mod test {
             v4 = array_get v3, index u32 1 -> u32
             return v4
         }
-        ";
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1077,7 +1075,8 @@ mod test {
         // The instruction count never includes the terminator instruction
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
 
-        let expected = "
+        let ssa = ssa.dead_instruction_elimination();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
@@ -1085,10 +1084,7 @@ mod test {
             inc_rc v0
             return v2
         }
-        ";
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1107,7 +1103,8 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let ssa = ssa.dead_instruction_elimination();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
@@ -1115,10 +1112,7 @@ mod test {
             inc_rc v0
             return v0, v2
         }
-        ";
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1182,25 +1176,24 @@ mod test {
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
         let ssa = ssa.dead_instruction_elimination_inner(false, false);
 
-        let expected = "
-          acir(inline) fn main f0 {
-            b0(v0: Field, v1: Field):
-              v2 = allocate -> &mut Field
-              store v0 at v2
-              call f1(v2)
-              v4 = load v2 -> Field
-              constrain v4 == v1
-              return
-          }
-          acir(inline) fn Add10 f1 {
-            b0(v0: &mut Field):
-              v1 = load v0 -> Field
-              v3 = add v1, Field 10
-              store v3 at v0
-              return
-          }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = allocate -> &mut Field
+            store v0 at v2
+            call f1(v2)
+            v4 = load v2 -> Field
+            constrain v4 == v1
+            return
+        }
+        acir(inline) fn Add10 f1 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v3 = add v1, Field 10
+            store v3 at v0
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1219,8 +1212,8 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
+        let ssa = ssa.dead_instruction_elimination();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: &mut [Field; 3]):
             v1 = load v0 -> [Field; 3]
@@ -1232,9 +1225,7 @@ mod test {
             store v4 at v0
             return
         }
-        ";
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1277,22 +1268,20 @@ mod test {
         //   b0():
         //     return u32 0
         // }
-        let src = "
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v1 = call f1() -> u32
             v3 = make_array [u32 0, u32 0] : [u32; 2]
             v4 = array_get v3, index v1 -> u32
             v6 = lt v4, u32 2
-            constrain v6 == u1 1, \"Index out of bounds\"
+            constrain v6 == u1 1, "Index out of bounds"
             return
         }
         brillig(inline) predicate_pure fn inject_value f1 {
           b0():
             return u32 0
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, src);
+        "#);
     }
 }

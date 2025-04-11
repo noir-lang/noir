@@ -1,0 +1,84 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "to_hash",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "array",
+            "length": 10,
+            "type": {
+              "kind": "field"
+            }
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "enable",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 3,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "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",
+  "file_map": {
+    "20": {
+      "source": "use crate::default::Default;\nuse crate::hash::Hasher;\n\ncomptime global RATE: u32 = 3;\n\npub(crate) struct Poseidon2 {\n    cache: [Field; 3],\n    state: [Field; 4],\n    cache_size: u32,\n    squeeze_mode: bool, // 0 => absorb, 1 => squeeze\n}\n\nimpl Poseidon2 {\n    #[no_predicates]\n    pub(crate) fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {\n        Poseidon2::hash_internal(input, message_size, message_size != N)\n    }\n\n    pub(crate) fn new(iv: Field) -> Poseidon2 {\n        let mut result =\n            Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };\n        result.state[RATE] = iv;\n        result\n    }\n\n    fn perform_duplex(&mut self) {\n        // add the cache into sponge state\n        for i in 0..RATE {\n            // We effectively zero-pad the cache by only adding to the state\n            // cache that is less than the specified `cache_size`\n            if i < self.cache_size {\n                self.state[i] += self.cache[i];\n            }\n        }\n        self.state = crate::hash::poseidon2_permutation(self.state, 4);\n    }\n\n    fn absorb(&mut self, input: Field) {\n        assert(!self.squeeze_mode);\n        if self.cache_size == RATE {\n            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache\n            self.perform_duplex();\n            self.cache[0] = input;\n            self.cache_size = 1;\n        } else {\n            // If we're absorbing, and the cache is not full, add the input into the cache\n            self.cache[self.cache_size] = input;\n            self.cache_size += 1;\n        }\n    }\n\n    fn squeeze(&mut self) -> Field {\n        assert(!self.squeeze_mode);\n        // If we're in absorb mode, apply sponge permutation to compress the cache.\n        self.perform_duplex();\n        self.squeeze_mode = true;\n\n        // Pop one item off the top of the permutation and return it.\n        self.state[0]\n    }\n\n    fn hash_internal<let N: u32>(\n        input: [Field; N],\n        in_len: u32,\n        is_variable_length: bool,\n    ) -> Field {\n        let two_pow_64 = 18446744073709551616;\n        let iv: Field = (in_len as Field) * two_pow_64;\n        let mut sponge = Poseidon2::new(iv);\n        for i in 0..input.len() {\n            if i < in_len {\n                sponge.absorb(input[i]);\n            }\n        }\n\n        // In the case where the hash preimage is variable-length, we append `1` to the end of the input, to distinguish\n        // from fixed-length hashes. (the combination of this additional field element + the hash IV ensures\n        // fixed-length and variable-length hashes do not collide)\n        if is_variable_length {\n            sponge.absorb(1);\n        }\n        sponge.squeeze()\n    }\n}\n\npub(crate) struct Poseidon2Hasher {\n    _state: [Field],\n}\n\nimpl Hasher for Poseidon2Hasher {\n    fn finish(self) -> Field {\n        let iv: Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)\n        let mut sponge = Poseidon2::new(iv);\n        for i in 0..self._state.len() {\n            sponge.absorb(self._state[i]);\n        }\n        sponge.squeeze()\n    }\n\n    fn write(&mut self, input: Field) {\n        self._state = self._state.push_back(input);\n    }\n}\n\nimpl Default for Poseidon2Hasher {\n    fn default() -> Self {\n        Poseidon2Hasher { _state: &[] }\n    }\n}\n",
+      "path": "std/hash/poseidon2.nr"
+    },
+    "50": {
+      "source": "use std::hash::poseidon2::Poseidon2;\n\nglobal NUM_HASHES: u32 = 2;\nglobal HASH_LENGTH: u32 = 10;\n\n#[no_predicates]\npub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {\n    Poseidon2::hash(inputs, inputs.len())\n}\n\nfn main(\n    to_hash: [[Field; HASH_LENGTH]; NUM_HASHES],\n    enable: [bool; NUM_HASHES],\n) -> pub [Field; NUM_HASHES + 1] {\n    let mut result = [0; NUM_HASHES + 1];\n    for i in 0..NUM_HASHES {\n        let enable = enable[i];\n        let to_hash = to_hash[i];\n        if enable {\n            result[i] = poseidon_hash(to_hash);\n        }\n    }\n\n    // We want to make sure that the function marked with `#[no_predicates]` with a numeric generic\n    // is monomorphized correctly.\n    let mut double_preimage = [0; 20];\n    for i in 0..HASH_LENGTH * 2 {\n        double_preimage[i] = to_hash[0][i % HASH_LENGTH];\n    }\n    result[NUM_HASHES] = poseidon_hash(double_preimage);\n\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
