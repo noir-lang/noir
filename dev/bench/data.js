@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744387035954,
+  "lastUpdate": 1744387124294,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19397,6 +19397,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3579713,
             "range": "± 3300",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "68a0b7b447668ca1085647fbeb60ecc81af71c2e",
+          "message": "chore: add workflow to run nightly tests on ARM64 (#8027)",
+          "timestamp": "2025-04-11T15:34:09Z",
+          "tree_id": "5803a79dd22f318a8dd5816b8ff81db79d62685f",
+          "url": "https://github.com/noir-lang/noir/commit/68a0b7b447668ca1085647fbeb60ecc81af71c2e"
+        },
+        "date": 1744387119035,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3251687,
+            "range": "± 39857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3232533,
+            "range": "± 48990",
             "unit": "ns/iter"
           }
         ]
