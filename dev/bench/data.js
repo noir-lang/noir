@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744376826658,
+  "lastUpdate": 1744379012317,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19384,6 +19384,42 @@ window.BENCHMARK_DATA = {
             "name": "purely_sequential_opcodes #2",
             "value": 3576079,
             "range": "± 21630",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac6b29b05293b2645f3a22d474e796d087212e8a",
+          "message": "feat: add `while` generator to AST fuzzer (#8021)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-04-11T13:25:22Z",
+          "tree_id": "44888a95844b02ba13ce1b8b263b7b32cba57c2d",
+          "url": "https://github.com/noir-lang/noir/commit/ac6b29b05293b2645f3a22d474e796d087212e8a"
+        },
+        "date": 1744379007381,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3611113,
+            "range": "± 12626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "purely_sequential_opcodes #2",
+            "value": 3577679,
+            "range": "± 16808",
             "unit": "ns/iter"
           }
         ]
