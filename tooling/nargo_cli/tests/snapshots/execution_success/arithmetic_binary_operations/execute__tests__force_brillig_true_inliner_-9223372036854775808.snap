@@ -1,0 +1,59 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWwW7DIAyFQNaxqdq0nXbbZTtTtVNy5LCt34Fa5Tvy6W1UW3lx4dCWHGoJgbF5fjYWiVYnMcehaW1hTwr7BJr9bbIqiOXn5KnvhGdVkKcGnuZsQeSrRDImsfdNs6O5ArspWAAn4pbEb/2mdWoqhfmvHWHamfHrefD9gnB++xEfc+G4S9KxyfgM27C3/oQNe+yfbI/H8aLG9SvEGmTbjzw4rhOxCvdL4wTf0v3+nuE/yDPV4ZN0fuTx7vEc+qTuLIdhBYbL7IcyOXu+vwfCS3HF+LXw/xA8F2pau1CI55vIH2NJjqzrxDpnw7zlO8x6lThrMrhGnfeEvQCXfZcJG58bepLfUNtPOQXa9zdI044fLkP4tUr/zFiwo/8X6U/AH3MMV/Lsmrjq1rGLP3G/3+yi7A8l6nQAJD3+Yp0JAAA=",
+  "debug_symbols": "ldLdCoMgGAbge/mOO8i//m5ljLCyEMTCajCie5+OGs0JwxPxEx89eN8NOtGsQy11P85Q3TZQY8sXOWo7bXsCjZFKyaG+HkPqFpS/788T126cF24WqDAuExC6szuSWd9LJaBi6X5PABXRoowVOP0jKPIFihY4WpBoQaMFCwqWnyLDvsiCovj8UVJfBDMnGB2C4J88gpkTRk/BSl8EM6c0PQSl7EvsdnpwI3mjxFHaftXtpcPLcxJenScztqJbjXDFvnTatYfghOT2Wfv0Cw==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested are:\n// Binary addition, multiplication, division, constant modulo\n// x = 3, y = 4, z = 5\nfn main(x: Field, y: Field, z: Field) -> pub Field {\n    //cast\n    assert(y as u1 == 0);\n\n    let a = x + x; // 3 + 3 = 6\n    let b = a - y; // 6 - 4 = 2\n    let c = b * z; // 2 * 5 = 10\n    let d = c / a; // 10 / 6 (This uses field inversion, so we test it by multiplying by `a`)\n    d * a\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

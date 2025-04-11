@@ -1,0 +1,78 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "hashed_message",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/6WYd29TZxhHb5oWQimllFJKKW0oHem2Yzuxu0hKR7r3XknAabr3XqEz3XsXiPik8NN9LR2iI/EHV4r86kSKovtazzl6hqr6WTn6c7ich47+DJfPPCOr2JCwk4QNCztZ2CnC1ghbK2xE2DphpwpbL+w0YRuEnS5so7AzhG0SdqawzcLOErZF2NnCtgo7R9g2YecK2y7sPGE7hJ0v7AJho8J2CrtQ2C5hFwm7WNglwi4VNibsMmGXC7tC2JXCrhJ2tbBrhDWENYWNC2sJawvrCJsQNimsK6wn7Fph1wm7XtgNwm4UtlvYlLBpYTcJ2yPsZmG3CLtV2G3CZoTdLuwOYXcKu0vY3cLuEXavsPuE3S/sAWEPCntI2MPCHhH2qLDHhD0u7AlhTwp7StjTwp4R9qywWWFzwuaF7RW2T1hf2IKw54QtCnte2AvCXhT2krCXhb0i7FVhrwl7Xdgbwt4U9pawt4W9I+xdYe8Je1/YB8I+FPaRsI+FfSLsU2FLwvYL+0zY58K+EPalsK+EfS1sWdg3wr4V9p2w74X9IOxHYT8J+1nYL8J+FfabsN+F/SHsT2F/Cftb2D/C/hX2n7D/hR0QdlDYIbC15XMUbCfO7L1dOLPv2HXsOXbcGM7sNvYaO419xi5jj7HD2F/sLvYWO4t9xa5iT7Gj2E/sJvYSO4l9xC5iD7GDpnCexpm9swdn9g27hj3DjpnBmd3CXmGnsE/YJewRdgj7g93B3mBnsC/YFewJdgT7gd3AXmAnsA/YBewBdsAsznM40/d7cabf6XX6nB5fxJnepq/pafqZXqaP6WH6l96lb+lZ+pVepU/pUfqT3qQv6Un6kV6kD+nBJZz340zf0XP0G71Gn9FjyzjTW/QVPUU/0Uv0ET1E/9A79A09Q7/QK/QJPUJ/0Bv0BT1BP9AL9AE9UOE8hPPqfdPgzP0S90rcJ3GPNIIz90bcF3FPxP0Q90LcB3EPxP0P9z7c93DPw/0O9zrc53CPw/0N9zbc13BPw/0M9zLcxwz2MCvVsc/gPqbKZ+PEnuYK/larMdFu9yfH+81Wc64x3pvvdhrtzvxEt9ltdrqdfePdVqvfbXcne/O9yUav2W71mwudXmuh/LHB3Ver/u/Bd2W4/D7fiTX4Dqwrd72+3O2Gcpcby91tKne1udzNlnIXW8u731be9fbybneUd5l3OFrVzZJWSaOkTdIkaZE0yFhVN0daI42RtkhTpCXSEGmHNENaIY2QNkgTpAXSAHF/nB/Xx/Fxe5wel+8u73a6ql0dR8fNcXJcHAfPVLVz49o4Nm6NU+PSODTujDPjyjgybowT48I4MO6L8+K6OC5ui9PisjhstqqdFVfFUXFTnBQXxUGLVe2cuCaOiVvilLgkDok74oy4Io6IG+KEuCAOyOzPzM+sz4zPbM9MzyzPDF+q6pmdWZ0ZndmcmZxZnBm8XNUzN7M2MzazNTM1szQzNLMzMzOzMjMyszEzMbMwMzCzLzMvsy4zLrMtMy2zLDPseM8Rk0xwPnwXAAA=",
+  "debug_symbols": "bY1bCsIwFET3cr/7kaQqkq2IlDzLhZCEPAQJ3btpsVihn2eGM9NAG1nnCb0NGfijgQtKFAy+UwN6I1uYo/Ar5yJSAU7HcQDjNXDGyDKARWeAX8nyHLpCzxT2Uy73P6WDTOgcztPxu8cvkVBIZ75oq1eHtrzj3ux+TEEZXZNZl7auz38A",
+  "file_map": {
+    "50": {
+      "source": "fn main(hashed_message: [u8; 32], pub_key_x: [u8; 32], pub_key_y: [u8; 32], signature: [u8; 64]) {\n    let valid_signature =\n        std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);\n    assert(valid_signature);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

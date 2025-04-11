@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAwtAuo0elAPXvSiiddNR9CbB39kAfkOPt2QtNlsBkbdemnH3l5f27EErCXoM7YGD+aOXv5nKiCX9AodMsKc0Av0I2c/DVisYHlD8l+lLoSnvoD6LwI5Y/aHOCPwywnyPFrLz2sBxxOOn+n2Fxi794wwU9yneImxYGdizD/ifOTao59yzbHWPas11l1J4H1mgHGfPvpOj9u4B098OcNvwM7zyDgTj4b0Sw0pw/g0bD0aIvf5zPucwXCfc4bfMZ1ZHJ1y5fACyzUH+7Znbfj85VVKypu2tg/u3QSWP2f4A65nPXXcf9TZlEY1F9OYwtS1rgzvU2fuPxw6vy5MWZlSqZtWT62KT/lfUy8ETZEIAAA=",
+  "debug_symbols": "zVTRCoQgEPyXffZBM7X6leMIKwtBLKwOjujfT484uush4gh6EVdmZgfZnQkqVYxNrm3d9pDdJjBtKQfdWl9NM4LCaWN0k6+fAYeDsDe+76QNZT9IN0BGIoFA2crfYuL5tTYKMoZntIEKTBaowHwNvSMg/ExxcaZ4cqZ4eqJ4hP8U5yn7iIsdKOULlH+rBh/kIj6ii/igF/ER7/nYTBQ7zOCHGeIwIznGmH31kE7LwqglFevRlquQHJ6d+snLzrWlqkanQnKuQjPsGMWIsrDNYdD9h9PE9/B9Xg==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls\nfn main(x: u32) {\n    unsafe {\n        assert(entry_point(x) == 2);\n        swap_entry_point(x, x + 1);\n        assert(deep_entry_point(x) == 4);\n        multiple_values_entry_point(x);\n    }\n}\n\nunconstrained fn returns_multiple_values(x: u32) -> (u32, u32, u32, u32) {\n    (x + 1, x + 2, x + 3, x + 4)\n}\n\nunconstrained fn multiple_values_entry_point(x: u32) {\n    let (a, b, c, d) = returns_multiple_values(x);\n    assert(a == x + 1);\n    assert(b == x + 2);\n    assert(c == x + 3);\n    assert(d == x + 4);\n}\n\nunconstrained fn inner(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    inner(x + 1)\n}\n\nunconstrained fn swap(x: u32, y: u32) -> (u32, u32) {\n    (y, x)\n}\n\nunconstrained fn swap_entry_point(x: u32, y: u32) {\n    let swapped = swap(x, y);\n    assert(swapped.0 == y);\n    assert(swapped.1 == x);\n    let swapped_twice = swap(swapped.0, swapped.1);\n    assert(swapped_twice.0 == x);\n    assert(swapped_twice.1 == y);\n}\n\nunconstrained fn level_3(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn level_2(x: u32) -> u32 {\n    level_3(x + 1)\n}\n\nunconstrained fn level_1(x: u32) -> u32 {\n    level_2(x + 1)\n}\n\nunconstrained fn deep_entry_point(x: u32) -> u32 {\n    level_1(x + 1)\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

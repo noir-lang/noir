@@ -1,8 +1,8 @@
 error: Definition of low-level function outside of standard library
-  ┌─ src/main.nr:5:4
+  ┌─ src/main.nr:4:1
   │
-5 │ fn to_le_bits<let N: u32>(_x: Field) -> [u1; N] {}
-  │    ---------- Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
+4 │ #[builtin(to_le_bits)]
+  │ ---------------------- Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
   │
 
 Aborting due to 1 previous error

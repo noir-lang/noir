@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YS2/TQBDeJHYSO0/Bz0BCdhI3LRJSVbWgHhAqAsQJySSNBBInLiBx8E8nW2bI5/HGThovtHRXivYxs988dsa7mYYqtsb656ndWpP6r9QHYl1jtda/U5pHh7U4ANy68Y+jWRqooi9q1H8aAKYF/CQQ51czftQhnPMsj6+E3JbgM+0Z0Lihijxsh404Wp+zbT/FjN+2gz9lv/ngu5bBJpY/UPmzYrqpVyp/pkrICpXVGI7LbEP9OTbGgl/6YBuWvyfWvzxT9HVb6NOxo0/E+F1L+GxvYLAX874j7O3Z0WfGORKCPg0hu29HdrJrDrL8UOhqKwf7qng26B8+pwHzZBt9AkHzsqIdTPOBxuer4+4J2Ic01AdzlWN1rIqxEoJM093CMo9gPIc9ul1meX2Usn5XnVh+M8SPS/zBNnYylfP7TQ9rfH7spy7yC1oANC/Lywlp7oEcxGI9fMGf0HxEfRv28P6xQX5byM/pbVhDH0mslmGN+fU3+ymNe/TT8bWkNY5JfHfvcz+jLI4XvEdOqY8ObGNVvF/9LXJt3UdtYXtN+LHl+3Ri+T6N5RsPz0L77AzW8fvsK/M7owF05H8JmBc0Hok9GCM9A8Yl9doXX2hs+Y6dlt0hmNd94QPTHSjfIOiDwIAl3xbybF4LmYyPZ4N7O0BH/neA+UZgmt5ZeN5doSvSAsA9E/aiL+S7m+1vVtjB/EODjqh3U/CPDPxD4OkLXQdAG+0gG2Ohu4PsMl3HBn7UYSh0Rdm4V+oq7eoLmpz3DDim77rMA1Pe4FnK+AkNMjHW2VdetuGrK9/nx7//X9zoSvicS7J5QEf+zzRHO7j3DtBzNU/j1TRdpUm6XM4W6SOBrxvHTs+C/EVy9GkxS9LoOtbTSZX8nzS+57W963te2ztxtb3q9hdqexNX27t1c7W9ErtRvqvtudre/17bewb2IQ312be2ZzlvZrb/w7u8+dNc3gDNdt5U1cQvYPwC9uj2Ksvro5T1N97S1cQ3/Ntq4uc0v8s18ec0xpr4N1pzNfHq5mri5fpX1cSvYB2/z/vWxN8D5lsa71sT/0C99sUPGj/kmvhHIfO2NfElYKYCs66a+JWw19XEXU3cFD/bauIc63e9Jv6d5g+9Jv4Ldz3JHDgrAAA=",
+  "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
+  "file_map": {},
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "sum_slice",
+    "sum_slice"
+  ]
+}

@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1Y227bMAylb+mcoluxYnssOuxll2KwfInltz5s2Hc4S/wd/vTVqOjQtGwMiNja6AgEulPkkUwexYMn2Tz+YlMPTenBWLDvwZTJeaIc6ko8i529+IKGZ8kuz49lelSZqpO02usiyYv9TiutCl0cUp1lR53rstpXZVKpPDuqpqiyhhjuCoTQOO8RIPwVHeIabLRh25UBrOjS+eD+0JbucwBuPzQfxh8XXgwpDJIz5X9AcG8jxRMDMPZF8JRdB7LkjySE1xcYolfo8wbcBpU52sgFM+VHU8YML8/MeXCEW0z0utavk3wXM/8c25/FMAwqEvigTgH9yYXR87M96ee+dHIFQ/ZK17wx41h/S9Z08ovoxvWSuD2eeyGMm7qBaawuDQ7XpN0/4Vr39pT6xHwDoz8CC+sl+0ds/gfT3hJ/sDwn7zRlrZqsbuqiPhzyP/V7ph8Ihh1OqamvPO7olceddClxB+0QOqdc2M/0CsYvfR4DQ6E74rH9gPkJbP8tyOYyj+2H9nB8sI75A2MUvQc4FrZjP3Asaod+dNLF5Vsyb+ofmW7eV1L/BkMbfIsPtpgmeb+Q3wjeodR2Bvx8wna4Nx2jZxASPG8ZPkI8YCf9fc/xALwPFy30EjA8KUY9h6Lz2VhMxsJ2uM/WtEOyD9WFdkRs/hfTfmfKDVmD668t+2/Y/gO7LX0UI64rsPTh/O499MnUL+HEr+5J39L5lTLtl+ZXuamvnF/Vz8WvAmH9QnHbyq+oLzRXTr3rnuuNJpm7qN8AY+4VCZ3vv3KvPhaD7HvVY/uhPRyfOe41l/cjNjaV9+/IvKm82c37Tur3TPfv9rSGYsl9meOWkncP33+C98vKyzj3CsnYHDeOCNZ3DB8h3lpKv31uYDrmrYWX4Ztjybzss6lTXvaD9C2dl2Wm/dK87C861Y367yEAAA==",
+  "debug_symbols": "ddLbisMgEAbgd/HaCw+jrnmVZSkmMUUQE0yysIS8+2qJpRV7l5mfL57mQKPt9/vNhWleUfd9ID8PZnNzSNWByKO1Libkat1M3FDHQGBkw5i+hDwxmpy3qBPk/MGItgH5CFgLcKYuwEFXgDeBlAUoVQFoAl3OAKTekmgB0HABQVkFZAsIpgsQvAKqCRS9gCT1Cl8tIFm5VinoG0hFH5337n57fc7U/jXRmd7bq5z2MLyk299SkuKXOA923KPNfyozcSCaJ4NKzGhejOZWfhhOMJA8BjkGwKBzzJ4xw8CescQi6TNt9x8=",
+  "file_map": {
+    "50": {
+      "source": "struct myStruct {\n    foo: Field,\n    foo_arr: [Field; 2],\n}\n// Tests a very simple program.\n//\n// The features being tested is the identity function in Brillig\nfn main(x: Field) {\n    // Safety: testing context\n    unsafe {\n        assert(x == identity(x));\n        // TODO: add support for array comparison\n        let arr = identity_array([x, x]);\n        assert(x == arr[0]);\n        assert(x == arr[1]);\n\n        let s = myStruct { foo: x, foo_arr: [x, x] };\n        let identity_struct = identity_struct(s);\n        assert(x == identity_struct.foo);\n        assert(x == identity_struct.foo_arr[0]);\n        assert(x == identity_struct.foo_arr[1]);\n    }\n}\n\nunconstrained fn identity(x: Field) -> Field {\n    x\n}\n\nunconstrained fn identity_array(arr: [Field; 2]) -> [Field; 2] {\n    arr\n}\n\nunconstrained fn identity_struct(s: myStruct) -> myStruct {\n    s\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "identity",
+    "identity_array",
+    "identity_struct"
+  ]
+}

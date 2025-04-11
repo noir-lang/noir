@@ -1,0 +1,59 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "year",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "min_age",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81ZS27bMBClLKX+pk5Te9t62SV/kqldgC56DiumjtID9CQ9UK9SoBbMaUa0HCDRY5ABBCoi/fzmzXA4cjJxts3p+hrus9OVh7GzXfSsu2anq2DrY6NnD2GU40xlOCzJ+eYpCecJcAuGZWRlrd9rr4w6SF03rpS2bCqnnCpdedTOGO+s29dNvZe1ssartqxNG8BS+V0wgUG4SbiKwHUS4b5WV9+eDRmjG4FNfMrJDncX/M+YBtxS6I3SeIAuiqflWnwI45TpkXRTy5HGg9yR/yL61XsqWNULlr9ff9RU4DbTDMfLcE1nTMM4N0Ym+rEIcUThkhYbgS3OcRGV4+x/cUb5W4TcT1ns5ThTyJi8pLAjGomRvBWNA3RR2JJrMQ/jggShzTwXT20uPesW7SJSeUIRX4mlA5aaA3ktEgU3RcFA+bwU2E4lRcMwT5CDyIKLzMEVOE/Q8ejyZSXwhfUWx7HXGHa4O/G23f8S6MsA3STd/8cwrkXC7h+Y3L0gd+Tj7n8t0nf/yM26FrjNdIfj1ev+75iGaC2psIzVgN4mViEvUJquQk4JrN+9DY7q2FMccp/E+z6YKN7og+keHGs0vy4u9wLfZE4Ylra2MYdjpZ0vjVOtPZhHY63zSiupbXn0uvLeVGVjG2Wrx1b7eu+0b+0ZC/m2x3925QdYNnA/idbQT1zf//758fvXz29sSmyvzNHn59G4Zd+VA3Un/E0afDkVl7Zl95vIT67fA4gD4dEZciMubRLN0dpZxC/D87t4M88Hvovscxg37Nn2CtcFwwHGVBP+Mg3+YM4s2P0ymqPYFQOfy678PYnG59Y+93+424E5wqRYcb7kxz9oxPmAIBwAAA==",
+  "debug_symbols": "ldTBjoMgFIXhd7lrFwIC1VeZTBpUbEgIGtRJJqbvXtpo01g2Z3nh/9gQ2Ki37Xq7ujCMMzU/G/mxM4sbQ5o24q+leTLhOc2LiQs1khdkQ0+Nqu4FDc7btFbefwsSWF5huczlWu355ZwrLNfZXB55fcovWF5jOSvBnoE9B3sB9tmrZWW1A8b4WUhYKFhoWGSvmfG3EF+iRgUvYcFgwfNCvIU+CwGLChYSFgoWGhbg0+bQ205DG5337nb9/GnT8p+JzrTe7uOwhu5jd/mfjp3DT3HsbL9G+zzptZeOfwA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(year: u32, min_age: u8) -> pub u32 {\n    if min_age == 0 {\n        (year - 2) / 4\n    } else if year > 1 {\n        (year - 2) / 4\n    } else {\n        0\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert",
+    "directive_integer_quotient"
+  ]
+}
