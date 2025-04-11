@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744402302611,
+  "lastUpdate": 1744411099613,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19490,6 +19490,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3217586,
             "range": "± 48055",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f88cb08a050c6d25ba4575dce82a13ae11fda0e1",
+          "message": "feat: `ssa::create_program_with_passes` (#8035)",
+          "timestamp": "2025-04-11T22:22:30Z",
+          "tree_id": "f3582816ce945ebd2456f2c3ee559897d3adb270",
+          "url": "https://github.com/noir-lang/noir/commit/f88cb08a050c6d25ba4575dce82a13ae11fda0e1"
+        },
+        "date": 1744411094392,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3251088,
+            "range": "± 19589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3221586,
+            "range": "± 45267",
             "unit": "ns/iter"
           }
         ]
