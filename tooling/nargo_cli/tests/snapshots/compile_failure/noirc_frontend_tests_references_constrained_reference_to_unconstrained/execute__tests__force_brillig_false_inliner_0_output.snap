@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+  ┌─ src/main.nr:7:31
+  │
+7 │                 mut_ref_input(x_ref, y);        
+  │                               -----
+  │
+
+Aborting due to 1 previous error

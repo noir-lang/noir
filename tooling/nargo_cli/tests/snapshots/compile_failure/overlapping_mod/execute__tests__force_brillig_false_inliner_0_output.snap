@@ -1,0 +1,31 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Overlapping modules `foo` at  path `src/foo.nr` and `src/foo/mod.nr`
+  ┌─ src/main.nr:1:5
+  │
+1 │ mod foo;
+  │     ---
+  │
+
+error: Could not resolve 'foo' in path
+  ┌─ src/main.nr:3:5
+  │
+3 │ use foo::bar;
+  │     ---
+  │
+
+error: cannot find `bar` in this scope
+  ┌─ src/main.nr:6:10
+  │
+6 │   assert(bar());
+  │          --- not found in this scope
+  │
+
+Aborting due to 3 previous errors

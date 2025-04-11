@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Calling std::verify_proof(...) does not verify a proof
+   ┌─ std/lib.nr:57:5
+   │
+57 │     verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
+   │     -------------------------------------------------------------------------- verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof
+   │
+   = Call stack:
+     1. src/main.nr:21:5
+     2. std/lib.nr:57:5
+
+warning: Calling std::verify_proof(...) does not verify a proof
+   ┌─ std/lib.nr:57:5
+   │
+57 │     verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
+   │     -------------------------------------------------------------------------- verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof
+   │
+   = Call stack:
+     1. src/main.nr:23:5
+     2. std/lib.nr:57:5

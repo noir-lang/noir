@@ -53,7 +53,13 @@ mod tests {
         nargo
     }
 
-    fn snapshot_output(prefix: &'static str, output: Output, test_program_dir: &Path) {
+    fn snapshot_output(
+        prefix: &'static str,
+        output: Output,
+        test_program_dir: &Path,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stdout = remove_noise_lines(stdout.to_string());
         let stdout = delete_test_program_dir_occurrences(stdout, test_program_dir);
@@ -63,13 +69,16 @@ mod tests {
         let stderr = delete_test_program_dir_occurrences(stderr, test_program_dir);
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name =
+            format!("force_brillig_{}_inliner_{}_output", force_brillig.0, inliner.0);
+
         insta::with_settings!(
             {
                 snapshot_path => format!("./snapshots/{prefix}/{test_name}"),
             },
             {
                 insta::assert_snapshot!(
-                    format!("{test_name}_output"),
+                    snapshot_name,
                     &format!(
                         "success: {:?}\nexit_code: {}\n----- stdout -----\n{}\n----- stderr -----\n{}",
                         output.status.success(),
@@ -151,7 +160,7 @@ mod tests {
         nargo.assert().success();
 
         let output = nargo.output().unwrap();
-        snapshot_output("execution_success", output, &test_program_dir);
+        snapshot_output("execution_success", output, &test_program_dir, force_brillig, inliner);
 
         check_program_artifact(
             "execution_success",
@@ -162,14 +171,19 @@ mod tests {
         );
     }
 
-    fn execution_failure(mut nargo: Command, test_program_dir: PathBuf) {
+    fn execution_failure(
+        mut nargo: Command,
+        test_program_dir: PathBuf,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
 
         let output = nargo.output().unwrap();
-        snapshot_output("execution_failure", output, &test_program_dir);
+        snapshot_output("execution_failure", output, &test_program_dir, force_brillig, inliner);
     }
 
     fn noir_test_success(mut nargo: Command) {
@@ -250,14 +264,19 @@ mod tests {
         nargo.assert().success().stderr(predicate::str::contains("bug:"));
     }
 
-    fn compile_failure(mut nargo: Command, test_program_dir: PathBuf) {
+    fn compile_failure(
+        mut nargo: Command,
+        test_program_dir: PathBuf,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
 
         let output = nargo.output().unwrap();
-        snapshot_output("compile_failure", output, &test_program_dir);
+        snapshot_output("compile_failure", output, &test_program_dir, force_brillig, inliner);
     }
 
     fn check_program_artifact(

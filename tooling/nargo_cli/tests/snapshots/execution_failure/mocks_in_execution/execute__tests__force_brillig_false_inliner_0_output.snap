@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+warning: id is private and not visible from the current module
+  ┌─ src/main.nr:4:20
+  │
+4 │     assert_eq(mock.id, 0);
+  │                    -- id is private
+  │
+
+warning: Unsafe block must have a safety comment above it
+  ┌─ src/main.nr:3:16
+  │
+3 │     let mock = unsafe { std::test::OracleMock::mock("foo") };
+  │                ------ The comment must start with the "Safety: " word
+  │
+
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:3:25
+  │
+3 │     let mock = unsafe { std::test::OracleMock::mock("foo") };
+  │                         ---------------------------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1. src/main.nr:3:25
+
+Attempted to call disabled foreign call `create_mock`

@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:20:13
+   │
+20 │     dynamic[x] = 1000;
+   │             -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:49:8
+   │
+49 │     sl[x] = x + 10;
+   │        -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:51:9
+   │
+51 │     sl2[y] = y + 5;
+   │         -
+   │

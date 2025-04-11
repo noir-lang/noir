@@ -1,0 +1,64 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: storage is private and not visible from the current module
+    ┌─ src/main.nr:187:60
+    │
+187 │     assert_eq(builder.previous_kernel.public_call_requests.storage[3].counter, 4);
+    │                                                            ------- storage is private
+    │
+
+warning: storage is private and not visible from the current module
+    ┌─ src/main.nr:190:60
+    │
+190 │     assert_eq(builder.previous_kernel.public_call_requests.storage[3].counter, 4);
+    │                                                            ------- storage is private
+    │
+
+warning: storage is private and not visible from the current module
+    ┌─ src/main.nr:128:71
+    │
+128 │             sort_by_counter_desc(self.public_inputs.end.l2_to_l1_msgs.storage);
+    │                                                                       ------- storage is private
+    │
+
+warning: storage is private and not visible from the current module
+    ┌─ src/main.nr:127:46
+    │
+127 │         self.public_inputs.end.l2_to_l1_msgs.storage =
+    │                                              ------- storage is private
+    │
+
+warning: storage is private and not visible from the current module
+    ┌─ src/main.nr:130:78
+    │
+130 │             sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage);
+    │                                                                              ------- storage is private
+    │
+
+warning: storage is private and not visible from the current module
+    ┌─ src/main.nr:129:53
+    │
+129 │         self.public_inputs.end.public_call_requests.storage =
+    │                                                     ------- storage is private
+    │
+
+warning: storage is private and not visible from the current module
+    ┌─ src/main.nr:141:13
+    │
+141 │             storage: start.public_call_requests,
+    │             ------- storage is private
+    │
+
+warning: len is private and not visible from the current module
+    ┌─ src/main.nr:142:13
+    │
+142 │             len: start.public_call_requests.len(),
+    │             --- len is private
+    │

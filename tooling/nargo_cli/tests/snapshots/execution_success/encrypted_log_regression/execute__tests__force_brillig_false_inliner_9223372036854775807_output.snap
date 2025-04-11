@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[encrypted_log_regression] Circuit output: Vec([Field(1), Field(2), Field(3), Field(1), Field(2), Field(0), Field(9), Field(8), Field(7), Field(6), Field(5), Field(4), Field(3), Field(2), Field(1)])
+----- stderr -----
+warning: Return variable contains a constant value
+   ┌─ src/main.nr:35:5
+   │  
+35 │ ╭     compute_encrypted_log(
+36 │ │         eph_pk_bytes,
+37 │ │         incoming_header_ciphertext,
+38 │ │         incoming_body_ciphertext,
+39 │ │         flag,
+40 │ │     )
+   │ ╰─────' This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
+   │  
+   = Call stack:
+     1. src/main.nr:35:5

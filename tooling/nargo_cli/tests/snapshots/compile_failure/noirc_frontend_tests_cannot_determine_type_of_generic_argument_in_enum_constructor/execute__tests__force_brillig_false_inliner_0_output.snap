@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Type annotation needed
+  ┌─ src/main.nr:8:22
+  │
+8 │         let _ = Foo::Bar;
+  │                      --- Could not determine the type of the generic argument `T` declared on the enum `Foo`
+  │
+
+Aborting due to 1 previous error

@@ -310,7 +310,7 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            "execution_failure(nargo, test_program_dir);",
+            "execution_failure(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
             &MatrixConfig::default(),
         );
     }
@@ -524,7 +524,7 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             &test_name,
             &test_dir,
             "compile",
-            "compile_failure(nargo, test_program_dir);",
+            "compile_failure(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
             &MatrixConfig::default(),
         );
     }

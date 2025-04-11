@@ -1,0 +1,71 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:17:17
+   │
+17 │         s += x3[index[i]];
+   │                 --------
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:22:22
+   │
+22 │         assert(index[offset + 3] == index2[3]);
+   │                      ----------
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:27:14
+   │
+27 │     assert(x[y] == 111);
+   │              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:28:14
+   │
+28 │     assert(x[z] == 101);
+   │              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:29:7
+   │
+29 │     x[z] = 0;
+   │       -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:30:14
+   │
+30 │     assert(x[y] == 111);
+   │              -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:33:18
+   │
+33 │         x[y] = x[y] - 2;
+   │                  -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:33:11
+   │
+33 │         x[y] = x[y] - 2;
+   │           -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:35:11
+   │
+35 │         x[y] = 0;
+   │           -
+   │

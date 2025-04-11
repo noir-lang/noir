@@ -1,0 +1,183 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+warning: MAGIC_NUMBER is private and not visible from the current module
+   ┌─ src/main.nr:14:21
+   │
+14 │     y: [Field; foo::MAGIC_NUMBER],
+   │                     ------------ MAGIC_NUMBER is private
+   │
+
+warning: N is private and not visible from the current module
+  ┌─ src/foo.nr:7:33
+  │
+7 │ pub fn from_foo(x: [Field; bar::N]) {
+  │                                 - N is private
+  │
+
+warning: MAGIC_NUMBER is private and not visible from the current module
+  ┌─ src/baz.nr:1:40
+  │
+1 │ pub fn from_baz(x: [Field; crate::foo::MAGIC_NUMBER]) {
+  │                                        ------------ MAGIC_NUMBER is private
+  │
+
+warning: MAGIC_NUMBER is private and not visible from the current module
+   ┌─ src/main.nr:33:25
+   │
+33 │     c: pub [Field; foo::MAGIC_NUMBER],
+   │                         ------------ MAGIC_NUMBER is private
+   │
+
+warning: bar is private and not visible from the current module
+   ┌─ src/main.nr:34:21
+   │
+34 │     d: [Field; foo::bar::N],
+   │                     --- bar is private
+   │
+
+warning: N is private and not visible from the current module
+   ┌─ src/main.nr:34:26
+   │
+34 │     d: [Field; foo::bar::N],
+   │                          - N is private
+   │
+
+warning: N is private and not visible from the current module
+  ┌─ src/foo.nr:8:22
+  │
+8 │     for i in 0..bar::N {
+  │                      - N is private
+  │
+
+warning: N is private and not visible from the current module
+  ┌─ src/foo.nr:9:29
+  │
+9 │         assert(x[i] == bar::N as Field);
+  │                             - N is private
+  │
+
+warning: MAGIC_NUMBER is private and not visible from the current module
+  ┌─ src/baz.nr:2:29
+  │
+2 │     for i in 0..crate::foo::MAGIC_NUMBER {
+  │                             ------------ MAGIC_NUMBER is private
+  │
+
+warning: MAGIC_NUMBER is private and not visible from the current module
+  ┌─ src/baz.nr:3:36
+  │
+3 │         assert(x[i] == crate::foo::MAGIC_NUMBER as Field);
+  │                                    ------------ MAGIC_NUMBER is private
+  │
+
+warning: MAGIC_NUMBER is private and not visible from the current module
+   ┌─ src/main.nr:38:22
+   │
+38 │     for i in 0..foo::MAGIC_NUMBER {
+   │                      ------------ MAGIC_NUMBER is private
+   │
+
+warning: MAGIC_NUMBER is private and not visible from the current module
+   ┌─ src/main.nr:39:29
+   │
+39 │         assert(c[i] == foo::MAGIC_NUMBER as Field);
+   │                             ------------ MAGIC_NUMBER is private
+   │
+
+warning: MAGIC_NUMBER is private and not visible from the current module
+   ┌─ src/main.nr:40:41
+   │
+40 │         assert(test_struct.y[i] == foo::MAGIC_NUMBER as Field);
+   │                                         ------------ MAGIC_NUMBER is private
+   │
+
+warning: TYPE_INFERRED is private and not visible from the current module
+   ┌─ src/main.nr:47:17
+   │
+47 │     assert(foo::TYPE_INFERRED == expected);
+   │                 ------------- TYPE_INFERRED is private
+   │
+
+warning: N is private and not visible from the current module
+   ┌─ src/main.nr:70:42
+   │
+70 │     let add_submodules_N = my_submodule::N as Field + foo::bar::N as Field;
+   │                                          - N is private
+   │
+
+warning: bar is private and not visible from the current module
+   ┌─ src/main.nr:70:60
+   │
+70 │     let add_submodules_N = my_submodule::N as Field + foo::bar::N as Field;
+   │                                                            --- bar is private
+   │
+
+warning: N is private and not visible from the current module
+   ┌─ src/main.nr:70:65
+   │
+70 │     let add_submodules_N = my_submodule::N as Field + foo::bar::N as Field;
+   │                                                                 - N is private
+   │
+
+warning: N is private and not visible from the current module
+   ┌─ src/main.nr:72:40
+   │
+72 │     let add_from_bar_N = my_submodule::N as Field + foo::bar::from_bar(1);
+   │                                        - N is private
+   │
+
+warning: bar is private and not visible from the current module
+   ┌─ src/main.nr:72:58
+   │
+72 │     let add_from_bar_N = my_submodule::N as Field + foo::bar::from_bar(1);
+   │                                                          --- bar is private
+   │
+
+warning: N is private and not visible from the current module
+   ┌─ src/main.nr:75:37
+   │
+75 │     let sugared = [0; my_submodule::N + 2];
+   │                                     - N is private
+   │
+
+warning: N is private and not visible from the current module
+   ┌─ src/main.nr:76:34
+   │
+76 │     assert(sugared[my_submodule::N + 1] == 0);
+   │                                  - N is private
+   │
+
+warning: N is private and not visible from the current module
+   ┌─ src/main.nr:78:36
+   │
+78 │     let arr: [Field; my_submodule::N] = [N as Field; 10];
+   │                                    - N is private
+   │
+
+warning: unused global N
+  ┌─ src/foo.nr:3:8
+  │
+3 │ global N: u32 = 5;
+  │        - unused global
+  │
+
+warning: unused global L
+   ┌─ src/main.nr:98:12
+   │
+98 │     global L: Field = 50;
+   │            - unused global
+   │
+
+warning: unused function my_bool_or
+    ┌─ src/main.nr:100:8
+    │
+100 │     fn my_bool_or(x: u1, y: u1) {
+    │        ---------- unused function
+    │
