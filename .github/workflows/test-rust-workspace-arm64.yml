@@ -1,4 +1,4 @@
-name: Check build artifacts on ARM64
+name: Test (ARM64)
 
 # This workflow runs the project Rust tests on a daily basis on ARM64.
 # The main intention of doing this is making sure that build artifacts end up exactly
