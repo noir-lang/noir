@@ -606,9 +606,7 @@
 <a href="#605" id="605">605</a>
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
+<a href="#608" id="608">608</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
 //! a function's entry points. Function specialization is performed through duplication of functions.
 //!
 //! This pass is done due to how globals are initialized for Brillig generation.
@@ -906,7 +904,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::assert_normalized_ssa_equals;
+
+    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
 
     <span class="kw">use </span><span class="kw">super</span>::Ssa;
 
@@ -953,11 +952,11 @@
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
 
         <span class="comment">// We expect `inner_func` to be duplicated
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 1
         g1 = Field 2
         g2 = Field 3
-        
+
         acir(inline) fn main f0 {
           b0(v3: Field, v4: Field):
             call f1(v3, v4)
@@ -994,8 +993,7 @@
             constrain v6 == Field 4
             return
         }
-        "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -1048,10 +1046,10 @@
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
 
         <span class="comment">// We expect both `inner_func` and `nested_inner_func` to be duplicated
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 2
         g1 = Field 3
-        
+
         acir(inline) fn main f0 {
           b0(v2: Field, v3: Field):
             call f1(v2, v3)
@@ -1104,8 +1102,7 @@
             call f5(v2, v3)
             return
         }
-        "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -1160,11 +1157,11 @@
         <span class="kw">let </span>ssa = ssa.brillig_entry_point_analysis();
 
         <span class="comment">// We expect `entry_point_one_global` and `entry_point_one_diff_global` to be duplicated
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 2
         g1 = Field 3
         g2 = Field 1
-        
+
         acir(inline) fn main f0 {
           b0(v3: Field, v4: Field):
             call f1(v3, v4)
@@ -1214,8 +1211,7 @@
             constrain v6 == Field 4
             return
         }
-        "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

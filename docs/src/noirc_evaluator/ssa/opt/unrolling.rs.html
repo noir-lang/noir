@@ -1484,12 +1484,7 @@
 <a href="#1483" id="1483">1483</a>
 <a href="#1484" id="1484">1484</a>
 <a href="#1485" id="1485">1485</a>
-<a href="#1486" id="1486">1486</a>
-<a href="#1487" id="1487">1487</a>
-<a href="#1488" id="1488">1488</a>
-<a href="#1489" id="1489">1489</a>
-<a href="#1490" id="1490">1490</a>
-<a href="#1491" id="1491">1491</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1486" id="1486">1486</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2523,6 +2518,7 @@
     <span class="kw">use </span>acvm::FieldElement;
     <span class="kw">use </span>test_case::test_case;
 
+    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
     <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
@@ -2576,7 +2572,13 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="comment">// The final block count is not 1 because unrolling creates some unnecessary jmps.
+        // If a simplify cfg pass is ran afterward, the expected block count will be 1.
+        </span><span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
+        <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"All loops should be unrolled"</span>);
+        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">5</span>);
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0():
             constrain u1 0 == Field 1
@@ -2601,15 +2603,7 @@
           b4():
             jmp b1()
         }
-        "</span>;
-
-        <span class="comment">// The final block count is not 1 because unrolling creates some unnecessary jmps.
-        // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        </span><span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
-        <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"All loops should be unrolled"</span>);
-        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">5</span>);
-
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="comment">// Test that the pass can still be run on loops which fail to unroll properly
@@ -2708,9 +2702,13 @@
     </span><span class="kw">fn </span>test_brillig_unroll_small_loop() {
         <span class="kw">let </span>ssa = brillig_unroll_test_case();
 
+        <span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
+        <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"Unroll should have no errors"</span>);
+        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">2</span>, <span class="string">"The loop should be unrolled"</span>);
+
         <span class="comment">// Expectation taken by compiling the Noir program as ACIR,
         // ie. by removing the `unconstrained` from `main`.
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v1 = allocate -&gt; &amp;mut u32
@@ -2733,13 +2731,7 @@
             constrain v13 == v0
             return
         }
-        "</span>;
-
-        <span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
-        <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"Unroll should have no errors"</span>);
-        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">2</span>, <span class="string">"The loop should be unrolled"</span>);
-
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="doccomment">/// Test that we can unroll the loop in the ticket if we don't have too many iterations.
@@ -2751,8 +2743,7 @@
         <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"Unroll should have no errors"</span>);
         <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">2</span>, <span class="string">"The loop should be unrolled"</span>);
 
-        <span class="comment">// The IDs are shifted by one compared to what the ACIR version printed.
-        </span><span class="kw">let </span>expected = <span class="string">"
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: [u64; 6]):
             inc_rc v0
@@ -2781,8 +2772,7 @@
             dec_rc v0
             return v20
         }
-        "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="doccomment">/// Test that with more iterations it's not unrolled.

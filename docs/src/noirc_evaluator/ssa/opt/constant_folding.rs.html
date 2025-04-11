@@ -1921,22 +1921,7 @@
 <a href="#1920" id="1920">1920</a>
 <a href="#1921" id="1921">1921</a>
 <a href="#1922" id="1922">1922</a>
-<a href="#1923" id="1923">1923</a>
-<a href="#1924" id="1924">1924</a>
-<a href="#1925" id="1925">1925</a>
-<a href="#1926" id="1926">1926</a>
-<a href="#1927" id="1927">1927</a>
-<a href="#1928" id="1928">1928</a>
-<a href="#1929" id="1929">1929</a>
-<a href="#1930" id="1930">1930</a>
-<a href="#1931" id="1931">1931</a>
-<a href="#1932" id="1932">1932</a>
-<a href="#1933" id="1933">1933</a>
-<a href="#1934" id="1934">1934</a>
-<a href="#1935" id="1935">1935</a>
-<a href="#1936" id="1936">1936</a>
-<a href="#1937" id="1937">1937</a>
-<a href="#1938" id="1938">1938</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#1923" id="1923">1923</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2872,6 +2857,7 @@
     <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 
     <span class="kw">use crate</span>::{
+        assert_ssa_snapshot,
         brillig::BrilligOptions,
         ssa::{
             Ssa,
@@ -3281,35 +3267,33 @@
             }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints();
 
         <span class="comment">// v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
         // - v8 hasn't been recognized as a duplicate of v6 yet since they still reference v4 and
         //   v5 respectively
-        </span><span class="kw">let </span>expected = <span class="string">"
-            brillig(inline) fn main f0 {
-              b0(v0: u32):
-                v2 = lt u32 1000, v0
-                v4 = shl v0, u32 1
-                jmpif v2 then: b1, else: b2
-              b1():
-                v5 = shl v0, u32 1
-                v6 = lt v0, v5
-                constrain v6 == u1 1
-                jmp b2()
-              b2():
-                jmpif v2 then: b3, else: b4
-              b3():
-                v8 = lt v0, v4
-                constrain v8 == u1 1
-                jmp b4()
-              b4():
-                return
-            }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = lt u32 1000, v0
+            v4 = shl v0, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            v5 = shl v0, u32 1
+            v6 = lt v0, v5
+            constrain v6 == u1 1
+            jmp b2()
+          b2():
+            jmpif v2 then: b3, else: b4
+          b3():
+            v8 = lt v0, v4
+            constrain v8 == u1 1
+            jmp b4()
+          b4():
+            return
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3330,15 +3314,14 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                return Field 5
-            }
-            "</span>;
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            return Field 5
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3359,15 +3342,14 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                return Field 5
-            }
-            "</span>;
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            return Field 5
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3388,15 +3370,14 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                return i32 5
-            }
-            "</span>;
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            return i32 5
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3417,16 +3398,15 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                v3 = make_array [Field 2, Field 3, Field 4] : [Field; 3]
-                return v3
-            }
-            "</span>;
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 2, Field 3, Field 4] : [Field; 3]
+            return v3
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3447,16 +3427,15 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                v4 = make_array [Field 2, i32 3, Field 4, i32 5] : [(Field, i32); 2]
-                return v4
-            }
-            "</span>;
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 2, i32 3, Field 4, i32 5] : [(Field, i32); 2]
+            return v4
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3484,16 +3463,15 @@
         </span><span class="kw">let </span>ssa = ssa.brillig_array_gets();
         <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                v2 = make_array [Field 2, Field 3] : [Field; 2]
-                return Field 5
-            }
-            "</span>;
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            return Field 5
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3518,18 +3496,16 @@
         <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
         <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 2
 
         acir(inline) fn main f0 {
           b0():
             return Field 5
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
-        <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3560,18 +3536,16 @@
         <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
         <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 2
 
         acir(inline) fn main f0 {
           b0():
             return Field 5
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
-        <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3664,7 +3638,9 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>expected = <span class="string">"
+
+        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v5 = call to_be_radix(v0, u32 256) -&gt; [u8; 1]
@@ -3676,9 +3652,7 @@
             inc_rc v8
             return
         }
-        "</span>;
-        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3714,16 +3688,15 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u32, v2: Field):
             enable_side_effects u1 1
             v4 = array_set v0, index v1, value v2
             return v2
         }
-        "</span>;
-        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3743,7 +3716,9 @@
         }
         "</span>;
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis().fold_constants_using_constraints();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v2 = call f1(v0) -&gt; Field
@@ -3754,11 +3729,7 @@
           b0(v0: Field):
             return v0
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.purity_analysis().fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3860,7 +3831,7 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.fold_constants();
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u1):
             enable_side_effects v2
@@ -3870,8 +3841,7 @@
             v6 = div v1, u32 2
             return
         }
-        "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

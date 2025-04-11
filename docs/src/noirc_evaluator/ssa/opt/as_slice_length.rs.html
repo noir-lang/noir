@@ -105,8 +105,7 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#107" id="107">107</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::Function,
         instruction::{Instruction, InstructionId, Intrinsic},
@@ -186,7 +185,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::assert_normalized_ssa_equals;
+    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
 
     <span class="kw">use </span><span class="kw">super</span>::Ssa;
 
@@ -203,15 +202,14 @@
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 3]):
-                v2, v3 = call as_slice(v0) -&gt; (u32, [Field])
-                return u32 3
-            }
-            "</span>;
         <span class="kw">let </span>ssa = ssa.as_slice_optimization();
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -&gt; (u32, [Field])
+            return u32 3
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

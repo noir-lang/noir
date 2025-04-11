@@ -1341,8 +1341,7 @@
 <a href="#1340" id="1340">1340</a>
 <a href="#1341" id="1341">1341</a>
 <a href="#1342" id="1342">1342</a>
-<a href="#1343" id="1343">1343</a>
-<a href="#1344" id="1344">1344</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1343" id="1343">1343</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -2131,17 +2130,20 @@
     <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
     <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            function::RuntimeType,
-            instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::{NumericType, Type},
+    <span class="kw">use crate</span>::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                basic_block::BasicBlockId,
+                function::RuntimeType,
+                instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::inlining::inline_info::compute_bottom_up_order,
         },
-        opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
     };
 
     <span class="attr">#[test]
@@ -2632,7 +2634,8 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="kw">let </span>ssa = ssa.inline_simple_functions();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v1 = add v0, v0
@@ -2642,10 +2645,7 @@
           b0(v0: Field):
             return v0
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -2667,7 +2667,8 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="kw">let </span>ssa = ssa.inline_simple_functions();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v2 = add v0, Field 1
@@ -2680,10 +2681,7 @@
             v2 = add v0, Field 1
             return v2
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

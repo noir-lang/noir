@@ -259,10 +259,7 @@
 <a href="#258" id="258">258</a>
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#261" id="261">261</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -447,7 +444,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>simplifies_assertions_that_squared_values_are_equal_to_zero() {
@@ -461,15 +458,14 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v1 = mul v0, v0
             constrain v0 == Field 0
             return
         }
-        "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -485,13 +481,12 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u8):
             return v0
         }
-        "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -511,19 +506,18 @@
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        <span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v0 == u1 1
-                constrain v1 == u1 1
-                constrain v2 == u1 0
-                return
-            }
-            "</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = mul v0, v1
+            v4 = not v2
+            v5 = mul v3, v4
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            constrain v2 == u1 0
+            return
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

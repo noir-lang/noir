@@ -365,7 +365,71 @@
 <a href="#364" id="364">364</a>
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -646,7 +710,10 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa};
+    <span class="kw">use crate</span>::{
+        assert_ssa_snapshot,
+        ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},
+    };
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>classify_functions() {
@@ -730,6 +797,67 @@
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">5</span>)], Purity::PureWithPredicate);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">6</span>)], Purity::Pure);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">7</span>)], Purity::Pure);
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut Field
+            call f1(v0)
+            v3 = call f2() -&gt; &amp;mut Field
+            call f3(Field 0)
+            call f4()
+            call f5()
+            call f6()
+            v11 = call f7(u32 2) -&gt; u32
+            return
+        }
+        acir(inline) impure fn impure_take_ref f1 {
+          b0(v0: &amp;mut Field):
+            return
+        }
+        acir(inline) impure fn impure_returns_ref f2 {
+          b0():
+            v0 = allocate -&gt; &amp;mut Field
+            return v0
+        }
+        acir(inline) predicate_pure fn predicate_constrain f3 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        acir(inline) predicate_pure fn predicate_calls_predicate f4 {
+          b0():
+            call f3(Field 0)
+            return
+        }
+        acir(inline) predicate_pure fn predicate_oob f5 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 2 -&gt; Field
+            return
+        }
+        acir(inline) pure fn pure_basic f6 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 1 -&gt; Field
+            v5 = allocate -&gt; &amp;mut Field
+            store Field 0 at v5
+            return
+        }
+        acir(inline) pure fn pure_recursive f7 {
+          b0(v0: u32):
+            v3 = lt v0, u32 1
+            jmpif v3 then: b1, else: b2
+          b1():
+            jmp b3(Field 0)
+          b2():
+            v5 = call f7(v0) -&gt; u32
+            call f6()
+            jmp b3(v5)
+          b3(v1: u32):
+            return v1
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>
