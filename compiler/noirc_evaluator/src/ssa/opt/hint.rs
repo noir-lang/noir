@@ -27,6 +27,7 @@ mod tests {
             ssa,
             ssa_logging: options.ssa_logging.clone(),
             print_codegen_timings: false,
+            passed: Default::default(),
         };
 
         Ok(builder.run_passes(&primary_passes(options))?.finish())

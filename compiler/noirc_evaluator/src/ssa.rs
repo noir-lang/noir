@@ -7,7 +7,7 @@
 //! This module heavily borrows from Cranelift
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -118,9 +118,9 @@ impl<'a> SsaPass<'a> {
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 
 /// The default, full SSA optimization pipeline.
-pub fn primary_passes<'a>(options: &'a SsaEvaluatorOptions) -> Vec<SsaPass<'a>> {
+pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)"),
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
@@ -136,10 +136,10 @@ pub fn primary_passes<'a>(options: &'a SsaEvaluatorOptions) -> Vec<SsaPass<'a>> 
             "Inlining (1st)",
         ),
         // Run mem2reg with the CFG separated into blocks
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg (2nd)"),
-        SsaPass::new(Ssa::simplify_cfg, "Simplifying (1st)"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (2nd)"),
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -150,36 +150,36 @@ pub fn primary_passes<'a>(options: &'a SsaEvaluatorOptions) -> Vec<SsaPass<'a>> 
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
         ),
-        SsaPass::new(Ssa::simplify_cfg, "Simplifying (2nd)"),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg (3rd)"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg (4th)"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
         // may create an SSA which inlining fails to handle.
         SsaPass::new(
             move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
-            "Inlining (2nd)",
+            "Inlining",
         ),
         SsaPass::new(Ssa::remove_if_else, "Remove IfElse"),
-        SsaPass::new(Ssa::purity_analysis, "Purity Analysis (2nd)"),
+        SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
         SsaPass::new(Ssa::fold_constants_using_constraints, "Constraint Folding"),
         SsaPass::new(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)"),
-        SsaPass::new(Ssa::simplify_cfg, "Simplifying (3rd):"),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         // The Brillig globals pass expected that we have the used globals map set for each function.
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis"),
         // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)"),
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
@@ -188,22 +188,22 @@ pub fn primary_passes<'a>(options: &'a SsaEvaluatorOptions) -> Vec<SsaPass<'a>> 
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)"),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
     ]
 }
 
 /// The second SSA pipeline which executes Brillig functions from the primary
 /// pipeline to fold constants.
-pub fn secondary_passes<'a>(brillig: &'a Brillig) -> Vec<SsaPass<'a>> {
+pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
         SsaPass::new(
-            move |ssa| ssa.fold_constants_with_brillig(&brillig),
+            move |ssa| ssa.fold_constants_with_brillig(brillig),
             "Inlining Brillig Calls Inlining",
         ),
         // It could happen that we inlined all calls to a given brillig function.
         // In that case it's unused so we can remove it. This is what we check next.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (4th)"),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination (3rd)"),
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination"),
     ]
 }
 
@@ -231,7 +231,9 @@ where
         &options.emit_ssa,
     )?;
 
-    let mut ssa = builder.run_passes(&primary())?.finish();
+    let mut builder = builder.run_passes(&primary())?;
+    let passed = std::mem::take(&mut builder.passed);
+    let mut ssa = builder.finish();
 
     let mut ssa_level_warnings = vec![];
 
@@ -249,6 +251,7 @@ where
         ssa,
         ssa_logging: options.ssa_logging.clone(),
         print_codegen_timings: options.print_codegen_timings,
+        passed,
     }
     .run_passes(&secondary(&brillig))?
     .finish();
@@ -540,6 +543,7 @@ struct SsaBuilder {
     ssa: Ssa,
     ssa_logging: SsaLogging,
     print_codegen_timings: bool,
+    passed: HashMap<String, usize>,
 }
 
 impl SsaBuilder {
@@ -559,7 +563,10 @@ impl SsaBuilder {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA"))
+        let builder =
+            SsaBuilder { ssa_logging, print_codegen_timings, ssa, passed: Default::default() };
+        let builder = builder.print("Initial SSA");
+        Ok(builder)
     }
 
     fn finish(self) -> Ssa {
@@ -594,6 +601,9 @@ impl SsaBuilder {
     }
 
     fn print(mut self, msg: &str) -> Self {
+        // Count the number of times we have seen this message.
+        let cnt = self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
+
         // Always normalize if we are going to print at least one of the passes
         if !matches!(self.ssa_logging, SsaLogging::None) {
             self.ssa.normalize_ids();
@@ -610,7 +620,7 @@ impl SsaBuilder {
             }
         };
         if print_ssa_pass {
-            println!("After {msg}:\n{}", self.ssa);
+            println!("After {msg} ({cnt}):\n{}", self.ssa);
         }
         self
     }
