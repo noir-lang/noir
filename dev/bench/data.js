@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744391405634,
+  "lastUpdate": 1744391504343,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19436,6 +19436,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3222753,
             "range": "± 67774",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e0971e4a8777457d685230f0dae98ba2e5dae268",
+          "message": "chore: remove unnecessary double compilation (#8031)",
+          "timestamp": "2025-04-11T16:51:22Z",
+          "tree_id": "a24b61d5f09960ac4c81f58a09ebedbca7d2e226",
+          "url": "https://github.com/noir-lang/noir/commit/e0971e4a8777457d685230f0dae98ba2e5dae268"
+        },
+        "date": 1744391499176,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3251512,
+            "range": "± 4291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3222187,
+            "range": "± 43683",
             "unit": "ns/iter"
           }
         ]
