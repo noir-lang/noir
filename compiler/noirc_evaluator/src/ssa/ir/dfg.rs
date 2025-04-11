@@ -19,7 +19,6 @@ use super::{
 
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
-use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
@@ -396,11 +395,6 @@ impl DataFlowGraph {
             return;
         }
 
-        let constants = values_to_replace
-            .values()
-            .filter(|value_id| self.is_constant(**value_id))
-            .collect::<HashSet<_>>();
-
         let replacement_fn = |value_id| {
             if let Some(replacement_id) = values_to_replace.get(&value_id) {
                 *replacement_id
@@ -414,26 +408,6 @@ impl DataFlowGraph {
             for instruction_id in self.blocks[block].instructions() {
                 let instruction = &mut self.instructions[*instruction_id];
                 instruction.map_values_mut(replacement_fn);
-
-                // Make sure we also replace the instruction results
-                let results = self.results.get_mut(instruction_id);
-                if let Some(results) = results {
-                    for result in results {
-                        if let Some(replacement_id) = values_to_replace.get(result) {
-                            // Don't replace results with constants as this leads to errors later on.
-                            // For example, this:
-                            //
-                            // v1, v2 = call as_slice(v2) -> (u32, [u8; 3])
-                            //
-                            // should not be replaced like this:
-                            //
-                            // u32 3, v2 = call as_slice(v2) -> (u32, [u8; 3])
-                            if !constants.contains(replacement_id) {
-                                *result = *replacement_id;
-                            }
-                        }
-                    }
-                }
             }
 
             // Finally, the value might show up in a terminator
