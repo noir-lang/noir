@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744394627974,
+  "lastUpdate": 1744394937213,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9f48104542699ebf483dd48dbc3c28906d8d4d19",
-          "message": "chore: replace `PrintOutput` with usage of `std::io::Write` (#7911)",
-          "timestamp": "2025-04-07T13:04:07Z",
-          "tree_id": "2220a38a356f24235fd60ccbaacdd14d91e69997",
-          "url": "https://github.com/noir-lang/noir/commit/9f48104542699ebf483dd48dbc3c28906d8d4d19"
-        },
-        "date": 1744032427468,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.673,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.466,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.404,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.64,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.912,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.886,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.442,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.454,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5cc0e23c2ab601d0f10b42ae819b2187c070811",
+          "message": "fix(ssa): Remove OOB checks inserted during DIE (#7995)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-11T17:46:44Z",
+          "tree_id": "8094ee68d21afb0e18809e92555cce871eaaeb84",
+          "url": "https://github.com/noir-lang/noir/commit/d5cc0e23c2ab601d0f10b42ae819b2187c070811"
+        },
+        "date": 1744394931977,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.685,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.453,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.24,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.098,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.11,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.894,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.886,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.522,
             "unit": "s"
           }
         ]
