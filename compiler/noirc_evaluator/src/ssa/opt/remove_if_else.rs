@@ -149,7 +149,7 @@ impl Context {
         }
 
         if !values_to_replace.is_empty() {
-            let blocks = function.reachable_blocks();
+            let blocks = vec![block];
             function.dfg.replace_values_in_blocks(blocks.into_iter(), &values_to_replace);
         }
     }
