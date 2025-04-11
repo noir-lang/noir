@@ -11,7 +11,8 @@ use noirc_frontend::{
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
         ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
-        GlobalId, Ident, If, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type, While,
+        GlobalId, Ident, If, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
+        Type, While,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -615,18 +616,18 @@ impl<'a> FunctionContext<'a> {
         if freq.enabled_when("continue", self.in_loop) {
             return Ok(self.gen_continue());
         }
-  
-      if freq.enabled_when("call", self.budget > 0) {
+
+        if freq.enabled_when("call", self.budget > 0) {
             if let Some(e) = self.gen_call(u, &Type::Unit, self.max_depth())? {
                 return Ok(e);
             }
         }
-      
+
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
-               return Ok(e);
-          }
-      }
+                return Ok(e);
+            }
+        }
 
         if freq.enabled("assign") {
             if let Some(e) = self.gen_assign(u)? {
@@ -937,6 +938,7 @@ impl<'a> FunctionContext<'a> {
         let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
         let idx_ident =
             expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
+        let idx_expr = Expression::Ident(idx_ident.clone());
 
         // Decrease budget so we don't nest endlessly.
         self.decrease_budget(1);
@@ -966,12 +968,12 @@ impl<'a> FunctionContext<'a> {
         // Put everything into if/else
         let inner_block = Expression::Block(vec![expr::if_else(
             expr::binary(
-                Expression::Ident(idx_ident.clone()),
+                idx_expr,
                 BinaryOp::Equal,
                 expr::u32_literal(self.ctx.config.max_loop_size as u32),
             ),
             Expression::Break,
-            Expression::Block(inner_stmts),
+            loop_body,
             Type::Unit,
         )]);
 
