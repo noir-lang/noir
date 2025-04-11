@@ -1,0 +1,152 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "struct",
+          "path": "myStruct",
+          "fields": [
+            {
+              "name": "foo",
+              "type": {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 32
+              }
+            },
+            {
+              "name": "bar",
+              "type": {
+                "kind": "field"
+              }
+            },
+            {
+              "name": "message",
+              "type": {
+                "kind": "string",
+                "length": 5
+              }
+            }
+          ]
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "struct",
+          "path": "foo::bar::barStruct",
+          "fields": [
+            {
+              "name": "val",
+              "type": {
+                "kind": "field"
+              }
+            },
+            {
+              "name": "array",
+              "type": {
+                "kind": "array",
+                "length": 2,
+                "type": {
+                  "kind": "field"
+                }
+              }
+            },
+            {
+              "name": "message",
+              "type": {
+                "kind": "string",
+                "length": 5
+              }
+            }
+          ]
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "a",
+        "type": {
+          "kind": "struct",
+          "path": "foo::fooStruct",
+          "fields": [
+            {
+              "name": "bar_struct",
+              "type": {
+                "kind": "struct",
+                "path": "foo::bar::barStruct",
+                "fields": [
+                  {
+                    "name": "val",
+                    "type": {
+                      "kind": "field"
+                    }
+                  },
+                  {
+                    "name": "array",
+                    "type": {
+                      "kind": "array",
+                      "length": 2,
+                      "type": {
+                        "kind": "field"
+                      }
+                    }
+                  },
+                  {
+                    "name": "message",
+                    "type": {
+                      "kind": "string",
+                      "length": 5
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "baz",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9VX226DMAwNpF3p7lthHTztExJCSvLWXxkb/P8nDKuJFAW0l9pSc6TIyImcc3LDztgFzdxq953NjTsL7SvyPcytiHyPK76nFd/ziu/F+ULkzp6dVeLUdWPfjlLJb9HawWjR6eFkpJHa6N/WKDWazvR2sL2wslOjnLRVk7igCGKJ6yBf8WIJSs17RM1viWi+R9T8TqQ5u919JuWJuTf/8RTXQRaImjcRxxA5Mm/MvcrxeIlQe0MpvkFegCYgjhWXER5cjsBznADWUvLc4PH8oeS5xeOpKXneJcJzh8ezpeR5YGnco5KlcY+qRM7nRyI8j4zmHt1yMl4z3IRkLTH7DHywFtyNg/8AvLHwfkFyCAk3aINCGApfKHShsIVCFopDKJageIB3BO4onH84W0c3h5+zZsszso9sFfRzxPX08Uua+GLHlqiC7zLSmQd9ZyQOPh53dsuWyKM+P7aI+GX4/GTMha/M5XFwtgx8fj3/AHJWAYfFEQAA",
+  "debug_symbols": "tdTfioQgFAbwd/G6C/901HqVZRmsbBDEwmphiXn3bQaDcLw5LHN5PN/vAxHcyWC77X5zYZwW0n7txE+9Wd0Ujmkn8nW0zCY8p2U1cSUtV01FbBhIK6h4VGR03pIW+KN6iypBU1QBXKPfFVH/7NZMpqgGlnXrD3Y3pW4hVQI1zS/KKFqwkqg5nAJELnhJABNJAH8TAi3qohD6FKBzAWgh0UKhhUaL4puD4klI1mSCU7RgaMHRQuDEMXTRee/ut+u3cBz/mOhM520axy30l+36O5+b089x6u2wRftseu2O+j8=",
+  "file_map": {
+    "52": {
+      "source": "mod foo;\n\nstruct myStruct {\n    foo: u32,\n    bar: Field,\n    message: str<5>,\n}\n\nfn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {\n    let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: \"hello\" };\n\n    check_inner_struct(a, z);\n\n    for i in 0..struct_from_bar.array.len() {\n        assert(struct_from_bar.array[i] == z.array[i]);\n    }\n    assert(z.val == struct_from_bar.val);\n\n    assert((struct_from_bar.val * x) == x);\n\n    assert(x != y.bar);\n\n    assert(y.message == \"hello\");\n    assert(a.bar_struct.message == struct_from_bar.message);\n\n    a.bar_struct.array[1]\n}\n\nfn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {\n    assert(a.bar_struct.val == z.val);\n    for i in 0..a.bar_struct.array.len() {\n        assert(a.bar_struct.array[i] == z.array[i]);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

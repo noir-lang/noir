@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 64
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/+1TW27DIBDEmLhtonz1Aj3CLo8Y/nqVusX3P0KLuisR4vgnaymRshIMaNFoGJhO/dfwN460NoRaXVZH+EkItxUKcsGCXBluBNALHmje9IRlxEZAv6FhDk7e59FmdPgFNk0xgA/TKWLEEMOPjc7l6OOYpjRCQu8yziG5PJcC7AS4ZhKm1TYPKf3htJx/9hmUc41lqr3gv2/YkL7CVsW9BqVw9UouKEY9RlCMnH/PoFT6eFF7sSMc2BAOSml8NALuMCiWPjfulFxQBvUYQRnk/LNb6rzhneH7/G1s0WYanWvFZ14J3wj3Vb+Xu6tl/sM2/PCycMd9tT40PQ67Ude9afe6wbWz3QrvcaHHnO+EtV6+xy/4TUQJGwwAAA==",
+  "debug_symbols": "ldLNCoQgFAXgd7nrFtqPaa8yDGFlIYiG2cAQvftYFDQSgTuP9zt3owt0opmHWureTFC9FlCm5U4a7dMCaL+aRq63NDluHVRZmoDQnT+wNYFeKgFVgdZ3AjiOp3E8e+R5FvD8jhN0cEIDXsRxEsfLR16mAad3nLKDszLgLI5jFOnxo8cIh4Xbl8WYno2c/DV8aKxUSg719fv56w+3kjdKHLGfdXuZuu94Ts7+aE0rutmKbdM+8+t/",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: i64) {\n    assert_eq(x as i8, -1);\n    assert_eq(x as i16, -1);\n    assert_eq(x as i32, -1);\n    assert_eq(x as i64, 0x7fffffffffffffff);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

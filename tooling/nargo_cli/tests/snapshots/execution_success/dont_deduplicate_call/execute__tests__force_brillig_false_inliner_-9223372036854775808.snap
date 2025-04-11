@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "active",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91UwW7DIAx1mkRbVm2H7rB9BgQIcMth+xCyhO/op6/VjLCsrocWLrWEgBA/Pz+DG/iz9jR6XDe4b8joyBm39G3GWdxnsiCWoHx3lH9p0k1h0qkAuwcqQFubeEuwlJi03uy4SSWDGP3ijNBmmZx00jizjk6pzWln/eKt8FKrTUbjVSTEO3JzOGe4UohPnAfmnwo7F8p3YHFL4juhp+FCfgX5qwHyJa+lT8KsgC+eEOfrmPF5Lmd7hdxJgfk843lavxGfs30T7ORfU7dT3U1l3eQ7/K/VHnU4XMkVCnLhtaGx9pDfcHcsr4V1uUG2iN/DhUZJ4vfs/w/cvzB9Uv+ab+QZbZBRhRhMWFf9Ew4MH5hOv5DurWdKCAAA",
+  "debug_symbols": "lZDdCoQgEIXfZa69sKyIXiUirCwEUfFnYRHffU1WaJduuhnmzOGbYU6AjS3+mLnclYVhDCDUSh1XMqkAVR5ZTeWprKPGwVDVDQImt9QRHBHsXDAYWhwnBPVTgNwCHS5A1/0BzS3QkwL07Q+QxGK4EPyYr5+l8YsaThfBvnL3cr247q2LU3ht1Mo2b9i5KceDc0apjlWPajLFmA5+AA==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, active: bool) {\n    let mut x1 = false;\n    // Safety:)\n    unsafe {\n        if active {\n            x1 = foo(x);\n        }\n\n        let x2 = foo(x);\n        assert(x2);\n    }\n}\n\nunconstrained fn foo(_x: Field) -> bool {\n    true\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "foo"
+  ]
+}

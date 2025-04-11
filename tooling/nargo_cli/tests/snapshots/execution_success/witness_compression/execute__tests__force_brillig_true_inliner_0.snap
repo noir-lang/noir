@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUQQ6CMBDcQlGrQRNNTLzoF4qgcPSg/qOR8A6eLo1tuqzVC+0kpAu7zE6nmzL4IBkeZmKOvlHYmptZ5TQUAblkTJ0soE6GdCZUMI4ZihNP/mRWQWp0Pg24eeHRFYq/kVUtYIzA+kuBOCPwny0/j8Mv54bn3o/5gfTNYTwz+B+bw3P0MLnF8KzBxRvEp/FEfS23IHyBZ+Ia+cyK3Q/9GivjwwEccD4jXmAe3ywAhL08mNEA8D1zQPpnpH5PdM7i+Cu3ZP+4F9ULf/zMPTl8Tvbu4H34fdSNu6zT3vmJdQPpn5H6o3lfIv125RN0drUqulJ16qLatnop6jcgD7VPb9QlKyPpBwAA",
+  "debug_symbols": "lZHPCsMgDIffJWcP1q5b21cZo9g2LYJo8c9giO8+HT24sYuXkF/IFwhfgBVnv09CbdrCeA8g9cKd0CqlEAnMRkgp9qkcA82luX727cFVjtZx42Bse0YA1Zq7PvGbkAhjR+ODQHOrJvpqYqglGK0mmmqC/SWG7iQulH4RMaUnN4LPEk8Rm1dL4cW9DvxRdBi94OoNZlmFp/wf60hL09l0+g0=",
+  "file_map": {
+    "50": {
+      "source": "// This test should be used to regenerate the serialized witness used in the `acvm_js` integration tests.\n// The `acvm_js` test file containing the serialized witness should be also called `witness_compression`.\n// After recompiling Noir, you can manually print the witness byte array to be written to file after execution.\nfn main(x: Field, y: pub Field) -> pub Field {\n    assert(x != y);\n    x + y\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

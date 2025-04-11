@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZS1KDQBBtCDH/xMSwcMfCA8wESGCnCw9iSrL3VN7Fc3gQM8qUzYSw4bVFUnYVNSQDj9dfpgePfiQ8Hg/luXc8euVoJDoeAZtzxf73WI6qnWgglvJqeIoQ9gRwfYYVq22SFLtNoWP9ojb5PktVku63mc50mqWvmyyOiyzJdvk+36lcJ3GhD2keH0owKb19ZmAQrihXv8M+6hE28G0SmzGi60jiQJJwIIDbp+4ncZ8ZGIQrwtUX4mr9zouZZJwhsS6Ap+J2vSnHAQm+kX2SqaSGfETVJdKg/I9LIOiMtkUE+cYaALGGQj4bMv9IJImJCfSqAmnXEXW7qFNpPxe3rd6hsN6IPByR7IpUtRPddRva2OkJxCTSzyisMVBHXiMNbkTX0SFMJAlPBHCnhE0ICb2nzMAgXLGiOhX2kWop/92GKM9KtzErxzk1dBvICq/aSaUqG/IRVbuNOf1tt6HaCXR/bA7EWgCxuH8WJNttmJhArxiRdr0l7AvCiqtzl1ZlS7CP0f41GEuwj5cC8Q20o9j2o+n2u9xtrIBYyO6vrrOQ6HxX4HicMb4oW3Ab3F2KMYwh6pK+bZCtqdtJbxy0ptMgQCwamtptNy6M2G8f4efT/dvH+zPVBJI7Z+8fOWPIng388Kgt/loG/3vL2ZWQna8dPaU+UBP9vgj6dCq+M2evHTr8PDw/7XLp1TzLio0bHuPhGa5jhgP06cbiT2Twa2NmzM4nzpz1XVBzn3fmt++MTdc2ba/NauYspvUV52v1+ALbjrXuyiMAAA==",
+  "debug_symbols": "ldXBioMwEAbgd8nZg5MYm/gqy1KixhIIUaIuLNJ3ry0GSsjlP07mm7n8AznYaPv9cXdhmlfW/RzMz4PZ3BzO6mD0eVoXE97Vupm4sY7ritkwsk7IZ8Um5y3rZP38rRjHuMB4U+KSLi7bjEuMt0VeX7yljN8wrjCuMU416An0HPQC9A3oJejBcAlMl4rxqnTJusm9xjwv5qtU8jr3BHoOegH6BvQS9C3ob6BXoNeYF2C+AsxXgPmKYr5EaYB4fqGigSckNnEWfXTeu8f9+4s6n/9MdKb39iqnPQxf3e1/SZ00v8R5sOMe7XvTp3eufwE=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: u32) {\n    if x == 0 {\n        x = (x + 1) / x;\n    } else {\n        x = (x + 1) / x;\n    }\n    assert(x != 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert",
+    "directive_integer_quotient"
+  ]
+}

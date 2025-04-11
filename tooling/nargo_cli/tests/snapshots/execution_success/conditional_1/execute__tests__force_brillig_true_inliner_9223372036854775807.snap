@@ -1,0 +1,97 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "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",
+  "file_map": {
+    "50": {
+      "source": "fn sort(mut a: [u32; 4]) -> [u32; 4] {\n    for i in 1..4 {\n        for j in 0..i {\n            if a[i] < a[j] {\n                let c = a[j];\n                a[j] = a[i];\n                a[i] = c;\n            }\n        }\n    }\n    a\n}\n\nfn must_be_zero(x: u8) {\n    assert(x == 0);\n}\n\nfn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {\n    //Test case for short-circuit\n    let mut data = [0 as u32; 32];\n    let mut ba = a;\n    for i in 0..32 {\n        let i_u32 = i as u32;\n        if i_u32 == a {\n            for j in 0..4 {\n                data[i + j] = c[4 - 1 - j];\n                for k in 0..4 {\n                    ba = ba + data[k];\n                }\n                if ba == 4864 {\n                    c[3] = ba;\n                }\n            }\n        }\n    }\n    assert(data[31] == 0);\n    assert(ba != 13);\n    //Test case for conditional with arrays from function parameters\n    let b = sort([1, 2, 3, 4]);\n    assert(b[0] == 1);\n\n    if a == 0 {\n        must_be_zero(0);\n        c[0] = 3;\n    } else {\n        must_be_zero(1);\n        c[0] = 1;\n        c[1] = c[2] / a + 11 % a;\n        let f1 = a as Field;\n        assert(10 / f1 != 0);\n    }\n    assert(c[0] == 3);\n\n    let mut y = 0;\n    if a == 0 {\n        let digest = std::hash::blake3(x);\n        y = digest[0];\n    } else {\n        y = 5;\n    }\n    assert(y == result[0]);\n    c = sort(c);\n    assert(c[0] == 0);\n    //test 1\n    let mut x: u32 = 0;\n    if a == 0 {\n        c[0] = 12;\n        if a != 0 {\n            x = 6;\n        } else {\n            x = 2;\n            assert(x == 2);\n        }\n    } else {\n        x = 5;\n        assert(x == 5);\n    }\n    if c[0] == 0 {\n        x = 3;\n    }\n    assert(x == 2);\n    //test2: loops\n    let mut x: u32 = 0;\n    x = a - a;\n    for i in 0..4 {\n        if c[i] == 0 {\n            x = i as u32 + 2;\n        }\n    }\n    assert(x == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VTWw6DIBAUtGmr6Vcv0CPs8lD461Vqivc/QjXuNoRQPyxOshnIbibDAKJaIec60VrMVRMveMzVRHMpeO5JrKE3JgwqoMYXKD86C8aOvUOH1tm3cloHZ9zgRz+AR6MDTtbrCVbEWrAPyJyxW0obZCYDmQYoKcAY9YGB7dRSpIWioC950EWWfnDif59fLFpN4nMLPHMhvhK3Ub8u50+xfneMPpwzZ2yjdZf0+BM11e9s0r1MeGtWbOjeMj3WvBPHfvkcH7E5eQw1BQAA",
+  "debug_symbols": "lY9JCsQgEEXvUmsXPQ9epWmCQxkKRMWhoZHcPSYkkK3L9/+rD1VBoyzjQM74BPxTwXolMnnXqMJ5jVIQbqGURczAH28G6DTw52tiYMgi8Ptp+jK49OnXPv3WozeQkaylcTh+1OKfiCSkxQ1NcerQ5n/Ym/0+RK9Ql4jL0tq1+Rk=",
+  "file_map": {
+    "50": {
+      "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32) {\n    assert(x > foo());\n}\n\n#[field(bn254)]\nfn foo() -> u32 {\n    1\n}\n\n#[field(23)]\nfn foo() -> u32 {\n    2\n}\n\n#[field(bls12_381)]\nfn foo() -> u32 {\n    3\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

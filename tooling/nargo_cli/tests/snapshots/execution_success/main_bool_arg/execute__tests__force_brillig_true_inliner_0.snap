@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VXy27CMBC0ExswCFG1x0q9tb304PAQ9NLmUPiPqIjvyKc3KbtlMzhUKra6kmUnHu/Mrjc2aHW0rGmaxka8Q2NMSb2/zoqIvrwOaI6tV0fUm0pjlkDjt+WQ2FCBYFDv1DvqMzGfRwzaAW9M/xu/XLtAfBH1L5zwmdK/SePfD8nPR931r4A3BxyukZitwGx7MDuB2QFmSmOtzrk4HynqsamXVeJ8z6eqm2MZN3PbNNwLDXxyP+Qc849V0touNPCxHswP7/WUMfVJD86Z+jwOnrNijvd31LR7gQvVFuOexPiZxrxnKc+vVPXe2l1Av+RqbVirH+N85OId55XzPJJ4mHNiztRdnjE9G8EjfbEOC/hHep5RPxBreP1NgH8A/B3dgXeYFxfAuwB+0LQHGk+otTX0ymvU+XfWWkm9v84Kq7p7/AK8qe6WW4hHcqX8brw4W5iP9wjrm/lnqv/uS6x1fukcvKRV7psFHP4p+C02rO0yTmxeA7cJxCP5LeA3oPM/anWiTr+DTR2ff7055qk1Pi+t6t6BCvgt4N/oedwTR/lHnYd1VRwW1aFaVfv98rPCPLWWiTx9AT63OYmZDgAA",
+  "debug_symbols": "ldPRCoMgFAbgdznXXmhlVq8yRlhZCGJhNhjRu09HY9GCcW6iI/+HivwrdKpZhlrbfpyhuq1gxlZ6PdowrRuBxmlj9FAfl4HGT0bf+XmSNo6zl85DVeQElO3Cjwi610ZBxel2J5AxZD5B5lNkPrvKM8p2wCg/C44WOVqIa1F+BEvPokCLEis4/XOPX8HQIkGLFC0ytOA4sYXpIZ2WjVF7hfrFtodG+eekTuWa3NiqbnEq1uzbsHi9RJBUhHOw+AJckDwJW4RtXg==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: bool, y: [bool; 2]) {\n    if x {\n        assert(1 != 2);\n    }\n\n    assert(x);\n    assert(y[0] != y[1]);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

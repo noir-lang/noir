@@ -1,0 +1,86 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "inputs",
+        "type": {
+          "kind": "string",
+          "length": 12
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "iv",
+        "type": {
+          "kind": "string",
+          "length": 16
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "key",
+        "type": {
+          "kind": "string",
+          "length": 16
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "output",
+        "type": {
+          "kind": "string",
+          "length": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "tdnbTuMwEAbgd8l1LuwZH8a8ymqFChRUqWpRKSutEO++ToWzghiTf8CXofmGtP8k8eFluNvePD9c7w73x6fh6tfLsD/ebs674yEfvQwxXP729Lg5TIdP583pPFxFMeOwPdwNV+Lj6zjc7/bb4cqb19/jEGNNJOY3kbz9KAQWCRViYGFhQbBgWDhYeFgEWMCZC5y5wJknOPMEZ57gzBOceapnHkIRIh+Fh0WARYSFwCKhwhqDE4sTwgnjxOHE4yTgJOJEcIKnb6vp569Y7i5rbVogq0GkQaxBToO8BgUNihokGpQUiDQdQZqOIE1HkKYjSNMRpOkI0nQE1TvCsptRNAskGpQUiI0GWQ0iDWINchrkNShokKYjWNMRrOkIp+kIp+kIB3dEPrg57fb73cP1u4mZuczOqgmS0Fs1Ev5wBfX5XFNEWAgsEirq87mmsLAgWDAsHCzgzAXOXODMBc5c4MwTnHmCM09w5vX5HBt5E2wXsxoHCw+LAIsIC4FFQsUn87kmqQ+YmWfCKwexzpSphls7GmVfRkbsZd1YtE3sFyTwunFo87vUR2zt/1IN31me/4usG601SX2s1ibVX8yxL8SFdeO0NmGcVNvSEc3k3VLquDjVlwRDWDfAAmrnFY15BELrxkdIdV9+Fxv8uoHUj1WnrtW5a/Xw3eo0z9N4cQe72LW6dK2eelb3371TYyzbI3FR23esHTrWjv1qh6+eL37xSAoWJ4QTxonDicdJwEnESf0enpN0siQJJtHgxOKEcMI4cTippx9kJovnU30S3yYRJ/X05xeWE6cer9Qn40Dt5nilPqlGqrfeyvUJ+I9VD12rx57V6xN0pHrrrZxs1+rUtTp3rf7dO7Xxbq5P2X+kNhnTsbbtWPurd/z72hficRJwEnEi6GoB1fdlm6S+L9smFieEE8aJw4nHSD6w04mfbE0Ha8ubdbliVP8R2oRx4nDicRJwEnEiOEkwqS/+tQmePuHpE54+4ekTnj7h6ROePuHpE5j+az76szntNjf77bR5N334fLgte3n58Pz3sXxSdvseT8fb7d3zaTvt+/3f8pu6iDiNFEy+lCm6QGOk6bIuH1kZifjSo5czzUhM8wNlOj/JaI0UkBc/x7x8WEDedR3zel++5HzZ/wA=",
+  "file_map": {
+    "50": {
+      "source": "unconstrained fn decode_ascii(ascii: u8) -> u8 {\n    if ascii < 58 {\n        ascii - 48\n    } else if ascii < 71 {\n        ascii - 55\n    } else {\n        ascii - 87\n    }\n}\n\nunconstrained fn decode_hex<let N: u32, let M: u32>(s: str<N>) -> [u8; M] {\n    let mut result: [u8; M] = [0; M];\n    let as_bytes = s.as_bytes();\n    for i in 0..N {\n        if i % 2 != 0 {\n            continue;\n        }\n        result[i / 2] = decode_ascii(as_bytes[i]) * 16 + decode_ascii(as_bytes[i + 1]);\n    }\n    result\n}\n\nunconstrained fn cipher(plaintext: [u8; 12], iv: [u8; 16], key: [u8; 16]) -> [u8; 16] {\n    let result = std::aes128::aes128_encrypt(plaintext, iv, key);\n    result\n}\n\nfn main(inputs: str<12>, iv: str<16>, key: str<16>, output: str<32>) {\n    let result: [u8; 16] =\n        std::aes128::aes128_encrypt(inputs.as_bytes(), iv.as_bytes(), key.as_bytes());\n\n    // Safety: testing context\n    let output_bytes: [u8; 16] = unsafe { decode_hex(output) };\n    assert(result == output_bytes);\n\n    // Safety: testing context\n    let unconstrained_result = unsafe { cipher(inputs.as_bytes(), iv.as_bytes(), key.as_bytes()) };\n    assert(unconstrained_result == output_bytes);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "decode_hex",
+    "cipher"
+  ]
+}
