@@ -51,7 +51,7 @@ pub fn create_ssa_or_die(
         eprintln!("---\n{}\n---", program);
     }
 
-    ssa::create_program_with_passes(program, options, || primary_passes(options), secondary_passes)
+    ssa::create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
         .unwrap_or_else(|e| {
             panic!(
                 "failed to compile program: {}{e}",

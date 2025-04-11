@@ -212,14 +212,13 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-pub(crate) fn optimize_into_acir<'a, P, S>(
+pub(crate) fn optimize_into_acir<S>(
     program: Program,
-    options: &'a SsaEvaluatorOptions,
-    primary: P,
+    options: &SsaEvaluatorOptions,
+    primary: &[SsaPass],
     secondary: S,
 ) -> Result<ArtifactsAndWarnings, RuntimeError>
 where
-    P: Fn() -> Vec<SsaPass<'a>>,
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
@@ -231,7 +230,7 @@ where
         &options.emit_ssa,
     )?;
 
-    let mut builder = builder.run_passes(&primary())?;
+    let mut builder = builder.run_passes(primary)?;
     let passed = std::mem::take(&mut builder.passed);
     let mut ssa = builder.finish();
 
@@ -351,24 +350,23 @@ impl SsaProgramArtifact {
 ///
 /// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn create_program<'a>(
+pub fn create_program(
     program: Program,
-    options: &'a SsaEvaluatorOptions,
+    options: &SsaEvaluatorOptions,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
-    create_program_with_passes(program, options, || primary_passes(options), secondary_passes)
+    create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
 /// `primary` and `secondary` SSA passes.
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn create_program_with_passes<'a, P, S>(
+pub fn create_program_with_passes<S>(
     program: Program,
-    options: &'a SsaEvaluatorOptions,
-    primary: P,
+    options: &SsaEvaluatorOptions,
+    primary: &[SsaPass],
     secondary: S,
 ) -> Result<SsaProgramArtifact, RuntimeError>
 where
-    P: Fn() -> Vec<SsaPass<'a>>,
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
     let debug_variables = program.debug_variables.clone();
