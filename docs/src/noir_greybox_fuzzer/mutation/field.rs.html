@@ -324,7 +324,36 @@
 <a href="#323" id="323">323</a>
 <a href="#324" id="324">324</a>
 <a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::configurations::{
+<a href="#326" id="326">326</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains mechanisms for deterministically mutating a given field value
+//! Types of mutations applied:
+//! 1. Substitutions
+//!     1. With zero
+//!     2. With one
+//!     3. With minus one
+//!     4. With a value from the dictionary (created from analyzing the code of the program and testcases in the corpus)
+//!     5. With a power of 2
+//!     6. With a power of 2 minus 1
+//! 2. Inversions
+//!     1. Negation
+//!     2. Multiplicative inverse
+//! 3. Update with a value that is a power of 2
+//!     1. Addition
+//!     2. Subtraction
+//!     3. Multiplication
+//!     4. Division
+//! 4. Update with a small (1-255) value
+//!     1. Addition
+//!     2. Subtraction
+//!     3. Multiplication
+//! 5. Update with a dictionary value
+//!     1. Addition
+//!     2. Subtraction
+//!     3. Multiplication
+//!
+//! There are configurations for determining probability of each top-level and low-level mutation
+//! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
+
+</span><span class="kw">use </span><span class="kw">super</span>::configurations::{
     BASIC_FIELD_ELEMENT_DICTIONARY_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION, BASIC_FIELD_INVERSION_CONFIGURATION,
@@ -338,36 +367,7 @@
 <span class="kw">use </span>rand::{Rng, seq::SliceRandom};
 <span class="kw">use </span>rand_xorshift::XorShiftRng;
 
-<span class="doccomment">/// This file contains mechanisms for deterministically mutating a given field value
-/// Types of mutations applied:
-/// 1. Substitutions
-///     a. With zero
-///     b. With one
-///     c. With minus one
-///     d. With a value from the dictionary (created from analyzing the code of the program and testcases in the corpus)
-///     e. With a power of 2
-///     f. With a power of 2 minus 1
-/// 2. Inversions
-///     a. Negation
-///     b. Multiplicative inverse
-/// 3. Update with a value that is a power of 2
-///     a. Addition
-///     b. Subtraction
-///     c. Multiplication
-///     d. Division
-/// 4. Update with a small (1-255) value
-///     a. Addition
-///     b. Subtraction
-///     c. Multiplication
-/// 5. Update with a dictionary value
-///     a. Addition
-///     b. Subtraction
-///     c. Multiplication
-///
-/// There are configurations for determining probability of each top-level and low-level mutation
-/// Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
-///
-</span><span class="kw">const </span>SMALL_VALUE_MAX: u64 = <span class="number">0xff</span>;
+<span class="kw">const </span>SMALL_VALUE_MAX: u64 = <span class="number">0xff</span>;
 <span class="kw">const </span>SMALL_VALUE_MIN: u64 = <span class="number">1</span>;
 
 <span class="kw">static </span><span class="kw-2">mut </span>POWERS_OF_TWO_INITIALIZED: bool = <span class="bool-val">false</span>;
