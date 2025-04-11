@@ -1,4 +1,5 @@
-use im::{HashMap, HashSet};
+use fxhash::FxHashMap as HashMap;
+use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},
@@ -20,11 +21,14 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_truncate_after_range_check(&mut self) {
-        for block in self.reachable_blocks() {
-            // Keeps the minimum bit size a value was range-checked against
-            let mut range_checks: HashMap<ValueId, u32> = HashMap::new();
-            let mut instructions_to_remove = HashSet::new();
-            let mut values_to_replace = HashMap::<ValueId, ValueId>::new();
+        let mut values_to_replace = HashMap::<ValueId, ValueId>::default();
+        // Keeps the minimum bit size a value was range-checked against
+        let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
+
+        let blocks = self.reachable_blocks();
+        for block in &blocks {
+            let block = *block;
+            let mut instructions_to_remove = HashSet::default();
 
             for instruction_id in self.dfg[block].instructions() {
                 let instruction = &self.dfg[*instruction_id];
@@ -69,11 +73,9 @@ impl Function {
             self.dfg[block]
                 .instructions_mut()
                 .retain(|instruction| !instructions_to_remove.contains(instruction));
-
-            for (old_value, new_value) in values_to_replace {
-                self.dfg.set_value_from_id(old_value, new_value);
-            }
         }
+
+        self.dfg.replace_values_in_blocks(blocks.into_iter(), &values_to_replace);
     }
 }
 
@@ -91,6 +93,8 @@ mod tests {
           b0(v0: Field):
             range_check v0 to 64 bits // This is to make sure we keep the smallest one
             range_check v0 to 32 bits
+            jmp b1() // Make sure the optimization is applied across blocks
+          b1():
             v1 = truncate v0 to 32 bits, max_bit_size: 254
             return v1
         }
@@ -103,6 +107,8 @@ mod tests {
           b0(v0: Field):
             range_check v0 to 64 bits
             range_check v0 to 32 bits
+            jmp b1()
+          b1():
             return v0
         }
         ");
