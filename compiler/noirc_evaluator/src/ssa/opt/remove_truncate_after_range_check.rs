@@ -24,7 +24,7 @@ impl Function {
             // Keeps the minimum bit size a value was range-checked against
             let mut range_checks: HashMap<ValueId, u32> = HashMap::new();
             let mut instructions_to_remove = HashSet::new();
-            let mut values_to_replace = HashMap::<ValueId, ValueId>::new();
+            let mut values_to_replace = std::collections::HashMap::<ValueId, ValueId>::new();
 
             for instruction_id in self.dfg[block].instructions() {
                 let instruction = &self.dfg[*instruction_id];
@@ -70,9 +70,7 @@ impl Function {
                 .instructions_mut()
                 .retain(|instruction| !instructions_to_remove.contains(instruction));
 
-            for (old_value, new_value) in values_to_replace {
-                self.dfg.set_value_from_id(old_value, new_value);
-            }
+            self.dfg.replace_values_in_block(block, &values_to_replace);
         }
     }
 }
