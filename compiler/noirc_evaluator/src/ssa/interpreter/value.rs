@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use acvm::FieldElement;
 use noirc_frontend::Shared;
 
@@ -7,23 +9,24 @@ use crate::ssa::ir::{
     value::ValueId,
 };
 
-enum Value {
+#[derive(Debug, Clone)]
+pub enum Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
     ArrayOrSlice(ArrayValue),
     Function(FunctionId),
 }
 
-#[derive(Copy, Clone)]
-enum NumericValue {
+#[derive(Debug, Copy, Clone)]
+pub enum NumericValue {
     Field(FieldElement),
 
     U1(bool),
     U8(u8),
     U16(u16),
     U32(u32),
-    U64(U64),
-    U128(U128),
+    U64(u64),
+    U128(u128),
 
     I8(i8),
     I16(i16),
@@ -31,7 +34,8 @@ enum NumericValue {
     I64(i64),
 }
 
-struct ReferenceValue {
+#[derive(Debug, Clone)]
+pub struct ReferenceValue {
     /// This is included mostly for debugging to distinguish different
     /// ReferenceValues which store the same element.
     pub original_id: ValueId,
@@ -39,7 +43,8 @@ struct ReferenceValue {
     pub element: Shared<Value>,
 }
 
-struct ArrayValue {
+#[derive(Debug, Clone)]
+pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
     /// The `Shared` type contains its own reference count but we need to track
@@ -55,19 +60,21 @@ impl Value {
     pub fn get_type(&self) -> Type {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
-            Value::Reference(reference) => Type::Reference(Arc::new(reference.element.get_type())),
+            Value::Reference(reference) => {
+                Type::Reference(Arc::new(reference.element.borrow().get_type()))
+            }
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
             Value::ArrayOrSlice(array) => {
-                Type::Array(array.element_types.clone(), array.elements.len() as u32)
+                Type::Array(array.element_types.clone(), array.elements.borrow().len() as u32)
             }
             Value::Function(_) => Type::Function,
         }
     }
 
     pub fn reference(original_id: ValueId, element: Shared<Value>) -> Self {
-        Type::Reference(ReferenceValue { original_id, element })
+        Value::Reference(ReferenceValue { original_id, element })
     }
 
     pub fn as_bool(&self) -> Option<bool> {
@@ -102,63 +109,17 @@ impl NumericValue {
         }
     }
 
-    pub fn apply(self, other: NumericValue) -> Value {}
-}
-
-macro_rules! apply_binop {
-    (lhs, rhs, f) => {
-        use NumericValue::*;
+    pub fn as_field(&self) -> Option<FieldElement> {
         match self {
-            (Field(lhs), Field(rhs)) => f(lhs, rhs),
-            (U1(lhs), U1(rhs)) => f(lhs, rhs),
-            (U8(lhs), U8(rhs)) => f(lhs, rhs),
-            (U16(lhs), U16(rhs)) => f(lhs, rhs),
-            (U32(lhs), U32(rhs)) => f(lhs, rhs),
-            (U64(lhs), U64(rhs)) => f(lhs, rhs),
-            (U128(lhs), U128(rhs)) => f(lhs, rhs),
-            (I8(lhs), I8(rhs)) => f(lhs, rhs),
-            (I16(lhs), I16(rhs)) => f(lhs, rhs),
-            (I32(lhs), I32(rhs)) => f(lhs, rhs),
-            (I64(lhs), I64(rhs)) => f(lhs, rhs),
+            NumericValue::Field(value) => Some(*value),
+            _ => None,
         }
-    };
-}
+    }
 
-macro_rules! apply_binop_opt {
-    (lhs, rhs, f) => {
-        use NumericValue::*;
-        // TODO: Error if None
+    pub fn as_bool(&self) -> Option<bool> {
         match self {
-            (Field(lhs), Field(rhs)) => Field(f(lhs, rhs).unwrap()),
-            (U1(lhs), U1(rhs)) => f(lhs, rhs),
-            (U8(lhs), U8(rhs)) => f(lhs, rhs),
-            (U16(lhs), U16(rhs)) => f(lhs, rhs),
-            (U32(lhs), U32(rhs)) => f(lhs, rhs),
-            (U64(lhs), U64(rhs)) => f(lhs, rhs),
-            (U128(lhs), U128(rhs)) => f(lhs, rhs),
-            (I8(lhs), I8(rhs)) => f(lhs, rhs),
-            (I16(lhs), I16(rhs)) => f(lhs, rhs),
-            (I32(lhs), I32(rhs)) => f(lhs, rhs),
-            (I64(lhs), I64(rhs)) => f(lhs, rhs),
+            NumericValue::U1(value) => Some(*value),
+            _ => None,
         }
-    };
-}
-
-macro_rules! apply_binop {
-    (lhs, rhs, f) => {
-        use NumericValue::*;
-        match self {
-            (Field(lhs), Field(rhs)) => f(lhs, rhs),
-            (U1(lhs), U1(rhs)) => f(lhs, rhs),
-            (U8(lhs), U8(rhs)) => f(lhs, rhs),
-            (U16(lhs), U16(rhs)) => f(lhs, rhs),
-            (U32(lhs), U32(rhs)) => f(lhs, rhs),
-            (U64(lhs), U64(rhs)) => f(lhs, rhs),
-            (U128(lhs), U128(rhs)) => f(lhs, rhs),
-            (I8(lhs), I8(rhs)) => f(lhs, rhs),
-            (I16(lhs), I16(rhs)) => f(lhs, rhs),
-            (I32(lhs), I32(rhs)) => f(lhs, rhs),
-            (I64(lhs), I64(rhs)) => f(lhs, rhs),
-        }
-    };
+    }
 }

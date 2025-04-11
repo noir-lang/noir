@@ -3,18 +3,21 @@ use super::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
+        types::NumericType,
         value::ValueId,
     },
 };
 use crate::errors::RuntimeError;
+use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use value::NumericValue;
 pub use value::Value;
 
 mod tests;
-mod value;
+pub mod value;
 
 struct Interpreter<'ssa> {
     /// Contains each function called with `main` (or the first called function if
@@ -23,6 +26,11 @@ struct Interpreter<'ssa> {
     call_stack: Vec<CallContext>,
 
     ssa: &'ssa Ssa,
+
+    /// This variable can be modified by `enable_side_effects_if` instructions and is
+    /// expected to have no effect if there are no such instructions or if the code
+    /// being executed is an unconstrained function.
+    side_effects_enabled: bool,
 }
 
 struct CallContext {
@@ -38,20 +46,21 @@ impl CallContext {
     }
 }
 
-type IResult = Result<Vec<Value>, RuntimeError>;
+type IResult = Result<Value, RuntimeError>;
+type IResults = Result<Vec<Value>, RuntimeError>;
 
-pub fn interpret(ssa: &Ssa) -> IResult {
+pub fn interpret(ssa: &Ssa) -> IResults {
     interpret_function(ssa, ssa.main_id)
 }
 
-pub fn interpret_function(ssa: &Ssa, function: FunctionId) -> IResult {
+pub fn interpret_function(ssa: &Ssa, function: FunctionId) -> IResults {
     let mut interpreter = Interpreter::new(ssa);
     interpreter.call_function(function, Vec::new())
 }
 
 impl<'ssa> Interpreter<'ssa> {
     fn new(ssa: &'ssa Ssa) -> Self {
-        Self { ssa, call_stack: Vec::new() }
+        Self { ssa, call_stack: Vec::new(), side_effects_enabled: true }
     }
 
     fn call_context(&self) -> &CallContext {
@@ -77,7 +86,7 @@ impl<'ssa> Interpreter<'ssa> {
         self.call_context_mut().scope.insert(id, value);
     }
 
-    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResult {
+    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.ssa.functions[&function_id];
@@ -100,14 +109,15 @@ impl<'ssa> Interpreter<'ssa> {
             }
 
             for instruction_id in block.instructions() {
-                self.interpret_instruction(&dfg[*instruction_id]);
+                let results = dfg.instruction_results(*instruction_id);
+                self.interpret_instruction(&dfg[*instruction_id], results)?;
             }
 
             match block.terminator() {
                 None => todo!("No terminator"),
-                Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
+                Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
-                    arguments = self.lookup_all(arguments)?;
+                    arguments = self.lookup_all(jump_args);
                 }
                 Some(TerminatorInstruction::JmpIf {
                     condition,
@@ -115,7 +125,7 @@ impl<'ssa> Interpreter<'ssa> {
                     else_destination,
                     call_stack: _,
                 }) => {
-                    block_id = if self.lookup(*condition)?.as_bool().unwrap() {
+                    block_id = if self.lookup(*condition).as_bool().unwrap() {
                         *then_destination
                     } else {
                         *else_destination
@@ -134,20 +144,37 @@ impl<'ssa> Interpreter<'ssa> {
 
     fn lookup(&self, id: ValueId) -> Value {
         let id = self.dfg().resolve(id);
-        self.call_context().scope[id].clone()
+        self.call_context().scope[&id].clone()
     }
 
     fn lookup_all(&self, ids: &[ValueId]) -> Vec<Value> {
-        vecmap(ids, |id| self.lookup(id))
+        vecmap(ids, |id| self.lookup(*id))
     }
 
-    fn interpret_instruction(&mut self, instruction: &Instruction) -> IResult {
+    fn side_effects_enabled(&self) -> bool {
+        match self.current_function().runtime() {
+            RuntimeType::Acir(_) => self.side_effects_enabled,
+            RuntimeType::Brillig(_) => true,
+        }
+    }
+
+    #[allow(unused)]
+    fn interpret_instruction(
+        &mut self,
+        instruction: &Instruction,
+        results: &[ValueId],
+    ) -> Result<(), RuntimeError> {
         match instruction {
-            Instruction::Binary(binary) => self.interpret_binary(binary),
+            Instruction::Binary(binary) => {
+                let result = self.interpret_binary(binary)?;
+                self.define(results[0], result);
+            }
             Instruction::Cast(id, numeric_type) => todo!(),
             Instruction::Not(id) => todo!(),
             Instruction::Truncate { value, bit_size, max_bit_size } => todo!(),
-            Instruction::Constrain(id, id1, constrain_error) => todo!(),
+            Instruction::Constrain(lhs, rhs, constrain_error) => {
+                if self.side_effects_enabled() && lhs != rhs {}
+            }
             Instruction::ConstrainNotEqual(id, id1, constrain_error) => todo!(),
             Instruction::RangeCheck { value, max_bit_size, assert_message } => todo!(),
             Instruction::Call { func, arguments } => todo!(),
@@ -165,47 +192,165 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::MakeArray { elements, typ } => todo!(),
             Instruction::Noop => todo!(),
         }
+        Ok(())
     }
+}
 
+macro_rules! apply_int_binop {
+    ($lhs:expr, $rhs:expr, $f:expr) => {{
+        use value::NumericValue::*;
+        match ($lhs, $rhs) {
+            (Field(lhs), Field(rhs)) => panic!("Expected only integer values, found field values"),
+            (U1(_), U1(_)) => panic!("Expected only large integer values, found u1"),
+            (U8(lhs), U8(rhs)) => U8($f(&lhs, &rhs)),
+            (U16(lhs), U16(rhs)) => U16($f(&lhs, &rhs)),
+            (U32(lhs), U32(rhs)) => U32($f(&lhs, &rhs)),
+            (U64(lhs), U64(rhs)) => U64($f(&lhs, &rhs)),
+            (U128(lhs), U128(rhs)) => U128($f(&lhs, &rhs)),
+            (I8(lhs), I8(rhs)) => I8($f(&lhs, &rhs)),
+            (I16(lhs), I16(rhs)) => I16($f(&lhs, &rhs)),
+            (I32(lhs), I32(rhs)) => I32($f(&lhs, &rhs)),
+            (I64(lhs), I64(rhs)) => I64($f(&lhs, &rhs)),
+            (lhs, rhs) => panic!("Got mismatched types in binop: {lhs:?} and {rhs:?}"),
+        }
+    }};
+}
+
+macro_rules! apply_int_binop_opt {
+    ($lhs:expr, $rhs:expr, $f:expr) => {{
+        use value::NumericValue::*;
+        // TODO: Error if None
+        match ($lhs, $rhs) {
+            (Field(_), Field(_)) => panic!("Expected only integer values, found field values"),
+            (U1(_), U1(_)) => panic!("Expected only large integer values, found u1"),
+            (U8(lhs), U8(rhs)) => U8($f(&lhs, &rhs).unwrap()),
+            (U16(lhs), U16(rhs)) => U16($f(&lhs, &rhs).unwrap()),
+            (U32(lhs), U32(rhs)) => U32($f(&lhs, &rhs).unwrap()),
+            (U64(lhs), U64(rhs)) => U64($f(&lhs, &rhs).unwrap()),
+            (U128(lhs), U128(rhs)) => U128($f(&lhs, &rhs).unwrap()),
+            (I8(lhs), I8(rhs)) => I8($f(&lhs, &rhs).unwrap()),
+            (I16(lhs), I16(rhs)) => I16($f(&lhs, &rhs).unwrap()),
+            (I32(lhs), I32(rhs)) => I32($f(&lhs, &rhs).unwrap()),
+            (I64(lhs), I64(rhs)) => I64($f(&lhs, &rhs).unwrap()),
+            (lhs, rhs) => panic!("Got mismatched types in binop: {lhs:?} and {rhs:?}"),
+        }
+    }};
+}
+
+macro_rules! apply_int_comparison_op {
+    ($lhs:expr, $rhs:expr, $f:expr) => {{
+        use NumericValue::*;
+        match ($lhs, $rhs) {
+            (Field(lhs), Field(rhs)) => panic!("Expected only integer values, found field values"),
+            (U1(_), U1(_)) => panic!("Expected only large integer values, found u1"),
+            (U8(lhs), U8(rhs)) => U1($f(&lhs, &rhs)),
+            (U16(lhs), U16(rhs)) => U1($f(&lhs, &rhs)),
+            (U32(lhs), U32(rhs)) => U1($f(&lhs, &rhs)),
+            (U64(lhs), U64(rhs)) => U1($f(&lhs, &rhs)),
+            (U128(lhs), U128(rhs)) => U1($f(&lhs, &rhs)),
+            (I8(lhs), I8(rhs)) => U1($f(&lhs, &rhs)),
+            (I16(lhs), I16(rhs)) => U1($f(&lhs, &rhs)),
+            (I32(lhs), I32(rhs)) => U1($f(&lhs, &rhs)),
+            (I64(lhs), I64(rhs)) => U1($f(&lhs, &rhs)),
+            (lhs, rhs) => panic!("Got mismatched types in binop: {lhs:?} and {rhs:?}"),
+        }
+    }};
+}
+
+impl<'ssa> Interpreter<'ssa> {
     fn interpret_binary(&mut self, binary: &Binary) -> IResult {
         // TODO: Replace unwrap with real error
         let lhs = self.lookup(binary.lhs).as_numeric().unwrap();
         let rhs = self.lookup(binary.rhs).as_numeric().unwrap();
 
         if lhs.get_type() != rhs.get_type()
-            && !matches!(binary.operator, Binaryop::Shl | BinaryOp::Shr)
+            && !matches!(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
         {
             todo!("Type error!")
         }
 
-        match binary.operator {
+        if let (Some(lhs), Some(rhs)) = (lhs.as_field(), rhs.as_field()) {
+            return self.interpret_field_binary_op(lhs, binary.operator, rhs);
+        }
+
+        if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
+            return self.interpret_u1_binary_op(lhs, binary.operator, rhs);
+        }
+
+        let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                apply_binop!(lhs, rhs, num_traits::CheckedAdd::checked_add)
+                apply_int_binop_opt!(lhs, rhs, num_traits::CheckedAdd::checked_add)
             }
             BinaryOp::Add { unchecked: true } => {
-                apply_binop!(lhs, rhs, num_traits::WrappingAdd::wrapping_add)
+                apply_int_binop!(lhs, rhs, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                apply_binop!(lhs, rhs, num_traits::CheckedSub::checked_sub)
+                apply_int_binop_opt!(lhs, rhs, num_traits::CheckedSub::checked_sub)
             }
             BinaryOp::Sub { unchecked: true } => {
-                apply_binop!(lhs, rhs, num_traits::WrappingSub::wrapping_sub)
+                apply_int_binop!(lhs, rhs, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
-                apply_binop!(lhs, rhs, num_traits::CheckedMul::checked_mul)
+                apply_int_binop_opt!(lhs, rhs, num_traits::CheckedMul::checked_mul)
             }
             BinaryOp::Mul { unchecked: true } => {
-                apply_binop!(lhs, rhs, num_traits::WrappingMul::wrapping_mul)
+                apply_int_binop!(lhs, rhs, num_traits::WrappingMul::wrapping_mul)
             }
-            BinaryOp::Div => todo!(),
-            BinaryOp::Mod => todo!(),
-            BinaryOp::Eq => todo!(),
-            BinaryOp::Lt => todo!(),
+            BinaryOp::Div => {
+                apply_int_binop_opt!(lhs, rhs, num_traits::CheckedDiv::checked_div)
+            }
+            BinaryOp::Mod => {
+                apply_int_binop_opt!(lhs, rhs, num_traits::CheckedRem::checked_rem)
+            }
+            BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, |a, b| a == b),
+            BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, |a, b| a < b),
             BinaryOp::And => todo!(),
             BinaryOp::Or => todo!(),
             BinaryOp::Xor => todo!(),
             BinaryOp::Shl => todo!(),
             BinaryOp::Shr => todo!(),
-        }
+        };
+        Ok(Value::Numeric(result))
+    }
+
+    fn interpret_field_binary_op(
+        &mut self,
+        lhs: FieldElement,
+        operator: BinaryOp,
+        rhs: FieldElement,
+    ) -> IResult {
+        let result = match operator {
+            BinaryOp::Add { unchecked: _ } => NumericValue::Field(lhs + rhs),
+            BinaryOp::Sub { unchecked: _ } => NumericValue::Field(lhs - rhs),
+            BinaryOp::Mul { unchecked: _ } => NumericValue::Field(lhs * rhs),
+            BinaryOp::Div => NumericValue::Field(lhs / rhs),
+            BinaryOp::Mod => panic!("Unsupported operator `%` for Field"),
+            BinaryOp::Eq => NumericValue::U1(lhs == rhs),
+            BinaryOp::Lt => NumericValue::U1(lhs < rhs),
+            BinaryOp::And => panic!("Unsupported operator `&` for Field"),
+            BinaryOp::Or => panic!("Unsupported operator `|` for Field"),
+            BinaryOp::Xor => panic!("Unsupported operator `^` for Field"),
+            BinaryOp::Shl => panic!("Unsupported operator `<<` for Field"),
+            BinaryOp::Shr => panic!("Unsupported operator `>>` for Field"),
+        };
+        Ok(Value::Numeric(result))
+    }
+
+    fn interpret_u1_binary_op(&mut self, lhs: bool, operator: BinaryOp, rhs: bool) -> IResult {
+        let result = match operator {
+            BinaryOp::Add { unchecked } => panic!("Unsupported operator `+` for u1"),
+            BinaryOp::Sub { unchecked } => panic!("Unsupported operator `-` for u1"),
+            BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
+            BinaryOp::Div => todo!(),
+            BinaryOp::Mod => todo!(),
+            BinaryOp::Eq => lhs == rhs,
+            BinaryOp::Lt => lhs < rhs,
+            BinaryOp::And => lhs & rhs,
+            BinaryOp::Or => lhs | rhs,
+            BinaryOp::Xor => lhs ^ rhs,
+            BinaryOp::Shl => panic!("Unsupported operator `<<` for u1"),
+            BinaryOp::Shr => panic!("Unsupported operator `>>` for u1"),
+        };
+        Ok(Value::Numeric(NumericValue::U1(result)))
     }
 }
