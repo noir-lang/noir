@@ -610,11 +610,11 @@ impl<'a> FunctionContext<'a> {
         }
 
         if freq.enabled_when("break", self.in_loop) {
-            return Ok(self.gen_break());
+            return Ok(Expression::Break);
         }
 
         if freq.enabled_when("continue", self.in_loop) {
-            return Ok(self.gen_continue());
+            return Ok(Expression::Continue);
         }
 
         if freq.enabled_when("call", self.budget > 0) {
@@ -720,16 +720,6 @@ impl<'a> FunctionContext<'a> {
         let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
 
         Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
-    }
-
-    /// Break out of a loop.
-    fn gen_break(&mut self) -> Expression {
-        Expression::Break
-    }
-
-    /// Go to the next interation of a loop.
-    fn gen_continue(&mut self) -> Expression {
-        Expression::Continue
     }
 
     /// Generate an if-then-else statement or expression.
