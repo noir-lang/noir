@@ -1,11 +1,9 @@
 use super::{
     Ssa,
     ir::{
-        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
-        types::NumericType,
         value::ValueId,
     },
 };
@@ -14,10 +12,11 @@ use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use value::NumericValue;
-pub use value::Value;
 
 mod tests;
 pub mod value;
+
+use value::Value;
 
 struct Interpreter<'ssa> {
     /// Contains each function called with `main` (or the first called function if
@@ -49,11 +48,12 @@ impl CallContext {
 type IResult = Result<Value, RuntimeError>;
 type IResults = Result<Vec<Value>, RuntimeError>;
 
-pub fn interpret(ssa: &Ssa) -> IResults {
+#[allow(unused)]
+pub(crate) fn interpret(ssa: &Ssa) -> IResults {
     interpret_function(ssa, ssa.main_id)
 }
 
-pub fn interpret_function(ssa: &Ssa, function: FunctionId) -> IResults {
+pub(crate) fn interpret_function(ssa: &Ssa, function: FunctionId) -> IResults {
     let mut interpreter = Interpreter::new(ssa);
     interpreter.call_function(function, Vec::new())
 }
@@ -144,7 +144,18 @@ impl<'ssa> Interpreter<'ssa> {
 
     fn lookup(&self, id: ValueId) -> Value {
         let id = self.dfg().resolve(id);
-        self.call_context().scope[&id].clone()
+
+        match &self.dfg()[id] {
+            super::ir::value::Value::Instruction { .. } => self.call_context().scope[&id].clone(),
+            super::ir::value::Value::Param { .. } => self.call_context().scope[&id].clone(),
+            super::ir::value::Value::NumericConstant { constant, typ } => {
+                Value::from_constant(*constant, *typ)
+            },
+            super::ir::value::Value::Function(_) => todo!(),
+            super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
+            super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
+            super::ir::value::Value::Global(_) => todo!(),
+        }
     }
 
     fn lookup_all(&self, ids: &[ValueId]) -> Vec<Value> {
@@ -200,7 +211,7 @@ macro_rules! apply_int_binop {
     ($lhs:expr, $rhs:expr, $f:expr) => {{
         use value::NumericValue::*;
         match ($lhs, $rhs) {
-            (Field(lhs), Field(rhs)) => panic!("Expected only integer values, found field values"),
+            (Field(_), Field(_)) => panic!("Expected only integer values, found field values"),
             (U1(_), U1(_)) => panic!("Expected only large integer values, found u1"),
             (U8(lhs), U8(rhs)) => U8($f(&lhs, &rhs)),
             (U16(lhs), U16(rhs)) => U16($f(&lhs, &rhs)),
@@ -241,7 +252,7 @@ macro_rules! apply_int_comparison_op {
     ($lhs:expr, $rhs:expr, $f:expr) => {{
         use NumericValue::*;
         match ($lhs, $rhs) {
-            (Field(lhs), Field(rhs)) => panic!("Expected only integer values, found field values"),
+            (Field(_), Field(_)) => panic!("Expected only integer values, found field values"),
             (U1(_), U1(_)) => panic!("Expected only large integer values, found u1"),
             (U8(lhs), U8(rhs)) => U1($f(&lhs, &rhs)),
             (U16(lhs), U16(rhs)) => U1($f(&lhs, &rhs)),
@@ -338,8 +349,8 @@ impl<'ssa> Interpreter<'ssa> {
 
     fn interpret_u1_binary_op(&mut self, lhs: bool, operator: BinaryOp, rhs: bool) -> IResult {
         let result = match operator {
-            BinaryOp::Add { unchecked } => panic!("Unsupported operator `+` for u1"),
-            BinaryOp::Sub { unchecked } => panic!("Unsupported operator `-` for u1"),
+            BinaryOp::Add { unchecked: _ } => panic!("Unsupported operator `+` for u1"),
+            BinaryOp::Sub { unchecked: _ } => panic!("Unsupported operator `-` for u1"),
             BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
             BinaryOp::Div => todo!(),
             BinaryOp::Mod => todo!(),

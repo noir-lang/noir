@@ -1,24 +1,24 @@
 use std::sync::Arc;
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use noirc_frontend::Shared;
 
 use crate::ssa::ir::{
-    function::FunctionId,
-    types::{CompositeType, NumericType, Type},
-    value::ValueId,
+    function::FunctionId, instruction::Intrinsic, types::{CompositeType, NumericType, Type}, value::ValueId
 };
 
-#[derive(Debug, Clone)]
-pub enum Value {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
     ArrayOrSlice(ArrayValue),
     Function(FunctionId),
+    Intrinsic(Intrinsic),
+    ForeignFunction(String),
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum NumericValue {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum NumericValue {
     Field(FieldElement),
 
     U1(bool),
@@ -34,8 +34,8 @@ pub enum NumericValue {
     I64(i64),
 }
 
-#[derive(Debug, Clone)]
-pub struct ReferenceValue {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReferenceValue {
     /// This is included mostly for debugging to distinguish different
     /// ReferenceValues which store the same element.
     pub original_id: ValueId,
@@ -43,8 +43,8 @@ pub struct ReferenceValue {
     pub element: Shared<Value>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ArrayValue {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
     /// The `Shared` type contains its own reference count but we need to track
@@ -57,7 +57,7 @@ pub struct ArrayValue {
 }
 
 impl Value {
-    pub fn get_type(&self) -> Type {
+    pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
             Value::Reference(reference) => {
@@ -69,31 +69,35 @@ impl Value {
             Value::ArrayOrSlice(array) => {
                 Type::Array(array.element_types.clone(), array.elements.borrow().len() as u32)
             }
-            Value::Function(_) => Type::Function,
+            Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
 
-    pub fn reference(original_id: ValueId, element: Shared<Value>) -> Self {
+    pub(crate) fn reference(original_id: ValueId, element: Shared<Value>) -> Self {
         Value::Reference(ReferenceValue { original_id, element })
     }
 
-    pub fn as_bool(&self) -> Option<bool> {
+    pub(crate) fn as_bool(&self) -> Option<bool> {
         match self {
             Value::Numeric(NumericValue::U1(value)) => Some(*value),
             _ => None,
         }
     }
 
-    pub fn as_numeric(&self) -> Option<NumericValue> {
+    pub(crate) fn as_numeric(&self) -> Option<NumericValue> {
         match self {
             Value::Numeric(value) => Some(*value),
             _ => None,
         }
     }
+
+    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Self {
+        Self::Numeric(NumericValue::from_constant(constant, typ))
+    }
 }
 
 impl NumericValue {
-    pub fn get_type(&self) -> NumericType {
+    pub(crate) fn get_type(&self) -> NumericType {
         match self {
             NumericValue::Field(_) => NumericType::NativeField,
             NumericValue::U1(_) => NumericType::unsigned(1),
@@ -109,17 +113,34 @@ impl NumericValue {
         }
     }
 
-    pub fn as_field(&self) -> Option<FieldElement> {
+    pub(crate) fn as_field(&self) -> Option<FieldElement> {
         match self {
             NumericValue::Field(value) => Some(*value),
             _ => None,
         }
     }
 
-    pub fn as_bool(&self) -> Option<bool> {
+    pub(crate) fn as_bool(&self) -> Option<bool> {
         match self {
             NumericValue::U1(value) => Some(*value),
             _ => None,
+        }
+    }
+
+    fn from_constant(constant: FieldElement, typ: NumericType) -> NumericValue {
+        match typ {
+            NumericType::NativeField => Self::Field(constant),
+            NumericType::Unsigned { bit_size: 1 } => Self::U1(constant.is_one()),
+            NumericType::Unsigned { bit_size: 8 } => Self::U8(constant.try_into_u128().unwrap().try_into().unwrap()),
+            NumericType::Unsigned { bit_size: 16 } => Self::U16(constant.try_into_u128().unwrap().try_into().unwrap()),
+            NumericType::Unsigned { bit_size: 32 } => Self::U32(constant.try_into_u128().unwrap().try_into().unwrap()),
+            NumericType::Unsigned { bit_size: 64 } => Self::U64(constant.try_into_u128().unwrap().try_into().unwrap()),
+            NumericType::Unsigned { bit_size: 128 } => Self::U128(constant.try_into_u128().unwrap()),
+            NumericType::Signed { bit_size: 8 } => Self::I8(constant.try_into_i128().unwrap().try_into().unwrap()),
+            NumericType::Signed { bit_size: 16 } => Self::I16(constant.try_into_i128().unwrap().try_into().unwrap()),
+            NumericType::Signed { bit_size: 32 } => Self::I32(constant.try_into_i128().unwrap().try_into().unwrap()),
+            NumericType::Signed { bit_size: 64 } => Self::I64(constant.try_into_i128().unwrap().try_into().unwrap()),
+            other => panic!("Unsupported numeric type: {other}"),
         }
     }
 }
