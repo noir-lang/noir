@@ -1921,7 +1921,22 @@
 <a href="#1920" id="1920">1920</a>
 <a href="#1921" id="1921">1921</a>
 <a href="#1922" id="1922">1922</a>
-<a href="#1923" id="1923">1923</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2157,9 +2172,9 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: <span class="kw-2">&amp;mut </span>Function,
         dom: <span class="kw-2">&amp;mut </span>DominatorTree,
-        block: BasicBlockId,
+        block_id: BasicBlockId,
     ) {
-        <span class="kw">let </span>instructions = function.dfg[block].take_instructions();
+        <span class="kw">let </span>instructions = function.dfg[block_id].take_instructions();
 
         <span class="comment">// Default side effect condition variable with an enabled state.
         </span><span class="kw">let </span><span class="kw-2">mut </span>side_effects_enabled_var =
@@ -2169,12 +2184,27 @@
             <span class="self">self</span>.fold_constants_into_instruction(
                 function,
                 dom,
-                block,
+                block_id,
                 instruction_id,
                 <span class="kw-2">&amp;mut </span>side_effects_enabled_var,
             );
         }
-        <span class="self">self</span>.block_queue.extend(function.dfg[block].successors());
+
+        <span class="comment">// Map a terminator in place, replacing any ValueId in the terminator with the
+        // resolved version of that value id from the simplification cache's internal value mapping.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>terminator = function.dfg[block_id].take_terminator();
+        terminator.map_values_mut(|value| {
+            <span class="self">Self</span>::resolve_cache(
+                block_id,
+                <span class="kw-2">&amp;</span>function.dfg,
+                dom,
+                <span class="self">self</span>.get_constraint_map(side_effects_enabled_var),
+                value,
+            )
+        });
+        function.dfg[block_id].set_terminator(terminator);
+
+        <span class="self">self</span>.block_queue.extend(function.dfg[block_id].successors());
     }
 
     <span class="kw">fn </span>fold_constants_into_instruction(
@@ -2257,6 +2287,31 @@
         };
     }
 
+    <span class="comment">// Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
+    // has been constrained to be equal to some simpler value in the current block.
+    //
+    // This allows us to reach a stable final `ValueId` for each instruction input as we add more
+    // constraints to the cache.
+    </span><span class="kw">fn </span>resolve_cache(
+        block: BasicBlockId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        dom: <span class="kw-2">&amp;mut </span>DominatorTree,
+        cache: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, SimplificationCache&gt;,
+        value_id: ValueId,
+    ) -&gt; ValueId {
+        <span class="kw">let </span>resolved_id = dfg.resolve(value_id);
+        <span class="kw">match </span>cache.get(<span class="kw-2">&amp;</span>resolved_id) {
+            <span class="prelude-val">Some</span>(simplification_cache) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(simplified) = simplification_cache.get(block, dom) {
+                    <span class="self">Self</span>::resolve_cache(block, dfg, dom, cache, simplified)
+                } <span class="kw">else </span>{
+                    resolved_id
+                }
+            }
+            <span class="prelude-val">None </span>=&gt; resolved_id,
+        }
+    }
+
     <span class="doccomment">/// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
     </span><span class="kw">fn </span>resolve_instruction(
         instruction_id: InstructionId,
@@ -2267,34 +2322,9 @@
     ) -&gt; Instruction {
         <span class="kw">let </span><span class="kw-2">mut </span>instruction = dfg[instruction_id].clone();
 
-        <span class="comment">// Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
-        // has been constrained to be equal to some simpler value in the current block.
-        //
-        // This allows us to reach a stable final `ValueId` for each instruction input as we add more
-        // constraints to the cache.
-        </span><span class="kw">fn </span>resolve_cache(
-            block: BasicBlockId,
-            dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-            dom: <span class="kw-2">&amp;mut </span>DominatorTree,
-            cache: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, SimplificationCache&gt;,
-            value_id: ValueId,
-        ) -&gt; ValueId {
-            <span class="kw">let </span>resolved_id = dfg.resolve(value_id);
-            <span class="kw">match </span>cache.get(<span class="kw-2">&amp;</span>resolved_id) {
-                <span class="prelude-val">Some</span>(simplification_cache) =&gt; {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(simplified) = simplification_cache.get(block, dom) {
-                        resolve_cache(block, dfg, dom, cache, simplified)
-                    } <span class="kw">else </span>{
-                        resolved_id
-                    }
-                }
-                <span class="prelude-val">None </span>=&gt; resolved_id,
-            }
-        }
-
         <span class="comment">// Resolve any inputs to ensure that we're comparing like-for-like instructions.
         </span>instruction.map_values_mut(|value_id| {
-            resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
+            <span class="self">Self</span>::resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
         });
         instruction.map_values(|v| dfg.resolve(v))
     }
