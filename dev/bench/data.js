@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744379012317,
+  "lastUpdate": 1744379379995,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "19285a74ec30cef13fb1ee6eda40af7c35f170bb",
-          "message": "chore: allow injecting custom brillig stdlib implementations in ACIRgen (#7894)",
-          "timestamp": "2025-04-03T19:45:39Z",
-          "tree_id": "a2bf7a2a414a9ae6ba436244d5414cd9ff4ddb1c",
-          "url": "https://github.com/noir-lang/noir/commit/19285a74ec30cef13fb1ee6eda40af7c35f170bb"
-        },
-        "date": 1743710843839,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.075,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.793,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.532,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 17.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac6b29b05293b2645f3a22d474e796d087212e8a",
+          "message": "feat: add `while` generator to AST fuzzer (#8021)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-04-11T13:25:22Z",
+          "tree_id": "44888a95844b02ba13ce1b8b263b7b32cba57c2d",
+          "url": "https://github.com/noir-lang/noir/commit/ac6b29b05293b2645f3a22d474e796d087212e8a"
+        },
+        "date": 1744379374759,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.075,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.295,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.818,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.557,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.1,
             "unit": "s"
           },
           {
