@@ -572,7 +572,6 @@ impl<'a> FunctionContext<'a> {
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO(#7927): Loop
         // TODO(#7928): While
         // TODO(#7926): Match
         // TODO(#7931): print
@@ -583,6 +582,11 @@ impl<'a> FunctionContext<'a> {
             if let Some(e) = self.gen_drop(u)? {
                 return Ok(e);
             }
+        }
+
+        // Get loop out of the way quick, as it's always disabled for ACIR.
+        if freq.enabled_when("loop", self.budget > 1 && self.unconstrained()) {
+            return self.gen_loop(u);
         }
 
         // Require a positive budget, so that we have some for the block itself and its contents.
@@ -730,7 +734,7 @@ impl<'a> FunctionContext<'a> {
 
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
             // Choosing a maximum range size because changing it immediately brought out some bug around modulo.
-            let max_size = u.int_in_range(1..=self.ctx.config.max_range_size)?;
+            let max_size = u.int_in_range(1..=self.ctx.config.max_loop_size)?;
             // Generate random expression.
             let s = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
             let e = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
@@ -741,7 +745,7 @@ impl<'a> FunctionContext<'a> {
             (s, e)
         } else {
             // `gen_range` will choose a size up to the max.
-            let max_size = self.ctx.config.max_range_size;
+            let max_size = self.ctx.config.max_loop_size;
             // If the function is constrained, we need a range we can determine at compile time.
             // For now do it with literals, although we should be able to use constant variables as well.
             let (s, e) = expr::gen_range(u, &idx_type, max_size)?;
@@ -830,6 +834,54 @@ impl<'a> FunctionContext<'a> {
         // Derive the final result from the call, e.g. by casting, or accessing a member.
         self.gen_expr_from_source(u, call_expr, &callee.return_type, typ, self.max_depth())
     }
+
+    /// Generate a `loop` loop.
+    fn gen_loop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // For now, the only way to break out of the loop is the guard
+        // condition implemented below, as Break or Continue currently don't figure in
+        // generated expressions. This should be amended in TODO(#7928): While
+
+        // Declare break index variable visible in the loop body. Do not include it
+        // in the locals the generator would be able to manipulate, as it could
+        // lead to the loop becoming infinite.
+        let idx_type = types::U32;
+        let idx_id = self.next_local_id();
+        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_ident =
+            expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
+        let idx_expr = Expression::Ident(idx_ident.clone());
+
+        // Decrease budget so we don't nest endlessly.
+        self.decrease_budget(1);
+
+        // Start building the loop harness, initialize index to 0
+        let mut stmts = vec![expr::let_var(idx_id, true, idx_name, expr::u32_literal(0))];
+
+        // Get the randomized loop body
+        let mut inner_stmts = vec![self.gen_block(u, &Type::Unit)?];
+
+        // Increment the index
+        inner_stmts.push(expr::assign(
+            idx_ident,
+            expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
+        ));
+
+        // Put everything into if/else
+        let inner_block = Expression::Block(vec![expr::if_else(
+            expr::binary(
+                idx_expr,
+                BinaryOp::Equal,
+                expr::u32_literal(self.ctx.config.max_loop_size as u32),
+            ),
+            Expression::Break,
+            Expression::Block(inner_stmts),
+            Type::Unit,
+        )]);
+
+        stmts.push(Expression::Loop(Box::new(inner_block)));
+
+        Ok(Expression::Block(stmts))
+    }
 }
 
 /// Find the next local ID we can use to add variables to a [Function] during mutations.
@@ -847,4 +899,38 @@ pub(crate) fn next_local_id(func: &Function) -> u32 {
         true
     });
     next
+}
+
+#[test]
+fn test_loop() {
+    let mut u = Unstructured::new(&[0u8; 1]);
+    let mut ctx = Context::default();
+    ctx.config.max_loop_size = 10;
+    ctx.add_main_decl(&mut u);
+    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+    fctx.budget = 2;
+    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+
+    println!("{loop_code}");
+    assert!(
+        loop_code.starts_with(
+            &r#"{
+    let mut idx_a$l0 = 0;
+    loop {
+        if (idx_a$l0 == 10) {
+            break
+        } else {"#
+                .replace(" ", "")
+        )
+    );
+
+    assert!(
+        loop_code.ends_with(
+            &r#"idx_a$l0 = (idx_a$l0 + 1)
+        }
+    }
+}"#
+            .replace(" ", "")
+        )
+    );
 }

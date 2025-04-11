@@ -31,15 +31,15 @@ pub(crate) fn add_recursion_depth(
         // so eventually we'll need to look at the values to do random mutations.
         let depth_id = LocalId(func::next_local_id(func));
         let depth_name = "ctx_depth".to_string();
-        let depth_ident_inner = expr::ident_inner(
+        let depth_ident = expr::ident_inner(
             VariableId::Local(depth_id),
             !is_main,
             depth_name.clone(),
             types::U32,
         );
-        let depth_ident = Expression::Ident(depth_ident_inner.clone());
+        let depth_expr = Expression::Ident(depth_ident.clone());
         let depth_decreased =
-            expr::binary(depth_ident.clone(), BinaryOpKind::Subtract, expr::u32_literal(1));
+            expr::binary(depth_expr.clone(), BinaryOpKind::Subtract, expr::u32_literal(1));
 
         if is_main {
             // In main we initialize the depth to its maximum value.
@@ -60,10 +60,10 @@ pub(crate) fn add_recursion_depth(
 
             expr::replace(&mut func.body, |body| {
                 expr::if_then(
-                    expr::equal(depth_ident.clone(), expr::u32_literal(0)),
+                    expr::equal(depth_expr.clone(), expr::u32_literal(0)),
                     default_return,
                     Some(Expression::Block(vec![
-                        expr::assign(depth_ident_inner, depth_decreased.clone()),
+                        expr::assign(depth_ident, depth_decreased.clone()),
                         body,
                     ])),
                     func.return_type.clone(),
@@ -88,7 +88,7 @@ pub(crate) fn add_recursion_depth(
                     unreachable!("function type expected");
                 };
                 param_types.push(types::U32);
-                call.arguments.push(depth_ident.clone());
+                call.arguments.push(depth_expr.clone());
             }
             true
         });

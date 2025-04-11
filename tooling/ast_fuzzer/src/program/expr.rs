@@ -340,3 +340,48 @@ pub(crate) fn replace(dst: &mut Expression, f: impl FnOnce(Expression) -> Expres
     std::mem::swap(dst, &mut tmp);
     *dst = f(tmp);
 }
+
+/// Make an if/else expression.
+pub(crate) fn if_else(
+    condition: Expression,
+    consequence: Expression,
+    alternative: Expression,
+    typ: Type,
+) -> Expression {
+    Expression::If(If {
+        condition: Box::new(condition),
+        consequence: Box::new(consequence),
+        alternative: Some(Box::new(alternative)),
+        typ,
+    })
+}
+
+/// Append statements to a given block.
+///
+/// Panics if `block` is not `Expression::Block`.
+#[allow(dead_code)]
+pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Expression {
+    let Expression::Block(mut block_stmts) = block else {
+        unreachable!("attempted to append statements to a non-block expression: {}", block)
+    };
+
+    block_stmts.extend(statements);
+
+    Expression::Block(block_stmts)
+}
+
+/// Prepend statements to a given block.
+///
+/// Panics if `block` is not `Expression::Block`. Consider [prepend] which doesn't.
+#[allow(dead_code)]
+pub(crate) fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expression {
+    let Expression::Block(block_stmts) = block else {
+        unreachable!("attempted to prepend statements to a non-block expression: {}", block)
+    };
+
+    let mut result_statements = vec![];
+    result_statements.extend(statements);
+    result_statements.extend(block_stmts);
+
+    Expression::Block(result_statements)
+}
