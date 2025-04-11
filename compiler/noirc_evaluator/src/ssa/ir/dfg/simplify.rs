@@ -440,7 +440,10 @@ fn try_optimize_array_set_from_previous_get(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn removes_range_constraints_on_constants() {
@@ -456,14 +459,13 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             range_check Field 256 to 8 bits
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
