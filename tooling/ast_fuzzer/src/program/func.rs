@@ -967,8 +967,7 @@ impl<'a> FunctionContext<'a> {
             Type::Unit,
         )]);
 
-        // Generate the `while` condition with depth 1, ensuring there is a variable in scope to use
-        stmts.push(self.gen_let(u, Some(true))?);
+        // Generate the `while` condition with depth 1
         let condition = self.gen_expr(u, &Type::Bool, 1, Flags::CONDITION)?;
 
         stmts.push(Expression::While(While {
@@ -1037,8 +1036,7 @@ fn test_while() {
         while_code.starts_with(
             &r#"{
     let mut idx_a$l0 = 0;
-    let mut b$l1 = (!(!false));
-    while (!b$l1) {
+    while (!false) {
         if (idx_a$l0 == 10) {
             break
         } else {
