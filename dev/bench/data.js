@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744371442643,
+  "lastUpdate": 1744376222815,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19378,6 +19378,42 @@ window.BENCHMARK_DATA = {
             "name": "purely_sequential_opcodes #2",
             "value": 3220479,
             "range": "± 12022",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e962a6a657b94dc5aa1442c3fda5e6fec8997f52",
+          "message": "chore: clippy fixes (#8020)",
+          "timestamp": "2025-04-11T12:39:29Z",
+          "tree_id": "e768e076f7b0405da9ec3115a51f0f7dab1e2e47",
+          "url": "https://github.com/noir-lang/noir/commit/e962a6a657b94dc5aa1442c3fda5e6fec8997f52"
+        },
+        "date": 1744376217660,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3609079,
+            "range": "± 25480",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "purely_sequential_opcodes #2",
+            "value": 3576079,
+            "range": "± 21630",
             "unit": "ns/iter"
           }
         ]
