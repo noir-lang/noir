@@ -3,6 +3,7 @@ use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
 use noirc_abi::input_parser::Format;
+use noirc_evaluator::ssa::{primary_passes, secondary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
@@ -50,12 +51,13 @@ pub fn create_ssa_or_die(
         eprintln!("---\n{}\n---", program);
     }
 
-    ssa::create_program(program, options).unwrap_or_else(|e| {
-        panic!(
-            "failed to compile program: {}{e}",
-            msg.map(|s| format!("{s}: ")).unwrap_or_default()
-        )
-    })
+    ssa::create_program_with_passes(program, options, || primary_passes(options), secondary_passes)
+        .unwrap_or_else(|e| {
+            panic!(
+                "failed to compile program: {}{e}",
+                msg.map(|s| format!("{s}: ")).unwrap_or_default()
+            )
+        })
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
