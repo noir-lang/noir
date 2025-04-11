@@ -26,14 +26,18 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/8VWwVLCMBBNJSEtiDD6I8UicNAZHOXozdFzR4bvyKdLJGtft0lFTTQznbTZzXtvN5s0mTi2zD22SdefiW4jn43ry9+1eUSsMqXOLJHOVpIzEW5ke3V9weZb+yBiwAXjjYm/LhfLwhNfRP1VAZgJ8K8JX6bBL7XDeTRtfMF4aWxrmlxu2ZyJaG9wxCUb1iHNzw/PhWjep+69YHgpagM1xc7tlUc/cY1drCsW6wDyE0sHr6GI2HPCHqbJ4Wf952nwK1ofDbkZeGIifqpjBf5ZoCcsbiOuEcOKfbb2xYb6qSZnzJ/nIISlv4lVeGwp1nTYEzfyT3q0zgJaY+VEgoaP+aaxkVZbe3dMK+5l6eb8Z17x/6RPyA/WVV9+aN+k/BdgbOqL2Ih/Krr/DvU3WhenrgPXirWPc9FX9MTFbSoQZygHIl4OyozxyYD2jGkl/yXTmep+dcniR66xaO7X0sTnX62PebKNzhUl2ncMwfgV879136NAHJsf6tyv6vm+qvf1Tb3bLd5qnifb8K5Ed0JlGjuelbYN3beEGNEf6xb97+n78Dy4dzqPpenyWb8XN0brl4OWmPcfik2jDqYH+acef3pPrLXq06o9Wn05zgI9YuGYNu2xwnT9MU+acY/Qn9nGYJOM59x9Y60hFulQzP/ZfdM65TCH5s88/LhmnMvHj2cgxxp4xsjf1vYT4blemgYr5v0U95Hd4+9VDSQMJRIAAA==",
-  "debug_symbols": "lZXNaoQwFEbfJWsXyc0kRl+llMGfOARClKiFIr57kyLt4AjDtxGvnEPUs7gb6227Pu4uDOPM6o+N+bFrFjeGNG17wdrovHeP+/NjxvNF6F9+npqQx3lp4sJqzQtmQ59uRLIH5y2rFd8/CyZKkDcgX2E8cZAXIE8gL0H+BvIK5MG+BPYlsC+BfSXYV4J9JdhXgn3ldV9z8GV15hXIa5AvQd6AfIXxNw7yl32Ji0Mgbs4GwYaEjcvKJP4M8WIo2NCwUb75jlfDvDFIno0KNRSHDQEbBBsSM/Y0fTXRNa23x5Id1tA97dzle7Kn9TvFsbP9Gm1exP87OL+sFoXRef/lv6NUoXk6Ih3zAw==",
+  "bytecode": "H4sIAAAAAAAA/8VXy07DMBB0iN00LaUVfATXpA+oBIeC6AFx5oZAoaXf4U+nVr1ksrXTAjZYivxaz8yu106SiF1J7GOKtPWJ2C9ks7B18btSBsQqYupMIulsBDkR/kJzb7bO2XoznwZ0OGe8IfHnxfQqd/gXUP8kB8wI+GPCl3Hwi8ziPOgmvmC8NLbUdSyXbM1ANA844tIc5iGt726fM1G3h7adM7wYuYGaQsf2wqGfuPrW11vmawrxCaWD51BA7JKwO3Fi+JX/3Tj4E9qfDGKTOnwifspjBfaJpyYsPkdcPYYV+m5t8w31U06OmD2PgQ8r+yZW7piLsaedFr+Rf9CideTRGiomksUk0j0/5jFRoPXkSD0inJ5SMT2Xtjbn7N62BxRTXWtQYLcEO36/Sd304z9yDWOH/MfcN205Q3sR8/2IvqkDvhH/UOznk/obrdNj94FrxfsA16KtaPGLzymPn74YiHAxKBLGJz3aE6aV7G+YzljfnOfMf+Tqi/qfQ+rw/NfzXZxMoXtFieZ3l2D8itnf2X7P48fihzo311W5mVSbalat19NVxeNkCn4/huZfza7eV9NZVXyUpjs+xE/f6UrX83hXm9KxfaMrddjjuUH7R+pvnyfbpveB1Pt8xu7VjlH+dEFL6HepKRnqYHqQf+iwp3ZkrZM2rZlDqyvGiadGLBzLdHMs1/v2GKeMcffQns31YU4ynlPbx1xDLNKhmP2L7dM+dWENrR85+HHPOJeLH+9gjpU6xsje5PYz4dla6hor5D8DniNzxj8BxchzSrkTAAA=",
+  "debug_symbols": "lZbdioMwEEbfJddeJDMmRl9lWYo/sQRExZ+FRXz3TRZpixXKdyOOnIPIEZ1NNK5a7zfft8Msiq9NdENdLn7ow7Ttiagm33X+fnu9LGQ8KPPPz2PZx3FeymkRhZGJcH0TTlSwW985UWi5fydCZSBvQT7HeJIgr0CeQJ5BPgV5DfJgXwL7EtiXwL4M9mWwL4N9GezLYF8G+zLYl8G+DPbl67724LP8xKcS5BXIE8gzyKcgr0H+si9JdQgk7dnIYMPCxmVlUg9DnQ0tYUPBBn14jneDPxjEZyOFDQ0bBjYy2LCYsYfpp5x8WXXuWCrata9fdozld3SndWOchto16+Ti4vHcOWImkyd5Gv/38b0InxOj4xCTG5MYG+4X7vkH",
   "file_map": {
     "50": {
       "source": "fn main(value: Field, index: u32) {\n    let mut args = &[0, 1];\n    args[index] = value;\n    // Safety: n/a\n    unsafe { store(args) };\n    // Dummy test to remove the 'underconstraint bug'\n    assert(args[0] + args[1] != 0);\n}\n\npub unconstrained fn store(_: [Field]) {}\n",

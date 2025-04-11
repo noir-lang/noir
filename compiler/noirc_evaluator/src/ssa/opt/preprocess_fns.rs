@@ -59,7 +59,7 @@ impl Ssa {
             // Try to reduce the number of blocks.
             function.simplify_function();
             // Remove leftover instructions.
-            function.dead_instruction_elimination(true, false, false);
+            function.dead_instruction_elimination(false, false);
 
             // Put it back into the SSA, so the next functions can pick it up.
             self.functions.insert(id, function);
