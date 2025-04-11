@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744368562021,
+  "lastUpdate": 1744370818336,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19372,6 +19372,42 @@ window.BENCHMARK_DATA = {
             "name": "purely_sequential_opcodes #2",
             "value": 3585807,
             "range": "± 14014",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b54e8bd7635ec27e519383ebd6148c58562a2530",
+          "message": "feat(fuzz): Generate arbitrary `Call` in function body (#7987)",
+          "timestamp": "2025-04-11T11:11:14Z",
+          "tree_id": "56f1d0471a678bd37d307bdd3b7d619a3b04b4bb",
+          "url": "https://github.com/noir-lang/noir/commit/b54e8bd7635ec27e519383ebd6148c58562a2530"
+        },
+        "date": 1744370813376,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3251419,
+            "range": "± 21175",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "purely_sequential_opcodes #2",
+            "value": 3220479,
+            "range": "± 12022",
             "unit": "ns/iter"
           }
         ]
