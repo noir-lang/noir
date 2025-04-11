@@ -383,12 +383,12 @@ impl DataFlowGraph {
         self.instructions[id] = instruction;
     }
 
-    /// Replaces all values in the given block with the values in the given map.
+    /// Replaces all values in the given blocks with the values in the given map.
     ///
     /// This method should be preferred over `set_value_from_id` which might eventually be removed.
-    pub(crate) fn replace_values_in_block(
+    pub(crate) fn replace_values_in_blocks(
         &mut self,
-        block: BasicBlockId,
+        blocks: impl Iterator<Item = BasicBlockId>,
         values_to_replace: &HashMap<ValueId, ValueId>,
     ) {
         if values_to_replace.is_empty() {
@@ -403,25 +403,27 @@ impl DataFlowGraph {
             }
         };
 
-        // Replace in all the block's instructions
-        for instruction_id in self.blocks[block].instructions() {
-            let instruction = &mut self.instructions[*instruction_id];
-            instruction.map_values_mut(replacement_fn);
+        for block in blocks {
+            // Replace in all the block's instructions
+            for instruction_id in self.blocks[block].instructions() {
+                let instruction = &mut self.instructions[*instruction_id];
+                instruction.map_values_mut(replacement_fn);
 
-            // Make sure we also replace the instruction results
-            let results = self.results.get_mut(instruction_id);
-            if let Some(results) = results {
-                for result in results {
-                    if let Some(replacement_id) = values_to_replace.get(result) {
-                        *result = *replacement_id;
+                // Make sure we also replace the instruction results
+                let results = self.results.get_mut(instruction_id);
+                if let Some(results) = results {
+                    for result in results {
+                        if let Some(replacement_id) = values_to_replace.get(result) {
+                            *result = *replacement_id;
+                        }
                     }
                 }
             }
-        }
 
-        // Finally, the value might show up in a terminator
-        if self[block].terminator().is_some() {
-            self[block].unwrap_terminator_mut().map_values_mut(replacement_fn);
+            // Finally, the value might show up in a terminator
+            if self[block].terminator().is_some() {
+                self[block].unwrap_terminator_mut().map_values_mut(replacement_fn);
+            }
         }
     }
 

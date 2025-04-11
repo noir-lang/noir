@@ -21,11 +21,15 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_truncate_after_range_check(&mut self) {
-        for block in self.reachable_blocks() {
+        let mut values_to_replace = HashMap::<ValueId, ValueId>::default();
+
+        let blocks = self.reachable_blocks();
+        for block in &blocks {
+            let block = *block;
+
             // Keeps the minimum bit size a value was range-checked against
             let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
             let mut instructions_to_remove = HashSet::default();
-            let mut values_to_replace = HashMap::<ValueId, ValueId>::default();
 
             for instruction_id in self.dfg[block].instructions() {
                 let instruction = &self.dfg[*instruction_id];
@@ -70,9 +74,9 @@ impl Function {
             self.dfg[block]
                 .instructions_mut()
                 .retain(|instruction| !instructions_to_remove.contains(instruction));
-
-            self.dfg.replace_values_in_block(block, &values_to_replace);
         }
+
+        self.dfg.replace_values_in_blocks(blocks.into_iter(), &values_to_replace);
     }
 }
 
