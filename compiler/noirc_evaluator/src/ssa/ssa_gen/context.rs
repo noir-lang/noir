@@ -868,11 +868,33 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
+                let array_type = &self.builder.type_of_value(array);
+
+                // Checks for index Out-of-bounds
+                match array_type {
+                    Type::Array(_, len) => {
+                        let len =
+                            self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                        self.codegen_access_check(index, len);
+                    }
+                    _ => unreachable!("must have array or slice but got {array_type}"),
+                }
+
                 array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
+
+                let array_type = &self.builder.type_of_value(slice_values[1]);
+
+                // Checks for index Out-of-bounds
+                match array_type {
+                    Type::Slice(_) => {
+                        self.codegen_access_check(index, slice_values[0]);
+                    }
+                    _ => unreachable!("must have array or slice but got {array_type}"),
+                }
 
                 slice_values[1] =
                     self.assign_lvalue_index(new_value, slice_values[1], index, location);

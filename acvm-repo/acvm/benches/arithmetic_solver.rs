@@ -45,7 +45,7 @@ fn perfectly_parallel_opcodes(c: &mut Criterion) {
         })
         .collect();
 
-    bench_bytecode(c, "purely_sequential_opcodes", &bytecode);
+    bench_bytecode(c, "perfectly_parallel_opcodes", &bytecode);
 }
 
 fn bench_bytecode<F: AcirField>(c: &mut Criterion, benchmark_name: &str, bytecode: &[Opcode<F>]) {
