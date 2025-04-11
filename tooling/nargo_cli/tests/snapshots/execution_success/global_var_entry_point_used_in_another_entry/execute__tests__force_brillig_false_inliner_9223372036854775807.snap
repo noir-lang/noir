@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YzU7DMAxOtlZQJv4PcIEbXODQrWXtcRIbPEfFtOfoo8M0W/E8txvgbGzEEkpKFvvzl7SfE2sWZr/+Iuhj2zGrZqEdQZv+zvqKvlKfOK0PnBEADUQ7nN6I7phANMXpjehuIHoJpxei6ffaCuDp/+jizO0e2gTaDpnTVUw8ETBp+S/TfJiw/JTxZwnx6cH/IBHWUdF/egR+xvWyf8PinsIz3TM4B8foCz2BsWMYx/4Z9BPmz8e6U0zavF0L+DFWD3K9JXxQXk3LXM6LUcM8zHms2Kyut21ZHz0saWpZ7EjggsbnWG8YTl/vxxXLn8bqGfd9jGr9+EW54Glu3drxQPeRYfFj9vs7eD5pyGP0Q5yzourPsmpWvVTTaf5RcZ7mRt+HZ+jvuZ6UQU/aDfXkrV72b8x6PcE5kp68wxjXk0voe9aTcpd6gnvutXZ8KMUdoO+xvu8MfU/0ffdRYx+d6xWNpbH5XqN7kc/le4+OxcJcXBeuUaj/uHdi5m+kw4WoUXEDfo7ZJy/j2oi80LPFX+MFMUu5NuXeVjcZvXxyHjc2m9dLDwxfqJfcOP39Ezzvul46kPN3EeqldsN6ierUpvUSzpHqJayleL10AX3P9VIR6qVvW7bJvQHNS9Ju2zC3Tc9iYS7mxzWGn7s9vXeijmCscO7+dzoS7nHX2Lbvcc+hf8j3uB51ZGvfes6fYg6N5xGJy3B/63jYRx35BCMTYkMEIgAA",
+  "debug_symbols": "zZfhjoIwDMffZZ/5sHYb23yVy+WCioaEoEG85EJ49wPC9BxjOj2Vb3T01/xXWNfWZJ0uj9uvrNjsDmTxUZN8t0qqbFe0Vk1ov3TYJ0VnHaqkrMgChIpIWqzbJyWaiGyyPCULQZvPiIAT0GIAkIEFoAtADgaItQUwJyD1ADDAC6A1lmWW59n2y95ZTUC4grGTXE6pvb/4GiFtQgYTKpjQoQTSYAKCCQwjmv73qSf2L7QcuBguvko0cpUSB1cp9U2pui+4YjdlNSS4jgdXRfGmD/BfwfGZwdkzg/MHgytqaodi0u/KlYnKNbd1iPfoULaO+HU6BJg6LWB0+uVMdKiZ6NDz0MEerVFAhYkOVPErzhCfmgWQIy3wNi3KbkQYvlaL5sYZR10GYzPSwmekRcxISzwXLU3fRdcTnabvznJ3Wr7bZaJ98tU9GkxAMIFhRNOPEfVEN++vWe4s+2uLO8/+/8udaT/jzvUVBu5gMJRpWus7KbNkmafd/NW9PBYrM461ZvWzN2/MwLYvd6t0fSzTbnT7M7V1u0QeoT6PDN0SUxFn59Nw4cXspabV9As=",
+  "file_map": {
+    "50": {
+      "source": "global ONE: Field = 1;\nglobal TWO: Field = 2;\nglobal THREE: Field = 3;\n\nfn main(x: Field, y: pub Field) {\n    // Safety: testing context\n    unsafe {\n        entry_point_no_global(x, y);\n        entry_point_inner_func_globals(x, y);\n        entry_point_one_global(x, y);\n        entry_point_one_diff_global(x, y);\n    }\n}\n\nunconstrained fn entry_point_no_global(x: Field, y: Field) {\n    assert(x + y != 100);\n}\n\nunconstrained fn entry_point_one_global(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n}\n\nunconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {\n    wrapper(x, y);\n}\n\n// Test that we duplicate Brillig entry points called within\n// another entry point's inner calls\nunconstrained fn wrapper(x: Field, y: Field) {\n    let z = ONE + x + y;\n    assert(z == 2);\n    entry_point_one_global(x, y);\n    // Test that we handle repeated entry point calls\n    // `entry_point_one_diff_global` should be duplicated and the duplicated function\n    // should use the globals from `entry_point_inner_func_globals`\n    entry_point_one_diff_global(y, x);\n}\n\nunconstrained fn entry_point_one_diff_global(x: Field, y: Field) {\n    let z = THREE + x + y;\n    assert(z == 4);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "entry_point_no_global",
+    "entry_point_inner_func_globals",
+    "entry_point_one_global",
+    "entry_point_one_diff_global"
+  ]
+}

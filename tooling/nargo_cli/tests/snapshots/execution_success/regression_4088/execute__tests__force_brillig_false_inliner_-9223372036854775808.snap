@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "note",
+        "type": {
+          "kind": "struct",
+          "path": "ValueNote",
+          "fields": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/63OQQoAAAQEQMqD+IH/v0qKHMSFuWztYVuEgtBlp5F8I49b7N9o+T4xDikpe/QAAAA=",
+  "debug_symbols": "fY5bCsMgEEX3Mt/5kCQS6lZKCT6DICo+CkWy92owIBT6N2fumcsUEJLlY9dWuQjkWcA4TpN2tlIBdK2ip7ZRTDQkIOtjmUBaAQQjfE6gtJFtPqdfdZm7uuL1vzpvW1cXhEb1VYEFbYw+9vG5un7ToCkzsqPKlg9p+vg7ue99cFyKHGRrurJa/wU=",
+  "file_map": {
+    "50": {
+      "source": "trait Serialize<let N: u32> {\n    fn serialize(self) -> [Field; N];\n}\n\nstruct ValueNote {\n    value: Field,\n}\n\nimpl Serialize<1> for ValueNote {\n    fn serialize(self) -> [Field; 1] {\n        [self.value]\n    }\n}\n\nfn check<let N: u32>(serialized_note: [Field; N]) {\n    assert(serialized_note[0] == 0);\n}\n\nfn oopsie<Note, let N: u32>(note: Note)\nwhere\n    Note: Serialize<N>,\n{\n    let serialized_note = Note::serialize(note);\n\n    check(serialized_note)\n}\n\nfn main(mut note: ValueNote) {\n    oopsie(note);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

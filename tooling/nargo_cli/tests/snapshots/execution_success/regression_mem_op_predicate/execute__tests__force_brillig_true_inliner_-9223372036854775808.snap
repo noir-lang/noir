@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "idx",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYPY/TQBBdn71JnHBKBDUSHdA5OF8FBQV3OToqJBqQL6eIhg4JSv90snczyvPzxCCd96SsZK29+zzzdmZ2duzEPTR/uBK5z6S/kD6ReWyK/SB98bg271FWEYtjcgYcL86AY3oGHLMIHGPw9JF4ugGRDoEVHBcMw8nAWuAf6XPpMZn0GADznPT2KX9TLKrcWF+P/MscZEaQv1L5WRz5xVDkfKyb8h3pTQlnvaOYK8BcncBcA+b6BGYLmO0JzA1gbgijtosUW4vIvlleuqY/HKxFdfs4ulcJ6XOuGReO9I9d1H0wT1y7kEld2z6apy4VUx/5JDSX1e116JyHOfXv6HC9BJwVWzinXEL7VB9lvAF5b+U+cqxWOXHqO4+8MPijrtCG9dEeaqsUxtTm6oMR4mkuh7msbuoZy3MGelCW8vCEfy3PU+kH8I6+PzP0D0h/g7cxxnbJDXxu4MOZ/kruJ3KFGPoqY1354n/2M+qaufZ+VtzUtfPeE+WlQnVpfaM+Zp34EYR4vHfu+OGkY6X0wa7faX2Za9qOx9h2icEnNfjwnmTZzNmSwWdQ5LOp1PUNwY5dvDzh30sfsFtaV9Zhm8h5rOo6N7SWzOooulch5m5Flu5lPO88cbJiAvFoI7Q94i1fzQiP9rbygupEX06d7afQItfMy65aweJj5TNPXOPE22qfEBfMZ9Y+8IT/TDxj5d3nIJdtZPmaz4NIvi44N6P9UsN+F4ZtMYd7GvsivXUecEzgmHPd54HOTVzcvLLePNgoNM1pmqu5ZTCP+G/yPAb+2j/mR8t+Xc33ZbWvltXd3WJXcYw5slPf+qt1udm9W+zWt8uyKlf/1G/VhXhOhKa1JdaeiMd9jPi9Yg/XD7nnbxHUF3C/O3DJif5ehjGW1c0xqybFWl3xqntctznq3ATm8AwL7Zk8o71QlvLwhP8lz+oTrK/1/Zmhf0T6G7yNMa7VJwZ+YuCDf36qPOlx7X1/G9/rJPk4xtw0dkJc/wUEwsdPRRgAAA==",
+  "debug_symbols": "ldXfioQgGAXwd/Hai0zt015lWYb+2CBEhdXCEr376rKzM0gwnJvwq34oneAcrHftfr/5aZhXVn8cbJy7ZvPzFKfj5KwNfhz9/fZ6mxXpouXv++vSTGlctyZsrBZKcuamPq60jH7wo2O1Ls5PzrSChYZF9U5QLggVVXEpiB6CbC7EpajMv1C5KGEhYaFgoWFRwYJgYWBhUUFwgnSdoH2IsihzIWGhYKHfifzfpQoWBAsDC4sKU8BCwKKEhYSFggWcuYEzN2DmZ5y+muCbdnR/VTPsU/fSPNv34rISWsLcuX4PLtXRs4lSsHEjIWw8SPqepeUyrUV6Yiy3Kg0pTau5pbh5PMAP",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: [u32; 5], idx: Field) {\n    // We should not hit out of bounds here as we have a predicate\n    // that should not be hit\n    if idx as u32 < 3 {\n        x[idx] = 10;\n    }\n    assert(x[4] == 111);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -294,15 +294,18 @@ fn try_inline_into_predecessor(
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            instruction::{BinaryOp, TerminatorInstruction},
-            map::Id,
-            types::Type,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                instruction::{BinaryOp, TerminatorInstruction},
+                map::Id,
+                types::Type,
+            },
+            opt::assert_normalized_ssa_equals,
         },
-        opt::assert_normalized_ssa_equals,
     };
     use acvm::acir::AcirField;
 
@@ -437,7 +440,7 @@ mod test {
         }";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa.simplify_cfg(), @r"
         brillig(inline) fn main f0 {
           b0(v0: u1):
             v1 = allocate -> &mut Field
@@ -452,8 +455,8 @@ mod test {
             v6 = eq v5, Field 2
             constrain v5 == Field 2
             return
-        }";
-        assert_normalized_ssa_equals(ssa.simplify_cfg(), expected);
+        }
+        ");
     }
 
     #[test]

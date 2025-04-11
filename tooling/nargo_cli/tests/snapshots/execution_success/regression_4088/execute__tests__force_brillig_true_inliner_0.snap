@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "note",
+        "type": {
+          "kind": "struct",
+          "path": "ValueNote",
+          "fields": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUQQ6DIBBExbTUeqm9tK9Yo0aPHvoRUsM7eHpLsoTNhnqoMIlZCcvszEgsRECBVbK1iPSsWOEY+oRcEBW6B9/zxKqwlmS/SmhWsbkp+RcYJxXxl1D/oJAzZz6eMwM/nJDnZQM/9+LQ4preIX/m/H2uIry3+K7YmRzfNmP20EX0+1kNer0zryXJJ5UO6s2h3tFVs96O6ZOZsroRXsFmNSL8R6RNP39eAPzcyoYcfAYUkuzT/geuLz98rH/qNLPuzaCNnvS2jW/Nc3Kgd+oD81t4q30GAAA=",
+  "debug_symbols": "zZJBCsMgEEXvMmsXxmjT5iqhBJNMgiAajCmUkLtXiwtpIWs3g1/eDH/xDphw2Jdemdlu0HYHaDtKr6wJ6TgJDE5prZY+/wYaR8W//LZKE+PmpfPQ8kdNAM0EraAi7M9KY3yf5B+tWUK54Ncoa5qE1pTm6JNAJQrpcSukR1NIj3sJPc6QXtIpOWhMSs+7GTPD/XvFH9lXZ0ecdodR+8z4MDtGCRPhbDj9AQ==",
+  "file_map": {
+    "50": {
+      "source": "trait Serialize<let N: u32> {\n    fn serialize(self) -> [Field; N];\n}\n\nstruct ValueNote {\n    value: Field,\n}\n\nimpl Serialize<1> for ValueNote {\n    fn serialize(self) -> [Field; 1] {\n        [self.value]\n    }\n}\n\nfn check<let N: u32>(serialized_note: [Field; N]) {\n    assert(serialized_note[0] == 0);\n}\n\nfn oopsie<Note, let N: u32>(note: Note)\nwhere\n    Note: Serialize<N>,\n{\n    let serialized_note = Note::serialize(note);\n\n    check(serialized_note)\n}\n\nfn main(mut note: ValueNote) {\n    oopsie(note);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
