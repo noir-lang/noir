@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744387596177,
+  "lastUpdate": 1744387854313,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "kashbrti@gmail.com",
-            "name": "Khashayar Barooti",
-            "username": "kashbrti"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f1b10dc497a32ce18ba0b1e95e68b314ba8503b3",
-          "message": "feat: add simplified OR when `rhs` or `lhs` is all 1s (#7880)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Khashayar Barooti <khashayar.baroot@epfl.ch>",
-          "timestamp": "2025-04-04T16:22:04Z",
-          "tree_id": "1d6bed3966b36f36052ddfcf7afb66a321a5995e",
-          "url": "https://github.com/noir-lang/noir/commit/f1b10dc497a32ce18ba0b1e95e68b314ba8503b3"
-        },
-        "date": 1743785689937,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 237.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 271.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 504.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 413.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 287.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 293.53,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b92902762a40da7aacbbfd2a020e0d9ad12b7ee7"
         },
         "date": 1744387494392,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.72,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "68a0b7b447668ca1085647fbeb60ecc81af71c2e",
+          "message": "chore: add workflow to run nightly tests on ARM64 (#8027)",
+          "timestamp": "2025-04-11T15:34:09Z",
+          "tree_id": "5803a79dd22f318a8dd5816b8ff81db79d62685f",
+          "url": "https://github.com/noir-lang/noir/commit/68a0b7b447668ca1085647fbeb60ecc81af71c2e"
+        },
+        "date": 1744387849281,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
