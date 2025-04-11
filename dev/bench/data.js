@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744379767015,
+  "lastUpdate": 1744382608646,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19390,6 +19390,42 @@ window.BENCHMARK_DATA = {
             "name": "purely_sequential_opcodes #2",
             "value": 3577679,
             "range": "± 16808",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "94de01568b147b3c43bdb4373e640cb0061a262f",
+          "message": "chore: fix failing test on MacOS (#8030)",
+          "timestamp": "2025-04-11T14:26:27Z",
+          "tree_id": "f76f8ad8be7656363eb58059d3d4587323438222",
+          "url": "https://github.com/noir-lang/noir/commit/94de01568b147b3c43bdb4373e640cb0061a262f"
+        },
+        "date": 1744382603628,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3223878,
+            "range": "± 25237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "purely_sequential_opcodes #2",
+            "value": 3201477,
+            "range": "± 44040",
             "unit": "ns/iter"
           }
         ]
