@@ -19112,7 +19112,7 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "purely_sequential_opcodes #2",
+            "name": "perfectly_parallel_opcodes",
             "value": 3580014,
             "range": "± 58614",
             "unit": "ns/iter"
@@ -19148,7 +19148,7 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "purely_sequential_opcodes #2",
+            "name": "perfectly_parallel_opcodes",
             "value": 3221309,
             "range": "± 29784",
             "unit": "ns/iter"
@@ -19184,7 +19184,7 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "purely_sequential_opcodes #2",
+            "name": "perfectly_parallel_opcodes",
             "value": 3585807,
             "range": "± 14014",
             "unit": "ns/iter"
@@ -19220,7 +19220,7 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "purely_sequential_opcodes #2",
+            "name": "perfectly_parallel_opcodes",
             "value": 3220479,
             "range": "± 12022",
             "unit": "ns/iter"
@@ -19256,7 +19256,7 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "purely_sequential_opcodes #2",
+            "name": "perfectly_parallel_opcodes",
             "value": 3576079,
             "range": "± 21630",
             "unit": "ns/iter"
@@ -19292,7 +19292,7 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "purely_sequential_opcodes #2",
+            "name": "perfectly_parallel_opcodes",
             "value": 3577679,
             "range": "± 16808",
             "unit": "ns/iter"
@@ -19328,7 +19328,7 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "purely_sequential_opcodes #2",
+            "name": "perfectly_parallel_opcodes",
             "value": 3201477,
             "range": "± 44040",
             "unit": "ns/iter"
