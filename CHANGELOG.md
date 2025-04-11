@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.0.0-beta.5](https://github.com/noir-lang/noir/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2025-04-11)
+
+
+### Features
+
+* `ssa::create_program_with_passes` ([#8035](https://github.com/noir-lang/noir/issues/8035)) ([f88cb08](https://github.com/noir-lang/noir/commit/f88cb08a050c6d25ba4575dce82a13ae11fda0e1))
+* Add `loop` generator to AST fuzzer  ([#7985](https://github.com/noir-lang/noir/issues/7985)) ([5eaa916](https://github.com/noir-lang/noir/commit/5eaa916e17921ea021802168feac9109eebc0591))
+* Add `while` generator to AST fuzzer ([#8021](https://github.com/noir-lang/noir/issues/8021)) ([ac6b29b](https://github.com/noir-lang/noir/commit/ac6b29b05293b2645f3a22d474e796d087212e8a))
+* Allow splicing a resolved function into an attribute name ([#7956](https://github.com/noir-lang/noir/issues/7956)) ([5c1e184](https://github.com/noir-lang/noir/commit/5c1e18488e9e1d7f7d6b101519c2a80e7137bb35))
+* Attribute locations ([#8006](https://github.com/noir-lang/noir/issues/8006)) ([f51ee9b](https://github.com/noir-lang/noir/commit/f51ee9b813b003b758b8a9d61700c5e7b496ab13))
+* **fuzz:** AST function body ([#7890](https://github.com/noir-lang/noir/issues/7890)) ([a565c53](https://github.com/noir-lang/noir/commit/a565c53b0e03b8dcbc06d99ed225bfdec8ca616c))
+* **fuzz:** Generate arbitrary `Call` in function body ([#7987](https://github.com/noir-lang/noir/issues/7987)) ([b54e8bd](https://github.com/noir-lang/noir/commit/b54e8bd7635ec27e519383ebd6148c58562a2530))
+* **LSP:** Workspace Symbol ([#7953](https://github.com/noir-lang/noir/issues/7953)) ([a634ca0](https://github.com/noir-lang/noir/commit/a634ca0111981fc117293c33f595b57ff88bc700))
+* MessagePack serialisation for circuits ([#7690](https://github.com/noir-lang/noir/issues/7690)) ([69c36dc](https://github.com/noir-lang/noir/commit/69c36dc452ecd17636e4d35797a65430c32a5a10))
+* **perf:** Optimise array index checks in loops ([#7893](https://github.com/noir-lang/noir/issues/7893)) ([e13142b](https://github.com/noir-lang/noir/commit/e13142b000d75b81d1e0e9d92236d8a040631ec9))
+* **stdlib:** Expose the times a mock oracle is called ([#7996](https://github.com/noir-lang/noir/issues/7996)) ([5baadf2](https://github.com/noir-lang/noir/commit/5baadf2fc60230d0be3a60bbf17f29295f224321))
+
+
+### Bug Fixes
+
+* Better logic for determining whether a struct is constructed or not ([#7806](https://github.com/noir-lang/noir/issues/7806)) ([2056df7](https://github.com/noir-lang/noir/commit/2056df7bdb1f49a017658d8456f1c531c4261e60))
+* Better tests to check for unused struct error ([#8007](https://github.com/noir-lang/noir/issues/8007)) ([f7ba76a](https://github.com/noir-lang/noir/commit/f7ba76a6509a99a12e73da24fe9da068472c09fb))
+* Checks for index out of bounds also for arrays ([#7827](https://github.com/noir-lang/noir/issues/7827)) ([7d47ca3](https://github.com/noir-lang/noir/commit/7d47ca334754536cb314b87709f22f6b339a8d6c))
+* Correct proptest Arbitrary for NumericType ([#7945](https://github.com/noir-lang/noir/issues/7945)) ([a437f8e](https://github.com/noir-lang/noir/commit/a437f8edb03129d4c7857a305a80b932f8b04616))
+* **debugger:** Improve debugger_expected_call_stack test ([#7769](https://github.com/noir-lang/noir/issues/7769)) ([487d9e9](https://github.com/noir-lang/noir/commit/487d9e9729dedae8aaaf83d7a36d5b3f796f1334))
+* **docs:** Fix proof splitting script in solidity guide ([#8033](https://github.com/noir-lang/noir/issues/8033)) ([b31d409](https://github.com/noir-lang/noir/commit/b31d409d22fc33f1b857a91432c292d9805ff09b))
+* **docs:** Reduce header image size ([#7988](https://github.com/noir-lang/noir/issues/7988)) ([7e4deb9](https://github.com/noir-lang/noir/commit/7e4deb985025563bd4f23b7c47e8c7b3db2fe7ef))
+* Don't solve `Self` in trait impl method via trait method lookup ([#7974](https://github.com/noir-lang/noir/issues/7974)) ([770bdda](https://github.com/noir-lang/noir/commit/770bddadbabf2c8166c28452de463a8cf799dbcd))
+* Don't use relative path in nargo_cli build script ([#7982](https://github.com/noir-lang/noir/issues/7982)) ([def2e8c](https://github.com/noir-lang/noir/commit/def2e8cc249b601bba58c9c526dae8a2ccfd18e8))
+* **fuzz:** Remove duplicate gen_loop, move unconstrained generators up ([#8029](https://github.com/noir-lang/noir/issues/8029)) ([10a6d1a](https://github.com/noir-lang/noir/commit/10a6d1af7202e9ba613d138e2c669cbd0f08e267))
+* **LSP:** Implement missing members associated constants ([#8016](https://github.com/noir-lang/noir/issues/8016)) ([b54fd28](https://github.com/noir-lang/noir/commit/b54fd28b5f679de258ecc002487ee872fb86a807))
+* **nargo-rpc:** Restart http-client on ClientError::Transport error ([#7954](https://github.com/noir-lang/noir/issues/7954)) ([df0439e](https://github.com/noir-lang/noir/commit/df0439e9dad25e04fb2c6cc8c3042bd121e9185d))
+* **parser:** Error on missing function body ([#8001](https://github.com/noir-lang/noir/issues/8001)) ([12fcceb](https://github.com/noir-lang/noir/commit/12fccebbea6d9a6937b83f9badf86c450920acce))
+* Replace one more path pattern when producing stderr.txt ([#7970](https://github.com/noir-lang/noir/issues/7970)) ([11bd876](https://github.com/noir-lang/noir/commit/11bd876e20090e908e3802908ac62383e348d3fc))
+* **ssa:** Map terminator instructions after constant folding  ([#8019](https://github.com/noir-lang/noir/issues/8019)) ([4386a98](https://github.com/noir-lang/noir/commit/4386a985530a8b3de178a887b21d5a07da080dd9))
+* **ssa:** Remove OOB checks inserted during DIE ([#7995](https://github.com/noir-lang/noir/issues/7995)) ([d5cc0e2](https://github.com/noir-lang/noir/commit/d5cc0e23c2ab601d0f10b42ae819b2187c070811))
+* Use proper max bit size during truncation ([#8010](https://github.com/noir-lang/noir/issues/8010)) ([6ad8a48](https://github.com/noir-lang/noir/commit/6ad8a4847ba4f71a71d2dec6341dee4a549f6f5e))
+
 ## [1.0.0-beta.4](https://github.com/noir-lang/noir/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2025-04-07)
 
 
