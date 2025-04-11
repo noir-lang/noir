@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744388534690,
+  "lastUpdate": 1744388713868,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19439,6 +19439,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3580862,
             "range": "± 25510",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6ad8a4847ba4f71a71d2dec6341dee4a549f6f5e",
+          "message": "fix: use proper max bit size during truncation (#8010)",
+          "timestamp": "2025-04-11T16:09:03Z",
+          "tree_id": "424a1d28bdc2649096841a822c9e45df0703f635",
+          "url": "https://github.com/noir-lang/noir/commit/6ad8a4847ba4f71a71d2dec6341dee4a549f6f5e"
+        },
+        "date": 1744388708762,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 3629793,
+            "range": "± 6515",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 3589616,
+            "range": "± 89792",
             "unit": "ns/iter"
           }
         ]
