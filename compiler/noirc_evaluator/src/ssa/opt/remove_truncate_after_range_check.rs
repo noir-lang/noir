@@ -1,4 +1,5 @@
-use im::{HashMap, HashSet};
+use fxhash::FxHashMap as HashMap;
+use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},
@@ -22,9 +23,9 @@ impl Function {
     pub(crate) fn remove_truncate_after_range_check(&mut self) {
         for block in self.reachable_blocks() {
             // Keeps the minimum bit size a value was range-checked against
-            let mut range_checks: HashMap<ValueId, u32> = HashMap::new();
-            let mut instructions_to_remove = HashSet::new();
-            let mut values_to_replace = std::collections::HashMap::<ValueId, ValueId>::new();
+            let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
+            let mut instructions_to_remove = HashSet::default();
+            let mut values_to_replace = HashMap::<ValueId, ValueId>::default();
 
             for instruction_id in self.dfg[block].instructions() {
                 let instruction = &self.dfg[*instruction_id];

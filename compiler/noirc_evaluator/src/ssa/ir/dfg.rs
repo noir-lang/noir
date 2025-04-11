@@ -389,7 +389,7 @@ impl DataFlowGraph {
     pub(crate) fn replace_values_in_block(
         &mut self,
         block: BasicBlockId,
-        values_to_replace: &std::collections::HashMap<ValueId, ValueId>,
+        values_to_replace: &HashMap<ValueId, ValueId>,
     ) {
         if values_to_replace.is_empty() {
             return;
