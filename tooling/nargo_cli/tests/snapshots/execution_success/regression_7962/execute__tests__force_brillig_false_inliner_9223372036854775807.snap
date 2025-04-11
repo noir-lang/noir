@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "v0",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 64
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 64
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81UQQ7CIBAshURt48lPeIQCLdyaePAdNtKn+ABf4oP8iok1ZZMVay9uEychQ1k6WWYXWDZCDGMd52wYPPILbfaOPFmXv0FhLS1rY0JTBaXVSVa+c1Ya29VOOWWdPVdO6+CMa3znG+mV0UH11us+iuWEWtgH0BWJBxiM2JecTquaSJdMG3vBIwswhCNukzWBTEsFiJJTFA0R+hE8o2susVBxqS8n+88zS+gf6LMUDDGb8OfwuB9v18s+3Q+P4CZygeKcsGagXy6jL1fZJwo0L5MY+CIm/mNfvvOE5/bO1Wg7EQPNXWScL5zjCf+lRdq9BgAA",
+  "debug_symbols": "lZDLCoMwEEX/ZdYuajVC8yulSJ4yEJKQR6EE/71RFKR0k92cuWfuYgpIxfMyo9UuAn0WME6whM5WKtDvq+iZ3SgmFhLQcehAWVmHx9qBRqOAktv66uDepg//dEIOfep/9LFNJ2361KJX4AGNwWW+/quu3ywg40YdqLMVlzR9/Jmc9z44oWQOamvas1r/BQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main(v0: u64) -> pub u64 {\n    let v1 = v0 - 1;\n    v1 & 1\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}
