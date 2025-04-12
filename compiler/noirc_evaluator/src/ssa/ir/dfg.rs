@@ -424,13 +424,13 @@ impl DataFlowGraph {
         }
     }
 
+    /// Mutates an instruction in-place.
     pub(crate) fn mutate_instruction(
         &mut self,
         instruction_id: InstructionId,
         mut f: impl FnMut(&mut Instruction),
     ) {
-        let instruction = &mut self.instructions[instruction_id];
-        f(instruction)
+        f(&mut self.instructions[instruction_id]);
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
