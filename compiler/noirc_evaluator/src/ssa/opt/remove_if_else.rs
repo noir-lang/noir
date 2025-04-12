@@ -110,7 +110,7 @@ impl Context {
 
                     values_to_replace.insert(result, value);
 
-                    self.array_set_conditionals.insert(result, current_conditional);
+                    self.array_set_conditionals.insert(value, current_conditional);
                 }
                 Instruction::Call { func, arguments } => {
                     if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
