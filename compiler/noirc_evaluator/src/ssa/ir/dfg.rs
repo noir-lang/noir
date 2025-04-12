@@ -395,26 +395,42 @@ impl DataFlowGraph {
             return;
         }
 
-        let replacement_fn = |value_id| {
-            if let Some(replacement_id) = values_to_replace.get(&value_id) {
-                *replacement_id
-            } else {
-                value_id
-            }
-        };
-
         for block in blocks {
             // Replace in all the block's instructions
             for instruction_id in self.blocks[block].instructions() {
                 let instruction = &mut self.instructions[*instruction_id];
-                instruction.map_values_mut(replacement_fn);
+                instruction.replace_values(values_to_replace);
             }
 
             // Finally, the value might show up in a terminator
-            if self[block].terminator().is_some() {
-                self[block].unwrap_terminator_mut().map_values_mut(replacement_fn);
-            }
+            self.replace_values_in_block_terminator(block, values_to_replace);
         }
+    }
+
+    /// Replaces values in the given block terminator (if it has any) according to the given HashMap.
+    pub(crate) fn replace_values_in_block_terminator(
+        &mut self,
+        block: BasicBlockId,
+        values_to_replace: &HashMap<ValueId, ValueId>,
+    ) {
+        if self[block].terminator().is_some() {
+            self[block].unwrap_terminator_mut().map_values_mut(|value_id| {
+                if let Some(replacement_id) = values_to_replace.get(&value_id) {
+                    *replacement_id
+                } else {
+                    value_id
+                }
+            });
+        }
+    }
+
+    pub(crate) fn mutate_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        mut f: impl FnMut(&mut Instruction),
+    ) {
+        let instruction = &mut self.instructions[instruction_id];
+        f(instruction)
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.

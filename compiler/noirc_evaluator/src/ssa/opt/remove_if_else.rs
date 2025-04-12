@@ -64,8 +64,15 @@ impl Context {
         let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
         let mut values_to_replace = HashMap::default();
 
-        for instruction in instructions {
-            match &function.dfg[instruction] {
+        for instruction_id in instructions {
+            // Before we process instructions, replace any values we previously determined we need to replace
+            if !values_to_replace.is_empty() {
+                function.dfg.mutate_instruction(instruction_id, |instruction| {
+                    instruction.replace_values(&values_to_replace);
+                });
+            }
+
+            match &function.dfg[instruction_id] {
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                     let then_condition = *then_condition;
                     let else_condition = *else_condition;
@@ -75,7 +82,7 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
-                    let call_stack = function.dfg.get_instruction_call_stack_id(instruction);
+                    let call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger = ValueMerger::new(
                         &mut function.dfg,
                         block,
@@ -93,7 +100,7 @@ impl Context {
                     );
 
                     let _typ = function.dfg.type_of_value(value);
-                    let results = function.dfg.instruction_results(instruction);
+                    let results = function.dfg.instruction_results(instruction_id);
                     let result = results[0];
                     // let result = match typ {
                     //     Type::Array(..) => results[0],
@@ -107,7 +114,7 @@ impl Context {
                 }
                 Instruction::Call { func, arguments } => {
                     if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
-                        let results = function.dfg.instruction_results(instruction);
+                        let results = function.dfg.instruction_results(instruction_id);
 
                         match slice_capacity_change(&function.dfg, intrinsic, arguments, results) {
                             SizeChange::None => (),
@@ -126,31 +133,30 @@ impl Context {
                             }
                         }
                     }
-                    function.dfg[block].instructions_mut().push(instruction);
+                    function.dfg[block].instructions_mut().push(instruction_id);
                 }
                 Instruction::ArraySet { array, .. } => {
-                    let results = function.dfg.instruction_results(instruction);
+                    let results = function.dfg.instruction_results(instruction_id);
                     let result = if results.len() == 2 { results[1] } else { results[0] };
 
                     self.array_set_conditionals.insert(result, current_conditional);
 
                     let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);
-                    function.dfg[block].instructions_mut().push(instruction);
+                    function.dfg[block].instructions_mut().push(instruction_id);
                 }
                 Instruction::EnableSideEffectsIf { condition } => {
                     current_conditional = *condition;
-                    function.dfg[block].instructions_mut().push(instruction);
+                    function.dfg[block].instructions_mut().push(instruction_id);
                 }
                 _ => {
-                    function.dfg[block].instructions_mut().push(instruction);
+                    function.dfg[block].instructions_mut().push(instruction_id);
                 }
             }
         }
 
         if !values_to_replace.is_empty() {
-            let blocks = vec![block];
-            function.dfg.replace_values_in_blocks(blocks.into_iter(), &values_to_replace);
+            function.dfg.replace_values_in_block_terminator(block, &values_to_replace);
         }
     }
 
