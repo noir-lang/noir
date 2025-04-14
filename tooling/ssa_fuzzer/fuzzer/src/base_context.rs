@@ -91,7 +91,11 @@ fn append_typed_value_to_map(
 }
 
 impl FuzzerContext {
-    /// Creates a new fuzzer context with the given type
+    /// Creates a new fuzzer context with the given types
+    /// It creates a new variable for each type and stores it in the map
+    ///
+    /// For example, if we have types [u64, u64, field], it will create 3 variables
+    /// and store them in the map as {u64: [0, 1], field: [2]} for both ACIR and Brillig
     pub(crate) fn new(types: Vec<ValueType>) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
@@ -116,7 +120,10 @@ impl FuzzerContext {
     }
 
     /// Creates a new fuzzer context with the given values for a constant folding checking
-    pub(crate) fn new_constant(
+    ///
+    /// For example, if we have values [1, 2, 3] and types [u64, u64, field], it will create 3 constants
+    /// and store them in the map as {u64: [0, 1], field: [2]} for both ACIR and Brillig
+    pub(crate) fn new_constant_context(
         values: Vec<impl Into<FieldElement>>,
         types: Vec<ValueType>,
     ) -> Self {

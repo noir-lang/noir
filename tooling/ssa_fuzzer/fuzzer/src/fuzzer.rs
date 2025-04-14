@@ -31,7 +31,7 @@ impl Fuzzer {
     ) -> Self {
         Self {
             context_non_constant: FuzzerContext::new(types.clone()),
-            context_constant: FuzzerContext::new_constant(initial_witness_vector, types),
+            context_constant: FuzzerContext::new_constant_context(initial_witness_vector, types),
         }
     }
 

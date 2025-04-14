@@ -10,19 +10,16 @@ This fuzzer generates random sequences of arithmetic and logical operations to c
 ## Usage
 
 1. Setup environment:
-You need to delete `rust-toolchain.toml` from root of the project, because cargo-fuzz requires nightly compiler for address sanitizer.
 ```
-rustup install nightly
-rustup default nightly
 cargo install cargo-fuzz
 ```
 
 2. Run fuzzer:
 ```
-cargo fuzz run base_target --fuzz-dir ./fuzzer
+cargo +nightly fuzz run base_target --fuzz-dir ./fuzzer
 ```
 
 or in 5 threads
 ```
-cargo-fuzz run base_target --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
+cargo +nightly fuzz run base_target --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
 ```

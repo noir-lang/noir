@@ -11,27 +11,9 @@ use crate::base_context::Instructions;
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
-impl Instructions {
-    fn is_supported(&self) -> bool {
-        !matches!(
-            self,
-            Instructions::Shl { .. }
-                | Instructions::Shr { .. }
-                | Instructions::And { .. }
-                | Instructions::Or { .. }
-                | Instructions::Xor { .. }
-                | Instructions::Not { .. }
-                | Instructions::Mod { .. }
-        )
-    }
-}
 
 impl Fuzzer {
     fn insert_instruction(&mut self, instruction: Instructions) {
-        // Check if instruction is unsupported for field type
-        if !instruction.is_supported() {
-            return;
-        }
         self.context_non_constant.insert_instruction(instruction.clone());
         self.context_constant.insert_instruction(instruction);
     }

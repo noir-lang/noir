@@ -110,7 +110,7 @@ impl TypedValue {
     }
 
     /// Helper to check if unchecked operations are supported for this type
-    pub fn supports_uncheked(&self) -> bool {
+    pub fn supports_unchecked(&self) -> bool {
         false
     }
 
@@ -124,8 +124,8 @@ impl TypedValue {
                     && self.type_of_variable == other.type_of_variable
             }
             "uncheked" => {
-                self.supports_uncheked()
-                    && other.supports_uncheked()
+                self.supports_unchecked()
+                    && other.supports_unchecked()
                     && self.type_of_variable == other.type_of_variable
             }
             _ => self.type_of_variable == other.type_of_variable,
