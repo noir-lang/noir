@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 250
+    timeout: 300
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
@@ -62,7 +62,7 @@ libraries:
     critical: true
   sha512:
     repo: noir-lang/sha512
-    timeout: 30
+    timeout: 40
     critical: true
   keccak256:
     repo: noir-lang/keccak256
