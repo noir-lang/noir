@@ -296,128 +296,53 @@ fn try_inline_into_predecessor(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            function_builder::FunctionBuilder,
-            ir::{
-                instruction::{BinaryOp, TerminatorInstruction},
-                map::Id,
-                types::Type,
-            },
-            opt::assert_normalized_ssa_equals,
-        },
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
-    use acvm::acir::AcirField;
 
     #[test]
     fn inline_blocks() {
-        // fn main {
-        //   b0():
-        //     jmp b1(Field 7)
-        //   b1(v0: Field):
-        //     jmp b2(v0)
-        //   b2(v1: Field):
-        //     return v1
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-
-        let v0 = builder.add_block_parameter(b1, Type::field());
-        let v1 = builder.add_block_parameter(b2, Type::field());
-
-        let expected_return = 7u128;
-        let seven = builder.field_constant(expected_return);
-        builder.terminate_with_jmp(b1, vec![seven]);
-
-        builder.switch_to_block(b1);
-        builder.terminate_with_jmp(b2, vec![v0]);
-
-        builder.switch_to_block(b2);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 3);
-
-        // Expected output:
-        // fn main {
-        //   b0():
-        //     return Field 7
-        // }
-        let ssa = ssa.simplify_cfg();
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 1);
-
-        match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => {
-                assert_eq!(return_values.len(), 1);
-                let return_value = main
-                    .dfg
-                    .get_numeric_constant(return_values[0])
-                    .expect("Expected return value to be constant")
-                    .to_u128();
-                assert_eq!(return_value, expected_return);
-            }
-            other => panic!("Unexpected terminator {other:?}"),
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(Field 7)
+          b1(v0: Field):
+            jmp b2(v0)
+          b2(v1: Field):
+            return v1
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.simplify_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return Field 7
+        }
+        ");
     }
 
     #[test]
     fn remove_known_jmpif() {
-        // fn main {
-        //   b0(v0: u1):
-        //     v1 = eq v0, v0
-        //     jmpif v1, then: b1, else: b2
-        //   b1():
-        //     return Field 1
-        //   b2():
-        //     return Field 2
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::bool());
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-
-        let v1 = builder.insert_binary(v0, BinaryOp::Eq, v0);
-        builder.terminate_with_jmpif(v1, b1, b2);
-
-        builder.switch_to_block(b1);
-        builder.terminate_with_return(vec![one]);
-
-        builder.switch_to_block(b2);
-        builder.terminate_with_return(vec![two]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 3);
-
-        // Expected output:
-        // fn main {
-        //   b0():
-        //     return Field 1
-        // }
-        let ssa = ssa.simplify_cfg();
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 1);
-
-        match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => {
-                assert_eq!(return_values.len(), 1);
-                let return_value = main
-                    .dfg
-                    .get_numeric_constant(return_values[0])
-                    .expect("Expected return value to be constant")
-                    .to_u128();
-                assert_eq!(return_value, 1u128);
-            }
-            other => panic!("Unexpected terminator {other:?}"),
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            return Field 1
+          b2():
+            return Field 2
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.simplify_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            return Field 1
+        }
+        ");
     }
 
     #[test]
