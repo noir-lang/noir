@@ -432,6 +432,7 @@ impl LastUseContext {
 #[cfg(test)]
 mod test {
     use crate::{
+        ast::Visitor,
         monomorphization::ast::{IdentId, LocalId},
         ownership::last_uses::Branches,
         test_utils::get_monomorphized,
@@ -462,13 +463,13 @@ mod test {
         let program = get_monomorphized(src, "foobar", crate::test_utils::Expect::Success).unwrap();
 
         let function = program.main();
-        let last_uses = super::Context::find_last_uses_of_variables_internal(function);
+        let last_uses = super::Context::find_last_uses_of_variables(function);
 
         let d_local_id = LocalId(0);
-        let (_loop_index, d_last_uses) = &last_uses[&d_local_id];
-        assert_eq!(
-            *d_last_uses,
-            Branches::IfOrMatch(vec![Branches::Direct(IdentId(7)), Branches::Direct(IdentId(10))])
-        );
+        let d_last_uses = &last_uses[&d_local_id];
+
+        // We should improve testing of this pass so that it is more clear where these ids
+        // correspond to.
+        assert_eq!(*d_last_uses, &[IdentId(7), IdentId(10)]);
     }
 }
