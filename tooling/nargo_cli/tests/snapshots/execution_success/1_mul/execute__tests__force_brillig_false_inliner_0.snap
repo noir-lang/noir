@@ -1,0 +1,58 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7WRUQ7CIAyGx2DEGA/hEegAV968ypaxs3gAD+FJfPHBK7nFmjTLshfLn5A2LfyUD1V9Zed1olzNS1NcdF7V1EatplrFzl0puv8EFbuX+3p3CSF3bQYPvWvTgNGFOFwQECLGsUXvMwbs0pA6lyD4DFNMfiJjLTej4yx0QRZ69TdSLEwhFqYgC0P+0iyaQiyagiwa8pdmYQuxsIzFT7Xw7LUgX2kOhrw0e79iDLjMRv66v5+PWz/yfXand9jpHXd6iz7RjeSjJAYAAA==",
+  "debug_symbols": "ldHNCoQgFAXgd7nrFmnTj73KMISVhSAaZgOD9O5jMQ4lbtx57uG7XNDCyPpt7ric1Art04JQAzVcSZcsFOdoXag80mqoNtCimmTA5OheTblnMHHBoC3z/ZXBIxWUUUCQB6QOQJUK6hjAuT8Jo/CkJhWQKMB/UIQA5ckCRUWFvaiam3Ch11wIPnfXD3XjN9Wc9oL94rTJ4dKaz+Ib7xetBjZumh2bzs6t/wI=",
+  "file_map": {
+    "50": {
+      "source": "// Test unsafe integer multiplication with overflow: 12^8 = 429 981 696\n// The circuit should handle properly the growth of the bit size\nfn main(mut x: u32, y: u32, z: u32) {\n    x *= y;\n    x *= x; //144\n    x *= x; //20736\n    x *= x; //429 981 696\n    assert(x == z);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

@@ -1,0 +1,69 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldrLauNAEEDRf9E6C1VVV1UrvzIMwc9gMLbxY2Aw+fdxgjUksrC4O7Wao81FUqvRtVmu5pf3t81uvT81r7+uzXa/mJ03+91tdG3s69TpMNt9jk7n2fHcvIrWl2a1W96OzD5emvVmu2pevf34/dIUCpyCoCApqBR0FEiLhWChWODagnML7i04uODigpMLbq64ueLmipsrbq64ueLmipvrZPNuKMabR+lFxFB0VFiLhWChWBgWBQvHIrAYba5t3IWKDEXFoqOitFgIFoqFYVGwcCwCC9y84OYFN3fc3HFzx819snkOxXjztF5kHQrHIrBILCoWHRXRYiFYKBaGBW4euHng5oGbB24euHni5ombJ26euHlONa9lKEabm8pdmD58dgUWiUXFoqOitlgIFoqFYTHa3KxvbuZD4VgEFolFxaKjomuxECwUi/Hm2b/PrQ5XAF3BwrEILBKLikVHhbQtJ8KJcmKcFE6ck+AkOamcTNYfvhFlfEuuSH87FvEHIpwoJ8ZJ4cQ5CU6Sk8rJaP3i3pNoh2R8c+45EU6UE+OkcOKcBCfJSeWE1zde33h94/WN17fJ+vFARuv7/5WI28PTcnyz7jlJTionHSbjG3bPiXCinBgnhRNev/D6hdcvvH7h9Z3Xd17feX3n9Z3Xd17feX3n9Z3Xd14/eP3g9YPXD14/puoXfSDOSXCSnFROOkyy5UQ4UU6ME14/ef3k9ZPXT14/ef3K61dev/L6dbL+z3v/NpgfN9vt5v3t+887t9N/ZsfNbL5d3Yfry27xbfb899DP9P5w3C9Wy8tx9Xmlr7nb5f8B",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: i32, mut y: i32, z: i32) {\n    let mut s1: i8 = 5;\n    let mut s2: i8 = 8;\n    assert(s1 + s2 == 13);\n    assert(x + y == 13);\n\n    s2 = -8;\n    y = -y;\n    assert(s1 + s2 == -3);\n    assert(x + y == -3);\n\n    s1 = -15;\n    assert(s1 - s2 == -7);\n    assert(z - y == -7);\n\n    s1 = -5;\n    s2 = 8;\n    x = -x;\n    y = -y;\n    assert(s1 - s2 == -13);\n    assert(x - y == -13);\n\n    s2 = -8;\n    y = -y;\n    assert(s1 * s2 == 40);\n    assert(x * y == 40);\n\n    s1 = 1;\n    s2 = -8;\n    assert(s1 * s2 == -8);\n    assert(x / x * y == -8);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

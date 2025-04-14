@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/6WOQQqAMAwELfigpEnazc2vWEz//wQRKgqiF+eysIdh0nSRpifnt4ylf/DdJVRUo+Zg4ZWyNxiptQIGG2zLEAkoqjev5KwS3M2lD9nRNn+0v7EDo/0phPQAAAA=",
+  "debug_symbols": "TYxLCsMwDAXvonUW7qIffJVSgj9yEBjbyHahmNy9SkggO80bNAM82r7MlEKuoN8DYnamUU5CA9Q+1WLSRrUZbqBvz8cEmLxcL7VOECgi6LtaPwKWKUZa5mtG5q9hMjbigaEnd7HtV05z/hfODn1n3Eq7k/wf",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u8) {\n    // Safety: test code\n    let predicate = unsafe { return_true() };\n    let tmp: u8 = if predicate { 0xff } else { 0 };\n\n    let y = tmp & x;\n    assert_eq(y, 1);\n}\n\nunconstrained fn return_true() -> bool {\n    true\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

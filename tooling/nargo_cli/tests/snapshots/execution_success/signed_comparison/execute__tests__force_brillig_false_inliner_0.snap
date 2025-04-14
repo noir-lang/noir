@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldnbaupAFIDhd5lrL2atWXPyVTabEjWWQIgSdcNG+u7V0pQS08p/l5Xhm5s/gRyubtduLq8v3bA/nNz6z9X1h21z7g7Dbbq68HHqdGyG+3Q6N+PZrUVt5dphdz+qbyu37/rWraN/+7tyRkGkIFGQKSgUVArEYyFYKBa4tuDcgnsLDi64uCwntzAJi3NRqVCPhWChWAQsDIuIRcIiY4GbK24ecPPwtPn82g2KRcDCsIhYJCwyFgWLSoV5LHBzw80NNzfc3HBzW26evkSa3x+WsShYVCqix0KwUCwCFoZFxAI3j7h5xM3js+bZz59DPRaChWIRsDAsIhYJi4xFwQI3z7h5xs0zbp5x87zcvMRJ1AcRsUhYZCwKFpWK4rEQLBSLgAVuXnDzgpsX3Lz80Hx6u1P/IBabq3wJlZmoHgvBQrEIWBgWEYuERcZisbmGOgmzuahUiPecCCfKSeDEOImcJE4yJ4UTXl94feH1hdcXXl94fXla//GLZOIkc1I4qZio50Q4UU4CJ8YJr6+8vvL6+kP9+AupmATPiXCinAROjJPISeIkc8LrB17feH3j9Q3Wvw2bsev77vXl+x+52+l/zdg1m779HPeXYftt9fz/OK1M/jgetu3uMrb3nT7Wbtu/Aw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: i8, mut y: i8, z: i8) {\n    let mut s1: i8 = 5;\n    let mut s2: i8 = 8;\n    assert(-1 as i8 < 0);\n    assert(x < y);\n    assert(-x < y);\n    assert(-y < -x);\n    assert((z > x) == false);\n    assert(x <= s1);\n    assert(z < x - y - s2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

@@ -234,9 +234,9 @@ impl<'brillig> Context<'brillig> {
         &mut self,
         function: &mut Function,
         dom: &mut DominatorTree,
-        block: BasicBlockId,
+        block_id: BasicBlockId,
     ) {
-        let instructions = function.dfg[block].take_instructions();
+        let instructions = function.dfg[block_id].take_instructions();
 
         // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
@@ -246,12 +246,27 @@ impl<'brillig> Context<'brillig> {
             self.fold_constants_into_instruction(
                 function,
                 dom,
-                block,
+                block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
             );
         }
-        self.block_queue.extend(function.dfg[block].successors());
+
+        // Map a terminator in place, replacing any ValueId in the terminator with the
+        // resolved version of that value id from the simplification cache's internal value mapping.
+        let mut terminator = function.dfg[block_id].take_terminator();
+        terminator.map_values_mut(|value| {
+            Self::resolve_cache(
+                block_id,
+                &function.dfg,
+                dom,
+                self.get_constraint_map(side_effects_enabled_var),
+                value,
+            )
+        });
+        function.dfg[block_id].set_terminator(terminator);
+
+        self.block_queue.extend(function.dfg[block_id].successors());
     }
 
     fn fold_constants_into_instruction(
@@ -334,6 +349,31 @@ impl<'brillig> Context<'brillig> {
         };
     }
 
+    // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
+    // has been constrained to be equal to some simpler value in the current block.
+    //
+    // This allows us to reach a stable final `ValueId` for each instruction input as we add more
+    // constraints to the cache.
+    fn resolve_cache(
+        block: BasicBlockId,
+        dfg: &DataFlowGraph,
+        dom: &mut DominatorTree,
+        cache: &HashMap<ValueId, SimplificationCache>,
+        value_id: ValueId,
+    ) -> ValueId {
+        let resolved_id = dfg.resolve(value_id);
+        match cache.get(&resolved_id) {
+            Some(simplification_cache) => {
+                if let Some(simplified) = simplification_cache.get(block, dom) {
+                    Self::resolve_cache(block, dfg, dom, cache, simplified)
+                } else {
+                    resolved_id
+                }
+            }
+            None => resolved_id,
+        }
+    }
+
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
     fn resolve_instruction(
         instruction_id: InstructionId,
@@ -344,34 +384,9 @@ impl<'brillig> Context<'brillig> {
     ) -> Instruction {
         let mut instruction = dfg[instruction_id].clone();
 
-        // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
-        // has been constrained to be equal to some simpler value in the current block.
-        //
-        // This allows us to reach a stable final `ValueId` for each instruction input as we add more
-        // constraints to the cache.
-        fn resolve_cache(
-            block: BasicBlockId,
-            dfg: &DataFlowGraph,
-            dom: &mut DominatorTree,
-            cache: &HashMap<ValueId, SimplificationCache>,
-            value_id: ValueId,
-        ) -> ValueId {
-            let resolved_id = dfg.resolve(value_id);
-            match cache.get(&resolved_id) {
-                Some(simplification_cache) => {
-                    if let Some(simplified) = simplification_cache.get(block, dom) {
-                        resolve_cache(block, dfg, dom, cache, simplified)
-                    } else {
-                        resolved_id
-                    }
-                }
-                None => resolved_id,
-            }
-        }
-
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
         instruction.map_values_mut(|value_id| {
-            resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
+            Self::resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
         });
         instruction.map_values(|v| dfg.resolve(v))
     }
@@ -934,6 +949,7 @@ mod test {
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::{
+        assert_ssa_snapshot,
         brillig::BrilligOptions,
         ssa::{
             Ssa,
@@ -1343,35 +1359,33 @@ mod test {
             }
         ";
         let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
 
         // v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
         // - v8 hasn't been recognized as a duplicate of v6 yet since they still reference v4 and
         //   v5 respectively
-        let expected = "
-            brillig(inline) fn main f0 {
-              b0(v0: u32):
-                v2 = lt u32 1000, v0
-                v4 = shl v0, u32 1
-                jmpif v2 then: b1, else: b2
-              b1():
-                v5 = shl v0, u32 1
-                v6 = lt v0, v5
-                constrain v6 == u1 1
-                jmp b2()
-              b2():
-                jmpif v2 then: b3, else: b4
-              b3():
-                v8 = lt v0, v4
-                constrain v8 == u1 1
-                jmp b4()
-              b4():
-                return
-            }
-        ";
-
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = lt u32 1000, v0
+            v4 = shl v0, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            v5 = shl v0, u32 1
+            v6 = lt v0, v5
+            constrain v6 == u1 1
+            jmp b2()
+          b2():
+            jmpif v2 then: b3, else: b4
+          b3():
+            v8 = lt v0, v4
+            constrain v8 == u1 1
+            jmp b4()
+          b4():
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1392,15 +1406,14 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                return Field 5
-            }
-            ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return Field 5
+        }
+        ");
     }
 
     #[test]
@@ -1421,15 +1434,14 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                return Field 5
-            }
-            ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return Field 5
+        }
+        ");
     }
 
     #[test]
@@ -1450,15 +1462,14 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                return i32 5
-            }
-            ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return i32 5
+        }
+        ");
     }
 
     #[test]
@@ -1479,16 +1490,15 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                v3 = make_array [Field 2, Field 3, Field 4] : [Field; 3]
-                return v3
-            }
-            ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 2, Field 3, Field 4] : [Field; 3]
+            return v3
+        }
+        ");
     }
 
     #[test]
@@ -1509,16 +1519,15 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                v4 = make_array [Field 2, i32 3, Field 4, i32 5] : [(Field, i32); 2]
-                return v4
-            }
-            ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 2, i32 3, Field 4, i32 5] : [(Field, i32); 2]
+            return v4
+        }
+        ");
     }
 
     #[test]
@@ -1546,16 +1555,15 @@ mod test {
         let ssa = ssa.brillig_array_gets();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                v2 = make_array [Field 2, Field 3] : [Field; 2]
-                return Field 5
-            }
-            ";
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            return Field 5
+        }
+        ");
     }
 
     #[test]
@@ -1580,18 +1588,16 @@ mod test {
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
         let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
-        let expected = "
+        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.remove_unreachable_functions();
+        assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
 
         acir(inline) fn main f0 {
           b0():
             return Field 5
         }
-        ";
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1622,18 +1628,16 @@ mod test {
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
         let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
-        let expected = "
+        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.remove_unreachable_functions();
+        assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
 
         acir(inline) fn main f0 {
           b0():
             return Field 5
         }
-        ";
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1726,7 +1730,9 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let expected = "
+
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v5 = call to_be_radix(v0, u32 256) -> [u8; 1]
@@ -1738,9 +1744,7 @@ mod test {
             inc_rc v8
             return
         }
-        ";
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1776,16 +1780,15 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let ssa = ssa.fold_constants_using_constraints();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u32, v2: Field):
             enable_side_effects u1 1
             v4 = array_set v0, index v1, value v2
             return v2
         }
-        ";
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1805,7 +1808,9 @@ mod test {
         }
         ";
 
-        let expected = "
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis().fold_constants_using_constraints();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v2 = call f1(v0) -> Field
@@ -1816,11 +1821,7 @@ mod test {
           b0(v0: Field):
             return v0
         }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.purity_analysis().fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1922,7 +1923,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u1):
             enable_side_effects v2
@@ -1932,7 +1933,6 @@ mod test {
             v6 = div v1, u32 2
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

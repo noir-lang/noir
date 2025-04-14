@@ -134,7 +134,10 @@ fn check_u128_mul_overflow(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn does_not_insert_check_if_lhs_is_less_than_two_pow_64() {
@@ -177,7 +180,8 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = r#"
+        let ssa = ssa.check_u128_mul_overflow();
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128):
             v2 = mul v0, u128 18446744073709551617
@@ -185,10 +189,7 @@ mod tests {
             constrain v4 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]
@@ -202,7 +203,8 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = r#"
+        let ssa = ssa.check_u128_mul_overflow();
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128):
             v2 = mul u128 18446744073709551617, v0
@@ -210,10 +212,7 @@ mod tests {
             constrain v4 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]
@@ -227,7 +226,8 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = r#"
+        let ssa = ssa.check_u128_mul_overflow();
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128, v1: u128):
             v2 = mul v0, v1
@@ -237,10 +237,7 @@ mod tests {
             constrain v6 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]
@@ -254,18 +251,16 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
+        let ssa = ssa.check_u128_mul_overflow();
         // The multiplication remains, but it will be later removed by DIE
-        let expected = r#"
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0():
             v2 = mul u128 18446744073709551617, u128 18446744073709551616
             constrain u128 1 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]

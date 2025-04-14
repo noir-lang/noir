@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/62PXQqAQAiE+71HR9BVW33rKi1t9z9CLQgFUQ/VB8OgD+PYVAeNe72rdS8Mu3qf6+rKZTe5wzewBHd3R254Kjj91OucRTAy5xgyEs4QLKkASxoVFUVlCUqUlTVasgiGTBlXMVo97M2PhQ26Wz5GuQEAAA==",
+  "debug_symbols": "vY7LCsMgEEX/ZdZZmJQU6q+UEHyGAVHxUSjiv1dDAqF03d2ce5nLKSAVz9uKVrsI9FnAOMESOtuowLhH0TPbKSYWEtBxvg2grOzXow6g0SigM6lLAx7QGNzW60yLXywg40YdqLMVlza9/dmc/z44oWQOqi/tXR2+5MgvuYmQQ24i9z/KLfUD",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32) {\n    // We want to call a foldable function after a call to a function that is set to be inlined\n    assert(increment(x) == x + 1);\n    foo(x);\n}\n\n#[fold]\nfn foo(x: u32) {\n    assert(x == 1);\n}\n\nfn increment(x: u32) -> u32 {\n    x + 1\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main",
+    "foo"
+  ],
+  "brillig_names": []
+}

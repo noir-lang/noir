@@ -19,8 +19,10 @@ use crate::Config;
 mod expr;
 pub(crate) mod freq;
 mod func;
+mod rewrite;
 mod scope;
 mod types;
+mod visitor;
 
 /// Generate an arbitrary monomorphized AST.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
@@ -28,6 +30,7 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
     ctx.gen_globals(u)?;
     ctx.gen_function_decls(u)?;
     ctx.gen_functions(u)?;
+    ctx.rewrite_functions(u)?;
     let program = ctx.finalize();
     Ok(program)
 }
@@ -42,6 +45,7 @@ enum VariableId {
 /// Name of a variable.
 type Name = String;
 
+#[derive(Default)]
 /// Context to accumulate top level generated item, so we know what we can choose from.
 struct Context {
     config: Config,
@@ -171,6 +175,13 @@ impl Context {
         Ok(decl)
     }
 
+    /// Generate and add main (for testing)
+    #[cfg(test)]
+    fn add_main_decl(&mut self, u: &mut Unstructured) {
+        let d = self.gen_function_decl(u, 0).unwrap();
+        self.function_declarations.insert(FuncId(0u32), d);
+    }
+
     /// Generate random function bodies.
     fn gen_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         let ids = self.function_declarations.keys().cloned().collect::<Vec<_>>();
@@ -190,6 +201,11 @@ impl Context {
             self.functions.insert(id, func);
         }
         Ok(())
+    }
+
+    /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
+    fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
+        rewrite::add_recursion_depth(self, u)
     }
 
     /// Return the generated [Program].

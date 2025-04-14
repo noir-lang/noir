@@ -10,6 +10,7 @@ use crate::{
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
     shared::Signedness,
+    token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
 use crate::{
@@ -47,7 +48,6 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
-    token::SecondaryAttribute,
 };
 
 mod comptime;
@@ -70,7 +70,7 @@ use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{PathResolution, PathResolutionItem};
+use path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -745,7 +745,7 @@ impl<'context> Elaborator<'context> {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
             let typ = if unresolved_typ.is_type_expression() {
-                self.resolve_type_inner(
+                self.resolve_type_with_kind(
                     unresolved_typ.clone(),
                     &Kind::numeric(Type::default_int_type()),
                 )
@@ -922,12 +922,24 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
+        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
+    }
+
+    pub fn use_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
+        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
+    }
+
+    fn resolve_trait_bound_inner(
+        &mut self,
+        bound: &TraitBound,
+        mode: PathResolutionMode,
+    ) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
 
         let (ordered, named) =
-            self.resolve_type_args(bound.trait_generics.clone(), trait_id, location);
+            self.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, mode);
 
         let trait_generics = TraitGenerics { ordered, named };
         Some(ResolvedTraitBound { trait_id, trait_generics, location })
@@ -995,7 +1007,7 @@ impl<'context> Elaborator<'context> {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
                 // Function parameters have Kind::Normal
-                _ => self.resolve_type_inner(typ, &Kind::Normal),
+                _ => self.resolve_type_with_kind(typ, &Kind::Normal),
             };
 
             self.check_if_type_is_valid_for_program_input(
@@ -1021,7 +1033,7 @@ impl<'context> Elaborator<'context> {
             parameter_types.push(typ);
         }
 
-        let return_type = Box::new(self.resolve_type(func.return_type()));
+        let return_type = Box::new(self.use_type(func.return_type()));
 
         let mut typ = Type::Function(
             parameter_types,
@@ -1150,8 +1162,7 @@ impl<'context> Elaborator<'context> {
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
-            lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
-                .map(Into::into)
+            lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
     }
 
@@ -1690,7 +1701,7 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let typ = self.resolve_type(alias.type_alias_def.typ);
+        let typ = self.use_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
@@ -1983,10 +1994,14 @@ impl<'context> Elaborator<'context> {
 
         let location = let_stmt.pattern.location();
 
-        if !self.in_contract()
-            && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
-        {
-            self.push_err(ResolverError::AbiAttributeOutsideContract { location });
+        if !self.in_contract() {
+            for attr in &let_stmt.attributes {
+                if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
+                        location: attr.location,
+                    });
+                }
+            }
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
