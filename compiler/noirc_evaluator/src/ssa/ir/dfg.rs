@@ -14,7 +14,7 @@ use super::{
     },
     map::DenseMap,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, ValueId, resolve_value},
 };
 
 use acvm::{FieldElement, acir::AcirField};
