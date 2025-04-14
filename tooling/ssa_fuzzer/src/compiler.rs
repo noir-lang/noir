@@ -16,7 +16,8 @@ use noirc_evaluator::{
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
         SsaProgramArtifact, function_builder::FunctionBuilder, ir::call_stack::CallStack,
-        ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes, secondary_passes
+        ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes,
+        secondary_passes,
     },
 };
 
@@ -32,7 +33,12 @@ fn optimize_into_acir(
     let ssa = builder.finish();
     log::debug!("SSA: {}", format!("{}", ssa));
     // change to SsaLogging::All to see triage final ssa.
-    let builder = SsaBuilder { ssa, ssa_logging: SsaLogging::All, print_codegen_timings: false, passed: HashMap::new() };
+    let builder = SsaBuilder {
+        ssa,
+        ssa_logging: SsaLogging::All,
+        print_codegen_timings: false,
+        passed: HashMap::new(),
+    };
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let hook_message = panic_message.clone();
@@ -54,7 +60,12 @@ fn optimize_into_acir(
         }
     }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        optimize_ssa_builder_into_acir(builder, &options, &primary_passes(&options), secondary_passes)
+        optimize_ssa_builder_into_acir(
+            builder,
+            &options,
+            &primary_passes(&options),
+            secondary_passes,
+        )
     }));
     std::panic::set_hook(previous_hook);
     match result {

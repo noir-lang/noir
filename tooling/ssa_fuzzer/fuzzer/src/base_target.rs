@@ -11,7 +11,6 @@ use crate::base_context::Instructions;
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
-
 impl Fuzzer {
     fn insert_instruction(&mut self, instruction: Instructions) {
         self.context_non_constant.insert_instruction(instruction.clone());
