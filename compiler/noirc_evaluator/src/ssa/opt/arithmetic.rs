@@ -81,10 +81,10 @@ impl Context {
         id: InstructionId,
     ) {
         let instruction = function.dfg[id].clone();
-        let old_results = function.dfg.instruction_results(id);
+        let old_results = function.dfg.instruction_results(id).to_vec();
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
-            .then(|| vecmap(old_results, |result| function.dfg.type_of_value(*result)));
+            .then(|| vecmap(&old_results, |result| function.dfg.type_of_value(*result)));
 
         let new_instruction = match instruction {
             Instruction::Binary(binary) => {
@@ -113,7 +113,9 @@ impl Context {
             InsertInstructionResult::InstructionRemoved => vec![],
         };
         // Optimizations while inserting the instruction should not change the number of results.
-        assert_eq!(new_results.len(), 1);
+        for (old_result, new_result) in old_results.iter().zip(new_results) {
+            function.dfg.set_value_from_id(*old_result, new_result);
+        }
     }
 }
 
