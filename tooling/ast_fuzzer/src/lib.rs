@@ -49,7 +49,7 @@ impl Default for Config {
             ("block", 30),
             ("vars", 25),
             ("literal", 5),
-            ("call", 3),
+            ("call", 15),
         ]);
         let stmt_freqs_acir = Freqs::new(&[
             ("drop", 3),

@@ -279,7 +279,8 @@ impl<'a> FunctionContext<'a> {
 
         // Function calls returning a value.
         if freq.enabled_when("call", allow_nested && self.budget > 0) {
-            if let Some(expr) = self.gen_call(u, typ, max_depth)? {
+            // Decreasing the max depth in expression position because it can be very difficult to read.
+            if let Some(expr) = self.gen_call(u, typ, max_depth.saturating_sub(1))? {
                 return Ok(expr);
             }
         }
