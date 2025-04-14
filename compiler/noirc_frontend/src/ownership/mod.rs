@@ -516,7 +516,7 @@ impl Context {
             other => panic!("handle_unary given non-unary expression: {other}"),
         };
 
-        // Don't clone `rhs` if this is a reference or dereference exprssion.
+        // Don't clone `rhs` if this is a reference or dereference expression.
         // - If this is a reference expression `&rhs`, `rhs` by definition shouldn't be cloned
         // - If this is `*rhs` we're going to clone the extracted element instead
         if self.experimental_ownership_feature
