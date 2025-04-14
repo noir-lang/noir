@@ -1,5 +1,6 @@
 import { parse } from '@ltd/j-toml';
 import { join } from 'path';
+import { existsSync } from 'fs';
 
 import { FileManager } from './file-manager/file-manager';
 import { DependencyConfig, PackageConfig, parseNoirPackageConfig } from '../types/noir_package_config';
@@ -75,7 +76,11 @@ export class Package {
       default:
         throw new Error(`Unknown package type: ${this.getType()}`);
     }
-    // TODO check that `src` exists
+    // Ensure the source directory exists before resolving entrypoint
+    if (!existsSync(this.#srcPath)) {
+      throw new Error(`Source directory does not exist: ${this.#srcPath}`);
+    }
+
     return join(this.#srcPath, entrypoint);
   }
 
