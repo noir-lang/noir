@@ -151,10 +151,10 @@ impl<'ssa> Interpreter<'ssa> {
             super::ir::value::Value::NumericConstant { constant, typ } => {
                 Value::from_constant(*constant, *typ)
             },
-            super::ir::value::Value::Function(_) => todo!(),
+            super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
             super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
-            super::ir::value::Value::Global(_) => todo!(),
+            super::ir::value::Value::Global(_) => todo!("ssa globals"),
         }
     }
 
@@ -192,7 +192,9 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::Allocate => todo!(),
             Instruction::Load { address } => todo!(),
             Instruction::Store { address, value } => todo!(),
-            Instruction::EnableSideEffectsIf { condition } => todo!(),
+            Instruction::EnableSideEffectsIf { condition } => {
+                self.side_effects_enabled = self.lookup(*condition).as_bool().unwrap();
+            },
             Instruction::ArrayGet { array, index } => todo!(),
             Instruction::ArraySet { array, index, value, mutable } => todo!(),
             Instruction::IncrementRc { value } => todo!(),
