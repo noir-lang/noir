@@ -125,8 +125,12 @@ fn simplify_binary(binary: Binary, dfg: &mut DataFlowGraph) -> Binary {
     if operator == BinaryOp::Div {
         if let Some((rhs_value, NumericType::NativeField)) = dfg.get_numeric_constant_with_type(rhs)
         {
-            let rhs = dfg.make_constant(FieldElement::one() / rhs_value, NumericType::NativeField);
-            Binary { lhs, rhs, operator: BinaryOp::Mul { unchecked: false } }
+            if !rhs_value.is_zero() {
+                let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
+                Binary { lhs, rhs, operator: BinaryOp::Mul { unchecked: false } }
+            } else {
+                binary
+            }
         } else {
             binary
         }
