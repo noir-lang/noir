@@ -7,7 +7,10 @@ use noirc_frontend::{
     shared::Visibility,
 };
 
-use super::{expr, func, types, visitor::{visit_expr, visit_expr_mut}, Context, VariableId};
+use super::{
+    Context, VariableId, expr, func, types,
+    visitor::{visit_expr, visit_expr_mut},
+};
 
 /// Find recursive functions and add a `ctx_depth` parameter to them.
 pub(crate) fn add_recursion_depth(

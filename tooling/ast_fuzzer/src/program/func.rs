@@ -10,7 +10,9 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type, While
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
+        IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type,
+        While,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -165,7 +167,17 @@ impl<'a> FunctionContext<'a> {
             })
             .collect();
 
-        Self { ctx, id, next_local_id, budget, globals, locals, in_loop: false, call_targets, next_ident_id: 0 }
+        Self {
+            ctx,
+            id,
+            next_local_id,
+            budget,
+            globals,
+            locals,
+            in_loop: false,
+            call_targets,
+            next_ident_id: 0,
+        }
     }
 
     /// Generate the function body.
