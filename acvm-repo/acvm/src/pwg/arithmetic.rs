@@ -25,7 +25,7 @@ impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
         witness: Witness,
     ) -> Result<(), OpcodeResolutionError<F>> {
         // note that there might be multiple witness assignments in this list
-        // however when write_pending_ops is called, this would cause an error
+        // however when pending_ops is called, this would cause an error
         self.pending_witness_write.push(PendingOp { neumerator, denominator, witness });
         Ok(())
     }
@@ -212,8 +212,7 @@ impl ExpressionSolver {
                             total_sum,
                             partial_prod,
                             unknown_var,
-                        );
-                        Ok(())
+                        )
                     }
                 }
             }
