@@ -68,61 +68,27 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let is_rc_one = brillig_context.allocate_register();
-    brillig_context.codegen_usize_op(
-        source_rc.address,
-        is_rc_one,
-        BrilligBinaryOp::Equals,
-        1_usize,
+    // FIXME: https://github.com/noir-lang/noir/issues/7976
+    // There used to be a branch here for `if is_rc_one` but it was removed due to issues with
+    // mutating the reference count while popping from the front of the vector.
+    brillig_context.codegen_initialize_vector(target_vector, target_size, None);
+
+    let target_vector_items_pointer =
+        brillig_context.codegen_make_vector_items_pointer(target_vector);
+
+    let source_copy_pointer = brillig_context.allocate_register();
+    brillig_context.memory_op_instruction(
+        source_items_pointer.address,
+        item_pop_count_arg,
+        source_copy_pointer,
+        BrilligBinaryOp::Add,
     );
+    // Now we copy the source vector starting at index removed_items.len() into the target vector
+    brillig_context.codegen_mem_copy(source_copy_pointer, target_vector_items_pointer, target_size);
 
-    brillig_context.codegen_branch(is_rc_one, |brillig_context, _is_rc_one| {
-        // FIXME: https://github.com/noir-lang/noir/issues/7976
-        // if is_rc_one {
-        //     // We reuse the source vector, moving the metadata to the right (decreasing capacity)
-        //     brillig_context.memory_op_instruction(
-        //         source_vector.pointer,
-        //         item_pop_count_arg,
-        //         target_vector.pointer,
-        //         BrilligBinaryOp::Add,
-        //     );
-        //     brillig_context.memory_op_instruction(
-        //         source_capacity.address,
-        //         item_pop_count_arg,
-        //         source_capacity.address,
-        //         BrilligBinaryOp::Sub,
-        //     );
-        //     brillig_context.codegen_initialize_vector_metadata(
-        //         target_vector,
-        //         target_size,
-        //         Some(source_capacity),
-        //     );
-        // } else {
-        brillig_context.codegen_initialize_vector(target_vector, target_size, None);
+    brillig_context.deallocate_register(source_copy_pointer);
+    brillig_context.deallocate_register(target_vector_items_pointer);
 
-        let target_vector_items_pointer =
-            brillig_context.codegen_make_vector_items_pointer(target_vector);
-
-        let source_copy_pointer = brillig_context.allocate_register();
-        brillig_context.memory_op_instruction(
-            source_items_pointer.address,
-            item_pop_count_arg,
-            source_copy_pointer,
-            BrilligBinaryOp::Add,
-        );
-        // Now we copy the source vector starting at index removed_items.len() into the target vector
-        brillig_context.codegen_mem_copy(
-            source_copy_pointer,
-            target_vector_items_pointer,
-            target_size,
-        );
-
-        brillig_context.deallocate_register(source_copy_pointer);
-        brillig_context.deallocate_register(target_vector_items_pointer);
-        // }
-    });
-
-    brillig_context.deallocate_register(is_rc_one);
     brillig_context.deallocate_single_addr(target_size);
     brillig_context.deallocate_single_addr(source_rc);
     brillig_context.deallocate_single_addr(source_size);
