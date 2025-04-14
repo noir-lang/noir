@@ -22,7 +22,7 @@ mod func;
 mod rewrite;
 mod scope;
 mod types;
-mod visitor;
+pub(crate) mod visitor;
 
 /// Generate an arbitrary monomorphized AST.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {

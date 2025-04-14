@@ -6,6 +6,7 @@ mod program;
 pub use abi::program_abi;
 pub use input::arb_inputs;
 use program::freq::Freqs;
+pub use program::visitor::{visit_expr, visit_expr_mut};
 pub use program::{DisplayAstAsNoir, arb_program};
 
 /// AST generation configuration.
