@@ -62,8 +62,15 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
         let one = FieldElement::one();
         let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
+        let mut values_to_replace = HashMap::default();
 
         for instruction in instructions {
+            // Before we process instructions, replace any values we previously determined we need to replace
+            if !values_to_replace.is_empty() {
+                let instruction = &mut function.dfg[instruction];
+                instruction.replace_values(&values_to_replace);
+            }
+
             match &function.dfg[instruction] {
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                     let then_condition = *then_condition;
@@ -100,8 +107,8 @@ impl Context {
                     //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
                     // };
 
-                    function.dfg.set_value_from_id(result, value);
-                    self.array_set_conditionals.insert(result, current_conditional);
+                    values_to_replace.insert(result, value);
+                    self.array_set_conditionals.insert(value, current_conditional);
                 }
                 Instruction::Call { func, arguments } => {
                     if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
@@ -144,6 +151,10 @@ impl Context {
                     function.dfg[block].instructions_mut().push(instruction);
                 }
             }
+        }
+
+        if !values_to_replace.is_empty() {
+            function.dfg.replace_values_in_block_terminator(block, &values_to_replace);
         }
     }
 
