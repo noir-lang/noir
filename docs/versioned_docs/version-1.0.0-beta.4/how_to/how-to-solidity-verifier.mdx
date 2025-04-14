@@ -131,27 +131,22 @@ This will generate a `Prover.toml` you can fill with the values you want to prov
 
 ```bash
 nargo execute <witness-name>
-bb prove -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target --oracle_hash keccak
+bb prove -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target --oracle_hash keccak --output_format bytes_and_fields
 ```
 
-:::tip[Public inputs]
-Barretenberg attaches the public inputs to the proof, which in this case it's not very useful. If you're up for some JS, `bb.js` has [a method for it](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/ts/src/proof/index.ts), but in the CLI you can use this ugly snippet for now:
+:::info[Keccak proof]
+We used `--oracle_hash keccak` to instruct bb to generate proof with `keccak` hash function, as that is more efficient in Solidity and our generated Solidity verifier expects a `keccak` proof. 
+:::
+
+To verify with Remix, you can pass the proof bytes as a hex string and the public inputs as a `bytes32[]` to the `verify` function.
 
 ```bash
-PROOF_HEX=$(cat ./target/proof | od -An -v -t x1 | tr -d $' \n' | sed 's/^.\{8\}//')
-
-NUM_PUBLIC_INPUTS=2
-HEX_PUBLIC_INPUTS=${PROOF_HEX:0:$((32 * $NUM_PUBLIC_INPUTS * 2))}
-SPLIT_HEX_PUBLIC_INPUTS=$(sed -e 's/.\{64\}/0x&,/g' <<<$HEX_PUBLIC_INPUTS)
-
-PROOF_WITHOUT_PUBLIC_INPUTS="${PROOF_HEX:$((NUM_PUBLIC_INPUTS * 32 * 2))}"
-
-echo 0x$PROOF_WITHOUT_PUBLIC_INPUTS
-echo [$SPLIT_HEX_PUBLIC_INPUTS]
+# Print the proof bytes as a hex string
+cat ./target/proof | od -An -v -t x1 | tr -d $' \n'
 ```
-You can pass the proof and public inputs from above to the `verify` function in Remix.
 
-:::
+Since we used `--output_format bytes_and_fields` flag, you will have a `target/public_inputs_fields.json` file containing an array of public inputs in hex format, which can be directly pasted into Remix.
+
 
 A programmatic example of how the `verify` function is called can be seen in the example zk voting application [here](https://github.com/noir-lang/noir-examples/blob/33e598c257e2402ea3a6b68dd4c5ad492bce1b0a/foundry-voting/src/zkVote.sol#L35):
 
@@ -186,7 +181,7 @@ fn main(
 
 the `verify` function will expect the public inputs array (second function parameter) to be of length 3, the two inputs and the return value.
 
-Passing only two inputs will result in an error such as `PUBLIC_INPUT_COUNT_INVALID(3, 2)`.
+Passing only two inputs will result in an error such as `PublicInputsLengthWrong()`.
 
 In this case, the inputs parameter to `verify` would be an array ordered as `[pubkey_x, pubkey_y, return]`.
 
