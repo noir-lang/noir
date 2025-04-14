@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744627307836,
+  "lastUpdate": 1744627443115,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19523,6 +19523,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 240681,
             "range": "± 8966",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1bb9b7fb632445ef0901999a41e830c278a3c4ae",
+          "message": "chore: Add `GITHUB_TOKEN` to more workflow steps (#8046)",
+          "timestamp": "2025-04-14T10:22:29Z",
+          "tree_id": "ac3200d32e84b66905b26fb2f1e33dd913cb10fb",
+          "url": "https://github.com/noir-lang/noir/commit/1bb9b7fb632445ef0901999a41e830c278a3c4ae"
+        },
+        "date": 1744627436518,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263858,
+            "range": "± 817",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232185,
+            "range": "± 13214",
             "unit": "ns/iter"
           }
         ]
