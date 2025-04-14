@@ -276,7 +276,7 @@
 /// of the visited expression.
 ///
 /// Gets mutable references so it can manipulate the expressions if needed.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>visit_expr_mut&lt;V&gt;(expr: <span class="kw-2">&amp;mut </span>Expression, visit: <span class="kw-2">&amp;mut </span>V)
+</span><span class="kw">pub fn </span>visit_expr_mut&lt;V&gt;(expr: <span class="kw-2">&amp;mut </span>Expression, visit: <span class="kw-2">&amp;mut </span>V)
 <span class="kw">where
     </span>V: FnMut(<span class="kw-2">&amp;mut </span>Expression) -&gt; bool,
 {
@@ -411,7 +411,7 @@
 ///
 /// This is a read-only version, for cases where we don't have/need
 /// a mutable reference to the AST.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>visit_expr&lt;V&gt;(expr: <span class="kw-2">&amp;</span>Expression, visit: <span class="kw-2">&amp;mut </span>V)
+</span><span class="kw">pub fn </span>visit_expr&lt;V&gt;(expr: <span class="kw-2">&amp;</span>Expression, visit: <span class="kw-2">&amp;mut </span>V)
 <span class="kw">where
     </span>V: FnMut(<span class="kw-2">&amp;</span>Expression) -&gt; bool,
 {

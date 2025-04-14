@@ -76,7 +76,19 @@
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
 <span class="kw">pub mod </span>compare;
 <span class="kw">mod </span>input;
 <span class="kw">mod </span>program;
@@ -84,6 +96,7 @@
 <span class="kw">pub use </span>abi::program_abi;
 <span class="kw">pub use </span>input::arb_inputs;
 <span class="kw">use </span>program::freq::Freqs;
+<span class="kw">pub use </span>program::visitor::{visit_expr, visit_expr_mut};
 <span class="kw">pub use </span>program::{DisplayAstAsNoir, arb_program};
 
 <span class="doccomment">/// AST generation configuration.
@@ -109,32 +122,42 @@
     </span><span class="kw">pub </span>max_loop_size: usize,
     <span class="doccomment">/// Maximum call depth for recursive calls.
     </span><span class="kw">pub </span>max_call_depth: usize,
-    <span class="doccomment">/// Frequency of expressions that produce a value.
+    <span class="doccomment">/// Frequency of expressions, which produce a value.
     </span><span class="kw">pub </span>expr_freqs: Freqs,
-    <span class="doccomment">/// Frequency of statements that don't produce a value.
-    </span><span class="kw">pub </span>stmt_freqs: Freqs,
+    <span class="doccomment">/// Frequency of statements in ACIR functions.
+    </span><span class="kw">pub </span>stmt_freqs_acir: Freqs,
+    <span class="doccomment">/// Frequency of statements in Brillig functions.
+    </span><span class="kw">pub </span>stmt_freqs_brillig: Freqs,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>Config {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>expr_freqs = Freqs::new(<span class="kw-2">&amp;</span>[
-            (<span class="string">"unary"</span>, <span class="number">5</span>),
+            (<span class="string">"unary"</span>, <span class="number">10</span>),
             (<span class="string">"binary"</span>, <span class="number">20</span>),
             (<span class="string">"if"</span>, <span class="number">15</span>),
             (<span class="string">"block"</span>, <span class="number">30</span>),
             (<span class="string">"vars"</span>, <span class="number">25</span>),
             (<span class="string">"literal"</span>, <span class="number">5</span>),
-            (<span class="string">"call"</span>, <span class="number">5</span>),
+            (<span class="string">"call"</span>, <span class="number">15</span>),
         ]);
-        <span class="kw">let </span>stmt_freqs = Freqs::new(<span class="kw-2">&amp;</span>[
-            (<span class="string">"drop"</span>, <span class="number">5</span>),
-            (<span class="string">"break"</span>, <span class="number">5</span>),
-            (<span class="string">"continue"</span>, <span class="number">5</span>),
+        <span class="kw">let </span>stmt_freqs_acir = Freqs::new(<span class="kw-2">&amp;</span>[
+            (<span class="string">"drop"</span>, <span class="number">3</span>),
             (<span class="string">"assign"</span>, <span class="number">30</span>),
             (<span class="string">"if"</span>, <span class="number">10</span>),
-            (<span class="string">"for"</span>, <span class="number">10</span>),
-            (<span class="string">"loop"</span>, <span class="number">10</span>),
-            (<span class="string">"while"</span>, <span class="number">10</span>),
+            (<span class="string">"for"</span>, <span class="number">18</span>),
+            (<span class="string">"let"</span>, <span class="number">25</span>),
+            (<span class="string">"call"</span>, <span class="number">5</span>),
+        ]);
+        <span class="kw">let </span>stmt_freqs_brillig = Freqs::new(<span class="kw-2">&amp;</span>[
+            (<span class="string">"drop"</span>, <span class="number">5</span>),
+            (<span class="string">"break"</span>, <span class="number">20</span>),
+            (<span class="string">"continue"</span>, <span class="number">20</span>),
+            (<span class="string">"assign"</span>, <span class="number">30</span>),
+            (<span class="string">"if"</span>, <span class="number">10</span>),
+            (<span class="string">"for"</span>, <span class="number">15</span>),
+            (<span class="string">"loop"</span>, <span class="number">15</span>),
+            (<span class="string">"while"</span>, <span class="number">15</span>),
             (<span class="string">"let"</span>, <span class="number">20</span>),
             (<span class="string">"call"</span>, <span class="number">5</span>),
         ]);
@@ -150,7 +173,8 @@
             max_loop_size: <span class="number">10</span>,
             max_call_depth: <span class="number">5</span>,
             expr_freqs,
-            stmt_freqs,
+            stmt_freqs_acir,
+            stmt_freqs_brillig,
         }
     }
 }

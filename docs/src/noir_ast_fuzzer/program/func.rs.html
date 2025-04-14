@@ -1035,7 +1035,14 @@
 <a href="#1034" id="1034">1034</a>
 <a href="#1035" id="1035">1035</a>
 <a href="#1036" id="1036">1036</a>
-<a href="#1037" id="1037">1037</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashSet},
     fmt::Debug,
@@ -1315,8 +1322,9 @@
         }
 
         <span class="comment">// Function calls returning a value.
-        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_call(u, typ, max_depth)<span class="question-mark">? </span>{
+        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, allow_nested &amp;&amp; <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
+            <span class="comment">// Decreasing the max depth in expression position because it can be very difficult to read.
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_call(u, typ, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
             }
         }
@@ -1612,7 +1620,11 @@
     <span class="doccomment">/// Generate a statement, which is an expression that doesn't return anything,
     /// for example loops, variable declarations, etc.
     </span><span class="kw">fn </span>gen_stmt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>freq = Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>freq = <span class="kw">if </span><span class="self">self</span>.unconstrained() {
+            Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs_brillig)<span class="question-mark">?
+        </span>} <span class="kw">else </span>{
+            Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs_acir)<span class="question-mark">?
+        </span>};
         <span class="comment">// TODO(#7926): Match
         // TODO(#7931): print
         // TODO(#7932): Constrain
@@ -1622,23 +1634,6 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_drop(u)<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
             }
-        }
-
-        <span class="comment">// Get loop out of the way quick, as it's always disabled for ACIR.
-        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"loop"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.unconstrained()) {
-            <span class="kw">return </span><span class="self">self</span>.gen_loop(u);
-        }
-
-        <span class="kw">if </span>freq.enabled_when(<span class="string">"while"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; <span class="self">self</span>.unconstrained()) {
-            <span class="kw">return </span><span class="self">self</span>.gen_while(u);
-        }
-
-        <span class="kw">if </span>freq.enabled_when(<span class="string">"break"</span>, <span class="self">self</span>.in_loop &amp;&amp; <span class="self">self</span>.unconstrained()) {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(Expression::Break);
-        }
-
-        <span class="kw">if </span>freq.enabled_when(<span class="string">"continue"</span>, <span class="self">self</span>.in_loop &amp;&amp; <span class="self">self</span>.unconstrained()) {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(Expression::Continue);
         }
 
         <span class="comment">// Require a positive budget, so that we have some for the block itself and its contents.
@@ -1653,6 +1648,25 @@
         <span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
+            }
+        }
+
+        <span class="kw">if </span><span class="self">self</span>.unconstrained() {
+            <span class="comment">// Get loop out of the way quick, as it's always disabled for ACIR.
+            </span><span class="kw">if </span>freq.enabled_when(<span class="string">"loop"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
+                <span class="kw">return </span><span class="self">self</span>.gen_loop(u);
+            }
+
+            <span class="kw">if </span>freq.enabled_when(<span class="string">"while"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
+                <span class="kw">return </span><span class="self">self</span>.gen_while(u);
+            }
+
+            <span class="kw">if </span>freq.enabled_when(<span class="string">"break"</span>, <span class="self">self</span>.in_loop) {
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(Expression::Break);
+            }
+
+            <span class="kw">if </span>freq.enabled_when(<span class="string">"continue"</span>, <span class="self">self</span>.in_loop) {
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(Expression::Continue);
             }
         }
 

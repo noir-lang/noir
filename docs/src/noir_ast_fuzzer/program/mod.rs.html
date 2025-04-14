@@ -370,7 +370,7 @@
 <span class="kw">mod </span>rewrite;
 <span class="kw">mod </span>scope;
 <span class="kw">mod </span>types;
-<span class="kw">mod </span>visitor;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>visitor;
 
 <span class="doccomment">/// Generate an arbitrary monomorphized AST.
 </span><span class="kw">pub fn </span>arb_program(u: <span class="kw-2">&amp;mut </span>Unstructured, config: Config) -&gt; arbitrary::Result&lt;Program&gt; {
