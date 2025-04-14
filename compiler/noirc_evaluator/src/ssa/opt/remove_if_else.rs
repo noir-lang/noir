@@ -282,7 +282,6 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
 
         ssa = ssa.remove_if_else();
-        println!("{}", ssa);
 
         // In case our if block is never activated, we need to fetch each value from the original array.
         // We then should create a new array where each value can be mapped to `(then_condition * then_value) + (!then_condition * else_value)`.
