@@ -859,6 +859,10 @@ impl Attributes {
         self.has_secondary_attr(&SecondaryAttributeKind::Export)
     }
 
+    pub fn has_allow(&self, name: &'static str) -> bool {
+        self.secondary.iter().any(|attr| attr.kind.is_allow(name))
+    }
+
     /// Check if secondary attributes contain a specific instance.
     pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
         self.secondary.iter().any(|attr| &attr.kind == kind)
@@ -1028,9 +1032,9 @@ pub enum SecondaryAttributeKind {
 }
 
 impl SecondaryAttributeKind {
-    pub(crate) fn is_allow_unused_variables(&self) -> bool {
+    pub(crate) fn is_allow(&self, name: &'static str) -> bool {
         match self {
-            SecondaryAttributeKind::Allow(string) => string == "unused_variables",
+            SecondaryAttributeKind::Allow(string) => string == name,
             _ => false,
         }
     }

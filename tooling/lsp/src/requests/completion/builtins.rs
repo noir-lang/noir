@@ -149,9 +149,17 @@ impl NodeFinder<'_> {
                 }
             }
             AttributeTarget::Let => {
-                if name_matches("allow", prefix) || name_matches("unused_variables", prefix) {
+                let is_allow = name_matches("allow", prefix);
+                if is_allow || name_matches("unused_variables", prefix) {
                     self.completion_items.push(simple_completion_item(
                         "allow(unused_variables)",
+                        CompletionItemKind::METHOD,
+                        None,
+                    ));
+                }
+                if is_allow || name_matches("dead_code", prefix) {
+                    self.completion_items.push(simple_completion_item(
+                        "allow(dead_code)",
                         CompletionItemKind::METHOD,
                         None,
                     ));

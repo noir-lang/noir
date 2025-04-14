@@ -409,3 +409,55 @@ fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
     ";
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn allow_dead_code_on_unused_function() {
+    let src = "
+    #[allow(dead_code)]
+    fn foo() {}
+
+    fn main() {
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn allow_dead_code_on_unused_struct() {
+    let src = "
+    #[allow(dead_code)]
+    struct Foo {}
+
+    fn main() {
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn allow_dead_code_on_unused_trait() {
+    let src = "
+    #[allow(dead_code)]
+    trait Foo {}
+
+    fn main() {
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn allow_dead_code_on_unused_enum() {
+    let src = "
+    #[allow(dead_code)]
+    enum Foo {}
+
+    fn main() {
+    }
+    ";
+    assert_no_errors!(src);
+}
