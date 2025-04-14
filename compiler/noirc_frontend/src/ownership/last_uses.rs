@@ -432,9 +432,7 @@ impl LastUseContext {
 #[cfg(test)]
 mod test {
     use crate::{
-        ast::Visitor,
         monomorphization::ast::{IdentId, LocalId},
-        ownership::last_uses::Branches,
         test_utils::get_monomorphized,
     };
 
