@@ -3523,7 +3523,7 @@ dependencies = [
  "similar-asserts",
  "smallvec",
  "test-case",
- "thiserror",
+ "thiserror 1.0.69",
  "tracing",
  "tracing-test",
  "vec-collections",
@@ -5310,17 +5310,6 @@ dependencies = [
  "noir_ssa_fuzzer",
  "noirc_driver",
  "noirc_evaluator",
-]
-
-[[package]]
-name = "ssa_verification"
-version = "1.0.0-beta.4"
-dependencies = [
- "clap",
- "flate2",
- "noirc_evaluator",
- "serde",
- "serde_json",
 ]
 
 [[package]]
