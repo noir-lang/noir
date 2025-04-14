@@ -56,6 +56,14 @@ impl FunctionDeclaration {
 
         (param_types, return_type)
     }
+
+    fn is_acir(&self) -> bool {
+        !self.unconstrained
+    }
+
+    fn is_brillig(&self) -> bool {
+        self.unconstrained
+    }
 }
 
 /// HIR representation of a function parameter.
@@ -149,19 +157,33 @@ impl<'a> FunctionContext<'a> {
         let call_targets = ctx
             .function_declarations
             .iter()
-            .filter_map(|(callee_id, decl)| {
+            .filter_map(|(callee_id, callee_decl)| {
                 // We can't call `main`.
                 if *callee_id == Program::main_id() {
                     return None;
                 }
+
                 // From an ACIR function we can call any Brillig function,
                 // but we avoid creating infinite recursive ACIR calls by
                 // only calling functions with higher IDs than ours,
                 // otherwise the inliner could get stuck.
-                if !decl.unconstrained && *callee_id <= id {
+                if decl.is_acir() && callee_decl.is_acir() && *callee_id <= id {
                     return None;
                 }
-                Some((*callee_id, types::types_produced(&decl.return_type)))
+
+                // From a Brillig function we restrict ourselves to only call
+                // other Brillig functions. That's because the `Monomorphizer`
+                // would make an unconstrained copy of any ACIR function called
+                // from Brillig, and this is expected by the inliner for example,
+                // but if we did similarly in the generator after we know who
+                // calls who, we would incur two drawbacks:
+                // 1) it would make programs bigger for little benefit
+                // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
+                if decl.is_brillig() && !callee_decl.is_brillig() {
+                    return None;
+                }
+
+                Some((*callee_id, types::types_produced(&callee_decl.return_type)))
             })
             .collect();
 
