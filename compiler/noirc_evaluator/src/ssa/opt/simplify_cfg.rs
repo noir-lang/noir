@@ -19,10 +19,12 @@ use crate::ssa::{
         cfg::ControlFlowGraph,
         function::{Function, RuntimeType},
         instruction::{Instruction, TerminatorInstruction},
-        value::Value,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
+
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Simplify each function's control flow graph by:
@@ -49,12 +51,17 @@ impl Function {
     /// be inlined into their predecessor.
     pub(crate) fn simplify_function(&mut self) {
         let mut cfg = ControlFlowGraph::with_function(self);
+        let mut values_to_replace = HashMap::default();
         let mut stack = vec![self.entry_block()];
         let mut visited = HashSet::new();
 
         while let Some(block) = stack.pop() {
             if visited.insert(block) {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+            }
+
+            if !values_to_replace.is_empty() {
+                self.dfg.replace_values_in_block_instructions(block, &values_to_replace);
             }
 
             check_for_negated_jmpif_condition(self, block, &mut cfg);
@@ -70,7 +77,7 @@ impl Function {
                 drop(predecessors);
 
                 // If the block has only 1 predecessor, we can safely remove its block parameters
-                remove_block_parameters(self, block, predecessor);
+                remove_block_parameters(self, block, predecessor, &mut values_to_replace);
 
                 // Note: this function relies on `remove_block_parameters` being called first.
                 // Otherwise the inlined block will refer to parameters that no longer exist.
@@ -84,6 +91,15 @@ impl Function {
 
                 check_for_double_jmp(self, block, &mut cfg);
             }
+
+            if !values_to_replace.is_empty() {
+                self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
+            }
+        }
+
+        // Values from previous blocks might need to be replaced
+        for block in self.reachable_blocks() {
+            self.dfg.replace_values_in_block(block, &values_to_replace);
         }
     }
 }
@@ -246,6 +262,7 @@ fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
+    values_to_replace: &mut HashMap<ValueId, ValueId>,
 ) {
     let block = &mut function.dfg[block];
 
@@ -264,7 +281,7 @@ fn remove_block_parameters(
 
         assert_eq!(block_params.len(), jump_args.len());
         for (param, arg) in block_params.iter().zip(jump_args) {
-            function.dfg.set_value_from_id(*param, arg);
+            values_to_replace.insert(*param, arg);
         }
     }
 }
