@@ -241,3 +241,148 @@ fn slice_capacity_change(
         | Intrinsic::FieldLessThan => SizeChange::None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn merge_basic_arrays() {
+        // This is the flattened SSA for the following Noir logic:
+        // ```
+        // fn main(x: bool, mut y: [u32; 2]) {
+        //     if x {
+        //         y[0] = 1;
+        //         y[1] = 2;
+        //     }
+        //
+        //     let z = y[0] + y[1];
+        //     assert(z == 3);
+        // }
+        // ```
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [u32; 2]):
+            v2 = allocate -> &mut [u32; 2]
+            enable_side_effects v0
+            v5 = array_set v1, index u32 0, value u32 1
+            v7 = array_set v5, index u32 1, value u32 2
+            v8 = not v0
+            v9 = if v0 then v7 else (if v8) v1
+            enable_side_effects u1 1
+            v11 = array_get v9, index u32 0 -> u32
+            v12 = array_get v9, index u32 1 -> u32
+            v13 = add v11, v12
+            v15 = eq v13, u32 3
+            constrain v13 == u32 3
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+
+        ssa = ssa.remove_if_else();
+        println!("{}", ssa);
+
+        // In case our if block is never activated, we need to fetch each value from the original array.
+        // We then should create a new array where each value can be mapped to `(then_condition * then_value) + (!then_condition * else_value)`.
+        // The `then_value` and `else_value` for an array will be every element of the array. Thus, we should see array_get operations
+        // on the original array as well as the new values we are writing to the array.
+        let expected = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [u32; 2]):
+            v2 = allocate -> &mut [u32; 2]
+            enable_side_effects v0
+            v5 = array_set v1, index u32 0, value u32 1
+            v7 = array_set v5, index u32 1, value u32 2
+            v8 = not v0
+            v10 = array_get v1, index Field 0 -> u32
+            v11 = cast v0 as u32
+            v12 = cast v8 as u32
+            v13 = unchecked_mul v12, v10
+            v14 = unchecked_add v11, v13
+            v16 = array_get v1, index Field 1 -> u32
+            v17 = cast v0 as u32
+            v18 = cast v8 as u32
+            v19 = unchecked_mul v17, u32 2
+            v20 = unchecked_mul v18, v16
+            v21 = unchecked_add v19, v20
+            v22 = make_array [v14, v21] : [u32; 2]
+            enable_side_effects u1 1
+            v24 = array_get v22, index u32 0 -> u32
+            v25 = array_get v22, index u32 1 -> u32
+            v26 = add v24, v25
+            v28 = eq v26, u32 3
+            constrain v26 == u32 3
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn try_merge_only_changed_indices() {
+        // This is the flattened SSA for the following Noir logic:
+        // ```
+        // fn main(x: bool, mut y: [u32; 2]) {
+        //     if x {
+        //         y[0] = 1;
+        //     }
+        //
+        //     let z = y[0] + y[1];
+        //     assert(z == 1);
+        // }
+        // ```
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [u32; 2]):
+            v2 = allocate -> &mut [u32; 2]
+            enable_side_effects v0
+            v5 = array_set v1, index u32 0, value u32 1
+            v6 = not v0
+            v7 = if v0 then v5 else (if v6) v1
+            enable_side_effects u1 1
+            v9 = array_get v7, index u32 0 -> u32
+            v10 = array_get v7, index u32 1 -> u32
+            v11 = add v9, v10
+            v12 = eq v11, u32 1
+            constrain v11 == u32 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else();
+
+        // We attempt to optimize array mergers to only handle where an array was modified,
+        // rather than merging the entire array. As we only modify the `y` array at a single index,
+        // we instead only map the if predicate onto the the numeric value we are looking to write,
+        // and then write into the array directly.
+        let expected = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [u32; 2]):
+            v2 = allocate -> &mut [u32; 2]
+            enable_side_effects v0
+            v5 = array_set v1, index u32 0, value u32 1
+            v6 = not v0
+            enable_side_effects v0
+            v7 = array_get v1, index u32 0 -> u32
+            v8 = cast v0 as u32
+            v9 = cast v6 as u32
+            v10 = unchecked_mul v9, v7
+            v11 = unchecked_add v8, v10
+            v12 = array_set v5, index u32 0, value v11
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v14 = array_get v12, index u32 0 -> u32
+            v15 = array_get v12, index u32 1 -> u32
+            v16 = add v14, v15
+            v17 = eq v16, u32 1
+            constrain v16 == u32 1
+            return
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+}
