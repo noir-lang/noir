@@ -148,11 +148,19 @@ impl ExpressionSolver {
                         )
                     })?;
                 let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
-                ExpressionSolver::solve_optimized(
-                    initial_witness,
-                    opcode,
-                    pending_arithmetic_opcodes,
-                )
+                // ExpressionSolver::solve_optimized(
+                //     initial_witness,
+                //     opcode,
+                //     pending_arithmetic_opcodes,
+                // ); 
+                match (mul_result, opcode_status) {
+                    (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
+                        Err(OpcodeResolutionError::OpcodeNotSolvable(
+                            OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                        ))
+                    }
+                    _ => Ok(()),
+                }
             }
             (MulTerm::OneUnknown(q, w1), OpcodeStatus::OpcodeSolvable(a, (b, w2))) => {
                 if w1 == w2 {

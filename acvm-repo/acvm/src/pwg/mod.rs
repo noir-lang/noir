@@ -18,10 +18,9 @@ use acvm_blackbox_solver::BlackBoxResolutionError;
 use brillig_vm::BranchToFeatureMap;
 
 use self::{
-    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
+    arithmetic::{ExpressionSolver, Pending_Arithmetic_Opcodes}, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
 };
 use crate::BlackBoxFunctionSolver;
-
 use thiserror::Error;
 
 // arithmetic
@@ -402,16 +401,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// 2. The circuit has been found to be unsatisfiable.
     /// 2. A Brillig [foreign call][`ForeignCallWaitInfo`] has been encountered and must be resolved.
     pub fn solve(&mut self) -> ACVMStatus<F> {
+        let mut pending_arithmetic_opcodes: Pending_Arithmetic_Opcodes<F> = Pending_Arithmetic_Opcodes::new();
         while self.status == ACVMStatus::InProgress {
-            self.solve_opcode();
+            self.solve_opcode(&mut pending_arithmetic_opcodes);
         }
         self.status.clone()
     }
 
-    pub fn solve_opcode(&mut self) -> ACVMStatus<F> {
+    pub fn solve_opcode(&mut self, pending_arithmetic_opcodes: &mut Pending_Arithmetic_Opcodes<F>) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {
-            Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
+            Opcode::AssertZero(expr) => ExpressionSolver::solve_optimized(&mut self.witness_map, expr, pending_arithmetic_opcodes),
             Opcode::BlackBoxFuncCall(bb_func) => blackbox::solve(
                 self.backend,
                 &mut self.witness_map,
@@ -614,11 +614,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let Opcode::BrilligCall { id, inputs, outputs, predicate } =
             &self.opcodes[self.instruction_pointer]
         else {
-            return StepResult::Status(self.solve_opcode());
+            return StepResult::Status(self.solve_opcode(&mut Pending_Arithmetic_Opcodes::new()));
         };
 
         let opcode_location =
-            ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
+            ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer));
         let witness = &mut self.witness_map;
         let should_skip = match is_predicate_false(
             witness,
@@ -656,7 +656,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             unreachable!("Not executing a Brillig/BrilligCall opcode");
         }
         self.brillig_solver = Some(solver);
-        self.solve_opcode()
+        self.solve_opcode(&mut Pending_Arithmetic_Opcodes::new())
     }
 
     pub fn solve_call_opcode(
