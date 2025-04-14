@@ -551,6 +551,25 @@ impl<'a> Parser<'a> {
             return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
         }
 
+        if self.eat_keyword(Keyword::If)? {
+            let then_condition = self.parse_value_or_error()?;
+            self.eat_or_error(Token::Keyword(Keyword::Then))?;
+            let then_value = self.parse_value_or_error()?;
+            self.eat_or_error(Token::Keyword(Keyword::Else))?;
+            self.eat_or_error(Token::LeftParen)?;
+            self.eat_or_error(Token::Keyword(Keyword::If))?;
+            let else_condition = self.parse_value_or_error()?;
+            self.eat_or_error(Token::RightParen)?;
+            let else_value = self.parse_value_or_error()?;
+            return Ok(ParsedInstruction::IfElse {
+                target,
+                then_condition,
+                then_value,
+                else_condition,
+                else_value,
+            });
+        }
+
         if let Some(op) = self.eat_binary_op()? {
             let lhs = self.parse_value_or_error()?;
             self.eat_or_error(Token::Comma)?;
