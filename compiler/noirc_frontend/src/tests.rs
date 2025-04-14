@@ -37,7 +37,7 @@ use crate::hir_def::stmt::HirStatement;
 
 pub(crate) fn get_program_using_features(
     src: &str,
-    test_path: &str,
+    test_path: Option<&str>,
     expect: Expect,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
@@ -168,7 +168,7 @@ fn check_errors_with_options(
     let src = code_lines.join("\n");
     let expect = if primary_spans_with_errors.is_empty() { Expect::Success } else { Expect::Error };
     let (_, mut context, errors) =
-        get_program_with_options(&src, test_path, expect, allow_parser_errors, options);
+        get_program_with_options(&src, Some(test_path), expect, allow_parser_errors, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if monomorphize {
@@ -305,7 +305,7 @@ macro_rules! get_program_using_features {
     ($src:expr, $expect:expr, $features:expr) => {
         $crate::tests::get_program_using_features(
             $src,
-            $crate::function_path!(),
+            Some($crate::function_path!()),
             $expect,
             $features,
         )
@@ -334,7 +334,7 @@ macro_rules! get_program_with_options {
     ($src:expr, $expect:expr, $allow_parser_errors:expr, $options:expr) => {
         $crate::tests::get_program_with_options(
             $src,
-            $crate::function_path!(),
+            Some($crate::function_path!()),
             $expect,
             $allow_parser_errors,
             $options,
@@ -4379,7 +4379,6 @@ fn deny_attaching_mut_ref_to_immutable_object() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn immutable_references_with_ownership_feature() {
     let src = r#"
@@ -4392,7 +4391,7 @@ fn immutable_references_with_ownership_feature() {
     "#;
 
     let (_, _, errors) =
-        get_program_using_features!(src, Expect::Success, &[UnstableFeature::Ownership]);
+        get_program_using_features(src, None, Expect::Success, &[UnstableFeature::Ownership]);
     assert_eq!(errors.len(), 0);
 }
 

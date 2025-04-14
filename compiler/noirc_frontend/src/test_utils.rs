@@ -66,7 +66,7 @@ pub(crate) fn get_program<'a, 'b>(
     let allow_parser_errors = false;
     get_program_with_options(
         src,
-        test_path,
+        Some(test_path),
         expect,
         allow_parser_errors,
         FrontendOptions::test_default(),
@@ -82,9 +82,13 @@ pub enum Expect {
 /// Compile a program.
 ///
 /// The stdlib is not available for these snippets.
+///
+/// An optional test path is supplied as an argument.
+/// The existence of a test path indicates that we want to emit integration tests
+/// for the supplied program as well.
 pub(crate) fn get_program_with_options(
     src: &str,
-    test_path: &str,
+    test_path: Option<&str>,
     expect: Expect,
     allow_parser_errors: bool,
     options: FrontendOptions,
@@ -136,7 +140,10 @@ pub(crate) fn get_program_with_options(
         ));
     }
 
-    emit_compile_test(test_path, src, expect);
+    if let Some(test_path) = test_path {
+        emit_compile_test(test_path, src, expect);
+    }
+
     (program, context, errors)
 }
 
