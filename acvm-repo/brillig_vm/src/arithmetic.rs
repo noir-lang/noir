@@ -1,4 +1,5 @@
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+use std::sync::OnceLock;
 
 use acir::AcirField;
 use acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
@@ -15,6 +16,19 @@ pub(crate) enum BrilligArithmeticError {
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
     #[error("Attempted to divide by zero")]
     DivisionByZero,
+}
+
+fn two_pow_120_inverse<F: AcirField>() -> &'static F {
+    static INSTANCE: OnceLock<F> = OnceLock::new();
+    INSTANCE.get_or_init(|| F::from(1u128 << 120))
+}
+
+fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
+    if denominator == F::from(1u128 << 120) {
+        numerator * *two_pow_120_inverse()
+    } else {
+        numerator / denominator
+    }
 }
 
 /// Evaluate a binary operation on two FieldElement memory values.
@@ -53,7 +67,7 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
             if b.is_zero() {
                 return Err(BrilligArithmeticError::DivisionByZero);
             } else {
-                MemoryValue::new_field(a / b)
+                MemoryValue::new_field(quick_invert(a, b))
             }
         }
         BinaryFieldOp::IntegerDiv => {
