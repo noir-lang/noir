@@ -18,8 +18,16 @@ impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
         Self { pending_witness_write: vec![], failures: 0 }
     }
 
-    pub(crate) fn add_pending_op(&mut self, neumerator: F, denominator: F, witness: Witness) {
+    pub(crate) fn add_pending_op(
+        &mut self,
+        neumerator: F,
+        denominator: F,
+        witness: Witness,
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        // note that there might be multiple witness assignments in this list
+        // however when write_pending_ops is called, this would cause an error
         self.pending_witness_write.push(PendingOp { neumerator, denominator, witness });
+        Ok(())
     }
 
     pub(crate) fn write_pending_ops(
@@ -27,17 +35,23 @@ impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
         initial_witness: &mut WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         // get the list of denominator
-        let denominator_list: Vec<F> = self
+        let mut denominator_list: Vec<F> = self
             .pending_witness_write
             .clone()
             .into_iter()
             .map(|pending_op| pending_op.denominator)
             .collect();
-        let denominator_invers: Vec<F> = batch_invert(&denominator_list);
+        batch_invert::<F>(&mut denominator_list);
         for i in 0..denominator_list.len() {
             let pending_op = &self.pending_witness_write[i];
-            let assignment = pending_op.neumerator * denominator_invers[i];
-            insert_value(&pending_op.witness, assignment, initial_witness);
+            let assignment = pending_op.neumerator * denominator_list[i];
+            let res = insert_value(&pending_op.witness, assignment, initial_witness);
+            if res.is_err() {
+                return Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                    opcode_location: ErrorLocation::Unresolved,
+                    payload: None,
+                });
+            }
         }
         self.pending_witness_write.clear();
         self.failures = 0;
@@ -45,11 +59,35 @@ impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
     }
 }
 
-pub(crate) fn batch_invert<F>(inp_list: &Vec<F>) -> Vec<F>
-where
-    F: AcirField,
-{
-    vec![F::one(); inp_list.len()]
+// this is the same function as in arkworks
+pub(crate) fn batch_invert<F: AcirField>(v: &mut Vec<F>) {
+    // First pass: compute [a, ab, abc, ...]
+    // we're never adding elements that are zero to this list
+    let mut prod = Vec::with_capacity(v.len());
+    let mut tmp = F::one();
+    for f in v.iter() {
+        tmp = tmp * *f;
+        prod.push(tmp);
+    }
+
+    // Invert `tmp`.
+    tmp = tmp.inverse(); // Guaranteed to be nonzero.
+
+    // Second pass: iterate backwards to compute inverses
+    for (f, s) in v
+        .iter_mut()
+        // Backwards
+        .rev()
+        // Ignore normalized elements
+        .filter(|f| !f.is_zero())
+        // Backwards, skip last element, fill in one for last term.
+        .zip(prod.into_iter().rev().skip(1).chain(Some(F::one())))
+    {
+        // tmp := tmp * f; f := tmp * s = 1/f
+        let new_tmp = tmp * *f;
+        *f = tmp * s;
+        tmp = new_tmp;
+    }
 }
 
 #[derive(Clone)]
@@ -133,8 +171,7 @@ impl ExpressionSolver {
                         // let assignment = -total_sum / (q + b);
                         // insert_value(&w1, assignment, initial_witness)
                         // but we want to add this to pending_arithmetic_opcodes
-                        pending_arithmetic_opcodes.add_pending_op(total_sum, q + b, w1);
-                        Ok(())
+                        pending_arithmetic_opcodes.add_pending_op(total_sum, q + b, w1)
                     }
                 } else {
                     // TODO: can we be more specific with this error?
@@ -152,22 +189,32 @@ impl ExpressionSolver {
                 // The equation is: partial_prod * unknown_var + sum + qC = 0
 
                 let total_sum = sum + opcode.q_c;
-                if partial_prod.is_zero() {
-                    if !total_sum.is_zero() {
-                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                            opcode_location: ErrorLocation::Unresolved,
-                            payload: None,
-                        })
-                    } else {
+
+                match partial_prod {
+                    x if x.is_zero() => {
+                        if !total_sum.is_zero() {
+                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                                opcode_location: ErrorLocation::Unresolved,
+                                payload: None,
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    x if x == F::one() => insert_value(&unknown_var, total_sum, initial_witness),
+                    x if x == -F::one() => insert_value(&unknown_var, -total_sum, initial_witness),
+                    _ => {
+                        // normally we would do
+                        // let assignment = -(total_sum / partial_prod);
+                        // insert_value(&unknown_var, assignment, initial_witness)
+                        // but we want to add this to pending_arithmetic_opcodes
+                        pending_arithmetic_opcodes.add_pending_op(
+                            total_sum,
+                            partial_prod,
+                            unknown_var,
+                        );
                         Ok(())
                     }
-                } else {
-                    // normally we would do
-                    // let assignment = -(total_sum / partial_prod);
-                    // insert_value(&unknown_var, assignment, initial_witness)
-                    // but we want to add this to pending_arithmetic_opcodes
-                    pending_arithmetic_opcodes.add_pending_op(total_sum, partial_prod, unknown_var);
-                    Ok(())
                 }
             }
             (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
@@ -186,7 +233,7 @@ impl ExpressionSolver {
                 MulTerm::Solved(total_prod),
                 OpcodeStatus::OpcodeSolvable(partial_sum, (coeff, unknown_var)),
             ) => {
-                // The variables in the MulTerm are solved nad there is one unknown in the Fan-in
+                // The variables in the MulTerm are solved and there is one unknown in the Fan-in
                 // Hence the equation is solvable, since we have one unknown
                 // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
                 let total_sum = total_prod + partial_sum + opcode.q_c;
@@ -204,8 +251,7 @@ impl ExpressionSolver {
                     // let assignment = -(total_sum / coeff);
                     // insert_value(&unknown_var, assignment, initial_witness)
                     // but we want to add this to pending_arithmetic_opcodes
-                    pending_arithmetic_opcodes.add_pending_op(total_sum, coeff, unknown_var);
-                    Ok(())
+                    pending_arithmetic_opcodes.add_pending_op(total_sum, coeff, unknown_var)
                 }
             }
         }
@@ -484,6 +530,25 @@ mod tests {
         assert_eq!(ExpressionSolver::solve(&mut values, &opcode_a), Ok(()));
 
         assert_eq!(values.get(&a).unwrap(), &FieldElement::from(2_i128));
+    }
+
+    #[test]
+    fn test_batch_invert() {
+        let mut v = vec![
+            FieldElement::from(1_i128),
+            FieldElement::from(2_i128),
+            FieldElement::from(3_i128),
+        ];
+        batch_invert::<FieldElement>(&mut v);
+        // assert_eq!(v, vec![FieldElement::from(1_i128), FieldElement::from(2_i128), FieldElement::from(3_i128)]);
+        assert_eq!(
+            [
+                v[0] * FieldElement::from(1_i128),
+                v[1] * FieldElement::from(2_i128),
+                v[2] * FieldElement::from(3_i128)
+            ],
+            [FieldElement::from(1_i128), FieldElement::from(1_i128), FieldElement::from(1_i128)]
+        );
     }
 
     #[test]
