@@ -428,3 +428,47 @@ impl LastUseContext {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        monomorphization::ast::{IdentId, LocalId},
+        ownership::last_uses::Branches,
+        test_utils::get_monomorphized,
+    };
+
+    #[test]
+    fn smoke_test() {
+        let src = "
+        fn main(d: [Field; 2]) {
+            if len(d) == 2 {              // use 1 of d
+                if len(d) == 2 {          // use 2 of d
+                    assert(eq(d, [5, 6]));  // use 3 of d
+                }
+            } else {
+                assert(eq(d, [5, 6]));      // use 4 of d
+            }
+        }
+
+        fn eq(lhs: [Field; 2], rhs: [Field; 2]) -> bool {
+            (lhs[0] == rhs[0]) & (lhs[1] == rhs[1])
+        }
+        
+        fn len(arr: [Field; 2]) -> u32 {
+            2
+        }
+        ";
+
+        let program = get_monomorphized(src, "foobar", crate::test_utils::Expect::Success).unwrap();
+
+        let function = program.main();
+        let last_uses = super::Context::find_last_uses_of_variables_internal(function);
+
+        let d_local_id = LocalId(0);
+        let (_loop_index, d_last_uses) = &last_uses[&d_local_id];
+        assert_eq!(
+            *d_last_uses,
+            Branches::IfOrMatch(vec![Branches::Direct(IdentId(7)), Branches::Direct(IdentId(10))])
+        );
+    }
+}
