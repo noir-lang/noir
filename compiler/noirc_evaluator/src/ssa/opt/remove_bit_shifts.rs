@@ -381,3 +381,33 @@ impl Context<'_> {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn removes_shl() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = shl v0, u8 2
+            v3 = truncate v2 to 32 bits, max_bit_size: 33
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = cast v0 as Field
+            v3 = mul v1, Field 4
+            v4 = truncate v3 to 32 bits, max_bit_size: 34
+            v5 = cast v4 as u32
+            v6 = truncate v5 to 32 bits, max_bit_size: 33
+            return v5
+        }
+        ");
+    }
+}
