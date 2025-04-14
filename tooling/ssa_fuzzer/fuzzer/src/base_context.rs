@@ -327,7 +327,7 @@ impl FuzzerContext {
     }
 
     /// Returns witnesses for ACIR and Brillig
-    /// If program does not have any instruction, it terminated with the last one witness
+    /// If program does not have any instructions, it terminated with the last witness
     /// Resulting WitnessStack of programs contains only variables and return value
     /// If we inserted some instructions, WitnessStack contains return value, so we return the last one
     /// If we are checking constant folding, the witness stack will only contain the return value, so we return Witness(0)
