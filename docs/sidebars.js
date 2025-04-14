@@ -75,10 +75,5 @@ export default {
       value: '<div class="divider"></div>',
       defaultStyle: true,
     },
-    {
-      type: 'doc',
-      id: 'migration_notes',
-      label: 'Migration notes',
-    },
   ],
 };
