@@ -548,19 +548,16 @@ impl Context {
             panic!("handle_index should only be called with Index nodes");
         };
 
-        let mut clone_result = !self.experimental_ownership_feature;
-
         if self.experimental_ownership_feature {
             // Don't clone the collection, cloning only the resulting element is cheaper
             self.handle_reference_expression(&mut index.collection);
-            clone_result = true;
         } else {
             self.handle_expression(&mut index.collection);
         }
 
         self.handle_expression(&mut index.index);
 
-        if clone_result && contains_array_or_str_type(&index.element_type) {
+        if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
