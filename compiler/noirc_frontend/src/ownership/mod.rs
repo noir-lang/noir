@@ -599,7 +599,7 @@ impl Context {
     }
 
     fn handle_tuple(&mut self, elements: &mut [Expression]) {
-        for elem in elems {
+        for elem in elements {
             self.handle_expression(elem);
         }
     }
