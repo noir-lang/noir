@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744646475415,
+  "lastUpdate": 1744646478151,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e0ed34bbc30d27cd74b7a6f2330944125b685d2",
-          "message": "chore: add 1.0.0-beta.4 docs (#7972)",
-          "timestamp": "2025-04-08T16:44:28Z",
-          "tree_id": "f78de274676a9a9ac5c85176f7eb517651b80df3",
-          "url": "https://github.com/noir-lang/noir/commit/3e0ed34bbc30d27cd74b7a6f2330944125b685d2"
-        },
-        "date": 1744132196478,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 474.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.52,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14525,6 +14461,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 246.07,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.72,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a1fab4adcc513ff8f48da963e93e9ec49c542358",
+          "message": "chore(ssa): Additional unrolling and mem2reg passes  (#8017)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-14T15:21:22Z",
+          "tree_id": "dfe5ff4cbac50cc8224d563b8212dc5e65551494",
+          "url": "https://github.com/noir-lang/noir/commit/a1fab4adcc513ff8f48da963e93e9ec49c542358"
+        },
+        "date": 1744646472429,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.05,
             "unit": "MB"
           },
           {
