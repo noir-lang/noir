@@ -31,4 +31,5 @@ noirc_frontend.workspace = true
 noir_fuzzer.workspace = true
 
 [dev-dependencies]
+arbtest.workspace = true
 rand.workspace = true
