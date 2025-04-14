@@ -170,10 +170,15 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
         SsaPass::new(Ssa::fold_constants_using_constraints, "Constraint Folding"),
+        SsaPass::new_try(
+            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            "Unrolling",
+        ),
         SsaPass::new(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         // The Brillig globals pass expected that we have the used globals map set for each function.
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
