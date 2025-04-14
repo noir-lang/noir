@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744648727874,
+  "lastUpdate": 1744648975210,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8170,70 +8170,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a437f8edb03129d4c7857a305a80b932f8b04616",
-          "message": "fix: correct proptest Arbitrary for NumericType (#7945)",
-          "timestamp": "2025-04-08T19:20:20Z",
-          "tree_id": "5a5e4780a5aa898c017a8d81b690fd95d1af4088",
-          "url": "https://github.com/noir-lang/noir/commit/a437f8edb03129d4c7857a305a80b932f8b04616"
-        },
-        "date": 1744141253949,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.074,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.786,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.535,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "770bddadbabf2c8166c28452de463a8cf799dbcd",
           "message": "fix: don't solve `Self` in trait impl method via trait method lookup (#7974)",
           "timestamp": "2025-04-08T20:16:11Z",
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "944683109f0600e8dc34f16752f04ded30a5f6f8",
+          "message": "chore(ssa): Remove IfElse pass basic SSA tests (#8058)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-04-14T16:15:23Z",
+          "tree_id": "9db68618023e060dc7cf7d4b42687d990cba8660",
+          "url": "https://github.com/noir-lang/noir/commit/944683109f0600e8dc34f16752f04ded30a5f6f8"
+        },
+        "date": 1744648969880,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.029,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.335,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.2,
             "unit": "s"
           },
           {
