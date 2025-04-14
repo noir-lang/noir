@@ -134,6 +134,17 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             if rhs_is_one {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
+            if let Some(rhs_value) = rhs_value {
+                if lhs_type == NumericType::NativeField {
+                    let rhs = dfg
+                        .make_constant(FieldElement::one() / rhs_value, NumericType::NativeField);
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Mul { unchecked: false },
+                    }));
+                }
+            }
         }
         BinaryOp::Mod => {
             if rhs_is_one {
