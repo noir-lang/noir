@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744628065586,
+  "lastUpdate": 1744632082457,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19529,6 +19529,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 232185,
             "range": "± 13214",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "saleel@saleel.xyz",
+            "name": "saleel",
+            "username": "saleel"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a6e9d03bc125ee43a67201bf712083518231bf2c",
+          "message": "chore: bump bb to 0.84.0 (#8047)",
+          "timestamp": "2025-04-14T11:46:26Z",
+          "tree_id": "e52416d85e019d366142ae47f06842c5468bc360",
+          "url": "https://github.com/noir-lang/noir/commit/a6e9d03bc125ee43a67201bf712083518231bf2c"
+        },
+        "date": 1744632077407,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265575,
+            "range": "± 1628",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232779,
+            "range": "± 4725",
             "unit": "ns/iter"
           }
         ]
