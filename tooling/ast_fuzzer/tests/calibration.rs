@@ -35,7 +35,7 @@ fn arb_program_freqs_in_expected_range() {
                     .or_default()
                     .entry(key)
                     .or_default();
-                *count = *count + 1;
+                *count += 1;
                 true
             });
         }
@@ -47,8 +47,8 @@ fn arb_program_freqs_in_expected_range() {
     .size_max(1 << 20);
 
     println!("Generated {program_count} programs.");
-    for (unconstrained, counts) in counts {
-        println!("{} frequencies:", if unconstrained { "Brillig" } else { "ACIR" });
+    for (unconstrained, counts) in &counts {
+        println!("{} frequencies:", if *unconstrained { "Brillig" } else { "ACIR" });
         for (group, counts) in counts {
             let total = counts.values().sum::<usize>();
             println!("\t{group} (total {total}):");
@@ -62,7 +62,17 @@ fn arb_program_freqs_in_expected_range() {
         }
     }
 
-    // TODO: Assert relative frequencies
+    let freq_100 = |unconstrained, group: &str, keys: &[&str]| {
+        keys.iter().map(|key| counts[&unconstrained][group][key]).sum::<usize>() * 100
+            / counts[&unconstrained][group].values().sum::<usize>()
+    };
+
+    // Assert relative frequencies
+    let loops_a = freq_100(false, "stmt", &["for"]);
+    let loops_b = freq_100(true, "stmt", &["for", "loop", "while"]);
+
+    assert!(9 <= loops_a && loops_a <= 11, "ACIR loops: {loops_a}");
+    assert!(loops_a - 1 <= loops_b && loops_b <= loops_a + 1, "Brillig loops: {loops_b}");
 }
 
 /// Classify the expression into "expr" or "stmt" for frequency settings.

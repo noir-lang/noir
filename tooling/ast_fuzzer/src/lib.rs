@@ -55,7 +55,7 @@ impl Default for Config {
             ("drop", 3),
             ("assign", 30),
             ("if", 10),
-            ("for", 15),
+            ("for", 18),
             ("let", 25),
             ("call", 5),
         ]);
