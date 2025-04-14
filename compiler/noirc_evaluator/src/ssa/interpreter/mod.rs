@@ -150,7 +150,7 @@ impl<'ssa> Interpreter<'ssa> {
             super::ir::value::Value::Param { .. } => self.call_context().scope[&id].clone(),
             super::ir::value::Value::NumericConstant { constant, typ } => {
                 Value::from_constant(*constant, *typ)
-            },
+            }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
             super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
@@ -180,30 +180,60 @@ impl<'ssa> Interpreter<'ssa> {
                 let result = self.interpret_binary(binary)?;
                 self.define(results[0], result);
             }
-            Instruction::Cast(id, numeric_type) => todo!(),
-            Instruction::Not(id) => todo!(),
-            Instruction::Truncate { value, bit_size, max_bit_size } => todo!(),
-            Instruction::Constrain(lhs, rhs, constrain_error) => {
-                if self.side_effects_enabled() && lhs != rhs {}
+            // Cast in SSA changes the type without altering the value
+            Instruction::Cast(value, numeric_type) => {
+                let field = self.lookup(*value).as_numeric().unwrap().convert_to_field();
+                let result = Value::Numeric(NumericValue::from_constant(field, *numeric_type));
+                self.define(results[0], result);
             }
-            Instruction::ConstrainNotEqual(id, id1, constrain_error) => todo!(),
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => todo!(),
-            Instruction::Call { func, arguments } => todo!(),
-            Instruction::Allocate => todo!(),
-            Instruction::Load { address } => todo!(),
-            Instruction::Store { address, value } => todo!(),
+            Instruction::Not(id) => self.interpret_not(id, results[0]),
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                self.interpret_truncate(*value, *bit_size, *max_bit_size, results[0])
+            }
+            Instruction::Constrain(lhs, rhs, constrain_error) => {
+                let lhs = self.lookup(*lhs);
+                let rhs = self.lookup(*rhs);
+                if self.side_effects_enabled() && lhs != rhs {
+                    panic!("Constrain {lhs} == {rhs} failed!");
+                }
+            }
+            Instruction::ConstrainNotEqual(lhs, rhs, constrain_error) => {
+                let lhs = self.lookup(*lhs);
+                let rhs = self.lookup(*rhs);
+                if self.side_effects_enabled() && lhs == rhs {
+                    panic!("Constrain {lhs} != {rhs} failed!");
+                }
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                self.interpret_range_check(*value, *max_bit_size, assert_message.as_ref())
+            }
+            Instruction::Call { func, arguments } => self.interpret_call(*func, arguments, results),
+            Instruction::Allocate => self.interpret_allocate(results[0]),
+            Instruction::Load { address } => self.interpret_load(*address, results[0]),
+            Instruction::Store { address, value } => self.interpret_store(*address, *value),
             Instruction::EnableSideEffectsIf { condition } => {
                 self.side_effects_enabled = self.lookup(*condition).as_bool().unwrap();
-            },
-            Instruction::ArrayGet { array, index } => todo!(),
-            Instruction::ArraySet { array, index, value, mutable } => todo!(),
-            Instruction::IncrementRc { value } => todo!(),
-            Instruction::DecrementRc { value } => todo!(),
-            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
-                todo!()
             }
-            Instruction::MakeArray { elements, typ } => todo!(),
-            Instruction::Noop => todo!(),
+            Instruction::ArrayGet { array, index } => {
+                self.interpret_array_get(*array, *index, results[0])
+            }
+            Instruction::ArraySet { array, index, value, mutable } => {
+                self.interpret_array_set(*array, *index, *value, *mutable, results[0])
+            }
+            Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
+            Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => self
+                .interpret_if_else(
+                    *then_condition,
+                    *then_value,
+                    *else_condition,
+                    *else_condition,
+                    results[0],
+                ),
+            Instruction::MakeArray { elements, typ } => {
+                self.interpret_make_array(elements, results[0])
+            }
+            Instruction::Noop => (),
         }
         Ok(())
     }
@@ -280,6 +310,12 @@ impl<'ssa> Interpreter<'ssa> {
             && !matches!(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
         {
             todo!("Type error!")
+        }
+
+        // Disable this instruction if it is side-effectful and side effects are disabled.
+        if !self.side_effects_enabled() && binary.requires_acir_gen_predicate(self.dfg()) {
+            let zero = NumericValue::from_constant(FieldElement::zero(), lhs.get_type());
+            return Ok(Value::Numeric(zero));
         }
 
         if let (Some(lhs), Some(rhs)) = (lhs.as_field(), rhs.as_field()) {

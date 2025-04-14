@@ -368,28 +368,7 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary) => {
-                match binary.operator {
-                    BinaryOp::Add { unchecked: false }
-                    | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false } => {
-                        // Some binary math can overflow or underflow, but this is only the case
-                        // for unsigned types (here we assume the type of binary.lhs is the same)
-                        dfg.type_of_value(binary.rhs).is_unsigned()
-                    }
-                    BinaryOp::Div | BinaryOp::Mod => true,
-                    BinaryOp::Add { unchecked: true }
-                    | BinaryOp::Sub { unchecked: true }
-                    | BinaryOp::Mul { unchecked: true }
-                    | BinaryOp::Eq
-                    | BinaryOp::Lt
-                    | BinaryOp::And
-                    | BinaryOp::Or
-                    | BinaryOp::Xor
-                    | BinaryOp::Shl
-                    | BinaryOp::Shr => false,
-                }
-            }
+            Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
             Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
@@ -649,6 +628,31 @@ impl Instruction {
                 }
             }
             Instruction::Noop => (),
+        }
+    }
+}
+
+impl Binary {
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self.operator {
+            BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false } => {
+                // Some binary math can overflow or underflow, but this is only the case
+                // for unsigned types (here we assume the type of binary.lhs is the same)
+                dfg.type_of_value(self.rhs).is_unsigned()
+            }
+            BinaryOp::Div | BinaryOp::Mod => true,
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Sub { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => false,
         }
     }
 }

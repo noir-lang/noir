@@ -4,7 +4,10 @@ use acvm::{AcirField, FieldElement};
 use noirc_frontend::Shared;
 
 use crate::ssa::ir::{
-    function::FunctionId, instruction::Intrinsic, types::{CompositeType, NumericType, Type}, value::ValueId
+    function::FunctionId,
+    instruction::Intrinsic,
+    types::{CompositeType, NumericType, Type},
+    value::ValueId,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -127,20 +130,55 @@ impl NumericValue {
         }
     }
 
-    fn from_constant(constant: FieldElement, typ: NumericType) -> NumericValue {
+    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> NumericValue {
         match typ {
             NumericType::NativeField => Self::Field(constant),
             NumericType::Unsigned { bit_size: 1 } => Self::U1(constant.is_one()),
-            NumericType::Unsigned { bit_size: 8 } => Self::U8(constant.try_into_u128().unwrap().try_into().unwrap()),
-            NumericType::Unsigned { bit_size: 16 } => Self::U16(constant.try_into_u128().unwrap().try_into().unwrap()),
-            NumericType::Unsigned { bit_size: 32 } => Self::U32(constant.try_into_u128().unwrap().try_into().unwrap()),
-            NumericType::Unsigned { bit_size: 64 } => Self::U64(constant.try_into_u128().unwrap().try_into().unwrap()),
-            NumericType::Unsigned { bit_size: 128 } => Self::U128(constant.try_into_u128().unwrap()),
-            NumericType::Signed { bit_size: 8 } => Self::I8(constant.try_into_i128().unwrap().try_into().unwrap()),
-            NumericType::Signed { bit_size: 16 } => Self::I16(constant.try_into_i128().unwrap().try_into().unwrap()),
-            NumericType::Signed { bit_size: 32 } => Self::I32(constant.try_into_i128().unwrap().try_into().unwrap()),
-            NumericType::Signed { bit_size: 64 } => Self::I64(constant.try_into_i128().unwrap().try_into().unwrap()),
+            NumericType::Unsigned { bit_size: 8 } => {
+                Self::U8(constant.try_into_u128().unwrap().try_into().unwrap())
+            }
+            NumericType::Unsigned { bit_size: 16 } => {
+                Self::U16(constant.try_into_u128().unwrap().try_into().unwrap())
+            }
+            NumericType::Unsigned { bit_size: 32 } => {
+                Self::U32(constant.try_into_u128().unwrap().try_into().unwrap())
+            }
+            NumericType::Unsigned { bit_size: 64 } => {
+                Self::U64(constant.try_into_u128().unwrap().try_into().unwrap())
+            }
+            NumericType::Unsigned { bit_size: 128 } => {
+                Self::U128(constant.try_into_u128().unwrap())
+            }
+            NumericType::Signed { bit_size: 8 } => {
+                Self::I8(constant.try_into_i128().unwrap().try_into().unwrap())
+            }
+            NumericType::Signed { bit_size: 16 } => {
+                Self::I16(constant.try_into_i128().unwrap().try_into().unwrap())
+            }
+            NumericType::Signed { bit_size: 32 } => {
+                Self::I32(constant.try_into_i128().unwrap().try_into().unwrap())
+            }
+            NumericType::Signed { bit_size: 64 } => {
+                Self::I64(constant.try_into_i128().unwrap().try_into().unwrap())
+            }
             other => panic!("Unsupported numeric type: {other}"),
+        }
+    }
+
+    pub(crate) fn convert_to_field(&self) -> FieldElement {
+        match self {
+            NumericValue::Field(field) => *field,
+            NumericValue::U1(boolean) if *boolean => FieldElement::one(),
+            NumericValue::U1(_) => FieldElement::zero(),
+            NumericValue::U8(value) => FieldElement::from(*value),
+            NumericValue::U16(value) => FieldElement::from(*value),
+            NumericValue::U32(value) => FieldElement::from(*value),
+            NumericValue::U64(value) => FieldElement::from(*value),
+            NumericValue::U128(value) => FieldElement::from(*value),
+            NumericValue::I8(value) => FieldElement::from(*value),
+            NumericValue::I16(value) => FieldElement::from(*value),
+            NumericValue::I32(value) => FieldElement::from(*value),
+            NumericValue::I64(value) => FieldElement::from(*value),
         }
     }
 }

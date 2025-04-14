@@ -1,39 +1,45 @@
-use crate::ssa::interpreter::{tests::expect_value, NumericValue, Value};
+use crate::ssa::interpreter::{NumericValue, Value, tests::expect_value};
 
 use super::{executes_with_no_errors, expect_error};
 
 #[test]
 fn add() {
-    let value = expect_value("
+    let value = expect_value(
+        "
         acir(inline) fn main f0 {
           b0():
             v0 = add i32 2, i32 100
             return v0
         }
-    ");
+    ",
+    );
     assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
 }
 
 #[test]
 fn add_overflow() {
-    expect_error("
+    expect_error(
+        "
         acir(inline) fn main f0 {
           b0():
             v0 = add u8 200, u8 100
             return v0
         }
-    ");
+    ",
+    );
 }
 
 #[test]
 fn add_unchecked() {
-    executes_with_no_errors("
+    executes_with_no_errors(
+        "
         acir(inline) fn main f0 {
           b0():
             v0 = unchecked_add u8 200, u8 100
             return v0
         }
-    ");
+    ",
+    );
 }
 
 #[test]
