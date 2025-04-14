@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744470186093,
+  "lastUpdate": 1744626958345,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19517,6 +19517,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 3586603,
             "range": "± 2727",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "46002a21817e9148931d1a7fe5cd996add148941",
+          "message": "feat: skip inverting field elements with values +-1 in ACVM (#8049)",
+          "timestamp": "2025-04-14T10:15:18Z",
+          "tree_id": "1fdde8667a3e34352055457449a320dd0fd6a176",
+          "url": "https://github.com/noir-lang/noir/commit/46002a21817e9148931d1a7fe5cd996add148941"
+        },
+        "date": 1744626952777,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269179,
+            "range": "± 1194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 240681,
+            "range": "± 8966",
             "unit": "ns/iter"
           }
         ]
