@@ -2415,6 +2415,20 @@ fn main() {
     }
 
     #[test]
+    async fn test_suggests_built_in_allow_function_attribute() {
+        let src = r#"
+            #[dead_c>|<]
+            fn foo() {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item("allow(dead_code)", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
+
+    #[test]
     async fn test_suggests_built_in_let_attribute() {
         let src = r#"
             fn foo() {

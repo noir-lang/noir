@@ -88,12 +88,17 @@ impl NodeFinder<'_> {
 
     pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
         match target {
-            AttributeTarget::Module | AttributeTarget::Trait => (),
+            AttributeTarget::Module => (),
+            AttributeTarget::Trait => {
+                self.suggest_allow("dead_code", prefix);
+            }
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
+                self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Enum => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
+                self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Function => {
                 let no_arguments_attributes = &[
@@ -147,24 +152,22 @@ impl NodeFinder<'_> {
                         None,
                     ));
                 }
+
+                self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Let => {
-                let is_allow = name_matches("allow", prefix);
-                if is_allow || name_matches("unused_variables", prefix) {
-                    self.completion_items.push(simple_completion_item(
-                        "allow(unused_variables)",
-                        CompletionItemKind::METHOD,
-                        None,
-                    ));
-                }
-                if is_allow || name_matches("dead_code", prefix) {
-                    self.completion_items.push(simple_completion_item(
-                        "allow(dead_code)",
-                        CompletionItemKind::METHOD,
-                        None,
-                    ));
-                }
+                self.suggest_allow("unused_variables", prefix);
             }
+        }
+    }
+
+    fn suggest_allow(&mut self, name: &'static str, prefix: &str) {
+        if name_matches("allow", prefix) || name_matches(name, prefix) {
+            self.completion_items.push(simple_completion_item(
+                format!("allow({name})"),
+                CompletionItemKind::METHOD,
+                None,
+            ));
         }
     }
 }
