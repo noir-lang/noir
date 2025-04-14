@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744646478151,
+  "lastUpdate": 1744648727874,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19547,6 +19547,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 237799,
             "range": "± 6732",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "944683109f0600e8dc34f16752f04ded30a5f6f8",
+          "message": "chore(ssa): Remove IfElse pass basic SSA tests (#8058)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-04-14T16:15:23Z",
+          "tree_id": "9db68618023e060dc7cf7d4b42687d990cba8660",
+          "url": "https://github.com/noir-lang/noir/commit/944683109f0600e8dc34f16752f04ded30a5f6f8"
+        },
+        "date": 1744648722422,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 268816,
+            "range": "± 981",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236854,
+            "range": "± 2042",
             "unit": "ns/iter"
           }
         ]
