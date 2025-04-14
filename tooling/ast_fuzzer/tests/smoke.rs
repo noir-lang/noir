@@ -12,7 +12,7 @@ use acir::circuit::ExpressionWidth;
 use arbtest::arbtest;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
-use noir_ast_fuzzer::{Config, arb_inputs, arb_program, program_abi};
+use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_inputs, arb_program, program_abi};
 use noirc_evaluator::{brillig::BrilligOptions, ssa};
 
 #[test]
@@ -36,7 +36,7 @@ fn arb_program_can_be_executed() {
 
         // Print the AST if something goes wrong, then panic.
         let print_ast_and_panic = |msg: &str| -> ! {
-            eprintln!("{program}");
+            eprintln!("{}", DisplayAstAsNoir(&program));
             panic!("{msg}")
         };
 
@@ -63,7 +63,7 @@ fn arb_program_can_be_executed() {
 
         match res {
             Err(NargoError::CompilationError) => {
-                print_ast_and_panic(&format!("Failed to compile program into ACIR."))
+                print_ast_and_panic("Failed to compile program into ACIR.")
             }
             Err(NargoError::ForeignCallError(e)) => {
                 print_ast_and_panic(&format!("Failed to call foreign function: {e}"))
@@ -74,7 +74,7 @@ fn arb_program_can_be_executed() {
             }
         }
     })
-    //.seed(0xbb4e420300005f5d) // Uncomment and paste the seed printed by arbtest to debug a failure.
+    // .seed(0x1796975f00100000) // Uncomment and paste the seed printed by arbtest to debug a failure.
     .budget(Duration::from_secs(10))
     .size_min(1 << 12)
     .size_max(1 << 20);
