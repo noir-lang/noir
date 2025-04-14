@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744627558994,
+  "lastUpdate": 1744627560406,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f979fe825099ab20af0fbafa69d37c4dc8c7506a",
-          "message": "chore(docs): Remove outdated BigInt library reference (#7969)",
-          "timestamp": "2025-04-08T15:16:40Z",
-          "tree_id": "c4720a44aaa7cecb64a5016bce75d1d0cf0eacaa",
-          "url": "https://github.com/noir-lang/noir/commit/f979fe825099ab20af0fbafa69d37c4dc8c7506a"
-        },
-        "date": 1744127142218,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 474.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.52,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14530,6 +14466,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 183.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.72,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "46002a21817e9148931d1a7fe5cd996add148941",
+          "message": "feat: skip inverting field elements with values +-1 in ACVM (#8049)",
+          "timestamp": "2025-04-14T10:15:18Z",
+          "tree_id": "1fdde8667a3e34352055457449a320dd0fd6a176",
+          "url": "https://github.com/noir-lang/noir/commit/46002a21817e9148931d1a7fe5cd996add148941"
+        },
+        "date": 1744627554813,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.14,
             "unit": "MB"
           },
           {
