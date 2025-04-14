@@ -15,7 +15,7 @@ use super::{
     dfg::DataFlowGraph,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, ValueId, resolve_value},
 };
 
 pub(crate) mod binary;
@@ -425,17 +425,9 @@ impl Instruction {
 
     /// Replaces values present in this instruction with other values according to the given HashMap.
     pub(crate) fn replace_values(&mut self, values_to_replace: &HashMap<ValueId, ValueId>) {
-        if values_to_replace.is_empty() {
-            return;
+        if !values_to_replace.is_empty() {
+            self.map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
         }
-
-        self.map_values_mut(|value_id| {
-            if let Some(replacement_id) = values_to_replace.get(&value_id) {
-                *replacement_id
-            } else {
-                value_id
-            }
-        });
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
