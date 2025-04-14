@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["MulTerm","OpcodeStatus"],"struct":["ExpressionSolver"]};
+window.SIDEBAR_ITEMS = {"enum":["MulTerm","OpcodeStatus"],"fn":["quick_invert"],"struct":["ExpressionSolver"]};
