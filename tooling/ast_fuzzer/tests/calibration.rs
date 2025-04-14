@@ -69,9 +69,11 @@ fn arb_program_freqs_in_expected_range() {
     // Assert relative frequencies
     let loops_a = freq_100(false, "stmt", &["for"]);
     let loops_b = freq_100(true, "stmt", &["for", "loop", "while"]);
+    let break_b = freq_100(true, "stmt", &["break"]);
 
     assert!((9..=11).contains(&loops_a), "ACIR loops: {loops_a}");
     assert!((loops_a - 1..=loops_a + 1).contains(&loops_b), "Brillig loops: {loops_b}");
+    assert!(break_b >= loops_b, "Brillig should break out of loops: {break_b}");
 }
 
 /// Classify the expression into "expr" or "stmt" for frequency settings.
