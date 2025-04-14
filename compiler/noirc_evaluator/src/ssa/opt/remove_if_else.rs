@@ -244,7 +244,7 @@ fn slice_capacity_change(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
     fn merge_basic_arrays() {
@@ -286,7 +286,7 @@ mod tests {
         // We then should create a new array where each value can be mapped to `(then_condition * then_value) + (!then_condition * else_value)`.
         // The `then_value` and `else_value` for an array will be every element of the array. Thus, we should see array_get operations
         // on the original array as well as the new values we are writing to the array.
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
@@ -314,8 +314,7 @@ mod tests {
             constrain v26 == u32 3
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]
@@ -356,7 +355,7 @@ mod tests {
         // rather than merging the entire array. As we only modify the `y` array at a single index,
         // we instead only map the if predicate onto the the numeric value we are looking to write,
         // and then write into the array directly.
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
@@ -379,8 +378,6 @@ mod tests {
             constrain v16 == u32 1
             return
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 }
