@@ -98,17 +98,10 @@
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#100" id="100">100</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::Function,
-        instruction::{Instruction, InstructionId, Intrinsic},
+        instruction::{Instruction, Intrinsic},
         types::{NumericType, Type},
         value::Value,
     },
@@ -135,52 +128,45 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_slice_optimization(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span>known_slice_lengths = known_slice_lengths(<span class="self">self</span>);
-        replace_known_slice_lengths(<span class="self">self</span>, known_slice_lengths);
-    }
-}
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = HashMap::default();
 
-<span class="kw">fn </span>known_slice_lengths(func: <span class="kw-2">&amp;</span>Function) -&gt; HashMap&lt;InstructionId, u32&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>known_slice_lengths = HashMap::default();
-    <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
-        <span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
-        <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
-            <span class="kw">let </span>(target_func, arguments) = <span class="kw">match </span><span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id] {
-                Instruction::Call { func, arguments } =&gt; (func, arguments),
-                <span class="kw">_ </span>=&gt; <span class="kw">continue</span>,
-            };
+        <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
+            <span class="kw">let </span>instruction_ids = <span class="self">self</span>.dfg[block].take_instructions();
+            <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
+                <span class="kw">let </span>(target_func, first_argument) = {
+                    <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction_id];
+                    instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
 
-            <span class="kw">match </span><span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>target_func] {
-                Value::Intrinsic(Intrinsic::AsSlice) =&gt; {
-                    <span class="kw">let </span>array_typ = func.dfg.type_of_value(arguments[<span class="number">0</span>]);
-                    <span class="kw">if let </span>Type::Array(<span class="kw">_</span>, length) = array_typ {
-                        known_slice_lengths.insert(<span class="kw-2">*</span>instruction_id, length);
-                    } <span class="kw">else </span>{
-                        <span class="macro">unreachable!</span>(<span class="string">"AsSlice called with non-array {}"</span>, array_typ);
+                    <span class="kw">let </span>(target_func, arguments) = <span class="kw">match </span><span class="kw-2">&amp;</span>instruction {
+                        Instruction::Call { func, arguments } =&gt; (func, arguments),
+                        <span class="kw">_ </span>=&gt; <span class="kw">continue</span>,
+                    };
+
+                    (<span class="kw-2">*</span>target_func, arguments.first().copied())
+                };
+
+                <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg[target_func] {
+                    Value::Intrinsic(Intrinsic::AsSlice) =&gt; {
+                        <span class="kw">let </span>first_argument = first_argument.unwrap();
+                        <span class="kw">let </span>array_typ = <span class="self">self</span>.dfg.type_of_value(first_argument);
+                        <span class="kw">if let </span>Type::Array(<span class="kw">_</span>, length) = array_typ {
+                            <span class="kw">let </span>call_returns = <span class="self">self</span>.dfg.instruction_results(<span class="kw-2">*</span>instruction_id);
+                            <span class="kw">let </span>original_slice_length = call_returns[<span class="number">0</span>];
+                            <span class="kw">let </span>known_length =
+                                <span class="self">self</span>.dfg.make_constant(length.into(), NumericType::length_type());
+                            values_to_replace.insert(original_slice_length, known_length);
+                        } <span class="kw">else </span>{
+                            <span class="macro">unreachable!</span>(<span class="string">"AsSlice called with non-array {}"</span>, array_typ);
+                        }
                     }
-                }
-                <span class="kw">_ </span>=&gt; <span class="kw">continue</span>,
-            };
+                    <span class="kw">_ </span>=&gt; <span class="kw">continue</span>,
+                };
+            }
+
+            <span class="kw-2">*</span><span class="self">self</span>.dfg[block].instructions_mut() = instruction_ids;
+            <span class="self">self</span>.dfg.replace_values_in_block_terminator(block, <span class="kw-2">&amp;</span>values_to_replace);
         }
     }
-    known_slice_lengths
-}
-
-<span class="kw">fn </span>replace_known_slice_lengths(
-    func: <span class="kw-2">&amp;mut </span>Function,
-    known_slice_lengths: HashMap&lt;InstructionId, u32&gt;,
-) {
-    known_slice_lengths.into_iter().for_each(|(instruction_id, known_length)| {
-        <span class="kw">let </span>call_returns = func.dfg.instruction_results(instruction_id);
-        <span class="kw">let </span>original_slice_length = call_returns[<span class="number">0</span>];
-
-        <span class="comment">// We won't use the new id for the original unknown length.
-        // This isn't strictly necessary as a new result will be defined the next time for which the instruction
-        // is reinserted but this avoids leaving the program in an invalid state.
-        </span>func.dfg.replace_result(instruction_id, original_slice_length);
-        <span class="kw">let </span>known_length = func.dfg.make_constant(known_length.into(), NumericType::length_type());
-        func.dfg.set_value_from_id(original_slice_length, known_length);
-    });
 }
 
 <span class="attr">#[cfg(test)]

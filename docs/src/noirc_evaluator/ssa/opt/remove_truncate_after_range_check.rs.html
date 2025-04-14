@@ -152,7 +152,8 @@
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -183,10 +184,15 @@
         <span class="kw">for </span>block <span class="kw">in </span><span class="kw-2">&amp;</span>blocks {
             <span class="kw">let </span>block = <span class="kw-2">*</span>block;
             <span class="kw">let </span><span class="kw-2">mut </span>instructions_to_remove = HashSet::default();
+            <span class="kw">let </span><span class="kw-2">mut </span>instruction_ids = <span class="self">self</span>.dfg[block].take_instructions();
 
-            <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="self">self</span>.dfg[block].instructions() {
+            <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
+                <span class="kw">if </span>!values_to_replace.is_empty() {
+                    <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction_id];
+                    instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
+                }
+
                 <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction_id];
-
                 <span class="kw">match </span>instruction {
                     <span class="comment">// If this is a range_check instruction, associate the max bit size with the value
                     </span>Instruction::RangeCheck { value, max_bit_size, .. } =&gt; {
@@ -220,16 +226,12 @@
                 }
             }
 
-            <span class="kw">if </span>instructions_to_remove.is_empty() {
-                <span class="kw">continue</span>;
+            <span class="kw">if </span>!instructions_to_remove.is_empty() {
+                instruction_ids.retain(|instruction| !instructions_to_remove.contains(instruction));
             }
-
-            <span class="self">self</span>.dfg[block]
-                .instructions_mut()
-                .retain(|instruction| !instructions_to_remove.contains(instruction));
+            <span class="kw-2">*</span><span class="self">self</span>.dfg[block].instructions_mut() = instruction_ids;
+            <span class="self">self</span>.dfg.replace_values_in_block_terminator(block, <span class="kw-2">&amp;</span>values_to_replace);
         }
-
-        <span class="self">self</span>.dfg.replace_values_in_blocks(blocks.into_iter(), <span class="kw-2">&amp;</span>values_to_replace);
     }
 }
 

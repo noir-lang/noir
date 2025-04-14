@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["known_slice_lengths","replace_known_slice_lengths"]};
+window.SIDEBAR_ITEMS = {};
