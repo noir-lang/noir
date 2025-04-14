@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use arbitrary::Unstructured;
 use noirc_frontend::{
     ast::BinaryOpKind,
-    monomorphization::ast::{Definition, Expression, LocalId, Program, Type},
+    monomorphization::ast::{Definition, Expression, Function, IdentId, LocalId, Program, Type},
     shared::Visibility,
 };
 
-use super::{Context, VariableId, expr, func, types, visitor::visit_expr_mut};
+use super::{expr, func, types, visitor::{visit_expr, visit_expr_mut}, Context, VariableId};
 
 /// Find recursive functions and add a `ctx_depth` parameter to them.
 pub(crate) fn add_recursion_depth(
@@ -29,10 +29,13 @@ pub(crate) fn add_recursion_depth(
         // 1) caching this value in a "function meta" construct, or
         // 2) using `u32::MAX`, but we wouldn't be able to add caching to `Program`,
         // so eventually we'll need to look at the values to do random mutations.
-        let depth_id = LocalId(func::next_local_id(func));
+        let (next_local_id, next_ident_id) = next_local_and_ident_id(func);
+        let depth_id = LocalId(next_local_id);
         let depth_name = "ctx_depth".to_string();
+        let depth_ident_id = IdentId(next_ident_id);
         let depth_ident = expr::ident_inner(
             VariableId::Local(depth_id),
+            depth_ident_id,
             !is_main,
             depth_name.clone(),
             types::U32,
@@ -95,4 +98,28 @@ pub(crate) fn add_recursion_depth(
     }
 
     Ok(())
+}
+
+/// Find the next local ID and ident IDs (in that order) that we can use to add
+/// variables to a [Function] during mutations.
+fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
+    let mut next_local_id = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
+    let mut next_ident_id = 0;
+
+    visit_expr(&func.body, &mut |expr| {
+        let local_id = match expr {
+            Expression::Let(let_) => Some(let_.id),
+            Expression::For(for_) => Some(for_.index_variable),
+            Expression::Ident(ident) => {
+                next_ident_id = next_ident_id.max(ident.id.0 + 1);
+                None
+            }
+            _ => None,
+        };
+        if let Some(id) = local_id {
+            next_local_id = next_local_id.max(id.0 + 1);
+        }
+        true
+    });
+    (next_local_id, next_ident_id)
 }

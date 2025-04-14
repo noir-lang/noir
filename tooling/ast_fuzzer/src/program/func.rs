@@ -10,9 +10,7 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
-        GlobalId, Ident, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
-        Type, While,
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type, While
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -24,7 +22,6 @@ use super::{
     make_name,
     scope::{Scope, ScopeStack, Variable},
     types,
-    visitor::visit_expr,
 };
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
@@ -991,23 +988,6 @@ impl<'a> FunctionContext<'a> {
 
         Ok(Expression::Block(stmts))
     }
-}
-
-/// Find the next local ID we can use to add variables to a [Function] during mutations.
-pub(crate) fn next_local_id(func: &Function) -> u32 {
-    let mut next = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
-    visit_expr(&func.body, &mut |expr| {
-        let id = match expr {
-            Expression::Let(let_) => Some(let_.id),
-            Expression::For(for_) => Some(for_.index_variable),
-            _ => None,
-        };
-        if let Some(id) = id {
-            next = next.max(id.0 + 1);
-        }
-        true
-    });
-    next
 }
 
 #[test]

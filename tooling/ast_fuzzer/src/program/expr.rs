@@ -5,8 +5,7 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, If, LValue,
-        Let, Literal, LocalId, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, IdentId, If, LValue, Let, Literal, LocalId, Type, Unary
     },
     signed_field::SignedField,
 };
