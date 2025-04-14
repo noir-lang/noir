@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744649370494,
+  "lastUpdate": 1744651974890,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19558,6 +19558,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 236854,
             "range": "± 2042",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d34b67c0cffd944b60af3c99c7a402e96bfcbc6",
+          "message": "chore(test): AST generation calibration test (#8054)",
+          "timestamp": "2025-04-14T17:02:17Z",
+          "tree_id": "0d945ea4f54fb1ad31fd618d877c91eb9d0a4ff1",
+          "url": "https://github.com/noir-lang/noir/commit/8d34b67c0cffd944b60af3c99c7a402e96bfcbc6"
+        },
+        "date": 1744651969220,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264301,
+            "range": "± 462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230936,
+            "range": "± 6074",
             "unit": "ns/iter"
           }
         ]
