@@ -1,5 +1,4 @@
 use fxhash::FxHashMap as HashMap;
-
 use std::hash::{Hash, Hasher};
 
 use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
