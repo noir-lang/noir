@@ -1087,12 +1087,14 @@ impl<'a> Context<'a> {
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
     /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
-    ///     in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
-    ///     Thus internal array element type sizes need to be computed to accurately transform the index.
+    ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
+    ///   Thus internal array element type sizes need to be computed to accurately transform the index.
+    ///
     /// - predicate_index is offset, or the index if the predicate is true
+    ///
     /// - new_value is the optional value when the operation is an array_set
-    ///     When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    ///   When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    ///   It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -1331,10 +1333,10 @@ impl<'a> Context<'a> {
     }
 
     /// If `mutate_array` is:
-    /// - true: Mutate the array directly
-    /// - false: Copy the array and generates a write opcode on the new array. This is
-    ///          generally very inefficient and should be avoided if possible. Currently
-    ///          this is controlled by SSA's array set optimization pass.
+    /// - `true`: Mutate the array directly
+    /// - `false`: Copy the array and generates a write opcode on the new array. This is
+    ///   generally very inefficient and should be avoided if possible. Currently
+    ///   this is controlled by SSA's array set optimization pass.
     fn array_set(
         &mut self,
         instruction: InstructionId,
@@ -1963,7 +1965,7 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
+        mut max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
@@ -1984,6 +1986,7 @@ impl<'a> Context<'a> {
                     let integer_modulus = power_of_two::<FieldElement>(bit_size);
                     let integer_modulus = self.acir_context.add_constant(integer_modulus);
                     var = self.acir_context.add_var(var, integer_modulus)?;
+                    max_bit_size += 1;
                 }
             }
             Value::Param { .. } => {

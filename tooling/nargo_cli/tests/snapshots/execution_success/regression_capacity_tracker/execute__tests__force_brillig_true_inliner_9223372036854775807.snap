@@ -1,0 +1,66 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "expected",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "first",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "input",
+        "type": {
+          "kind": "array",
+          "length": 20,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1aPY8jRRDt8fR4POP1evZuN0AiA3J7x97dCG0AOSEZmvOxBKRERCORQQISOSIghh9ARIaQCBAxGYKfwdW5a/2mXDP2ct13aulaWvX0VHXVq9fVH9PexGzLxbO/xD1bV6dmv7DOrasXL1aWHm0tQuJMPOIkW+eBeR0F4NU3xjQCjDYCjFkEGMcRYMwjwDiJAGMRAcYyAozTCDCeRIBxFgHG0wgwziPAWEWA8SwCjI8iwPg4AoznEWC8CIDxebkAwPRBQgd+OlDTgZUOhHTgogMNHRhoQ6YNjzYUWrBpQaQFhyY0TRhKSBrwc9P9WNUKy/51deHqEcg9fnwsC+HXp/2bxboplPg84q8LZ9MGsb+8YvtZGPyL3Nl5r93Zx1jY78y1MXe4D8tGIHvfyQrA7H98V4H5Wa5mghMDHLDvcRjf60T4M4JHI/yXJmQubi9y0B/jkfxwHsxYp+3iQZlt9+NgWQYyHl9a894APZlbFvTehud33DOPWcj1BueC7/n6WMGPvqjkrbkvzE0K75hX5nmC+kJWgMy2XT+la1vwg7YYRyb033LtuavH0If7V4r/sfDfwa28k7wUin6h6FMevumep+6Pcugr7mOCzvsVjy9eJqdmf+6NBJ5JEDyLmvHkpsuf5ID987zMQD/pqdmWlLGv0gTd/5ZDsWUK15XQlxz02cofaOtVjilyPRGxTRT9VIlNW/snQmZBlgsZrv3MCa79c7O/9jPusPNz+yMEYrZGnw8pcCLHGXnPxLt3Id5voI/keoj/yujzhspM6feQ+Yl+CiW2EGuhlnfanNLyDvOCim1DYN1eMH8LOBLwSQX3XZKVIOO9rRIy3N/nZn+/LyC2gOvkYM5nCtaH5vwHrtZyHr8rUuWdzPlCwVOZ/fVCchfqzCa5y5Q4MMc1PMYfnqXk/kOz4/43gSHMvN7tP1OzK6kyfuyfcx/nBfbFdqboJkLGuh+JeE/CxLt4BHaN8JUKTInZ/z5JD8Sv2SiFjaLn/a2fGJtExJUdwC3xGG9YrlaZwPKZq2l//kRwZgd453eZEhP2m4Ac9T91Nc4tbY8qQO930JNrnW273AU649QybuQL1yV59tXuBnB/YM4qpX8pZLhW47fZF6bLAd493PqJvzEKdpkfVsSp3Zv5yqPPXf06j/znkXauSgUeewC/3Ke0OymJIevxhTLW/dLVYe+b9X2KfU1N2DP09c32rPSc43bHg/bPdBbkqP+1a+N+g3Hc/k+cd9fN8q5u7pp18/TpatNInqiMgCff/pvr+mZzudpcP1nXTX110D/frXXuAttunynKhA7aY1t4tzY9wtZ0wFYxYKs80taQb8Rqhf0T1x732C+E/sy18Z4zV/Bkwv53ZufnJ6HDNr8HnR9Yxrrtzoccu1OUKfr43SP1OVby+aN7x/N6Dn587wN9uDEX2L/GQdJToy18x75KYctzbEufYzJk6/RIW8wnji89/8xyVwca60sZA/9+jXGif8ZThcFzn3tz8K1xyv595B77elm5p8U2lHuoL3NPszU/0hbzqeXbLAwHtVzXTQ8H6B/bqI82rNA/FfipDP3epPGIPtEelUrRLwf0uY1nJLRRghz1f2V8rj6DPtxfG9uzHrxJj/8+PlBfyyvKnV/cM89F/I2QxyjEOWuzvnqyWa2bxcdLal4ee84a2qsZO54ftLmZCf0/uP3s70/T5cO2+/5I7x/37v47ELCEWOMP/dbM/rXzKD8HxloPYc0VrBrHD13/87b7TvvtGXnKhe/OGVjIcA+1wg/PDcw1tMU45Fn1b9fWzvrcv1L845hJX5r/Y87u2lmfcvsvtudq2+5s+dxTcR7RHP8P51zql+k1AAA=",
+  "debug_symbols": "ldjbiuowFIDhd+l1L3JYayXxVTabwUMdCqJSdcNGfPdpxc4MbUH+G2nUD9L8TS9yr3bN5vb50R73p0u1+nOvDqft+tqejv3o/qirTdceDu3nx++vKzd8xPz8/+W8Pg7Dy3XdXatVjFJXzXHXX0nu/b49NNVK3eNvXcVChTgsPBYBi4iFYKFYGBYJC9xccHPFzRU3V9xccXPFzRU3V9xccXPFzRU3N9zccHPDzQ03N9zccHNbbp78KIpMRcIiY1GoSA4Lj0XAImIhWCgWuHnCzRNunnDzjJtn3Dzj5nmxuYT0EhKmezALFoqFYZGwWGwuXr5FmYpCRXFY+DdC/FQELCIWgsVic1N9CUtuKgyLhEV+J3QqChXeLS5vsvFRTLNpeSecKCfGyeISJwkjMZmRzEnBxDtOPCeBk8iJcLK8WUoZiQ8zkjhZTuntm5QZKZgEx4nnZDGl5R8SZyRyIpwoJ8ZJ4iRzUjCJyynz+Fhm52ckvCOz/RIjJ/KGeJsR5cQ4SYw8+tG/ddeuN4fmdbK1vx23vw66rv/PzeTM69ydts3u1jXD6dfPwdew8sFZHaLvpzIsatA6an893LqXXAcXnq/0YRhL7UWer4Xnr9oPUz+ffk5f",
+  "file_map": {
+    "50": {
+      "source": "// Reference https://github.com/noir-lang/noir/issues/4395#issuecomment-2018948631\n// for context.\n// We were not accurately accounting for situations where the slice capacity tracker\n// was expecting a capacity from slice intrinsic results.\nfn main(expected: pub Field, first: Field, input: [Field; 20]) {\n    let mut hasher_slice = input.as_slice();\n    hasher_slice = hasher_slice.push_front(first);\n    assert(hasher_slice[0] == expected);\n    // We need a conditional based upon witnesses\n    // to force a store of the slice.\n    // If this successfully compiles it means we have stored\n    // the results of the slice intrinsics used above.\n    if expected as u32 > 10 {\n        hasher_slice[expected - 10] = 100;\n    } else {\n        hasher_slice[expected] = 100;\n    }\n    assert(hasher_slice[0] == expected);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

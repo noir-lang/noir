@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+VYS07DMBB1nDT0A1IFYsEuS5Z2Pq2zK0KIc7SQ7LkEB+ASbDkHZ2DJNZBIii2GkQlS8yIVdSRrxnb9PH6esd1I8SVBU0JmB7aeNGVk665NEJu3b2VlteonWngmRGEHBCtTizyvlmmlM71WabkxhcqLzcJoowtT3KcmyyqTm2W5KZeq1HlW6boos6pu5W7dYkXMzy6ZN+W0g3CHJT1jOQ+7+l5bIgCcaqc97qKwFeXC2SEnUIrviAyJTphT4YAk7oiVWiwtgX6F4M0dIvikZz9UP9FILOR+REAsGuORJ8blgJz29X0ExqK30IjYMbHhwSvB5B5gcqXI5DoSqBu9rmlytbiJ+Cn7nFxjIA88ucbEnogDTi7JCEDhHuPWrYZadyzwh0oMxJoA1zsH74cT9At0CuQPGIMayR89lNv1Jhb3v1ycgRjmnNinGP/rrzD9bhCS9tjq64+325enx0s6ZtrRN7f6/P3q4uH1+YbPM7Z6wrDc/CvMulOHPxsGf/u44TIl9oz1uQdK5BkX/FKXTHf9tmtvTzx9DvPMauqvW8cnUBm5LZASAAA=",
+  "debug_symbols": "tdPRDkMwFAbgdznXLpSW8SqLSFHSpCkplizi3YcwZmLOxS5Pz/+1PWnaQSaStoilzssawnsHqkx5I0s9VB2QaamuuB6ruuGmgdAJLBA6g5CS3oJcKgEhs/vIAuc87n/EhyIxUilZxNszh+UHN5InSsxl3up0022e1dJZfGXKVGStEeNOU6+3rkwS3OarEZteGeUk7yLzFJlnR3lC34C5O+BhgX8I3BXsr3TDguAQeP4CfGcHiI0Wh+9M2Cr2YxMHLdwfg38LihYMLTyc+O/3i/oX",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32) {\n    assert(fibonacci(x) == 55);\n}\n\n#[fold]\nfn fibonacci(x: u32) -> u32 {\n    if x <= 1 {\n        x\n    } else {\n        fibonacci(x - 1) + fibonacci(x - 2)\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main",
+    "fibonacci"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

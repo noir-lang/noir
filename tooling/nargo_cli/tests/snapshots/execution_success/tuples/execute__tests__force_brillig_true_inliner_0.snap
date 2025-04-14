@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/92Vv47CMAzGnWuqu9zpGICFhQEW2FL+jwzwIBGoz9FHRwhbuB/JRLJgCaXI6efPv6auoUcY/t3D8vpFryF7jrz696LJqOVL+jSFfPYgG0qH5Ja8Orj/nq8yNuygbk79g9/sXKS/jP7XTmkW0F+Jvi2j779Z59T19Qnq/lP/5dX3SE6fsTPnfjgv1wO+dqBX4rlrT7m5jSL+pdYf9zqHXivFJ5OPBp9TneCqc7J3DP7qQqyGSpegFp6DjGx8io0+EybBZvLZbFYELGLnxiS4TcFfqdkUY2MVi5hHnMOx3mbgv9SMiPnXM0K+TbbLX39/8F7qVt2Tg55BBPVr2L/g/7+RPuwbPtt9aNp1aMM2XK+bS0BOBJxuBDx86j0KAAA=",
+  "debug_symbols": "ldPLCoQgFAbgdznrFl66WK8yDIOVhSAaZgND9O6jg4to2pyNcOT/XHj4dxhVv80vbSe3QvfYwbhBBu1snPajgN5rY/T8Ol8DSQetfvl1kTaNa5A+QFeXBSg7QtdUUU/aKOgqcjwLoDUy3yDzAplvcXlG7vKizXlKyBVQLGBYwLGgxILbJbNGZMGEuIoaLRq0EGjRYgW/XTcnLAtO/gRFC4YWHCeOOL2l17I3Kjd62uxwKnj4LOrS9cW7QY2bV6n1p8KnH+FVUZL4bHz6Cw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) {\n    let pair = (x, y);\n    assert(pair.0 == 1);\n    assert(pair.1 == 0);\n\n    let (a, b) = if true { (0, 1) } else { (2, 3) };\n    assert(a == 0);\n    assert(b == 1);\n\n    let (u, v) = if x as u32 < 1 { (x, x + 1) } else { (x + 1, x) };\n    assert(u == x + 1);\n    assert(v == x);\n    // Test mutating tuples\n    let mut mutable = ((0, 0), 1, 2, 3);\n    mutable.0 = (x, y);\n    mutable.2 = 7;\n    assert(mutable.0.0 == 1);\n    assert(mutable.0.1 == 0);\n    assert(mutable.1 == 1);\n    assert(mutable.2 == 7);\n    assert(mutable.3 == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

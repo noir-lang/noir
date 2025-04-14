@@ -1,0 +1,95 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 4,
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        }
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZO4/TQBBen+0kzlvwR+KLcwndnXTvV0vt5C41Eh2VewpKKjp6GpCQKBANHRJI/CCydzuXL+NZJ8d5QUasZK298+28dmZ2s/HUbesuHs+8B6b3Te/BmIIx3XZNP3hYi0vkNXClo1cBHbcqoKNfoo4exKkrfYMK+DSsgI61ktfddU2qV8CnjQroGFVAx2bJsUk6Uoy2Fk978XTU7V57N4gG6eLtm0k6oXXC6CDUi6yd2AR8IWNw0E/TR6bfAnqJhTiOmNwy+U8Go2GkVlvJ+t/wxwUrmf+U+Idu+A/qhs9+tuSPtpBcn+H4HB8wB4A5sGAOAXNowRwB5siCOQbMsQVzApgTC+YUMKcWzBlgziyYc8CcWzAXgLmwYC4Bc8kwFBNuciZJHMdc0lH5HwdkC8muuZE98pg8pVZ/sCgmv6mc5nfsMXmkD/cP1d8OYbKlPh6jBVneDqKFQKP11fvEHuB4bJEetDYu9oJF3E0cx93wL8Zd8i/GHacFWd6O+8YdxhaPO9+BLxZxN/1f76oVdz6jBVnejvvGnXRppXHn8H4BGIxVtMETbHAcv3PHZ9DkvrnP1wfXAH27x/zjaF+Zu/S/9s9ji/70rls9U3fNZ/5EH5HPGohntAhoQbYqp2m+A5CDvEiPkOHPzHfP9DWYQ/P7gvwak7+itzCGPuK8fGGM8Dqv9817yzw6ht6ZMcrjcDlVeZYeZUn52lf5/YBwPZWv17yW14FW9qWlZ+zWjdaYy6yBPYjHd2Xsw7GnptffH5h9Ur2uFfhO2lsc73WDjmAjX5vIjeyN91mS31T5tXGxz0ZMH+4frOOeWt4V4dy+QOPx3xTkNAU5VeRFvkFfPrS2YBzSekTKbUxEgo0u7sJazP6y9W+70T93TscY0P0zGEdaqPJnWPRzyPCvgOdz8077Cu6PEaNJ93JF9RnxbcYrFGz02Dy0KxR4hQz/wvQ6fj9uoJ8PY1sMXxfwqGfI7EFbaW7RuZV8GwCtzP1A++AT6MHtxTOxS//0GR59JdUikinFI99LHf3euDvnkA14zkGZW+AbHqN4DgzZ2EvTS+ccfobHMaWKzzl8L/UYL910bZTOkDyfOyCz6LxF+K6A7wCG/EayMR66jIZ6RRa9sDYgL17zCP/a9FJtkHSXfE74noDvAqbO7EE/9CyybfbwWkf4NwX2SPoV5XJfwPcK7EFb+xvIRvu7Ftk1C77H7Cf8W7W0/4d5l+otnv11C4Dmut5iDvF6W5Qvum2yRlLM9VV+XXqMhjnVYXLW7eMNZuO6s4pLv48nyz+tac0pj3gLgI749+Ybz6QKbNv9TT3n4zSeD9N5OkqvrpJZ+ojx143WuOVAfjoeTmbbyWw8HQ3T4c4flz8b7UxnySgdXMf6c3udfOneB/NYN7o7wrslxBO/kOE/E3bxfDHv/G4Q5Wnc9wKcZ+lveAhjQbY6Jt054V0c4Ul2M8vrSLQW0LDG6NY23+gv5EV6hAz/zXzTmuD9Gc3vC/IbTP6K3sIYv4trCfiWgNfr85X4mR5tL/se40Ym449jXDeKHRd5tUip8Swdx/GTJL5O4tG6vPoF3z1SlykrAAA=",
+  "debug_symbols": "ldfbioMwEAbgd8m1FzNJJoe+yrIU29oiiBZrF5bSd99YqluaQPlvxKgf5jRh5qYOze562rb9cbiozddNdcO+ntqhT63bvVK7se269rR9faxovoT4+P5yrvu5eZnqcVIbY6hSTX+Y7zj5Y9s1aiN0/65UJFgwLDQsDCwsLAQWDhYeFgEW8JozEU4YJxonBicWJ/DKM5fHImYhYjNS/kuIT2KJMlLcYNb4hZiQEf+B2HwsASfFPWbtSiQjmnDCONFlIivRGTE4sTiR8iTTOsk5cTjxOAk4iTAxhBPGicZJefUlLMRlgWwsTgQnDiceJwEnESaWcFI++f0SYsa7jNhPJGZEcOJw4nFSXhdaTxjKTn4bYSKEk3JUkllJNhbRODE4KUcl24Wwz4jgxOGkHJWsV5JPcsBJhImjD5NcIIwTjRODEwsnVw7Px5zDicdJwEmEiSecME40Ru6p9VOPbb3rmmd1e7z2+5did/o9N29173kc9s3hOjZzBfxf/M4D5OArTSF1Zd5TTiovj4x/fpXOXw70SGdTU1OsNHPqQerFHw==",
+  "file_map": {
+    "50": {
+      "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

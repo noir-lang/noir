@@ -362,13 +362,13 @@ fn display_fuzzing_report_and_store(
     writer.flush().expect("Failed to flush writer");
 
     match &status {
-        FuzzingRunStatus::ExecutionPass { .. } => {
+        FuzzingRunStatus::ExecutionPass => {
             writer
                 .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                 .expect("Failed to set color");
             writeln!(writer, "ok").expect("Failed to write to stderr");
         }
-        FuzzingRunStatus::MinimizationPass { .. } => {
+        FuzzingRunStatus::MinimizationPass => {
             writer
                 .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                 .expect("Failed to set color");

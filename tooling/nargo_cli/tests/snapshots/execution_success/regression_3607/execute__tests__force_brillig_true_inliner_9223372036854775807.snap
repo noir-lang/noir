@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VVwU7DMAx1WTIo0wDBgQMSByRuICW0pePWAz8SbfQ7+ulQYavmKR2IJWCpciI7z+/ZaVvQZAV7A3uK5HTs3WHmE2K5KNF9JjnP7Ev2Ryq+SCi2hLop8TeubsqIvoT8q5Ixc/ZHMDPgu2PGeR0mfNRCyksenhnja17reyY5JxyX9RmvSziTY/4Z5+OuIvyl1oq1PvJ+DXGCc9oTfZ25mJy9iOgqoKe57ozUko+iYfzYHDUfm4ePt8Dnlv3y47mG/kgOzXC2kL9UWLF8wbOQf8N+nH8FmFbVXwCOxo/N2Co+9/+k7e4PtZ3T/PtVwP6n9xDftY69O9AKqGf2cCaa+ir5D8DTgIYuEc9L0K9rrWj655shff1289mn0RbD1AfpgTaj4jr/ifenMzq6X/Ls2+D7KvShCbtdvQ3Yp9H0tz11/boJ7Ta03r/U/q32zXf13wHJeQsiqQoAAA==",
+  "debug_symbols": "ldTfioQgFAbwd/G6C/90Wu1VlmWwskEQC6uFJXr31aEgHGE4N8GJ34d0jG8ng+m258P6cVpI+70TN/V6tZOP035UpAvWOft83F8Tmh5Mvvwya5/GZdVhJS1XFTF+IK2AmB6tM6QFevxUhCmc56Lk5eVVnfsa6QHpG6T/Knp5eZV7ifOCljyw00OTe4b0HOkF0hfvC+jpG5Z7QPri/hm7FsrY20blhwTP71gobKKm6ARDJzg6IXCJI06/OljdOXMWxbj5/tYb699ssgqZw9SbYQsmlcmtR9JGaqiAppJIHxv/GRDxjHjOPw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: u32) {\n    if x == 0 {\n        x = (x + 1) / x;\n    } else {\n        x = (x + 1) / x;\n    }\n    assert(x != 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

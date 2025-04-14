@@ -1,0 +1,70 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "message",
+        "type": {
+          "kind": "string",
+          "length": 11
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "hex_as_string",
+        "type": {
+          "kind": "string",
+          "length": 4
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "hex_as_field",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "7d3LbttWFIXhd9FYA661z41+lSIIfFECAYZt+FKgMPzuldxQcF1G0U910uLMopiLobQOFfjbpPS6utlcvXz/ur37dv+0uvjtdXV7f335vL2/2z16XQ3vf/X0cHm3f/T0fPn4vLqwynq1ubvZ/SkNb+vVt+3tZnWRh7cv65VowDQQNJBoINNAoYFKA40GRlwcr3q261D7kYhIHxPrf2zaRv3YdHQcNrXfdz67LiIN087zL3auIaYD0VD1efezqyjKdEBRyxnHPrvikqdjTxFnHfvs+kwxTrvP57zus2s5lcOx1/OOfXbl58NLk10+r7LZpV+GaV0W5zOe7expUmJKlNTOebaePafKOD3bqjOO3bOnX/WUqOmsM8SzJ2A7rLKW6xnHPnv6tRLTzut41rHPnoBtnHY/6vMqc8aJghMVJ2bXvgaPh+ee/vZCfdk9uHrc3t5uv3/9/P/4609We61pWjEfXvVjC/hoQjhhnAicSDiRcaLgRMWJhhO488CdB+48cOeBOw/ceeDOA3ceuPPAnQfuPOHOE+484c4T7jzhzhPuPOHOE+484c4T7jzjzjPuPOPOM+48484z7jzjzjPuPOPOM+684M4L7rzgzgvuvMx3nuqUaMPnRMaJwhJv7/jx2t+1+rtWf9fq71qnv2sdS+DOC+684M4L7rzgzivuvOLOK+684s4r7rzizivuvOLOK+684s4b7rzhzhvuvOHOG+684c4b7rzhzhvuvOHOR9z5iDsfcecj7nzEnY+48xF3PuLOR9z5iDvXMPCIeMQ8EjySeCTzSOGRyiONR3j74u2Lty/evnj74u2Lty/evnj74u3ziYL4SEF8piA+VBCfKoiPFcTnCuKDBfHJgvhoQXy2ID5cEJ8uiI8XxOcL4gMG8QmD+IhBfMYgPmQQnzKIjxnE5wzigwZxsxNHO3G1E2c7cbcThztxuROnO3G7E8c7cb0T5ztxvxMHPHHBEyc8ccMTRzxxxRNnPHHHE4c88fmD6ABiH6k80vCYw/sNO2B3wO6A3QG7A3YH7A7YHbA7YF90wO6A3QH7ogP2Wwfs/zJgH/t1+SeAfTQiHjH+pTz2G/b7HE5P9PscQKLf53B6ot/ncHqiXzF8egJ33sG1g2sH1w6uHVw7uHZw7eDawfVXkQ6uHVw7uHZwPTHSwfXfAddjkX7FMI70K4ZppF8xTCP9imEa4e33K4Zx5P9/xfDRCG+fW5445olrnjjniXueOOiJi5446YmbnjjqiaueOOuJu5447InLnjjtidueOO6J654474n7njjwiQufOPGJG5848okrnzjziTufOPSJS5849Ylbn7n1mVufufWZW5+59Zlbn7n1mVufufWZW5+59Zlbn7n1mVufufWZW5+59Zlbn7n1ecHnDS/4wOElnzjM21/wmcMLLsZbcDXegsvxFlyPt+CCPG595tZnbn3m1mdufebWZ2595tZnbn3m1mdufebWZ2595tZnbn3m1mdufebWZ2595tZnbn3m1mdufebWZ2595tZnbn3m1mdufebWZ2595tZnbn3m1mdufebW57LgKnzePrc+c+sztz5z6zO3PnPrM7c+c+sztz7XBTdh8Pa59Zlbn7n1mVufufWZW5+59Zlbn7n1uS24B4e3z63P3PrMrc/c+sytz9z6zK3P3PrMrc/jgluwFtyDxW/C4tYX3PqCW19w6wtufcGtL7j1Bbe+4NYXWnALHm+fW19w6wtufcGtL7j1Bbe+4NYX3PqCW194wR2YvH1ufcGtL7j1Bbe+4NYXhp8Ito/gG6mD3kj9tnv0++Xj9vLqdvO0S+x/+HJ3PX3D3e7h8x8P00+m78B7eLy/3ty8PG7234b34Yvw9v92aesah29t2VfuvI78Zf3Xj1WH9W4Kf/i8s/0GUdapHDaItFaMh3uv3/8ywuuIujva3RH/CQ==",
+  "file_map": {
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "// Test global string literals\nglobal HELLO_WORLD: str<11> = \"hello world\";\n\nfn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Field) {\n    let mut bad_message = \"hello world\";\n\n    assert(message == \"hello world\");\n    assert(message == HELLO_WORLD);\n    let x = 10;\n    let z = x * 5;\n    std::println(10);\n    std::print(10);\n\n    std::println(z); // x * 5 in println not yet supported\n    std::print(z);\n    std::println(x);\n    std::print(x);\n\n    let array = [1, 2, 3, 5, 8];\n    assert(y == 5); // Change to y != 5 to see how the later print statements are not called\n    std::println(array);\n    std::print(array);\n\n    bad_message = \"hell\\0\\\"world\";\n    std::println(bad_message);\n    std::print(bad_message);\n    assert(message != bad_message);\n\n    let hash = std::hash::pedersen_commitment([x]);\n    std::println(hash);\n    std::print(hash);\n\n    assert(hex_as_string == \"0x41\");\n    // assert(hex_as_string != 0x41); This will fail with a type mismatch between str[4] and Field\n    assert(hex_as_field == 0x41);\n\n    // Single digit & odd length hex literals are valid\n    assert(hex_as_field == 0x041);\n    assert(hex_as_field != 0x1);\n}\n\n#[test]\nfn test_prints_strings() {\n    let message = \"hello world!\";\n\n    std::println(message);\n    std::println(\"goodbye world\");\n\n    std::print(message);\n    std::print(\"\\n\");\n    std::print(\"goodbye world\\n\");\n}\n\n#[test]\nfn test_prints_array() {\n    let array = [1, 2, 3, 5, 8];\n\n    let s = Test { a: 1, b: 2, c: [3, 4] };\n    std::println(s);\n\n    std::println(array);\n\n    let hash = std::hash::pedersen_commitment(array);\n    std::println(hash);\n}\n\nfn failed_constraint(hex_as_field: Field) {\n    // When this method is called from a test method or with constant values\n    // a `Failed constraint` compile error will be caught before this `println`\n    // is executed as the input will be a constant.\n    std::println(hex_as_field);\n    assert(hex_as_field != 0x41);\n}\n\n#[test]\nfn test_failed_constraint() {\n    failed_constraint(0x41);\n}\n\nstruct Test {\n    a: Field,\n    b: Field,\n    c: [Field; 2],\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "print_unconstrained",
+    "print_unconstrained",
+    "print_unconstrained",
+    "print_unconstrained"
+  ]
+}

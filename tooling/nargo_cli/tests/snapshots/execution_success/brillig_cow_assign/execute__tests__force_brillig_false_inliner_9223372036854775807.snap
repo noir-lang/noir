@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YwY7TMBCdtHHbNFSt4EcS0pIekKgEEleQuHFAaVe9cAGJA+JCTkjw1dRlhrxOptmixOKylio79vi9mTfOxLsRNS3iPqYeTUB+cZ9wP4L18em34+esX8sTxTsk/jZbrxMjvgH9LxLGjMLgZ4IfSP9syjiv6gYfYxHe2emXwnhBzfkIFb/kL2T8TzpilrPzsg7CXaWs5UelpfDTgHEuwH+CWJE3DqPxPlJ8BH7gmvDPla9D15xI8Yk/Wh/Jg2jnDF9XxhqeVVxDHmfwPGA9YP0vrAW1a090pRcePad5dM32bUl2rfEtMfwbstaLXhPGi6mtF/o2UvY4Jt6Dczn3vqZ/hj3Xak3cod3Y8Gdh7Oubo648BKq/f+80kzD4G8GfQtzDYOd7wZ6F8T2XHEdGXrxez2Ee1xw15wrzLXcXp+zfAuYLHi8NbrwLWe/0bpi4y65aZvmzpPYZxb24zxm2U7Umtq9VvKFq0WPA1f5beYhVXFY9uVUnXT9u0cnKP9HwtVm4Y8M/5Ne+vlF+BrrLmnkTrpTa7yV+Y3DP5Eoc77j36x94bOVQ51efU9QiCaSFxDQ3YkVO8W2k7HGMWsjce+6t7+m/3nmsOtH1DbxVf/k7eFy3MUSDWK3teD7r1/Zely/gh9bAAS/mhKhbM51XtE+UjW8raud1quzGBha+DzOFhb44FeN938aQupfbP+f+HAfjO7qMjxS/U/af+Bn1kj7u4eexrPJjUR2rTXV3tz5Uulb5JrqmAfirstgenq4P5X5TVMWze/mXPJ7UzTq+R75N+Vlqi7bH7wHafxXb0+8bj+VddQaft/vZYRdd6c8YxlxcX84lddt+XLfthXtet32UtRTW8B337RE/o16IJX44Zf+DnyUnM9gj+1cG/0zxX/htzOn7Q2rYp4a9z893weMeYx/6/0NnToWPc9o3OTv+XP8G7wvr2pUXAAA=",
+  "debug_symbols": "ldfdaupAFEDhd8l1LmbPnl9f5XAoUWMJhChRC0V89yZiaJmGyroRR/dHNGsU5lbt2+31/a0bDsdztfl3q/rjrrl0x2Fa3e51tR27vu/e336+XJn5Qdxj/nxqhnl5vjTjpdqEUFftsJ+exEkfur6tNt7c/9eVeDgf4HyE8wnOZzZvDZwXOG/hvMJ52NfCvhb2tbCvhX0t7Kuwr8K+Cvsq7Kuwr8K+Cvsq7Kuwr8K+DvZ1sK+Dfd1q35ye82KkBI4CT0GgIFKQKMgQeEOBUGApoKXD6ncQaxZhf4nVS2h2T6G53H7B/S2cyaXwWAQs4gshWoqERaYiGixWN5Vzy7+B86EU9oUIqRSKhXshoiuFxyJgEbFIWGQq0mpBUb/8Bp0vxerdlaiLiGXz5LEIWEQsEhaZimywECwsFooFLpjXC+ZlJ1pjSxGxSFhkKsQYToQTy4ly4hi5T6uPZuyabd8+D9aH67D7cc6+fJ7a4sh9Go+7dn8d2/nw/X3unm+jSKhF4+OjzEsTaxE7L+Xxrk5LP111uvIX",
+  "file_map": {
+    "50": {
+      "source": "global N: u32 = 10;\n\nunconstrained fn main() {\n    let mut arr = [0; N];\n    let mut mid_change = arr;\n\n    for i in 0..N {\n        if i == N / 2 {\n            mid_change = arr;\n        }\n        arr[i] = 27;\n    }\n\n    // Expect:\n    // arr        = [27, 27, 27, 27, 27, 27, 27, 27, 27, 27]\n    // mid_change = [27, 27, 27, 27, 27, 0, 0, 0, 0, 0]\n    let modified_i = N / 2 + 1;\n    assert_eq(arr[modified_i], 27);\n\n    // Fail here!\n    assert(mid_change[modified_i] != 27);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

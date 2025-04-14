@@ -1,0 +1,76 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 128
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 128
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VZv6/TMBB2fjfviYHHwMLAwoiUNGnibB1oJyYmJiTHqSUGJhZYoEJCQuKfJqG2eu+ek1bPdpt3UmS3vtx9993X/HA9cjC/Pzw5D+UYkIemfNZyzMwstxgrc4nTeyI4fUc474nBk4IZM1XUXzmmcvTBemCx6BTltRmfZmWdauqziL9IZczQcfzITfwskXHe7Y/xYS0qb4D88DkR8NkAn82Izxb4bIHPcDwDc5xLrUENb9Aa1LuKveiP5+Q4v5PzFOVyoT+I13b/Xmjwq1y3stbv5D6/IeAnmjhffa80EI/4hyiW8n8J+P6J+IZ6jqzwsSxEm9UKWyzjhQCXTtcR8n+FcCbgHJt9uwNxiSaXDq+uN3B+qk8+qln5v5bj0KdfqH4XfWpYszLt0xuEcw598k/wnqIa7HF6MKyDUMPblA7eoroW8nNA9L3BWkw0eRfIB+ZNUN7B9zfiyrL+qrYTO153O1P9LRHOOegP9kl3nXD3mx6sNeaUzojT6ExOcc3wGhBN+J+6tseICzc9o5lpz9YI5zV65mvwwmuNKYdiwrjglSmH2xlwiHWZkvPuZU6e45gwfo57P0NOk6tx+t+oKacfZsjpglxVp8KU048z5PR2hNPAOae98cz4OeLTDDm9eQSnHnF3n4dYAg2nqWaNWMOT5bhnnRyH3/OfCU5s6ayXWWmqs88I5xx0FpHz3v2V/5cJrl3XgLUeaGqYeo8JUcy1Jawewof3domGc+j/FeGML8hpPMIp1LZOFx5aO7dm5f8N1exqv1NXM9zvVPv94d5+/poetDFYsD/yoPuzLQTr0P+H/HyjqSM0wClqlouCCbZiXVdyhnkiiCfb+csVqzmr87wp812Zry6df0lp1Szbfse946Iri0vnr8oqp5RRXnHRlLy9dH7eVKIpijYvmm7X5NWp/P8Aw1aP4T0eAAA=",
+  "debug_symbols": "ldjRiqswEAbgd/Hai0xmMkn6KofDYlu7CGKLbReW0ndfXTZLiWHDfyNG/FDmjxrn0Rz7/f39bZhO52uz+/doxvOhuw3naRk9nm2zn4dxHN7fXg83Zt1Q/D7/eummdXi9dfOt2ZHltumn47oXFn8axr7ZOfP83zbWwIJgYWHBFSE+FwILBwuFhYdFKAqVJDTmIqKCDSwIFrYiQp45MywEFg4WCoti5ta4H2HJ5CLAIqJCDCwIFhYWDAuBhasIm89dUVh4WARYRFS4cuaiSTjKBVWEz6vrLCwYFgILB4ty5sEnEW0uPCwCLOLfgilPUA0sCBYWFgyLYuZsYxKcJ6iuLEISshEKCw+LAIuICl/MnN1vdTWfV54qIuR5eAsLhoXAwsGinHlM1RXDufAVYTfVDbCIqAgGFgSLYubC6RkUkVxwRWhe3SCwcLBQWHhYFDOXYJIImov4t3AmF9HAgmBhYcGwKGbufv+K3GYlEx0sFBYeFgEWERVkTIXIlhBOLE4YJ4KTcvKaVnLO04ZohUSzIR4nASfF9NWkr5VS/lYhMhXCW0I4sThhnAhOiumrS+8WdbohWiF+SzxOAk4iRp7L6KObh24/9j+Nv9N9Orz0AW+flz5rCV7m86E/3ud+bQ6+9AXXaUSWWrL6fS/rkE1LbJfrLNf6Ag==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u128, y: u128, z: u8) {\n    let const_x = 12345;\n    let const_y = 2345678;\n    let const_z = 2;\n\n    assert_eq(x + y, const_x + const_y);\n    assert_eq(y - x, const_y - const_x);\n    assert_eq(x * y, const_x * const_y);\n    assert_eq(y / x, const_y / const_x);\n    assert_eq(y % x, const_y % const_x);\n    assert_eq(!x, !const_x);\n    assert_eq(x ^ y, const_x ^ const_y);\n    assert_eq(x & y, const_x & const_y);\n    assert_eq(x | y, const_x | const_y);\n    assert_eq(x >> z, const_x >> const_z);\n    assert_eq(x << z, const_x << const_z);\n    assert_eq(x < y, const_x < const_y);\n    assert_eq(x <= y, const_x <= const_y);\n    assert_eq(x != y, const_x != const_y);\n    assert_eq(y > x, const_y > const_x);\n    assert_eq(y >= x, const_y >= const_x);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

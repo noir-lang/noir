@@ -1,0 +1,59 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YQWsTQRSezSZNNmmoKP6PTZukERQCxmovIuhB8FC22+bmQcH7XgU9FQRPgiAexIPgpSAePQgqCP4fHTLP/fLlJWmTHU3RB2U2nbff9943b15mEpiRBe7PWtmNJTNp4tN3Y7yctQrEin3GGXiKc0zkwEw3mfvhxojet/NhgQlHxFskfi9uJ5GSX4Hxb0WA6QF/U/DLfvDjqsO5kY3jG+INyU97R3x2wWeXfJpmvAkgjsxhrcr7tV9/GyZ/vuieI8LzUT8YU9H6X1DiL0Fu1q5mxXIPnQn+oGB8McG/5gf/d+/Y8YPfEfzrfvDThhnV8jast8de0vbcSzqyfytm0mRujbhxrgpzAc3VYA73IltInzFfi3EFcNlP7L9OxtwDXPYTO4s6LaLFI8Blv7OoRYnmsGaW0ek94LKfmO150lfL2Xi8fff/eAnb7sWx8IUOv2ImY0f+Cvlfdp/rFL/k218wzuF20hpuJcOkkxwctNPkPOFbK4FO+N0ga1MBv9DoZxNrUo9VmusvGDubxCM1V4Z4qko8FfLfobykJkLAqSg44l9TePEuUSLeGvHaz98IM1S0rSiYq6JtaYq2N818bUMF56TaVoi3RryorfQY6RPWBtlotPHeIm7MKTSTPTUgbvG/Y3LM2+65oeCWFQ2syRmPce+6MTJ6Tfbd53hJ417AXBiTUbSxJuds1hzfRc1n9RfUCXl3pnBYG2Q5x96U2E+7rinEve+eG+An8R6C38Mp3LKvrfGdytqq98z7lJe2r7XvgpPsa9SE97Xwaj1TywXrhfeV+D9wo2/NtX0lXLNqxZjl9tgeaMb3O09nxE3tjBgQ95of7m5AfKIf/g/568ZrP21xfUo8rA+fhatKrOeUOe5dVYWnqvD861jaHrDWd2O8nLVkHfG7fZCNRruejyknWWP8XuK+KfPo/9TkmE/cc0PRSsO1hr9ZcR+eVafiX1f88YwmXBtmvJfju3xvtDbI8ryOjB4j5rRGPjKP/s9NjvmM/LX9iTpxv8W1WQNcXtf6jFitsf7rShyz9G8q/utKbKJ/A+bkXckJ136Q5Tm9MHqMmFNEPjKP/q9MjvmS/LW6Q51Yf1zvCHCPiFvq/7Ubbf19n5IPnh203684nzdulF7ShHd8nx2aFJPU2dtT5tk4QZ7vViDPWfsDa4frBOtS3sWa1s5Fns4CW9xrtLMq8s+72xybcW0Wvdt8AF2+ko/E+gV8Pk7hXZV7jXZ3nHWvEf9PlNefutcIr3avmXcP5nuN+H9249+81wRKvMvcZY7hWerU9q+ifx/ttrutXi/ppd10eKmd7s/7fbRo/rTT3U/bnSQ+bNmPm/P4fwJrBY7s1SIAAA==",
+  "debug_symbols": "ndnbiuMwDAbgd8l1LyxZPqivsixDD+lQKG3pYWEpffdNhiQ72CLDn5tCSj98kFxH9qvZt9vn58fxfLjcm/WvV3O67DaP4+XcPb3eq2Z7O55Ox8+P7183rv9g/vr9/bo594/3x+b2aNaUadW0532zZkedPxxPbbMO7v171bCHhcAiwCLCIsEiw0JR4R0syBLs0ih8KAXDwsNCYBFgEWGRYJFhYcacZYpg5EKIgwXBgmHhYSGwCLAwY+6FB+FzJRIsMiwUFcHBgmDBsPCoiGYbojIIUS2Fh4XAIsAiwiLBIsNCUZHMvArkBxEol4JgwbDwsBBYBFhEWCRUZDMeEt0YwVTu59keuc9jG+JLEWARYZFgkVGhZl7FEAYRYzlXao48+nF2o5SCnJnuMY/ditWSIsc48TgRnAScRJwknGScmH91icellbhcWkQOJ4QTxongxJyxTOPOm8lXRGHCDieEE8aJx4ngJOAk4iThBI8+49H3ePQ9Hn2PR9/j0bcruezHvSJLLIldNGkYiw0NXBFzLCppIlXH7LJpnghO7OFHHYefXUnsikPzOGOqUhF7LFknUrciP7VS7cgh4CTixFwvOhXyWr26kV3bzM6YXXjM5phdecyT9FPCVMlv1x7zRGFiVx/zhOAcS4wTD4cyCU4CTiJOEkyyOcnUraPBEFUnLZR5CbJPbruNZEJSIbUPPZnGOrd7pQgVoiWIlyC/BMkSFJaguASlJcg+AGcJEwrV0lPFETu3BNESxCh6d09/NrfjZntqh/uVw/O8+3bd8vh7bYubl+vtsmv3z1vb38H8v375KmG6Aje6fqr6/vdHy+y0a6Vr6R8=",
+  "file_map": {
+    "50": {
+      "source": "// Tests a simple loop where we expect loop invariant instructions\n// to be hoisted to the loop's pre-header block.\nglobal U32_MAX: u32 = 4294967295;\n\nfn main(x: u32, y: u32) {\n    simple_loop(4, x, y);\n    loop_with_predicate(4, x, y);\n    array_read_loop(4, x);\n    //Safety: testing for failing assert under condition\n    unsafe {\n        loop_with_break_under_predicate(4, y, x);\n    }\n}\n\nfn simple_loop(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        let mut z = x * y;\n        z = z * x;\n        assert_eq(z, 12);\n    }\n}\n\nfn loop_with_predicate(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        if x == 5 {\n            let mut z = U32_MAX * y;\n            assert_eq(z, 12);\n        }\n    }\n}\n\nfn array_read_loop(upper_bound: u32, x: u32) {\n    let arr = [2; 5];\n    for i in 0..upper_bound {\n        for j in 0..upper_bound {\n            for _ in 0..upper_bound {\n                assert_eq(arr[i], x);\n                assert_eq(arr[j], x);\n            }\n        }\n    }\n}\n\nunconstrained fn loop_with_break_under_predicate(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        if x == 3 {\n            break;\n        }\n        let mut z = U32_MAX * y;\n        assert_eq(z, 12);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

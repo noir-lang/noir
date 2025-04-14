@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "idx",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYTY/TMBCdbJK2aalawRmJG3BLN23aCxJC7AcSR05IHNwslTggLtyQID+dendGfZlMA6uNV6qlaGL7ZeZ5PB7bieiupPsn4veE5RnLiPuxCPYty/xhZdGjrjwUx+gEOJ6dAMf4BDgmATiG4JkG4kkDRdoHlp847xidDKwB/mGZscRk0mMALDJlt0/9m3zpMmN8PfIvMtAZQH8p+pMw+vMh63lfN/WTshsrnPWNYC4Ac3EEcwmYyyOYK8BcHcFcA+ZaYcR3gWJrGXhuVlNqzgfBWMR2GsZ2GSl7RM24IGV/TEHXwSKi9kEmprZ/JE9NBVMf+ESqL6nb45C+FPpkfkf75zngrNjCPuHiy4f6oOMV6HvN74Fj1WWKU9955JnBH235MqwP/hBfxdAmPpc5GCFe9WXQl9RNO2OuJ2AHdQmPVOFfcn3GcgDfyPdzw/5A2W/wNtq0XzIDnxl4v6e/4PcJPz6GvnBbV774n/WMtubUXs+Cm1E77z1SXsrFlpxvZI61TbwEIR7fiQ4XJ2krWHq/Vmp8CTV9p9u07yKDT2zw0WtS69acLR16Dwq8NxUyviH4sYtX6L0yVXzesPRcPiq/pR2+j1R7St3xlRljJur3goB83rH08blTHALldte1l8r5OqmD2C79OL+xrikZ61dxGkJfbODRRxH7UeOHgJE5nys8+tvKlWIT429G9jwhH+t8g/hE6YoNrmHjodzpfIg5ODb8kyr8J8Uz1F7xFPRqH1lzofewQGfZ/L7+O6N27sR9R/v3M0trD7PyHZ5Tu/Yw6ZtQ2HW/3tz5yBfJOZKHdUmgH/Fbro+Bv8iH/Bzard1iV7idW7mbm2XldIyR8lPf9t262FTny2q9XRWuKB/dfrUqt9Vy5fKvC189/5d96yyN+4gvch7H8zriMY8g/rtg988Pftf3N7Tncb87cNEReavDaEvqZpt1jsf7jeDF9rhuc5S+CfThHufLE66jv1CX8EgV/hfXZU7wTiLfzw37I2W/wdto0/ebiYGfGHg/Pz9FH0sce9//E25tKv3YprlJ7Pi4/gvwuqvAeRkAAA==",
+  "debug_symbols": "ldXbaoQwEAbgd8l1LnIwJuOrlLJ4iEtAVDwUivjuTUq7XYJ0+W8ko35kyAT+g3W+2e+3MPbTyqq3gw1TW29hGmN1nJw1SxiGcL89v2YiPYz+/n+d6zGV61YvG6tkoTnzYxdXRkffh8GzyojznTNTwMLAonwlbC4sKkp5Kaz9FZZyoWChYVHAwsDi+nRL9xBFLiwsHCwIFVbAQsJCwULDooDF9QTpISifubX/CyVULhws6JXIu3ICFhIWChYaFgUsDCxKWFhYOFjAMyd45gTO/IzVR72Euhn8TwD2+9g+5eH2OfssGudlan23Lz6F5F8+pmalMFyqMnaSLoYirimuZfpEmpNLRWqRiEsh4/axhS8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: [u32; 5], idx: Field) {\n    // We should not hit out of bounds here as we have a predicate\n    // that should not be hit\n    if idx as u32 < 3 {\n        x[idx] = 10;\n    }\n    assert(x[4] == 111);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

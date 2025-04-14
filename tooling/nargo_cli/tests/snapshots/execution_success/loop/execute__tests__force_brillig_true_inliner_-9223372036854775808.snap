@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "six_as_u32",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91XPU/DQAy9tNdCqBAVzPwAtouafjCAKrUslRALAyPpFwsDEhISW386OmErr8ZJg5pDqF586b08++wXJ41MbhF5K66NghmTd/tZUiOXUxMtM8Z8ko/JN2C/WeNhYxG3Tv6RSwexcr4a8+/FxBmyPswZgN8dEc/dJueXZzHgGSfv8funtEadMeaY9nndpXUs7gnR/4D9cRdK/g04m7fJJkxs5p+G4U861Ktb0atAtUyZ34bh77M+W+an8V5b6aM2N5viGvP2NZsCr8TJmPhsY3zMwRJO4pmvJfCX5APX1J0Dr6xDYL30DkkvT8ArcTJmCL1ckf8Pegn0rktPRbyiOrNpPePffM/eaF2lZ6iNFqyRE3vWEBhj8p4xvkf+kJ9xqfmiOrNpPePcfM/eaV2lZ9p5y54z5OB3vnzObsiH/q7TesaxOib/NrGb+uMPR85x3CbUQeuhhX3ET+j6RDmH3SPP9TBL1r1snfWz5TJdZLJO3hpQJ/z+0bQYFXhjtnsrubsKF2tGzgzc8/N+BryoTa7xrvnB+AeTc97T+szo3+PeOrBvlX2+D9+XTQUvc2tDHhq+JfJn/CN536MPWneVnOS8tUp+WOvp5ttrs9tCrjOI/9caKTtLpJxF9qat4KWWEP9MHmu9S6dzsx0bdajpVMZm/AvkvKJ1VZ1q+2U6RXwVnSK+SKev5H+r00jJr6pOI8h1DvHlfzlZnzFdu/1sUDQ7tXekx9Y959N+NlxkwyS5TpNVmvR3zfkvWZPgNfUTAAA=",
+  "debug_symbols": "ldfbioMwEAbgd8m1F8nM5NRXWZZiW1sE0WLtwlL67qtLU0oMyH8jRvwYZ0aJ81Cn5nC/7Nv+PNzU7uuhuuFYT+3Qz6vHs1KHse269rL/vKz0cjD+//7bte6X5W2qx0ntDHGlmv40n7Gd/bntGrWz+vldKRNgEVFBGhYGFgQLhoXAwm4I8blwsPCwCLAo99xJEt5lgjUsDCwIFgwLgYWFhYOF3xAh5CLAIqJCNCyKPSdNL0FGckGwYFgILCwsHCz8hqBVdQMsIiqshkW55/IWNs/cEiwYFgILCwsHC78lYi4CLCIqnIZFMQabtOPw6m33GhYGFsWeM6c8mDkXxX6wi0l4ykU5c6uTsHmMoLdEvjsHAwuCBcNCYGFhUayuUNpxhPI/sqhhYWBRrK7IW8hKMCwEFhYWARVGl4sVTCJBVqScu0tfobh1FNkicUUsThxOPE4CTiJGnvPqpx7b+tA1rxHyfO+PHxPl9HttsuHyOg7H5nQfm2XM/Jgwl+9njuT88iRLt40JlSE9R5kj/QE=",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is basic looping.\nfn main(six_as_u32: u32) {\n    assert_eq(loop_excl(4), six_as_u32);\n    assert_eq(loop_incl(3), six_as_u32);\n    assert(plain_loop() == six_as_u32);\n    assert(never_loop() == 0);\n}\n\nfn loop_excl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn loop_incl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..=x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn plain_loop() -> u32 {\n    let mut sum = 0;\n    for i in 0..4 {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn never_loop() -> u32 {\n    let mut sum = 0;\n    for i in 4..0 {\n        sum = sum + i;\n    }\n    sum\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

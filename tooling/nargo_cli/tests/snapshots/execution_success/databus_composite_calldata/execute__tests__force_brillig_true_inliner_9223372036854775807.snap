@@ -1,0 +1,121 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "foos",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "struct",
+            "path": "Foo",
+            "fields": [
+              {
+                "name": "x",
+                "type": {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 32
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "array",
+                  "length": 10,
+                  "type": {
+                    "kind": "integer",
+                    "sign": "unsigned",
+                    "width": 32
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "values",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "array",
+            "length": 2,
+            "type": {
+              "kind": "array",
+              "length": 2,
+              "type": {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 32
+              }
+            }
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "zero",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "one",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldjbisIwEAbgd8l1LzIzOfoqyyJVqxRKlaoLi/jum8raFRM2/DeFFL4e8ufE3NSu21wP637cH89q9XFTw3HbXvrjmFq3e6M2Uz8M/WH9elvp+cLGPMD51I5z+3xpp4taUXSN6sadWrHW6QH7fujUyur7Z5OIxYnDicdJwEksE1oIvROrcUI4YZwITgxOLE4cTjxOQo34jESYOI0TwkkxfSbzJJQTwYnBSTF91nEhISMOJx4nAScRJl7jhHDCOKnNfc6WPm9wYnHicFJOX/yTWM5IwEmESdA14jJCOGGcCE7Kc9+GJ/H571ucOJzU0i+QgJMIk6hxUk5/OZBIfiCJjBPBicFJOf0QF5LtyNHhxOMk1Eg2+GNESeoQnFCFEGeEcSI4KaYv/FyThU1GLE4cTorpy3IgEbYZCTiJMCFdIUIZIZwwTqRGsmFJBicWJ7W5XyAeJwEnESZcTn/ZxSRb+dMox0k5fSP/EMGJwYnFyD21vtqpbzdD91uA2F/H7Us94vJ96t5KE6fpuO1216mbixR/9Yn5B1moYUPpUx7TUDg0IjI3506WtAGLxPTW9OYf",
+  "file_map": {
+    "50": {
+      "source": "struct Foo {\n    x: u32,\n    y: [u32; 10],\n}\n\nfn main(\n    foos: call_data(0) [Foo; 2],\n    values: call_data(0) [[[u32; 2]; 2]; 3],\n    zero: u32,\n    one: u32,\n) -> pub u32 {\n    assert_eq(foos[zero].x + 1, foos[one].x);\n    assert_eq(foos[zero].y[3] + 2, foos[one].y[4]);\n    assert_eq(values[zero][one][zero], values[one][zero][one]);\n    foos[zero].x + foos[one].y[0]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

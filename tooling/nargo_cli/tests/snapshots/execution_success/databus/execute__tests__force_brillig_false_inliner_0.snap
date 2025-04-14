@@ -1,0 +1,80 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYS27bMBClPo4ty06DBkFRoAV8BFIiLWqXAs0lupNtadNVb+Db9CLtJufIQWIhM9aYoRwgGgXJAMZQo+Hjm0eKohyIJ1scftfQDg6/CHxrKycWeGKhJxZ5YrEnNoFYTLBcQy634OUwUxxYzZNtPXSHYitsUC2m4GfuJM1AQGrRiILlcq11XWS1ylUls3JjjdRms7bKKmPNLrN5Xltti3JTFrJUOq9VY8qsAazpcKwcsORspIl0F9xQnlO+uZD0wUGuIcx5DPFAPLfw/a2Joz4JI6+wp34mfNm3RuQwU8kH4Djn5Bg7JKlxEw8YiVO+KZLFp7INrJxiuHdjxllQqeB7iheCV2TUdOHRlHs3u3inOkRQKy66C3Idkxia720gerRrLTnGri5//fv9n+Zdgb95+PH1z/3fO7f/6hlGxyESvDsj4nLjW6nXiTg1Zv55Ik6PtmPog5gj4Es8ev7cd/huLYJ4zHP7tPeXovuMcHPa09yl6NqfoL0Ef0ewsP+Y2h7WhhlZW3Ut+vVMQYcvb1CrhJckHV+I088+4Rnf3Yd8+Yg3cfJvwLc1fof28kz/VHR7Tbzn16Cw3cs92necqR7CGX/i5H+D6znhL0jdt6/k2RSVavKqqUy12+lt9dnBby0kOnGPr01VbKtCqVKrWivz0vgzaCcePRjXbJaQMUfAP+591OaknTr3UIPY0y/ouQ4dfy733GF56bmHmPj3DuWLdTwCCAr4TgcSAAA=",
+  "debug_symbols": "ldLfCoMgFAbwdznXXuhx69+rjDGsLASxsBqM6N2nA8fW2sW5iT7l54FPV2h1vfQ347phguqygh0aNZvBhbRC9lqaRuVimmblZ6gERwbatfFPbgw6YzVUZ75dGeRUUFBBSQWCHwv+Fqe9EGSBZCEPhRRJyHwvTmRxPhSY/xcZTYRQe2Ot6W9f74bHz/FhmKWrwuxnfE4WBVmUVIGcJraQ7sobVVsd24ibi2tSOSHOjzHtpPpGPzS6XbyORX50GGejZFikd4klkyLMCHOe",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: u32, y: call_data(0) u32, z: call_data(0) [u32; 4]) -> return_data u32 {\n    let a = z[x];\n    unsafe {\n        a + foo(y)\n    }\n}\n\n// Use an unconstrained function to force the compiler to avoid inlining\nunconstrained fn foo(x: u32) -> u32 {\n    x + 1\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "foo",
+    "directive_integer_quotient"
+  ]
+}

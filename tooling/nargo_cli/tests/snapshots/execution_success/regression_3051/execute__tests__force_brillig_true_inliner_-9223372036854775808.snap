@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2Y247TQAyGJz2Qplu2FUi8ARfcQHpMuVuJ9Ai8AHehpRI3CCEeIG/F67EjjVPXa9GV8htFCEtRDhN99ng8Hs9E7ixRuHdcDSHIr3BPwr3F2tv31114T+vJOBF6kfxlOjsmSv+A9k+TwIxs+CnxjfyfxoHzsTzzeV9Ib+/+umHPL9w5Pqz6T+Nn2f/nf+gzxc678tzmwGPrJS8vfY/hTybEX5nwpwXx1yb8xYz4Gxv+nPhbG/5b4u9s+J+Jv7fhfyH+exN+Vtn/wYZ/9PnK56pXgaflKuewaxnPH0D2hNhtZjswD86eBqZWPFBb112OE297wtp4rpbSFu+8T36s3jCu/I9EWxM67r+vpVzz9SfGlf+R+DlE87RTXnLuwve0hmTLNCV97cDvuoe2c/1d8f/r8N4X9teNi1NWjE/T4lTMi+NxdiieCb6XFvOTlmt4DAFz8yJxlzEE5h9kHPJ+k24eh7j5MR7L/OyEH53Q33cP5wxyjxIJfWSP9A/FAvkuVmwdiTYvcn2NFT2xokdj5UDWDsjaAll7IGsNZOVA1qqBdmn5rCkxsQGxtJz6L8aXrLnbCkvLbQP2/fuPr99+OiG8qCE4f285XfFIcGjTLXnuCj8SLGr/uwt0NrddoLPq4Klrwl9k2iIPtH9G/NiGXxXxPRP+5ED8xMb+yv99m/FdEv/GhD+tCtSBDb/aRPHNiyxQb9l3XEE4WTy2QCX9fWEr1p5zgXor7JH+kQXqULF1JNq8yAJ1qOgZKno0Vg5k7YCsLZC1B7LWQFYOZK0aaJe2njdhHLU6oAmxqtUPTYn7DZCFnENNzBNandYE36PjC2lXDLQrL3F29RpqVwK0CzmHUHMbOYf8cx/E8pKXOBZq3fbPcu9QhzUAsbw85nBDq4vNDjdeCs61ww0qGDQdkeBRux+M339qj+4PJAAA",
+  "debug_symbols": "tdrfitpAHMXxd8l1LnJ+M5k/vkopS9S4BEKUqIUivnvjsraL1cKXMjfLRnIOwoe58DCXatuvz+9vw7TbH6vVt0s17jfdadhPy9PlWlfreRjH4f3t68dVc/tj7uP946Gbbo/HUzefqpV5X1f9tF3+C+2S3w1jX63a5lr/9WrK+nw1m/v9qtn1e12ZL1neliwPJctjyfJUsjwXLHdNyXKVLLen5fGesGz/Ue5KlvuS5W3J8lCyPJYsTyXLc8Fy//Sbx3g/RDHmx0SmibbBCeGE4YTDCY8TLU4EnIg4gc1bbB6wecDmAZsHbB6wecDmAZsHbB6wecDmEZtHbB6xecTmEZtHbB6xecTmEZtHbJ6wecLmCZsnbJ6wecLmCZun5+Y+3hOpeUwkmsjYI2OPjD0y9sjYI2OPjM9gxmcw4zOopuER8YjxiOMRzyMtjwQeiTySeITri+uL64vri+uL64vri+uL64vri+sb1zeub1zfuL5xfeP6xvWN6xvXN67vuL7j+o7rO67vuL7j+o7rO67vuL7j+p7re67vub7n+p7re67vub7n+nxUE1/VxGc18V1NfFgTX9bEpzXxbU18XBNf18TnNfF9TXxgE1/YxCc28Y1NfGQTX9nEZzbxnU18aBNf2sSnNvGtTXxsE1/bxOc28b1NfHATX9zEJzfxzU0vRrd/jDx6sbq9jFyXpx/dPHTrsf+8cbA7T5svFxBOPw/9w12Ew7zf9Nvz3N9uJfy5kPDxA9Wr9mGpXap/AQ==",
+  "file_map": {
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "trait Foo {\n    fn foo(self) -> Field;\n}\n\nimpl Foo for Field {\n    fn foo(self) -> Field {\n        self + 1\n    }\n}\n\ntrait Bar {\n    fn bar(self) -> u64;\n}\n\nimpl Bar for u64 {\n    fn bar(self) -> u64 {\n        self + 1\n    }\n}\n\nfn main() {\n    std::println(1.foo());\n    std::println(1.bar());\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,59 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYPY/TQBCddbxOnFN0EdRIdECXxMklQJOC+2gp6GhMjiDRQAMSnX86WW4neZ6Mwwl2TrqVrLW9b+e9+dj1Jo7uWr67HNyHltFxY8w69pP/a9OEtiYOtFvpdQn1WmnMHoHG3iPQmBto/NO8KNCQsJ5SvCRwof2KfRn7DMYTBnVaCt6U9leT+etS8S+h/qoEmwb2F2w/t7E/6Uc775q2fRK8PYHT5jDmEjCXHZgrwFx1YK4Bc92BuQHMjcCM4r2jY80cV4u63tWddd7mI2rnisBP5vY23Asn+IjaNUOCf0ima2TqBB/rkfHhXI8Y0xz0yLG8OfaDxzyMcX4Hu+sZ4LTaYtxLuH8V7zlnlvugVb2H9lTRj1yh9RvaN45HD95xXDnOA8SLsRLG8qbNM4zPOfCgLdbhBf5FfD6PfQFzeP5Y4S8Ef0u38k7GpVTwpYIvdtfzeH8Wr1BD3+O7U3vCfdYsco3peM3ymPU3Sa5nzqOsr/xh9My80PM29iEfM+B08R3GV64D1nhOx3t0IWxliv/+hP84RpQ+HwXoIcU35vcC/0bo7MOclHXzRPiPXEHLB6HD8kxr+P3dnzkLG/v7swXHDmPK3AMb7nufLZh/SKY1tT9bDIQeGR88Pzg6/G7CuWNlDGsQx5CnVHg0W3lCWz6hLa5T3vPQZ46h8ZpR9zBtT83AH7nGcG+Xe9z72Idc/4Q5aBNjl52IXV/Ro32Ptb1Ni3FP6PEn9GjfKJzvO3zDeGq/H73Af4y9dd61bwKe52UuXEfPsZLv5JkIz17rRD6MqTuntv8/zGrOM+ex6ywm9bj0cbjwQsuX2If6/xzvtVg5wH3tiFtCndWpfKEGbX3JWuRnT/paxjHGfhM+Wp3TtbXFXGd0+AbkTXr+5epuTw+Nfxt6aueTBL8X+B/xedjhx/ofdW6X9XRb1dt6Ud/ezje1jFNoGcQpNX+9rFab2Xyz/LSo6urir/y/ASctpn+dGQAA",
+  "debug_symbols": "tdfdqoJAEAfwd9lrL2b2a3Z7lcMhrCwE0TA7cIje/ajkKdYFmYu5iTb8/f2YRp2HOlWH+2Vft+fupnZfD9V0x3Kou3ZcPZ6FOvR109SX/efPCqYP6+btb9eynZa3oewHtdPWFKpqT9O3OPpz3VRq5+D5XSjrucJBThjAlzDgUoFsoTcEQioMW1i2cGzh2YLYImYr6O1SQcJPUaw2RVqKjWSTcA+S4SgZriXDjWS4lQx3kuFeMpwkw4NkuGSHkmSHkmSHkmSHkmSHkmSHEq9DJ+HZgtgisEXkigBsgWyh2cKwRf49wcflGU7pMzz4LWFSQWwRtkRIReSKCGyBbJGtoPVLR1mfdlQ0bGHZwrFFtub2/85gQ/ovicQVCNnL60x4EefMimSvlgNYCPgVsXySPXtHeiGruiPQBgnrcwl8EtkEgUee4+qn7Ovy0FSvke58b48fE97we62SYe/ad8fqdO+raex7T3xTsXQsTJyPfVwg6gKR5uOal6FADeM+x/3+AQ==",
+  "file_map": {
+    "50": {
+      "source": "fn must_be_zero(x: u8) {\n    assert(x == 0);\n}\n\nfn test3(x: u8) {\n    if x == 0 {\n        must_be_zero(x);\n    }\n}\n\nfn test4() -> [u32; 4] {\n    let b: [u32; 4] = [1, 2, 3, 4];\n    b\n}\n\nfn main(a: u32, mut c: [u32; 4]) {\n    test3(1);\n\n    if a == 0 {\n        c = test4();\n    } else {\n        assert(c[1] != 2);\n    }\n    if false {\n        c[1] = 5;\n    }\n    assert(c[1] == 2);\n\n    test5(4);\n    // Test case for function synchronisation\n    let mut c_sync = 0;\n    if a == 42 {\n        c_sync = foo2();\n    } else {\n        c_sync = foo2() + foo2();\n    }\n    assert(c_sync == 6);\n}\n\nfn test5(a: u32) {\n    if a > 1 {\n        let q = a / 2;\n        assert(q == 2);\n    }\n}\n\nfn foo2() -> Field {\n    3\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

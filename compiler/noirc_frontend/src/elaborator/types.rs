@@ -37,7 +37,7 @@ use crate::{
     },
     shared::Signedness,
     signed_field::SignedField,
-    token::SecondaryAttribute,
+    token::SecondaryAttributeKind,
 };
 
 use super::{
@@ -318,7 +318,7 @@ impl Elaborator<'_> {
                         .interner
                         .type_attributes(&data_type.borrow().id)
                         .iter()
-                        .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+                        .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
                 {
                     self.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: data_type.borrow().name.location(),

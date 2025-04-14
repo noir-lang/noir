@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "input",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYy07jQBBsx+M44ygi2j2utLfdvY7BWXLkwENCggt3JBMIEl/hTycW06HcHpvX9AFLVo/d7arummeS0MuV7u7Et423CVh+R8J34q372lVGxHJaOSbfIMfJN8gxVcixM3A56VaMlIYvLuzJW+vtBPwRky2t4I2Jv3bV2gbqi5j/kQVdFfArC5gK+C73OKfNK76shcBynPwmhZgziDkbiDmHmPOBmAuIuRAxrIvSuNHWvVpQV2uCWpjb6HCvEsFHok4S/AWpjvEyof6GmlJfH24vOKZ5zScRPtP062Bf1nTraK/Z7v4FcXJsTSDuL7T/+bbyeFwrrzPu50jN/C5vaH/t1wV4x7qyzjOMFz4LPtN0eQr/bIAHsTiPTMT/8c8H3k7hG/5+GeCfCv5O3oF3UhcbiLeB+Onu/u3bc3+3Y6jmb0h1zSmV15VDxs908Pd77VQHf7/mz5TxCyV9eP7imScN1MT8vM7lEJ8MWMaSPuYqBJbWHhGqDfPnubYU8VKDISz7QSwb8Gn06WykbuRfjOS6HMg1liYmIlYWEYvXiwX1zxkfGe8hHjPCk0XkQT243y2pzjkXWg8pHn4pz8BYS6vlJbxHX0b98yHqn4n4a8C88u127z0I6Mf9yb6xMVm8kU8u8uH4G29bXR99m7Wew/ca6wjnQNSfR5IfnzEe96+J0CsfwQpxh8b8Z7ntO7gNja+fsq9uvVXuH/cDcIdqyAN6hH6rv3decc2miV/T8do5roXP/hmF/3sy4Mf4rX/GPmdrvpDn9rgut0f1tl7V9/fVppbaE2g3V+DfrP7fbapV7R7K9vHwLf5n91vOVZEWAAA=",
+  "debug_symbols": "lZbdioMwEIXfJddeJJPMpOmrLEuxbSyCqPizsIjvvsli2eIK5dyIE85HkvlyMYu6x+v8uNRt1Y3q/LGopruVU921qVrWQl2Humnqx+V1Wen8cfo3P/Zlm8txKodJnUUKFdt7+vGJruomqjPr9bNQzoB5AvMWzDswz2BewLwH8ycwH7A8g34Z9MugXwb9MuiXQb8M+mXQL4N+GfQroF8B/QroV0C/AvoV0K+AfgX0K6BfAf36w/6Y4DbABN4ThyciYzeCTNgTASVOh6+OSD8JMnvCwATBhH1zD6I94WCCYUJgwh/f/PlIyLo9cYKJgBJBv7nHf8LABMGEhQmHEWuqvsqhLq9N3Mapam5vL9PV9N3H3aDVD90t3uch5pHrb9rKhyVfWJ/OYXI/gy+MplzlXhltU8lpy7TtDw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(input: [u32; 4]) {\n    let mut slice1: [u32] = &[1, 2, 3, 4];\n    if slice1[0] == 3 {\n        slice1[1] = 4;\n    }\n\n    if slice1[1] == 5 {\n        slice1[3] = 6;\n    }\n\n    for i in 0..4 {\n        assert(slice1[i] == input[i]);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

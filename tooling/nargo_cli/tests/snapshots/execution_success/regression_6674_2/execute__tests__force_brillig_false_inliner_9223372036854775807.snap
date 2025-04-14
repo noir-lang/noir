@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "11890127694861652393": {
+        "error_kind": "string",
+        "string": "equality"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91aP4/TSBQfr+0k3sRxdPcJ7hvEib1Zui2uuvLK67yBlU666sqrjHTVtYeQkCj4BAgJiYJPQElPQwMSEhIFoqFiZ5mHf/vyi+OwnhUw0mrG8968P795b/5lA9OUwNWRuUIRISPXSNz3AdDD878T9z2/WskTpbdP+cfzokiIfz3av0yczMCP/LnI94T/fOjk/Fo38tEX0Ts6/xtDe2Ka+PDlv8yfT/9/bvF57Hx9qXwVuunRjhR8M2AL6o38YFAGSp8BO5Am+g+VrX2vCYHSJ/ZofGQeBLuY2DojNIwlpKGemOj5HmVlhseOLQkZ12duiR8DJy8ifqBtB4of28aNwb5fXG1z9DWM2RY7UQt2IbEnJeOCLbUxmznD9LB5aMv9ffXInA6UnhP3Pb9iYXgNlB/DHvyYKVkB8XHkx8cvew6eHXqSnYvsQ+V73/LHfrDJZY5xPmX+bb2Efszz2DR5iGNHQEf+ZyDzyLW77JGe1rLOe6Tov649ku0RbXvkkNjalmuB2czpkPR1ydtvVVZGZEeKxvbWhMj0sX/KWTsiPqJtB4of28Y0OSZ9v7ma7Z/7nj0OiD0MO332mHjGLiXYTVqwS4EmbcRO+n43/WEXmm7Y6bhLPWM3NZvYpS3YTYEmbcRO+v4w/WH3tXE39YxdRrCbtmCXAU3aiJ30nZr+sGNxl5JxVz3DsXlg5wg5s9g9/0/ox/Wu6zlC+B+CzL9cu0t8fK9r+t+u9r0uIU2vS77vkww7Npf7YveP2Y5dSLALW7DT71W29HnPY3Okz3rbcus29CN2+57R74DMf107I+N1fHg6E8+1PxgfofJZsNSxg/mg/f3P1Sw+9Lzpvrb4CFqwixR2nt5BF21rBJtL9q6k9wwZFxPeRNGE939XW4zfuLaNXfbGh/fOu0ov2y/iFtuE/z7IvKf4d2EjOcbyLwa5t107M3yvQZ2THX7o3BT+B6629LdKZkr8YHcm4Z8SfnYOzMzmeitjhT+sG5rolFiIgNbn3d1i8A7s0BjEdXd/GT4Z4Z8qHltmih+xYut5qmSwuy7Ggo4/pMlYzBX2JoA59UjpZ7E4VDxCR/4nIPNxB5+65hT6JOdFFoM679MdfuicEv6nrmY5xWIGzxr7xsxQ+YOxIGNZTuHvcrZEQPOdU5fufHV3fxk+M8KfKR5jmryZAS1VNJx/nZcTogdjQccf0mQs5gq7W+i3JP3mgTScZ/2OPlXfyJson4dmu8/yjfGPNun4F/7nrsb4ZzEovv/oMajXbhaDgcIEZSHmY8Uv4wem/d1Kr1EvXG2xiYPL9uH5a6psZ3e9NtsDYvuuc4/8NuAzLlbHn+8BF7bWDUZ45zJKf6z4X7lv/RuNYHjylXaerar8bFmdVWV182axrn5S8m3B/z3oW3+1Wh6vF8V6dVouq+XR9esv54vl8aIoF8WyzKsb161/XR6drouymt/K7edil37J9UHd0HGds2XovuWuqflFXqz43wvv+d8H1/5yLqk39Vm+KNjOF2ypL2SQvqi+3JfUm/xhvckvug/rTRuFNgYarsG2TNw34oWyxI5Y8QdOgMzJCMbI+BnRP1L6L9lN+nAP0LJC0if8dn4+ijxXo+99//Z3oVPJxz5tm8SOj7w6T6nVulrl+Y0iv1Xk5a68+gQg6rkVtSgAAA==",
+  "debug_symbols": "1ZzRTiMxDEX/ZZ77kDiJY/MrK4QKFFSpKqiUlVaIf99OxUzZDriqWVfOC2Ig1z6M7tgxSuetu1/cvj7eLNcPTy/d1a+3bvV0N98un9a7q7f3WXe7Wa5Wy8ebzz/uQv8lpv36l+f5ur982c432+4q1hpm3WJ933/LcRfhYbladFclvM8mixHyx1pM8Hnp9ayL2TZ8sQ2PtuGrbXiyDc+m4SHYho+24cE2vO1TC7ZPLdg+tWD71MK5T22vIYWGz9ekoNBEhQYUmqTQZIWmKDSo0Ch8kBQ+SAofZIUPssIHWeGDrPBBVvigfPP3cB00lINcBirgx9oK9Tj810icYQjPOR1rikKDCk1VaEih4fM1GBSaqNCAQpMUGoUPUOEDVPgAv/FB5VHD+VhDCg2fr6lBoYkKDSg0SaHJCk1RaFChUfigKnxQFT4ghQ9I4QNS+IAUPiCFD0jhA1L4gBQ+IIUPSOEDVviAFT7gL30AIQ2tHkI9MR1EoDIkSBFOLM40bjhKPBUZ44i+m0GO0VO76Lld9NIuOraLXttFp3bRuVn0GELD7LFh9nYbagy+a/thtsPJbBeDaZnZZ2DrDDGYZ4jmGcA8QzLPkM0zFPMM/2Gzk8r4D8VE+XJ1KNaG2alhdm6XHULD7LFhdmiYPTXMnhtmLw2zN9xXwXd9F/f3ybTO7DMk8wzZPEMxz4DmGap5BjLPwNYZ8jf7HR5EsBvnJ6J4UpTqRAQaUdKI8knRv2cU9qKiEaFCVHxvMRHH8omTW1t8b3XoUPoJJ+y+W658332PshxHdp6eJvY9ysrsvrc6Ijv6rjN02GLyZJuGvkdZmd33KCuzN1zf0fcoK7P7HmVldt99VWb33Vdldt99VWb33VdF9uq8r4rszvuqyO773I24f6++j4CI9518H0UQ7zv5Ptwn7t8pN8zu+wiIzO67zoj7d/J9wE9m933CT2ZvuL6z7yN+MrvvI34yu+++KrP77qsyu+++KrP77qsyu/O+KrI776sCO4Tw44/sUh7WEp6Y+HicDrnkCUr0gwJ+UNJFUepgFiaeoGQ/KOXnKHF4PCmjvBTGMRJqmKCgH5TqB4UuipKHmQ0wTVDYDUoMflCiHxTwg5L8oGQ/KJettjQekOEpCvpBqX5QyA8Ku0GB4AfFsNpev++ufs83y/ntavHx9sGH1/Xdp5cRbv88L47eS/i8ebpb3L9uFv0bCg8vJ+xvGSSeAYZ+tNlfQp4BcH8Z979NM0hll3WX+S8=",
+  "file_map": {
+    "50": {
+      "source": "use std::mem::zeroed;\n\npub struct BoundedVec4 {\n    storage: [Field; 4],\n    len: u32,\n}\n\nimpl BoundedVec4 {\n    pub fn new() -> Self {\n        BoundedVec4 { storage: [0; 4], len: 0 }\n    }\n\n    pub fn push(&mut self, elem: Field) {\n        self.storage[self.len] = elem;\n        self.len += 1;\n    }\n}\n\npub struct PrivateKernelCircuitPublicInputs {\n    pub l2_to_l1_msgs: [Field; 4],\n    pub public_call_requests: [Field; 4],\n}\n\npub struct FixtureBuilder {\n    pub public_call_requests: BoundedVec4,\n    pub counter: Field,\n}\n\nimpl FixtureBuilder {\n    pub fn new() -> Self {\n        FixtureBuilder { public_call_requests: zeroed(), counter: 0 }\n    }\n\n    pub fn append_public_call_requests(&mut self) {\n        for _ in 0..4 {\n            // Note that here we push directly, not through a method call\n            self.public_call_requests.push(self.next_counter());\n        }\n    }\n\n    fn next_counter(&mut self) -> Field {\n        let counter = self.counter;\n        self.counter += 1;\n        counter\n    }\n}\n\npub struct PrivateKernelCircuitPublicInputsComposer {\n    pub l2_to_l1_msgs: [Field; 4],\n    pub public_call_requests: [Field; 4],\n}\n\nimpl PrivateKernelCircuitPublicInputsComposer {\n    pub unconstrained fn sort_ordered_values(&mut self) {\n        self.l2_to_l1_msgs = sort_by(self.l2_to_l1_msgs);\n        self.public_call_requests = sort_by(self.public_call_requests);\n    }\n}\n\npub unconstrained fn sort_by(array: [Field; 4]) -> [Field; 4] {\n    let result = array;\n    get_sorting_index(array);\n    result\n}\n\nunconstrained fn get_sorting_index(array: [Field; 4]) {\n    let _ = [0; 4];\n    let mut a = array;\n    for i in 1..4 {\n        for j in 0..i {\n            a[i] = a[j];\n        }\n    }\n}\n\nunconstrained fn main() {\n    let mut previous_kernel = FixtureBuilder::new();\n    previous_kernel.append_public_call_requests();\n\n    let mut output_composer = PrivateKernelCircuitPublicInputsComposer {\n        l2_to_l1_msgs: [0; 4],\n        public_call_requests: previous_kernel.public_call_requests.storage,\n    };\n    output_composer.sort_ordered_values();\n\n    assert_eq(previous_kernel.public_call_requests.storage[1], 1, \"equality\");\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

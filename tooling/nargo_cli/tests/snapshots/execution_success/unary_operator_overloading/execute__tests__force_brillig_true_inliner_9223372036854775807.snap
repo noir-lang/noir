@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VWsVLDMAx1XQUwvTLAysQGC26dErN14EdMff6OfDoXKl10OrW9a20tcir5Se9ZcbMwsy3Qg3g2Ss4evb/NNhWxvNroOaOcgN6htyy+rEjWibo18aPvd07hV7H/4BCzpT6E2QDf3yPOzzjjSy6GecqTe6b4Gtd8zijnAeO0fsK1E3tanH/D8/EvSv9Ua4VcP5iGshfJu/V5U00Q+LIm9bhWYiD4SCyNT1eZTxR87hCvY31xbam+VWK017CYhgcKntTTKriyHt/PMUHJ70T+K/ppruh2b/UOlaPl5Zn++Pzw38HocwWCF+W/CS6154XsmeEac3k26Dz5LDe6S4I1p99DrrFVNJbnwTWm/HehMbThoWpMtVZm/qaAsX79IR7vhH/NxlkH0oQbsDjP/8TnxxM89lf2WYa0KSGVtEs594ckdZqM/3fUrr+N8et7++v7IR9K7sOl+n+OGkPvCQsAAA==",
+  "debug_symbols": "tZXLioQwEEX/Jess8lTjrwxD4yM2AYkSdWAQ/32SQcG2Y0MWtREjdU4tUuVdUavr5fkwthsmVH6tqB+aajaD9ad1w6h2pu/N83H+jEh4UPlfP42VDcdprtyMyoJgpG3rXwpPd6bXqJRk+8aIZrF6yuQOUPZC4LdSofheKom4ynNIeQEpV4ByRiDlFFLOIOUcUi4g5RJSDrmhDHJDWXxDuTrkgl0JlUrwm10S9wRNJlgywZOJ+HzK/CAy8vkipDr+8VJdL4LH5zNnhzx/I7JkIj5JMrsnimRCpRKCpBGbP/1UzlR1r/es7RbbnKJ3/h31JYVHNzS6XZwOeXyK4tBbMCzyEChh6kSBJfE9fJ8/",
+  "file_map": {
+    "50": {
+      "source": "use std::ops::{Neg, Not};\n\n// x = 3\nfn main(x: u32) {\n    let wx = Wrapper::new(x as i32);\n    let ex: i32 = 3;\n\n    assert((-wx).inner == -ex);\n    assert((!wx).inner == !ex);\n\n    // Check that it works with type variables (x's type isn't immediately known)\n    let x = 3;\n    assert(-3 == -x);\n}\n\nstruct Wrapper {\n    inner: i32,\n}\n\nimpl Wrapper {\n    fn new(inner: i32) -> Self {\n        Wrapper { inner }\n    }\n}\n\nimpl Neg for Wrapper {\n    fn neg(self) -> Wrapper {\n        Wrapper::new(-self.inner)\n    }\n}\n\nimpl Not for Wrapper {\n    fn not(self) -> Wrapper {\n        Wrapper::new(!self.inner)\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

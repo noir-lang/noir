@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "16078247100671166886": {
+        "error_kind": "fmtstring",
+        "length": 28,
+        "item_types": []
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2aS07DMBiEnUdTEOxolyy4gR3n4ey64h4EHHEBDsGCa3AtrkKj2lIUW+2i/0i19I9UOUrar1PHk4zUZOKk6vh6dNulGzMRyu87uFFeJ7Vkadk1je1rq7R6k/UwmlY27dgZZVRr2o/aaG1NY/phHHo5qEZbNbWDnhwsi/iEGJ6Z+YpLYZ7KY07oCzWHeYR7rdeczqMUZxb9LflMLax2Omnpt0AaLgRdWL35gtBjKW4/rKWgC4Gfw1KkEVZKn4mG1S79bpCGZzhxWO2G0GMlbj+slSAPq61EGmGl9Dl7OxdYryKy/fv99frz+fL3fOZzBxKfTY1j90B2p4BsC2RrINvg2LXEsTXwXCJ994mey24CzkkL9P0OZDc4NnINQq9VyHWS6nwj72nA7ECvg8BzCb3Pj0A28joIzPypX28di3voJXEPjbBT7aHAdcI9NMLmHhqyuYeGbO6hgbiHhuIeGmEn3UMfHIt76CVxD42wU+2hwDnhHhphcw8N2dxDQzb30EDcQ0NxD42wk+2h/r/7+9W4d+N8nPKBLs/fYfhyK0LtF9u71e/MAXPqef55h40Ila+O+fferfxl9P6CjBWR7/J6cuNusc/P5z/5NT/UHy0AAA==",
+  "debug_symbols": "nZLBCoQgFEX/5a1bNGpp/cowhJWFIBpmA0P076NhQzBtbOd9954LT94KvWiXsZF6MDPUzxWU6biTRnu1Qr6P5onroGbHrYMalTQDofvwYlsGg1QC6iLfXhk8UgGUCuBLgJEIYITOQPYXpVVMsvIXJDg0k6RmDxSpQJkK0CsA4+N3MC3uLsuSmj1QpQKPPJm4vB5c5ZEgiN1b14vWSqXk2JzP24/f3EreKhHlsOju5LrPdDgHP1nTiX6xIjTtnq//Ag==",
+  "file_map": {
+    "43": {
+      "source": "pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {\n    assert(false, message);\n    crate::mem::zeroed()\n}\n",
+      "path": "std/panic.nr"
+    },
+    "50": {
+      "source": "// This program lead to panics previously due to the compiler lowering it to multiple blocks\n// which all jumped to the same end block. It runs now due to the compiler lowering to the\n// equivalent of a nested series of if-else instead.\nfn main(x: Field) {\n    match x {\n        1 => panic(f\"Branch 1 should not be taken\"),\n        2 => panic(f\"Branch 2 should not be taken\"),\n        3 => panic(f\"Branch 3 should not be taken\"),\n        _ => (),\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VXWW7jMAyll6S1swHTFJiZU2hzLP/lY+Ygjpdz9OIDjN2IDaM4/TEVtAQMyZH08vhEUXQEZ9sNz2/XT4cnGp4Ybi1y7dG1Yp5JRiwxQZcLW1EtsJ+gIAkR7J/3W0JEA7owkIhaHIzpStVJLWuhqpMthClOByutLGzRKqt1Z40tq1NVikoa3cm+qHTXny1mwOodsQTCbG7s6TeXJ6fPKcGSVitV6nGebYU0baOsUu3JiEbUjeoqI6veKKObtjkNmLXsRV83VW/PWDR+UhdbqfPfjymA28PJqQuHL2iLkIQXEwEyl/yCL5DlktHfUBouJ3DnargE3mTA7Xdyx++5uE+MftOE8OTiPPXOEjXu25ozoVO+z6GJPzMSf2R5FEGYGxR4eV6VR5lrcxQEI3Yc8MujHMKXR1TEueVRBnyZIYfvUR5x+ryCMOXRCh5fHmXMvqCtQxJeA395tOYLZLmBr10ejRpugL882sDXLo/yO37Pxd0Cb0mBCWELjy+POBM65bsLTXzHuKH4sQpwXSJNbQAa3vi/XJt563Fjj0z+ZgSXG98Kc8jgdr8Y+esMrkvQEPogZgD892+i0f68XfB9X2hc4Dx/zWiYlGh84Zyx7N/Cpb8ja0b7S7BwfUhth9goAmsrX+C+niunw4t7jyfmUh19bencFVzOafrG70tpL0kwcfgL4gu1lIzT+T/de074Y5vO4NmXw/Wt674u6rY1Tf3DwwdPJ/y+zSb4MO69ysh/BsD/OLfUctJfeWOoQTqxLrrzHnvtZ3M/u9Q3E2OIifFP+aIfmde+EtwQd9A+DP7kXr2S/t7zk+p9ZOKAeHhmF3BrsTeGc/0zE/Hzkz6XZOK/0DBm9uQ31PM/hGrhQkYbAAA=",
+  "debug_symbols": "ldTRioQgGAXgd/G6C/21mnqVZRmsnEEQC6uFJebdV5dt2Gns4tz1J99ROOLGBtOt96v1t3Fm7cfG3NjrxY4+Thvjv7/mSfs0zYsOC2tJqIIZP8Qvko+C3awzrC3547NgAgWEAokChYISBRUKahRcUNDAxeFV57vm4inUUWTLFg2di3zbldxFTUehYFHCooJFDYsLLBpUEIeFgAXBAu6c8p2X/CneXp1854pORBy6YJ2z9+vxfdxOroOUzV+YVPw1LE5fOljdOZNS0uLq+z00jsv3tK/s205h7M2wBpMO8G/vVKFoClIxNkb/AA==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple Brillig function.\n//\n// The features being tested is not instruction on brillig\nfn main(x: Field, y: Field) {\n    // Safety: testing context\n    unsafe {\n        assert(false == not_operator(x as bool));\n        assert(true == not_operator(y as bool));\n    }\n}\n\nunconstrained fn not_operator(x: bool) -> bool {\n    !x\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "not_operator",
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

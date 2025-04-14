@@ -1,0 +1,87 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 4,
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        }
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1b207bQBAdO2mBUCDlfmnBQKFQClrHCThvrdT+RN9KCS996lf1R9qXfkc/pCzMqMvi+GXPWhkpI1mTzNqjs3M545WShB7k4u76xJ+Tu6vFun13ZZ7tWYXteYVtpsI2W2Gbq7B12NZmTCk9lYT1B9YmTHKEr9sHuamAG+o7lw9uLJZYd/3EdTmArrQiBqwwl/3+6Ko3yov8q+kNr8uB6Q+uL8u8zAfl4KZXFsWo7JdXw+vhlRnm/WKU3w6GvVv2tRTuq2BfphspkX7BheJcwuXCtDi/kmPbOLZRnzu4U2fdFRSGcXEyYZKTAowvkRiVst43whdXJests16RgAjrWUPmAZhk1lsmHJusREokmvWWCct6luWkYewrh33FsK8UHcZur5Tv8wWFY1ysTJioYL7VCBjvBd24QIp+tOnQhlgDBtAlQ+s3o8eCbuZ1wjazfV2RZl73Lisp3+MLCEM+Lk4mTFQ0MrIOG32FSQg2+Ro7uG2w3pSASNdaQ+YBQDOhG7DQV5gNwrHJZqREollvA5cLo/VQltDkY9yiKaM1dijbZr0jARFGs4bMAzDJjLZNOKbYiZRINKNtE5bRNB62NDDaqwgY7wXdkEDqfbTp0EJ/DQygS3LWb0Z6Dygaih+Zu0bHeUqwKdDYAWWX9Z4ERCrdGjIPAJo93ICFjvNdwrHHXqREosf5LmHHucYDSkqTjzGjKaM1dkDZZ30gARFGs4bMAzDJjLZPOKY4iJRINKPtE5bRNB5QNDDaYQSM94JuyCzSpkML/Q0wgC7JWb92z1oPKBqKH5m7Rsd5i/SN8yPWxxIQqXRryDwAaPZwAxY6zo8Ixx7HpGOcH9F0nLdo8jG+RWLUOnqmicKCjRYE5K9RYmE8iYCxEmgoRZ8CN621oE4VYHxHSgrqDAe0p7WgzhRgfE9KCuocB7TQWlDnCjBeUKSCSsFA54HFGWvOo/f8ArjnWKMIvecF4J5jsSV6z4vAPSMb2h6u2vT/V9+2B21N2hwtchwSb11E/tohPuQPb/7fQHzpVHxOqbv45df33+593Zq1VdZrfz9u/fjz87O7tlPzXFazdljj86TmufOaNVPjczDmORkAs6znWHecdeChuCf+5+P4NzP0VNwamPfWpPfaFc8lY76nnq6717e7toWKNfG5wtrFK/v4B5zzQy3KPQAA",
+  "debug_symbols": "ldbNioMwFAXgd8m6iyT3RhNfZRiKv0UQFX8GBum7j5aJlBgoZ2cMn4uck4ubqOpifdzbvhlmkX1tohvKfGmHfl9tIn29mse8P1bzkk+LyFiam6j76niyz5to2q4WmZHP75uwKHAoUBIWKi7oFC4UGhYUFYq9UGkoGBYGFgks4okrfYrL6VpYuA+nexFawiKaOVl3JihDoWFBsGC0u9rAIoEFfMu1Re+HdmgTScJCwULDgtC2E6PdJQOLBG0iwZkTPNoJnu0Mz3aGZzvDmTM82xme7QzPdk7QJnKK9ootLBzaRBPPnFMvjAqFgoWGBcEinjmf3TU6FPHMSXrBFxHP3FgvEg5FCgsLC4eKRMJCwUJjYl8UU9t17eP+/gu8v/7JpzYvuvp/2ax9+ba7/I5+x/txGsq6Wqf6+NJrb//8Hw==",
+  "file_map": {
+    "50": {
+      "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

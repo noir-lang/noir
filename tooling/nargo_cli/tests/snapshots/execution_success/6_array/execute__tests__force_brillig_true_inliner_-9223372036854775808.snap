@@ -1,0 +1,105 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "t",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "pdvdTuM8EAbge+lxD2zPj8fcyqfVip+yqoQKKvBJK8S9b7rbpFU8JHqHE0RQH1zndVqP43xsHnZ3779+7g+Pz6+bm/8+Nk/P97dv++fDcPTxud3cHfdPT/tfP6//vEmnH8p/X//6cns4Hb6+3R7fNjc55+1md3g4/SaDf9w/7TY3kj5/bDcqsFBYVFTU4gquo2CbC7cfJaezKDnPha4JnYsKC4NFQ4W554oSnwWl+dk191yxlbNgo7nQFdHqXFRYGCwaKlqCRfaEsJ6FDC+bCffsitootM2F2/PK7Sxq30ZbE/M2cko4yTgpOCGcuB9z1cYhX8064p4xS2OOlubJ5+z2pRU5k1a0I7RCSDrCOBGcKE4qTtyBnJNOn9tJu2RyC6CSIihHUIkgiiCOIImgyCmnSJ8o0ieK9In8aUlqNKHGHaoRZBHUAohTBOUIKhFEERTJidsXM0idppBU5kgifZJIn4QjSCJ90giqEWQRFMlJUwS5OVkeZ1mWu1mDXxxZGUOy0k0B/OpomShO3HyMxjm/UTd41HDSYFLTSl8cknFScEI4YZwIThQnFSe2Mvgd0mBiCScZJwUnfi4yzeWlu8T84tLqWPhZ6+byfuV3RSp1xO9LHUsZs64vjXDCOBGcKE4qTgwn/kiudSLzuqT4te8yyTjx0zf7cowVv/ZdJowTWemLQxQnFSeGk4ZeyMPaGU4yTgpOCCeMEzcXmRZLpB/Jfh0v0xiTVjrSYOLX8MvEX41rMpHWkYITwgmv9aUnghPFScWJ4aTBhBJOMk7KyuB3COGEcSI4cdNXHq99rT2pODGcNJj4KxvLJOOk4IRw4qavbfwWqyV1RHCiOKk4MZw0mEjCScZJwQnhBE9f8PQFT1/w9AVPX/D0FU9f8fQVT1/x9BVPX/H0FU9f8fQVT1/x9P3VHppuwVJ387n4qz2k0x1uqx1hnAhOFCcVJ4aTBhN/tWeZZD/KsXin1kX5xWaFRUI48dOfbtpTtxpf/DWlZaI4qTgxnDSY+BsjlknGiZs+yzjGWKwjhBPGib8jZtpv5BHFScWJ4aShhPz1sWWScVJw4qdfxmuftXSEcSI4UZxUnBhOGkz89bFl4qefbCLUkYITwgnjRHCiOKk4MZw0mPircMvEv0eu091u5Y7wGumu/S92tiwSxUnFieGkwcRfH1smGSf+Hok6bc2t0hHCCeNkLX2HKE4qTgwnDSaccJJxUnDip2/j2vhw27QjjBPBieKk4sRg4levw8rBtKVb+XKay/Bd20+qy3SpDL9eXpzLvxZ4tQVr1y38RRJB/p55bWVCVzuoQ32pq2+r9W/L32av0x6KUlPqUAsgv0peQzmCSgRRBHEE+TlZGWfzQ91evjUS/MJ3+LeXFvibLbTVPjDPO+5XysNaSLog6VCOoBJBFEEcQRJBGkF+TpzGCmW4N8TfGQnsF8DDv720UL7ZQl7tw9XjBOWM/BFAl49bLrVDFEEcQRJBGkE1giyA/Mp2JVy/tl1DhKLP4ej/2+P+9u5pd34U8PH9cH/1ZODb75fd7CHBl+Pz/e7h/bg7PS54eVLw1Di3rbQfp4djhgOSvCXR0+HpFJC2LdU8tDm0+wc=",
+  "file_map": {
+    "12": {
+      "source": "// docs:start:from-trait\npub trait From<T> {\n    fn from(input: T) -> Self;\n}\n// docs:end:from-trait\n\nimpl<T> From<T> for T {\n    fn from(input: T) -> T {\n        input\n    }\n}\n\n// docs:start:into-trait\npub trait Into<T> {\n    fn into(self) -> T;\n}\n\nimpl<T, U> Into<T> for U\nwhere\n    T: From<U>,\n{\n    fn into(self) -> T {\n        T::from(self)\n    }\n}\n// docs:end:into-trait\n\n// docs:start:from-impls\n// Unsigned integers\n\nimpl From<u8> for u32 {\n    fn from(value: u8) -> u32 {\n        value as u32\n    }\n}\n\nimpl From<u8> for u64 {\n    fn from(value: u8) -> u64 {\n        value as u64\n    }\n}\nimpl From<u32> for u64 {\n    fn from(value: u32) -> u64 {\n        value as u64\n    }\n}\n\nimpl From<u8> for u128 {\n    fn from(value: u8) -> u128 {\n        value as u128\n    }\n}\nimpl From<u32> for u128 {\n    fn from(value: u32) -> u128 {\n        value as u128\n    }\n}\nimpl From<u64> for u128 {\n    fn from(value: u64) -> u128 {\n        value as u128\n    }\n}\n\nimpl From<u8> for Field {\n    fn from(value: u8) -> Field {\n        value as Field\n    }\n}\nimpl From<u32> for Field {\n    fn from(value: u32) -> Field {\n        value as Field\n    }\n}\nimpl From<u64> for Field {\n    fn from(value: u64) -> Field {\n        value as Field\n    }\n}\n\nimpl From<u128> for Field {\n    fn from(value: u128) -> Field {\n        value as Field\n    }\n}\n\n// Signed integers\n\nimpl From<i8> for i32 {\n    fn from(value: i8) -> i32 {\n        value as i32\n    }\n}\n\nimpl From<i8> for i64 {\n    fn from(value: i8) -> i64 {\n        value as i64\n    }\n}\nimpl From<i32> for i64 {\n    fn from(value: i32) -> i64 {\n        value as i64\n    }\n}\n\n// Booleans\nimpl From<bool> for u8 {\n    fn from(value: bool) -> u8 {\n        value as u8\n    }\n}\nimpl From<bool> for u32 {\n    fn from(value: bool) -> u32 {\n        value as u32\n    }\n}\nimpl From<bool> for u64 {\n    fn from(value: bool) -> u64 {\n        value as u64\n    }\n}\nimpl From<bool> for i8 {\n    fn from(value: bool) -> i8 {\n        value as i8\n    }\n}\nimpl From<bool> for i32 {\n    fn from(value: bool) -> i32 {\n        value as i32\n    }\n}\nimpl From<bool> for i64 {\n    fn from(value: bool) -> i64 {\n        value as i64\n    }\n}\nimpl From<bool> for Field {\n    fn from(value: bool) -> Field {\n        value as Field\n    }\n}\n// docs:end:from-impls\n\n/// A generic interface for casting between primitive types,\n/// equivalent of using the `as` keyword between values.\n///\n/// # Example\n///\n/// ```\n/// let x: Field = 1234567890;\n/// let y: u8 = x as u8;\n/// let z: u8 = x.as_();\n/// assert_eq(y, z);\n/// ```\npub trait AsPrimitive<T> {\n    /// The equivalent of doing `self as T`.\n    fn as_(self) -> T;\n}\n\n#[generate_as_primitive_impls]\ncomptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {\n    let types = [\n        quote { bool },\n        quote { u8 },\n        quote { u16 },\n        quote { u32 },\n        quote { u64 },\n        quote { u128 },\n        quote { i8 },\n        quote { i16 },\n        quote { i32 },\n        quote { i64 },\n        quote { Field },\n    ];\n\n    let mut impls = &[];\n    for type1 in types {\n        for type2 in types {\n            impls = impls.push_back(\n                quote {\n                impl AsPrimitive<$type1> for $type2 {\n                    fn as_(self) -> $type1 {\n                        self as $type1\n                    }\n                }\n            },\n            );\n        }\n    }\n    impls.join(quote {})\n}\n",
+      "path": "std/convert.nr"
+    },
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "//Basic tests for arrays\nfn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {\n    let mut c = 2301;\n    z = y[4];\n    //Test 1:\n    for i in 0..5 {\n        c = z * z * y[i];\n        z -= c;\n    }\n    assert(z == 0); //y[4]=0, so c and z are always 0\n    //Test 2:\n    c = 2301 as u32;\n    for i in 0..5 {\n        c = t + 2 as u32;\n        c = std::wrapping_mul(std::wrapping_mul(z, z), x[i]);\n        z = std::wrapping_add(z, std::wrapping_sub(x[i] * y[i], c));\n    }\n    assert(z == 3814912846);\n    //Test 3:\n    c = 2300001 as u32;\n    z = y[4];\n    for i in 0..5 {\n        z = z + x[i] * y[i];\n        for _i in 0..3 {\n            c = std::wrapping_sub(i as u32, 2 as u32);\n            z = std::wrapping_mul(z, c);\n        }\n    }\n    assert(z == 41472);\n    //Test 4:\n    z = y[4];\n    for i in 0..3 {\n        z += x[i] * y[i];\n        for j in 0..2 {\n            z += x[i + j] - y[i + j];\n        }\n    }\n    assert(z == 11539);\n    //Test 5:\n    let cc = if z < 1 { x } else { y };\n    assert(cc[0] == y[0]);\n    // Test 6: for-each loops\n    for y_elem in y {\n        for x_elem in x {\n            assert(x_elem != y_elem);\n        }\n    }\n    // Test 7: Arrays of tuples/structs\n    let mut tuple_array = [(1, 2), (3, 4), (5, 6)];\n    tuple_array[1] = (7, 8);\n    assert(tuple_array[1].1 == 8);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

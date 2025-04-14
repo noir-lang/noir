@@ -1,0 +1,79 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "idx",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWS07DMBCdfGiTpi1ICCR2PYKdT+PsYMEl2BFINqw4FReBDefgINSKnUxdpxtPpOZJ0SRja/z8Jn6yBx22h+devXuHJ1BRPjsj51tygSUXWnJXltxC5UK1vg+n8FR8VJG5gVPUajs0Frqutbl+wVpEKsZmk2IlIEYwoWAZ2+d5U6YNz/grS6taFCwv6r3ggheieE9FljUiF2VVVyWreJ41vC2qtFW1IvdamarF4okaaf5wrjwjul4w2VsfhoOiD6XmjMcwqNYf04i5gcMMOK4oOc7U8d6A/ueyOl6i4loLoh1PJnYGgUt2vATonGQ9USOpHS8BWscLYbgi6G95nVjAcFXx0RwMKh5jWjE3zML5NhNw7JtJSZTQoo827XogtoQCYjOUdXdwDJ9Y0+WF6hAgHSSWMFyFQpTT0CZhGoiJAL3HvaY325fvjx887/rM2K2Kd39PD5+/X8+Yg0Rk1F+h8YBOo1TXT6apz7C+YOwFrwu9Vh1sRu2NfPtGPDfXzOPcxjKma+p+Yb56H/9bDy/UKA8AAA==",
+  "debug_symbols": "ldLBCoMwDADQf8nZg211Tn9lDKlapVBaqXUwxH9flVlEe8mtSXghIV2gE8081FL3ZoLqtYAyLXfSaB8t8NhT08j1Fk2OWwcVScsEhO78i9A1gV4qAVWeru8ECix4YkGJBSSNiyIIdhUELWhU0DAVu03F0CJDixwt4genYXN227xAi/jJWZgqy66ixAkfNFYqJYf6/Jt9+sOt5I0S/7CfdXuquu94VA4/WtOKbrZi67TXfPsf",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

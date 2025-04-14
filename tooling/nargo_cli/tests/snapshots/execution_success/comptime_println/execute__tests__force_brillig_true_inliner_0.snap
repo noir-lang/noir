@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/82X3U6DMBTHT0c3KDiy6IuUwca8I9ELfYw6JPHGGOMD7NFdY8/omuN2wWmyf0IKbfM7H7SHImCUcK2ECULIq2uVa2feeHK8Ovesp6lSgV1O/k43jSLiY/S/Vo4p4vA18iPlX6eO83wY+X4saDc7XoV3fwfj+ogVP76/mPE/XIi5cLE+XYhVsPnSvlGx8vHXa+Xlj5+/Pfkv4/AfkT+Pw39H/iIO/7SW0yj82iA/i+P/FvkqDn+D/DwOf4/8Igq/7ZeOh7URbQCMtWPp9fPVsaoSgT2A830Ogf088JX7uy4Ce+hPmB+sdZi7kvB1RYyFNbgk7JSEHYo1Y2QljCzJyJozshaMLM7cpzfqV8bI4lwTipGVM7JudX3hd4M6B1p1rtXTVIXnQEZ2TZ0BGfka8yKJPFN13/Zhbfr6/vj8gUA+yE86AP2Ccf4qmJf8w4MrfEGwrOxiwA0kD+d2OtevJ6jd/SXTKnH8OYxx+JLeuD//xT37mxNbOcHPoTXVUJvBbEzfN3tzH/Ct/J+oX51CbuymEAAA",
+  "debug_symbols": "zdnNaoNAFEDhd5m1C70/TsyrlBJMMgmCaDCmUELevVpskbTrcDbiyFXOxm9z7+GY9rfzrulO/TVs3+6h7Q/12PTddLo/srAfmrZtzrv145DPl0K/56+XupuP17EexrAtcs9C6o7TXeHT+6emTWHr+SP7M7qpimW0Ev0dFflnNEZbRmOs1qPvWSgM0uGQjhLSESEdG0hHxeiQHNJRQDoE0gHxVCCeCsRTgXgqEE8F4qlAPFWIpwrxVCGeKsRThXiqEE8V4qlCPFWIpwrx1CCeGsRTg3hqEE8N4qlBPDWIpwbx1CCeGsRTh3jqEE8d4qlDPHWIpw7x1CGeOsRTh3jqEE9LiKflKz21+NOxyZ87BNKhkA6DdDih4zGdPuqhqfdtWlaKp1t3WG0Yx89Lelo2Xob+kI63Ic1rx9XGcf7zyphFmT47ffoL",
+  "file_map": {
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "fn main() {\n    let x = comptime {\n        println(\"hello from compile-time!\");\n        1 + 2\n    };\n    println(x);\n\n    comptime {\n        let exp = [1, 2, 3];\n        let quoted = quote {\n            struct Foo { fn foo() { \n            // Some comment\n            [ $exp ]\n            } }\n        };\n\n        println(quoted);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -142,7 +142,7 @@ codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 
 # Benchmarking
-criterion = "0.5.0"
+criterion = "0.5.1"
 # Note that using the "frame-pointer" feature breaks framegraphs on linux
 # https://github.com/tikv/pprof-rs/pull/172
 pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
@@ -228,3 +228,6 @@ strip = true
 lto = true
 panic = "abort"
 opt-level = "z"
+
+[profile.bench]
+lto = true

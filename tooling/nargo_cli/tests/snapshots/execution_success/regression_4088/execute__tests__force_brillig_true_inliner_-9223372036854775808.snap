@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "note",
+        "type": {
+          "kind": "struct",
+          "path": "ValueNote",
+          "fields": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VW206EMBAttERRN2s0vugX+NalIDwpD/5IZcN37Ke7TTphPAwmuu0kmwKdnp4zt2yhFiviauBdCT5jXO1ldkiIZUWivxn5fMS1jmvJ9nVCsTXcmxJ/sG1XC/oS8nd1xMwZH8LMgG+vIs7nacFHLcF28Z3XEJ25Pv/u1PK8i881nMmR24yxt48Cf7rrNmp9Aq2ZuLid+pkPbrTHhxTnjIYYnHfQ9MJw0U8x/dRb5pRecz9YS/fpiF8pWb9h+9z/Ob7fAH+K1fhPnnPvD7Pzs+/88dhO/gHwg23VCeWqZL50LnOvN1JNaCE2msUt52wr1LqmtVrHp4TYGYHrvdrugb3a7uPc87UAXoZp1ALXUtBBz8Eq+PYa11BjDeBhnvFbCbErBT45Z/jZWswpN9qr2N2cI5o01woWn47hoh9Z6NfU88L3bpiaduq/Oufd25/mRe7/F1ifFMetftmrde0a4Mp1jWl4WuRRqe0eqsD3HfiZPLG0mFd+V8jrN/kenlZZDAAA",
+  "debug_symbols": "tdbLaoUwFAXQf8k4gyTmYfyVUi4+4iUgKj4KRfz3mmKLTeXCHmQiHsnaJ4qQs5HGVevz4ft2mEnxtpFuqMvFD/1RbTsl1eS7zj8f18eEhQuX3+vnsexDOS/ltJBC2owS1zekUEwdvvWdC/f7OyVcwULDwsAih4VFhbjvweQppPgj6L+l/DecWxOH24ThGUsZzlOGi5ThWcpwmTJcQeFBaFgYWOSwsKiQDBYcFgIW939SJn6EkrGQsFCw0LAwsMhRoW7fXBhzCmHjr6sULDQszGuRMRaLHBYWFZrBgmNiP6qPcvJl1blzWmjXvr4MD8vn6KI5YpyG2jXr5MJEcRkmwm4Fp0KH8zVsRDGqxNHj6PMF",
+  "file_map": {
+    "50": {
+      "source": "trait Serialize<let N: u32> {\n    fn serialize(self) -> [Field; N];\n}\n\nstruct ValueNote {\n    value: Field,\n}\n\nimpl Serialize<1> for ValueNote {\n    fn serialize(self) -> [Field; 1] {\n        [self.value]\n    }\n}\n\nfn check<let N: u32>(serialized_note: [Field; N]) {\n    assert(serialized_note[0] == 0);\n}\n\nfn oopsie<Note, let N: u32>(note: Note)\nwhere\n    Note: Serialize<N>,\n{\n    let serialized_note = Note::serialize(note);\n\n    check(serialized_note)\n}\n\nfn main(mut note: ValueNote) {\n    oopsie(note);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

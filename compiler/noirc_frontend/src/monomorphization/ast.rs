@@ -6,15 +6,15 @@ use noirc_errors::{
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
-use crate::shared::Visibility;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attributes, FunctionAttribute},
+    token::Attributes,
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
+use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -273,10 +273,12 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
-            FunctionAttribute::Fold => InlineType::Fold,
-            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+        attributes.function().map_or(InlineType::default(), |func_attribute| match &func_attribute
+            .kind
+        {
+            FunctionAttributeKind::Fold => InlineType::Fold,
+            FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
+            FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
             _ => InlineType::default(),
         })
     }

@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "val",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VWwW7CMAxNIC20CA2NnSfttl22dsDgyGE/Eg31O/LpazZbcR6BAySWojR2/Gy/PkG1+jdNy5sRPjT2HWnv7rM+I1anE7NodWWYS8N90N7QPhHxacbhG6ibE//Qbb+axHwZ+980hFmSH8YsgN/NCOfbBXycxdtSxaKSOfNxrVV4fhL5Ek8RHuJwvOSsoxZ2jG8K4I/WL3lGd84lx4yLa8tYJWJG8PkM/JTQmuSnkNb6tbqsrwXN+iY4Qe1o4KFQn59nP5xQC3tvC74Xz5uGetwP8jMB7kyi11UipiFPzsiYC+GfubiPv134WMes67m8D7FGxIwLdb21dDaijsTiPiq4/0rnB9prkcP5q0T9GupHfSd88n0j1jTh4/v1uF7o2fPK/1HGBbxc+tkfwkcBc1+pWEsK6ldw/53OLczLOjre2Oewt/2wsYPd2dNp+2MfAV9y5nn6BUuoN/ipCQAA",
+  "debug_symbols": "lZJNCsMgEIXvMmsX/iWluUopwSQmCKLBmEKR3L1jqZSWbNz5HL43w7xJMOlhX3rjZr9Bd0tg/aii8Q5VAvr+2lblstqiChE6zq8EtJvwJduDwGyshq6hxx3FEIy1Zun/bRJwdmbGBP+YMdH8mBHgvJoQ1YSsJppqoq0mLnXEgeqhglGD1Xnjubi7sQSAMj7XUikRrcGPetqDzmF9c8orFJRIinOwfACSEdliC2zzAg==",
+  "file_map": {
+    "50": {
+      "source": "// Regression test for https://github.com/noir-lang/noir/issues/4722\nunconstrained fn return_array(val: Field) -> [Field; 1] {\n    [val; 1]\n}\n\nfn main(val: Field) {\n    // Safety: testing context\n    unsafe {\n        let array = return_array(val);\n        assert_constant(array.as_slice().len());\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "return_array"
+  ]
+}

@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "expected",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "first",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2bz27aQBDG12AHTEJCQv4nTR6gF4Mhprcc2lsvrdQHcKCReqmqqrde8uiVlZ1lGQYqi2+EI7xSZMfr/Gb229nZIdiBeW2B/SlaaI8Ns9zonkd7TDZrAyAr0fQzUPLTOepPgFkj/Dd7EpvFSSouN4EDjgX/UPxJMnqIhfEB/U9jj6nAHxI/1OEnLcv5+LLIN8xu1yzHDv0N9fkL+ZPta9t+Oj+05zHjacy77xNat77gP9nat2P97Inl6xoJvgWsj+7tM7204uDE4xpmS3OuEpsDJD1AfO015Ph7OvyU9IjMvDWFMZH9rlmMIeqXjsYsrnfDbHWMan4brBub7z/FRo/dzzVYxYpKsmKhT2NOwzXj9u131/gqjSMAakJ9R0bOA75eWvmW6xV645DyaMMsx4avdcSuvbfHIm9/DRZ5fK3wa1y7puCPlENxOS57knIcjj8cSusBx394knIokP+B+C0d/nfit3X4I+LHKvw0J35HJz5dnbyvo8+U+Ac6fOd/V4c/Jv6hCn/o9DnSmV8Xnz0dvlu/xzr8hPgnOnw3v30V/tjlz1Od+MyIf6ajj9tfznX4zv8LHX0mxL9U4acu/1zp8J3+1zr6z4h/o+O/0/9WhT+eUf39zswbr+3uvOu42jebBsyeMfJnNrLfYb6Ca3H3me2O+cP1obqYtLsXfO0JfbxGvhfs3At2JFYIZEVA1h6Q1QKy2kAWUvu4on51gKx9IAsZXwdAVhfIQs7jYUX9OgKyekDWMZBV1ZhA5px6T6v3tLeypyFzzgmQhcw5yL223tO2F1+7sKcha8yq5q8+kFXvteVY9V67Pb+QaxsZE6dAFjK+kHkVGatVXY/IvRapPTK+kH6dAVm7UMudA1nINYRc28g1dAFkVXV/vASyroCsayALuR4DIKuuV7eXJ3ahXkX+Pwc5j3UdXY5V19HlWHUdXY5V19HlWHUdXY61C3X0DZCFrH1vK+oXsaRn7Yv2aI/JZm2g/D7RQHrWHui/e5eC1ravdVPQmt778PfTNtM61tFiSL7uCb76uYmvO2ls0rNpB57Ov37/+PnHsOa/JOMHFf3uv8XMk29rhVN/GSNaYcs/b1obDeG6b0PyMRBsFq34EpSEC18WmY/2erJByyavwVa05st8jH6QGWY/Yvd/sQC/wKdjuIGfz1k+eE7z53ycz2ajac5fgCxaw9MJbT/P0sl0OJpmT+M0Tx/+a/8fC7uau0I/AAA=",
+  "debug_symbols": "1dzBSiNBFIXhd+l1FnXOre6q9lWGQaJGaQiJxDgwiO8+ieggoxOQUNj/RoypLi/C5deF31N3s7p6vLucNrfbh+7ix1O33l4v99N2c3j19LzornbTej3dXb7/cpeOH9S/nH+4X26OLx/2y92+u4jIi261uTl8Nvjw/O20XnUXfXr+ueg0fPmJ8uUn6pefGD99oqS3J2p5/8Tiw9Gc4/Vo7vXP5U4tL1fLy93y8mh5eW55ed/y8qHl5aXl5bXl5S03NFpuaLTc0Gi5odFyQ6PlhkbLDY2WGxotNzRabmi03NDcckNzyw3NLTc0t9zQ3HJD89kbWofXo33Kp4/WUa9HR8ffo/YnR0t5+yWxlPH90ePIA2/kwhu58kYecSP3iTeyeCObN3LwRs68kXn163n163n163n163n1G3j1G3j1G3j1G3j1G3j1G3j1G3j1G3j1G3j1G3j1K7z6FV79Cq9+hVe/wqtf4dWv8OpXePUrvPoVXv0qr36VV7/Kq1/l1a/y6ld59au8+lVe/SqvfpVXv5FXv5FXv5FXv5FXv5FXv5FXv5FXv5FXv5FXv5FXPyVe/pR4/VPiBVCJV0AlXgKVeA1U4kVQiVdBJV4GlYAdFLCDAnZQwA4K2EEBOyhgBwXsoIAdFLCDAnbQwA4a2EEDO2hgB8//t/dvmBnYQQM7aGAHDeyggR0MYAcD2MEAdjCAHTwfl/iGmYEdDGAHA9jBAHYwgB3MwA5mYAczsIMZ2MHzCZdvmBnYQSANI6ANIyAOI6AOIyAPI6APIyAQI6AQIyARI6ARIyASI6ASIyATI6ATIyAUI6AUIyAVI6AVIyAWI6AWIyAXI6AXIyAYI6AYIyAZI6AZIyAaI6AaIyAbI6AbIyAcI6AcIyAdI6AdIyAeI6AeIyAfI6AfIyAgI6AgIyAhI6AhIyAiI6AiIyAjI6AjIyAkI6AkIyAlI6AlIyAmI6AmIyAnI6AnY6AnY6AnY6AnY6An48TroIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGejIGeTAA9mQB6MgH0ZALoyUTidTCAnkwAPZkAejIB9GQC6MkE0JMJoCcTQE8mgJ5MAD2ZAHoyAfRkAujJBNCTCaAnE0BPJoCeTMzVk8nlbeaaPsw80w6enHmmHTw580w7eHLmmXbw5Mwz7eDJmWfawZMzz7SDp2aeqyfz35mfD69+LXfT8mq9ejg8cXzzcXO9n7ab15f73/dv71ztpvV6uru8322vVzePu9Xlent9fK9Lxw8vfwxHeBFRDj+Ml78zI+oicjp8n8P3+gM=",
+  "file_map": {
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "struct Hasher {\n    fields: [Field],\n}\n\nimpl Hasher {\n    pub fn new() -> Self {\n        Self { fields: [] }\n    }\n\n    pub fn add(&mut self, field: Field) {\n        self.fields = self.fields.push_back(field);\n    }\n}\n\nfn main(expected: pub Field, first: Field) {\n    let mut hasher = Hasher::new();\n    hasher.add(first);\n    assert(hasher.fields[0] == expected);\n\n    regression_4967();\n}\n\nfn regression_4967() {\n    let var1: [(i32, u8)] = [(1, 2)];\n    assert(var1.len() == 1);\n    std::println(var1);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

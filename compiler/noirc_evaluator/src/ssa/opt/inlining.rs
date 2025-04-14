@@ -787,17 +787,20 @@ mod test {
     use acvm::{FieldElement, acir::AcirField};
     use noirc_frontend::monomorphization::ast::InlineType;
 
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            function::RuntimeType,
-            instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::{NumericType, Type},
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                basic_block::BasicBlockId,
+                function::RuntimeType,
+                instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::inlining::inline_info::compute_bottom_up_order,
         },
-        opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
     };
 
     #[test]
@@ -1288,7 +1291,8 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let ssa = ssa.inline_simple_functions();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v1 = add v0, v0
@@ -1298,10 +1302,7 @@ mod test {
           b0(v0: Field):
             return v0
         }
-        ";
-
-        let ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1323,7 +1324,8 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let ssa = ssa.inline_simple_functions();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v2 = add v0, Field 1
@@ -1336,9 +1338,6 @@ mod test {
             v2 = add v0, Field 1
             return v2
         }
-        ";
-
-        let ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

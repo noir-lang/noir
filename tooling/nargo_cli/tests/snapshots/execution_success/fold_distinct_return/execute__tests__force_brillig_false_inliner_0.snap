@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9WUXwrCMAzG2+4PXsAH3zxCsrZb+6YPHsRh9+6pvIvn8CBurIVQ5xBaBT8IgbSELz9CBJtV+ZjExyh8nrSPatzXqMLfg88SWqVc1ziUeIbG9kaD0n1r0KA2+tIYKZ1RprO97cCikg4HbeUAswTpBWmSFfFP/QpSm3LpGfBotlxGcA0YpAmLDPDdMMkZ7mGwCAZfqAXVY2zI+ycLRGuCvS6V+AL/VEZhQetsvlBRDvUPOOTYlfwcANZmTvXJM/Ir/2TmjEcUq4wz0/uydJRZ9PbuOIce28dxd73fTizSE8FNoSjdBgAA",
+  "debug_symbols": "tY9LCsMgFEX38sYOkvRHspUSgokaBFHxUyji3qvBQFpSaAcZ3s973BOA0NHPA5dMWejuAYSasONKJhWgWSyrsczKOmwcdJcKAZUEulsbETAuaPZij+D0X/28V2+bUq/r6q2fxGi4EHwethuT/cCG41HQIpmX0yZ1T70m6702aqLEG5o/LVlEH+S7KHV7LeOa6ieY7wfH0vTxBQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32, y: pub u32) {\n    let new_field = new_field_in_array([x, y, 3]);\n    assert(new_field[0] == 25);\n}\n\n#[fold]\nfn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {\n    input[0] = input[0] + 20;\n    input\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main",
+    "new_field_in_array"
+  ],
+  "brillig_names": []
+}

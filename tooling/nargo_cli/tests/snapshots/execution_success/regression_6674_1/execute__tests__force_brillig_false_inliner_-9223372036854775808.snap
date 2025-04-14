@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "11890127694861652393": {
+        "error_kind": "string",
+        "string": "equality"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1azY7cRBAuj8fzs8NqVkGcEQfu4xl7ZxdxCEoIi0CCI1dnkuUNOIIP8BBckHgWblyReAdu3JCIFGV70zX+/Lnsncm4EyWakka2u8v183VVdbt7Iqko8tehHEAq5Bt/M/XPA+iPb373/fPiMEqnpLdP+ReL7HJq+Nej/auplxmFkb9Q+YHwX4y9nC/LSj76ononN78Z3N+TKj5C+a/jF9L/9zt81th5UIYbW0cPvXwJIPtzsL1H+du8fRQGm638L/rHZiv7KoztmcsTlyM/SRVHTocW5p715adeZiJNioy22OBR25zdv/j7U4NPoI/zZkR9mLNj6ouhb+Lv59LESeUrhgn09ZmLEfkw9PJZp9o2IH68F/8Otn3kr87X38g/nLBjo01xPJMm5sp3arwXtVxVD7exHmsceNz70GPVXo6hPvTwHOJoKs147DGuztUPjA0hH8egm8dzAn08Brh2Qt+YrHzXNif/d5DLfGyrNe6B5+h8l/FG/ScSdE2WRtKMzVia+HAsx4atZ9Tn6GFZ8XFfbLS9zbK05mPsaA7MpR23wHNq53zAOtXXfeaDK3+15oN9cbXqmoUd5+soMHZjA7uRtGOHdVDvETtt+1b6w45rRBt2HHfjwNhNDOzG0o4dzhN6j9hp23fSH3Zd8+kkDD6XPPchad8J+SVwFfIRCe121z9ALvOxTowV1T+X9hgLjNM2jhQnjCNrTTGQ5poCMU6o7XupcOI44nm6bV7kecGqUYHWZXvH0SHrq33iCGOF46gLpynpvu+fFwdSRLZgHLFORwNpYncCfibU9gPgFKKWB96fWzI+aOuA/HFkjSW+i7yJNH3W/ZCEeH/0V4fjX/5+JpD/Zf/+ry9exsetz2AX5wPqT4j/Z/+M8aLX4QF2Xq+L9HpVXBd58eRJtinukXxHA8AJ92uO3zpbOn7r9CjL+tZ5TfPdto7rt8vQ8ANtGxA/3jtKqO1Xf7XquBU72LbPfpCFq7VXpHv2Lrf7ri3FenWxWWab9eN8VazO96otb3IvmPeiEGtrL4qx57WqSN1nJWs9hPvLf4Nc5lM64nTESemIU91mkXA4cb16l+esPwGbEHNW4LViZp35KHE8so1MVuzg2f8/IJf5lILMtfliubpYZvkyW+Vpcfkqc22gM8O9z3Y45zGvOeetb+tdx039dfI/iCq5zMe2Yt6o3YFz/LXVTfSN6a79mw93wLCtbnbt2YQ+u1BMdz27wDzB8Uio7V/AJsSejbXWj1quInZ+7LLHaH036P9ZXMz9R+/oe7rHwe/q/0l4b+aZVDL/9/cz4LHO/y2brH2JB2Dvc7I3Mey15ike3ziqZEZRXbd1TodYzcWuuWjXqMMuR4yj8o89k4u7VVSXiedFsTRjmNcvE4PfqtVzadYgfVfrge5loc6Q+26ubjobzmlsamdm5e7+WvhMDX5rvjqT5nw1oj4cf8Y4MfRgLLTFPr6LsW/VYOt/LFacDqjPOqtkP9hnR7pH2/V/HesMLaE+C7eu/13NevK/K09xvNry9GMjT61cUbveRK7UzubLut9WLUH+fWsJj2vb9xzHmYX5I7IVazDzozz+9lnAGH0d1e2zYqvrzDfEun+Tnz/eZHmxeJq6x+Vd6/654lBW/Rhrjsb+WddDzI/zIfJ/AvPhpxTPiaHP8X3VwRe1XG9lGG3Dst42LZv8cdnkV90nZdNG7ZtBH+aBo/f8M+KFstSOhPivvAAdkwm8o++fGfonpL9mt9HGZ7Izg39m8Lvx+cy/pHGLvvd9fnKrk+RjG9umsRMir25Sar0p1ml6maVPszS/K69eAMXBhQthMgAA",
+  "debug_symbols": "ndvdTuMwEAXgd8l1L2zP2DPmVVYrVKCgSlVBBVZaId590xUJqHYanXODCOpHRc5JqH/yMTzs7t6fbvfHx+fX4ebXx3B4vt++7Z+P49HH52a4O+0Ph/3T7c8fD+H8Jdb/r3992R7Ph69v29PbcBNLSpthd3w4f6sy/obH/WE33OTw+XszpECYSJhEGCGMEiYTphDGCOOEIXogRA+E6IEQPRCiB0L0QIgeCNEDIXogRA+E6IESPVCiB0r0QIke6EIPtM6mpkuTCVMIY4RxwlTc5ECYSJh+D6zqZKzmSyOEUcJkwhTCGGGcMBU3JRAmEoboQSF6UIgelH4PXOJkXMulKYQxwjhhKm4sECYSJhFGCKOEIXpgRA+M6IERPTCiB070wIkeONEDJ3rgRA+c6IETPXCiB070wIke1H4PagqTqdkvTSRMIowQRgmTCVMIY4RxwlTcxBAYFBmUGCQMUgZ125BCkC+UgraoMMgY5AyqBIqBQZFBiUHCIGUQ04jINCIyjYhMIyLTiLTQiJInNEbZoMigxCBZR7lByqBMoP5UVknTiKVI8xf1Z7Kuk4ITw4njpMKkP4l1nUScJJwITvD0FU9f8fQVT1/x9BVPP+PpZzz9jKef8fQznn5/JqXOpJaWCE4UJxknBSeGE8dJhUl/BuU6iTjB0zc8fcPTNzx9w9M3PH3D0zc8fcfTdzx9x9N3PH3H03c8fcfTdzx9x9N3PP2Kp1/x9CuefsXTX5jBkOTT4FhEGmQMcgZVHKWFSYwVFBmUGCQM0j6SeTVOSosygwqDjEHOoEqg/tjd8jQlasUbUnBiOHGcVJj0R+zXScRJwongpHsh2DyZZ+PrLknGScGJ4cRxUmHS3wx0nUSc9G9QavOyg1ppUGZQYZAxyBlUCbSwUWcFRQYlBgmDmEYs7KLR7xV9bVb008JWlSwzytLcSBb2kOQ4/xvOsTaoEmhh10VWmZFqgyKDEoNkAcVv1JzyhZ0XKygzqBDhLmy+WEHOoEqghf0XK4hp+cIOjBUkDFIG9U95UJtQyLFBlUALWx1WUP+UhzJ/2Aze3MIWNjusIGGQMmjhlNcyoXGZtUGVQP1x8nhBT8sj1nyK6I+Tr5OEk/4S0XwbSu0Ior+j4DrJOCk4MZw4TipKpD8KH6/DidSWRJwknAhOFCcZI5/j0Z/tab+9O+y+ng15fD/e/3hU5O3vy+7iqZGX0/P97uH9tDs/P/L96Mj5zEsMG5H4+7zuPx7GZJtxiuF8eD7J48rkJkUZ33V8538=",
+  "file_map": {
+    "50": {
+      "source": "use std::mem::zeroed;\n\npub struct BoundedVec4 {\n    storage: [Field; 4],\n    len: u32,\n}\n\nimpl BoundedVec4 {\n    pub fn new() -> Self {\n        BoundedVec4 { storage: [0; 4], len: 0 }\n    }\n\n    pub fn push(&mut self, elem: Field) {\n        self.storage[self.len] = elem;\n        self.len += 1;\n    }\n}\n\npub struct PrivateKernelCircuitPublicInputs {\n    pub l2_to_l1_msgs: [Field; 4],\n    pub public_call_requests: [Field; 4],\n}\n\npub struct FixtureBuilder {\n    pub public_call_requests: BoundedVec4,\n    pub counter: Field,\n}\n\nimpl FixtureBuilder {\n    pub fn new() -> Self {\n        FixtureBuilder { public_call_requests: zeroed(), counter: 0 }\n    }\n\n    pub fn append_public_call_requests_inner(&mut self) {\n        self.public_call_requests.push(self.next_counter());\n    }\n\n    pub fn append_public_call_requests(&mut self) {\n        for _ in 0..4 {\n            // Note that here we push via a method call\n            self.append_public_call_requests_inner();\n        }\n    }\n\n    fn next_counter(&mut self) -> Field {\n        let counter = self.counter;\n        self.counter += 1;\n        counter\n    }\n}\n\npub struct PrivateKernelCircuitPublicInputsComposer {\n    pub l2_to_l1_msgs: [Field; 4],\n    pub public_call_requests: [Field; 4],\n}\n\npub unconstrained fn sort_by(array: [Field; 4]) -> [Field; 4] {\n    let result = array;\n    get_sorting_index(array);\n    result\n}\n\nunconstrained fn get_sorting_index(array: [Field; 4]) {\n    let _ = [0; 4];\n    let mut a = array;\n    for i in 1..4 {\n        for j in 0..i {\n            a[i] = a[j];\n        }\n    }\n}\n\nunconstrained fn main() {\n    let mut previous_kernel = FixtureBuilder::new();\n    previous_kernel.append_public_call_requests();\n\n    let mut output_composer = PrivateKernelCircuitPublicInputsComposer {\n        l2_to_l1_msgs: [0; 4],\n        public_call_requests: previous_kernel.public_call_requests.storage,\n    };\n    output_composer.l2_to_l1_msgs = sort_by(output_composer.l2_to_l1_msgs);\n    output_composer.public_call_requests = sort_by(output_composer.public_call_requests);\n\n    assert_eq(previous_kernel.public_call_requests.storage[1], 1, \"equality\");\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

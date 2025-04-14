@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "enable",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 4,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VazW7bRhAeSqQkklIttIcCLRCgtxbogfqLfBRQ91ig6AMUkOX4BXppb3zzxpvsiMOPn2jG2k2cAYQlObPzv7M/2kQ+Qvb0S/xz6tvEtCNpg+IOvq2ug1VAXlUsHZOAOlrfqr+dj8f+PRPzEQ2S5zoZ2h/9Qw78Et/vEMg5OcgNyf+22t7n0obA+m9yaSd6YP7r3PCMwL+aej6/1w1/tEXzIJFocdpFtnO9kG5BSsC2NFKOJCBPwE4B+YVEzalVAvJUH/SPPi+Upm70SQCX1l07FJfVbTsczJ5+bwwd5tbI0P1inn+Vtg4jYkNCbIiZX0/5u4+cQ1sWA4xPWrdlW5yNQWr8+Qb8EyPnrH8ije/td3K5dmk+TGs5wxj8aX2kPptZesDlBpfWbTmFf0+NHMtL9ciA/mf/fuPbiemj/ZdE/gTkt/Qm36yPkNeYfFP6ydPvJ/9cSrM2+K1u+IWcm5T/neEv4fivnA1uDPyjNks7bwLKqrTG2ZqL808mUfy4Gzr/nPNRotay8/yTgT7oH1vfHG5CdF0SnLXN4qycCZHzNfJaSDdnkwutSDfuTI6l0XhEnt/WfT5ha6Qb6Y6ZCeg6iaPrXn0+lS4obmZkWx0RxvBu9XY8/jN8kQ5lWj/NwBeRassqsq+3yn8ah/+G7Qt0PnM2/WHkWr9m0l0zWz9kQP+XNDz/9M830o2b5kNp8DOC1352f870mQJ9IQ2MgQfmSeL1QHpWO/T7nNCXhqYA263sOeAKg1O6nPAMueZAO9Jn7BgBPfogg29/+9bF9H9p+47Fxn7DOp0TfcZEH1zvIW+kt3GeGztYv/SCne+MnaOkbeeC2JkTO5X+G0K/ILbfEFu0L9s/2RrpIDW4kOsvJydLGj3Q3qxu29s3Rpl/mD9tjDBvrO/mwGtGeFl5uO6y9Uh1XJB+ytfW1Jh+3982h6Ua80y6862VnwH9v/7d+lLb9Ao9H/fH1ePm+HjcHR8etqfjt8BfjO8u7VFwTB9eqAtC33oy8hpw8D4Fz8kinSn0npONSazUdxnRdQk4B3d1Q4e4Mfk2+gy8MLdC8cLccXDwbXUdrITopLoLyMW9pEg3v2OtNYfmt8ovQNdY+T0FfdA/mN8zouuS4BJ4ZnPLjMhhvDLQgf1nFTl+u5fGL9beqy9+bHx+Svwc3NUN3bXxw5ry2nhh7jg4+La6DtZCdMLxMY2vx15l5QP0YGccOM7suuhL1EmVX0jUcX8eZ2xdbv2D44ztF5cEhzWT7blLIofxwjU45pxIE788jr8G10mVXxA/xIhfTvzK6oT6jp0/LKWbC3d1Q3cpT/r28TF4sToZQi/MHQcH31bXwUaIXKxPeA4UQY+dyioH6MH28zjO8GzlEMhfQ8eZyi8k6rg/jzN2BsjOL9R37DyCnVXY3LY4K2dB5DBeJeiAOScS/axxcJ1U+YVEnXdXffMPqxPquznRdUlwQ86K50TO18gLz2kcHHxbXQdbldVXn0aAQxstLe6NE+hr7Xltd6SSOPr0nv1YHfvGAp79sHESMue+4B23h5fG7zXdccO4YPxwHtDnSzVz6Jp9EoiXA3sX51q9hvwXOJTXNBCv0DbG2Hu9NhuLQHpp/xC8rI199z9LCf//y3G/uT2tt6f9/W5z3Lx99v+X0PJPu7f3p+3uWL1budf1c/LZfUD7P6YDvVNo7xxaeuWXAX3uGbgaVPpnvDNq5Tm6H3rokgvtBx7kW1q3v7G7iPaOptKr7KLu6qi40uAykDP379ZflpfqkQH9956BxsTeq9T+SyJ/BvJbepNv+P9eSehLQu/is/SdNG+t7aHn2A8ygb/9hrpp7ri8fg854NtlRTQAAA==",
+  "debug_symbols": "ldrbSiNBFEDRf+nnPNS51cVfGQaJGiUQEolxYBD/fdKS9Ei6aNkvYquLVLOLXI71MTxtHt5f7rf758PbcPfrY9gdHten7WF/vvr4XA0Px+1ut325//7jIY1fPL7+/u11vR8v307r42m4E4/VsNk/jd/ls3/e7jbDXaTP36vBMxYFi4pFoyISFoKFYmFYOBa4eeDmgZsHbh64ecbNM26e+81Lvooat8KwcCz6zYtOYnYfGYuCRcWiUVESFoJF9841+UVouu1Ru6vSuBbUrLdC8WN095VqvQqbPYZjEVhkLAoWFYtGRUtYCBaKBW7ecPOGm7d+c5uE260oWFQsGhWSEic/VXefEeXEOOmHl+kpSGNGgpPMSeGkctIwkcSJcKKYqNJXE1HjxDkJTjInhZPKScPEEifCCa9vvL7x+sbrW7e+ZbsQy3VGCieVk4aJJ06EE+XEOHFOghNevz9csOmjkJUyI5WThkl/vrBMhBPlxDhxToKTzAmvH7x+8Pr9SYNbuxCfvx/rjxqWSbe++3VhHjIjxolzEpxkTgonlZOGSX/msEyEE16/9OvHtMdymhHnJDjJnBROKicNk/5sZ5kIJ8oJr195/crr92dCoelCYv6Rpz8UWia1T8qVzOYW0h8LLZL+XGiZCCfKiXHinAQnmZPCCa/fHxCFT3vMb59gtT8gWibCiXJinDgnwUnmpHBSOeH1hdcXXr8/IMrTfwJyajNinHTrZ5ErkTwjwUnmpHBSOWmYaOJEOFFOjJN+fZ02zOzlVfuzvmWSOSmcVE4aJv1Z3zIRTpQT44TXN17feH3j9Y3XN17feX3n9Z3Xd17feX3n9Z3Xd17feX3n9YPXD14/YP3P89Wf9XG7fthtLgfBnt/3j9/OhZ3+vm5ujoi9Hg+Pm6f342Y8LPb/nNh4g5plpVXPSxn3lKWVp/Fd8vgrkViJfl2O96URK41yXsF5Ff8A",
+  "file_map": {
+    "50": {
+      "source": "struct bar {\n    enable: [bool; 4],\n    data: [Field; 2],\n    pad: u32,\n}\n\nfn main(enable: [Field; 2]) -> pub [Field; 4] {\n    let mut result = [0; 4];\n    let a: [_; 4] = foo(enable[1]);\n    for i in 0..4 {\n        result[i] = a[i].data[i % 2];\n    }\n    result\n}\n\nfn foo(x: Field) -> [bar; 4] {\n    [\n        bar { enable: [true, true, false, false], data: [x, x + 1], pad: 0 },\n        bar { enable: [true, false, false, false], data: [x + 2, x + 7], pad: 0 },\n        bar { enable: [true, true, false, true], data: [x + 3, x + 5], pad: 0 },\n        bar { enable: [false, false, false, false], data: [x + 4, x - 1], pad: 0 },\n    ]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

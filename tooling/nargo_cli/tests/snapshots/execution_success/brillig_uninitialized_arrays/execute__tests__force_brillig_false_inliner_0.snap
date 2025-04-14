@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YzXLTMBCWf5TEzgQyFO5lhhscJP/E8i0HeAluDrEvvIQfDt6LKt2N14vCAUuddqY701lJK337+ZO0bhyJR8sf/nbQTsHH4m+LwB/Bq2WmPWKpkDwjjzwjwhE1TlD3hIl/DYCni577xgyP1jvoLsXW2KBaSPArFCQBbwfuGYEkoGClOlRV3xS9LnWnivZkalXVp4PRRtemPhemLHtTmaY9tY1qdVX2eqjbYgAsuRyrBCy1CrSR/MAt5Sn97YVyXRCPe61uaaCWmX4JHNc+OT5lRfNRwp+6om3AZygIVjQ7cM8I+K5oVLClFW0j/FWKTLyMirYRrxXN5/9NoTjmAThezPeFjD0ezrVHLJ8C2s11/QCJHO2YzZHX8f2b779+/iahyw8cVwzXF+AzNo5F9+hpDzOC6xvfqMpkYm6e+ZcZwQyAXyB+Ggb/cu6tfR3n+ILl3UGfnjtcgzF69r5BzBb992JqfyDYfE3iyIHxkDo/nJNDYJ0L/JiQjBN+TLS1lo7z3DQmSSwlen5k+oS4p1SfUOf87gZ/a1t41i9EExrH+VSHQPtYRiyfYJrwPcrD6qYjlg/5cH1ipp10cN07YhFrS0ce6cjjwuIceM23tiXj63Ge6+LJGN4JvCMbOp/FMhJLxymvtRz6KclDsZCHZPM/Q/8t+BVZg+v3jvwrln/G2zFG7wTHShxjON9+6vgEbasrvgvTccLzdRYbM33IQ+2lmJ9BwfJLNl9DP2fPi2f0+J88h6bTQ9kNXd2dz9WP7h3Dp5phrRFEL8rH97sdcwbAv77bqeWkvWUx1CB1rItu9GPm/zWXj9OxnSOGmHfgKV98jj9gC7cNsRcAAA==",
+  "debug_symbols": "tZTBasQgEIbfxbMHM6PJJq9SymISdxHEBJMUSsi7V0vdtu5eJHhz1O9TmF93Mqp+u1+1vU0L6d52YqZBrnqyvtoJ+55aZmlDtazSraSrWEOJsqMfgTgouWmjSCfY8U5JlQvASwBFBAT+BejTVkD42QqIiRsLunlBtyjors+6oX64eeJuzro5RjdP3ZeC7ragu2Il5dXppDQP+f+X6YveaWP0/Zr+CDuBl68WId4UIb0pYDbBswmRTdTZRJNNXLKJNpdAlkccvvqQTsveqNDVsLjZITbZl+vnHFdiDGY3DWrcnAqB+M1CaCwi5RjDzjnlrT/CH/MF",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "create_notes",
+    "directive_integer_quotient"
+  ]
+}

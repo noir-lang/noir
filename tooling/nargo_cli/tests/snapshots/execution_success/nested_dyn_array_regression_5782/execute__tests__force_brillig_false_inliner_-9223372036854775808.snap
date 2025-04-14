@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "array",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "i",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZzXKCMBBeQItStf5U69FDHyDhR+DW5+itWrj0Ndv3alMTm8HIwew6zcjOOIEEly+7336B4MHB1j+/Z3kcyNaHP/Pg1NT4i2yZnXFf85WwbZpWeVzxhL+xuNwVGUuz3bbgBc+K7D0ukqQq0iIvd2XOSp4mFa+zMqmlswDRV88Qj2ZcsGIQIPiqD1YZ4Nr65upAj4WKT18FJJCt6Ng0AASEAbsw0bFMNO8hkqZPlMgm4TDIjZQLZioQxFyzczFgdoZSdNQY7wgwkgO9lJzVgfj7ayqvD+4pbyjbgQqIUl7RsWkAwFZehOX6qLwh4CnaANxQ3hA65fXh/2McEmAkB2qpvHkbTlviR3hzjomJz6ly5QLxI7gS8W0JdQ+dkmLGgArjCBxR0hGgKem+IxQdxjE4olATwF06XCTUxAGMD5gYu8qnwzjtEuVGRc0wMartDbUvJPRflKxgwwxODVvG53iTScVcBPHUtoyoOvHEPZfnPpj3vZDuf9Ov9AtAVg/PwUShBoEI4yMBxl/D/napB9NWZZaAW40uknPpAMYVEJGTsopsX2fbcNoS/wlvzplYVtUSK0z4XsljfdnVDeneN720rsGRolgDWlHU+jNp0MBseobT+/rHvunk9fPjS7/u/syYisVAtkPZRto44kfteNjAg+yfhXBqkSEOzfj1DP/zzpz7jbbtWq/F79gwpnwuZKvjVfP4BqhGhKFqJQAA",
+  "debug_symbols": "lZXbisMgFEX/xec8aLwmvzIMJRdThJCEXAaG0H+vLRFaKw37zeNZS4XNwZ20tt6uFzd040LKn530Y1Otbhx8tRP23FqmanhUy1rNKykVy4gdWr9Qt4x0rreklPT2m5EcwzmGCwyXGK5SuJQB1xGuv+KaRrhJ4QU/8EJEeIHhjII8A/lksEYHXsY8/84XMZ+MltEgMPZxg4SNZMBM02CYPDY0bJgz4+NVyaRzLg4jFzyeMQobDDZy2OCwIWBDwoaCDQ0bBjbgzDmcOT/NPJ5Bns5cqWBoExscNgRsyBPDsDfDF/Xs+t5dL68fmd/+q2ZX1b09ym4bmpfu+j+FTvCneWxsu832cdKz54+/Aw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "11890127694861652393": {
+        "error_kind": "string",
+        "string": "equality"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZvW7TUBS+juMkjls1gmdgtxO7abdKUJAYGdnctJV4A0YzsrOwgMTGhgRCQmLgCZCQGBALGxJIvAO95Z76y5cTNyW+QCWOFF3b99zz893zY98EpqbAjV2zBomQH26M3diB+fDkt+fu0/Uoi0lvm/J30nwaK/61aP8kdjIDP/JTke8J/7Tv5Nyqavnoi+gdnPwSuB6ZOj58+S/759P/qw0+S+xcr/ztraUbIN+Y9nNr34/9Z/Jv+pGfJy7WHpv5WJP9aRGrdBPsNxALqLdrvPhZBKTPgB04J/qHZGvb+xqQPrGH8ZF9EOwixdaRMoe5jHOoJ1L0XEZZW0aPHUuxsq7N+iJ+9Jy8ruIH2tYhfrw2bg0+u+ZGm6NPYc2y2Ok2YBcq9mwq64IlozGLOaPp0fahKfd/Vw/Kkv4henot6sG9wr5l7/uwbs+N6XqUiQ+B4p+1ZQL2YJxFpo4DXCu9IyL+B6aWue2uNd1coz3VxJVrtDwbGn/vRSnU6JDsYXyaarSs/V+jF2V3aS5U1nl+L0jZR6zfWh3rKD4iFpxjt92o1W8trrTeP1KwCxuw43z9272PsVu1990x7WEXrIgdx13PM3YDBbueWY7dAObkGrGTZ3dNe9hpcRcr9rSIz67UUj5bsCRzQ/LLwGjIRyS0247PQC7zsU6MFdG/ZZbHmGeczuJIcMI4Qp1iW4f4GeOInt0zNU4cR9ynl/VF7f2Ta5Snd4oLxxHGOpMWRyHgc5E4wljhOGrCKSbde+4+XZMCsgXjiHVa6phF7IbgZ0TP7gNOPmq55zPCMeODtvL7kiVtL3Et8kYKb5/mhLdyo8XxvbtOQJ/2zSlzXINwDveYv53Y7lixU/tW4vo8BJ+4Rlni7xThf2hqnz+4a8mxsKp1iO9ntbCa93fPPU/Xo8La8RHsWIj9at7vBOZChZ/jZ0PhT4BHMBsRP+8NYoKyEPP9ap5f1veM3kfwWxP5H7nR8n4n+/A9ekhzoSK7yfZAsV2rqRH4Id/LPuNiuvOrhp7aWtUYcc9A/RHxP3H3mDcydtew83haZseT8rgsysPDfFZeIfmWJAYTD/rL6WRnNs5n04NiUk62z9WP59Gr9MTL+m343I2+eqLPMzfUKXrwPwPJTZt/L2iNYId9ANdyHxD+V6aW+dJdJ0Y/w8TzstekXzsvw/3smHn9wv8W9L9Z4pNZ4hPXKu0cBLHS+jlj32vwwxLjKPzv3Ij9VGT2FT+0sx7hHyj8fcW3LbP4fiBr/7VejhhwL2/yV8MnVvixn3J+ae9hWu71SY/WKzEWOP4w3rFXSq603gOKdDzZGefFOJ8UWbn7p3vQrNg+mOVFmR5l9nZ8nv4twaSq5zE+LfXdvfQF5sc6gvyfhPfk99ldSw5Eij7L962B76I1vVvNP4urRf6wWuQX3cNq0UaZS2AOc8fShrtHvFCW2BER/1d3L3sygDWyfqToH5D+ObuVZ/ztnyj8icJv9+eLyHMj+t72fxKnOkk+PmPbJHZ85NVJSk1n5TTLdvPsKM+K8/LqJ55VNIdNJQAA",
+  "debug_symbols": "zZvRTuMwEEX/Jc998IzH9gy/slqhAgFVqlpUykorxL9vg0jKNgTUIRf8ghrkO+c2ueMmcfLU3LRXj3eXq83t9qG5+PXUrLfXy/1quzlsPT0vmqvdar1e3V2+/XcTuj9UXsY/3C833ebDfrnbNxdUSlg07eam+2h0qHC7WrfNRQrPi9HgzPI6Nkd+O/T3oiHFljdoeQ7Y8oQtz9jyEVtesOUTtnzGlsd2LWO7lrFdG7FdG8/t2k7DDk10aMShSQ5NdmiKQ6MOjZ2vkeDQOHIgjhyIIwfiyIE4ciCOHIgjB2liX1vpNSrh45YunF/HFi6n5d/fXSbclzeJp5rk0GSHpjg06tDY+ZocHBpyaNihiQ6NIwfZkYPsyEGeyEGxQWNyqlGHxs7XlODQkEPDDk10aMShSQ5NdmgcOSiOHBRHDtSRA3XkQB05UEcO1JEDdeRAHTlQRw7UkQN15MAcOTBHDuzdHHCI/U89h/LJmT6xph4Q6fRc3yIaIGhAQgMyGlDQAEUDDAygEOAEghMYTohwgsAJCU7IcMIMHR3TcLkYVUYEhRMMTaAAJxCcwHBChBMETkhwQoYT4D1N8J4meE8zvKcZ3tM80dPWi5hiGYmiRyQeUfpU9P+twhdR9oiKR2RfvpOp0o/VLB8PteFIWhodyKl1kp+wQvVY4W+1UvpbfqY2shLrsSJft0L9FKSSPx7KeZityqiDptarfsJKrsdK+VYrQr2VHEdWtB4rVo0VCfVYoXqscD1WYj1Wvne21eGExcZWUj1Wcj1WSj1WtB4rVo2VBJxtu/oTq8uiQ/1En11mZRqWNjKPzkMn1qLnJCQ4IcMJBU5QOMHQhIn1+TkJBCcwnADv6TJHPxwfEsmjh0RI59hLw3XG4ePo/orOMWvo8TvoaG5VhX+HOTrOaCDY+Ln0ACcQnDBHlvTYD+NfaYtwgsAJ8H6wDCcUOEHhBAMTOAQ4geAEhhMilPB82Pqz3K2WV+v29eWm28fN9Zt3nfZ/79uT157ud9vr9uZx13YvQB3ffeqOJxMvOMYuQd0mpbigpN1mdyw45AUHPVAP5H8=",
+  "file_map": {
+    "50": {
+      "source": "use std::mem::zeroed;\n\npub struct BoundedVec4 {\n    storage: [Field; 4],\n    len: u32,\n}\n\nimpl BoundedVec4 {\n    pub fn new() -> Self {\n        BoundedVec4 { storage: [0; 4], len: 0 }\n    }\n\n    pub fn push(&mut self, elem: Field) {\n        self.storage[self.len] = elem;\n        self.len += 1;\n    }\n}\n\npub struct PrivateKernelCircuitPublicInputs {\n    pub l2_to_l1_msgs: [Field; 4],\n    pub public_call_requests: [Field; 4],\n}\n\npub struct FixtureBuilder {\n    pub public_call_requests: BoundedVec4,\n    pub counter: Field,\n}\n\nimpl FixtureBuilder {\n    pub fn new() -> Self {\n        FixtureBuilder { public_call_requests: zeroed(), counter: 0 }\n    }\n\n    pub fn append_public_call_requests(&mut self) {\n        for _ in 0..4 {\n            // Note that here we push directly, not through a method call\n            self.public_call_requests.push(self.next_counter());\n        }\n    }\n\n    fn next_counter(&mut self) -> Field {\n        let counter = self.counter;\n        self.counter += 1;\n        counter\n    }\n}\n\npub struct PrivateKernelCircuitPublicInputsComposer {\n    pub l2_to_l1_msgs: [Field; 4],\n    pub public_call_requests: [Field; 4],\n}\n\nimpl PrivateKernelCircuitPublicInputsComposer {\n    pub unconstrained fn sort_ordered_values(&mut self) {\n        self.l2_to_l1_msgs = sort_by(self.l2_to_l1_msgs);\n        self.public_call_requests = sort_by(self.public_call_requests);\n    }\n}\n\npub unconstrained fn sort_by(array: [Field; 4]) -> [Field; 4] {\n    let result = array;\n    get_sorting_index(array);\n    result\n}\n\nunconstrained fn get_sorting_index(array: [Field; 4]) {\n    let _ = [0; 4];\n    let mut a = array;\n    for i in 1..4 {\n        for j in 0..i {\n            a[i] = a[j];\n        }\n    }\n}\n\nunconstrained fn main() {\n    let mut previous_kernel = FixtureBuilder::new();\n    previous_kernel.append_public_call_requests();\n\n    let mut output_composer = PrivateKernelCircuitPublicInputsComposer {\n        l2_to_l1_msgs: [0; 4],\n        public_call_requests: previous_kernel.public_call_requests.storage,\n    };\n    output_composer.sort_ordered_values();\n\n    assert_eq(previous_kernel.public_call_requests.storage[1], 1, \"equality\");\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

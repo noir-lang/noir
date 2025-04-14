@@ -1,0 +1,63 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+VawW7bRhBdiqQkykjsNj300EsDFL21oiVaDooCKZqkvvYQoLeGUeICBfoPBPonPfUHeijQS7+hH9EPCHINkrV3rMen4YqSuKECLyCsxJ2deTP7dnZIKjLXLXIf2xLXD8x6E5mHrp/u1/IOdU1D4owC4awFOTLNTcZ+c18ymm8vxx06nJHdLvWfT+cPMsW/DvHPMtAZQP+p6E/C6J+OnJ4fqrp+Q3ZjktPmiMwFyFyQzB1TTwKoR8aQqzJ//O5zbFbfP3HfM9IXgj+Iqev431PwD8A3276vwtgW/Y9AvzHd7+3HYfDf6H8SRn9x5Lg2iOpcS8Nw4Uz4PzTrTcZGcE38lrEx4EI+cYvpN/pkdYyjlV6WYzyYl0ZkX3QmzibLC89Tkv/c9RLvIczpkv8fg15DtgLn3TKwbwuNL7x2Y7jGXMJzGWPATeOS+LQtl3BfMZdFJ3IJ5ZlLIv+V6yXeyNHQXBp5/EsI14fAA8TPrUseIN+YB7vmlG9c32dOYf9QLvTZop0HsYJV7E9M0PyX83oKHo7PgGI3VLCeKGMRfR8qdoaKnduu65Dy0b5nz2c9nz1PXX/oZ08gXOfa+cJx3+d8EdzbrjVyG+03nS8o33S+lK7vc60D791C9I/D6J9FZj03aGsg9pnbHBfsRVdT7CYm6Pmb+3xD/JyjkUecrzVdoy11BebrzHc2Yaw5X2lYNT+iDmNym3TdlvuO2RbnAsa5TQ2A8k01wO+uP4QaAMfeUw1QRGQvNn7OCp4sDJ6bfITci5UYZBQ7zF9RQy+6eExsTUzQPZf7fPPdByDXOVdousZb6upzTX21XqbIR4pvkjvial2XjCUwNqaxtFqPiZV5GtXjcwh1uG2ciyeAC+PJbVONvmsu5nXbNRf/4fo+c/GxgjclXKGeTXH90HSPI9gGSpwwZ6d07U/X27V+FtX1cY5s2msnFBOU094dMlcRa0rzdr1P8OGzTd7Pydr2kANv1lb2Kq4t2hyDP7y3J+BTStf+cr22ttueESMFzx2IiTSJq+Xm36ZuMwGcMc1FjqQk/8qsdP7jvvv2ZES62+Yckf/X9aHf42s5R2xp+2Zf/mu+a2u4rx2ND4FjWWj5wpCPnKNxrOnejZt2XopPdl8sW5yXx0aPBdrXuOt7ZyLy/7k+8LsJlbucu0NzSosjnzvaM1TfO51d8SEGrg0O4b8HGuf3eWaP/z3om/P/u/4QOC8YbROehtwPaDPw/57m2r4x5D/HHsea3oNx0/gmPrXl25FZryNeg45fnPD7ej6uPUvVaqqIfqO8dn5p+2pMY9r717Z2OLdKXTo0/uf8Kcm/cb0d/9XFXrtv4DgkCj7kx+Pquuc9hnOxFhU8SbWS62q9F+fXNf0V1moVB+Yz2k9JfuQUYI2P/jzcEefloswvZ+VlWZQvXsyXJecy22SP8X/oQp6XtvnyJN5P3I1WepE3be8nRP5etNL5kfuu3U8IxiMY1+oJ3x7X3jmLvOz/YYP8kPCL/KcOpLaXEmU+xwvxtd1LKWC9C/aZI6FrPt85a7HdJ45o95w4V55F8FnxJXDkCw9HBCNyxFfjaBzRYsAcQXnt3bbGz1EL21rd6uOnxi/m59cefsbKfF+ux7VifmKsMNff9/AzdA7T1oHrs76fFabgD/PE96zwW4jrs4ZcbMx6LhNbGLuBgmdT/v+uo/z/BPb2o5b5n3VcQCy4luzjvTzGk/f9phzCtaSWQ7RaMtnSTlPt2VRLir6U5H/05Jc2/21HfLucf8hD20ZVXe9VD9dS0HuFG+VpLIOxpKrbmbjfsq9Zl+BISf5n4PiVDzBH5p8o9odkv4ZbuYYcZF2xck3kbUx/cpPsXuu69i0Xs/Pl6Xy5eF7MytnZVrWv8F6739aeq2I90LUfy+Ls+XJelNOXuf15usmPru2/M71Ylos8fzDPX87zYpP9tzKxC9tBOgAA",
+  "debug_symbols": "tdvbauNIEAbgd/F1LrpOfZhXWYYhB2cIhCTksLCEvPu2l0jOqtoWf2V0E9rBXwl3ta1WqfS+u9lfvf3+dfdw+/iy+/HX++7+8fry9e7xob96/7jYXT3f3d/f/f719d+7dPjD9N/7X54uHw4vX14vn193P4j5Yrd/uOkjke5v7+73ux+WPn5e7JhhIbBQWBgsMiwKLCos2prICyEJFgQLhsUw50ztU7DQUigsDBYZFgUWFRYNFZpgQbDgNaFLIbBQWBgshjmXnD+FlLYUw5yLlUnUtBQVFg0VlmBBsGBYCCwUFrYmlr+ilmFRYFFhMcy5qnwK1eXazQkWBAuGhcBCYWGwyLAosKiwgHNe4JwXOOcFznmBc17GOc/TnkHLcs9QDBYZFgUWFRYNFTXBgtbE8qxWGRYCC4XFMOeWprOz8fJsUMc5b0ex3MnUAosKi4aKlmBBsGBYyJpYfs+bwsJgkWExzLnZtBItO1Fh0VBBKeGEcMI4EZwoTgwnGScFJxUnePYJzz7h2Sc8+4Rnn/DsE559wrNPePYJzz6Ns69HUpaEE04IJ4wTwYnixHCScVJWSEmOVJw0mEjCyTj7bbrCzESO8AphfxTBieLEcJJxUnBScdJgMi7YnSeEEzz7imdf8ewrnn3Fs6949hXPvuLZH5furB6JOEI4YZwIThQnhpOMk4KTukayIw0mOeGEcDLMfitTYbw1d7IY1/HOE8WJ4STjpOCk4qTBZFzOa/lI3N5yXM87T8bZN5qJfSUX7q2sZXpvH7KLLxvH143j27fjz1++Pmwuft44ftk4ft04fts2/riA+gfj08bxeeP4G6//+u31Y2xTfOPq4o/bIhJN9x/60F0Ljiusa4giiCNo3BaTpMxI3ESMq61ryCJo3B+T5qJrH/rPVCKoRtB4RfRPMiFymyQel1/XEEUQR5BEkEaQRdB4RdBcw+hD1880Lsb+H/kj1QhqAUQpgk40UNH0c9eH7BBHkETQeEWwthlZcuhEA518QeRQjqASQTWCTjTTUT0iN3ucIogiiCNIIkgjyCLoxIrIR5SbQ2UVFX+kGkEtgE51WJ5H4xUhLU1Ik0ccQRJBGkHjFSFl3keoK0nzuIy7hkoE1QhqATQu564hiqDvX3if27iz6sbxbeP4eeP4ZeP4deP4377wPvbi9KGLb+lPxiff1k8bx+eN48vG8XXj+LZt/HF1uO/lp/NQH7ofxXF9eA2VAConGu3T3G/er5kcOtEHr/NE9JtIDp1obOf5291vITuU15E6VCKoRlALoJoiiCJoPOVfHiZgdy+Px+2Ha6gE0Lh81S8A6ozELaNxUanvsI9Hqm5f105MhM0Lls0f6cREzM2efVgcKhFUI6itfiaHJKUIogjiCJII0ggaT7nMFcM+rA61ABoXYNbQeMrFZEZmDnEESQRpBFkE5QgqEVQDiCN54hOz1+YbfOJugApHJoIjE8GhiWgBJCmCIlMuJ74aZf6FleKRrKPmkEaQRVCOoBJBNYDGHS5sdV7l5k7UMu5xOYc++qu/L5/vLq/u958Pg9++PVx/eTb89Z+n/eIx8afnx+v9zdvz/vDA+PFZ8UO+RelCjH4eGqD7y368C85yeHlYd9JPyZK1H7Uf+V8=",
+  "file_map": {
+    "50": {
+      "source": "use std::hint::black_box;\n\nfn main(a: u32, b: u32) {\n    // This version unrolls into a number of additions\n    assert_eq(loop_(5, a), b);\n    // This version simplifies into a single `constraint 50 == b`\n    assert_eq(loop_(5, 10), b);\n    // This version should not simplify down to a single constraint,\n    // it should treat 10 as opaque:\n    assert_eq(loop_(5, black_box(10)), b);\n\n    // Check array handling.\n    let arr = [a, a, a, a, a];\n\n    assert_eq(array_sum(arr), b);\n    assert_eq(array_sum(black_box(arr)), b);\n\n    assert_eq(slice_sum(arr.as_slice()), b);\n    assert_eq(slice_sum(black_box(arr).as_slice()), b);\n\n    // This doesn't work because by calling `black_box` on a slice the compiler\n    // loses track of the length, and then cannot unroll the loop for ACIR.\n    //assert_eq(slice_sum(black_box(arr.as_slice())), b);\n\n    // But we can pass a blackboxed slice to Brillig.\n    // Safety: testing context\n    let s = unsafe { brillig_slice_sum(black_box(arr.as_slice())) };\n    assert_eq(s, b);\n\n    let mut d = b;\n    // This gets completely eliminated:\n    let mut c = 0;\n    set_ref(&mut c, &mut d);\n    assert_eq(c, b);\n\n    // This way the constraint is preserved:\n    let mut c = 0;\n    set_ref(&mut c, &mut black_box(d));\n    assert_eq(c, b);\n\n    // A reference over the output of black box is not the original variable:\n    let mut c = 0;\n    set_ref(&mut black_box(c), &mut d);\n    assert_eq(c, 0);\n\n    // This would cause a causes a crash during SSA passes unless it's a Brillig runtime:\n    //  > Could not resolve some references to the array. All references must be resolved at compile time\n    // The SSA cannot have Allocate by the time we start generating ACIR, but `black_box` prevents them\n    // from being optimised away during SSA passes.\n    // If we use `--force-brillig` then the it doesn't crash but the assertion fails because `mem2reg`\n    // eliminates the storing to the reference.\n    //let mut c = 0;\n    //set_ref(black_box(&mut c), black_box(&mut d));\n    //assert_eq(c, b);\n}\n\nfn loop_(n: u32, k: u32) -> u32 {\n    let mut sum = 0;\n    for _ in 0..n {\n        sum = sum + k;\n    }\n    sum\n}\n\nfn array_sum<let N: u32>(xs: [u32; N]) -> u32 {\n    let mut sum = 0;\n    for i in 0..N {\n        sum = sum + xs[i];\n    }\n    sum\n}\n\nfn slice_sum(xs: [u32]) -> u32 {\n    let mut sum = 0;\n    for x in xs {\n        sum = sum + x;\n    }\n    sum\n}\n\nunconstrained fn brillig_slice_sum(xs: [u32]) -> u32 {\n    let mut sum = 0;\n    for x in xs {\n        sum = sum + x;\n    }\n    sum\n}\n\nfn set_ref(c: &mut u32, b: &mut u32) {\n    *c = *b;\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

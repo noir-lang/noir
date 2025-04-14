@@ -537,7 +537,7 @@ fn type_def_has_named_attribute(
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
@@ -1411,7 +1411,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat(element).take(length as usize).collect();
+                let array = std::iter::repeat_n(element, length as usize).collect();
                 Value::Array(array, Type::Array(length_type, elem))
             } else {
                 // Assume we can resolve the length later
@@ -2500,12 +2500,12 @@ fn function_def_has_named_attribute(
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = modifiers.attributes.function() {
-        if name == attribute.name() {
+        if name == attribute.kind.name() {
             return Ok(Value::Bool(true));
         }
     }
 
-    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary)))
+    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2878,7 +2878,11 @@ fn module_has_named_attribute(
 
     let name = get_str(interpreter.elaborator.interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, &module_data.attributes)))
+    Ok(Value::Bool(has_named_attribute(
+        &name,
+        &module_data.attributes,
+        interpreter.elaborator.interner,
+    )))
 }
 
 // fn is_contract(self) -> bool

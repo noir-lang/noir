@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 30,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9WaSW8TMRTHPelM0iSUhJZ9KV8h0yRN4cTWfd/3ZbrkwAmJC0gcIi7ckEDi+8JL/Jr/vNgpUuODLVWesX/z3n+8PNvTBKqTxv/9Bfo61HlG9SZm3ui8crsUD9BWJdDv4VJvMEC9rjRmPNA45IHG0AONkQcasx5ozHmgcdgDjXkPNBY80Fj0QOMdDzSOeKDxrgcaSx5oLHug8Z4HGkc90Djmgcb7Hmh84IHGhx5ofOSBxsceaHzigcanHmh85oHG5x5ofOGBxnEHGtvpJVyTaPqwRB9u6MMIfXiggz0dnOlgSgc/OljRwYUOBrTxpo0tbRxpY0YbH9pY0MJNCyMtPBTYKXBSYKKJTxOLBi4NDGp4+TFPCT2U/ug8r/MM1A/wI1OcF34HaX+qMlnNG95vgPrb9tnm4O3HTbYfutFfyWk7H1pp+0r4HRKcfAaZaWCmhV1mZoCZsTCzwMxamDlg5izMPDDzFmYBmAULswjMooVZAmbJwiwDs2xhVoBZsTCrwKxamDVg1izMOjDrFmYDmA0LswnMpoXZAmbLwmwDs21hdoDZsTC7wOxamD1g9izMPjD7FuYAmAMLcwjMoYU5AubIwhwDc2xhToA5sTCnwJxamDNgzixMAkxiYc6BORfMiL4Oush1bOH452L9marU6m7ja3w1otIxVcF7su/Ije9mIPwplY7tSvgvKJdrWeeffOiP9cj24b4eYabV1SPrwlbve3BdBHXcv7SnagBnGlvMvYPr9/qa+8zlfsXVeKc0ZtCPvijlWuo6cXsMQRm3K7fzMPKiLg91YSvtp6DvQ/CDtlhHJPi3+r6k8yw8w8+XDf6zwn9Kt6FMtkvewOcNPO3fX+vrov6jMfRZl/WLCf8zZ9FXWfXOWa4rqd7YxnVuY0/nRwOBbgulun0sfeKPIpDHa6WfwbJlnVO7foVn0KYCn2GftssY9Djed8eRSs/DDZ3T+x0JDS5iDaV+8ZXPTWHLhe+4Sf32Tdvi+YDrAsZuORaGDDz2If3lDHxWMJTKgsc+N80t9on9VFLmfkJfpjUvMPgs9fHpeM5O9Gs7036BtWK75sR7BwZb+G5ZSztlLTzbiwTf1DmNq9+C5+dD1b/tI8F/1LnrWDkKdpUyt7FpvXb77aEbw0ND+5n6JKN6YybG3UiUfdK5KYbLuSTHUr8YzlxRuY1jjalOG1HiGBqp9LquhP9I8F/0fQH0c36bH0o1G0ncrCbNpJ5cXtYuEjnGsA2LDvwnjerUxUTtonFerybVyRv9m/ZyuC5R4v0g7heRZ3uR4BmhmPJdX8szAvoj7lcfLrDkbRuGsrCVLjPtI3F/zTz7LrR6NXJdEepwzaR0R99je6Et1hEJ/qe+5z7BPTE/Xzb4Hxb+U7oNZXJ/XTTwRQNP/fOD7ekc333QZ9a2T2Efy6Q2Hjsu5lWtnjQukkYcv6rFV7W4ftO8+gsHvILHiSwAAA==",
+  "debug_symbols": "lZXdqoQgFIXfxWsv3KWmvcrhMPRjgxAV/Rw4RO8+GsEMFQPrRtj6fbBwX6yV1a5cng/fNf3E8p+VtX1VzL7vwrRunJWjb1v/fHxeMxEPk+z8NBRdHKe5GGeWK82Z62qWaxHsxrcu3IntlzOTgrwEeQXyGuQzkDcgbzHeCpC/3ZdRB2/0mU+/8/bMS5C/3ZdNDt5e8miQz0DefM1/5S3GkxCoQKhwu2IS9jCI1EVJcUXiisIVjSsZrhhcsbBCAlcIV/DtE7j9LUx/xeiLsnVHQTRLV330xfw/uFN1DGNfuXoZXSyRd3/EP6FEcpIqRIlBlOJa7V8cn0hxSsSeMo5SB9KEBCHFCw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

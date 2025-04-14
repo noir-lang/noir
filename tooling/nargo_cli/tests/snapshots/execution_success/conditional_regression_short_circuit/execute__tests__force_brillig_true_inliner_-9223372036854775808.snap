@@ -1,0 +1,89 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "tdjdiuowEAfwd+l1L5LJTD58lcNh8aMuBVHx48BBfPdNXbOWJq78hdyIEX9TmknazFyaVbc4f3702/Xu2Mz+XJrNbjk/9bttHF2ubbM49JtN//kx/rlRw4dW/gaO+/l2GB9P88OpmWlNbdNtV8O3EAOs+03XzERd/7aRBJhoUyTGJcKUEcaJ4MTipDxjEhKx+e2XZ0wkEaemhBRONE4IJwYnjJNyKr1KxNuMWJiY4iST0ndCyo9Jm/3VUvqrpWyhGF01OlWNbqpG56rRpWp0WzW6qxrdV40eakbnqnuVq+5VrrpXuepeZWyv3ojgxOLE4cTjJMBEFE40Tggn5VRSOuwQ5UReEKMzYnHiXpHs1S0eJwEmVuFE46ScSjaJ2Cwv1uCEcSI4sThxOPEwccWrGOY7MZItS+dh4ovZNzbVRsa6jBBODE4YJwKTULwX5lQbcV4bBYMTxongxOLE4cTjJKCEVPE5JioRoZxonBBODE4YJ4ITixOHk2L2hdMWE/EZCTDRCicaJ4QTgxPGieDE4sThBM9+ucdjVDpdGG0yQjgxOMFnjPAZI3zGyp2M+KhOB+X4CB69xr/Nk2qE7c/hWmhqym3BEB5GZeZJcaEeZjzTN/OsDv7V6DfMs/ri5yCrSKbGvGH4DSOv72d0yi6UvLG/mk5xsW/qpvHty1ySnRr3hvGgucbBv/mhny823b23vz5vl6NW/+n/vpt0/feH3bJbnQ/d0P9/tP6HXAXVaqWGQ8WwqmIfttVOhuGwYLT3rQ4qXjRe+As=",
+  "file_map": {
+    "5": {
+      "source": "use crate::meta::derive_via;\n\n#[derive_via(derive_eq)]\n// docs:start:eq-trait\npub trait Eq {\n    fn eq(self, other: Self) -> bool;\n}\n// docs:end:eq-trait\n\n// docs:start:derive_eq\ncomptime fn derive_eq(s: TypeDefinition) -> Quoted {\n    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };\n    let for_each_field = |name| quote { (_self.$name == _other.$name) };\n    let body = |fields| {\n        if s.fields_as_written().len() == 0 {\n            quote { true }\n        } else {\n            fields\n        }\n    };\n    crate::meta::make_trait_impl(\n        s,\n        quote { Eq },\n        signature,\n        for_each_field,\n        quote { & },\n        body,\n    )\n}\n// docs:end:derive_eq\n\nimpl Eq for Field {\n    fn eq(self, other: Field) -> bool {\n        self == other\n    }\n}\n\nimpl Eq for u128 {\n    fn eq(self, other: u128) -> bool {\n        self == other\n    }\n}\nimpl Eq for u64 {\n    fn eq(self, other: u64) -> bool {\n        self == other\n    }\n}\nimpl Eq for u32 {\n    fn eq(self, other: u32) -> bool {\n        self == other\n    }\n}\nimpl Eq for u16 {\n    fn eq(self, other: u16) -> bool {\n        self == other\n    }\n}\nimpl Eq for u8 {\n    fn eq(self, other: u8) -> bool {\n        self == other\n    }\n}\nimpl Eq for u1 {\n    fn eq(self, other: u1) -> bool {\n        self == other\n    }\n}\n\nimpl Eq for i8 {\n    fn eq(self, other: i8) -> bool {\n        self == other\n    }\n}\nimpl Eq for i16 {\n    fn eq(self, other: i16) -> bool {\n        self == other\n    }\n}\nimpl Eq for i32 {\n    fn eq(self, other: i32) -> bool {\n        self == other\n    }\n}\nimpl Eq for i64 {\n    fn eq(self, other: i64) -> bool {\n        self == other\n    }\n}\n\nimpl Eq for () {\n    fn eq(_self: Self, _other: ()) -> bool {\n        true\n    }\n}\nimpl Eq for bool {\n    fn eq(self, other: bool) -> bool {\n        self == other\n    }\n}\n\nimpl<T, let N: u32> Eq for [T; N]\nwhere\n    T: Eq,\n{\n    fn eq(self, other: [T; N]) -> bool {\n        let mut result = true;\n        for i in 0..self.len() {\n            result &= self[i].eq(other[i]);\n        }\n        result\n    }\n}\n\nimpl<T> Eq for [T]\nwhere\n    T: Eq,\n{\n    fn eq(self, other: [T]) -> bool {\n        let mut result = self.len() == other.len();\n        for i in 0..self.len() {\n            result &= self[i].eq(other[i]);\n        }\n        result\n    }\n}\n\nimpl<let N: u32> Eq for str<N> {\n    fn eq(self, other: str<N>) -> bool {\n        let self_bytes = self.as_bytes();\n        let other_bytes = other.as_bytes();\n        self_bytes == other_bytes\n    }\n}\n\nimpl<A, B> Eq for (A, B)\nwhere\n    A: Eq,\n    B: Eq,\n{\n    fn eq(self, other: (A, B)) -> bool {\n        self.0.eq(other.0) & self.1.eq(other.1)\n    }\n}\n\nimpl<A, B, C> Eq for (A, B, C)\nwhere\n    A: Eq,\n    B: Eq,\n    C: Eq,\n{\n    fn eq(self, other: (A, B, C)) -> bool {\n        self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2)\n    }\n}\n\nimpl<A, B, C, D> Eq for (A, B, C, D)\nwhere\n    A: Eq,\n    B: Eq,\n    C: Eq,\n    D: Eq,\n{\n    fn eq(self, other: (A, B, C, D)) -> bool {\n        self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3)\n    }\n}\n\nimpl<A, B, C, D, E> Eq for (A, B, C, D, E)\nwhere\n    A: Eq,\n    B: Eq,\n    C: Eq,\n    D: Eq,\n    E: Eq,\n{\n    fn eq(self, other: (A, B, C, D, E)) -> bool {\n        self.0.eq(other.0)\n            & self.1.eq(other.1)\n            & self.2.eq(other.2)\n            & self.3.eq(other.3)\n            & self.4.eq(other.4)\n    }\n}\n\nimpl Eq for Ordering {\n    fn eq(self, other: Ordering) -> bool {\n        self.result == other.result\n    }\n}\n\n// Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct\n// that has 3 public functions for constructing the struct.\npub struct Ordering {\n    result: Field,\n}\n\nimpl Ordering {\n    // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built\n    // into the compiler, do not change these without also updating\n    // the compiler itself!\n    pub fn less() -> Ordering {\n        Ordering { result: 0 }\n    }\n\n    pub fn equal() -> Ordering {\n        Ordering { result: 1 }\n    }\n\n    pub fn greater() -> Ordering {\n        Ordering { result: 2 }\n    }\n}\n\n#[derive_via(derive_ord)]\n// docs:start:ord-trait\npub trait Ord {\n    fn cmp(self, other: Self) -> Ordering;\n}\n// docs:end:ord-trait\n\n// docs:start:derive_ord\ncomptime fn derive_ord(s: TypeDefinition) -> Quoted {\n    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };\n    let for_each_field = |name| quote {\n        if result == std::cmp::Ordering::equal() {\n            result = _self.$name.cmp(_other.$name);\n        }\n    };\n    let body = |fields| quote {\n        let mut result = std::cmp::Ordering::equal();\n        $fields\n        result\n    };\n    crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)\n}\n// docs:end:derive_ord\n\n// Note: Field deliberately does not implement Ord\n\nimpl Ord for u128 {\n    fn cmp(self, other: u128) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\nimpl Ord for u64 {\n    fn cmp(self, other: u64) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for u32 {\n    fn cmp(self, other: u32) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for u16 {\n    fn cmp(self, other: u16) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for u8 {\n    fn cmp(self, other: u8) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for i8 {\n    fn cmp(self, other: i8) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for i16 {\n    fn cmp(self, other: i16) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for i32 {\n    fn cmp(self, other: i32) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for i64 {\n    fn cmp(self, other: i64) -> Ordering {\n        if self < other {\n            Ordering::less()\n        } else if self > other {\n            Ordering::greater()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl Ord for () {\n    fn cmp(_self: Self, _other: ()) -> Ordering {\n        Ordering::equal()\n    }\n}\n\nimpl Ord for bool {\n    fn cmp(self, other: bool) -> Ordering {\n        if self {\n            if other {\n                Ordering::equal()\n            } else {\n                Ordering::greater()\n            }\n        } else if other {\n            Ordering::less()\n        } else {\n            Ordering::equal()\n        }\n    }\n}\n\nimpl<T, let N: u32> Ord for [T; N]\nwhere\n    T: Ord,\n{\n    // The first non-equal element of both arrays determines\n    // the ordering for the whole array.\n    fn cmp(self, other: [T; N]) -> Ordering {\n        let mut result = Ordering::equal();\n        for i in 0..self.len() {\n            if result == Ordering::equal() {\n                result = self[i].cmp(other[i]);\n            }\n        }\n        result\n    }\n}\n\nimpl<T> Ord for [T]\nwhere\n    T: Ord,\n{\n    // The first non-equal element of both arrays determines\n    // the ordering for the whole array.\n    fn cmp(self, other: [T]) -> Ordering {\n        let mut result = self.len().cmp(other.len());\n        for i in 0..self.len() {\n            if result == Ordering::equal() {\n                result = self[i].cmp(other[i]);\n            }\n        }\n        result\n    }\n}\n\nimpl<A, B> Ord for (A, B)\nwhere\n    A: Ord,\n    B: Ord,\n{\n    fn cmp(self, other: (A, B)) -> Ordering {\n        let result = self.0.cmp(other.0);\n\n        if result != Ordering::equal() {\n            result\n        } else {\n            self.1.cmp(other.1)\n        }\n    }\n}\n\nimpl<A, B, C> Ord for (A, B, C)\nwhere\n    A: Ord,\n    B: Ord,\n    C: Ord,\n{\n    fn cmp(self, other: (A, B, C)) -> Ordering {\n        let mut result = self.0.cmp(other.0);\n\n        if result == Ordering::equal() {\n            result = self.1.cmp(other.1);\n        }\n\n        if result == Ordering::equal() {\n            result = self.2.cmp(other.2);\n        }\n\n        result\n    }\n}\n\nimpl<A, B, C, D> Ord for (A, B, C, D)\nwhere\n    A: Ord,\n    B: Ord,\n    C: Ord,\n    D: Ord,\n{\n    fn cmp(self, other: (A, B, C, D)) -> Ordering {\n        let mut result = self.0.cmp(other.0);\n\n        if result == Ordering::equal() {\n            result = self.1.cmp(other.1);\n        }\n\n        if result == Ordering::equal() {\n            result = self.2.cmp(other.2);\n        }\n\n        if result == Ordering::equal() {\n            result = self.3.cmp(other.3);\n        }\n\n        result\n    }\n}\n\nimpl<A, B, C, D, E> Ord for (A, B, C, D, E)\nwhere\n    A: Ord,\n    B: Ord,\n    C: Ord,\n    D: Ord,\n    E: Ord,\n{\n    fn cmp(self, other: (A, B, C, D, E)) -> Ordering {\n        let mut result = self.0.cmp(other.0);\n\n        if result == Ordering::equal() {\n            result = self.1.cmp(other.1);\n        }\n\n        if result == Ordering::equal() {\n            result = self.2.cmp(other.2);\n        }\n\n        if result == Ordering::equal() {\n            result = self.3.cmp(other.3);\n        }\n\n        if result == Ordering::equal() {\n            result = self.4.cmp(other.4);\n        }\n\n        result\n    }\n}\n\n// Compares and returns the maximum of two values.\n//\n// Returns the second argument if the comparison determines them to be equal.\n//\n// # Examples\n//\n// ```\n// use std::cmp;\n//\n// assert_eq(cmp::max(1, 2), 2);\n// assert_eq(cmp::max(2, 2), 2);\n// ```\npub fn max<T>(v1: T, v2: T) -> T\nwhere\n    T: Ord,\n{\n    if v1 > v2 {\n        v1\n    } else {\n        v2\n    }\n}\n\n// Compares and returns the minimum of two values.\n//\n// Returns the first argument if the comparison determines them to be equal.\n//\n// # Examples\n//\n// ```\n// use std::cmp;\n//\n// assert_eq(cmp::min(1, 2), 1);\n// assert_eq(cmp::min(2, 2), 2);\n// ```\npub fn min<T>(v1: T, v2: T) -> T\nwhere\n    T: Ord,\n{\n    if v1 > v2 {\n        v2\n    } else {\n        v1\n    }\n}\n\nmod cmp_tests {\n    use crate::cmp::{max, min};\n\n    #[test]\n    fn sanity_check_min() {\n        assert_eq(min(0 as u64, 1 as u64), 0);\n        assert_eq(min(0 as u64, 0 as u64), 0);\n        assert_eq(min(1 as u64, 1 as u64), 1);\n        assert_eq(min(255 as u8, 0 as u8), 0);\n    }\n\n    #[test]\n    fn sanity_check_max() {\n        assert_eq(max(0 as u64, 1 as u64), 1);\n        assert_eq(max(0 as u64, 0 as u64), 0);\n        assert_eq(max(1 as u64, 1 as u64), 1);\n        assert_eq(max(255 as u8, 0 as u8), 255);\n    }\n}\n",
+      "path": "std/cmp.nr"
+    },
+    "50": {
+      "source": "fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {\n    //regression for short-circuit2\n    if 35 == a {\n        assert(false);\n    }\n    bar(a as Field);\n\n    if a == 3 {\n        c = test4();\n    }\n    assert(c[1] != 2);\n    call_intrinsic(x, result);\n}\n\nfn foo() {\n    let mut x = 1;\n    x /= 0;\n}\n\nfn bar(x: Field) {\n    if x == 15 {\n        foo();\n    }\n}\n\nfn call_intrinsic(x: [u8; 5], result: [u8; 32]) {\n    let mut digest = std::hash::blake3(x);\n    digest[0] = 5 as u8;\n    digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n\nfn test4() -> [u32; 4] {\n    let b: [u32; 4] = [1, 2, 3, 4];\n    b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,71 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "points",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "struct",
+            "path": "Point",
+            "fields": [
+              {
+                "name": "x",
+                "type": {
+                  "kind": "field"
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "field"
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ndrdauMwEIbhe/FxDjSSRj+9lWVZ0tYtgZCUNF1YSu997RKnJVIa3jkpdcgD8nwTx6P4fXgc79+e/2x2T/vX4e7X+7DdP6yPm/1uOnr/WA33h812u3n+8/3lwc1/tHy+//VlvZsPX4/rw3G4C9GvhnH3OP9XJv+02Y7DnbqP36tBKxXJYSFYeCwCFhELpSLjWuXueagPJ6HRXYp4Q2gjFItuXyVfTyLFdCkqFaVbq6RxEaURgoXHImARsVAsEhYZi4JFpaLizCvOvOLMK8684swrzrymG58oDZciY1GwqFSIc5wIJ56TwEnkRDlJnGROCic8feHpC09fePrC0xeevvD0hacv3SiLW0jxqSEVE+/6RM8kN0Q48ZwETiInykniJHNSbpAgDamYBMeJcOI5wTf2EpSTxEnmpHCCJzqJjhPhpD/U5eUKE2pzhYmBk2760S03VjG4higniZPMSeGkYqKOE+HEcxI44ekrT195+srTV56+8vSvbOecP2LRNXcXV/ZzfiSek8BJ5EQ5SZxkTgonFZPM0888/czTzzz9zNPPPP3M0888/czTzzz9wtMvPP3+5sg0CZ3INHo0RDlJnGROCieVEt/fIZmuu0uVp+tpPKNpJ/UTiQV5CwoWFC1ILShZUDYgseQkV6pX0hlV16BoQcWyvGpA3lIIb2lYb2lYb2lYf6Xk8avk2pTcqwWlmyi1KFtQsaBqQMFZkFiQt6BgQdGC1IIsHREsHREsHREsHREtHREtHREtHREtHdGf6aWcv9ubX3F8f6b/mVRM+jO9P2+beZGGCCeek8BJ5EQ5SZxkTBLPpT8HT3EtRGND+OknfvrJcPqFk4pJ5kXuD7XT9+VCQkv8LdLc1/eH2p9JZORjOvq7PmzW99vx9LjQ09vu4dvTQ8d/L+PFg0Qvh/3D+Ph2GOdHir6eJppX68MqhGkh8zJ8cdOBzkPNXGEpcSWlzodz9aS6lVQ/rWBaxX8=",
+  "file_map": {
+    "46": {
+      "source": "use crate::append::Append;\n\nimpl<T> [T] {\n    /// Returns the length of the slice.\n    #[builtin(array_len)]\n    pub fn len(self) -> u32 {}\n\n    /// Push a new element to the end of the slice, returning a\n    /// new slice with a length one greater than the\n    /// original unmodified slice.\n    #[builtin(slice_push_back)]\n    pub fn push_back(self, elem: T) -> Self {}\n\n    /// Push a new element to the front of the slice, returning a\n    /// new slice with a length one greater than the\n    /// original unmodified slice.\n    #[builtin(slice_push_front)]\n    pub fn push_front(self, elem: T) -> Self {}\n\n    /// Remove the last element of the slice, returning the\n    /// popped slice and the element in a tuple\n    #[builtin(slice_pop_back)]\n    pub fn pop_back(self) -> (Self, T) {}\n\n    /// Remove the first element of the slice, returning the\n    /// element and the popped slice in a tuple\n    #[builtin(slice_pop_front)]\n    pub fn pop_front(self) -> (T, Self) {}\n\n    /// Insert an element at a specified index, shifting all elements\n    /// after it to the right\n    #[builtin(slice_insert)]\n    pub fn insert(self, index: u32, elem: T) -> Self {}\n\n    /// Remove an element at a specified index, shifting all elements\n    /// after it to the left, returning the altered slice and\n    /// the removed element\n    #[builtin(slice_remove)]\n    pub fn remove(self, index: u32) -> (Self, T) {}\n\n    /// Append each element of the `other` slice to the end of `self`.\n    /// This returns a new slice and leaves both input slices unchanged.\n    pub fn append(mut self, other: Self) -> Self {\n        for elem in other {\n            self = self.push_back(elem);\n        }\n        self\n    }\n\n    pub fn as_array<let N: u32>(self) -> [T; N] {\n        assert(self.len() == N);\n\n        let mut array = [crate::mem::zeroed(); N];\n        for i in 0..N {\n            array[i] = self[i];\n        }\n        array\n    }\n\n    // Apply a function to each element of the slice, returning a new slice\n    // containing the mapped elements.\n    pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U] {\n        let mut ret = &[];\n        for elem in self {\n            ret = ret.push_back(f(elem));\n        }\n        ret\n    }\n\n    // Apply a function to each element of the slice with its index, returning a\n    // new slice containing the mapped elements.\n    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {\n        let mut ret = &[];\n        let mut index = 0;\n        for elem in self {\n            ret = ret.push_back(f(index, elem));\n            index += 1;\n        }\n        ret\n    }\n\n    // Apply a function to each element of the slice\n    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {\n        for elem in self {\n            f(elem);\n        }\n    }\n\n    // Apply a function to each element of the slice with its index\n    pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {\n        let mut index = 0;\n        for elem in self {\n            f(index, elem);\n            index += 1;\n        }\n    }\n\n    // Apply a function to each element of the slice and an accumulator value,\n    // returning the final accumulated value. This function is also sometimes\n    // called `foldl`, `fold_left`, `reduce`, or `inject`.\n    pub fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {\n        for elem in self {\n            accumulator = f(accumulator, elem);\n        }\n        accumulator\n    }\n\n    // Apply a function to each element of the slice and an accumulator value,\n    // returning the final accumulated value. Unlike fold, reduce uses the first\n    // element of the given slice as its starting accumulator value.\n    pub fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T {\n        let mut accumulator = self[0];\n        for i in 1..self.len() {\n            accumulator = f(accumulator, self[i]);\n        }\n        accumulator\n    }\n\n    // Returns a new slice containing only elements for which the given predicate\n    // returns true.\n    pub fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self {\n        let mut ret = &[];\n        for elem in self {\n            if predicate(elem) {\n                ret = ret.push_back(elem);\n            }\n        }\n        ret\n    }\n\n    // Flatten each element in the slice into one value, separated by `separator`.\n    pub fn join(self, separator: T) -> T\n    where\n        T: Append,\n    {\n        let mut ret = T::empty();\n\n        if self.len() != 0 {\n            ret = self[0];\n\n            for i in 1..self.len() {\n                ret = ret.append(separator).append(self[i]);\n            }\n        }\n\n        ret\n    }\n\n    // Returns true if all elements in the slice satisfy the predicate\n    pub fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool {\n        let mut ret = true;\n        for elem in self {\n            ret &= predicate(elem);\n        }\n        ret\n    }\n\n    // Returns true if any element in the slice satisfies the predicate\n    pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {\n        let mut ret = false;\n        for elem in self {\n            ret |= predicate(elem);\n        }\n        ret\n    }\n}\n\nmod test {\n    #[test]\n    fn map_empty() {\n        assert_eq(&[].map(|x| x + 1), &[]);\n    }\n\n    #[test]\n    fn mapi_empty() {\n        assert_eq(&[].mapi(|i, x| i * x + 1), &[]);\n    }\n\n    #[test]\n    fn for_each_empty() {\n        let empty_slice: [Field] = &[];\n        empty_slice.for_each(|_x| assert(false));\n    }\n\n    #[test]\n    fn for_eachi_empty() {\n        let empty_slice: [Field] = &[];\n        empty_slice.for_eachi(|_i, _x| assert(false));\n    }\n\n    #[test]\n    fn map_example() {\n        let a = &[1, 2, 3];\n        let b = a.map(|a| a * 2);\n        assert_eq(b, &[2, 4, 6]);\n    }\n\n    #[test]\n    fn mapi_example() {\n        let a = &[1, 2, 3];\n        let b = a.mapi(|i, a| i + a * 2);\n        assert_eq(b, &[2, 5, 8]);\n    }\n\n    #[test]\n    fn for_each_example() {\n        let a = &[1, 2, 3];\n        let mut b = &[];\n        let b_ref = &mut b;\n        a.for_each(|a| { *b_ref = b_ref.push_back(a * 2); });\n        assert_eq(b, &[2, 4, 6]);\n    }\n\n    #[test]\n    fn for_eachi_example() {\n        let a = &[1, 2, 3];\n        let mut b = &[];\n        let b_ref = &mut b;\n        a.for_eachi(|i, a| { *b_ref = b_ref.push_back(i + a * 2); });\n        assert_eq(b, &[2, 5, 8]);\n    }\n\n}\n",
+      "path": "std/slice.nr"
+    },
+    "50": {
+      "source": "struct Point {\n    x: Field,\n    y: Field,\n}\n\nimpl Point {\n    fn serialize(self) -> [Field; 2] {\n        [self.x, self.y]\n    }\n}\n\nfn sum(values: [Field]) -> Field {\n    let mut sum = 0;\n    for value in values {\n        sum = sum + value;\n    }\n    sum\n}\n\nfn main(points: [Point; 3]) {\n    let mut serialized_points = &[];\n    for point in points {\n        serialized_points = serialized_points.append(point.serialize().as_slice());\n    }\n    // Do a compile-time check that needs the previous loop to be unrolled\n    if serialized_points.len() > 5 {\n        let empty_point = Point { x: 0, y: 0 };\n        serialized_points = serialized_points.append(empty_point.serialize().as_slice());\n    }\n    // Do a sum that needs both the previous loop and the previous if to have been simplified\n    assert_eq(sum(serialized_points), 21);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

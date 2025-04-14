@@ -38,7 +38,7 @@ pub struct BrilligOptions {
 
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,

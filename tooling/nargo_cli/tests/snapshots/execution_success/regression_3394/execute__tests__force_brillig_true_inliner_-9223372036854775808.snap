@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/82YzU7CQBDHt5YCbUG+FC964QlKW2y99eCLVJDEizHGowceXZrstMu4YGL/k3QSsmx3+c3HzuwudVQjjm57qoUQ5Fu3vm6vjHH3+Cl0P2ona5/pRfLzKE19i39A+xNfMx0ZfkR8ofhHA815PjR80xfSOzx+QuP7SDX5IeU/rZ+k/4sLPofa17sLviqFrQXuqwPj53UuuTKxTMeaaduAaMxjvpljfcsaOBaWy/qmT9V6PRhcPo+kWlvaG3qHU06hn0ctJMujiPS5mu+p37ab+j02/173A2Y/xbj4p537rFzvk3JfbsrdLt2Wc8av5K8aMHMIl6PZi69OcwjLj2PieyL8x9r+vgz/ifgDGf4r8Ycy/Ho/90X4SUn8QCY/6/M+lIlPRvyRDH9D/LFMfOr1vZbh1/U7EeHHW+JPZeyv13cms7458eci/KTmL2Tis6O7wI1qhM4l0n1rPMfdX+KE3+uUOj3nFNMfMFvR/40cpo/s4fGhs5pit7TYOrWM8TN8adGztOixsXpAlgdk9YGsAZA1BLKQsfc7alcAZCFzIgSykPk1ArKQudrVehwDWcjYI/MLadc1kIXcJyYdtWsKZCFrCFnbyBqaAVldPR/nQBbdx23vZyopdBu1FLK1Z7HVdiet9hy6z318vr1/KSYmyDEMpj5/GUrzV2yee4bH2c6Z5yvL76rN9wcVXp6IYhkAAA==",
+  "debug_symbols": "tdjBasJAEIDhd9lzDpnN7s6sr1KKRI0SCFGiFork3ZsUS0W9/IdcxA37DwnfbW5u12yuh3Xb749nt/q4ue64rS/tsZ9Ot7Fwm6HtuvawfnzsyvlHqt/751Pdz8fzpR4ublVZ4Zp+51axmup92zXT33IsXi5alvvN7P+vej9+Fk7CcqPjcqPTcqN1udG23Oi82GhfLjdaFhtdvX1r1XAvVPNzIbjwuKhwEXARcZFwobgwXGRaBGwesHnA5gGbB2wesHnA5gGbB2wesHnE5hGbR2wesXnE5hGbR2wesXnE5hGbJ2yesHnC5gmbJ2yesHnC5gmbJ2yesLlic8Xmis0Vmys2V2yu2FyxuWJzxeaGzQ2bGzY3bG7Y3LC5YXPD5obNDZtnbJ6xecbmGZtnbJ6xecbmGZtnbJ6xuZQlT4QnnicVTwJPIk8ST5QnxhOuL1xfuL5wfeH6wvWF6wvXF64vXF+4/vv1kgb9S6x8SYQnniXjdPqqh7bedM19Pbu/9tuHbe3l+9Q8LW5Pw3Hb7K5DM69wH7a38xf6qvA2jZ1G/wA=",
+  "file_map": {
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::wrapping_mul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test(should_fail)]\n    fn test_wrapping_mul() {\n        // This currently fails.\n        // See: https://github.com/noir-lang/noir/issues/7528\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, wrapping_mul(zero, one));\n\n        // 0*1==0\n        assert_eq(zero, wrapping_mul(one, zero));\n\n        // 1*1==1\n        assert_eq(one, wrapping_mul(one, one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, wrapping_mul(zero, two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, wrapping_mul(two_pow_64, zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, wrapping_mul(u128_max, u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "fn main() {\n    let x: i8 = -128;\n    std::println(x);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

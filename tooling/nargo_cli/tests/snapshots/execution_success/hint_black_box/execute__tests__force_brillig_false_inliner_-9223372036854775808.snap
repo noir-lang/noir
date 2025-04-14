@@ -1,0 +1,63 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1azW7TQBCexD/5bRJRVQhx4YLEDW9sx47EARD948iBC0jIce07b+C34V14Dh6EbNlpxpO1S5XdtpY6UrRrz7fz83n2J0568E9m289L1e9tP45qpbyCuvRV+161wWGypLbCYBVFRbIsRCiyYLnepHEQxZtVKlIRp/HVMg3DIo3SZL1ZJ8FaRGEhyngdlspY31xcAeWhr+HBMcuDMGmrb5BTxxKnTsc4dQxy6lri1O0Yp65BTj1LnHpw+xp4aOw9g5ya5IHm3Hu0OYfLtmcTHCZG9ycf7NSoD92a975BTgeWOB10jNOBQU6HljgdgvXzpFFOhwY4LUopeWkxZ6Nr1BjsPPsxdGs+jQ1yOrHE6aRjnE4Mcjq1xOkUurVGTcHcGuWyfHViKO4Yz9ZUeo+X5+ApxqcYg8PEaIwYm5QZMDEd+AzMLTL4okJKXxMzlTHpI/bkz4cXP3//OqU4t0Xnt+iGLbppi27Wolu06I5bdCctuucNOuSsUO1ItX2iN/gCT4yYX5P20yDajKAuhuMPR8SmBfsrtO/asX/9ZVfKp6puH5hfh+F0YxBzSjCnDZgzgjlrwJwTzHkD5oJgLhowlwRzyTBHqk/XCswLubdR+9vajC0/2xv7vh37IfJGD12OJif0fwT1+kK9rgWo1yEwX2OwOu9EW240fqyNBcNzDppseXe09ZDPlHJNn+k1ptrp+kznEp3HdF61n6PcQ18TnG4OIi4gfcFsf652Y7CGLM/pzPJ+II5b+MAcBxXcCOoccg85R56GFM90I6Jzq7qfsbp2iR9qC+PwGP6tup6r1idjcPxC499n/mtxa+5RjrgtR3MP8bK236j+RH1kfX1V97Am3d3QO61j1BfWC53rJvf3BeyvRehrDvtrCY9rYCkunJN4XsYa4j59whfF0z6onOi9d6qV19/JGGoToP6DBxBfUhawP9d8xg/lDsDsuZjna3Id4XsxrQuZ00fGmUd41u0HPaKn+HNiE79kzNkYWp8TjY1L1UoufkCd/5Edfm72QaxFgPqfN0Djn15TPJ9DlANPY2uuGefe0Y/H8Pi912/Aoz2P4b+oVnK/UX3dmsJ5uO38gHX9v3WI9t1qhzP1vJN09/ID9z8P6uc8YP49hv+mrsckD2wP+XNGmWSiDLMyi7OrqyjPnjH7UrAeJxb8Z0mY5ssoTzZxmIWre/efx6tNHsVZUAh5ubxv/1vXSZ4lQqwjUUQivs3/Xxyexq4BJwAA",
+  "debug_symbols": "tZbbisIwEED/Jc99yEzu/sqySNUqhdJKrQuL+O+bLsZd00BxYF4ksTlnepmZ5CYOze562rb9cbiIzcdNdMO+ntqhj7ObgN+/Lue6n2eXqR4nsQHESjT9IY6Uulfi2HaN2Bh5rxZLEdA91iIo/X/xZyWQ1a5Y7ZrVbljtltXuWO2e1R7W7DYDQJYIhJBiLEJAsaZ0sA/CIKw8AZq0FtG6XI+8esWr17x6w6u3vHq3pl/kWrFajE8VYHGtWpTDZya7kOsDqx4lrx549cirV7x6vabPOyEWaysYeBAhmJwo70MSVGq3El5rIE52Y9t17Wn7ckyR848pt2Lt0h3EIeb7LBAYJDCKwOgy8/wGcZh/NmMIjCUwjsB4AhPeZ6wkMEBgCO/Nlp/HoEmMQZ+fpwj35pDAKAJDyFFHyFFHeNeunKNGPrdYIxeMX2VA5Ux4n/GSwACBQQKj3mXucfZVj22965q5H88Xr/0+tec4nb7P6Upq4Odx2DeH69jMrfyvi8/Blau0S4drb6sA6dwcfAVSxoAx6A8=",
+  "file_map": {
+    "50": {
+      "source": "use std::hint::black_box;\n\nfn main(a: u32, b: u32) {\n    // This version unrolls into a number of additions\n    assert_eq(loop_(5, a), b);\n    // This version simplifies into a single `constraint 50 == b`\n    assert_eq(loop_(5, 10), b);\n    // This version should not simplify down to a single constraint,\n    // it should treat 10 as opaque:\n    assert_eq(loop_(5, black_box(10)), b);\n\n    // Check array handling.\n    let arr = [a, a, a, a, a];\n\n    assert_eq(array_sum(arr), b);\n    assert_eq(array_sum(black_box(arr)), b);\n\n    assert_eq(slice_sum(arr.as_slice()), b);\n    assert_eq(slice_sum(black_box(arr).as_slice()), b);\n\n    // This doesn't work because by calling `black_box` on a slice the compiler\n    // loses track of the length, and then cannot unroll the loop for ACIR.\n    //assert_eq(slice_sum(black_box(arr.as_slice())), b);\n\n    // But we can pass a blackboxed slice to Brillig.\n    // Safety: testing context\n    let s = unsafe { brillig_slice_sum(black_box(arr.as_slice())) };\n    assert_eq(s, b);\n\n    let mut d = b;\n    // This gets completely eliminated:\n    let mut c = 0;\n    set_ref(&mut c, &mut d);\n    assert_eq(c, b);\n\n    // This way the constraint is preserved:\n    let mut c = 0;\n    set_ref(&mut c, &mut black_box(d));\n    assert_eq(c, b);\n\n    // A reference over the output of black box is not the original variable:\n    let mut c = 0;\n    set_ref(&mut black_box(c), &mut d);\n    assert_eq(c, 0);\n\n    // This would cause a causes a crash during SSA passes unless it's a Brillig runtime:\n    //  > Could not resolve some references to the array. All references must be resolved at compile time\n    // The SSA cannot have Allocate by the time we start generating ACIR, but `black_box` prevents them\n    // from being optimised away during SSA passes.\n    // If we use `--force-brillig` then the it doesn't crash but the assertion fails because `mem2reg`\n    // eliminates the storing to the reference.\n    //let mut c = 0;\n    //set_ref(black_box(&mut c), black_box(&mut d));\n    //assert_eq(c, b);\n}\n\nfn loop_(n: u32, k: u32) -> u32 {\n    let mut sum = 0;\n    for _ in 0..n {\n        sum = sum + k;\n    }\n    sum\n}\n\nfn array_sum<let N: u32>(xs: [u32; N]) -> u32 {\n    let mut sum = 0;\n    for i in 0..N {\n        sum = sum + xs[i];\n    }\n    sum\n}\n\nfn slice_sum(xs: [u32]) -> u32 {\n    let mut sum = 0;\n    for x in xs {\n        sum = sum + x;\n    }\n    sum\n}\n\nunconstrained fn brillig_slice_sum(xs: [u32]) -> u32 {\n    let mut sum = 0;\n    for x in xs {\n        sum = sum + x;\n    }\n    sum\n}\n\nfn set_ref(c: &mut u32, b: &mut u32) {\n    *c = *b;\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "brillig_slice_sum"
+  ]
+}

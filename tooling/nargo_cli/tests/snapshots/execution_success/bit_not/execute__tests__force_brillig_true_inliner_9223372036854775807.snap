@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "four_as_u32",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUwQ7CIAwFxSguetDoRT+iy7Zsxx38EXThO/bpZrGV2jAPCu/SkpbX15agVYBGa8RZRXJ6tPAfyoRcEBX6DZRzRWvRLlh8mbBZK+qm5O+gbmykv4T6K4ucOedDnBn4YY08tzHwy14Us5Qn70zxHfr8nVHOBuPk79G34k6O/WfcDxwj+qlWgb2e8byIaNFsvrlm4V+4a/W5U4P+nKaVyD+JnZnEOgkHxqtErUKFP8mM6eu3HcB7J2OYA82Aw7A4z7/geTvTR/+jTt+60lfOu8YNQ/1wck4T+Nt7AsJZi6PJBgAA",
+  "debug_symbols": "lZDBCsMgDIbfJWcPVdba9lXGKLZNiyBarA6G+O7T0YOUXbyE/CFfAl+AFWe/T1Jv5oTxGUCZRThpdEohEpitVEruUzmGJhfa/vbPQ+gcTyesg5F2nADqNXW8T/wmFcLYNvFFgHZ/ieFxEYzRO8Grib6aGGoJ1tQRMaW3sFLMCi+tm9dLYdl9DrwJP6xZcPUWs/rCev7NGGE8nU2nvw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(four_as_u32: u32) {\n    let four_as_u8: u8 = 4;\n    let not_four_as_u8: u8 = !four_as_u8;\n    assert_eq(not_four_as_u8, 251);\n\n    let not_four_as_u32: u32 = !four_as_u32;\n    assert_eq(not_four_as_u32, 4294967291);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

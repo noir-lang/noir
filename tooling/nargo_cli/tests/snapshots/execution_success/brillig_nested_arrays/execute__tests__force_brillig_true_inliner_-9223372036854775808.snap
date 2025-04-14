@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+VazW7TQBAee+00dqgagXiPOL89ViLl98QDcHBTeuUCNw458xCceCUkngAeAYkTWrrTjL+MHRvvKqiMVDn2rL/52ZnZ9WwjuqXI/VlK3DWmfeIxF+466UeFR6xJSD2jQHpWnBxRPTHvl7tm8L7lG48GZyDXJ/75ZL7JFPs86j/LBGYA/CnjJ2HwJycO5+W2ik8g95SqySvfYZ6MsVeON3R8/v3Y/c4AL8S8S518++2Ron8sbLP0ZLvzhye5d/my9o89ZexL/9gzxn7qH3vO2M/8Yy8Y+7l/7CVjv/CPXY7oNt/eOTzOUbMTdRe7gWvMPAJ5RNUaQyA/p6A1tYhAHuuD/onBd6mi6xh4ljjvI4VnlGdxA9baIxbn9Snt24+xIG31uV62jQWWn1PQ2Cya/JoofmXfDRRdx8CzhLEwUOQMFDka1npb1UHqjPMn9TvG/LH8nILGU9HkVy0v2Hcniq5j4Fni9SpSeEZ5Fjdg8fqEMcT4ljJFP4/+WrWdP5afU9B4Kpr8quUF+26o6DoGniWueZHCM8qzuAYLa1BfLOMJyxLvTXzolXrSS9oYeH+xwpyWpMXLAHgZ2Cx5ueDJbwkkA/fSXiv7g8DFcairjI1hDWYKYy3xPjKFsa/dNfDaPnkocAlkBY6BhbYmEugj6dB8fXG/u84Xx9ZZjb3SF6HmAdfEhPbXRKlbTPs1XtbeFJ69EX76Kt6RmETN+6gx7fsuAf8EipWltv4yafsDA7wh2Cx5spb0qRffBC6OYwrce+rsJ/TFsIcvjPDFD4GL45hGtPN9sq3iXLjnkx60Or/Nqz/6OvyU9nWX8lMY/97dyzWFr0kPPW9WZXEzK2/KRXl9Pd+UWIctxcJPsi+AOYpzZWgXZ4F6aVOOHfZXekAv7RuH/OlTpKDPR3e1fvsJOoT8Tpb5Fdf4BPdrst9tqJqXjCPH58p4WcNYPq9nMqdz8EUWxhdFk66y/uA+bkTdfPFAGT9S7D1TZD+A93LwhfwdwfO05r1Y8OX4T+4q47HJZu379G9tNorNTbEq7cFY/dfmM2uw7ZCuKPuko66jA/ioq3x/1EJ21iD7kG0JyI4UvUiRjfESAS+qeRfrTF2uaHUQc+Wzu2q5ovX85BkW+qmpx6T5SfsuIEUO+hT3m5HyXl1/H31qKfD63bq/z/LzGpsv/Ohzt17EoE9dDmrfcXXfKZawp2sUOdo5goa19oh1ua3ao535B/5maN0f5mc5BY3NosmvWq7j2Yh8dww8SxgLXb9/JW+9repwhLO61vN3X87qsL/f53wN+/tHOF9r3d+/L+drXPOa1ug252tYg/piRZ6wLGF/v49expNe0kZtn8Jza/cpvvsd5Wp2vpnON6urxaycLTv1OwLnX5CemdZbxJyWZOBe2tv1LELWBdzb83g8b7CEZxE89ru7hv7/LO0s4lBM/C9nE8e0V6vv+L0Tqqfctb8eonZtFsurzXxRTt4W9nZ6qHb9BnWebe05LQAA",
+  "debug_symbols": "ndrRattAEAXQf9GzH3Zmdmd38iulFCdxgsHYwXEKJeTfK4dKDdqJzJ2XYAUfhH2vVvZ434fH3f3b86/98en0Otz9eB8Op4ftZX86jkfvH5vh/rw/HPbPv77+e0jXP8yfz3992R6vh6+X7fky3JnUzbA7Pl4ftdE/7Q+74a6kj5+bgQUWGRYFFgqLCosGC0OFJFgQLODMxc+8ySRaXooMiwILhUWFRYOFoSInWBAs3Mwp5Sn08eEy9SwBkwOmBIwGTA2YFjCGm5ICxm0BUbLJEC17UDhgJGBywJSA0YCpAdMCxnCjKWACPdBADzTQAw30QAM90EAPNNAD/WY9aPN1SsxLY7ipKWAoYDhgJGBywJSA0YCpN02mpWkBY7hpKWC+WQ+0zKYt7yWNA0YCJgdMCRgNmBowLWAMN5YCJtADC/TAAj2wQA/smx5YmwzL8to2DZgaMC1gDDeUUgRRBHEE+V3gzDNqqUM5gkoEaQTVCGoRZAFE7pmYpiuJSTtiMOGEE8IJ40Rw4vaN5899TLUjBSeKk4qThhODiT+WWieEE8aJ4MRPn/NEuHSk4ERxUnFyK33uyi8Gk5xw4qfPM5EuF39EtU4EJxknBSeKk4qThhODiT+a+kJyl34hnDBObl37Drm18qt0xE+/zcS6O7I/lFonFSd++qozoY4YTPyB1Dq5tfI7xH2TxaalT6xb+vyJzzqpOGk4MZj40551QjhhnAhOMk7w9P05T5aplrlfx/wxzzppODGY+DOedUI4YZwITjJO3PSzzcR6ojipOGk4MZj4k511QjhhnAhO3PSLTF9fS5++P9RZJ4qTipOGE0MJ++OcdUI4YZwITjJOCk4UJxUnDSd4+oSnT+5rUZnulaqpIw0nBhN/QLROCCeME8FJxknBid4g1TpScdJwYjDxRzd13pHSknZEcJJxUnCiOKk4cXOpShMh6YjBxB/drBPCCeNEcJJxUjDyMR793p732/vD7t/eyae348OXrZSXPy+7xa7Kl/PpYff4dt5d91f+31r5ubgT0Wb8Vev66eD6tjLJZhxNj+cZz/UX",
+  "file_map": {
+    "50": {
+      "source": "struct Header {\n    params: [Field; 3],\n}\n\nstruct MyNote {\n    plain: Field,\n    array: [Field; 2],\n    header: Header,\n}\n\nunconstrained fn access_nested(notes: [MyNote; 2], x: Field, y: Field) -> Field {\n    notes[x].array[y] + notes[y].array[x] + notes[x].plain + notes[y].header.params[x]\n}\n\nunconstrained fn create_inside_brillig() -> [MyNote; 2] {\n    let header = Header { params: [1, 2, 3] };\n    let note0 = MyNote { array: [1, 2], plain: 3, header };\n    let note1 = MyNote { array: [4, 5], plain: 6, header };\n    [note0, note1]\n}\n\nunconstrained fn assert_inside_brillig(notes: [MyNote; 2], x: Field, y: Field) {\n    assert(access_nested(notes, x, y) == (2 + 4 + 3 + 1));\n}\n\nunconstrained fn create_and_assert_inside_brillig(x: Field, y: Field) {\n    assert_inside_brillig(create_inside_brillig(), x, y);\n}\n\nfn main(x: Field, y: Field) {\n    // Safety: testing context\n    unsafe {\n        let header = Header { params: [1, 2, 3] };\n        let note0 = MyNote { array: [1, 2], plain: 3, header };\n        let note1 = MyNote { array: [4, 5], plain: 6, header };\n\n        assert(access_nested([note0, note1], x, y) == (2 + 4 + 3 + 1));\n\n        let notes = create_inside_brillig();\n        assert_inside_brillig(notes, x, y);\n        create_and_assert_inside_brillig(x, y);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,106 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "eph_pk_bytes",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "incoming_header_ciphertext",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "incoming_body_ciphertext",
+        "type": {
+          "kind": "array",
+          "length": 9,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "flag",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 15,
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "8193989641828211937": {
+        "error_kind": "string",
+        "string": "ciphertext length mismatch"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91aO48jRRDuscdve23ueD/+g8fPdXYSe3u399y9O2Lk9dohARIJ0eQk/AACEgKEBCJCROREROQkIJ1EgEjIuKndrvPncvV4vTd91lxLrR5Pf1P1dXVVV/eMA3NRPkhqYK9D0dL9olktjL1h2+6LlShDWV1fHIMccCxkyJG4FYzfeS/mwKZhxjatebZpKQc2LeeAYyUHHKs54FjLAcd6Djg2csCxmQOOLQ8cffDcM9nmHebYttfUdpL6WlKvJfV6Ul9P6htJfTOpbyX17aS+k9R3k/peUt83F3vF5wJw8LRZoIROCZOSEC3ytIjSIkWLAAUZOTE5CU3CHjyfGSmznIiaveCEW4D+DDceUU3ozVL+fnc00DYMGfLv16zMkh/5C5Zf9iO/W7FyDuOlfBwL6y0KnHwGDzq3AHPLgbkNmNsOzBFgjhyYO4C548DcBcxdB+YeYO45MPcBc9+BeQCYBw7MQ8A8dGCOAXPswJwA5sSBeQSYRw7MY8A8dmCeAOYJYKjUAG9M1jE8GHmOgX7LrPq9NraKH92DQOgzZmlz7GP9deN1vYkCoY/5SPtwPmgxJl7yCURfGK+Pg/tK0MfzSznvEHDSt5gHz42P3JT43cSz3/V26Hf9V9HvZF8Yr49jW79D35J+V/Rgi8TvTj373WSHfjd9Ff2uKPrCeH0c2/od2qQk+vjlMhXOxSTjBOR9BM+jH+P4AmV8fn17OKyJMWS9X952XZBzh/MTgj0PhX385JylfXzYn+xz3cGfr6lUYvO8FIU90UZssyriRV8N+sJ4VU/d/g5BD8piHiWBP7a/+dxbhmf4+Y6ivyz0r/BW7qGNpKyico/xFNdH9prO7HwG/TBeysv6DErlwI/8Hsu/6Uf++cs5irE/2KZmfc0PstPX5XWU11/Wgbr95L+oe9X852kvkJr/0D4yP1T98FkEQj7yqSr24bmsKX0sq25/l0AW4qswRsTjNT+P9+a27Sgype/WlPHgPVw7PhZj0/Zpl/EjlNtReJWFnnIGejzvH7sdsx4PrIvnh/P2J7Yl7A+Cny//ZfnyvWZG8iO5B8Tx0zg/hfsu38f9I+ck6du/gszP7HVb0V126DMb9DG+AXqKinzkj/jPbUvz+FcKPxmHTYUf7o05x7WFPnxWykLb4tpRFdwZHwP3p/Za27fyONiXQujLMicRj7+Bh7QT7okD4GrMctyIx30T1T0F3wIM26wj8NL+0pekzancFFw1/8I5YnnSv76wLfpX2vjRhw7ii1bzoZaQVQD9mv9LH2L8l8AvzYd4XnbhQ2iTy/gQ4rf1IbZZmg9pOVDq0c7J6F8H8Sqe9br8C+cX8V/ZVvMvzce1NUquuWUFr/k4479WOGj5NRT85NlR5lOJ1/il+TjjvwF+RZtIPb8/mEjOodnOpt8C57LlrL3Dxpz9nbCXtiYEKboZ/yPI/B6uee/TVmRxLDSgv6L0t826b8vcz3FmjB4LgbhuAkcN3xDjZPxPtkW/lbb4GTBPhV5tj1KEewUHz03japt1P2k6dOPcYn5wxcIvyni09Z7nbhfr/cpZKV4dd5oNqUibp+0xtDUdc0HamUfO26b3orzWajGMZzaOYS1OZAzhfMsY0uyEeLm2toCDhsc9KuJ/s+1l9zdok6vmZm38ew7dGB8471XHeH6H8aTFB8/LLuID7SrjI82GVKTN2woebck26wi8FjsYH3J/uuk8J+NDO7vhudSn3cf7yz9r8ZyzH8kSQj/i/7S/MX4NjO3GFXkuxtNo0Z8upsPp2dlgNr0m5FPhOW540D8YTsez6TiKJoNoPoiGL1v/bDg6nSUkuvOIfvY26dfe7WMcU+HvA/j9APG4j0L8P4xN6r/2Wn7/QX2EKwRuXOBoz2Uo98J49Z72XQG/tzCeddfjdY7c14A+XGOoNO1vtBfKYh4lgf/f/uY5wW8k/HxH0V8V+ld4K/fk95aGgm8oeJqf/1iebXHsWb8vP9cp5OM9yY19x0dc9fb3R5PeaXcwPpstzgb9lx3X4+h0NB/1pqOkTGbzaJP+Z7Wg6C01NQAA",
+  "debug_symbols": "tdrNjtpADAfwd8k5B49nPLZ5lapasbthhYQA8VGpQrx7E9SEbS21h53/BWnA4pdhYk9CfOveh9frx8t2vzmcu9W3W7c7vK0v28N+HN3uffd62u5224+Xz293NL1YfcSfj+v9NDxf1qdLt0pO3nfD/r1bMZU8fsNmuxu6ldC9D8HMxnMw2x/B3/vOFA0YGnAw4IQGEhpgNJDRQEEDggbQmezoTHZ0Jjs6kxMRXEhwgeFChgsN0jknmoNzSkEQuFDhgqKF1GAdLOkcbGxBaDAHJ5uDPZUgWFuBPQiOFpjgQoILX69LmWSuGplqqBr89bo0psM8h5yyBqHABYELFS4oXLAG55I+BZIgOFrIBBcSXGC4kOFCgQsNcpq8PIWwx+UKFxQuGFxwdF0qBBcSXGC4AN+nCzyni8CFChcULsD36QLfpwW+Twt8n5YWOS26CBru4yTDhQIXBC40yGlegjPnuNIKFwwuOFqoBBca5HThRSg53E9XhgsZLhS40CCnq6dZUA7XGrXCBYULhha0QT6o0SJYuLrXBittupxL5lFQ+BwarIMlWebA4R9d9cZCqHxGcCHBBYYLDWqryXK3axKFAhdaZNyzepvUIFS4oHDB4IKjBSe40GJ/8KfAUWC4kOFCgQsCFypcULhgcMHBArfoE/jns11u0SdgsgRblSCUxoIHQeBChQsKFxo8YzfNi2DxXHK0kAguJLjAcCHDhRY5XZ6CUhAELlS4oHDB4IKjhRZ9M/8RElxgqHAfRz/Wp+36dTf8bjffXPdvn7rPLz+Pw1+N6MfT4W14v56GqSX92Y0+/dqctWex8cinSqHUG03XM4+PWHrOj+H0q3HlnmsZj2A8il8=",
+  "file_map": {
+    "50": {
+      "source": "// The code below is inspired by [compute_encrypted_log](https://github.com/AztecProtocol/aztec-packages/blob/b42756bc10175fea9eb60544759e9dbe41ae5e76/noir-projects/aztec-nr/aztec/src/encrypted_logs/payload.nr#L111)\n// which resulted in a bytecode size blowup when compiled to ACIR, see https://github.com/noir-lang/noir/issues/6929\n// The issue was around `encrypted_bytes[offset + i]` generating large amounts of gates, as per the `flamegraph.sh` tool in aztec-packages.\n// The details around encryption and addresses have been stripped away, focusing on just copying bytes of equivalent size arrays.\n\n// Original values which resulted in huge bytecode even on this example (500K long SSA)\n// global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 18;\n// global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 31;\n// global EPH_PK_SIZE: u32 = 32;\n// global HEADER_SIZE: u32 = 48;\n// global OVERHEAD_PADDING: u32 = 15;\n\n// Using the same formulas with smaller numbers; the effect is the same, but the SSA is more manageable.\nglobal PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 4;\nglobal ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = (PRIVATE_LOG_SIZE_IN_FIELDS - 1) * 5;\nglobal EPH_PK_SIZE: u32 = 3;\nglobal HEADER_SIZE: u32 = 2;\nglobal OVERHEAD_PADDING: u32 = 1;\n\n// Unused because encryption didn't play a role:\n// global OVERHEAD_SIZE: u32 = EPH_PK_SIZE + HEADER_SIZE + OVERHEAD_PADDING;\n// global PLAINTEXT_LENGTH_SIZE: u32 = 2;\n// global MAX_PRIVATE_LOG_PLAINTEXT_SIZE_IN_BYTES: u32 =\n//     ENCRYPTED_PAYLOAD_SIZE_IN_BYTES - OVERHEAD_SIZE - PLAINTEXT_LENGTH_SIZE - 1 /* aes padding */;\n\nglobal BODY_SIZE: u32 =\n    ENCRYPTED_PAYLOAD_SIZE_IN_BYTES - EPH_PK_SIZE - HEADER_SIZE - OVERHEAD_PADDING;\n\nfn main(\n    eph_pk_bytes: [u8; EPH_PK_SIZE],\n    incoming_header_ciphertext: [u8; HEADER_SIZE],\n    incoming_body_ciphertext: [u8; BODY_SIZE],\n    flag: bool,\n) -> pub [u8; ENCRYPTED_PAYLOAD_SIZE_IN_BYTES] {\n    compute_encrypted_log(\n        eph_pk_bytes,\n        incoming_header_ciphertext,\n        incoming_body_ciphertext,\n        flag,\n    )\n}\n\nfn compute_encrypted_log<let M: u32>(\n    eph_pk_bytes: [u8; EPH_PK_SIZE],\n    incoming_header_ciphertext: [u8; HEADER_SIZE],\n    incoming_body_ciphertext: [u8; BODY_SIZE],\n    flag: bool,\n) -> [u8; M] {\n    let mut encrypted_bytes = [0; M];\n    let mut offset = 0;\n\n    // NOTE: Adding a conditional variable can result in the array being fully copied, item by item,\n    // in each iteration in the second loop that copies incoming_body_ciphertext into encrypted_bytes.\n    // Depending on where we place the `flag` we either get the item-by-item copying (blowup),\n    // or just a single array item gets read and a new array constructed in each iteration (no blowup).\n\n    // If the `flag` is here then it blows up.\n    if flag {\n        // eph_pk\n        for i in 0..EPH_PK_SIZE {\n            encrypted_bytes[offset + i] = eph_pk_bytes[i];\n        }\n        offset += EPH_PK_SIZE;\n\n        // If the `flag` is here then it blows up.\n        // if flag {\n\n        // incoming_header\n        for i in 0..HEADER_SIZE {\n            encrypted_bytes[offset + i] = incoming_header_ciphertext[i];\n        }\n        offset += HEADER_SIZE;\n\n        // Padding.\n        offset += OVERHEAD_PADDING;\n\n        // If the `flag` is here then it does not blow up.\n        //if flag {\n        // incoming_body\n        // Then we fill in the rest as the incoming body ciphertext\n        let size = M - offset;\n\n        // NOTE: This made the bytecode size blowup disappear in aztec packages,\n        // but in this reproduction the size seems to be statically known regardless.\n        // let size = M - 32 - HEADER_SIZE - OVERHEAD_PADDING;\n\n        assert_eq(size, incoming_body_ciphertext.len(), \"ciphertext length mismatch\");\n        for i in 0..size {\n            encrypted_bytes[offset + i] = incoming_body_ciphertext[i];\n        }\n    }\n\n    encrypted_bytes\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

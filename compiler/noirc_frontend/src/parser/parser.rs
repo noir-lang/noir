@@ -6,6 +6,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
+    node_interner::ExprId,
     token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
@@ -346,6 +347,19 @@ impl<'a> Parser<'a> {
         } else {
             None
         }
+    }
+
+    fn eat_unquote_marker(&mut self) -> Option<ExprId> {
+        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
+            match token.into_token() {
+                Token::UnquoteMarker(expr_id) => return Some(expr_id),
+                _ => {
+                    unreachable!("Expected only `UnquoteMarker` to have `TokenKind::UnquoteMarker`")
+                }
+            }
+        }
+
+        None
     }
 
     fn eat_attribute_start(&mut self) -> Option<bool> {

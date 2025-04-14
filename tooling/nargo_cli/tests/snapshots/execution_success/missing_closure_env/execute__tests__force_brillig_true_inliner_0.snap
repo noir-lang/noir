@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71Vy47CMAx027RslkW72j3tiQNc4GRegmMP/EgE6nf00wHJVsIoBQEplirHsuPxTNo0I2+ZeAMxRWpq8fyaLRL24uigt0xr5uKt+DzIFwnJWsBN2X/H642N8Es4/8pKzz710Z499OeB9Nm3vj9yudhI4vAd0j0f5+eL/Hokawt7+jjbHrXnv8j8ijUUrlPQJw/0yTo80fV5quWgWxHk6iSclu6Hus9YcU163EMMV3G+JS6DHOpYybqM1BrIae0/8BoA5zoJN+bfoC8B1qu88wd4a+0YeFdv5F3dmR/vgtj8E5jfvHF+xRqS//eZNj3+dsesuEXrdQi/eQL8EupnEn928KifnLPZukWzco3buONxfXCo08XCe/AE5NXOrTEJAAA=",
+  "debug_symbols": "tZTRioYgEIXfxesunLTMXmVZfqzsRxALq4Uleve1pSLMm1nYG2HkfIfhMJyVdLpZ3i/j+mEi9cdK7NCq2QwuTOuWkcYba837df8mdH+A/+qnUbl9nGblZ1KzKiPadaTmNNC9sZrUBd0+MwIFUl8i9QKpr1J6oMUBABR3IntIBRxKkcfW8t+sc5q0zuVpzSAmIE1UFyFiIkcTDE1wNJG8H+D8JIq/h5o8NSivUMUjVJEmrvXFY/0KTUgswSiaSB+HPKMCWcVEjiYYmuA4YgvTl/JGNVYfvdUvrr3V2Pw96qjRRj+0ulu83rvtVmt7hqzMOATbYP0D",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    let x1 = &mut 42;\n    let set_x1 = |y| { *x1 = y; };\n\n    assert(*x1 == 42);\n    set_x1(44);\n    assert(*x1 == 44);\n    set_x1(*x1);\n    assert(*x1 == 44);\n    assert(x == 42);\n}\n\n#[test]\nfn test_main() {\n    main(42);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

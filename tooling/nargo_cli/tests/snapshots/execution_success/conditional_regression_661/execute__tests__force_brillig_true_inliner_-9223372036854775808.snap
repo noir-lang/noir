@@ -1,0 +1,63 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZPW8TQRCd+3QuyEoENRIdSDQ++xwHKiRCPnoK2sNJOgpaaI6Of4BER4vEf8Sb7JDnd+OLQ24jBzGStXe3c/NmZ+fN7p4juZR08Yvg2kksbVGdV74d3U7KHm2NIvA9lL9Rj/6G8jG+Bz4m98DHNICPF5JRgroJS4zkFdJz8su3hW9j6O8xqGVBuH3a3x9VdWGMr0f/JwXYDGB/qvbTMPZHA2/nTbNsXwg3IT3rHdU5BJ3DFTpHoHO0QucYdI5X6JyAzgnpDP11JG2fNa4h8nqRd3uB560ayvJcCYxTsbMw2NOI8ESWc0YIf1uCcqSMCE/94fjoXA9Vp7nyh/vSpj0O7cugT+d3a/F7DHpWbqneM7h+7q91zkLWwVD57uSR4T9iORk08kc0Hgk807hqnLdQn/oK6EubZZxtf58CDtpSPzLSf+rvd3ybwzv6/q6BnxP+kt/GM45LYegXhn6++D3x1w/kam1+3VzZ63NO1f5BGPulG4PjwGdvb52aFqiejtetaYp/VzUtJX+6ahrXfH13V9r1UXNmaOBEK1r1gZ/FhMNz5CT0PonXgEza8cL6lJH+O986jr0knwOto3sa+1zaon0DwOa6gZLQPfrtOPYF7LIeY2K8BhSLQOvHuGsNX7WmYOzyFfqYD6h/CLH5djdjvPF8J9S3ZYxr3VyIYbzfwS7rsT8YS/VtR+y5cBKY5yPOE13jGVN9i6UdL8wxrgNvIU4/aXz4oSoxnnEdtPLWqpGq5/Lio7/+X3vatWdTYtHFS2vNVLkuTjfhJc4H89LKu03hpfp2U15+gDgxL3l/ws+Ye1bdsniJ+27lpRVj5nJyjT8HzbIt65wY8jxYnY1H7Cvul7rqOud3H/4spMzIn0+EG+rc+pDGg1h4xkqb/vFn+5e8caLn20zadQLxM9L3zcV5hMdxmw/L57O6PJ/U5/W0Pj2t5jXHSShOeI7rkwddHI8NW4ydS3dec9599S3uC4cGHvMi5LkG8UTsc6k+25agfCm75tbaC/H5Et/t2gtF1Ic4qYGza/Thd5FNtGXtsZFTfXO6mtazeT0ryxdVeVaV07/htDXuLk5b/yV0cdrawzN2Luud7VX/h283hNNrf2v61zh91/lezyb783E1n72fTurJ3rVr2G+0mT1+pSAAAA==",
+  "debug_symbols": "ldjbiuowFMbxd+m1F1nJWjn4KpvN4KEOBVHxsGEjvvu0os7QhpH/Tekq/RHIF5Kwrs26XV4+P7rdZn9q5n+uzXa/Wpy7/a6vrrdZszx22233+fHzc+OGh+r9/9NhsRvK03lxPDdzcW7WtLv18Ca933Tbtpmbu/2dNWpYRCwSFhmLQoU5LAQLj0XAop65yFNIHAvDopqHF30IH9xYFCqiw0Kw8FgELBSLah4++JdIYxGxSFhkLAoVqZ75a7X7kMdCsPBYBCwUC8MiYpGwyFgUKjLOPOPMM84848wzzjzjzDPOPNdPTi3PvT3aWBQqisNCsPBYBCwUi/rJGewlylhELBIWGYtCRX8D4UQ48ZwETpQT4yRykjjJnPD0hacvPH2pb8KWnttd9BOi74hNiHES35AUJiRxkjkpmHjHiWASqqNYiA9i6iZEOPHviE5I4EQ5MU6qa8z88zSyMJ3kxEnmpGCijhPhxHMSOFFOjBOevvL0ladfbxZoeF5BdXIFFYucpDdEJzt/vSfxOymY1LsSvxPhxHMSOFFOjJPICUz/1lf/Fsdusdy2j57o5rJb/WiRnv8f2lG39HDcr9r15dgOfdPvlukwjf36D+V+M+oL8WEmPt9P16E0mYmFfsx+3C8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: u32, mut c: [u32; 4]) {\n    // Regression for issue #661:\n    let mut c_661: [u32; 1] = [0];\n    if a > 5 {\n        c_661 = issue_661_foo(issue_661_bar(c), a);\n    } else {\n        c_661 = issue_661_foo(issue_661_bar(c), a + 2);\n    }\n    assert(c_661[0] < 20000);\n}\n\nfn test5(a: u32) {\n    if a > 1 {\n        let q = a / 2;\n        assert(q == 2);\n    }\n}\n\nfn issue_661_foo(array: [u32; 4], b: u32) -> [u32; 1] {\n    [array[0] + b]\n}\n\nfn issue_661_bar(a: [u32; 4]) -> [u32; 4] {\n    let mut b: [u32; 4] = [0; 4];\n    b[0] = a[0] + 1;\n    b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

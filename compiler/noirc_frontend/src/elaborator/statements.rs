@@ -130,7 +130,7 @@ impl Elaborator<'_> {
         }
 
         let warn_if_unused =
-            !let_stmt.attributes.iter().any(|attr| attr.is_allow_unused_variables());
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow_unused_variables());
 
         let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(

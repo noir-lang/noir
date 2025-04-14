@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "16078247100671166886": {
+        "error_kind": "fmtstring",
+        "length": 28,
+        "item_types": []
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2YWXKbQBCGZyxAQhK2LCfWCbI92AVa8ZsfchEiWecgZ0wOlCg1DU1nZBvR7aWqqVKxzPD1P81sv6ypD+vOAbk3njr37px2OzJGVuoV+tgBde7cRezuz1B5j7GxMYnLyc/T5Sr2tI9R/yJ2TMn8AFOAn/Yd53tZ82lbDkfi7nEfgncGf39jU18n7jom70h8W8Hcp1ce/RBr5Nr61Tbbeobyw6Qjw207HOEjunw5sWxalnPgByL8TcUPRfjrajxFMvwH4Pdl+NV8M5Dh58CPRfjzFPhDmf5T5Wckk5898Mcy+qs5LZHRvwX+uQx/CfwLmfxU/ImM/mr+uZThV993KsP/AfwrxDeGb00E/gcZfjU/f0R8zjU9NM219Lc7H9aDT+6a7rkY2zeHNl07nm8tp+s81P2JtH6T17roovUWab1B11/Ifgmz+MbBYpF48mJJzq5JO3hiZztL4hnT3L/TvA6N6B4/syQe6KH5gT0j5G7m0TrxlNG95swTZ+aJ42MFjKyQkRUxsvqMrAEjK2Zk2Teqa8jI4sz9iJE1ZmQljKxzRhZnn+Ac25zf8YKRxZmvCSPr8o22kTP3nOvQlJHFmXs6hmD+x+s59iTgH+iesnRn2f/2sgfY44A+gzT4/oPijG1JPMg3fobjJx49oHt4pOz+RK27/Txb5/luud6s8rtibQkftNJndA8Yeer79pq+/8sYc72F9atX1vwI5fVwBKgsJGUhKgONh3X/1jb1R0L6n5N/HH/iKcNeus23nJpmX8Pj8QW93Fy9XC3Iknig59j4Ui/39FqlXk69nHq5diz1cu1Y6uVer43q5bqNIZj/23q5X+6sXk693Cn6Sa7Vy5l37+Uy9XK1IEvigZ5j40u93NNrlXo59XLq5dqx1Mu1Y6mXe702qpfrNoZg/m/r5T67C/Vy6uVO0U9yrV7OyHu5kann3qDkz8MmT1MYF/AdQ9PsT4bED0n9GwfA+z9juo+X/abI9otiX6yK3W65LaaEj/M5Qs/7ZV3eI1r/6XfX0A8HuD4pi8v/2w9xhu4+QHEwC3SEpH7uALAORugdeH/iiR+R+A3dnmd43qCsnucZ7n8Z6n9/APmZo2hNOQAA",
+  "debug_symbols": "tdvdShtRFMXxd5nrXMzZZ38dX6WIRI0SCFGiFor47k1arTYG5X+xb8SRWSuBHwtJZuZ5ul5dPt1erLc3dw/T2Y/naXN3tXxc3233R88vi+lyt95s1rcXH/88zYcfTf+c/3C/3B4OHx6Xu8fpTDwW02p7ffgt9/mb9WY1ndn8cr6YmtFEj5OJ1NdEFzlOJE1oO5Xo/e1d9bDjhOCEn0yM+S0xPiUCJxInBk3YjBMNJwQnOk4oThhOYHPD5obNDZs7Nnds7tjcsbljc8fmjs0dmzs2d2we2DyweWDzwOaBzQObBzYPbB7YPLB5YvPE5onNE5snNk9sntg8sXli88TmA5sPbD6w+cDmA5sPbD6w+cDmA5sPbN7mmUcajwiPdB5RHjEecR4JHvkGX+W/j0eLT6fGeD0z/d+J2v92j7ruNhd2t8JuKezuhd1a2G2F3V7YHYXdhbtshbuUwl1K4S6lcJdSuEsp3KUU7lIKdymFu5TxzddwevxVX+szjzQeER7pPKI8YjziPBI8kjzC9ZXrK9dXrq9cX7m+cn3l+sr1lesr1zeub1zfuL5xfeP6xvWN6xvXN65vXN+5vnN95/rO9Z3rO9d3ru9c37m+c/3g+sH1g+sH1w+uH1w/uH5w/eD6wfWT6yfXT66fXD+5fnL95PrJ9ZPrJ9cfXH+wWwLQp5Yhhd29sFsLu62w2wu7o7A7C7tHWbfMc2F3K+yWwu5e2K2F3VbY7YXdUdidhd2Fu2yFuzx9JeX9pjvJcfQvVk5fIPk6ojxiPOI8EjySPDJw5PQVgK8jjUe4vnB94frC9YXrC9cXri9cv3P9zvU71+9cv3P9zvU71+9cv3P9zvWV6yvXV66vXF+5vnJ95frK9ZXrK9c3rm9c37i+cX3j+sb1jesb1zeub1zfub5zfef6zvWd6zvXd67vXN+5vnP94PrB9YPrB9ePb/SPHudBn1rCCru9sDsKu7Owe9R151zY3Qq7pbC7F3YX7jILd5mFu8zCXWbhLrNwl6Nwl6Nwl6Nwl6Nqly/7o5/L3Xp5uVm9Pr5787S9+vA07+Ov+9XRg733u7ur1fXTbnV4xPf96d7De+yzLHqT88P94/tDGb7oc9u/zP6lfgM=",
+  "file_map": {
+    "43": {
+      "source": "pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {\n    assert(false, message);\n    crate::mem::zeroed()\n}\n",
+      "path": "std/panic.nr"
+    },
+    "50": {
+      "source": "// This program lead to panics previously due to the compiler lowering it to multiple blocks\n// which all jumped to the same end block. It runs now due to the compiler lowering to the\n// equivalent of a nested series of if-else instead.\nfn main(x: Field) {\n    match x {\n        1 => panic(f\"Branch 1 should not be taken\"),\n        2 => panic(f\"Branch 2 should not be taken\"),\n        3 => panic(f\"Branch 3 should not be taken\"),\n        _ => (),\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

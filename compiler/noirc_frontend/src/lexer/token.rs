@@ -10,8 +10,6 @@ use crate::{
     },
 };
 
-use super::Lexer;
-
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
 /// smallest unit of grammar. A parser may (will) decide to parse
@@ -800,15 +798,18 @@ impl Attributes {
     /// This is useful for finding out if we should compile a contract method
     /// as an entry point or not.
     pub fn has_contract_library_method(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::ContractLibraryMethod)
+        self.has_secondary_attr(&SecondaryAttributeKind::ContractLibraryMethod)
     }
 
     pub fn is_test_function(&self) -> bool {
-        matches!(self.function(), Some(FunctionAttribute::Test(_)))
+        matches!(self.function().map(|attr| &attr.kind), Some(FunctionAttributeKind::Test(_)))
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
-        matches!(self.function(), Some(FunctionAttribute::FuzzingHarness(_)))
+        matches!(
+            self.function().map(|attr| &attr.kind),
+            Some(FunctionAttributeKind::FuzzingHarness(_))
+        )
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
@@ -822,15 +823,15 @@ impl Attributes {
 
     /// Returns note if a deprecated secondary attribute is found
     pub fn get_deprecated_note(&self) -> Option<Option<String>> {
-        self.secondary.iter().find_map(|attr| match attr {
-            SecondaryAttribute::Deprecated(note) => Some(note.clone()),
+        self.secondary.iter().find_map(|attr| match &attr.kind {
+            SecondaryAttributeKind::Deprecated(note) => Some(note.clone()),
             _ => None,
         })
     }
 
     pub fn get_field_attribute(&self) -> Option<String> {
         for secondary in &self.secondary {
-            if let SecondaryAttribute::Field(field) = secondary {
+            if let SecondaryAttributeKind::Field(field) = &secondary.kind {
                 return Some(field.to_lowercase());
             }
         }
@@ -838,29 +839,29 @@ impl Attributes {
     }
 
     pub fn is_foldable(&self) -> bool {
-        self.function().is_some_and(|func_attribute| func_attribute.is_foldable())
+        self.function().is_some_and(|func_attribute| func_attribute.kind.is_foldable())
     }
 
     pub fn is_no_predicates(&self) -> bool {
-        self.function().is_some_and(|func_attribute| func_attribute.is_no_predicates())
+        self.function().is_some_and(|func_attribute| func_attribute.kind.is_no_predicates())
     }
 
     pub fn has_varargs(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::Varargs)
+        self.has_secondary_attr(&SecondaryAttributeKind::Varargs)
     }
 
     pub fn has_use_callers_scope(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::UseCallersScope)
+        self.has_secondary_attr(&SecondaryAttributeKind::UseCallersScope)
     }
 
     /// True if the function is marked with an `#[export]` attribute.
     pub fn has_export(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::Export)
+        self.has_secondary_attr(&SecondaryAttributeKind::Export)
     }
 
     /// Check if secondary attributes contain a specific instance.
-    pub fn has_secondary_attr(&self, attr: &SecondaryAttribute) -> bool {
-        self.secondary.contains(attr)
+    pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
+        self.secondary.iter().any(|attr| &attr.kind == kind)
     }
 }
 
@@ -885,7 +886,15 @@ impl fmt::Display for Attribute {
 /// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum FunctionAttribute {
+pub struct FunctionAttribute {
+    pub kind: FunctionAttributeKind,
+    pub location: Location,
+}
+
+/// Primary Attributes are those which a function can only have one of.
+/// They change the FunctionKind and thus have direct impact on the IR output
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum FunctionAttributeKind {
     Foreign(String),
     Builtin(String),
     Oracle(String),
@@ -896,83 +905,85 @@ pub enum FunctionAttribute {
     FuzzingHarness(FuzzingScope),
 }
 
-impl FunctionAttribute {
+impl FunctionAttributeKind {
     pub fn builtin(&self) -> Option<&String> {
         match self {
-            FunctionAttribute::Builtin(name) => Some(name),
+            FunctionAttributeKind::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn foreign(&self) -> Option<&String> {
         match self {
-            FunctionAttribute::Foreign(name) => Some(name),
+            FunctionAttributeKind::Foreign(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn oracle(&self) -> Option<&String> {
         match self {
-            FunctionAttribute::Oracle(name) => Some(name),
+            FunctionAttributeKind::Oracle(name) => Some(name),
             _ => None,
         }
     }
 
-    pub fn is_foreign(&self) -> bool {
-        matches!(self, FunctionAttribute::Foreign(_))
-    }
-
     pub fn is_oracle(&self) -> bool {
-        matches!(self, FunctionAttribute::Oracle(_))
+        matches!(self, FunctionAttributeKind::Oracle(_))
     }
 
     pub fn is_low_level(&self) -> bool {
-        matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
+        matches!(self, FunctionAttributeKind::Foreign(_) | FunctionAttributeKind::Builtin(_))
     }
 
     pub fn is_foldable(&self) -> bool {
-        matches!(self, FunctionAttribute::Fold)
+        matches!(self, FunctionAttributeKind::Fold)
     }
 
     /// Check whether we have an `inline` attribute
     /// Although we also do not want to inline foldable functions,
     /// we keep the two attributes distinct for clarity.
     pub fn is_no_predicates(&self) -> bool {
-        matches!(self, FunctionAttribute::NoPredicates)
+        matches!(self, FunctionAttributeKind::NoPredicates)
     }
 
     /// Check whether we have an `inline_always` attribute
     /// This is used to indicate that a function should always be inlined
     /// regardless of the target runtime.
     pub fn is_inline_always(&self) -> bool {
-        matches!(self, FunctionAttribute::InlineAlways)
+        matches!(self, FunctionAttributeKind::InlineAlways)
     }
 
     pub fn name(&self) -> &'static str {
         match self {
-            FunctionAttribute::Foreign(_) => "foreign",
-            FunctionAttribute::Builtin(_) => "builtin",
-            FunctionAttribute::Oracle(_) => "oracle",
-            FunctionAttribute::Test(_) => "test",
-            FunctionAttribute::Fold => "fold",
-            FunctionAttribute::NoPredicates => "no_predicates",
-            FunctionAttribute::InlineAlways => "inline_always",
-            FunctionAttribute::FuzzingHarness(_) => "fuzz",
+            FunctionAttributeKind::Foreign(_) => "foreign",
+            FunctionAttributeKind::Builtin(_) => "builtin",
+            FunctionAttributeKind::Oracle(_) => "oracle",
+            FunctionAttributeKind::Test(_) => "test",
+            FunctionAttributeKind::Fold => "fold",
+            FunctionAttributeKind::NoPredicates => "no_predicates",
+            FunctionAttributeKind::InlineAlways => "inline_always",
+            FunctionAttributeKind::FuzzingHarness(_) => "fuzz",
         }
     }
 }
 
 impl fmt::Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl fmt::Display for FunctionAttributeKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionAttribute::Test(scope) => write!(f, "#[test{scope}]"),
-            FunctionAttribute::Foreign(k) => write!(f, "#[foreign({k})]"),
-            FunctionAttribute::Builtin(k) => write!(f, "#[builtin({k})]"),
-            FunctionAttribute::Oracle(k) => write!(f, "#[oracle({k})]"),
-            FunctionAttribute::Fold => write!(f, "#[fold]"),
-            FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
-            FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),
-            FunctionAttribute::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
+            FunctionAttributeKind::Test(scope) => write!(f, "#[test{scope}]"),
+            FunctionAttributeKind::Foreign(k) => write!(f, "#[foreign({k})]"),
+            FunctionAttributeKind::Builtin(k) => write!(f, "#[builtin({k})]"),
+            FunctionAttributeKind::Oracle(k) => write!(f, "#[oracle({k})]"),
+            FunctionAttributeKind::Fold => write!(f, "#[fold]"),
+            FunctionAttributeKind::NoPredicates => write!(f, "#[no_predicates]"),
+            FunctionAttributeKind::InlineAlways => write!(f, "#[inline_always]"),
+            FunctionAttributeKind::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
         }
     }
 }
@@ -981,7 +992,13 @@ impl fmt::Display for FunctionAttribute {
 /// They are not able to change the `FunctionKind` and thus do not have direct impact on the IR output
 /// They are often consumed by libraries or used as notices for the developer
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum SecondaryAttribute {
+pub struct SecondaryAttribute {
+    pub kind: SecondaryAttributeKind,
+    pub location: Location,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum SecondaryAttributeKind {
     Deprecated(Option<String>),
     // This is an attribute to specify that a function
     // is a helper method for a contract and should not be seen as
@@ -991,7 +1008,7 @@ pub enum SecondaryAttribute {
     Field(String),
 
     /// A custom tag attribute: `#['foo]`
-    Tag(CustomAttribute),
+    Tag(String),
 
     /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
@@ -1010,55 +1027,44 @@ pub enum SecondaryAttribute {
     Allow(String),
 }
 
-impl SecondaryAttribute {
-    pub(crate) fn name(&self) -> Option<String> {
-        match self {
-            SecondaryAttribute::Deprecated(_) => Some("deprecated".to_string()),
-            SecondaryAttribute::ContractLibraryMethod => {
-                Some("contract_library_method".to_string())
-            }
-            SecondaryAttribute::Export => Some("export".to_string()),
-            SecondaryAttribute::Field(_) => Some("field".to_string()),
-            SecondaryAttribute::Tag(custom) => custom.name(),
-            SecondaryAttribute::Meta(meta) => Some(meta.name.last_name().to_string()),
-            SecondaryAttribute::Abi(_) => Some("abi".to_string()),
-            SecondaryAttribute::Varargs => Some("varargs".to_string()),
-            SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
-            SecondaryAttribute::Allow(_) => Some("allow".to_string()),
-        }
-    }
-
+impl SecondaryAttributeKind {
     pub(crate) fn is_allow_unused_variables(&self) -> bool {
         match self {
-            SecondaryAttribute::Allow(string) => string == "unused_variables",
+            SecondaryAttributeKind::Allow(string) => string == "unused_variables",
             _ => false,
         }
     }
 
     pub(crate) fn is_abi(&self) -> bool {
-        matches!(self, SecondaryAttribute::Abi(_))
+        matches!(self, SecondaryAttributeKind::Abi(_))
     }
 
     pub(crate) fn contents(&self) -> String {
         match self {
-            SecondaryAttribute::Deprecated(None) => "deprecated".to_string(),
-            SecondaryAttribute::Deprecated(Some(note)) => {
+            SecondaryAttributeKind::Deprecated(None) => "deprecated".to_string(),
+            SecondaryAttributeKind::Deprecated(Some(note)) => {
                 format!("deprecated({note:?})")
             }
-            SecondaryAttribute::Tag(attribute) => format!("'{}", attribute.contents),
-            SecondaryAttribute::Meta(meta) => meta.to_string(),
-            SecondaryAttribute::ContractLibraryMethod => "contract_library_method".to_string(),
-            SecondaryAttribute::Export => "export".to_string(),
-            SecondaryAttribute::Field(k) => format!("field({k})"),
-            SecondaryAttribute::Abi(k) => format!("abi({k})"),
-            SecondaryAttribute::Varargs => "varargs".to_string(),
-            SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
-            SecondaryAttribute::Allow(k) => format!("allow({k})"),
+            SecondaryAttributeKind::Tag(contents) => format!("'{}", contents),
+            SecondaryAttributeKind::Meta(meta) => meta.to_string(),
+            SecondaryAttributeKind::ContractLibraryMethod => "contract_library_method".to_string(),
+            SecondaryAttributeKind::Export => "export".to_string(),
+            SecondaryAttributeKind::Field(k) => format!("field({k})"),
+            SecondaryAttributeKind::Abi(k) => format!("abi({k})"),
+            SecondaryAttributeKind::Varargs => "varargs".to_string(),
+            SecondaryAttributeKind::UseCallersScope => "use_callers_scope".to_string(),
+            SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
         }
     }
 }
 
 impl fmt::Display for SecondaryAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl fmt::Display for SecondaryAttributeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "#[{}]", self.contents())
     }
@@ -1066,9 +1072,8 @@ impl fmt::Display for SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MetaAttribute {
-    pub name: Path,
+    pub name: MetaAttributeName,
     pub arguments: Vec<Expression>,
-    pub location: Location,
 }
 
 impl Display for MetaAttribute {
@@ -1083,20 +1088,20 @@ impl Display for MetaAttribute {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub struct CustomAttribute {
-    pub contents: String,
-    // The span of the entire attribute, including leading `#[` and trailing `]`
-    pub span: Span,
-    // The span for the attribute contents (what's inside `#[...]`)
-    pub contents_span: Span,
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum MetaAttributeName {
+    /// For example `foo::bar` in `#[foo::bar(...)]`
+    Path(Path),
+    /// For example `$expr` in `#[$expr(...)]` inside a `quote { ... }` expression.
+    Resolved(ExprId),
 }
 
-impl CustomAttribute {
-    fn name(&self) -> Option<String> {
-        let mut lexer = Lexer::new_with_dummy_file(&self.contents);
-        let token = lexer.next()?.ok()?;
-        if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
+impl Display for MetaAttributeName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetaAttributeName::Path(path) => path.fmt(f),
+            MetaAttributeName::Resolved(_) => write!(f, "(quoted)"),
+        }
     }
 }
 

@@ -1,0 +1,97 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "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",
+  "file_map": {
+    "50": {
+      "source": "fn sort(mut a: [u32; 4]) -> [u32; 4] {\n    for i in 1..4 {\n        for j in 0..i {\n            if a[i] < a[j] {\n                let c = a[j];\n                a[j] = a[i];\n                a[i] = c;\n            }\n        }\n    }\n    a\n}\n\nfn must_be_zero(x: u8) {\n    assert(x == 0);\n}\n\nfn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {\n    //Test case for short-circuit\n    let mut data = [0 as u32; 32];\n    let mut ba = a;\n    for i in 0..32 {\n        let i_u32 = i as u32;\n        if i_u32 == a {\n            for j in 0..4 {\n                data[i + j] = c[4 - 1 - j];\n                for k in 0..4 {\n                    ba = ba + data[k];\n                }\n                if ba == 4864 {\n                    c[3] = ba;\n                }\n            }\n        }\n    }\n    assert(data[31] == 0);\n    assert(ba != 13);\n    //Test case for conditional with arrays from function parameters\n    let b = sort([1, 2, 3, 4]);\n    assert(b[0] == 1);\n\n    if a == 0 {\n        must_be_zero(0);\n        c[0] = 3;\n    } else {\n        must_be_zero(1);\n        c[0] = 1;\n        c[1] = c[2] / a + 11 % a;\n        let f1 = a as Field;\n        assert(10 / f1 != 0);\n    }\n    assert(c[0] == 3);\n\n    let mut y = 0;\n    if a == 0 {\n        let digest = std::hash::blake3(x);\n        y = digest[0];\n    } else {\n        y = 5;\n    }\n    assert(y == result[0]);\n    c = sort(c);\n    assert(c[0] == 0);\n    //test 1\n    let mut x: u32 = 0;\n    if a == 0 {\n        c[0] = 12;\n        if a != 0 {\n            x = 6;\n        } else {\n            x = 2;\n            assert(x == 2);\n        }\n    } else {\n        x = 5;\n        assert(x == 5);\n    }\n    if c[0] == 0 {\n        x = 3;\n    }\n    assert(x == 2);\n    //test2: loops\n    let mut x: u32 = 0;\n    x = a - a;\n    for i in 0..4 {\n        if c[i] == 0 {\n            x = i as u32 + 2;\n        }\n    }\n    assert(x == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

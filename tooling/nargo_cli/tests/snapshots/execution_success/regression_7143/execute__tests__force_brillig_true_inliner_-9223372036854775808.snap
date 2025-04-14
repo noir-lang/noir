@@ -1,0 +1,62 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "array",
+        "type": {
+          "kind": "array",
+          "length": 1,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VWS07DMBCdNHbbtKqKYInEDlgSt01TseqCco+QknP46CTCr5lMLJDAVi1Z/szzvPnZckLfbdL2xM0V25MNmKMb8/81E1BXnjD7YtmbBLaXZKwnHuP53Cd/dWMmMJ08Deh8JnhD6j/kuzKjcfIC2r/NmM4I+jfQr+Loz2dOz5sd6ifBmwqc7wwwJ4Y5MUzXVm7O6xB64GuMWmtroYgcS7OiYfy43+DWcbg3ieAjGuaRBP+CotatSQQf7JHxQa5XwNjeHilTduwHZJrJkN952+8ZzldbwD2x+bPQ/W77MzKfkWp1H/ldMXc/xAM+zixdGmQp20PMEac5xwtZxmTKDnkWbq0YD9cFO7TAP7r12o1Tdgbnbzz8U8E/sNuzx2MkdaWePeCnbX9w86XrXX0ZnKHr3UFf3tc0fh+1sDXSP+Dy0YItitnK3y/wa4F/cWMX35L6PMjz8K1rS+r/N8qG96s89B8y3AdNw/ePBL8W+L1bL5gP3JfjH+1syso026qpiup83tXVrdCP+CFOofnrYv9R74oq/zTdcvMb/xdZ/DtEVQwAAA==",
+  "debug_symbols": "lZBLCsMgEEDvMmsX+WikuUoowSSTIIgGYwolePeOpaVp6caN+IYnI++ACYd96bWd3QZtd4BxowraWaIjMhi8NkYv/XkMRTp4/fS3VdmEW1A+QCsrBmgnutT0etYGoRVFvDLgPNMXmX6T6ct/ftO8ff7lR6Kb8loNBl9p5t2Op1LhvuJPtNW7EafdY8r3KZfCVZLVkn5R0qTjFyZ4gpJACCYk7aOdDw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

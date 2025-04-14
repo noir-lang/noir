@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "minus_one",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1azW7TQBCe2EnjNL/NT9M0Tc4cOOzaSeOcCEKI52hU+85LIM6Id4AjT8EBDrwAR14DiazYEZu1aQ/+1mC1I1njrqeT2W++2VlbW6Pfsjxcz/R97XD5WisJDldd33uUFbbbaS2KiQT6EjnhgnzHwsvBwLMBNC8eU0ZNKyjfIYiRuF6tkk2YyEjeiHC7j9ditd5fxzKW63h9G8ZRlMSreLPdbzdiK1dRItP1NkpSJbGsAXylOjAPN0dRSVKGDkkZiiNSMqfqDIhPWXLyvTJqWUH9t6RMhPQJR8o6OLlg8oWcJ8/yW3TeyML26d8UdtG4YXmSDgtbHhd2Q+sTBoSLWA0EVgC+Q8CKdRYhG8C4ThwlEk24BlWxA25SnK/yCoV3WQEDwoXS1IPmWED3F48oJMcgFi2eJuFIGVAVSYl8V4hLIyXvsk4ZECZgi7LbMmXklpTIdwUhW4Qj5Sk4uaiVXM814mS6XCREAdkcgETmo43jnDA53qb7PzKgt74tYP3gcClvEepo3SU6XnC6lF1w6hUBv+ji1QHOseuIFOjtaIeq2flxO5Y0zQnXSdH1tO4zIFx0PQ2aOaaMXHf+gHDF0yMcKfvA5FaTlOV1goHWZwwIE3BA2e2oMqoSKQeEI+UZMLllkhJXTOWRcqj1iAFhAg4pS0pl5JqUfcKRckg4Uo4cJReNH7IQkfiNCbv9YW7agi5qZNxmvBOXAU8c+D0HksHVvM8NgEF+ncQ60LGi3zEGhC0yJdXqnOWdRJhqfcGAcJecUrZzKiPXJxFwnTOWU8KR8oIeOClLPIkw0/qSAWECzihLSmXk+iQCjJSJkDPCkfISnFz0SYSpzhn6cyyysGf02G1ywnXSbeZaXzEgXMRzyha2MqpSt5kTjpRX9MBJecApJ1wn3Wah9ZIBYQIuKEtKZVSlbrMgHCmX4OSiu81c5wzdbZCFvcDNV/A5TBPLPPGNe97vf33/7fPHtze3ph2vzpMfz2evv3x4aT57qvWLn99ffXr35gmPM9b8Qe3otAL9qZ0dZs4h+2+78S/shmPOxfxde/71nP+r/eVvz9J32d71caib84x9jrQ24+V5tCw9MfwCsZTsf+zGf26uJsb92JqnifcOFAP74xprUFY86xnb2jVTw8eXaaJ+zm+xMGfGxhjj+Qu+6VXH+jEAAA==",
+  "debug_symbols": "lddLioNAFEbhvdQ4A+vWQ8utNE3wGQRR8dHQSPbeJkQIRmjOsKz/c3IyiKsqq3y5XZuu7ieVfq2q7YtsbvpuO61KPx9NQ9Y9TtOcjbNKjb+oqitVasP9ouqmrVTqovv3RQmbGza3bO7Y3LN5zOYJmwc219HZ3pvXPpHjXsO9wL2B+9O02u5Au+QoHBYeixiLBItAhURYaCwEC4MFbi64ueDmgpvLf8398dcugQoTYaGxECwMFhYLh4XHIsYCNze4ucXNLW5ucXOLm1vc3J43j90uwsc/A49FjEWCRaDCRVhoLAQLg8Vpc9F7czEfwmHhsYixSLAIVPgIC42FMLEd8rFp2+Z2ff8c2B7/ZGOT5W31OtZLV7zdzr/DfrP7YeyLqlzG6vGm5932+j8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(minus_one: i8) {\n    assert(minus_one < 0);\n    assert(0 < minus_one as u8);\n    assert(0 > minus_one);\n    let most_negative_number = minus_one * 127 - 1;\n    assert(most_negative_number < 0);\n    assert(127 > most_negative_number);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

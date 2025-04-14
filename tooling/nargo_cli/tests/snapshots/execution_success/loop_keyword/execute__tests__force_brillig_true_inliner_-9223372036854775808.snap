@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71VwU7DMAx11qRdGRMTu8AHcOCAlG5F6wXEgR+JmPod+3RaZFPLODnQdJYqJ43znl/iJAYmM+gtzDACeUdfo1+x8WL4PrDv51lTC96c+J1v21rRlzH/Y42YZhl8T/gLrb+vEOfzMuFzLcS7Hr4Na9/CVB9L6af9W1L/PqF5g1r3V9A62GEr+LkZ5V+hxBi2R4/Y3ipxwDTSGbGX/LpOnffEVyC+g7+5c34n4h+wfyPyH72dkWd/Ck1/DH14Dedz+xXuBf5osVqgveKxJuJ/tCSwZY0D5KvvHcTrmzQUGTTsBJa5jr7f+8Hmxz4QtsuP3ZQDxhNi3SFPydZO1hXd006JXYkxiu3Qj7HPmbhshKtlXC8JrkKMVYk81qJfKjlqdRebBwqnEzhGmfffvdLyTvFVCT755oDSdxA/607EvqGX5yf3+yrvVM413qnf1mt4ucEKAAA=",
+  "debug_symbols": "ldVbioUwDADQvfTbjz5NdSvDcPFRLwVR8TEwiHufOuhFYkHyI7TkNLQJZmW1K5f3y3dNP7H8a2VtXxWz77uwWreElaNvW/9+XbcZ3z9C/cdPQ9Hty2kuxpnlxibMdTXLgQfd+NaFPb59J0xoYrwhxqfEeKDFy+j5wsABhLFYAFlYssioQvGogPPiAjIsBFlIsoi+leT6EJIbLOyDELiCOnoPaT7C4BxaPoj0liPatUqeQknAItpXSolTKIkFPOS4C0sW0b5SWp5C474ynCzirwvmfF1IsVAPwgosNFnE6wGfeoDGAh7EPYcli4wqUk4TW1j9FKMvytYdP/9m6arLLJh/B4fGwjD2lauX0e0D4jIb9twiS6QOx4aj/wA=",
+  "file_map": {
+    "50": {
+      "source": "fn main() {\n    // Safety: test code\n    unsafe {\n        check_loop();\n    }\n\n    check_comptime_loop();\n}\n\nunconstrained fn check_loop() {\n    let mut i = 0;\n    let mut sum = 0;\n\n    loop {\n        if i == 4 {\n            break;\n        }\n\n        if i == 2 {\n            i += 1;\n            continue;\n        }\n\n        sum += i;\n        i += 1;\n    }\n\n    assert_eq(sum, 1 + 3);\n}\n\nfn check_comptime_loop() {\n    comptime {\n        let mut i = 0;\n        let mut sum = 0;\n\n        loop {\n            if i == 4 {\n                break;\n            }\n\n            if i == 2 {\n                i += 1;\n                continue;\n            }\n\n            sum += i;\n            i += 1;\n        }\n\n        assert_eq(sum, 1 + 3);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

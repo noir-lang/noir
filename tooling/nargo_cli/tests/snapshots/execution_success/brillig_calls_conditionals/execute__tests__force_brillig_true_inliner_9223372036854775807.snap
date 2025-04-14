@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYTYsTQRCt+cqkZ1iy6E3wpp4nJposiIi461EQRMSLg0sQBBHxohfnp5vRqqTypjvbw3azbENT3dOvX31MVTFJQv9Hup0Jr3OWiZIZHQ45e8Gyud6YB+RqYtmY3AIb0wg2/hsZvPyU3EOc6lgalqk6zwI6bUBvSP51s1wZi38B7V8YiGks/iwOf1Myz6tuz4++kJKCwzuZwpwrzLkDc6EwF4ARnyPlxDJyTBcnNKwz8UV053F0LxPQR+Angf6KoubvPAF9Yg/GR9Yngun29iRwlndDP+Ss6A796Md0O+8pHOZWqnAP1foRryPn4ypyD2nuHvFZnpUd7cau5tUziavEearxcGbUWd4d6ql4nys9mkvsKAD/gPczlhN1R+6fWvRPQP+B3ZZnGBdjwRsLfrKd93ld8+xz6LfcoZurM9t7n9GwB+paQq7EIYmG/UXHRfwu4vjdnNKwn2pd/ZzwPlcxySwxEVvLOLbu6nwah/+x8Js4/Gvhr+Lw77516jj8ZwXkg/D2+6cjc0beIXI+V5xnIzkrB+czxfmS17a8rz1xxhNXWnDH+gb2IJefJfgp+NcsDfgfumfcUbxk0eXTR6ce8QjZR0P2OcyvDyz7/ZuRnK46eK84347kdNXBO8X5kddX1cExnPHElRZciDow4KfgP7G8DXVQecQDv7lRJ9H4OtD3CofNvnUg+B8s+xh8Ac70Ck6sA8F/V5xfR3JWDs5vivMnr21xqT1xxhNXWnAzsA3v6L32M7XYWQD+F8vY/4HY6kB01bSPT96F179aN43old9RBQ3/tNX6C8D/4b3+LhOZX8POzaqdbxbtpn3SXl4uP7cYp36kKk5/AXRx2zWRFgAA",
+  "debug_symbols": "tZfRisIwEEX/Jc99mJk0mcRfWZalapVCqVLrwiL++7ZiS0lLJAx9ESO5p3FmeiAPdSz39/NP1ZwuN7X7eqj6cii66tL0q8czU/u2quvq/DP/WcHwof1r/+1aNMPy1hVtp3bodabK5jh84z5/qupS7Qw8vzOVQ3ICkxO0mnA4Jdw8kS22mhzeW02OIVxvCc+3hJst4VYKN+NWY8KGGmlZLNB7qwUXwlkKN+MoWuMDuAUpnP0Id+HJrXTOLbkRrsOaW/EoMo8NdTaES6eFYdzKsDj5h4YS6DDhkhM+NcGQnFgVH+lx2mjRM6bkxKrNiKZTaYETON8SbraEWyk8YjP2QnjMZo6k8IjNnLTmMZs5lsIjNnPSmsds5lEIj9nMf2poHnrD6+REnpwwyYn1V4onN/Hin3NyYtXjZKdTscAJ3m8IR4BN6SilR3yGkAvpMaEhsJQeMRqitO4xpSGSlB5xGqK07jGpIVohPWY1xE9ddXoRcekRnxwhSIs8+9Vv0VbFvi7f9+XTvTnMrs/d37UMbtLX9nIoj/e2HO7Us+t0/2iymbavue8XSJQhcf+Q/kH/",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls with conditionals\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x[0]) == 7);\n        assert(entry_point(x[1]) == 8);\n        assert(entry_point(x[2]) == 9);\n        assert(entry_point(42) == 0);\n    }\n}\n\nunconstrained fn inner_1() -> u32 {\n    7\n}\n\nunconstrained fn inner_2() -> u32 {\n    8\n}\n\nunconstrained fn inner_3() -> u32 {\n    9\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    let mut result: u32 = 0;\n\n    if x == 1 {\n        result = inner_1();\n    } else if x == 2 {\n        result = inner_2();\n    } else if x == 3 {\n        result = inner_3();\n    }\n\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

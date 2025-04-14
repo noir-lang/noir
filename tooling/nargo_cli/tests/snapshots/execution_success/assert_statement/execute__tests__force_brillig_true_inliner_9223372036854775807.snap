@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "11885038074309157496": {
+        "error_kind": "string",
+        "string": "x and y are not equal"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VTwQ6CMAwtMqLT6AEumvgRY0PZ0YN+yJTsO/h0Q+y0G6gHtiakJe1eX1+3DF6W4TcYQ7+AsbmaC3oxz+qIWCIlzywRzzdRGmfwXfgjeg7+koZ8HnFgPsEpFr4WzZlPzBeRv+IEMwG+dPgsDb5YIs619/Eh6LsF//HSMy5HH/INcyvMu3iHMQ/wUuydcoqtWzXB3/Xa4KwV0YPqWvw4WwS1JdHuQPDdvWZ9/PlaLYTjlvcfXjmMjZE8rd/j/5rM6DybwdO2prbKWHMyXdc8TBngA/h7iN3fNFZIJfW9VsLIVv/r/wSdexm/+QYAAA==",
+  "debug_symbols": "lY/NCsMgEITfZc8eojRNm1cJJZhkEwRR8adQxHfvWnqQ3HIZdpYdZr8MGy7pmJXZbYBxyqDtKqOyhlwuDBavtFbH3K6hq8L7331w0lQbovQRRi4EAzRbnR6U35VGGPuuvBjw++XEcC1RyL2lV3LR+AfYk1kbnvhxeEJz3q64JY8VsuEjnfiTiVt9hJMRPRMDdVDPFw==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is assertion\nfn main(x: Field, y: pub Field) {\n    assert(x == y, \"x and y are not equal\");\n    assert_eq(x, y, \"x and y are not equal\");\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

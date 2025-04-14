@@ -1,6 +1,6 @@
 use noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, SecondaryAttribute,
-    TestScope, Token,
+    Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
+    MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
 
 use crate::chunks::ChunkGroup;
@@ -51,15 +51,17 @@ impl Formatter<'_> {
             panic!("Expected attribute start, got: {:?}", self.token);
         }
 
-        match attribute {
-            FunctionAttribute::Foreign(_)
-            | FunctionAttribute::Builtin(_)
-            | FunctionAttribute::Oracle(_) => self.format_one_arg_attribute(),
-            FunctionAttribute::Test(test_scope) => self.format_test_attribute(test_scope),
-            FunctionAttribute::FuzzingHarness(fuzz_scope) => self.format_fuzz_attribute(fuzz_scope),
-            FunctionAttribute::Fold
-            | FunctionAttribute::NoPredicates
-            | FunctionAttribute::InlineAlways => {
+        match attribute.kind {
+            FunctionAttributeKind::Foreign(_)
+            | FunctionAttributeKind::Builtin(_)
+            | FunctionAttributeKind::Oracle(_) => self.format_one_arg_attribute(),
+            FunctionAttributeKind::Test(test_scope) => self.format_test_attribute(test_scope),
+            FunctionAttributeKind::FuzzingHarness(fuzz_scope) => {
+                self.format_fuzz_attribute(fuzz_scope);
+            }
+            FunctionAttributeKind::Fold
+            | FunctionAttributeKind::NoPredicates
+            | FunctionAttributeKind::InlineAlways => {
                 self.format_no_args_attribute();
             }
         }
@@ -75,25 +77,25 @@ impl Formatter<'_> {
             panic!("Expected attribute start, got: {:?}", self.token);
         }
 
-        match attribute {
-            SecondaryAttribute::Deprecated(message) => {
+        match attribute.kind {
+            SecondaryAttributeKind::Deprecated(message) => {
                 self.format_deprecated_attribute(message);
             }
-            SecondaryAttribute::ContractLibraryMethod
-            | SecondaryAttribute::Export
-            | SecondaryAttribute::Varargs
-            | SecondaryAttribute::UseCallersScope => {
+            SecondaryAttributeKind::ContractLibraryMethod
+            | SecondaryAttributeKind::Export
+            | SecondaryAttributeKind::Varargs
+            | SecondaryAttributeKind::UseCallersScope => {
                 self.format_no_args_attribute();
             }
-            SecondaryAttribute::Field(_)
-            | SecondaryAttribute::Abi(_)
-            | SecondaryAttribute::Allow(_) => {
+            SecondaryAttributeKind::Field(_)
+            | SecondaryAttributeKind::Abi(_)
+            | SecondaryAttributeKind::Allow(_) => {
                 self.format_one_arg_attribute();
             }
-            SecondaryAttribute::Tag(custom_attribute) => {
-                self.write_and_skip_span_without_formatting(custom_attribute.span);
+            SecondaryAttributeKind::Tag(_) => {
+                self.write_and_skip_span_without_formatting(attribute.location.span);
             }
-            SecondaryAttribute::Meta(meta_attribute) => {
+            SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
             }
         }
@@ -171,7 +173,12 @@ impl Formatter<'_> {
     fn format_meta_attribute(&mut self, meta_attribute: MetaAttribute) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        self.format_path(meta_attribute.name);
+        match meta_attribute.name {
+            MetaAttributeName::Path(path) => self.format_path(path),
+            MetaAttributeName::Resolved(_) => {
+                unreachable!("Resolved MetaAttributeName should not happen when formatting a file")
+            }
+        }
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
             let comments_count_before_arguments = self.written_comments_count;

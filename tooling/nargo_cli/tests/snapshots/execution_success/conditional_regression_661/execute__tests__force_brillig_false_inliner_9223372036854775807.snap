@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+VXXU6EMBBuWdgffozRGOObR2gpLOVtffAgEuHdU3kXz+FBZN2ZTS0FE5gmmv0SMjDTzA7fN+0OnJ2Q9dc93PP+WoE94tHycYcvcPhWDl8IvhByB2wI/N0DWCX2RdFWeSuVfBF53ehSFGWz11LLUpevuVaq1YWu6qauRC0L1cqurFUnTjBziXmQYEtHuVS5hclFBHZtCxIZIqBvDaSaWHkkcWauHHLJiLCuNbG41M2Hmtl6iGWQnLBGSj02xO+IPb4xejzw0NuUHKDmIbHml9A/W0/9szX6hxPrgnoHxHkped3R1SVMXnceeWV+eM0peY098Rqz8fNOLMOZ1z/e/4pSp8STTgn7faCl/u+nzMWZn30lZqLr0chWOmj0MminYI8fQD+G6owNh+qIppBzQf9ByKXDfsroNnHmqcGoh/6U0R42odV/WHMA/RqyIcy1Mdi7z6eHt4/3Z3NdOhG7mohdT8RuRmLI8xbszqoP998BnsUy5Jg/8ZP/+2PHRmzcJ1YMDx6XXnzkObDs1Frbb/oyRwxz3oI168X3+AJbEXsWIhIAAA==",
+  "debug_symbols": "tZTLqoMwEIbfZdYuksnFy6scDiVqLIEQJeqBg/Tdq0VFbCiE4i5/Zr5vMUwyQa3L8X4zrml7KH4msG2lBtO6OU0gXld9p9yS+kH5AQpKaQLa1ctJPhJojNVQCPL4TUDGAmkskMUCeRDg+QZIcQSSt1bB5NoqOD+5KblSToNyJnZ5/lnOGVlbOcezHK+Us5AcKV8JZOSLsfAr5cGNR4a7PD0TMpoI7jwSshPZF6PPrpQH3xKKdJOn7EQgiSZoNIFxxBxKb6w199vxs5uv/5Q3qrR6jc3oqkN1+O+2ysZ3vq10PXq9mF61Wf8E",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: u32, mut c: [u32; 4]) {\n    // Regression for issue #661:\n    let mut c_661: [u32; 1] = [0];\n    if a > 5 {\n        c_661 = issue_661_foo(issue_661_bar(c), a);\n    } else {\n        c_661 = issue_661_foo(issue_661_bar(c), a + 2);\n    }\n    assert(c_661[0] < 20000);\n}\n\nfn test5(a: u32) {\n    if a > 1 {\n        let q = a / 2;\n        assert(q == 2);\n    }\n}\n\nfn issue_661_foo(array: [u32; 4], b: u32) -> [u32; 1] {\n    [array[0] + b]\n}\n\nfn issue_661_bar(a: [u32; 4]) -> [u32; 4] {\n    let mut b: [u32; 4] = [0; 4];\n    b[0] = a[0] + 1;\n    b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

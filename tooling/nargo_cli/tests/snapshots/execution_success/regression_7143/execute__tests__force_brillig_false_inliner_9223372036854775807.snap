@@ -1,0 +1,56 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "array",
+        "type": {
+          "kind": "array",
+          "length": 1,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/61RSQrDMAy0nZxLnyJZUizd+o7eaupc+s32Xw3UAdfkFg8M2mAYNN79EDbOtfcbp1p3ttjnW61wDjhQC1qfYbBPP1ArNFoEC3NJsSDhA6JlFWDJi6KiqDyjEhVlTZYtgSFTwVWM1io2dTn1/dz9w7n/TH1zP95fL/f36+M6fAG3NfcwPAIAAA==",
+  "debug_symbols": "TYxLCsMwDAXvonUW/VAKvkopwR85CIxsZLtQTO5eJTSQneYNmgEBXV9m4pgrmNeAlL1tlFlpwHWfarG8UW1WGpjnbQLkoMd9nSBSQjCPy/pWcEIp0TKfIzp/rJB1Cf8YO/uTbd9ymOO/SPYYuuBW2p3mfw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

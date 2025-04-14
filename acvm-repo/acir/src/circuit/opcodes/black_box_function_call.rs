@@ -187,14 +187,14 @@ pub enum BlackBoxFuncCall<F> {
     /// (P) of the embedded curve. An MSM multiplies the points and scalars and
     /// sums the results.
     /// - input:
-    ///     points (witness, N) a vector of x and y coordinates of input
-    ///     points `[x1, y1, x2, y2,...]`.
-    ///     scalars (witness, N) a vector of low and high limbs of input
-    ///     scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
-    ///     For Barretenberg, they must both be less than 128 bits.
+    ///     - points (witness, N) a vector of x and y coordinates of input
+    ///     - points `[x1, y1, x2, y2,...]`.
+    ///     - scalars (witness, N) a vector of low and high limbs of input
+    ///     - scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
+    ///       For Barretenberg, they must both be less than 128 bits.
     /// - output:
-    ///     a tuple of `x` and `y` coordinates of output.
-    ///     Points computed as `s_low*P+s_high*2^{128}*P`
+    ///     - a tuple of `x` and `y` coordinates of output
+    ///       points computed as `s_low*P+s_high*2^{128}*P`
     ///
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin

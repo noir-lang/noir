@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZT4vTQBSfSZPstrLs4t4UxYMr6CnTJE0CHoq27upFD4InhfQf6MUFQU9CwC8gCH5eG53XvL7MJF3N7LZuBkomMy+/96fvvZl5w9mf1ln+XNnn8p3L93tkjCvGLDlmIwyMhRvMDeXT+7cmGsTyTMnId0BGq0EZOfq/6f/fuOAdhOV7gyCYR/258EXq9ZNJHHpBOBnEIhZhHM76se/P4yCOkkkSeYkI/LlYhIk/X/xusc0KJwdZWwe+fg7MsJCQ1TrECSymbzD3WT67ZBwca9iQ8l2E2zR+7AVpl+jXsPx+l9jUFH7HDL63J3GeZQU+1YWhJ9DRbzqI5hTRnGpozhDNGaEBnQ35xMCwTf0DVo4z0AV422Z4B5zwY0RPRvj3mFH/FZzwA3mofaB/ADRZIQ8nc3ZW1gPmnGxdj7ztL3+3ER31LQvRPUD9RwT7eVaWyWT8L301Meyr4pjpYx503MvYqq3yARoDm4Od9jE9meuiOTtb59OT7zbig7FADofQn8j3Q/l00Tfw/ZGCv0v4r8mtGMM2olgdxRjQ5yeUu7J/gxVr6tOswDOxpo7M4PcBf2wG389tlMffC7ApMxoDAeQEnKOgwZyDeKtyLDTVphvnoVcIl9JRntjfgP8h0+cv03sFmsshTilPkM1i5bUO29ghYzGy0znBo+sZHQMbHLGy7Tjp161FEJcqW9sEy6nBGhEs/L2zAVYVb6h8uBp6wHMI/RP5zO38iWDW2WZM9KmSz1Jg6eIIf+9q6C2iD9CfKfSpWudxDrazYr6pWIniopIA65/DFBUFxN8h9C/lew/Jz5Dew7+UcxGlYuGnizRMZ7Ngmt4k+IzYCedhztZjnTF1LNL40e0tdFiqWKzyERU+9ZE38rmpz2N9RpleH3sDrCp9nBp9bKIP0L+t0Kcqj+RtXKEPjU/esD5co89Uoc8m5ygs71Wco1Z7Uab2xWEz8ohN1xuL2M5VyHqkmKNx6Sr4uAo+Kiy7QSxO9NHl86bzZBr58bQfTKNJ6Kf+oDZPNs0/CNNomkZCJIGYByKs4/9T9ne8Xpe09brq1tbrmv/P2nrdqm1Nve4WotPl/ZzuBPUfyr5hf0wM5xDvuEJnGNv2mtx9+b7NNbk7st/W5Grbqib3AdkbxyzYG/sttudFzoK4rqQ6aziEHm49Dedqj+7BVHvdOnuMsubsMdLYY7BD9hhfwB68xh5jYg+gf0zsYWpvprIH8KLrGKYzvJ5svMcA/j1mbv300B5DVR9UnW8OWPl/o2dG7Ge0JqHywY6Cz2Vh/U/3GecIl9JRntftPuM1stN3gkdjUef77X1GGZ/eZ7yTz9zOPwjmLt5nzBT6mDzTLNugKhaq6rdA/57Iaaguq1xjgdcu3Ot8lO/bcK9zGXt5jGXiXueLfG4a+1ifUabX56rudb5W6LOL9zrfFPq09zqr1t7rsPK61t7rFPx/Ac8aAGHqMgAA",
+  "debug_symbols": "tdrRTuMwEAXQf8lzHmzP2GPzK6sVKlBQpapFpay0Qv33dSvcltib5KqdF4Qh58ph6sRk8tW9LJ8+3x5Xm9ftR/fw66tbb58X+9V2k0dfHZ1+9PG+2BxHH/vFbt892Oj7brl5yd+ldOi719V62T14c/jddzwOnOEB8C3g7BmQ/AB58LRbrdert8cfEzXHL9ycLqX0HcZGhtNlWHhYBFgILCIsEiq8gYWFhYMFXHMP19zDNfdwzT1cc9+sOVsqwlYioSI0a87OFOGG6zlYWLiJWdWCYMGw8LAI7TOXIsgOhcBiqua1SKgQAwuLiti+MpgiqPq0RwcLmhC2mhXDwsMiwKJ9ZbAXUZ15hEWaEG44q2RgYWHhYNGuubuI4ZknhoWfENWnPQVYCCwiLBIqrDE4sThxOCGcME48TgJOBCcRJ2D188Ce9tjN4gTmbxc4DneaBAueEJ5m7cpHRYCFwKJZlhDK/T2InbUrHxPtXfm1CLN25aPCwYJg0a55KvvGkHjWrnxUhCmRZu3KR0WERUJFe1cu5/uisLkWfXWod+X/a09m1gb+XuFOM5w0w1kz3GuGB81w0QyPmuFJMVw0V6jcvEL5HF7ds8RphpNmOGuGe83woBkumuFRMzwphkejGa65QqPmCo2aKzRqrtCouULjzSvUlwe5PlThohl+8woNoYTL8E4Uk2J4Mvf7s9ThVjPcaYaTZvjNK1ToHD7vwdm9wu+4Qutw0QyPmuFJMfw/zwOv0/1h1vPAceJwQjhhmNipDkPVk7CWcQL3GKwNOBGcRJxM9RmqzoR1Bidwp8E6hxPCCeNk6pmzq08/4AR/5uzwZ84O7zgQ3nEgvONAeMeB8I4DMU7wjgPhHQfCq0949QmvPuPVZ7D6hzz6s9itFk/r5fFNouMvPzfP5cWiPNz/fS+/Ka8eve+2z8uXz93y+BLS5f2j40ciN+9JTveTPBDuJZ2ue3mQL+R9vsyeOymno0NPoRydm0X5AHs+nqW3nPIM8yz/AQ==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls passing arrays around\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 9);\n        another_entry_point(x);\n    }\n}\n\nunconstrained fn inner(x: [u32; 3]) -> [u32; 3] {\n    [x[0] + 1, x[1] + 1, x[2] + 1]\n}\n\nunconstrained fn entry_point(x: [u32; 3]) -> u32 {\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn nested_fn_that_allocates(value: u32) -> u32 {\n    let x = [value, value, value];\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn another_entry_point(x: [u32; 3]) {\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n    assert(nested_fn_that_allocates(1) == 6);\n    // x should be unchanged\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "entry_point",
+    "another_entry_point"
+  ]
+}

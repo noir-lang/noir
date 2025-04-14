@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "10220664360449826677": {
+        "error_kind": "fmtstring",
+        "length": 33,
+        "item_types": [
+          {
+            "kind": "boolean"
+          }
+        ]
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/82ZwW6bQBCGF3vBBkzsxr23l/YMGAK9Rar7IKSI5+Adqkq9tY/a0u6ww3RSRcmMykrRArN88+/MsOBNYHwLXG/JuWHG3Ls+f1krBFk5K/RfDcb8cH3s+g2ybwUnGxO/kvw2r+5iZn6C+i+xY2rGB5gK/HznOJ9Gz6dzmVrmznENwT37X38H44+P7jgm92jkVjH2+ZnRv0Fzm9rH0duMkX8uro4vyU5dnt569GJuofk716AjJGNfo3ho1ukt4hriS7kOLhnxhxvYLLpGawI3ysC6p5y8R1w6jvrEsbCPMEPXX0dvC5ANj33j+v+Zy9T4Z8uO8v6bNs/B73b0ceBya5Edj3/nzhNmHvYFOoemK4ZLN3R11/fV547GaWobFCf8DHPPQGCkclbVXE3I8Zs2Nss6FubnwA9V+HdzfCId/vydsdOJTwX8vY7+mR+r8Ms5v4mO/gH4qQ6/BP5BJ78zP9Phz/V/oxOfBvhHHf0PwD/p8Ht4Z78yvsG6Dr7xei/3vi3LgPgzZrmOG+I/IVqlf9MExB/oofGBdxnE7sxoPTE2+g48M37OjB+OtRVkWUFWKMiKBFm7lc5xL8iKBVmS9SWpSzKPyUrnmAqyJGt1rXk8CLIyQdZaYy9ZX5LxkqwJyXjdCLIk15y1xusoyJJ8D8E3tPbeON2n/EL86uxflRW35xcQ36GS74D4M4b/lgf/GaMHdCeP2O6fqbXt+6Zoi/pDXzzUQ1MHhA9a6TX6vR4x47nfBdyeiGCsC1hzYd8PawObRbaQ2EJkA43Td+hXoj9S0v+U+GP/J8ZGc/PUXHKs4JmsW7OsW/xsc/+Xuo5/+hRd341LX797dA1yBbnb4/HEFiObHb2mqSXu3CI/mAU6QjL+uzuHNT1C98D9J8Z/RPwvdDPXcD4pa8tcg/FTjXxzx1NcfwLz0f1oJR8AAA==",
+  "debug_symbols": "ldnNasJAFIbhe5l1FnPm78zxVkopUWMJhChRC0W898ZiabFp4d2Ike814LMQMhe37dbn15d+3O2PbvV0ccN+0576/ThfXa6NW0/9MPSvLz8/dv72IuVzfzy04+3yeGqnk1tFaVw3buc3Ote7fujcKvvrc+NE4b7CvbF98Ev7XO57rY97gfsA9xHuE9xnuC9wv+ib5c99hXtj++jhfvH7Jfp7IFEeiuRxIbgIuIi4SLjIuCi4UFxUXGDzjM0zNs/YPGPzjM0zNs/YPGPzjM0zNi/YvGDzgs0LNi/YvGDzgs0LNi/YvGBzxeaKzRWbKzZXbK7YXLG5YnPF5orNKzav2Lxi84rNKzav2Lxi84rNKzav2NywuWFzw+aGzQ2bGzY3bG7Y3LC5YXPxnifCk8CTyJPEk8yTwhPlSeUJ1xeuL1xfuL5wfeH6wvWF6wvXF64vXD9w/cD1A9cPXD9w/eWnQGZfhfe/ioILxUXFhdFi+XnQv4XgIuAi4iLhAptHbB6xecTmEZsnbJ6wecLmCZsnbJ6weWLm1/nqrZ36dj1097OC3Xnc/Dg6OL0fuodThMO033Tb89TdzhO+jxJuv4ckayTb53/6fBlDE3W+yXyjDw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    assert(x == 1);\n    assert(1 == conditional(x as bool));\n}\n\nfn conditional(x: bool) -> Field {\n    assert(x, f\"Expected x to be true but got {x}\");\n    assert_eq(x, true, f\"Expected x to be true but got {x}\");\n    1\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

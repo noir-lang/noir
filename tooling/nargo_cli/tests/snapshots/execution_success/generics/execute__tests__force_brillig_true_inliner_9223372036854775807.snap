@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71X226DMAw1LZRSSofWHwmXFvYwqZO2171s0qS9URjf0U+f2OLWuIZNIqmlKgE75/iSmNSBX3H0rxNXjzO4FrQ56FFNk8QglrLpp2PJz16SHRgW1H3qMWDrO/3cYMAB4zWJX6p8HwjxGfQ/CwimBfwU8V07+MrXOM+nPj4w3gj6h5euQR3dYy9at9R6nG/0PGB4NupOfTKdt63gP3KFOtZXkg+aS29krcdstyxfnqV47gkuMC6pVgYbVSLVyiC+eIYM4mcRyxfNI3Iv7NQtdxgfQP/8AuNfgdV9lDiMD/3h+cFaY+58wddY0PE96As8vsAjYc0MYo31SWdgRB7+Dnn4uejkoEc1UWIY7kFSP58ag2s+hiSG6zryOrgGY7B0htMYrvvT4jbc597r28FXiL+0g3++f/F7pOn8rOAiRrATpSKSD2B16Oqdk/dU58GlP9G1S6Kn9iXBLPS8u6PcwXAfQ86Q1U3aK9R+TbjmI/F5zP5Rj10M73ou+ecM8NGchCM5QfsnwvfBMPG+CjD+7UL7jWAfEZuQxbMmug1bR31fE1xpLe/PEfFvDIvq8NkXcKRvxNC6meDfiuHMBvjocyfSvsH+998zg/3APV3sTPWdolQKczLX+B7xiYpL9NT+TT+vSBw4uhP8bIsqabOqrXZV0+R1xe/1ndD/Kab507LcP6RHlRdN3TZ5dmv+erc/1vmuUl/Jjzt/8X8DkaKhI5kSAAA=",
+  "debug_symbols": "tdjbisIwEAbgd8l1LybnSV9lWaRqlEJppdaFRXz3TRc3llRWiJkbaWT+fNVMquTK9n57OW7a/jCcWf1xZd2wa6Z26MPoeqvYdmy7rj1ulm8zmF+4/q0/n5p+Hp6nZpxYjU5UzPd7VjvgIX9oO89qDbdqVcqB30s5d8vSz4pxQzm5pZwcKSd3zybn+IggiCQjICPDMzIiIyMzMiojozMyJiNjMzKYkcnoA5nRBzKjD2RGH8jnfWAtPjLqxbZBtLEYMQUUNaCpAUMN2PcBB+av2IFNAaQGHDGggBrgBQARF9lJlQKCGpDUgCIGdImvyMSHnTMroMBOdigjgCYFbFnAQQogNeCIAQPUwPs7WQDAvThc8hQQBQAuIsBlCkhqQFEDusQamAeQ7mRjqAFLDWBZQKzWwBUA4uM6XKZ/WyyU+AT6H6DwTl4DghoosZMlRkClPzhWUQOaFLiF0Vczts228/dzj8Ol3y2OQabvk09ORE7jsPP7y+jns5HFscjcj+G+UIb75nPvoKrQBCM4Pw==",
+  "file_map": {
+    "50": {
+      "source": "struct Bar<T> {\n    one: Field,\n    two: Field,\n    other: T,\n}\n\nfn foo<T>(bar: Bar<T>) {\n    assert(bar.one == bar.two);\n}\n\nstruct BigInt<let N: u32> {\n    limbs: [u32; N],\n}\n\nimpl<let N: u32> BigInt<N> {\n    // `N` is in scope of all methods in the impl\n    fn first(first: BigInt<N>, second: BigInt<N>) -> Self {\n        assert(first.limbs != second.limbs);\n        first\n    }\n\n    fn second(first: BigInt<N>, second: Self) -> Self {\n        assert(first.limbs != second.limbs);\n        second\n    }\n}\n\nimpl Bar<Field> {\n    fn get_other(self) -> Field {\n        self.other\n    }\n}\n\nimpl<T> Bar<T> {\n    // This is to test that we can use turbofish on methods as well\n    fn zeroed<A>(_self: Self) -> A {\n        std::mem::zeroed()\n    }\n}\n\nfn main(x: Field, y: Field) {\n    let bar1: Bar<Field> = Bar { one: x, two: y, other: 0 };\n    let bar2 = Bar { one: x, two: y, other: [0] };\n\n    foo(bar1);\n    foo(bar2);\n    // Test generic impls\n    let int1 = BigInt { limbs: [1] };\n    let int2 = BigInt { limbs: [2] };\n    let BigInt { limbs } = int1.second(int2).first(int1);\n    assert(limbs == int2.limbs);\n    // Test impl exclusively for Bar<Field>\n    assert(bar1.get_other() == bar1.other);\n    // Expected type error\n    // assert(bar2.get_other() == bar2.other);\n    let one = x;\n    let two = y;\n    let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };\n    assert(nested_generics.other.other == bar1.get_other());\n\n    // Test turbofish operator\n    foo::<Field>(bar1);\n\n    // Test that turbofish works on methods and that it uses the generics on the methods\n    // While still handling the generic on the impl (T in this case) that is implicitly added\n    // to the method.\n    assert(bar1.zeroed::<u32>() == 0);\n\n    let _ = regression_2055([1, 2, 3]);\n}\n\nfn regression_2055<let LEN: u32>(bytes: [u8; LEN]) -> Field {\n    let mut f = 0;\n    let mut b = 1;\n    let mut len = LEN - 1; // FAILS\n    for i in 0..LEN {\n        let j = len - i;\n        f += (bytes[j] as Field) * b;\n        b *= 256;\n    }\n    f\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

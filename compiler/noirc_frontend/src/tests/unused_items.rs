@@ -334,9 +334,12 @@ fn considers_struct_as_constructed_if_mentioned_in_let_type() {
     let src = "
     struct Bar {}
 
-    pub fn main() {
-        let array = [];
+    fn foo(array: [Bar; 1]) {
         let _: Bar = array[0];
+    }
+
+    fn main() {
+        let _ = foo;
     }
     ";
     assert_no_errors!(src);
@@ -348,13 +351,12 @@ fn considers_struct_as_constructed_if_mentioned_in_return_type() {
     let src = "
     struct Bar {}
 
-    fn main() {
-        let _ = foo();
+    fn foo(array: [Bar; 1]) -> Bar {
+        array[0]
     }
 
-    fn foo() -> Bar {
-        let array = [];
-        array[0]
+    fn main() {
+        let _ = foo;
     }
     ";
     assert_no_errors!(src);
@@ -388,4 +390,22 @@ fn considers_struct_as_constructed_if_passed_in_generic_args_in_function_call() 
     }
     ";
     assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
+    let src = "
+    struct Bar {}
+           ^^^ struct `Bar` is never constructed
+           ~~~ struct is never constructed
+
+    fn foo(_: [Bar; 1]) {}
+
+    fn main() {
+        foo();
+        ^^^^^ Function expects 1 parameter but 0 were given
+    }
+    ";
+    check_errors!(src);
 }

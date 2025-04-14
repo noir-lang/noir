@@ -1,0 +1,56 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "tdvRaus4EAbgd/F1LqSRRjPTV1kOh7RND4GQlrRdWErffZ3d2i3ROGZ+yM0hPuiTqee3Lcn2x/C4u3//83t/fHp+He7++hgOzw/bt/3zcdz6+NwM96f94bD/8/vnfw/p/A/l/9q/vmyP583Xt+3pbbizthl2x8fxh4z6aX/YDXecPn9tBqJg+xJsX4PtOdi+BdtLsL0G21usfUnB9sH6lmB9S7C+JVjf4tY3U/kCufFPsemaFklfTWupc1P6v/N2y87llp3rLTu3G3Ze0y07z7fsnG7Zebll5+5Jl0WnzrVdnHaVw6KFhYSFRgW7+6DM9kUoy+XRYl0wOhvVS2Nx09wzgUY0GSrl0mTAEGAKYCpgGDANMAIYBYzFjQA5ECAHAuRAgBwIkAMBciBADgTIgQA5ECAHCuRAgRwokAMFcqBADhTIgQI5UCAHCuRAgRwYkAMDcmBADgzIgQE5MCAHBuTAgBzktFAg/katdcj/iyTVCUmWDjUECYIUQQagnBCUEUQIKgiqCEISkReKW9OMuHZIEWQAooSgjCBCUEFQRRAjqCFo4bakc4zIOuQvC1EhmVAp3CFCUEGQf8hLLjOi7grrLxWtoYYgQZAiyADkL7GsoYwgQlBBEFLc6h49rlP0uF7OyTOnOMlxQnFS4qTGCcdJixOJE42TePX9JRnWPBGljuQ4oTgpcVLjhOOkxYnEiVv9No/SWz9I91dirhJ/IeY6yXFCcVLipMYJx0mLE4mTePUlXn2NV9+fqY8D+8mMP61DGUG0gOqMpDtr/Mn6GqoIYgT5TwzGRfwJUeoPhP9sqtJ09Rh/Xu6J/An7GsoIIgT5dWKZjx6LdagiiBHk14nrD5Q7JAhSBBmA/EWINZQRRAhaSIR9Pw7MpUMVQYyghiBBkCLIAEQJQX5xS5lR4e509xch1lBFECOoIUgQpAgyAPlvzayhjCAkEQVJRFlIRJufhhftLiwLr9OsoIYgQZAiyAC08BrKCkKGBBUZEiy8DrKCKoL8Q950Ho427YYE/sLK2HK+qUnq9uQvrayhjCBCkH/Ixab1gqy5dagiiBHUECQIUgQZgPzlljWUEUQIQhLRkEQ0JBENSURDEtGQRPgLMOOkdL6pWe2QvwRzHRV//iRtemoirXvDMS28BjztxqTfi8SJxomFycJcJs1PjcaHu9ahjCBCUEFQRRAjqCFIEKQIMgARkghCEkFIIghJBCGJICQRhCSCkEQQkghCElGQRCx8C0DTu7PWrYiWhc8BaBpMWu0uxUtfBFy54vlzi+t70TixMPFnFddJDv/5leKkxIlfF50SY9ZV339Ie520OFm7ETskfiOu8RsxpziJV5/j1ed49Tl+VjLHSXwYxvFhGAer/zlu/b097bf3h93XB3RP78eHH9/Tvf3zsrv4tO7l9Pywe3w/7c4f2X1/X3eOBAlvyNqv8xtz4yanDfN541x7GsfQZDbuc9zvvw==",
+  "file_map": {
+    "20": {
+      "source": "use crate::default::Default;\nuse crate::hash::Hasher;\n\ncomptime global RATE: u32 = 3;\n\npub(crate) struct Poseidon2 {\n    cache: [Field; 3],\n    state: [Field; 4],\n    cache_size: u32,\n    squeeze_mode: bool, // 0 => absorb, 1 => squeeze\n}\n\nimpl Poseidon2 {\n    #[no_predicates]\n    pub(crate) fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {\n        Poseidon2::hash_internal(input, message_size, message_size != N)\n    }\n\n    pub(crate) fn new(iv: Field) -> Poseidon2 {\n        let mut result =\n            Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };\n        result.state[RATE] = iv;\n        result\n    }\n\n    fn perform_duplex(&mut self) {\n        // add the cache into sponge state\n        for i in 0..RATE {\n            // We effectively zero-pad the cache by only adding to the state\n            // cache that is less than the specified `cache_size`\n            if i < self.cache_size {\n                self.state[i] += self.cache[i];\n            }\n        }\n        self.state = crate::hash::poseidon2_permutation(self.state, 4);\n    }\n\n    fn absorb(&mut self, input: Field) {\n        assert(!self.squeeze_mode);\n        if self.cache_size == RATE {\n            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache\n            self.perform_duplex();\n            self.cache[0] = input;\n            self.cache_size = 1;\n        } else {\n            // If we're absorbing, and the cache is not full, add the input into the cache\n            self.cache[self.cache_size] = input;\n            self.cache_size += 1;\n        }\n    }\n\n    fn squeeze(&mut self) -> Field {\n        assert(!self.squeeze_mode);\n        // If we're in absorb mode, apply sponge permutation to compress the cache.\n        self.perform_duplex();\n        self.squeeze_mode = true;\n\n        // Pop one item off the top of the permutation and return it.\n        self.state[0]\n    }\n\n    fn hash_internal<let N: u32>(\n        input: [Field; N],\n        in_len: u32,\n        is_variable_length: bool,\n    ) -> Field {\n        let two_pow_64 = 18446744073709551616;\n        let iv: Field = (in_len as Field) * two_pow_64;\n        let mut sponge = Poseidon2::new(iv);\n        for i in 0..input.len() {\n            if i < in_len {\n                sponge.absorb(input[i]);\n            }\n        }\n\n        // In the case where the hash preimage is variable-length, we append `1` to the end of the input, to distinguish\n        // from fixed-length hashes. (the combination of this additional field element + the hash IV ensures\n        // fixed-length and variable-length hashes do not collide)\n        if is_variable_length {\n            sponge.absorb(1);\n        }\n        sponge.squeeze()\n    }\n}\n\npub(crate) struct Poseidon2Hasher {\n    _state: [Field],\n}\n\nimpl Hasher for Poseidon2Hasher {\n    fn finish(self) -> Field {\n        let iv: Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)\n        let mut sponge = Poseidon2::new(iv);\n        for i in 0..self._state.len() {\n            sponge.absorb(self._state[i]);\n        }\n        sponge.squeeze()\n    }\n\n    fn write(&mut self, input: Field) {\n        self._state = self._state.push_back(input);\n    }\n}\n\nimpl Default for Poseidon2Hasher {\n    fn default() -> Self {\n        Poseidon2Hasher { _state: &[] }\n    }\n}\n",
+      "path": "std/hash/poseidon2.nr"
+    },
+    "50": {
+      "source": "use std::hash::poseidon2;\n\nglobal len: u32 = 2450 * 2;\nfn main(x: Field) {\n    let ped_input = [x; len];\n    let mut val = poseidon2::Poseidon2::hash(ped_input, len);\n    assert(val != 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

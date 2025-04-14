@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1WXU6DQBAeCqhYmzb67gl82AINvJgQ4xE8gJsSztGjW5KZsH4MRAub1tQvIcNmZ2e++cnsBtQhYBnBmhSdiqWZhu2MtoxKdAyiU7NMWC6c/XDGYBPwO6f90uS7RIlvRv5ZwjZ95kdserBvbtnO+6Gzj7G0WPHa7SE5c3f8Hqj7X/F/Amd81NZj7s2Twl98LTnWFPKzcPITDEii7/UUyNmNElcwkFOiP9NrueQooj5kL1Zilr0bZ8/NDSKEtRtTW7PSsYt6gjX1c4G1lThiRTeAPdF9Zim5joFjxWszEY+OXQJfHnsovZYeenXsop5gTcPzA2dXi4qlmYYM+cYjPLB3X4BfBPFX83BU+zMC3z7ujSNSbVYT8HGh9YLotb3wxv9jvbCk7i0VHeaPqyiNEX8h24+pz931H4N+wet74C+1qU7k2RR222S2sTtb1/neYu1bDN2rv5nDRMNzWLtTowvyqb2vTn0/+Jstqd3QOWZaur+We8U6dlFPoPUn9s3Y2wRnv+h+sLyEt8l/nX9WZ3xnjtVZdD9ZnvOOx/k3Nlda3S8OWJ7dlREAAA==",
+  "debug_symbols": "ldfdisIwEAXgd8l1L5JJJj++yrJI1SqF0kqtC4v47tsuRjQdkHMjpuRraU8nzdzUodldT9u2Pw4Xtfm6qW7Y11M79PPodq/Ubmy7rj1tXw8rvfyY8D//cq77ZXiZ6nFSG+OoUk1/mP+xm/2x7Rq1YX3/rpSJsEioIA0LAwuChYWFgwWLwocsfCyF/yCCLUWARYRFQoWVM48mi7QSBhYECwsLBwuGhYdFgIWYOWn/EKRDKdIHYagQTsPCwIJgYWEhZk6ks7ArwbDwsAiwiKhg8Ro+PoBP5XzxCs9lIXA5P2HzvVzhxPk9J18KucLJZbG6Z+9gIT4lS7n6LJXV5yMsEiqChoVYfTbmuG0qv06BYGFh4WDBsPCwCLCIsBAzdybvL5wp9xdRyyJn7kiXwsCCYGFhIWbuKC8MzpbPKjIsPCwCLCIsEiqShoWcOT/fq9W+NcmZ8zNBXyaYLCwcLBgWcg1yXtstv39x7vPopx7betc1j2breO33L73X9HtuijbsPA775nAdm6Uhe+nFlpxYV8zzaedT/wE=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: Field) {\n    let one = 1;\n    let add1 = |z| { *z = *z + one; };\n\n    let two = 2;\n    let add2 = |z| { *z = *z + two; };\n\n    add1(&mut x);\n    assert(x == 1);\n\n    add2(&mut x);\n    assert(x == 3);\n\n    issue_2120();\n}\n// https://github.com/noir-lang/noir/issues/2120\nfn issue_2120() {\n    let x1 = &mut 42;\n    let set_x1 = |y| { *x1 = y; };\n\n    assert(*x1 == 42);\n    set_x1(44);\n    assert(*x1 == 44);\n    set_x1(*x1);\n    assert(*x1 == 44);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,83 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "idx",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91YbY+UMBAuUOBYczmjf8NEugvH+sX44fbe1C+amPiR425/Bz9dGmfk2aFdY67VrJOQFubpvDwzLYFE/ZRyuhKaaxoztRTGfKCxfp6YgLZqG1saOd4kYLyxYkwDc6ojc5qdAKf6BGLMTyDGInBvspSLCQVvN4NtMFtAS1Ah9K41Vr7TWNGYgj5gw5pK+A1pf1s3Q6UOJXD8m4ps6jj2O7afx7Ffc+2vxtk+5sJ+M4GTazLA7ACz82CuAXPtwdwA5saDuQXMrQdzB5g7D+YeMPcCc05z3HBXhOH6xNgfU/+2keu/5tzwJcd5su8iju9NIvwpNdcDdex/paLuNZMIfxyP5Idrfc6YcY5H6vS4zIN1Oei4vmfT9QZwsrc4jgryD83F1Hexz53mH/Zd+z/2XSZ0elzm8ad9h5xowHUw3wrbH8d5jaxnpDPyIeZesPV57YlfQY7lqH4J6zJ4xpwzT2eIF7oKdHo89LOiew1+0BbHkQv8Jd1f0FjAGl7/0uG/EP4P4nY8Q46krczxjPG2R9/S/AVdtr8+8xoVdQ+uuV+Zt1zNexDPBH0kHqXCfsxgPO9ptJx8BZ++cwN/BKQCXzrwhcBYuVDLd0Ap8o/0XdDI3Hz1SEGP+N0RvrQj/+wIX8fOZRdfuF7ymjhs5Y58EhFX4cEnIn/Gf1Jz/t9obvcUfw/pcbYRqm7ddv4o5TMtV+4faRr0iP9C9yvIkcfn/ITYd73Zb/p93/aPj83QvxL2raTAU2j/Q3v5MDRtXz8Ze7v+2/4n193Qd8a8a8xTY9rf+f8BskmKDhkVAAA=",
+  "debug_symbols": "ldTLqoMwEAbgd5l1Frma1Fc5HErUWAIhStRCEd+9SSm2WDezEUf8SP4MkxU61yy3q4/9MEH9t0IYWjv7IeZq3Qg0yYfgb9fvz0DLQ+nX/9NoYymn2aYZakYvBFzs8hvj2fc+OKgV3f4JKIMWF6yoKFowtODnQu9CHIVAC4kW6lTwPYf4yVGhhUYLgxbnPed7cnFMrilaMLQ477nYc0h5FAItJFoonNhydbfJ2ya494D3S2y/5n1+jO4w+mMaWtctyZVL4DP/JZ6URMm8D1Y6oDUxvBTlcE1FjMnr5TWf",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

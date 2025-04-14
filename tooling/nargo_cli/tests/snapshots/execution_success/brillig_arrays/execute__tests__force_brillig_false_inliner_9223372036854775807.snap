@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YMa/TMBC207htWp5awYDEBmwIpLRJSRekDDAyMcECoU9FLGxIsOWnU/f5Xi5fLgGBrQq9nBTZsb/cfXc+u+dqdSORe6zErtWsnai20Fzp2vTfZONRVxqKo/4POEYBOJ4TQo8J0eF4ZxNCq+aUmEASRKpfaC5zbQLjlFilJ+cTpte3/n2aFwn455l/lkBMQ+mfhNGfzpye13WjH32hPNDh1ikP7Gd2pbq5r8G3OIztXIM9BX4qsL9QQXNqo8Ee8cH4UP+KMHXDR8NcXHf9oDlTt/2wMj89DxkOcytiuCes/9T1A+djEXhfpw8GfKaxWa1uheI2YWMUV4rznONhLmFzcd22s3DvMbPDdREPA/jH7n3l2in7hr5fC/anYL/FWxjDuCQCPhHw09PzyPWX7rE59IK+UZfbZ9K6r1T3DIyBKz9DSk88kYcReGiYI+xz4BfoDE3vM70Ym6Vq6pS49m+/2Kcp2aV9ZVS3wOb2DeC37n3R40f5lzyPRbU5ZtWx2lXX1/mhwjhZiVicfrr+WNcNyljX+Vmnsa5TY1031nVN38pY192I77ruA+ONccczIdS5i3uQYo82I+YTnlF8/xoYe+Za6+8n8I/v8aF9v1b9ORp6f+CZrPzp3g2dZyHrw5Pkdj0OThede4b5aIDTlM1NBDzm7kzATxkG13bG5vAOEWhtt3/im3Tf4bk/Ba5cV+mJp4IYmQEeBrCvgN88TCzF+84cbAeqazIN9pSS15Hsr1Q355Arz+3SE0+0ZQQeBuYI+wb4JWFiKa5jArZnYWzf1oP8riT9/0D2V6qb031clUeeaMsIPHCvEvYt8FuEiaW4jtxW336RfmOH9gtipZzGs4mw7yAWlzibhn4DOB7PjkjwT8F3RsDi/ibse4jF+L9UM8/xH937pf+X8m2/KrL9YZsfis+7rMpe/ta+dNfhdaQVui/x+xTH8z3L8V8Ie3q+uj7eobk9i/sxgNM97VmHMBbX7THpnsXvn4Qn24u6y5HmlmyO17hW7rl3Hi+ui3gYwH9377Qm/M5I368F+3Ow3+ItjOH9cynglwLers830uda7rvv3/CzTdDPx5Ab5Y7N61/35a7LPiQAAA==",
+  "debug_symbols": "ldfdaoMwFAfwd8l1LvJ18tFXGWPY1hZBbLF2MMR3X1KasqVZ3f/Oo/5M5OSEnJnt2+31+NENh9OFbd5m1p92zdSdhhjNTNxuXc7NkKLL1IwT20jrOWuHfbzycuHs0PUt25BY3jmTVRDkHSgpfoEYbMeu77vjRznuzLStfUw5lz/2NLp2sPCwCGvCFsIIWEhYKFhoTCy35P6VFSPF3Rn5v6y8FB4WARX1rLwUEhYKFhoWpi5yjRqlSkGwsLBwsPCwCKggAQsJCwWLes6tzsK6UhhYECzsinBP/+Fg4WERUGEFLOo59zaLIEqhYKFhYdYElYJgYWHhYOFhUc05PfZEkqYQTsBCwkKtiVAKDQsDC4KFhUU156RzRZEu9xLnYRFWhCmr1gtYSFgoWNRzTnm1ky3r3BtY0JooK8pbWDhYeEwsMfpsxq7Z9m3qAdLD67DLLUEMp69zfpKbhvN42rX769im9uFH5xCHVpprHech07owxEk8jrDpTghcKpFOjuW7QfBAKUjLI1gefJxbnN83",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested are array reads and writes\nfn main(x: [Field; 3]) {\n    // Safety: testing context\n    unsafe {\n        read_array(x);\n        read_write_array(x);\n    }\n}\n\nunconstrained fn read_array(x: [Field; 3]) {\n    assert(x[0] == 1);\n    let y = [1, 5, 27];\n\n    assert(y[x[0]] == 5);\n}\n\nunconstrained fn read_write_array(x: [Field; 3]) {\n    let mut y = x;\n\n    y[0] = 5;\n\n    assert(y[0] == 5);\n    assert(y[1] == 2);\n    assert(y[2] == 3);\n\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "read_array",
+    "read_write_array"
+  ]
+}

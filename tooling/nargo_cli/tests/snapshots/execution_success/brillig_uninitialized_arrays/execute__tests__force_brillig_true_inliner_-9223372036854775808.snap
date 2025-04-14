@@ -1,0 +1,60 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VWW27CMBC0kxhiUEvVHqAX6EeehI9+IPWhSj2FCeUcHL24tcUyWYha7JWiONn1zOzaG0eKX0sOl3TjjLxD8zFrdy+uszIgVhFTpwyoUxKdyWBAxNMx5/90dw0x1p8GTF4Db0j8VdF0WpxaYP21JpgR8CuPn8XBL6YO53V/ii+A98Y90/3j53gf3UdvzpcfrltxHC8InrV3wuuxNeAF3hPLyGtWPpzRb23u6vAEdfV+wdQh0trXEvgE1EQA/yxy3STweT1YnwRqpxitd4xPwlgxPIrh4bC8byH4NbKmmXkhe9fnMXF4GZMH1ZZAPB0LN4e+e3R3u18rMufcGmUXasd9UzSjJ2B9Or8/pmJo3pcDN/VpyJn6ZsRH+xwthWear+VuCS7GoVa6x3Lwcf06Jzlk+6M/VI271fGHI3X4SgxzpvwK4kv3TOtJ81j/U+euM+WuNjvTmu226c094FtLSJ1C85uuXvVV03ebtjb1cpSfngnYT9xZEvOMPFiF30g1oovrZRFOT6lAz7O727p9EE7s91QM/1sSiM+Z+CmJ8fkuxPDbmsM87hyQoMO/H6upgviXCzmnf8x5wsSnF3Km8+lc5Dl3Tsbosb5dbvqmNcVX+bNnx3rsG3UoSZORDgAA",
+  "debug_symbols": "tdbLaoQwFAbgd8naRXJyU1+llMFLHARR8VIo4rvXFGcQtZR/kY0YOd+fxYnhLKx0+fx81G3VjSz9WFjTFdlUd+22WtaI5UPdNPXzcfzMuH8I81s/9lnrl+OUDRNLBbcRc225vZHefFU3jqWar9GlVJLcSyWpY+lnxIQNGR6HDE8ChhMPGS5ChlPIcBkyXIUM11C4FwYWFhYxLBJUSA4LAQuCxf1JkvoltDwLBQsNCwMLC4sYFgkqFIeFQIW+7QdJ2gXJi9CwMLCwsIhhkaDC3PaDyLzF+b4yAhYEi9t/kNTrFiV1EQoWGhYGFn/03L7F+fYxMSwSVNj/en4S67b6yoY6yxu3z4TV3BaHEXH67t1pWuyHrnDlPDg/Nx5GRr+3UpFK/KDkj5LmkaZtj22fHw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

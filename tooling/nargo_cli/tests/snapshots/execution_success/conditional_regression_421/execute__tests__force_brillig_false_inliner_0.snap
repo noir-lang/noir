@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYUYrDIBDV2DRNu20Dm7K/ewSNSaN/vcqGTe9/hK2sA4P1rzNgH4SRMby8GfUFlOIf3eP5imP5eFSMAd9JTmZyVSanMrlNzGGoGG8x6tdgMJfV13Fc52E11vzowS9u0uO0XJ1xZnLT7+CsXd3oZr/4WXsz2tXcJ2/vkUwSctV0NeoNWqsUkriflLqx3i2n4C0Db0O4GbjqblCDiXhZtEpGrYCSjaUi5NqJ9zQWSt1Yb8spuGXg3YuyjSXUvUcNJuLNan21/iZqrQpeo4Mo25xD7w5M6w0o2ZwVIdeHeE9zptSN9R45BR8ZeE+ibHMOdZ9Qg4l4WbSCOaeHn8L0qbgojf4saA2OY2+fBf1PuCt8H4b91wn6MwNXHAE14ocrEoXmc4A62yRe0Lwi7APw9zz8usnUeEHjPqmzQnM3Ig3AB55Ti2dUyRy8u0v0SXp9JtWiMt8CfMbYoxz08w+dXR4DyxMAAA==",
+  "debug_symbols": "ldPBCoMwDAbgd8nZQ1Onrb7KGKNqHYVSpepgiO8+FQtSeskxzf/lkNAVOt0sn7dx/TBB/VzBDq2azeD2aoXifJpG5Y5qmpWfoRaYgXYd1JJtGfTGaqgLtr0yKGlxQYtLWrxKxSt5xZGJKI8sBZA/gsjzWCBZcLLIyeKRFEVYFJbxprAgi+SlUYggZBkLQRaSLCqq4IwskjfnLNyDY3wPzmliLxpvrDWf9/0v7s9f5Y1qrL7KfnHtrTv/xtAJfvRDq7vF62PS2dvH/wE=",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: u32, mut c: [u32; 4]) {\n    //Issue reported in #421\n    if a == c[0] {\n        assert(c[0] == 0);\n    } else if a == c[1] {\n        assert(c[1] == 0);\n    } else if a == c[2] {\n        assert(c[2] == 0);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/82X307DIBTGD/2j1mXO6I0XXiwxMTHeQIEV7rzQB6G2fY49ukwhxZPWmBSanYQcRuHrjy9njBH4idK2yvWJbbnLp9ijMTIxlrmxItDA4cfeXKbLgkXUoiFvnho8D7Q4PQjRN3XPODO01q2SVMj2oJhiUsmuVpz3SqhGt7qhmgnes0Fq3g/fYdY0nEAaw4vU4EU8w/WahmeQxvAyNXgZz3BFggrJEXMG8+H3xFz2x1sWPM8j7rlC742pr6g4VBP7i8jPK+RpCn+8ZgJ9eul03o+jPt4LBNnPw2tOz7cw/tThOVe23cDY37n+1uWPQMuvT+mtrQ2Z2Ft2D/N+bpwPr4EP+LtJZjIgZh8Z8i1Vzdz+sa/Unvr68GdbAb+vWJinRPOfXb6w7WEd5nop81PA/LgOM1/KvA+YXxBzirPehp6qS7I+hzoTjua/HLsJDr9mA+MdoDjG52zUeMnKnX4JE38ngveXaD51n68Dfp+LBZxDY9jAzWCk6Trxae6QPiCfvgBDZBWsFw4AAA==",
+  "debug_symbols": "ldPbaoQwEADQf8mzD7lf/JVSFi/ZJSBRohaK+O9NymapQ+iSF3EMJxMnMwcabb8/bs7f5xW1Hwea5qHb3OxjdCD2+2ldOp+idevChlqiSYOsH+Ob0WeD7m6yqBX4/GwQ/x9QzAAQJUDpCzCYQb4BHGZQRSBfQMEM+g3Q1wwx6IObJve4XWqH04MUjys4fm4mOAHZiaoWulqYWkFxUYhcFCEUFKRaFJtHYvoUEsOboqJaFGslBctCGChMrWC0KJTJQsNTMVYtyn9OdRYMVpfJalHuK6XyDWoJhakVvNglCucuUfh6qjNGX11wXT/ZNGVpcfdDHroYbt9LXsljuYR5sOMebBrQP7OZepqzhuu4bdz6Bw==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls with conditionals\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x[0]) == 7);\n        assert(entry_point(x[1]) == 8);\n        assert(entry_point(x[2]) == 9);\n        assert(entry_point(42) == 0);\n    }\n}\n\nunconstrained fn inner_1() -> u32 {\n    7\n}\n\nunconstrained fn inner_2() -> u32 {\n    8\n}\n\nunconstrained fn inner_3() -> u32 {\n    9\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    let mut result: u32 = 0;\n\n    if x == 1 {\n        result = inner_1();\n    } else if x == 2 {\n        result = inner_2();\n    } else if x == 3 {\n        result = inner_3();\n    }\n\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "entry_point"
+  ]
+}
