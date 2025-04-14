@@ -131,7 +131,8 @@ impl ExpressionSolver {
 
         match (mul_result, opcode_status) {
             (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
-                // there are too many unknowns that might be because of pending witnesses not being written done.
+                // there might be too many unknowns that are in the pending witness list that is not written down yet.
+                // so we write down the pending witness lists and solve again
                 // pending_arithmetic_opcodes.failures += 1;
                 let write_output = pending_arithmetic_opcodes.write_pending_ops(initial_witness);
                 write_output.map_err(|_| {
@@ -157,21 +158,26 @@ impl ExpressionSolver {
                 if w1 == w2 {
                     // We have one unknown so we can solve the equation
                     let total_sum = a + opcode.q_c;
-                    if (q + b).is_zero() {
-                        if !total_sum.is_zero() {
-                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                                opcode_location: ErrorLocation::Unresolved,
-                                payload: None,
-                            })
-                        } else {
-                            Ok(())
+                    match q + b {
+                        x if x.is_zero() => {
+                            if !total_sum.is_zero() {
+                                Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                                    opcode_location: ErrorLocation::Unresolved,
+                                    payload: None,
+                                })
+                            } else {
+                                Ok(())
+                            }
                         }
-                    } else {
-                        // normally we would do
-                        // let assignment = -total_sum / (q + b);
-                        // insert_value(&w1, assignment, initial_witness)
-                        // but we want to add this to pending_arithmetic_opcodes
-                        pending_arithmetic_opcodes.add_pending_op(total_sum, q + b, w1)
+                        x if x == F::one() => insert_value(&w1, total_sum, initial_witness),
+                        x if x == -F::one() => insert_value(&w1, -total_sum, initial_witness),
+                        x => {
+                            // normally we would do
+                            // let assignment = -total_sum / (q + b);
+                            // insert_value(&w1, assignment, initial_witness)
+                            // but we want to add this to pending_arithmetic_opcodes
+                            pending_arithmetic_opcodes.add_pending_op(total_sum, x, w1)
+                        }
                     }
                 } else {
                     // TODO: can we be more specific with this error?
@@ -236,21 +242,26 @@ impl ExpressionSolver {
                 // Hence the equation is solvable, since we have one unknown
                 // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
                 let total_sum = total_prod + partial_sum + opcode.q_c;
-                if coeff.is_zero() {
-                    if !total_sum.is_zero() {
-                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                            opcode_location: ErrorLocation::Unresolved,
-                            payload: None,
-                        })
-                    } else {
-                        Ok(())
+                match coeff {
+                    x if x.is_zero() => {
+                        if !total_sum.is_zero() {
+                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                                opcode_location: ErrorLocation::Unresolved,
+                                payload: None,
+                            })
+                        } else {
+                            Ok(())
+                        }
                     }
-                } else {
-                    // normally we would do
-                    // let assignment = -(total_sum / coeff);
-                    // insert_value(&unknown_var, assignment, initial_witness)
-                    // but we want to add this to pending_arithmetic_opcodes
-                    pending_arithmetic_opcodes.add_pending_op(total_sum, coeff, unknown_var)
+                    x if x == F::one() => insert_value(&unknown_var, total_sum, initial_witness),
+                    x if x == -F::one() => insert_value(&unknown_var, -total_sum, initial_witness),
+                    _ => {
+                        // normally we would do
+                        // let assignment = -(total_sum / coeff);
+                        // insert_value(&unknown_var, assignment, initial_witness)
+                        // but we want to add this to pending_arithmetic_opcodes
+                        pending_arithmetic_opcodes.add_pending_op(total_sum, coeff, unknown_var)
+                    }
                 }
             }
         }
