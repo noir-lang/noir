@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744667650252,
+  "lastUpdate": 1744667652758,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a565c53b0e03b8dcbc06d99ed225bfdec8ca616c",
-          "message": "feat(fuzz): AST function body (#7890)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>",
-          "timestamp": "2025-04-09T08:50:32Z",
-          "tree_id": "541a6ef4d5f0d248082e7250e0ce026ac4dee6be",
-          "url": "https://github.com/noir-lang/noir/commit/a565c53b0e03b8dcbc06d99ed225bfdec8ca616c"
-        },
-        "date": 1744189974613,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.674,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.462,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.446,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.426,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.895,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.867,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.458,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.468,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e3314c9858a7b38545443b430359d9ba79f35d2e",
+          "message": "chore: don't use `set_value_from_id` in `as_slice_length` (#8039)",
+          "timestamp": "2025-04-14T21:21:47Z",
+          "tree_id": "8eb6f2df85003ff8f667fa1c4748ec69405c5ff3",
+          "url": "https://github.com/noir-lang/noir/commit/e3314c9858a7b38545443b430359d9ba79f35d2e"
+        },
+        "date": 1744667646381,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.668,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.465,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.278,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.994,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.138,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.894,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 138,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.45,
             "unit": "s"
           }
         ]
