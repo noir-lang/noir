@@ -497,9 +497,7 @@
 <a href="#496" id="496">496</a>
 <a href="#497" id="497">497</a>
 <a href="#498" id="498">498</a>
-<a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a>
-<a href="#501" id="501">501</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<a href="#499" id="499">499</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 <span class="kw">use </span>binary::simplify_binary;
 <span class="kw">use </span>call::simplify_call;
 <span class="kw">use </span>cast::simplify_cast;
@@ -730,7 +728,6 @@
                 <span class="kw">if let </span>Instruction::IfElse {
                     then_condition: inner_then_condition,
                     then_value: inner_then_value,
-                    else_condition: inner_else_condition,
                     ..
                 } = dfg[<span class="kw-2">*</span>instruction]
                 {
@@ -738,7 +735,7 @@
                         <span class="kw">let </span>instruction = Instruction::IfElse {
                             then_condition,
                             then_value: inner_then_value,
-                            else_condition: inner_else_condition,
+                            else_condition,
                             else_value,
                         };
                         <span class="kw">return </span>SimplifiedToInstruction(instruction);
@@ -751,7 +748,6 @@
             <span class="kw">if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>dfg[else_value] {
                 <span class="kw">if let </span>Instruction::IfElse {
                     then_condition: inner_then_condition,
-                    else_condition: inner_else_condition,
                     else_value: inner_else_value,
                     ..
                 } = dfg[<span class="kw-2">*</span>instruction]
@@ -760,7 +756,7 @@
                         <span class="kw">let </span>instruction = Instruction::IfElse {
                             then_condition,
                             then_value,
-                            else_condition: inner_else_condition,
+                            else_condition,
                             else_value: inner_else_value,
                         };
                         <span class="kw">return </span>SimplifiedToInstruction(instruction);
