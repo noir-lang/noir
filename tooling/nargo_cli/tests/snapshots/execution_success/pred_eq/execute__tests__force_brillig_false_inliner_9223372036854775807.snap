@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/62QQQ6AMAgEW+ODoEALN79iI/3/E0yUg2niSSche5uwm9NNjptZIrdI+AY+XQSV2VtxJNyhWFcBll4VFUXlKErkytqsWwNDJschRiNk+b+/Ltc6dU4vm8ycABPIT0QBAAA=",
+  "debug_symbols": "TYzLCsMgEEX/ZdZZ2EVb8FdKCT7GMCCjjFookn+PCQlkee7hng4ebVtm4pAK6E+HmJyplHhQB3VMJRveqVQjFfTrMQGyB/1W6wSBIoJ+qvU7wArFSMt8j4z5Z4SMjXhiaOxutv7zZa5/luTQN8G9dLiR3wA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) {\n    let p = x == y;\n    assert(p == true);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

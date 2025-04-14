@@ -1,0 +1,59 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "expected",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "first",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "input",
+        "type": {
+          "kind": "array",
+          "length": 20,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1cbVPTQBDetihvgihVXg0tiIiIJE3SJiICvr8gLyoy47dW2i/+Tf0b/hbv2ju8SVNGyXMz3ZGd2bk2Ccuzu8/dJdfb5KgjJ0KP1eeC0LzQW+p7Tn2XxweEXhF6Veig0CGhw0JHhI4KvSZ0TOi40OtCJ4TeEHpT6KTQomHXlJxqd1Tru9UgaNYqTc/36m4lbkShG4SNauRFXhiFp5XI95tRENXiRlxzYy/wm14rjP2W25Hbhi03o+SV/0lB2e8VAzebeMgY2MI4ZQFjW/JgQvWr0wMJf01BJwtoy02Bm9W2pz+YsZhW7YwOSEG18sSvxDF5USkBqmAxiBckZUWR0psmHMFnyE5y0R0R6fNsis8XtWnyaFZxa0B9z1G3oGe8abAvWuZsAp5LIUhW8HOE66zzhJ1BbMRwnnqP9Be1P0/YwQDt94zyuxd3/lW0XWS+7wBjaA4u0m6ZOoML0d/N/H0wOejZuZ4C18rM76h2QQdEB9ChP6OyPiYvKiVAFSwGMevM7wBxLQCTy+12tNWWppcC1wopS6ot64BoApaom5Rl4nU7WiIcKcvg5KLJ5xg5A8TwzO8S9ffMK204lnnoZpM6cnBcBNhqdohY47qQtMgA4xIS4+WKnz2Mdy1gTAWatecvA53mSqhlBhjvERNCreCAVrgSaoUBxvvEhFCrOKA+V0KtMsD4gJgQag0HNOBKqDUGGB8SE0Kt44CGXAm1zgDjI2JCqA0c0CpXQm0wwOgSE0J5OKBs13c8BhgrxIRQPg5oxJVQPgOMATEhVIgDGnMlVMgAY5WYEKqGA1rnSqgaA4wRMSFUjAPa4EqomAHGx8SEUJs4oN+4EmqTAcYnxIRQWzigp1wJtcUA41NiQqhtHNAmV0JtM8C4Q0wItYsD2uJKqF0GGJ8RE0I9hwH12FZA4mJgD+MLYkKolzhCsd0PhYuBPYyviAmhXuMIxXY/FC4G9jC+ISaEeosjFNv9ULgY2MP4jpgQ6j2OUGz3Q+FiYA/jHhKjrGyRql9TIjesyz3Gcluo3MknN1/J/TLSG/mrtPwhUf72I5fr5QqrXBTT6xjyaUHe4Mk5WQ6jkvl71JuwbjZpVyUtEa7ovlO5Ep8iK2o+wPyttjtVgboFFU9beVqk/u9UuDypihqLifqvK2r20YniOE1xSNQBEiPTSusG4cmVWml9qNojHRBdVX1I3ZXW8qJSAlQ/V1ofEm4+PgInF30T7hjJBOYjtTrazSbtHDsWYvAR6DfXER4ZA1sYP6Ex2uhMEiR2cKsGjqUgZvX3M7HpONYeNjh0HGSeLu9hLWI8toCxLaglC3OkQ9n6QthebsNX4FNgexnpgHCvV9N294E+n4CJiPZVxhDYWTzJwROy80IfVBwlNv1cavPt0ToGppgD/tTZsYnxrz++/zSv2+txTv/9kGqHVTti+FHAxaqi7Y/ase8OUreMGJ9HKT1+Ayl/l+vxPZ9oz7s2d47dsZRz2uakak282o/hRGtyDhhLT9sv2rGfmivzLenFhJ9mvHdAGLQ9/WRwhbolnzinr032mRweX9cb+gop/0uL5kzROKbj+RsTLoL58l4AAA==",
+  "debug_symbols": "ldjRioJAFIDhd5nrLhznnDNjr7Isi5WFIBZmC0v07muhbGtC/HeeGb65+REcr25XbS6Hr7rdH89u/XF1zXFb9vWxHaaryx5L51PZ3qdzX3a9W4foV65qd8NTIbeV29dN5daa3T5Xzi8B8TICyYsZyCkIb4D4GZAlYKojsJjNgFJgFEQKEgUFBT7DwmORYxGwwLn92946F4ZFxCJhsdg8ehtF9C/vXoaFxyLHImCx3Dz9iTAXioVhEbFIWBRUhAwLj0WORcACNw+4ecDNA24ecPOAmwtuLri54OaCmwtuLri54OaCmwtuLri54uaKmyturri54uaKmyturri54uaKmxtubri54eaGmxtubri54eaGmxtubrh5xM0jbh6Xv+EsTuL1ghOwECwUC8NisXmUfBI2vwDHhEVBRcqw8FjkWAQslpunYhTJ2z8xDJuubpr68PX8l2JY/i67utw01TjuL+32abf/OU07kz91x221u3TV/aTH3nD8Lw==",
+  "file_map": {
+    "50": {
+      "source": "// Reference https://github.com/noir-lang/noir/issues/4395#issuecomment-2018948631\n// for context.\n// We were not accurately accounting for situations where the slice capacity tracker\n// was expecting a capacity from slice intrinsic results.\nfn main(expected: pub Field, first: Field, input: [Field; 20]) {\n    let mut hasher_slice = input.as_slice();\n    hasher_slice = hasher_slice.push_front(first);\n    assert(hasher_slice[0] == expected);\n    // We need a conditional based upon witnesses\n    // to force a store of the slice.\n    // If this successfully compiles it means we have stored\n    // the results of the slice intrinsics used above.\n    if expected as u32 > 10 {\n        hasher_slice[expected - 10] = 100;\n    } else {\n        hasher_slice[expected] = 100;\n    }\n    assert(hasher_slice[0] == expected);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

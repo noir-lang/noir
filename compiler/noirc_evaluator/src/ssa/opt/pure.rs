@@ -279,7 +279,10 @@ fn build_call_graph(
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},
+    };
 
     #[test]
     fn classify_functions() {
@@ -363,5 +366,66 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(5)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(6)], Purity::Pure);
         assert_eq!(purities[&FunctionId::test_new(7)], Purity::Pure);
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            v3 = call f2() -> &mut Field
+            call f3(Field 0)
+            call f4()
+            call f5()
+            call f6()
+            v11 = call f7(u32 2) -> u32
+            return
+        }
+        acir(inline) impure fn impure_take_ref f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        acir(inline) impure fn impure_returns_ref f2 {
+          b0():
+            v0 = allocate -> &mut Field
+            return v0
+        }
+        acir(inline) predicate_pure fn predicate_constrain f3 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        acir(inline) predicate_pure fn predicate_calls_predicate f4 {
+          b0():
+            call f3(Field 0)
+            return
+        }
+        acir(inline) predicate_pure fn predicate_oob f5 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 2 -> Field
+            return
+        }
+        acir(inline) pure fn pure_basic f6 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 1 -> Field
+            v5 = allocate -> &mut Field
+            store Field 0 at v5
+            return
+        }
+        acir(inline) pure fn pure_recursive f7 {
+          b0(v0: u32):
+            v3 = lt v0, u32 1
+            jmpif v3 then: b1, else: b2
+          b1():
+            jmp b3(Field 0)
+          b2():
+            v5 = call f7(v0) -> u32
+            call f6()
+            jmp b3(v5)
+          b3(v1: u32):
+            return v1
+        }
+        ");
     }
 }

@@ -84,7 +84,7 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
 
     use super::Ssa;
 
@@ -101,15 +101,13 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.brillig_array_gets();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index u32 1 -> Field
             return v2
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -155,14 +153,12 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.brillig_array_gets();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
             v2 = array_get v0, index u32 3 -> Field
             return v2
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7WUUQrDIAyGq93Y9rz2HknVNr71Kiuz9z/CBhoI1j5pP5BIIr9/gqi6iP6vPu1vKaruCOfWFA3M1oZlCmjwA5PfyIF120xI6Mh9JzImkKXFb34Bj9YE3J03O0SkFtSB0q++0rAu6EIdqBt7POsf6sAWswx7RInHpgueS3DtlcVR1PuG/bL+cI0+PAo9jmI/ZH3KOa2NPLAefwD37ojOanz2mflT7f1h7qUv3MW8UxxEjuf5A2weYfntBAAA",
+  "debug_symbols": "lY7LCsMgEEX/ZdYurKUJ+CulBJ9hQFR8FIrk32tChRS66W7OvZzLNNBG1nVBb0MGfm/gghIFg+/UgB5RjsLvlItIBThjlIDxul9XthGw6AzwG90eBC7/CuynMM1DmKcvoYNM6Byuy/nRHj9FQiGd+aCtXp3a8oqjGX5MQRldk9mXjq7PvwE=",
+  "file_map": {
+    "50": {
+      "source": "type Foo<T> = [T; 2];\n\ntype Bar = Field;\n\ntype One<A, B> = (A, B);\ntype Two<A> = One<A, u32>;\ntype Three = Two<u8>;\n\nstruct MyStruct {\n    foo: Bar,\n}\n\nfn main(x: [Field; 2]) {\n    let a: Foo<Field> = [1, 2];\n    assert(a[0] != x[0]);\n\n    let b: Bar = 2;\n    assert(x[0] == b);\n\n    let c: u8 = 1;\n    let d: u32 = 2;\n    let e: Three = (c, d);\n    assert(e.0 == 1);\n\n    let s = MyStruct { foo: 10 };\n    assert(s.foo == 10);\n\n    let _regression2502: Regression2502Alias = Regression2502 {};\n}\n// An ICE was occurring if a type alias referred to a struct before it was initialized\n// during name resolution. The fix was to initialize structs during def collection instead.\ntype Regression2502Alias = Regression2502;\nstruct Regression2502 {}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

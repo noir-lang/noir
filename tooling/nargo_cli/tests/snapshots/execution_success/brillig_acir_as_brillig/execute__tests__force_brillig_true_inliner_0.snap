@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAwtAuo0elAPXvSiiddNR9CbB39kAfkOPt2QtNlsBkbdemnH3l5f27EErCXoM7YGD+aOXv5nKiCX9AodMsKc0Av0I2c/DVisYHlD8l+lLoSnvoD6LwI5Y/aHOCPwywnyPFrLz2sBxxOOn+n2Fxi794wwU9yneImxYGdizD/ifOTao59yzbHWPas11l1J4H1mgHGfPvpOj9u4B098OcNvwM7zyDgTj4b0Sw0pw/g0bD0aIvf5zPucwXCfc4bfMZ1ZHJ1y5fACyzUH+7Znbfj85VVKypu2tg/u3QSWP2f4A65nPXXcf9TZlEY1F9OYwtS1rgzvU2fuPxw6vy5MWZlSqZtWT62KT/lfUy8ETZEIAAA=",
+  "debug_symbols": "zZRNCoMwEIXvMussTNL81KuUUqJGCYQoUQtFvHuTYosotEgR3AQmfPPmLWbeAIXO+upmXFm3kF4GsHWuOlO7UA0jgswba011m39DEh/MXnzbKBfLtlO+g1QIBNoVkJ5x6C6N1ZCyZEQrkEg8kUTyOXpFgPl+0mI/abmf9Hk3aZL8Jy3YR1r8QDF/owQvXeBDuCCHcEEP4eL03cVqj9hGnm/kxUZebuHHUN2VNyqzekq+snf5LAi7R6MXmdj4OtdF73VMx1kwxouiCaIsXm5cbMoRlWFGmPME",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 2);\n        swap_entry_point(x, x + 1);\n        assert(deep_entry_point(x) == 4);\n    }\n}\n\nfn inner(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    inner(x + 1)\n}\n\nfn swap(x: u32, y: u32) -> (u32, u32) {\n    (y, x)\n}\n\nunconstrained fn swap_entry_point(x: u32, y: u32) {\n    let swapped = swap(x, y);\n    assert(swapped.0 == y);\n    assert(swapped.1 == x);\n    let swapped_twice = swap(swapped.0, swapped.1);\n    assert(swapped_twice.0 == x);\n    assert(swapped_twice.1 == y);\n}\n\nfn level_3(x: u32) -> u32 {\n    x + 1\n}\n\nfn level_2(x: u32) -> u32 {\n    level_3(x + 1)\n}\n\nfn level_1(x: u32) -> u32 {\n    level_2(x + 1)\n}\n\nunconstrained fn deep_entry_point(x: u32) -> u32 {\n    level_1(x + 1)\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

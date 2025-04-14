@@ -139,8 +139,22 @@ impl Parser<'_> {
             }
 
             None
+        } else if let Some(block) = self.parse_block() {
+            Some(block)
         } else {
-            Some(self.parse_block().unwrap_or_else(empty_body))
+            let mut expected_tokens = Vec::new();
+            if matches!(return_type, FunctionReturnType::Default(_)) {
+                expected_tokens.push(Token::Arrow);
+            }
+            if where_clause.is_empty() {
+                expected_tokens.push(Token::Keyword(Keyword::Where));
+            }
+            if allow_optional_body {
+                expected_tokens.push(Token::Semicolon);
+            }
+            expected_tokens.push(Token::LeftBrace);
+            self.expected_one_of_tokens(&expected_tokens);
+            Some(empty_body())
         };
 
         FunctionDefinitionWithOptionalBody {
@@ -332,7 +346,7 @@ mod tests {
         },
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, ParserErrorReason,
+            ItemKind, Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
@@ -437,7 +451,7 @@ mod tests {
     fn parse_function_unclosed_parentheses() {
         let src = "fn foo(x: i32,";
         let (module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 1);
+        assert!(!errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Function(noir_function) = &item.kind else {
@@ -619,12 +633,54 @@ mod tests {
         fn foo(
             /// Doc comment
             x: Field,
-        )
+        ) {}
         ";
         let (_module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 1);
 
         let reason = errors[0].reason().unwrap();
         assert_eq!(reason, &ParserErrorReason::DocCommentCannotBeAppliedToFunctionParameters);
+    }
+
+    #[test]
+    fn errors_on_missing_function_braces_1() {
+        let src = "
+          fn foo() struct Foo {}
+                   ^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Unexpected 'struct', expected one of 'where', '{', '->'");
+    }
+
+    #[test]
+    fn errors_on_missing_function_braces_2() {
+        let src = "
+          fn foo() -> Field struct Foo {}
+                            ^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Unexpected 'struct', expected one of 'where', '{'");
+    }
+
+    #[test]
+    fn errors_on_missing_function_braces_3() {
+        let src = "
+          fn foo<T>() -> Field where T: Trait struct Foo {}
+                                              ^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected a '{' but found 'struct'");
     }
 }

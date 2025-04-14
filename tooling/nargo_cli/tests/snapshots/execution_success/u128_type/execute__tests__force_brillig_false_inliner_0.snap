@@ -1,0 +1,74 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 128
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 128
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldnLauMwFIDhd/G6C+noSDrKqwxDybUYQhJyGRhC333SUpUia2L+XWTzOTI/9uL4Pmy2q9vb63jYHS/D4td92B/Xy+t4PDxW90E+D11Oy8PH6nJdnq/Dwkt4GbaHzeOX5veXYTfut8MiuvffL0PogqQVmDVAe0Bc/ALiXQMiBYmCTIFRUCjwDguPhWARZoSUVvRza6oi+lZELBIWGQvDolAhDguPhWARsMDNBTcX3Fxwc8HNBTcPc81z+wyGfnPLVRRphWARsFAsIhYJi4yFYVGoUIcFbq64ueLmipsrbq64uc40D759BrXbPIhVoe0zqN3mIX7/R2p3Fd2MsHZXsds8lLordaEVMiNksqtucw2lCtVWKBYRizQj0uTOu83VXBWWWmFYFCqSw8JjIVgELBSLiEXCAjdPuHnCzTNunnHzjJtn3Dzj5hk3z7h5xs0zbp5xc8PNDTc33Nxwc8PNDTc33Nxwc8PNDTcvuHnBzQtuXnDzgpsX3Lzg5gU3L7h5wc29c5x4ToSTwIlyEjlJnGROjBNe3/P6ntf3vL7n9T2v73l9z+v7mfrRTUm3fvyeWcfpULI/m3tK+sO558RzIpwETpSTyEniJHPC6wuvH3j9wOuHufo6Jf36qc4PY57MpfujuuckcpI4yZzYDCnTTxjd+snVSUzy7XTB9wd2z4nnRDgJnOgMCVPSrZ9ifSenPHkn98d2/yePxeo87vfj2+vPz5GPw3+W53G52m+/lrvbYf3j7PXvqZ6p/nQ+rreb23n7caXPc4/L/wM=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u128, y: u128, z: u8) {\n    let const_x = 12345;\n    let const_y = 2345678;\n    let const_z = 2;\n\n    assert_eq(x + y, const_x + const_y);\n    assert_eq(y - x, const_y - const_x);\n    assert_eq(x * y, const_x * const_y);\n    assert_eq(y / x, const_y / const_x);\n    assert_eq(y % x, const_y % const_x);\n    assert_eq(!x, !const_x);\n    assert_eq(x ^ y, const_x ^ const_y);\n    assert_eq(x & y, const_x & const_y);\n    assert_eq(x | y, const_x | const_y);\n    assert_eq(x >> z, const_x >> const_z);\n    assert_eq(x << z, const_x << const_z);\n    assert_eq(x < y, const_x < const_y);\n    assert_eq(x <= y, const_x <= const_y);\n    assert_eq(x != y, const_x != const_y);\n    assert_eq(y > x, const_y > const_x);\n    assert_eq(y >= x, const_y >= const_x);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert",
+    "directive_to_radix"
+  ]
+}

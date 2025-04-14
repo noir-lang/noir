@@ -7,6 +7,54 @@ on:
   pull_request:
 
 jobs:
+  rust_benchmarks:
+    name: Rust Benchmarks
+    runs-on: ubuntu-22.04
+
+    timeout-minutes: 15
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu-bench
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Run ACVM benchmarks
+        run: |
+          cargo bench -p acvm -- --output-format bencher | tee acvm-bench.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Store ACVM benchmarks result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "ACVM Benchmarks"
+          tool: "cargo"
+          output-file-path: ./acvm-bench.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
   benchmark-projects-list:
     name: Load benchmark projects list
     runs-on: ubuntu-22.04
@@ -729,6 +777,7 @@ jobs:
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
+      - rust_benchmarks
       - upload_compilation_report
       - upload_compilation_memory_report
       - upload_execution_report

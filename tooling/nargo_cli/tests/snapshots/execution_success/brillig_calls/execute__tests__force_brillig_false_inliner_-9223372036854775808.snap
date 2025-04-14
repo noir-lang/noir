@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZzW7TQBBe/7VxqwJqVUGREIUIJISQvLEd2xKgoCYgDhw4cEHi4DTJnTfw2/AuPAcPQqzOyOPJ2k4TL0loVop2Nzue/ebL7MysY4ibZs0/LowNmBswv5x/bLLGG343gN5br8kWdXmGAqc24AbR5Xv9IJhGvan0Zer1knEcekE47scylmEcTnqx70/jII6ScRJ5iQz8qZyFiT+d3TSK09RI8Ko4Z6DMbJk/dDyTOJ5BONgVx9OJ09SB0waSd/mEW7qBW6K1Ez6xRTnM7grhJZB1eUEo1lD+/M+Hi5+/f434913oMReZRIfVIiEuw9am/tgL+q5Y5KBF/L4rymFRBz+oU4N+7xD0DLNCP7dFkB7l+DP5+gmMqZ+hTGf+uSeK8X0Yn0A/IrrweZ3czn0j1MytPBPVfB4DD4//ga0epHS6vxBF0KNnj+5P48pBhTzqc5j8OfS5jZdMp6HAYN0Sg8VkVBguFBhy3jEm2FnZjgF8763RorjIhFZW4FrIiGR/h8k/hfkRsVEQ2wYr4pxFqZz56SwN08kkuE5Pmf68mYSntvcPwjS6TiMpk0BOAxk27f8IxvscVNt8zXGs54rFGkN3DqK24L7L5CCUGRGZEZOpy1O4Rq85+DzNW/n4AYxdoY6LA5h7azT0H425wTsT1XkA89QpmW97/HwI803Hz3cw3sev2ravocVqNTTGn7taQ6NfXmV69sbY90SUeaW5gdfEHA/FW1VDoz6HydMaukts1sh3gP5ni8WGa44Cu6GQ5zGb4s5tekn0cjm+J+UL99+FXPQc5ne9lt/kOXoN/f96jnyil8vxPavO0SZ/n5jY0mUYDAUG85YY+PsEFYa3Cgw5Lz9gvOM1XLyv4eob1nCfskJ/XQ2HcvyZqhoOZTqiOKf0XqX5Dhlv8g6pu05D/UM9+nuof6RHv4/6P+rRH2B8fy/Kvnagxxci9H88U7ThWofsTX2GN1XuQ9y5jiHRy+X4ntT3O2yNxhWXrdH3XkdsjebwYzKmONGOpvyJfFXlT9TnMPln0Oc2fRdqnfRPTnMJnS+gR1+hv1ebcYPXjSrfaKpDhllZHm1atg5B+VfQq3hEGcqjtYTON9Ajj4fkGd08HjIbmnik8W2dek5Cr+IRZSiP9hI6Q+g1xy4ljwfMhiYeaRxfh8cEehWP+Dzl0anRifL0nST3Yd080v8+t/3efgXzTd/bad5e1v/aupd9hr7uHFdhGGZl+VX/R/5Sg8FuwMDjmdOAwWYYUP5rDQanAQOPBU25yWEYUP6bAoPqTm+yNdUdRlXz2GzNVmDahvdIfwG+P7U4KCsAAA==",
+  "debug_symbols": "tdjbbuIwEAbgd8l1LjwzHh/6KqtVRVtaISFAHFZaId69CcJJaxzgt8RdXeezrczENnNsPuZvh6/XxepzvWte/hyb5fp9tl+sV13r2ND5X7vNbNW3dvvZdt+8EPu2ma8+ur8sndrmc7GcNy9qTn/bhu8BlwEpAj+AwBmwKNAi0BFIBlwJsDEXwBQz4O8AthkIRSCagNNfoGu8bRfL5eLr9Vd0zDlExeV6Q5fBvMlfOXlYBFhEVLCBRTE7XdRB+J+ivX5U3OVRd53I/MzB5ZmD26cNfjp/4MeJDCIOCRJHeiiH7piIm3Ie3TFT+1wYDT+UIHeMVBhbYbTCuArjcSMTMSUZDIV8zzcVhioMV5iJmBodTX5gWFthtMK4CuMrTKgwETdajg/ZmAxpftaqVBhbYbTCuAlDo9HbmzWZcWMzVxub+mdPEJ49QXzqBKfzDfQ4cdJYl5LRPnjO3BQEC4aFwMLCQmHhYOFhEWBRjLma9MEq5d+rGFgQLBgWUhZ2WlhYKCwcLIoxV0mHr0p+9kqARURF+e5xU5RjzmFaMCwEFhYW5ZgPv5zV8UP3jZvCwyLAohxz5UmhBhYEC4ZFOeYhnYQa3EP3mJtCYeFgUY65d9MiwCKiwhlYFOcQTUJcfuJ4AwuCBcOimFfiZBD5zuAtLBQWDhbFvBKf6nDiNRcBFhEVwcCiHPOhxClXJc7AsBBYWEycuta/2XYxe1vO+2pl33lYvafiZdfc/9+knlTe3GzX7/OPw3beFzp/1Dj7d8iuFeoWQv3rEW7F9rd3GvoptCxjiepMYv9UItqKHy/8fb/j1vnUH00buVt2t/Rv",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls\nfn main(x: u32) {\n    unsafe {\n        assert(entry_point(x) == 2);\n        swap_entry_point(x, x + 1);\n        assert(deep_entry_point(x) == 4);\n        multiple_values_entry_point(x);\n    }\n}\n\nunconstrained fn returns_multiple_values(x: u32) -> (u32, u32, u32, u32) {\n    (x + 1, x + 2, x + 3, x + 4)\n}\n\nunconstrained fn multiple_values_entry_point(x: u32) {\n    let (a, b, c, d) = returns_multiple_values(x);\n    assert(a == x + 1);\n    assert(b == x + 2);\n    assert(c == x + 3);\n    assert(d == x + 4);\n}\n\nunconstrained fn inner(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    inner(x + 1)\n}\n\nunconstrained fn swap(x: u32, y: u32) -> (u32, u32) {\n    (y, x)\n}\n\nunconstrained fn swap_entry_point(x: u32, y: u32) {\n    let swapped = swap(x, y);\n    assert(swapped.0 == y);\n    assert(swapped.1 == x);\n    let swapped_twice = swap(swapped.0, swapped.1);\n    assert(swapped_twice.0 == x);\n    assert(swapped_twice.1 == y);\n}\n\nunconstrained fn level_3(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn level_2(x: u32) -> u32 {\n    level_3(x + 1)\n}\n\nunconstrained fn level_1(x: u32) -> u32 {\n    level_2(x + 1)\n}\n\nunconstrained fn deep_entry_point(x: u32) -> u32 {\n    level_1(x + 1)\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "entry_point",
+    "swap_entry_point",
+    "deep_entry_point",
+    "multiple_values_entry_point"
+  ]
+}

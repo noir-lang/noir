@@ -1,0 +1,87 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "tuple",
+            "fields": [
+              {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 1
+              },
+              {
+                "kind": "boolean"
+              },
+              {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 1
+              },
+              {
+                "kind": "string",
+                "length": 2
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 0,
+        "type": {
+          "kind": "boolean"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1bS3LbRhAFSAASKDFkZOceAD8ivXOVpST+///eQKR5DhzKVdklZ8g6u2yzyDLbpMvT1GOzh45LaJWnwKlSAcQ8dL9+0zM9BKE4+txu/vcXu/PEHTvRdmPMbXcsrtbKBm0VsYvDkm/cIF8rjp0AOHYD4JgEwDENgGMWAMeDADgeBsAxD4BjLwCORwFwPA6AYz8Ajt8FwHEQAMdhABy/D4DjSQAcbwTA8WaDHGPBcd1+gHPqpM0/ba5p80qbQ9p80eaGNg9UnKn4UXGhxZsWR1p8aHLT5KHkpMEnceUXqUj4oXbiTnL3uQP9DW7wy1z4bdL+vJgucyW+BvmPc7DZvP1yyvYTG/7FgbPzc71pPxJ+uwIn70HMXcDc9WDuAeaeB3MfMPc9mAeAeQAYjOMhYB56MI8A88jj6zFgHnswTwDzxIN5CpinHj7PAPPMg3kOmOceXy8A88KDeQmYlx7MK8C88vB5DZjXHswbwLzx+HoLmLcezDvAvPNg3gPmvYfPB8B8EJg+nHPjnOd5abEuzovJLdt5XxZ9oUMEcbLv1MZ3qRW8rriG/nuR5Rr7+cEf+mM+Up+O0OfAhk/B9g+N7HO8uRIv5jPHN3CfM+jDuu2zhfnDsQyV+7Pr0bU01rVsqa4jY11HLdV1bKzr+Gt1ZT5HNnxGXJN6wEfWpGNDLdAfa4HX0H9PcLVaS46j7bFBfXic+oypL/nkoi+pt+PgvhT6eHwp7z5BfNiHfHbNG8wV5m08b6bG82bS0vXo1FjXaUt1nRnretpSXefGus729XPd9vUT+gKvn5XxvJm3dD26MNb1Vkt1XRjrWrVU16Wxrhf7+rlu+/oJfYHXz5XxvFm0cz0qrZ+LL1uqq/Vz8Y8t1dX6ufhqXz/XbV8/oc+6fvI4y9++2edvcP678N9R/OOYyd9YLX7z5feCyKbVezXaeMqxTupN39iH45mAnp+EPjbvH1zqY/Sbe3Ej8ucQ58NBHa1bV+iJGrFmh4gXfTn0JfWmn577nIAftMU8UoH/1X0euGMG9/D9Q8V/Jvxv8FauoUbSVle5xniqc7+4c5rHrMUdwMaeI9rW5mdP2LJYP6md1dt87iix9hX8VWM7M47tvN7mc7YjtnMlNq4RP9pwHf9f7dh/T3C10o79IZ/zHdr9VG9zHSp9mM+yr6tcYz+arTN3TnOP1u7MGTWuPeu9RxZtcpfrLfvn/TbuA7Id9yEuBkyyA5NH23t6i3dQcC8fNahpGm3uVf52R4rnDxErzos48uuuaRsLfTRtZT3oKvfK3JI8Us99GfQj/k93pDw+jjf5si/mQk2bi4zX3rNLBIbaIPLn3kDhLveOVns7GUfyhTg60facQA1Sce0vdyStB0LrWNFOq2HDyJ9b8t1PxNH4J7FuX5vXMq9kn/St2ZR7wF1aSjvavJI5z/eknvtkzjP+H3e8jpxnvJbXMue1Mf1Wcr4D8X9NznMgWs5r3xnxmsx5Lbe0nGcc5nw/0tdhalTHeb+V1Jv9t9314gptNr/8ZyD+/pKCf2wJ9CP+yBnA5xp8vMo/va9mVbkaV6tqWi2Xk0V1IuxT64BOTftfTE8vFpNpVXws6ePouv1Xs/F8MZosZhfTcTU+/WL8/wKri9vxfUMAAA==",
+  "debug_symbols": "ldZRioMwEAbgu+TZh8xkErVXWZZi27QIosXahaV4901KdYvJsvwv4oifEzNJmIc6+cP9sm/783BTu4+H6oZjM7VDH6LHXKjD2HZde9m/P1Y6Xpj0E9yuTR/j29SMk9oxcaF8f4p3Lnzg3HZe7ayeP4tACCeME/MPYUmIZAnXCxFKSJ3PQivhLeE/ZkwvJLy3JfkZ0+vArE0I48TgRHBiceLyRFZSJqTESYWTGiZG44RwwjgxOBGcWJzg1TfZupApX4Sk3hLReeIW4pIsQnliF1ImK1k4T5Z/oSrZ+2JwIjixOHE4ye5KWg9YqpLTUiqc1DCxGieEE8aJwYngxOLE4QSs/hyir2Zsm0PnX43I+d4f3/qS6fvqNy3KdRyO/nQffWxWfvuUOI1hQRZU6zCUZ9PCjgt2ZQxjKbmkgksTsobMPw==",
+  "file_map": {
+    "50": {
+      "source": "global G_A: [[bool; 0]; 2] = [[], []];\n\nfn main(a: bool, b: [(u1, bool, u1, str<2>); 4]) -> pub [bool; 0] {\n    if (a) {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    } else {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

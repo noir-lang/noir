@@ -1,0 +1,189 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "hashed_message",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "hashed_message_2",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x_2",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y_2",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature_2",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "hashed_message_3",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x_3",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y_3",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature_3",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldTLioMwGAXgd8nahdHkT/RVhqF4iSUgKlEHBvHdmxRLS5PN2Qi/5MuFA+dgvWn3+81Ow7yy+udg49w1m50nPx1nxlpnx9Heb5+/WR4+JPQTrEszhXndGrexulQ6Y2bqWS1I+g0GOxpWy/z8zTypYCJznHCcFDgpcSJSRLxJVUZE4oRwonCSTF8W4iJ+QUQqmFCOE46TAiclTpLpk+IvomMicUI4SaaveHURLaP0SeOkgonKccJxUuAkmb4mehEdE4ETiZHTT3+Ns007mqu+h33qPtp8+1/MV7Evbu5MvzsTKv7d7uGBVMqMhPRX4SEIUiojXfhj/FEP",
+  "file_map": {
+    "50": {
+      "source": "fn main(\n    hashed_message: [u8; 32],\n    pub_key_x: [u8; 32],\n    pub_key_y: [u8; 32],\n    signature: [u8; 64],\n    hashed_message_2: [u8; 32],\n    pub_key_x_2: [u8; 32],\n    pub_key_y_2: [u8; 32],\n    signature_2: [u8; 64],\n    hashed_message_3: [u8; 32],\n    pub_key_x_3: [u8; 32],\n    pub_key_y_3: [u8; 32],\n    signature_3: [u8; 64],\n) {\n    let valid_signature =\n        std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);\n    assert(valid_signature);\n    let valid_signature_2 = std::ecdsa_secp256r1::verify_signature(\n        pub_key_x_2,\n        pub_key_y_2,\n        signature_2,\n        hashed_message_2,\n    );\n    assert(valid_signature_2);\n    let valid_signature_3 = std::ecdsa_secp256r1::verify_signature(\n        pub_key_x_3,\n        pub_key_y_3,\n        signature_3,\n        hashed_message_3,\n    );\n    assert(valid_signature_3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
