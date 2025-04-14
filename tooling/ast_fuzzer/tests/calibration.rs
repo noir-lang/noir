@@ -23,7 +23,6 @@ fn arb_program_freqs_in_expected_range() {
     arbtest(|u| {
         let program = arb_program(u, Config::default())?;
         for func in program.functions {
-            // Visit the
             visit_expr(&func.body, &mut |expr| {
                 let Some((group, key)) = classify(expr) else {
                     return true;
