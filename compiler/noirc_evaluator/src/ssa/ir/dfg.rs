@@ -390,13 +390,9 @@ impl DataFlowGraph {
         values_to_replace: &HashMap<ValueId, ValueId>,
     ) {
         if self[block].terminator().is_some() {
-            self[block].unwrap_terminator_mut().map_values_mut(|value_id| {
-                if let Some(replacement_id) = values_to_replace.get(&value_id) {
-                    *replacement_id
-                } else {
-                    value_id
-                }
-            });
+            self[block]
+                .unwrap_terminator_mut()
+                .map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
         }
     }
 
