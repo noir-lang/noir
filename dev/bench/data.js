@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744652920589,
+  "lastUpdate": 1744664078048,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19564,6 +19564,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 230936,
             "range": "± 6074",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "75870d3e4a65e27935fdd20827a64a20229affc7",
+          "message": "fix(ssa): Do not use inner else condition when collapsing IfElse based upon the then condition (#8040)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-04-14T20:39:28Z",
+          "tree_id": "357e6b755f0fb3eae9f98da03aa303c2e166a6f7",
+          "url": "https://github.com/noir-lang/noir/commit/75870d3e4a65e27935fdd20827a64a20229affc7"
+        },
+        "date": 1744664072536,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 271452,
+            "range": "± 620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 240565,
+            "range": "± 8597",
             "unit": "ns/iter"
           }
         ]
