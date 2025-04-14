@@ -458,7 +458,9 @@ mod test {
         }
         ";
 
-        let program = get_monomorphized(src, "foobar", crate::test_utils::Expect::Success).unwrap();
+        let program =
+            get_monomorphized(src, "last_uses::smoke_test", crate::test_utils::Expect::Success)
+                .unwrap();
 
         let function = program.main();
         let last_uses = super::Context::find_last_uses_of_variables(function);
