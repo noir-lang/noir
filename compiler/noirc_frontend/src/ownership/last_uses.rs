@@ -175,10 +175,18 @@ impl LastUseContext {
     }
 
     fn declare_variable(&mut self, id: LocalId) {
-        let loop_index = self.current_loop_and_branch.len() - 1;
+        let loop_index = self.loop_index();
         self.last_uses.insert(id, (loop_index, Branches::None));
     }
 
+    /// Remember a new use of the given variable, possibly overwriting or
+    /// adding to the previous last use depending on the current position
+    /// in if/match branches or the loop index.
+    ///
+    /// If the loop index is equal to the variable's when it was defined we can
+    /// overwrite the last use, but if it is greater we have to set the last use to None.
+    /// This is because variable's cannot be moved within loops unless it was defined
+    /// within the same loop.
     fn remember_use_of_variable(&mut self, id: LocalId, variable: IdentId) {
         let path =
             self.current_loop_and_branch.last().expect("We should always have at least 1 scope");
@@ -199,19 +207,27 @@ impl LastUseContext {
         variable: IdentId,
     ) {
         match (branches, path) {
+            // Path is direct, overwrite the last use entirely
             (branch, BranchesPath::Here) => {
                 *branch = Branches::Direct(variable);
             }
+            // Our path says we need to enter an if or match but the variable's last
+            // use was direct. So we need to overwrite the last use with an empty IfOrMatch
+            // and write to the relevant branch of that
             (
                 branch @ (Branches::None | Branches::Direct { .. }),
                 BranchesPath::IfOrMatch { branch_index, rest: _ },
             ) => {
                 // The branch doesn't exist for this variable; create it
-                let inner_branches =
+                let empty_branches =
                     std::iter::repeat_n(Branches::None, *branch_index + 1).collect();
-                *branch = Branches::IfOrMatch(inner_branches);
+                *branch = Branches::IfOrMatch(empty_branches);
                 Self::remember_use_of_variable_rec(branch, path, variable);
             }
+            // The variable's last use was in an if or match, and our current path is in one
+            // as well so just follow to the relevant branch in both. We just need to possibly
+            // resize the variable's branches count in case it was created with fewer than we
+            // know we currently have.
             (Branches::IfOrMatch(branches), BranchesPath::IfOrMatch { branch_index, rest }) => {
                 let required_len = *branch_index + 1;
                 if branches.len() < required_len {
@@ -263,9 +279,6 @@ impl LastUseContext {
         }
     }
 
-    /// Under the experimental alternate ownership scheme, whenever an ident is used it is
-    /// always cloned unless it is the last use of the ident (not in a loop). To simplify this
-    /// analysis we always clone here then remove the last clone later if possible.
     fn track_variables_in_ident(&mut self, ident: &ast::Ident) {
         // We only track last uses for local variables, globals are always cloned
         if let ast::Definition::Local(local_id) = &ident.definition {
@@ -296,9 +309,6 @@ impl LastUseContext {
         self.track_variables_in_expression(&binary.rhs);
     }
 
-    /// - Extracting an array from another array (`let inner: [_; _] = array[0];`):
-    ///   - Extracting a nested array from its outer array will always increment the reference count
-    ///     of the nested array.
     fn track_variables_in_index(&mut self, index: &ast::Index) {
         self.track_variables_in_expression(&index.collection);
         self.track_variables_in_expression(&index.index);
@@ -392,8 +402,18 @@ impl LastUseContext {
         self.track_variables_in_expression(&assign.expression);
     }
 
+    /// A variable in an lvalue position is never moved (otherwise you wouldn't
+    /// be able to access the variable you assigned to afterward). However, the
+    /// index in an array expression `a[i] = ...` is an arbitrary expression that
+    /// is actually in an rvalue position and can thus be moved.
+    ///
+    /// Subtle point: since we don't track identifier uses here at all this means
+    /// if the last use of one was just before it is assigned, it can actually be
+    /// moved before it is assigned. This should be fine because we move out of the
+    /// binding, and the binding isn't used until it is set to a new value.
     fn track_variables_in_lvalue(&mut self, lvalue: &ast::LValue) {
         match lvalue {
+            // All identifiers in lvalues are implicitly `&mut ident` and thus aren't moved
             ast::LValue::Ident(_) => (),
             ast::LValue::Index { array, index, element_type: _, location: _ } => {
                 self.track_variables_in_expression(index);
