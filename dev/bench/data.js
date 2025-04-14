@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744667401709,
+  "lastUpdate": 1744667650252,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8170,70 +8170,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a565c53b0e03b8dcbc06d99ed225bfdec8ca616c",
-          "message": "feat(fuzz): AST function body (#7890)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>",
-          "timestamp": "2025-04-09T08:50:32Z",
-          "tree_id": "541a6ef4d5f0d248082e7250e0ce026ac4dee6be",
-          "url": "https://github.com/noir-lang/noir/commit/a565c53b0e03b8dcbc06d99ed225bfdec8ca616c"
-        },
-        "date": 1744189976555,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.076,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.3,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.788,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.53,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 17.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "69c36dc452ecd17636e4d35797a65430c32a5a10",
           "message": "feat: MessagePack serialisation for circuits (#7690)",
           "timestamp": "2025-04-09T09:05:16Z",
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e3314c9858a7b38545443b430359d9ba79f35d2e",
+          "message": "chore: don't use `set_value_from_id` in `as_slice_length` (#8039)",
+          "timestamp": "2025-04-14T21:21:47Z",
+          "tree_id": "8eb6f2df85003ff8f667fa1c4748ec69405c5ff3",
+          "url": "https://github.com/noir-lang/noir/commit/e3314c9858a7b38545443b430359d9ba79f35d2e"
+        },
+        "date": 1744667645105,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.334,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.2,
             "unit": "s"
           },
           {
