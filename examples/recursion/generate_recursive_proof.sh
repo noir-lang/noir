@@ -11,22 +11,18 @@ $BACKEND prove -b ./target/sum.json -w ./target/sum_witness.gz --init_kzg_accumu
 # Generate vk for inner circuit
 $BACKEND write_vk -b ./target/sum.json -o ./target/sum --init_kzg_accumulator --output_format fields
 
-# Prepare Prover.toml for recurse_leaf
-PROOF_AS_FIELDS=$(jq -r '.[0:]' ./target/sum/proof_fields.json)
-PUBLIC_INPUTS_AS_FIELDS=$(jq -r '.[0:]' ./target/sum/public_inputs_fields.json)
-VK_AS_FIELDS=$(jq -r '.[0:]' ./target/sum/vk_fields.json)
-VK_HASH="0x0"
 
+# Prepare Prover.toml for recurse_leaf
 RECURSE_LEAF_PROVER_TOML=./recurse_leaf/Prover.toml
 echo -n "" > $RECURSE_LEAF_PROVER_TOML
 echo "num = 2" > $RECURSE_LEAF_PROVER_TOML
-echo "key_hash = $VK_HASH" >> $RECURSE_LEAF_PROVER_TOML
-echo "verification_key = $VK_AS_FIELDS"  >> $RECURSE_LEAF_PROVER_TOML
-echo "proof = $PROOF_AS_FIELDS" >> $RECURSE_LEAF_PROVER_TOML
-echo "public_inputs = $PUBLIC_INPUTS_AS_FIELDS" >> $RECURSE_LEAF_PROVER_TOML
+echo "verification_key = $(cat ./target/sum/vk_fields.json)"  >> $RECURSE_LEAF_PROVER_TOML
+echo "proof = $(cat ./target/sum/proof_fields.json)" >> $RECURSE_LEAF_PROVER_TOML
+echo "public_inputs = $(cat ./target/sum/public_inputs_fields.json)" >> $RECURSE_LEAF_PROVER_TOML
+echo "key_hash = 0x0" >> $RECURSE_LEAF_PROVER_TOML  # VK hash is not implemented yet
 
 
-# We can now execute and prove `recurse_leaf`
+# Execute and prove `recurse_leaf`
 nargo execute recurse_leaf_witness --package recurse_leaf
 
 mkdir -p ./target/leaf
@@ -36,20 +32,17 @@ $BACKEND write_vk -b ./target/recurse_leaf.json --output_format bytes_and_fields
 # Sanity check
 $BACKEND verify -k ./target/leaf/vk -p ./target/leaf/proof  -i ./target/leaf/public_inputs
 
-# Now we generate the final `recurse_node` proof similarly to how we did for `recurse_leaf`.
-PROOF_AS_FIELDS=$(jq -r '.[0:]' ./target/leaf/proof_fields.json)
-PUBLIC_INPUTS_AS_FIELDS=$(jq -r '.[0:]' ./target/leaf/public_inputs_fields.json)
-VK_AS_FIELDS=$(jq -r '.[0:]' ./target/leaf/vk_fields.json)
 
+# Generate Prover.toml for `recurse_node`
 RECURSE_NODE_PROVER_TOML=./recurse_node/Prover.toml
 echo -n "" > $RECURSE_NODE_PROVER_TOML
-echo "key_hash = $VK_HASH" >> $RECURSE_NODE_PROVER_TOML
-echo "verification_key = $VK_AS_FIELDS"  >> $RECURSE_NODE_PROVER_TOML
-echo "proof = $PROOF_AS_FIELDS" >> $RECURSE_NODE_PROVER_TOML
-echo "public_inputs = $PUBLIC_INPUTS_AS_FIELDS" >> $RECURSE_NODE_PROVER_TOML
+echo "key_hash = 0x0" >> $RECURSE_NODE_PROVER_TOML
+echo "verification_key = $(cat ./target/leaf/vk_fields.json)"  >> $RECURSE_NODE_PROVER_TOML
+echo "proof = $(cat ./target/leaf/proof_fields.json)" >> $RECURSE_NODE_PROVER_TOML
+echo "public_inputs = $(cat ./target/leaf/public_inputs_fields.json)" >> $RECURSE_NODE_PROVER_TOML
 
-# We can now execute and prove `recurse_node`
 
+# Execute and prove `recurse_node`
 nargo execute recurse_node_witness --package recurse_node
 
 mkdir -p ./target/node
