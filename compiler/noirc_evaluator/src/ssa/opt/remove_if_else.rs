@@ -280,7 +280,6 @@ mod tests {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-
         ssa = ssa.remove_if_else();
 
         // In case our if block is never activated, we need to fetch each value from the original array.
