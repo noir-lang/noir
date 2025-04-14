@@ -15,9 +15,18 @@ use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_inputs, arb_program, program_abi};
 use noirc_evaluator::{brillig::BrilligOptions, ssa};
 
+fn seed_from_env() -> Option<u64> {
+    let Ok(seed) = std::env::var("NOIR_ARBTEST_SEED") else { return None };
+    let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
+        .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
+    Some(seed)
+}
+
 #[test]
 fn arb_program_can_be_executed() {
-    arbtest(|u| {
+    let maybe_seed = seed_from_env();
+
+    let mut prop = arbtest(|u| {
         let program = arb_program(u, Config::default())?;
         let abi = program_abi(&program);
 
@@ -41,7 +50,9 @@ fn arb_program_can_be_executed() {
         };
 
         // If we have a seed to debug and we know it's going to crash, print the AST.
-        // eprintln!("{program}");
+        if maybe_seed.is_some() {
+            eprintln!("{program}");
+        }
 
         let ssa = ssa::create_program(program.clone(), &options)
             .unwrap_or_else(|e| print_ast_and_panic(&format!("Failed to compile program: {e}")));
@@ -74,8 +85,13 @@ fn arb_program_can_be_executed() {
             }
         }
     })
-    // .seed(0x1796975f00100000) // Uncomment and paste the seed printed by arbtest to debug a failure.
     .budget(Duration::from_secs(10))
     .size_min(1 << 12)
     .size_max(1 << 20);
+
+    if let Some(seed) = maybe_seed {
+        prop = prop.seed(seed);
+    }
+
+    prop.run();
 }
