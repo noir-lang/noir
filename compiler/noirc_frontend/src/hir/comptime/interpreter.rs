@@ -1211,49 +1211,96 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
-        // i128 can store all values from i8 - u64
-        let get_index = |this: &mut Self, expr| -> IResult<(_, fn(_) -> _)> {
-            match this.evaluate(expr)? {
-                Value::I8(value) => Ok((value as i128, |i| Value::I8(i as i8))),
-                Value::I16(value) => Ok((value as i128, |i| Value::I16(i as i16))),
-                Value::I32(value) => Ok((value as i128, |i| Value::I32(i as i32))),
-                Value::I64(value) => Ok((value as i128, |i| Value::I64(i as i64))),
-                Value::U8(value) => Ok((value as i128, |i| Value::U8(i as u8))),
-                Value::U16(value) => Ok((value as i128, |i| Value::U16(i as u16))),
-                Value::U32(value) => Ok((value as i128, |i| Value::U32(i as u32))),
-                Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
-                value => {
-                    let location = this.elaborator.interner.expr_location(&expr);
-                    let typ = value.get_type().into_owned();
-                    Err(InterpreterError::NonIntegerUsedInLoop { typ, location })
-                }
+        let start_value = self.evaluate(for_.start_range)?;
+        let signed = match start_value {
+            Value::I8(_) | Value::I16(_) | Value::I32(_) | Value::I64(_) => true,
+            Value::U1(_)
+            | Value::U8(_)
+            | Value::U16(_)
+            | Value::U32(_)
+            | Value::U64(_)
+            | Value::U128(_) => false,
+            value => {
+                let location = self.elaborator.interner.expr_location(&for_.start_range);
+                let typ = value.get_type().into_owned();
+                return Err(InterpreterError::NonIntegerUsedInLoop { typ, location });
             }
         };
 
-        let (start, make_value) = get_index(self, for_.start_range)?;
-        let (end, _) = get_index(self, for_.end_range)?;
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
 
         let mut result = Ok(Value::Unit);
 
-        for i in start..end {
-            self.push_scope();
-            self.current_scope_mut().insert(for_.identifier.id, make_value(i));
-
-            let must_break = match self.evaluate(for_.block) {
-                Ok(_) => false,
-                Err(InterpreterError::Break) => true,
-                Err(InterpreterError::Continue) => false,
-                Err(error) => {
-                    result = Err(error);
-                    true
+        if signed {
+            // i128 can store all values from i8 - u64
+            let get_index = |this: &mut Self, expr| -> IResult<(_, fn(_) -> _)> {
+                match this.evaluate(expr)? {
+                    Value::I8(value) => Ok((value as i128, |i| Value::I8(i as i8))),
+                    Value::I16(value) => Ok((value as i128, |i| Value::I16(i as i16))),
+                    Value::I32(value) => Ok((value as i128, |i| Value::I32(i as i32))),
+                    Value::I64(value) => Ok((value as i128, |i| Value::I64(i as i64))),
+                    value => unreachable!("Checked above that value is signed type"),
                 }
             };
 
-            self.pop_scope();
+            let (start, make_value) = get_index(self, for_.start_range)?;
+            let (end, _) = get_index(self, for_.end_range)?;
 
-            if must_break {
-                break;
+            for i in start..end {
+                self.push_scope();
+                self.current_scope_mut().insert(for_.identifier.id, make_value(i));
+
+                let must_break = match self.evaluate(for_.block) {
+                    Ok(_) => false,
+                    Err(InterpreterError::Break) => true,
+                    Err(InterpreterError::Continue) => false,
+                    Err(error) => {
+                        result = Err(error);
+                        true
+                    }
+                };
+
+                self.pop_scope();
+
+                if must_break {
+                    break;
+                }
+            }
+        } else {
+            // u128 can store all values from u8 - u128
+            let get_index = |this: &mut Self, expr| -> IResult<(_, fn(_) -> _)> {
+                match this.evaluate(expr)? {
+                    Value::U8(value) => Ok((value as u128, |i| Value::U8(i as u8))),
+                    Value::U16(value) => Ok((value as u128, |i| Value::U16(i as u16))),
+                    Value::U32(value) => Ok((value as u128, |i| Value::U32(i as u32))),
+                    Value::U64(value) => Ok((value as u128, |i| Value::U64(i as u64))),
+                    Value::U128(value) => Ok((value, |i| Value::U128(i))),
+                    value => unreachable!("Checked above that value is unsigned type"),
+                }
+            };
+
+            let (start, make_value) = get_index(self, for_.start_range)?;
+            let (end, _) = get_index(self, for_.end_range)?;
+
+            for i in start..end {
+                self.push_scope();
+                self.current_scope_mut().insert(for_.identifier.id, make_value(i));
+
+                let must_break = match self.evaluate(for_.block) {
+                    Ok(_) => false,
+                    Err(InterpreterError::Break) => true,
+                    Err(InterpreterError::Continue) => false,
+                    Err(error) => {
+                        result = Err(error);
+                        true
+                    }
+                };
+
+                self.pop_scope();
+
+                if must_break {
+                    break;
+                }
             }
         }
 
