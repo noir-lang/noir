@@ -99,6 +99,7 @@ impl Context<'_> {
         *self.function.dfg[self.block].instructions_mut() =
             std::mem::take(&mut self.new_instructions);
         self.function.dfg.replace_values_in_block_terminator(self.block, &values_to_replace);
+        self.function.dfg.data_bus.replace_values(&values_to_replace);
     }
 
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
