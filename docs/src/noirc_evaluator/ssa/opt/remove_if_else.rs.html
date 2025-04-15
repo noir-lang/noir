@@ -381,7 +381,17 @@
 <a href="#380" id="380">380</a>
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -445,8 +455,15 @@
         <span class="kw">let </span>instructions = function.dfg[block].take_instructions();
         <span class="kw">let </span>one = FieldElement::one();
         <span class="kw">let </span><span class="kw-2">mut </span>current_conditional = function.dfg.make_constant(one, NumericType::bool());
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = HashMap::default();
 
         <span class="kw">for </span>instruction <span class="kw">in </span>instructions {
+            <span class="comment">// Before we process instructions, replace any values we previously determined we need to replace
+            </span><span class="kw">if </span>!values_to_replace.is_empty() {
+                <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span>function.dfg[instruction];
+                instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
+            }
+
             <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[instruction] {
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; {
                     <span class="kw">let </span>then_condition = <span class="kw-2">*</span>then_condition;
@@ -483,8 +500,8 @@
                     //     other =&gt; unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
                     // };
 
-                    </span>function.dfg.set_value_from_id(result, value);
-                    <span class="self">self</span>.array_set_conditionals.insert(result, current_conditional);
+                    </span>values_to_replace.insert(result, value);
+                    <span class="self">self</span>.array_set_conditionals.insert(value, current_conditional);
                 }
                 Instruction::Call { func, arguments } =&gt; {
                     <span class="kw">if let </span>Value::Intrinsic(intrinsic) = function.dfg[<span class="kw-2">*</span>func] {
@@ -528,6 +545,9 @@
                 }
             }
         }
+
+        function.dfg.replace_values_in_block_terminator(block, <span class="kw-2">&amp;</span>values_to_replace);
+        function.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
     }
 
     <span class="kw">fn </span>get_or_find_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, value: ValueId) -&gt; u32 {
