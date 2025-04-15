@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744728256843,
+  "lastUpdate": 1744729743536,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19636,6 +19636,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 233620,
             "range": "± 6500",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0f2b90f1553b6f2eb98dd329c779457a6bcd4640",
+          "message": "chore(docs): Add architecture docs (#7992)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: guipublic <guipublic@gmail.com>",
+          "timestamp": "2025-04-15T14:52:18Z",
+          "tree_id": "1da61b5de2e05c3abbca7418fda15a73bd2b0913",
+          "url": "https://github.com/noir-lang/noir/commit/0f2b90f1553b6f2eb98dd329c779457a6bcd4640"
+        },
+        "date": 1744729737862,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265659,
+            "range": "± 866",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234183,
+            "range": "± 5642",
             "unit": "ns/iter"
           }
         ]
