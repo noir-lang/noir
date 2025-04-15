@@ -45,6 +45,7 @@ use super::errors::{IResult, InterpreterError};
 use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
+mod cast;
 mod foreign;
 mod infix;
 mod unquote;
@@ -997,7 +998,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
+        cast::evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression, id: ExprId) -> IResult<Value> {
@@ -1478,98 +1479,6 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
         }
     } else {
         Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
-    }
-}
-
-/// evaluate_cast without recursion
-fn evaluate_cast_one_step(typ: &Type, location: Location, evaluated_lhs: Value) -> IResult<Value> {
-    macro_rules! signed_int_to_field {
-        ($x:expr) => {{
-            // Need to convert the signed integer to an i128 before
-            // we negate it to preserve the MIN value.
-            let mut value = $x as i128;
-            let is_negative = value < 0;
-            if is_negative {
-                value = -value;
-            }
-            ((value as u128).into(), is_negative)
-        }};
-    }
-
-    let (mut lhs, lhs_is_negative) = match evaluated_lhs {
-        Value::Field(value) => (value, false),
-        Value::U1(value) => ((value as u128).into(), false),
-        Value::U8(value) => ((value as u128).into(), false),
-        Value::U16(value) => ((value as u128).into(), false),
-        Value::U32(value) => ((value as u128).into(), false),
-        Value::U64(value) => ((value as u128).into(), false),
-        Value::I8(value) => signed_int_to_field!(value),
-        Value::I16(value) => signed_int_to_field!(value),
-        Value::I32(value) => signed_int_to_field!(value),
-        Value::I64(value) => signed_int_to_field!(value),
-        Value::Bool(value) => {
-            (if value { FieldElement::one() } else { FieldElement::zero() }, false)
-        }
-        value => {
-            let typ = value.get_type().into_owned();
-            return Err(InterpreterError::NonNumericCasted { typ, location });
-        }
-    };
-
-    macro_rules! cast_to_int {
-        ($x:expr, $method:ident, $typ:ty, $f:ident) => {{
-            let mut value = $x.$method() as $typ;
-            if lhs_is_negative {
-                value = 0 - value;
-            }
-            Ok(Value::$f(value))
-        }};
-    }
-
-    // Now actually cast the lhs, bit casting and wrapping as necessary
-    match typ.follow_bindings() {
-        Type::FieldElement => {
-            if lhs_is_negative {
-                lhs = FieldElement::zero() - lhs;
-            }
-            Ok(Value::Field(lhs))
-        }
-        Type::Integer(sign, bit_size) => match (sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-            }
-            (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                cast_to_int!(lhs, to_u128, u16, U16)
-            }
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                cast_to_int!(lhs, to_u128, u32, U32)
-            }
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                cast_to_int!(lhs, to_u128, u64, U64)
-            }
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                cast_to_int!(lhs, to_u128, u128, U128)
-            }
-            (Signedness::Signed, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-            }
-            (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
-            (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                cast_to_int!(lhs, to_i128, i16, I16)
-            }
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                cast_to_int!(lhs, to_i128, i32, I32)
-            }
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                cast_to_int!(lhs, to_i128, i64, I64)
-            }
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                todo!()
-            }
-        },
-        Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
-        typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
     }
 }
 
