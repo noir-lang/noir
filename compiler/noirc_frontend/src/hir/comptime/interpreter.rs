@@ -1227,10 +1227,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             };
 
             let get_index = match start_value {
-                Value::I8(value) => |i| Value::I8(i as i8),
-                Value::I16(value) => |i| Value::I16(i as i16),
-                Value::I32(value) => |i| Value::I32(i as i32),
-                Value::I64(value) => |i| Value::I64(i as i64),
+                Value::I8(_) => |i| Value::I8(i as i8),
+                Value::I16(_) => |i| Value::I16(i as i16),
+                Value::I32(_) => |i| Value::I32(i as i32),
+                Value::I64(_) => |i| Value::I64(i as i64),
                 value => unreachable!("Checked above that value is signed type"),
             };
 
@@ -1252,11 +1252,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             };
 
             let get_index = match start_value {
-                Value::U8(value) => |i| Value::U8(i as u8),
-                Value::U16(value) => |i| Value::U16(i as u16),
-                Value::U32(value) => |i| Value::U32(i as u32),
-                Value::U64(value) => |i| Value::U64(i as u64),
-                Value::U128(value) => |i| Value::U128(i),
+                Value::U8(_) => |i| Value::U8(i as u8),
+                Value::U16(_) => |i| Value::U16(i as u16),
+                Value::U32(_) => |i| Value::U32(i as u32),
+                Value::U64(_) => |i| Value::U64(i as u64),
+                Value::U128(_) => |i| Value::U128(i),
                 _ => unreachable!("Checked above that value is unsigned type"),
             };
 
