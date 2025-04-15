@@ -687,7 +687,6 @@ pub fn compile_no_check(
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
     let force_unconstrained = options.force_brillig;
-    let experimental_ownership = options.unstable_features.contains(&UnstableFeature::Ownership);
 
     let program = if options.instrument_debug {
         monomorphize_debug(
@@ -695,14 +694,12 @@ pub fn compile_no_check(
             &mut context.def_interner,
             &context.debug_instrumenter,
             force_unconstrained,
-            experimental_ownership,
         )?
     } else {
         monomorphize(
             main_function,
             &mut context.def_interner,
             force_unconstrained,
-            experimental_ownership,
         )?
     };
 

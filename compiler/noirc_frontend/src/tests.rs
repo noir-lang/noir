@@ -181,12 +181,10 @@ fn check_errors_with_options(
             panic!("get_monomorphized: test program contains no 'main' function")
         });
 
-        let ownership = options.enabled_unstable_features.contains(&UnstableFeature::Ownership);
         let result = crate::monomorphization::monomorphize(
             main,
             &mut context.def_interner,
             false,
-            ownership,
         );
         match result {
             Ok(_) => {

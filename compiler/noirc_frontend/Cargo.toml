@@ -39,6 +39,7 @@ function_name = "0.3.0"
 proptest.workspace = true
 proptest-derive.workspace = true
 insta.workspace = true
+similar-asserts.workspace = true
 
 [features]
 bn254 = []

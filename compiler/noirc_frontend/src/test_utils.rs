@@ -27,6 +27,12 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
+pub fn get_monomorphized_no_emit_test(
+    src: &str,
+) -> Result<Program, MonomorphizationError> {
+    get_monomorphized(src, None, Expect::Success)
+}
+
 pub fn get_monomorphized(
     src: &str,
     test_path: Option<&str>,
@@ -42,7 +48,7 @@ pub fn get_monomorphized(
         .get_main_function(context.root_crate_id())
         .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
 
-    monomorphize(main, &mut context.def_interner, false, false)
+    monomorphize(main, &mut context.def_interner, false)
 }
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
