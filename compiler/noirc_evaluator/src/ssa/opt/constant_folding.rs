@@ -260,6 +260,9 @@ impl<'brillig> Context<'brillig> {
             );
         }
 
+        function.dfg.replace_values_in_block_terminator(block_id, &self.values_to_replace);
+        function.dfg.data_bus.replace_values(&self.values_to_replace);
+
         // Map a terminator in place, replacing any ValueId in the terminator with the
         // resolved version of that value id from the simplification cache's internal value mapping.
         let mut terminator = function.dfg[block_id].take_terminator();
@@ -273,9 +276,6 @@ impl<'brillig> Context<'brillig> {
             )
         });
         function.dfg[block_id].set_terminator(terminator);
-
-        function.dfg.replace_values_in_block_terminator(block_id, &self.values_to_replace);
-        function.dfg.data_bus.replace_values(&self.values_to_replace);
 
         self.block_queue.extend(function.dfg[block_id].successors());
     }
