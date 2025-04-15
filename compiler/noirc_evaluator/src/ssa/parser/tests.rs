@@ -622,3 +622,14 @@ fn test_parses_if_else() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_parses_keyword_in_function_name() {
+    let src = "
+        acir(inline) fn add f0 {
+          b0():
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
