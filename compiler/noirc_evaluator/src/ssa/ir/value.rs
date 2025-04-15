@@ -73,7 +73,7 @@ impl Value {
     }
 }
 
-pub(super) fn resolve_value(
+pub(crate) fn resolve_value(
     values_to_replace: &HashMap<ValueId, ValueId>,
     value_id: ValueId,
 ) -> ValueId {
