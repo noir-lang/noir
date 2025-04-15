@@ -1,6 +1,6 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::{ast::UnaryOp, shared::Visibility};
+use crate::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
 
 use super::ast::{
     Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
@@ -11,12 +11,13 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
+    in_unconstrained: bool,
     pub show_id: bool,
 }
 
 impl Default for AstPrinter {
     fn default() -> Self {
-        Self { indent_level: 0, show_id: true }
+        Self { indent_level: 0, in_unconstrained: false, show_id: true }
     }
 }
 
@@ -89,11 +90,14 @@ impl AstPrinter {
             vis,
             function.return_type,
         )?;
+        self.in_unconstrained = function.unconstrained;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
+        self.in_unconstrained = false;
         self.next_line(f)?;
-        writeln!(f, "}}")
+        writeln!(f, "}}")?;
+        Ok(())
     }
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
@@ -407,10 +411,23 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
+        let print_unsafe = match call.func.as_ref() {
+            Expression::Ident(Ident { typ: Type::Function(_, _, _, unconstrained), .. }) => {
+                *unconstrained && !self.in_unconstrained
+            }
+            _ => false,
+        };
+        if print_unsafe {
+            write!(f, "unsafe {{ ")?;
+        }
         self.print_expr(&call.func, f)?;
         write!(f, "(")?;
         self.print_comma_separated(&call.arguments, f)?;
-        write!(f, ")")
+        write!(f, ")")?;
+        if print_unsafe {
+            write!(f, " }}")?;
+        }
+        Ok(())
     }
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
