@@ -170,7 +170,7 @@ impl Parser<'_> {
             UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
         };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitImplItemKind::Type { name, alias })
     }
@@ -198,7 +198,7 @@ impl Parser<'_> {
             Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitImplItemKind::Constant(name, typ, expr))
     }
@@ -570,5 +570,12 @@ mod tests {
 
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a trait impl item but found 'hello'");
+    }
+
+    #[test]
+    fn parse_trait_impl_with_constant_missing_semicoln() {
+        let src = "impl Foo for Bar { let x: Field = 1 }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }
