@@ -944,6 +944,7 @@ pub(crate) fn can_be_deduplicated(
 
 #[cfg(test)]
 mod test {
+    use fxhash::FxHashMap as HashMap;
     use std::sync::Arc;
 
     use noirc_frontend::monomorphization::ast::InlineType;
@@ -978,13 +979,16 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
-        let instructions = main.dfg[main.entry_block()].instructions();
+        let entry_block = main.entry_block();
+        let instructions = main.dfg[entry_block].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v0 = main.parameters()[0];
         let two = main.dfg.make_constant(2_u128.into(), NumericType::NativeField);
 
-        main.dfg.set_value_from_id(v0, two);
+        let mut values_to_replace = HashMap::default();
+        values_to_replace.insert(v0, two);
+        main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1011,7 +1015,8 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
-        let instructions = main.dfg[main.entry_block()].instructions();
+        let entry_block = main.entry_block();
+        let instructions = main.dfg[entry_block].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v1 = main.parameters()[1];
@@ -1020,7 +1025,9 @@ mod test {
         let constant = 2_u128.pow(8);
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        main.dfg.set_value_from_id(v1, constant);
+        let mut values_to_replace = HashMap::default();
+        values_to_replace.insert(v1, constant);
+        main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1049,7 +1056,8 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
-        let instructions = main.dfg[main.entry_block()].instructions();
+        let entry_block = main.entry_block();
+        let instructions = main.dfg[entry_block].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v1 = main.parameters()[1];
@@ -1058,7 +1066,9 @@ mod test {
         let constant = 2_u128.pow(8) - 1;
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        main.dfg.set_value_from_id(v1, constant);
+        let mut values_to_replace = HashMap::default();
+        values_to_replace.insert(v1, constant);
+        main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
         let expected = "
             acir(inline) fn main f0 {
