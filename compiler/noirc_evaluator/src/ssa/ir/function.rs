@@ -13,7 +13,7 @@ use super::types::Type;
 use super::value::ValueId;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
-pub(crate) enum RuntimeType {
+pub enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir(InlineType),
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
@@ -70,7 +70,7 @@ impl Default for RuntimeType {
 /// To reference external functions its FunctionId can be used but this
 /// cannot be checked for correctness until inlining is performed.
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Function {
+pub struct Function {
     /// The first basic block in the function
     entry_block: BasicBlockId,
 

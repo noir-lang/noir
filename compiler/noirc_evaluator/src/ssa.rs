@@ -40,7 +40,7 @@ use tracing::{Level, span};
 use crate::acir::GeneratedAcir;
 
 mod checks;
-pub(super) mod function_builder;
+pub mod function_builder;
 pub mod ir;
 pub(crate) mod opt;
 #[cfg(test)]
@@ -115,7 +115,7 @@ impl<'a> SsaPass<'a> {
     }
 }
 
-pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
+pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
 /// The default SSA optimization pipeline.
 ///
@@ -210,7 +210,7 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     ]
 }
 
-/// Optimize the given program by converting it into SSA
+/// Optimize the given SsaBuilder by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
@@ -223,8 +223,8 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 ///
 /// See the [primary_passes] and [secondary_passes] for
 /// the default implementations.
-fn optimize_into_acir<S>(
-    program: Program,
+pub fn optimize_ssa_builder_into_acir<S>(
+    builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     secondary: S,
@@ -234,19 +234,11 @@ where
 {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let builder = SsaBuilder::new(
-        program,
-        options.ssa_logging.clone(),
-        options.print_codegen_timings,
-        &options.emit_ssa,
-    )?;
-
     let mut builder = builder.run_passes(primary)?;
     let passed = std::mem::take(&mut builder.passed);
     let mut ssa = builder.finish();
 
     let mut ssa_level_warnings = vec![];
-
     drop(ssa_gen_span_guard);
 
     let used_globals_map = std::mem::take(&mut ssa.used_globals);
@@ -287,12 +279,43 @@ where
     };
 
     drop(ssa_gen_span_guard);
-
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
+}
+
+/// Optimize the given program by converting it into SSA
+/// form and performing optimizations there. When finished,
+/// convert the final SSA into an ACIR program and return it.
+/// An ACIR program is made up of both ACIR functions
+/// and Brillig functions for unconstrained execution.
+///
+/// The `primary` SSA passes are applied on the initial SSA.
+/// Then we compile the Brillig functions, and use the output
+/// to run a `secondary` pass, which can use the Brillig
+/// artifacts to do constant folding.
+///
+/// See the [primary_passes] and [secondary_passes] for
+/// the default implementations.
+pub fn optimize_into_acir<S>(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+    primary: &[SsaPass],
+    secondary: S,
+) -> Result<ArtifactsAndWarnings, RuntimeError>
+where
+    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
+{
+    let builder = SsaBuilder::new(
+        program,
+        options.ssa_logging.clone(),
+        options.print_codegen_timings,
+        &options.emit_ssa,
+    )?;
+
+    optimize_ssa_builder_into_acir(builder, options, primary, secondary)
 }
 
 // Helper to time SSA passes
@@ -321,7 +344,7 @@ pub struct SsaProgramArtifact {
 }
 
 impl SsaProgramArtifact {
-    fn new(
+    pub fn new(
         unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
         error_types: BTreeMap<ErrorSelector, ErrorType>,
     ) -> Self {
@@ -338,7 +361,7 @@ impl SsaProgramArtifact {
         }
     }
 
-    fn add_circuit(&mut self, mut circuit_artifact: SsaCircuitArtifact, is_main: bool) {
+    pub fn add_circuit(&mut self, mut circuit_artifact: SsaCircuitArtifact, is_main: bool) {
         self.program.functions.push(circuit_artifact.circuit);
         self.debug.push(circuit_artifact.debug_info);
         self.warnings.append(&mut circuit_artifact.warnings);
@@ -426,16 +449,16 @@ where
 }
 
 pub struct SsaCircuitArtifact {
-    name: String,
-    circuit: Circuit<FieldElement>,
-    debug_info: DebugInfo,
-    warnings: Vec<SsaReport>,
-    input_witnesses: Vec<Witness>,
-    return_witnesses: Vec<Witness>,
-    error_types: BTreeMap<ErrorSelector, ErrorType>,
+    pub name: String,
+    pub circuit: Circuit<FieldElement>,
+    pub debug_info: DebugInfo,
+    pub warnings: Vec<SsaReport>,
+    pub input_witnesses: Vec<Witness>,
+    pub return_witnesses: Vec<Witness>,
+    pub error_types: BTreeMap<ErrorSelector, ErrorType>,
 }
 
-fn convert_generated_acir_into_circuit(
+pub fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
     func_sig: FunctionSignature,
     debug_variables: DebugVariables,
@@ -548,11 +571,11 @@ fn split_public_and_private_inputs(
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
-struct SsaBuilder {
-    ssa: Ssa,
-    ssa_logging: SsaLogging,
-    print_codegen_timings: bool,
-    passed: HashMap<String, usize>,
+pub struct SsaBuilder {
+    pub ssa: Ssa,
+    pub ssa_logging: SsaLogging,
+    pub print_codegen_timings: bool,
+    pub passed: HashMap<String, usize>,
 }
 
 impl SsaBuilder {
@@ -578,7 +601,7 @@ impl SsaBuilder {
         Ok(builder)
     }
 
-    fn finish(self) -> Ssa {
+    pub fn finish(self) -> Ssa {
         self.ssa.generate_entry_point_index()
     }
 

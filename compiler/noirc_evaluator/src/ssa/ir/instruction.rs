@@ -18,9 +18,9 @@ use super::{
     value::{Value, ValueId, resolve_value},
 };
 
-pub(crate) mod binary;
+pub mod binary;
 
-pub(crate) use binary::{Binary, BinaryOp};
+pub use binary::{Binary, BinaryOp};
 
 /// Reference to an instruction
 ///
@@ -37,7 +37,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub(crate) enum Intrinsic {
+pub enum Intrinsic {
     ArrayLen,
     ArrayAsStrUnchecked,
     AsSlice,
@@ -201,14 +201,14 @@ impl Intrinsic {
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum Endian {
+pub enum Endian {
     Big,
     Little,
 }
 
 /// Compiler hints.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum Hint {
+pub enum Hint {
     /// Hint to the compiler to treat the call as having potential side effects,
     /// so that the value passed to it can survive SSA passes without being
     /// simplified out completely. This facilitates testing and reproducing
@@ -219,7 +219,7 @@ pub(crate) enum Hint {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
-pub(crate) enum Instruction {
+pub enum Instruction {
     /// Binary Operations like +, -, *, /, ==, !=
     Binary(Binary),
 
@@ -677,7 +677,7 @@ impl ErrorType {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum ConstrainError {
+pub enum ConstrainError {
     // Static string errors are not handled inside the program as data for efficiency reasons.
     StaticString(String),
     // These errors are handled by the program as data.

@@ -40,6 +40,9 @@ members = [
     "acvm-repo/bn254_blackbox_solver",
     # Utility crates
     "utils/iter-extended",
+
+    "tooling/ssa_fuzzer",
+    "tooling/ssa_fuzzer/fuzzer",
     "utils/protobuf",
 ]
 default-members = [

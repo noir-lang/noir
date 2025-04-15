@@ -38,7 +38,8 @@ use super::{
 };
 use big_int::BigIntContext;
 
-pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc, GeneratedAcir};
+pub use generated_acir::GeneratedAcir;
+pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between

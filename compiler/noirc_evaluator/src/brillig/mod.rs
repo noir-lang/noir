@@ -1,5 +1,5 @@
 pub(crate) mod brillig_gen;
-pub(crate) mod brillig_ir;
+pub mod brillig_ir;
 
 use acvm::FieldElement;
 use brillig_gen::brillig_globals::BrilligGlobals;
@@ -90,7 +90,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
+    pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
         self.to_brillig_with_globals(options, HashMap::default())
     }
 
