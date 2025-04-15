@@ -635,6 +635,7 @@ impl SsaBuilder {
     fn print(mut self, msg: &str) -> Self {
         // Count the number of times we have seen this message.
         let cnt = self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
+        let msg = format!("{msg} ({cnt})");
 
         // Always normalize if we are going to print at least one of the passes
         if !matches!(self.ssa_logging, SsaLogging::None) {
@@ -651,8 +652,9 @@ impl SsaBuilder {
                 msg.to_lowercase().contains(string)
             }
         };
+
         if print_ssa_pass {
-            println!("After {msg} ({cnt}):\n{}", self.ssa);
+            println!("After {msg}:\n{}", self.ssa);
         }
         self
     }

@@ -1,3 +1,4 @@
+use fxhash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
 use acvm::FieldElement;
@@ -69,5 +70,16 @@ impl Value {
             }
             Value::Global(typ) => Cow::Borrowed(typ),
         }
+    }
+}
+
+pub(super) fn resolve_value(
+    values_to_replace: &HashMap<ValueId, ValueId>,
+    value_id: ValueId,
+) -> ValueId {
+    if let Some(replacement_id) = values_to_replace.get(&value_id) {
+        resolve_value(values_to_replace, *replacement_id)
+    } else {
+        value_id
     }
 }
