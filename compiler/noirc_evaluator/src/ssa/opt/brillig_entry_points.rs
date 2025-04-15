@@ -81,24 +81,31 @@ impl Ssa {
         }
 
         let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
-
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
-
         let calls_to_update = build_calls_to_update(&mut self, functions_to_clone_map);
 
-        let mut new_functions_map = HashMap::default();
+        // Maps a function to its new specialized function per entry point context
+        // (entry_point -> map(old_id, new_id))
+        let mut new_functions_map: HashMap<FunctionId, HashMap<FunctionId, FunctionId>> =
+            HashMap::default();
         for (entry_point, inner_calls) in brillig_entry_points {
-            let new_entry_point =
-                new_functions_map.get(&entry_point).copied().unwrap_or(entry_point);
-
+            let new_entry_point = new_functions_map
+                .entry(entry_point)
+                .or_default()
+                .get(&entry_point)
+                .copied()
+                .unwrap_or(entry_point);
             let function =
                 self.functions.get_mut(&new_entry_point).expect("ICE: Function does not exist");
             update_function_calls(function, entry_point, &mut new_functions_map, &calls_to_update);
 
             for inner_call in inner_calls {
-                let new_inner_call =
-                    new_functions_map.get(&inner_call).copied().unwrap_or(inner_call);
-
+                let new_inner_call = new_functions_map
+                    .entry(entry_point)
+                    .or_default()
+                    .get(&inner_call)
+                    .copied()
+                    .unwrap_or(inner_call);
                 let function =
                     self.functions.get_mut(&new_inner_call).expect("ICE: Function does not exist");
                 update_function_calls(
@@ -164,7 +171,8 @@ fn build_calls_to_update(
 fn update_function_calls(
     function: &mut Function,
     entry_point: FunctionId,
-    new_functions_map: &mut HashMap<FunctionId, FunctionId>,
+    // Maps (entry_point -> map(old_id, new_id))
+    function_per_entry: &mut HashMap<FunctionId, HashMap<FunctionId, FunctionId>>,
     // Maps (entry point, callee function) -> new callee function id
     calls_to_update: &HashMap<(FunctionId, FunctionId), FunctionId>,
 ) {
@@ -172,17 +180,17 @@ fn update_function_calls(
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
             let instruction = function.dfg[instruction_id].clone();
-            let Instruction::Call { func: func_id, arguments } = instruction else {
+            let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
 
-            let func_value = &function.dfg[func_id];
+            let func_value = &function.dfg[func_value_id];
             let Value::Function(func_id) = func_value else { continue };
             let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) else {
                 continue;
             };
 
-            new_functions_map.insert(*func_id, *new_id);
+            function_per_entry.entry(entry_point).or_default().insert(*func_id, *new_id);
             let new_function_value_id = function.dfg.import_function(*new_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
@@ -604,5 +612,147 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn duplicate_recursive_shared_entry_points() {
+        // Check that we appropriately specialize functions when the entry point
+        // is recursive.
+        // f1 and f2 in the SSA below are recursive with themselves and another entry point.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            v3 = call f1(u1 1, u32 5) -> u1
+            constrain v3 == u1 0
+            v6 = call f2(u1 1, u32 5) -> u1
+            constrain v6 == u1 0
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f2(v0, v6) -> u1
+            v10 = call f1(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) impure fn func_2 f2 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f2(v0, v6) -> u1
+            v10 = call f1(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_entry_point_analysis();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v3 = call f1(u1 1, u32 5) -> u1
+            constrain v3 == u1 0
+            v6 = call f2(u1 1, u32 5) -> u1
+            constrain v6 == u1 0
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f4(v0, v6) -> u1
+            v10 = call f3(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) impure fn func_2 f2 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f6(v0, v6) -> u1
+            v10 = call f5(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_1 f3 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f4(v0, v6) -> u1
+            v10 = call f3(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_2 f4 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f4(v0, v6) -> u1
+            v10 = call f3(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_1 f5 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f6(v0, v6) -> u1
+            v10 = call f5(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_2 f6 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f6(v0, v6) -> u1
+            v10 = call f5(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        "#);
     }
 }
