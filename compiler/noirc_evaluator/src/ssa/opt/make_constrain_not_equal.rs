@@ -68,3 +68,30 @@ impl Function {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn test_make_constrain_not_equals() {
+        let src = "
+        acir(inline) fn main f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            constrain v2 == u1 0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.make_constrain_not_equal_instructions();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            constrain v0 != v1
+            return
+        }
+        ");
+    }
+}
