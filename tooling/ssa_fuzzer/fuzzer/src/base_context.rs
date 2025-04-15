@@ -69,6 +69,9 @@ pub(crate) struct FuzzerContext {
     is_constant: bool,
 }
 
+/// Returns a typed value from the map
+/// Variables are stored in a map with type as key and vector of typed values as value
+/// We use modulo to wrap index around the length of the vector, because fuzzer can produce index that is greater than the length of the vector
 fn get_typed_value_from_map(
     map: &HashMap<ValueType, Vec<TypedValue>>,
     type_: ValueType,
