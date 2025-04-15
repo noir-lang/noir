@@ -96,9 +96,11 @@ impl Function {
             }
         }
 
-        // Values from previous blocks might need to be replaced
-        for block in self.reachable_blocks() {
-            self.dfg.replace_values_in_block(block, &values_to_replace);
+        if !values_to_replace.is_empty() {
+            // Values from previous blocks might need to be replaced
+            for block in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block, &values_to_replace);
+            }
         }
     }
 }
