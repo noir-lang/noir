@@ -12,10 +12,6 @@
 //! These operations are done in parallel so that they can each benefit from each other
 //! without the need for multiple passes.
 //!
-//! Other passes perform a certain amount of constant folding automatically as they insert instructions
-//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value_from_id`]
-//! is used on a value which enables instructions dependent on the value to now be simplified.
-//!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::collections::{BTreeMap, HashSet, VecDeque};
