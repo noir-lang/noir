@@ -66,6 +66,8 @@ impl Function {
             *self.dfg[block].instructions_mut() = instruction_ids;
             self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
         }
+
+        self.dfg.data_bus.replace_values(&values_to_replace);
     }
 }
 
