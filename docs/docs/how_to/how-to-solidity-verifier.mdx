@@ -142,7 +142,7 @@ To verify with Remix, you can pass the proof bytes as a hex string and the publi
 
 ```bash
 # Print the proof bytes as a hex string
-cat ./target/proof | od -An -v -t x1 | tr -d $' \n'
+echo -n "0x"; cat ./target/proof | od -An -v -t x1 | tr -d $' \n'
 ```
 
 Since we used `--output_format bytes_and_fields` flag, you will have a `target/public_inputs_fields.json` file containing an array of public inputs in hex format, which can be directly pasted into Remix.
