@@ -1212,20 +1212,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
         let start_value = self.evaluate(for_.start_range)?;
+        let end_value = self.evaluate(for_.end_range)?;
         let loop_index_type = start_value.get_type();
 
         if loop_index_type.is_signed() {
-            // i128 can store all values from i8 - u64
-            fn into_i128(value: Value) -> i128 {
-                match value {
-                    Value::I8(value) => value as i128,
-                    Value::I16(value) => value as i128,
-                    Value::I32(value) => value as i128,
-                    Value::I64(value) => value as i128,
-                    value => unreachable!("Checked above that value is signed type"),
-                }
-            };
-
             let get_index = match start_value {
                 Value::I8(_) => |i| Value::I8(i as i8),
                 Value::I16(_) => |i| Value::I16(i as i16),
@@ -1234,23 +1224,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 value => unreachable!("Checked above that value is signed type"),
             };
 
-            let start = into_i128(start_value);
-            let end = into_i128(self.evaluate(for_.end_range)?);
+            // i128 can store all values from i8 - u64
+            let start = to_i128(start_value).expect("Checked above that value is signed type");
+            let end = to_i128(end_value).expect("Checked above that value is signed type");
 
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } else if loop_index_type.is_unsigned() {
-            // u128 can store all values from u8 - u128
-            fn into_u128(value: Value) -> u128 {
-                match value {
-                    Value::U8(value) => value as u128,
-                    Value::U16(value) => value as u128,
-                    Value::U32(value) => value as u128,
-                    Value::U64(value) => value as u128,
-                    Value::U128(value) => value,
-                    _ => unreachable!("Checked above that value is unsigned type"),
-                }
-            };
-
             let get_index = match start_value {
                 Value::U8(_) => |i| Value::U8(i as u8),
                 Value::U16(_) => |i| Value::U16(i as u16),
@@ -1260,8 +1239,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 _ => unreachable!("Checked above that value is unsigned type"),
             };
 
-            let start = into_u128(start_value);
-            let end = into_u128(self.evaluate(for_.end_range)?);
+            // u128 can store all values from u8 - u128
+            let start = to_u128(start_value).expect("Checked above that value is unsigned type");
+            let end = to_u128(end_value).expect("Checked above that value is unsigned type");
 
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } else {
@@ -1608,5 +1588,26 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 Err(InterpreterError::NonPointerDereferenced { typ, location })
             }
         },
+    }
+}
+
+fn to_u128(value: Value) -> Option<u128> {
+    match value {
+        Value::U8(value) => Some(value as u128),
+        Value::U16(value) => Some(value as u128),
+        Value::U32(value) => Some(value as u128),
+        Value::U64(value) => Some(value as u128),
+        Value::U128(value) => Some(value),
+        _ => None,
+    }
+}
+
+fn to_i128(value: Value) -> Option<i128> {
+    match value {
+        Value::I8(value) => Some(value as i128),
+        Value::I16(value) => Some(value as i128),
+        Value::I32(value) => Some(value as i128),
+        Value::I64(value) => Some(value as i128),
+        _ => None,
     }
 }
