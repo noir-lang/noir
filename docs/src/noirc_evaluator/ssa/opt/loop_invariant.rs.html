@@ -2089,7 +2089,8 @@
 <a href="#2088" id="2088">2088</a>
 <a href="#2089" id="2089">2089</a>
 <a href="#2090" id="2090">2090</a>
-<a href="#2091" id="2091">2091</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
+<a href="#2091" id="2091">2091</a>
+<a href="#2092" id="2092">2092</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -2218,6 +2219,21 @@
     </span><span class="kw">fn </span>get_induction_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; ValueId {
         function.dfg.block_parameters(<span class="self">self</span>.header)[<span class="number">0</span>]
     }
+
+    <span class="comment">// Check if the loop will be fully executed by checking the number of predecessors of the loop exit
+    // Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
+    // If a loop can have several exit blocks, we would need to update this function
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>is_fully_executed(<span class="kw-2">&amp;</span><span class="self">self</span>, cfg: <span class="kw-2">&amp;</span>ControlFlowGraph) -&gt; bool {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(header) = <span class="self">self</span>.blocks.first() <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        };
+        <span class="kw">for </span>block <span class="kw">in </span>cfg.successors(<span class="kw-2">*</span>header) {
+            <span class="kw">if </span>!<span class="self">self</span>.blocks.contains(<span class="kw-2">&amp;</span>block) {
+                <span class="kw">return </span>cfg.predecessors(block).len() == <span class="number">1</span>;
+            }
+        }
+        <span class="bool-val">true
+    </span>}
 }
 
 <span class="kw">struct </span>LoopInvariantContext&lt;<span class="lifetime">'f</span>&gt; {
@@ -2284,20 +2300,6 @@
     <span class="kw">fn </span>pre_header(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BasicBlockId {
         <span class="self">self</span>.current_pre_header.expect(<span class="string">"ICE: Pre-header block should have been set"</span>)
     }
-
-    <span class="comment">// Check if the loop will be fully executed by checking the number of predecessors of the loop exit
-    // If a loop can have several exit blocks, we would need to update this function
-    </span><span class="kw">fn </span>is_fully_executed(<span class="kw-2">&amp;</span><span class="self">self</span>, loop_: <span class="kw-2">&amp;</span>Loop) -&gt; bool {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(header) = loop_.blocks.first() <span class="kw">else </span>{
-            <span class="kw">return </span><span class="bool-val">true</span>;
-        };
-        <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>header].successors() {
-            <span class="kw">if </span>!loop_.blocks.contains(<span class="kw-2">&amp;</span>block) {
-                <span class="kw">return </span><span class="self">self</span>.cfg.predecessors(block).len() == <span class="number">1</span>;
-            }
-        }
-        <span class="bool-val">true
-    </span>}
 
     <span class="kw">fn </span>hoist_loop_invariants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: <span class="kw-2">&amp;</span>Loop) {
         <span class="self">self</span>.set_values_defined_in_loop(loop_);
@@ -2389,7 +2391,7 @@
         // set the new current induction variable.
         </span><span class="self">self</span>.current_induction_variables.clear();
         <span class="self">self</span>.set_induction_var_bounds(loop_, <span class="bool-val">true</span>);
-        <span class="self">self</span>.no_break = <span class="self">self</span>.is_fully_executed(loop_);
+        <span class="self">self</span>.no_break = loop_.is_fully_executed(<span class="kw-2">&amp;</span><span class="self">self</span>.cfg);
 
         <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
             <span class="kw">let </span>params = <span class="self">self</span>.inserter.function.dfg.block_parameters(<span class="kw-2">*</span>block);
