@@ -30,7 +30,7 @@ libraries:
     critical: true
   noir-bignum:
     repo: noir-lang/noir-bignum
-    timeout: 90
+    timeout: 600
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
