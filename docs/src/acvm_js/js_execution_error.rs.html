@@ -80,9 +80,18 @@
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
-    acir::circuit::{OpcodeLocation, brillig::BrilligFunctionId},
+    acir::circuit::{OpcodeLocation, brillig::BrilligFunctionId, opcodes::AcirFunctionId},
     pwg::RawAssertionPayload,
 };
 <span class="kw">use </span>gloo_utils::format::JsValueSerdeExt;
@@ -99,6 +108,7 @@ export type RawAssertionPayload = {
 export type ExecutionError = Error &amp; {
     callStack?: string[];
     rawAssertionPayload?: RawAssertionPayload;
+    acirFunctionId?: number;
     brilligFunctionId?: number;
 };
 "#</span>;
@@ -123,6 +133,7 @@ export type ExecutionError = Error &amp; {
         message: String,
         call_stack: <span class="prelude-ty">Option</span>&lt;Vec&lt;OpcodeLocation&gt;&gt;,
         assertion_payload: <span class="prelude-ty">Option</span>&lt;RawAssertionPayload&lt;FieldElement&gt;&gt;,
+        acir_function_id: <span class="prelude-ty">Option</span>&lt;AcirFunctionId&gt;,
         brillig_function_id: <span class="prelude-ty">Option</span>&lt;BrilligFunctionId&gt;,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>error = JsExecutionError::constructor(JsString::from(message));
@@ -142,6 +153,12 @@ export type ExecutionError = Error &amp; {
             <span class="prelude-val">None </span>=&gt; JsValue::UNDEFINED,
         };
 
+        <span class="kw">let </span>acir_function_id = <span class="kw">match </span>acir_function_id {
+            <span class="prelude-val">Some</span>(function_id) =&gt; &lt;JsValue <span class="kw">as </span>JsValueSerdeExt&gt;::from_serde(<span class="kw-2">&amp;</span>function_id)
+                .expect(<span class="string">"Cannot serialize ACIR function id"</span>),
+            <span class="prelude-val">None </span>=&gt; JsValue::UNDEFINED,
+        };
+
         <span class="kw">let </span>brillig_function_id = <span class="kw">match </span>brillig_function_id {
             <span class="prelude-val">Some</span>(function_id) =&gt; &lt;JsValue <span class="kw">as </span>JsValueSerdeExt&gt;::from_serde(<span class="kw-2">&amp;</span>function_id)
                 .expect(<span class="string">"Cannot serialize Brillig function id"</span>),
@@ -150,6 +167,7 @@ export type ExecutionError = Error &amp; {
 
         error.set_property(<span class="string">"callStack"</span>, js_call_stack);
         error.set_property(<span class="string">"rawAssertionPayload"</span>, assertion_payload);
+        error.set_property(<span class="string">"acirFunctionId"</span>, acir_function_id);
         error.set_property(<span class="string">"brilligFunctionId"</span>, brillig_function_id);
 
         error

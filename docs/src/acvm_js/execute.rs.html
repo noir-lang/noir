@@ -334,9 +334,20 @@
 <a href="#333" id="333">333</a>
 <a href="#334" id="334">334</a>
 <a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, pin::Pin};
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, pin::Pin};
 
 <span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
+<span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
 <span class="kw">use </span>acvm::{
     acir::circuit::{Circuit, Program},
@@ -424,7 +435,7 @@
     console_error_panic_hook::set_once();
 
     <span class="kw">let </span>program: Program&lt;FieldElement&gt; = Program::deserialize_program(<span class="kw-2">&amp;</span>program)
-    .map_err(|<span class="kw">_</span>| JsExecutionError::new(<span class="string">"Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler"</span>.to_string(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>))<span class="question-mark">?</span>;
+    .map_err(|<span class="kw">_</span>| JsExecutionError::new(<span class="string">"Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler"</span>.to_string(), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>))<span class="question-mark">?</span>;
 
     <span class="kw">let </span><span class="kw-2">mut </span>witness_stack = execute_program_with_native_program_and_return(
         <span class="kw-2">&amp;</span>program,
@@ -439,7 +450,7 @@
     <span class="kw">let </span>main_circuit = <span class="kw-2">&amp;</span>program.functions[<span class="number">0</span>];
     <span class="kw">let </span>return_witness =
         extract_indices(<span class="kw-2">&amp;</span>solved_witness, main_circuit.return_values.<span class="number">0</span>.iter().copied().collect())
-            .map_err(|err| JsExecutionError::new(err, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>))<span class="question-mark">?</span>;
+            .map_err(|err| JsExecutionError::new(err, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>))<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>((solved_witness, return_witness).into())
 }
@@ -491,7 +502,7 @@
         <span class="string">"Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler"</span>.to_string(), 
         <span class="prelude-val">None</span>,
         <span class="prelude-val">None</span>,
-    <span class="prelude-val">None</span>))<span class="question-mark">?</span>;
+    <span class="prelude-val">None</span>, <span class="prelude-val">None</span>))<span class="question-mark">?</span>;
 
     execute_program_with_native_program_and_return(
         <span class="kw-2">&amp;</span>program,
@@ -552,7 +563,9 @@
         <span class="kw">let </span>main = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="number">0</span>];
 
         <span class="kw">let </span><span class="kw-2">mut </span>witness_stack = WitnessStack::default();
-        <span class="kw">let </span>main_witness = <span class="self">self</span>.execute_circuit(main, initial_witness, <span class="kw-2">&amp;mut </span>witness_stack).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>main_witness = <span class="self">self
+            </span>.execute_circuit(main, AcirFunctionId(<span class="number">0</span>), initial_witness, <span class="kw-2">&amp;mut </span>witness_stack)
+            .<span class="kw">await</span><span class="question-mark">?</span>;
         witness_stack.push(<span class="number">0</span>, main_witness);
         <span class="prelude-val">Ok</span>(witness_stack)
     }
@@ -560,10 +573,11 @@
     <span class="kw">fn </span>execute_circuit(
         <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>,
         circuit: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Circuit&lt;FieldElement&gt;,
+        acir_function_id: AcirFunctionId,
         initial_witness: WitnessMap&lt;FieldElement&gt;,
         witness_stack: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>WitnessStack&lt;FieldElement&gt;,
     ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;WitnessMap&lt;FieldElement&gt;, Error&gt;&gt; + <span class="lifetime">'a</span>&gt;&gt; {
-        Box::pin(<span class="kw">async </span>{
+        Box::pin(<span class="kw">async move </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(
                 <span class="self">self</span>.blackbox_solver,
                 <span class="kw-2">&amp;</span>circuit.opcodes,
@@ -633,6 +647,7 @@
                             message,
                             call_stack,
                             raw_assertion_payload,
+                            <span class="prelude-val">Some</span>(acir_function_id),
                             brillig_function_id,
                         )
                         .into());
@@ -647,7 +662,12 @@
                         <span class="kw">let </span>acir_to_call = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[call_info.id.as_usize()];
                         <span class="kw">let </span>initial_witness = call_info.initial_witness;
                         <span class="kw">let </span>call_solved_witness = <span class="self">self
-                            </span>.execute_circuit(acir_to_call, initial_witness, witness_stack)
+                            </span>.execute_circuit(
+                                acir_to_call,
+                                call_info.id,
+                                initial_witness,
+                                witness_stack,
+                            )
                             .<span class="kw">await</span><span class="question-mark">?</span>;
                         <span class="kw">let </span><span class="kw-2">mut </span>call_resolved_outputs = Vec::new();
                         <span class="kw">for </span>return_witness_index <span class="kw">in </span>acir_to_call.return_values.indices() {
@@ -657,7 +677,7 @@
                                 call_resolved_outputs.push(<span class="kw-2">*</span>return_value);
                             } <span class="kw">else </span>{
                                 <span class="comment">// TODO: look at changing this call stack from None
-                                </span><span class="kw">return </span><span class="prelude-val">Err</span>(JsExecutionError::new(<span class="macro">format!</span>(<span class="string">"Failed to read from solved witness of ACIR call at witness {}"</span>, return_witness_index), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>).into());
+                                </span><span class="kw">return </span><span class="prelude-val">Err</span>(JsExecutionError::new(<span class="macro">format!</span>(<span class="string">"Failed to read from solved witness of ACIR call at witness {}"</span>, return_witness_index), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>).into());
                             }
                         }
                         acvm.resolve_pending_acir_call(call_resolved_outputs);
