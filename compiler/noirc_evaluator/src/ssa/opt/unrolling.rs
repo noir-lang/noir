@@ -1206,12 +1206,24 @@ mod tests {
     }
 
     #[test]
-    fn test_boilerplate_stats_i64() {
-        // Looping from 0..-1, but
+    fn test_boilerplate_stats_i64_empty() {
+        // Looping 0..-1, which should be 0 iterations.
         let ssa = brillig_unroll_test_case_6470_with_params("i64", "0", "18446744073709551615");
         let stats = loop0_stats(&ssa);
-        assert_eq!(stats.unrolled_instructions(), 0);
         assert_eq!(stats.iterations, 0);
+        assert_eq!(stats.unrolled_instructions(), 0);
+    }
+
+    #[test]
+    fn test_boilerplate_stats_i64_non_empty() {
+        // Looping -4..-1, which should be 3 iterations.
+        let ssa = brillig_unroll_test_case_6470_with_params(
+            "i64",
+            "18446744073709551612",
+            "18446744073709551615",
+        );
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 3);
     }
 
     #[test]
