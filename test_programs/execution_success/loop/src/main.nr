@@ -47,9 +47,7 @@ fn never_loop() -> u32 {
 
 unconstrained fn basic_break() -> bool {
     for idx_e in 0..5 {
-        if (idx_e < 5) {
-            break;
-        };
+        if (idx_e < 5) { break; };
     }
     true
 }
