@@ -1231,7 +1231,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::I16(value) => |i| Value::I16(i as i16),
                 Value::I32(value) => |i| Value::I32(i as i32),
                 Value::I64(value) => |i| Value::I64(i as i64),
-                value => unreachable!("Checked above that value is unsigned type"),
+                value => unreachable!("Checked above that value is signed type"),
             };
 
             let start = into_i128(start_value);
@@ -1247,7 +1247,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Value::U32(value) => value as u128,
                     Value::U64(value) => value as u128,
                     Value::U128(value) => value,
-                    _ => unreachable!("Checked above that value is signed type"),
+                    _ => unreachable!("Checked above that value is unsigned type"),
                 }
             };
 
