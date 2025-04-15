@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744740541897,
+  "lastUpdate": 1744740824262,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f7ba76a6509a99a12e73da24fe9da068472c09fb",
-          "message": "fix: better tests to check for unused struct error (#8007)",
-          "timestamp": "2025-04-10T17:13:02Z",
-          "tree_id": "09ad7ff1414ebda5b0d9826ba01443b57ac22b61",
-          "url": "https://github.com/noir-lang/noir/commit/f7ba76a6509a99a12e73da24fe9da068472c09fb"
-        },
-        "date": 1744306624133,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.655,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.459,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.34,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.906,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.098,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.875,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 136,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.885,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.454,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.466,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sirasistant@gmail.com",
+            "name": "Álvaro Rodríguez",
+            "username": "sirasistant"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7fea2276c7ef7d1270dabf0be3bdd08bf6858b33",
+          "message": "feat: Port callstack resolution from aztec to noirjs (#7642)\n\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: guipublic <guipublic@gmail.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>",
+          "timestamp": "2025-04-15T17:48:53Z",
+          "tree_id": "a3b35513cb53ae201a5789df9832a0c36ebefe5b",
+          "url": "https://github.com/noir-lang/noir/commit/7fea2276c7ef7d1270dabf0be3bdd08bf6858b33"
+        },
+        "date": 1744740817918,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.659,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.468,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.494,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.928,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.146,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.887,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 134,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.896,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.532,
             "unit": "s"
           }
         ]
