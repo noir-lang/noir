@@ -1,5 +1,5 @@
 // Regression for issue #7359 (https://github.com/noir-lang/noir/issues/7359)
-// We want to the loop to be small enough that the compiler may attempt to unroll it.
+// We want the loop to be small enough that the compiler may attempt to unroll it.
 unconstrained fn main(x: Field) {
     let mut count = 0;
 
