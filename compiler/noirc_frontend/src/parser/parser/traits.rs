@@ -593,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_trait_with_constant_missing_semicoln() {
+    fn parse_trait_with_constant_missing_semicolon() {
         let src = "trait Foo { let x: Field = 1 }";
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
