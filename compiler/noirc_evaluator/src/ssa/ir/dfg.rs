@@ -413,7 +413,7 @@ impl DataFlowGraph {
         block: BasicBlockId,
         values_to_replace: &HashMap<ValueId, ValueId>,
     ) {
-        if self[block].terminator().is_some() {
+        if !values_to_replace.is_empty() && self[block].terminator().is_some() {
             self[block]
                 .unwrap_terminator_mut()
                 .map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
