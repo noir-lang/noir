@@ -101,6 +101,7 @@ impl Function {
             for block in self.reachable_blocks() {
                 self.dfg.replace_values_in_block(block, &values_to_replace);
             }
+            self.dfg.data_bus.replace_values(&values_to_replace);
         }
     }
 }
