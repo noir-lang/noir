@@ -577,7 +577,7 @@
         Instruction::Binary(binary) =&gt; simplify_binary(binary, dfg),
         Instruction::Cast(value, typ) =&gt; simplify_cast(<span class="kw-2">*</span>value, <span class="kw-2">*</span>typ, dfg),
         Instruction::Not(value) =&gt; {
-            <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[dfg.resolve(<span class="kw-2">*</span>value)] {
+            <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>value] {
                 <span class="comment">// Limit optimizing ! on constants to only booleans. If we tried it on fields,
                 // there is no Not on FieldElement, so we'd need to convert between u128. This
                 // would be incorrect however since the extra bits on the field would not be flipped.
@@ -645,7 +645,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(<span class="kw-2">*</span>value) {
                 <span class="kw">let </span>truncated_field = truncate_field(numeric_constant, <span class="kw-2">*</span>bit_size);
                 SimplifiedTo(dfg.make_constant(truncated_field, typ))
-            } <span class="kw">else if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>dfg[dfg.resolve(<span class="kw-2">*</span>value)] {
+            } <span class="kw">else if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>value] {
                 <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction] {
                     Instruction::Truncate { bit_size: src_bit_size, .. } =&gt; {
                         <span class="comment">// If we're truncating the value to fit into the same or larger bit size then this is a noop.
@@ -706,8 +706,8 @@
             <span class="kw">if </span>max_potential_bits &lt;= <span class="kw-2">*</span>max_bit_size { Remove } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; {
-            <span class="kw">let </span>then_condition = dfg.resolve(<span class="kw-2">*</span>then_condition);
-            <span class="kw">let </span>else_condition = dfg.resolve(<span class="kw-2">*</span>else_condition);
+            <span class="kw">let </span>then_condition = <span class="kw-2">*</span>then_condition;
+            <span class="kw">let </span>else_condition = <span class="kw-2">*</span>else_condition;
             <span class="kw">let </span>typ = dfg.type_of_value(<span class="kw-2">*</span>then_value);
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = dfg.get_numeric_constant(then_condition) {
@@ -718,8 +718,8 @@
                 }
             }
 
-            <span class="kw">let </span>then_value = dfg.resolve(<span class="kw-2">*</span>then_value);
-            <span class="kw">let </span>else_value = dfg.resolve(<span class="kw-2">*</span>else_value);
+            <span class="kw">let </span>then_value = <span class="kw-2">*</span>then_value;
+            <span class="kw">let </span>else_value = <span class="kw-2">*</span>else_value;
             <span class="kw">if </span>then_value == else_value {
                 <span class="kw">return </span>SimplifiedTo(then_value);
             }

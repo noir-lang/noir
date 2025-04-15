@@ -397,7 +397,7 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_constant_value(id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
-    <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>dfg[dfg.resolve(id)], Value::NumericConstant { .. })
+    <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>dfg[id], Value::NumericConstant { .. })
 }
 
 <span class="doccomment">/// For a given function, finds all the blocks that are within loops

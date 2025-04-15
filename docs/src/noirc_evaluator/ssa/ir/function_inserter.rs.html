@@ -275,9 +275,7 @@
 <a href="#274" id="274">274</a>
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#277" id="277">277</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::Type;
 
@@ -323,8 +321,7 @@
     <span class="doccomment">/// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>value: ValueId) -&gt; ValueId {
-        value = <span class="self">self</span>.function.dfg.resolve(value);
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; ValueId {
         <span class="kw">match </span><span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>value) {
             <span class="prelude-val">Some</span>(value) =&gt; <span class="self">self</span>.resolve(<span class="kw-2">*</span>value),
             <span class="prelude-val">None </span>=&gt; value,
@@ -403,8 +400,7 @@
         <span class="kw-2">mut </span>block: BasicBlockId,
         call_stack: CallStackId,
     ) -&gt; InsertInstructionResult {
-        <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(id);
-        <span class="kw">let </span>results = vecmap(results, |id| <span class="self">self</span>.function.dfg.resolve(<span class="kw-2">*</span>id));
+        <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(id).to_vec();
 
         <span class="kw">let </span>ctrl_typevars = instruction
             .requires_ctrl_typevars()

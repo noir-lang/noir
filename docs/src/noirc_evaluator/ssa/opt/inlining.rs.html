@@ -1339,9 +1339,7 @@
 <a href="#1338" id="1338">1338</a>
 <a href="#1339" id="1339">1339</a>
 <a href="#1340" id="1340">1340</a>
-<a href="#1341" id="1341">1341</a>
-<a href="#1342" id="1342">1342</a>
-<a href="#1343" id="1343">1343</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1341" id="1341">1341</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -1672,7 +1670,6 @@
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     </span><span class="kw">fn </span>translate_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId) -&gt; ValueId {
-        <span class="kw">let </span>id = <span class="self">self</span>.source_function.dfg.resolve(id);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = <span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>id) {
             <span class="kw">return </span><span class="kw-2">*</span>value;
         }
@@ -1979,8 +1976,7 @@
             .dfg
             .call_stack_data
             .extend_call_stack(call_stack, <span class="kw-2">&amp;</span>source_call_stack);
-        <span class="kw">let </span>results = <span class="self">self</span>.source_function.dfg.instruction_results(id);
-        <span class="kw">let </span>results = vecmap(results, |id| <span class="self">self</span>.source_function.dfg.resolve(<span class="kw-2">*</span>id));
+        <span class="kw">let </span>results = <span class="self">self</span>.source_function.dfg.instruction_results(id).to_vec();
 
         <span class="kw">let </span>ctrl_typevars = instruction
             .requires_ctrl_typevars()

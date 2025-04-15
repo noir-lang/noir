@@ -256,10 +256,7 @@
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#258" id="258">258</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -276,9 +273,6 @@
     msg: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
 ) -&gt; Vec&lt;Instruction&gt; {
-    <span class="kw">let </span>lhs = dfg.resolve(lhs);
-    <span class="kw">let </span>rhs = dfg.resolve(rhs);
-
     <span class="kw">if </span>lhs == rhs {
         <span class="comment">// Remove trivial case `assert_eq(x, x)`
         </span>Vec::new()

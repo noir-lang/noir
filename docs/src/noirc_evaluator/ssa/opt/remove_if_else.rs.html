@@ -399,7 +399,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::Hint;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueId;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::{ValueId, ValueMapping};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
     ir::{
@@ -455,7 +455,7 @@
         <span class="kw">let </span>instructions = function.dfg[block].take_instructions();
         <span class="kw">let </span>one = FieldElement::one();
         <span class="kw">let </span><span class="kw-2">mut </span>current_conditional = function.dfg.make_constant(one, NumericType::bool());
-        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = HashMap::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
 
         <span class="kw">for </span>instruction <span class="kw">in </span>instructions {
             <span class="comment">// Before we process instructions, replace any values we previously determined we need to replace

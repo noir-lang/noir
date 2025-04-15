@@ -1452,13 +1452,7 @@
 <a href="#1451" id="1451">1451</a>
 <a href="#1452" id="1452">1452</a>
 <a href="#1453" id="1453">1453</a>
-<a href="#1454" id="1454">1454</a>
-<a href="#1455" id="1455">1455</a>
-<a href="#1456" id="1456">1456</a>
-<a href="#1457" id="1457">1457</a>
-<a href="#1458" id="1458">1458</a>
-<a href="#1459" id="1459">1459</a>
-<a href="#1460" id="1460">1460</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
+<a href="#1454" id="1454">1454</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
 </span><span class="kw">use </span><span class="kw">crate</span>::errors::{InternalBug, SsaReport};
@@ -1614,13 +1608,11 @@
             .iter()
             .filter(|value| function.dfg.get_numeric_constant(<span class="kw-2">**</span>value).is_none())
             .copied()
-            .map(|value| function.dfg.resolve(value))
             .collect();
         <span class="kw">let </span>results: Vec&lt;ValueId&gt; = results
             .iter()
             .filter(|value| function.dfg.get_numeric_constant(<span class="kw-2">**</span>value).is_none())
             .copied()
-            .map(|value| function.dfg.resolve(value))
             .collect();
 
         <span class="kw">let </span><span class="kw-2">mut </span>results_status: Vec&lt;ResultStatus&gt; = <span class="macro">vec!</span>[];
@@ -1851,7 +1843,7 @@
             <span class="comment">// Collect non-constant instruction arguments
             </span>function.dfg[<span class="kw-2">*</span>instruction].for_each_value(|value_id| {
                 <span class="kw">if </span>function.dfg.get_numeric_constant(value_id).is_none() {
-                    arguments.push(function.dfg.resolve(value_id));
+                    arguments.push(value_id);
                 }
             });
 
@@ -1880,7 +1872,7 @@
                 <span class="comment">// Collect non-constant instruction results
                 </span><span class="kw">for </span>value_id <span class="kw">in </span>function.dfg.instruction_results(<span class="kw-2">*</span>instruction).iter() {
                     <span class="kw">if </span>function.dfg.get_numeric_constant(<span class="kw-2">*</span>value_id).is_none() {
-                        results.push(function.dfg.resolve(<span class="kw-2">*</span>value_id));
+                        results.push(<span class="kw-2">*</span>value_id);
                     }
                 }
 
@@ -1888,7 +1880,7 @@
                     <span class="comment">// For memory operations, we have to link up the stored value as a parent
                     // of one loaded from the same memory slot
                     </span>Instruction::Store { address, value } =&gt; {
-                        <span class="self">self</span>.memory_slots.insert(<span class="kw-2">*</span>address, function.dfg.resolve(<span class="kw-2">*</span>value));
+                        <span class="self">self</span>.memory_slots.insert(<span class="kw-2">*</span>address, <span class="kw-2">*</span>value);
                     }
                     Instruction::Load { address } =&gt; {
                         <span class="comment">// Recall the value stored at address as parent for the results
@@ -1905,7 +1897,7 @@
                     </span>Instruction::EnableSideEffectsIf { condition: value } =&gt; {
                         <span class="self">self</span>.side_effects_condition =
                             <span class="kw">match </span>function.dfg.get_numeric_constant(<span class="kw-2">*</span>value) {
-                                <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Some</span>(function.dfg.resolve(<span class="kw-2">*</span>value)),
+                                <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
                                 <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
                             }
                     }
@@ -1913,14 +1905,11 @@
                     // involved in Brillig calls, remove covered calls
                     </span>Instruction::Constrain(value_id1, value_id2, <span class="kw">_</span>)
                     | Instruction::ConstrainNotEqual(value_id1, value_id2, <span class="kw">_</span>) =&gt; {
-                        <span class="self">self</span>.clear_constrained(
-                            <span class="kw-2">&amp;</span>[function.dfg.resolve(<span class="kw-2">*</span>value_id1), function.dfg.resolve(<span class="kw-2">*</span>value_id2)],
-                            function,
-                        );
+                        <span class="self">self</span>.clear_constrained(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>value_id1, <span class="kw-2">*</span>value_id2], function);
                     }
                     <span class="comment">// Consider range check to also be constraining
                     </span>Instruction::RangeCheck { value, .. } =&gt; {
-                        <span class="self">self</span>.clear_constrained(<span class="kw-2">&amp;</span>[function.dfg.resolve(<span class="kw-2">*</span>value)], function);
+                        <span class="self">self</span>.clear_constrained(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>value], function);
                     }
                     Instruction::Call { func: func_id, .. } =&gt; {
                         <span class="comment">// For functions, we remove the first element of arguments,
@@ -2157,8 +2146,7 @@
             .parameters()
             .iter()
             .chain(returns)
-            .filter(|id| function.dfg.get_numeric_constant(<span class="kw-2">**</span>id).is_none())
-            .map(|value_id| function.dfg.resolve(<span class="kw-2">*</span>value_id));
+            .filter(|id| function.dfg.get_numeric_constant(<span class="kw-2">**</span>id).is_none());
 
         <span class="kw">let </span><span class="kw-2">mut </span>connected_sets_indices: BTreeSet&lt;usize&gt; = BTreeSet::default();
 
@@ -2166,7 +2154,7 @@
         // If it's the case, then that set doesn't present an issue
         </span><span class="kw">for </span>parameter_or_return_value <span class="kw">in </span>variable_parameters_and_return_values {
             <span class="kw">for </span>(set_index, final_set) <span class="kw">in </span><span class="self">self</span>.value_sets.iter().enumerate() {
-                <span class="kw">if </span>final_set.contains(<span class="kw-2">&amp;</span>parameter_or_return_value) {
+                <span class="kw">if </span>final_set.contains(parameter_or_return_value) {
                     connected_sets_indices.insert(set_index);
                 }
             }
@@ -2222,13 +2210,13 @@
             <span class="comment">// Insert non-constant instruction arguments
             </span>function.dfg[<span class="kw-2">*</span>instruction].for_each_value(|value_id| {
                 <span class="kw">if </span>function.dfg.get_numeric_constant(value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(value_id));
+                    instruction_arguments_and_results.insert(value_id);
                 }
             });
             <span class="comment">// And non-constant results
             </span><span class="kw">for </span>value_id <span class="kw">in </span>function.dfg.instruction_results(<span class="kw-2">*</span>instruction).iter() {
                 <span class="kw">if </span>function.dfg.get_numeric_constant(<span class="kw-2">*</span>value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(<span class="kw-2">*</span>value_id));
+                    instruction_arguments_and_results.insert(<span class="kw-2">*</span>value_id);
                 }
             }
 

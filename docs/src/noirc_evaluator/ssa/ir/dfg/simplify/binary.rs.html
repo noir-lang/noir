@@ -303,8 +303,8 @@
 
 <span class="doccomment">/// Try to simplify this binary instruction, returning the new value if possible.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>simplify_binary(binary: <span class="kw-2">&amp;</span>Binary, dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph) -&gt; SimplifyResult {
-    <span class="kw">let </span>lhs = dfg.resolve(binary.lhs);
-    <span class="kw">let </span>rhs = dfg.resolve(binary.rhs);
+    <span class="kw">let </span>lhs = binary.lhs;
+    <span class="kw">let </span>rhs = binary.rhs;
 
     <span class="kw">let </span>lhs_value = dfg.get_numeric_constant(lhs);
     <span class="kw">let </span>rhs_value = dfg.get_numeric_constant(rhs);
@@ -401,7 +401,7 @@
                         dfg[<span class="kw-2">*</span>instruction]
                     {
                         <span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOp::Mul { .. })
-                            &amp;&amp; (lhs == dfg.resolve(b_lhs) || lhs == dfg.resolve(b_rhs))
+                            &amp;&amp; (lhs == b_lhs || lhs == b_rhs)
                         {
                             <span class="kw">return </span>SimplifyResult::SimplifiedTo(rhs);
                         }
@@ -415,7 +415,7 @@
                         dfg[<span class="kw-2">*</span>instruction]
                     {
                         <span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOp::Mul { .. })
-                            &amp;&amp; (rhs == dfg.resolve(b_lhs) || rhs == dfg.resolve(b_rhs))
+                            &amp;&amp; (rhs == b_lhs || rhs == b_rhs)
                         {
                             <span class="kw">return </span>SimplifyResult::SimplifiedTo(lhs);
                         }

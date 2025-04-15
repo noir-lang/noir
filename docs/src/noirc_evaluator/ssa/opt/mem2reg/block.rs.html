@@ -249,11 +249,7 @@
 <a href="#248" id="248">248</a>
 <a href="#249" id="249">249</a>
 <a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#251" id="251">251</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::Function,
@@ -442,14 +438,11 @@
     }
 
     <span class="kw">fn </span>keep_last_stores_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, function: <span class="kw-2">&amp;</span>Function) {
-        <span class="kw">let </span>address = function.dfg.resolve(address);
         <span class="self">self</span>.keep_last_store(address, function);
         <span class="self">self</span>.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
     }
 
     <span class="kw">fn </span>keep_last_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, function: <span class="kw-2">&amp;</span>Function) {
-        <span class="kw">let </span>address = function.dfg.resolve(address);
-
         <span class="kw">if let </span><span class="prelude-val">Some</span>(instruction) = <span class="self">self</span>.last_stores.remove(<span class="kw-2">&amp;</span>address) {
             <span class="comment">// Whenever we decide we want to keep a store instruction, we also need
             // to go through its stored value and mark that used as well.
@@ -502,8 +495,7 @@
         <span class="self">self</span>.last_loads.insert(address, instruction);
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>keep_last_load_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, function: <span class="kw-2">&amp;</span>Function) {
-        <span class="kw">let </span>address = function.dfg.resolve(address);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>keep_last_load_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId) {
         <span class="self">self</span>.last_loads.remove(<span class="kw-2">&amp;</span>address);
         <span class="self">self</span>.for_each_alias_of(address, |block, alias| block.last_loads.remove(<span class="kw-2">&amp;</span>alias));
     }

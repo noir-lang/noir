@@ -822,9 +822,7 @@
 <a href="#821" id="821">821</a>
 <a href="#822" id="822">822</a>
 <a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
-<span class="kw">use </span>std::hash::{Hash, Hasher};
+<a href="#824" id="824">824</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::{Hash, Hasher};
 
 <span class="kw">use </span>acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
 <span class="kw">use </span>fxhash::FxHasher64;
@@ -840,7 +838,7 @@
     dfg::DataFlowGraph,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId, resolve_value},
+    value::{Value, ValueId, ValueMapping},
 };
 
 <span class="kw">pub mod </span>binary;
@@ -1248,10 +1246,10 @@
         }
     }
 
-    <span class="doccomment">/// Replaces values present in this instruction with other values according to the given HashMap.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>, values_to_replace: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;) {
-        <span class="kw">if </span>!values_to_replace.is_empty() {
-            <span class="self">self</span>.map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
+    <span class="doccomment">/// Replaces values present in this instruction with other values according to the given mapping.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>, mapping: <span class="kw-2">&amp;</span>ValueMapping) {
+        <span class="kw">if </span>!mapping.is_empty() {
+            <span class="self">self</span>.map_values_mut(|value_id| mapping.get(value_id));
         }
     }
 

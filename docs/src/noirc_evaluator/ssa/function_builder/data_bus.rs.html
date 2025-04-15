@@ -276,7 +276,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::RuntimeType,
     types::{NumericType, Type},
-    value::{ValueId, resolve_value},
+    value::{ValueId, ValueMapping},
 };
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -367,9 +367,9 @@
         DataBus { call_data, return_data: <span class="self">self</span>.return_data.map(<span class="kw-2">&amp;mut </span>f) }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>, values_to_replace: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;) {
-        <span class="kw">if </span>!values_to_replace.is_empty() {
-            <span class="self">self</span>.map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>, mapping: <span class="kw-2">&amp;</span>ValueMapping) {
+        <span class="kw">if </span>!mapping.is_empty() {
+            <span class="self">self</span>.map_values_mut(|value_id| mapping.get(value_id));
         }
     }
 

@@ -68,9 +68,7 @@
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
 <a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#70" id="70">70</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -113,9 +111,7 @@
                             .get_numeric_constant(<span class="kw-2">*</span>rhs)
                             .is_some_and(|constant| constant.is_zero())
                         {
-                            <span class="kw">if let </span>Value::Instruction { instruction, .. } =
-                                <span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="self">self</span>.dfg.resolve(<span class="kw-2">*</span>lhs)]
-                            {
+                            <span class="kw">if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>lhs] {
                                 <span class="kw">if let </span>Instruction::Binary(Binary {
                                     lhs,
                                     rhs,

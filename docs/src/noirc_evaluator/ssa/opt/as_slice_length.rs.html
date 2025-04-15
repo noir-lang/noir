@@ -99,17 +99,15 @@
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#101" id="101">101</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::Function,
         instruction::{Instruction, Intrinsic},
         types::{NumericType, Type},
-        value::Value,
+        value::{Value, ValueMapping},
     },
     ssa_gen::Ssa,
 };
-<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// A simple SSA pass to find any calls to `Intrinsic::AsSlice` and replacing any references to the length of the
@@ -130,7 +128,7 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_slice_optimization(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = HashMap::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
 
         <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
             <span class="kw">let </span>instruction_ids = <span class="self">self</span>.dfg[block].take_instructions();

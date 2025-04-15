@@ -1646,7 +1646,7 @@
 
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[instruction] {
             Instruction::Load { address } =&gt; {
-                <span class="kw">let </span>address = <span class="self">self</span>.inserter.function.dfg.resolve(<span class="kw-2">*</span>address);
+                <span class="kw">let </span>address = <span class="kw-2">*</span>address;
 
                 <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
                 references.remember_dereference(<span class="self">self</span>.inserter.function, address, result);
@@ -1685,8 +1685,8 @@
                 </span>references.set_last_load(address, instruction);
             }
             Instruction::Store { address, value } =&gt; {
-                <span class="kw">let </span>address = <span class="self">self</span>.inserter.function.dfg.resolve(<span class="kw-2">*</span>address);
-                <span class="kw">let </span>value = <span class="self">self</span>.inserter.function.dfg.resolve(<span class="kw-2">*</span>value);
+                <span class="kw">let </span>address = <span class="kw-2">*</span>address;
+                <span class="kw">let </span>value = <span class="kw-2">*</span>value;
 
                 <span class="comment">// If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
@@ -1709,7 +1709,7 @@
 
                 references.set_known_value(address, value);
                 <span class="comment">// If we see a store to an address, the last load to that address needs to remain.
-                </span>references.keep_last_load_for(address, <span class="self">self</span>.inserter.function);
+                </span>references.keep_last_load_for(address);
                 references.last_stores.insert(address, instruction);
             }
             Instruction::Allocate =&gt; {
@@ -1723,7 +1723,7 @@
                 references.mark_value_used(<span class="kw-2">*</span>array, <span class="self">self</span>.inserter.function);
 
                 <span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.value_is_reference(result) {
-                    <span class="kw">let </span>array = <span class="self">self</span>.inserter.function.dfg.resolve(<span class="kw-2">*</span>array);
+                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
                     <span class="kw">let </span>expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(<span class="kw-2">&amp;</span>expression) {
@@ -1737,7 +1737,7 @@
 
                 <span class="kw">if </span><span class="self">Self</span>::contains_references(<span class="kw-2">&amp;</span>element_type) {
                     <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
-                    <span class="kw">let </span>array = <span class="self">self</span>.inserter.function.dfg.resolve(<span class="kw-2">*</span>array);
+                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
 
                     <span class="kw">let </span>expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
@@ -1814,12 +1814,12 @@
     <span class="kw">fn </span>mark_all_unknown(<span class="kw-2">&amp;</span><span class="self">self</span>, values: <span class="kw-2">&amp;</span>[ValueId], references: <span class="kw-2">&amp;mut </span>Block) {
         <span class="kw">for </span>value <span class="kw">in </span>values {
             <span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.value_is_reference(<span class="kw-2">*</span>value) {
-                <span class="kw">let </span>value = <span class="self">self</span>.inserter.function.dfg.resolve(<span class="kw-2">*</span>value);
+                <span class="kw">let </span>value = <span class="kw-2">*</span>value;
                 references.set_unknown(value);
                 references.mark_value_used(value, <span class="self">self</span>.inserter.function);
 
                 <span class="comment">// If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
-                </span>references.keep_last_load_for(value, <span class="self">self</span>.inserter.function);
+                </span>references.keep_last_load_for(value);
             }
         }
     }
@@ -1860,7 +1860,7 @@
                 <span class="comment">// Add an alias for each reference parameter
                 </span><span class="kw">for </span>(parameter, argument) <span class="kw">in </span>destination_parameters.iter().zip(arguments) {
                     <span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.value_is_reference(<span class="kw-2">*</span>parameter) {
-                        <span class="kw">let </span>argument = <span class="self">self</span>.inserter.function.dfg.resolve(<span class="kw-2">*</span>argument);
+                        <span class="kw">let </span>argument = <span class="kw-2">*</span>argument;
 
                         <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(<span class="kw-2">&amp;</span>argument) {
                             <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(expression) {

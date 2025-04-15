@@ -418,8 +418,7 @@
 <a href="#417" id="417">417</a>
 <a href="#418" id="418">418</a>
 <a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
+<a href="#420" id="420">420</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
 //!
 //! This is a rather simple pass that is expected to be cheap to perform. It:
 //! 1. Removes blocks with no predecessors
@@ -430,8 +429,7 @@
 //!    only 1 successor then (2) also will be applied.
 //!
 //! Currently, 1 and 4 are unimplemented.
-</span><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
-<span class="kw">use </span>std::collections::HashSet;
+</span><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acvm::acir::AcirField;
 
@@ -441,7 +439,7 @@
         cfg::ControlFlowGraph,
         function::{Function, RuntimeType},
         instruction::{Instruction, TerminatorInstruction},
-        value::{Value, ValueId},
+        value::{Value, ValueMapping},
     },
     ssa_gen::Ssa,
 };
@@ -471,7 +469,7 @@
     /// be inlined into their predecessor.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>simplify_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span><span class="kw-2">mut </span>cfg = ControlFlowGraph::with_function(<span class="self">self</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = HashMap::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
         <span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[<span class="self">self</span>.entry_block()];
         <span class="kw">let </span><span class="kw-2">mut </span>visited = HashSet::new();
 
@@ -685,7 +683,7 @@
     function: <span class="kw-2">&amp;mut </span>Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
-    values_to_replace: <span class="kw-2">&amp;mut </span>HashMap&lt;ValueId, ValueId&gt;,
+    values_to_replace: <span class="kw-2">&amp;mut </span>ValueMapping,
 ) {
     <span class="kw">let </span>block = <span class="kw-2">&amp;mut </span>function.dfg[block];
 

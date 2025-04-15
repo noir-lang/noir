@@ -903,46 +903,7 @@
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a>
-<a href="#917" id="917">917</a>
-<a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a>
-<a href="#920" id="920">920</a>
-<a href="#921" id="921">921</a>
-<a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a>
-<a href="#924" id="924">924</a>
-<a href="#925" id="925">925</a>
-<a href="#926" id="926">926</a>
-<a href="#927" id="927">927</a>
-<a href="#928" id="928">928</a>
-<a href="#929" id="929">929</a>
-<a href="#930" id="930">930</a>
-<a href="#931" id="931">931</a>
-<a href="#932" id="932">932</a>
-<a href="#933" id="933">933</a>
-<a href="#934" id="934">934</a>
-<a href="#935" id="935">935</a>
-<a href="#936" id="936">936</a>
-<a href="#937" id="937">937</a>
-<a href="#938" id="938">938</a>
-<a href="#939" id="939">939</a>
-<a href="#940" id="940">940</a>
-<a href="#941" id="941">941</a>
-<a href="#942" id="942">942</a>
-<a href="#943" id="943">943</a>
-<a href="#944" id="944">944</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -958,7 +919,7 @@
     },
     map::DenseMap,
     types::{NumericType, Type},
-    value::{Value, ValueId, resolve_value},
+    value::{Value, ValueId, ValueMapping},
 };
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1027,13 +988,6 @@
 
     <span class="doccomment">/// All blocks in a function
     </span>blocks: DenseMap&lt;BasicBlock&gt;,
-
-    <span class="doccomment">/// Debugging information about which `ValueId`s have had their underlying `Value` substituted
-    /// for that of another. In theory this information is purely used for printing the SSA,
-    /// and has no material effect on the SSA itself, however in practice the IDs can get out of
-    /// sync and may need this resolution before they can be compared.
-    </span><span class="attr">#[serde(skip)]
-    </span>replaced_value_ids: HashMap&lt;ValueId, ValueId&gt;,
 
     <span class="doccomment">/// Source location of each instruction for debugging and issuing errors.
     ///
@@ -1327,53 +1281,34 @@
         <span class="self">self</span>.instructions[id] = instruction;
     }
 
-    <span class="doccomment">/// Replaces values in the given block according to the given HashMap.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values_in_block(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        block: BasicBlockId,
-        values_to_replace: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;,
-    ) {
-        <span class="self">self</span>.replace_values_in_block_instructions(block, values_to_replace);
-        <span class="self">self</span>.replace_values_in_block_terminator(block, values_to_replace);
+    <span class="doccomment">/// Replaces values in the given block according to the given mapping.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values_in_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, mapping: <span class="kw-2">&amp;</span>ValueMapping) {
+        <span class="self">self</span>.replace_values_in_block_instructions(block, mapping);
+        <span class="self">self</span>.replace_values_in_block_terminator(block, mapping);
     }
 
-    <span class="doccomment">/// Replaces values in the given block instructions according to the given HashMap.
+    <span class="doccomment">/// Replaces values in the given block instructions according to the given mapping.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values_in_block_instructions(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         block: BasicBlockId,
-        values_to_replace: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;,
+        mapping: <span class="kw-2">&amp;</span>ValueMapping,
     ) {
         <span class="kw">let </span>instruction_ids = <span class="self">self</span>.blocks[block].take_instructions();
         <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
             <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>[<span class="kw-2">*</span>instruction_id];
-            instruction.replace_values(values_to_replace);
+            instruction.replace_values(mapping);
         }
         <span class="kw-2">*</span><span class="self">self</span>[block].instructions_mut() = instruction_ids;
     }
 
-    <span class="doccomment">/// Replaces values in the given block terminator (if it has any) according to the given HashMap.
+    <span class="doccomment">/// Replaces values in the given block terminator (if it has any) according to the given mapping.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values_in_block_terminator(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         block: BasicBlockId,
-        values_to_replace: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;,
+        mapping: <span class="kw-2">&amp;</span>ValueMapping,
     ) {
-        <span class="kw">if </span>!values_to_replace.is_empty() &amp;&amp; <span class="self">self</span>[block].terminator().is_some() {
-            <span class="self">self</span>[block]
-                .unwrap_terminator_mut()
-                .map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
-        }
-    }
-
-    <span class="doccomment">/// Set the value of value_to_replace to refer to the value referred to by new_value.
-    ///
-    /// This is the preferred method to call for optimizations simplifying
-    /// values since other instructions referring to the same ValueId need
-    /// not be modified to refer to a new ValueId.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_value_from_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value_to_replace: ValueId, new_value: ValueId) {
-        <span class="kw">if </span>value_to_replace != new_value {
-            <span class="self">self</span>.replaced_value_ids.insert(value_to_replace, <span class="self">self</span>.resolve(new_value));
-            <span class="kw">let </span>new_value = <span class="self">self</span>.values[new_value].clone();
-            <span class="self">self</span>.values[value_to_replace] = new_value;
+        <span class="kw">if </span>!mapping.is_empty() &amp;&amp; <span class="self">self</span>[block].terminator().is_some() {
+            <span class="self">self</span>[block].unwrap_terminator_mut().map_values_mut(|value_id| mapping.get(value_id));
         }
     }
 
@@ -1390,17 +1325,6 @@
             <span class="kw">_ </span>=&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot set type of {:?}"</span>, value);
             }
-        }
-    }
-
-    <span class="doccomment">/// If `original_value_id`'s underlying `Value` has been substituted for that of another
-    /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
-    /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
-    /// is returned.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve(<span class="kw-2">&amp;</span><span class="self">self</span>, original_value_id: ValueId) -&gt; ValueId {
-        <span class="kw">match </span><span class="self">self</span>.replaced_value_ids.get(<span class="kw-2">&amp;</span>original_value_id) {
-            <span class="prelude-val">Some</span>(id) =&gt; <span class="self">self</span>.resolve(<span class="kw-2">*</span>id),
-            <span class="prelude-val">None </span>=&gt; original_value_id,
         }
     }
 
@@ -1515,7 +1439,7 @@
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_value_max_num_bits(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; u32 {
-        <span class="kw">match </span><span class="self">self</span>[<span class="self">self</span>.resolve(value)] {
+        <span class="kw">match </span><span class="self">self</span>[value] {
             Value::Instruction { instruction, .. } =&gt; {
                 <span class="kw">let </span>value_bit_size = <span class="self">self</span>.type_of_value(value).bit_size();
                 <span class="kw">if let </span>Instruction::Cast(original_value, <span class="kw">_</span>) = <span class="self">self</span>[instruction] {
@@ -1574,7 +1498,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         value: ValueId,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;(FieldElement, NumericType)&gt; {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>[<span class="self">self</span>.resolve(value)] {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>[value] {
             Value::NumericConstant { constant, typ } =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ)),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
@@ -1583,7 +1507,6 @@
     <span class="doccomment">/// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_array_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;(im::Vector&lt;ValueId&gt;, Type)&gt; {
-        <span class="kw">let </span>value = <span class="self">self</span>.resolve(value);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(instruction) = <span class="self">self</span>.get_local_or_global_instruction(value) {
             <span class="kw">match </span>instruction {
                 Instruction::MakeArray { elements, typ } =&gt; <span class="prelude-val">Some</span>((elements.clone(), typ.clone())),
@@ -1672,14 +1595,14 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_value_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; CallStack {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.values[<span class="self">self</span>.resolve(value)] {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.values[value] {
             Value::Instruction { instruction, .. } =&gt; <span class="self">self</span>.get_instruction_call_stack(<span class="kw-2">*</span>instruction),
             <span class="kw">_ </span>=&gt; CallStack::new(),
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_value_call_stack_id(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; CallStackId {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.values[<span class="self">self</span>.resolve(value)] {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.values[value] {
             Value::Instruction { instruction, .. } =&gt; {
                 <span class="self">self</span>.get_instruction_call_stack_id(<span class="kw-2">*</span>instruction)
             }
@@ -1689,7 +1612,6 @@
 
     <span class="doccomment">/// True if the given ValueId refers to a (recursively) constant value
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, argument: ValueId) -&gt; bool {
-        <span class="kw">let </span>argument = <span class="self">self</span>.resolve(argument);
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>[argument] {
             Value::Param { .. } =&gt; <span class="bool-val">false</span>,
             Value::Instruction { .. } =&gt; {

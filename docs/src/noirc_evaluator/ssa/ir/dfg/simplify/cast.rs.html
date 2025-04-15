@@ -73,8 +73,7 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_bigint::BigUint;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -92,7 +91,6 @@
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
 ) -&gt; SimplifyResult {
     <span class="kw">use </span>SimplifyResult::<span class="kw-2">*</span>;
-    <span class="kw">let </span>value = dfg.resolve(value);
 
     <span class="kw">if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>dfg[value] {
         <span class="kw">if let </span>Instruction::Cast(original_value, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction] {

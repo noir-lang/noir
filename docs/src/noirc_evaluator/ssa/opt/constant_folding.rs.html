@@ -1936,7 +1936,18 @@
 <a href="#1935" id="1935">1935</a>
 <a href="#1936" id="1936">1936</a>
 <a href="#1937" id="1937">1937</a>
-<a href="#1938" id="1938">1938</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a>
+<a href="#1945" id="1945">1945</a>
+<a href="#1946" id="1946">1946</a>
+<a href="#1947" id="1947">1947</a>
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -1949,10 +1960,6 @@
 //!
 //! These operations are done in parallel so that they can each benefit from each other
 //! without the need for multiple passes.
-//!
-//! Other passes perform a certain amount of constant folding automatically as they insert instructions
-//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value_from_id`]
-//! is used on a value which enables instructions dependent on the value to now be simplified.
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
@@ -1981,7 +1988,7 @@
             function::{Function, FunctionId, RuntimeType},
             instruction::{BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
-            value::{Value, ValueId},
+            value::{Value, ValueId, ValueMapping},
         },
         opt::pure::Purity,
         ssa_gen::Ssa,
@@ -2086,6 +2093,8 @@
 
     <span class="comment">// Cache of instructions without any side-effects along with their outputs.
     </span>cached_instruction_results: InstructionResultCache,
+
+    values_to_replace: ValueMapping,
 }
 
 <span class="attr">#[derive(Copy, Clone)]
@@ -2165,6 +2174,7 @@
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
+            values_to_replace: Default::default(),
         }
     }
 
@@ -2181,6 +2191,11 @@
             function.dfg.make_constant(FieldElement::one(), NumericType::bool());
 
         <span class="kw">for </span>instruction_id <span class="kw">in </span>instructions {
+            <span class="kw">if </span>!<span class="self">self</span>.values_to_replace.is_empty() {
+                <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span>function.dfg[instruction_id];
+                instruction.replace_values(<span class="kw-2">&amp;</span><span class="self">self</span>.values_to_replace);
+            }
+
             <span class="self">self</span>.fold_constants_into_instruction(
                 function,
                 dom,
@@ -2190,13 +2205,15 @@
             );
         }
 
+        function.dfg.replace_values_in_block_terminator(block_id, <span class="kw-2">&amp;</span><span class="self">self</span>.values_to_replace);
+        function.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span><span class="self">self</span>.values_to_replace);
+
         <span class="comment">// Map a terminator in place, replacing any ValueId in the terminator with the
         // resolved version of that value id from the simplification cache's internal value mapping.
         </span><span class="kw">let </span><span class="kw-2">mut </span>terminator = function.dfg[block_id].take_terminator();
         terminator.map_values_mut(|value| {
             <span class="self">Self</span>::resolve_cache(
                 block_id,
-                <span class="kw-2">&amp;</span>function.dfg,
                 dom,
                 <span class="self">self</span>.get_constraint_map(side_effects_enabled_var),
                 value,
@@ -2239,7 +2256,8 @@
                         dfg.insert_instruction_and_results(inc_rc, block, <span class="prelude-val">None</span>, call_stack);
                     }
 
-                    <span class="self">Self</span>::replace_result_ids(dfg, <span class="kw-2">&amp;</span>old_results, cached);
+                    <span class="kw">let </span>cached = cached.to_vec();
+                    <span class="self">self</span>.replace_result_ids(<span class="kw-2">&amp;</span>old_results, <span class="kw-2">&amp;</span>cached);
                     <span class="kw">return</span>;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) =&gt; {
@@ -2270,7 +2288,7 @@
             })
         };
 
-        <span class="self">Self</span>::replace_result_ids(dfg, <span class="kw-2">&amp;</span>old_results, <span class="kw-2">&amp;</span>new_results);
+        <span class="self">self</span>.replace_result_ids(<span class="kw-2">&amp;</span>old_results, <span class="kw-2">&amp;</span>new_results);
 
         <span class="self">self</span>.cache_instruction(
             instruction.clone(),
@@ -2294,21 +2312,19 @@
     // constraints to the cache.
     </span><span class="kw">fn </span>resolve_cache(
         block: BasicBlockId,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         dom: <span class="kw-2">&amp;mut </span>DominatorTree,
         cache: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, SimplificationCache&gt;,
         value_id: ValueId,
     ) -&gt; ValueId {
-        <span class="kw">let </span>resolved_id = dfg.resolve(value_id);
-        <span class="kw">match </span>cache.get(<span class="kw-2">&amp;</span>resolved_id) {
+        <span class="kw">match </span>cache.get(<span class="kw-2">&amp;</span>value_id) {
             <span class="prelude-val">Some</span>(simplification_cache) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(simplified) = simplification_cache.get(block, dom) {
-                    <span class="self">Self</span>::resolve_cache(block, dfg, dom, cache, simplified)
+                    <span class="self">Self</span>::resolve_cache(block, dom, cache, simplified)
                 } <span class="kw">else </span>{
-                    resolved_id
+                    value_id
                 }
             }
-            <span class="prelude-val">None </span>=&gt; resolved_id,
+            <span class="prelude-val">None </span>=&gt; value_id,
         }
     }
 
@@ -2324,9 +2340,9 @@
 
         <span class="comment">// Resolve any inputs to ensure that we're comparing like-for-like instructions.
         </span>instruction.map_values_mut(|value_id| {
-            <span class="self">Self</span>::resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
+            <span class="self">Self</span>::resolve_cache(block, dom, constraint_simplification_mapping, value_id)
         });
-        instruction.map_values(|v| dfg.resolve(v))
+        instruction
     }
 
     <span class="doccomment">/// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -2442,13 +2458,9 @@
     }
 
     <span class="doccomment">/// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-    </span><span class="kw">fn </span>replace_result_ids(
-        dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
-        old_results: <span class="kw-2">&amp;</span>[ValueId],
-        new_results: <span class="kw-2">&amp;</span>[ValueId],
-    ) {
+    </span><span class="kw">fn </span>replace_result_ids(<span class="kw-2">&amp;mut </span><span class="self">self</span>, old_results: <span class="kw-2">&amp;</span>[ValueId], new_results: <span class="kw-2">&amp;</span>[ValueId]) {
         <span class="kw">for </span>(old_result, new_result) <span class="kw">in </span>old_results.iter().zip(new_results) {
-            dfg.set_value_from_id(<span class="kw-2">*</span>old_result, <span class="kw-2">*</span>new_result);
+            <span class="self">self</span>.values_to_replace.insert(<span class="kw-2">*</span>old_result, <span class="kw-2">*</span>new_result);
         }
     }
 
@@ -2896,6 +2908,7 @@
                 function::RuntimeType,
                 map::Id,
                 types::{NumericType, Type},
+                value::ValueMapping,
             },
             opt::assert_normalized_ssa_equals,
         },
@@ -2916,13 +2929,16 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>main = ssa.main_mut();
 
-        <span class="kw">let </span>instructions = main.dfg[main.entry_block()].instructions();
+        <span class="kw">let </span>entry_block = main.entry_block();
+        <span class="kw">let </span>instructions = main.dfg[entry_block].instructions();
         <span class="macro">assert_eq!</span>(instructions.len(), <span class="number">2</span>); <span class="comment">// The final return is not counted
 
         </span><span class="kw">let </span>v0 = main.parameters()[<span class="number">0</span>];
         <span class="kw">let </span>two = main.dfg.make_constant(<span class="number">2_u128</span>.into(), NumericType::NativeField);
 
-        main.dfg.set_value_from_id(v0, two);
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
+        values_to_replace.insert(v0, two);
+        main.dfg.replace_values_in_block(entry_block, <span class="kw-2">&amp;</span>values_to_replace);
 
         <span class="kw">let </span>expected = <span class="string">"
             acir(inline) fn main f0 {
@@ -2949,7 +2965,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>main = ssa.main_mut();
 
-        <span class="kw">let </span>instructions = main.dfg[main.entry_block()].instructions();
+        <span class="kw">let </span>entry_block = main.entry_block();
+        <span class="kw">let </span>instructions = main.dfg[entry_block].instructions();
         <span class="macro">assert_eq!</span>(instructions.len(), <span class="number">2</span>); <span class="comment">// The final return is not counted
 
         </span><span class="kw">let </span>v1 = main.parameters()[<span class="number">1</span>];
@@ -2958,7 +2975,9 @@
         </span><span class="kw">let </span>constant = <span class="number">2_u128</span>.pow(<span class="number">8</span>);
         <span class="kw">let </span>constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(<span class="number">16</span>));
 
-        main.dfg.set_value_from_id(v1, constant);
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
+        values_to_replace.insert(v1, constant);
+        main.dfg.replace_values_in_block(entry_block, <span class="kw-2">&amp;</span>values_to_replace);
 
         <span class="kw">let </span>expected = <span class="string">"
             acir(inline) fn main f0 {
@@ -2987,7 +3006,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>main = ssa.main_mut();
 
-        <span class="kw">let </span>instructions = main.dfg[main.entry_block()].instructions();
+        <span class="kw">let </span>entry_block = main.entry_block();
+        <span class="kw">let </span>instructions = main.dfg[entry_block].instructions();
         <span class="macro">assert_eq!</span>(instructions.len(), <span class="number">2</span>); <span class="comment">// The final return is not counted
 
         </span><span class="kw">let </span>v1 = main.parameters()[<span class="number">1</span>];
@@ -2996,7 +3016,9 @@
         </span><span class="kw">let </span>constant = <span class="number">2_u128</span>.pow(<span class="number">8</span>) - <span class="number">1</span>;
         <span class="kw">let </span>constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(<span class="number">16</span>));
 
-        main.dfg.set_value_from_id(v1, constant);
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
+        values_to_replace.insert(v1, constant);
+        main.dfg.replace_values_in_block(entry_block, <span class="kw-2">&amp;</span>values_to_replace);
 
         <span class="kw">let </span>expected = <span class="string">"
             acir(inline) fn main f0 {

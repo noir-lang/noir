@@ -889,8 +889,7 @@
 <a href="#888" id="888">888</a>
 <a href="#889" id="889">889</a>
 <a href="#890" id="890">890</a>
-<a href="#891" id="891">891</a>
-<a href="#892" id="892">892</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#891" id="891">891</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 </span><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
@@ -1098,7 +1097,6 @@
 
     <span class="doccomment">/// Inspects a value and marks all instruction results as used.
     </span><span class="kw">fn </span>mark_used_instruction_results(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, value_id: ValueId) {
-        <span class="kw">let </span>value_id = dfg.resolve(value_id);
         <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>dfg[value_id], Value::Instruction { .. } | Value::Param { .. })
             || dfg.is_global(value_id)
         {

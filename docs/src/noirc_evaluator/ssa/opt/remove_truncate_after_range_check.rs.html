@@ -155,9 +155,11 @@
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
 <a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueMapping;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},
     ssa_gen::Ssa,
@@ -178,7 +180,7 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_truncate_after_range_check(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = HashMap::&lt;ValueId, ValueId&gt;::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
         <span class="comment">// Keeps the minimum bit size a value was range-checked against
         </span><span class="kw">let </span><span class="kw-2">mut </span>range_checks: HashMap&lt;ValueId, u32&gt; = HashMap::default();
 

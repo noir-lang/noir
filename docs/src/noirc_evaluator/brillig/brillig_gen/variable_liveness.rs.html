@@ -656,8 +656,7 @@
 <a href="#655" id="655">655</a>
 <a href="#656" id="656">656</a>
 <a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the liveness of variables (non-constant values) throughout a function.
+<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the liveness of variables (non-constant values) throughout a function.
 //! It uses the approach detailed in the section 4.2 of this paper &lt;https://inria.hal.science/inria-00558509v2/document&gt;
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -708,7 +707,6 @@
     value_id: ValueId,
     dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-    <span class="kw">let </span>value_id = dfg.resolve(value_id);
     <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[value_id];
 
     <span class="kw">match </span>value {
@@ -905,13 +903,13 @@
         <span class="kw">let </span><span class="kw-2">mut </span>defined_vars = HashSet::default();
 
         <span class="kw">for </span>parameter <span class="kw">in </span><span class="self">self</span>.defined_block_params(<span class="kw-2">&amp;</span>block_id) {
-            defined_vars.insert(dfg.resolve(parameter));
+            defined_vars.insert(parameter);
         }
 
         <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
             <span class="kw">let </span>result_values = dfg.instruction_results(<span class="kw-2">*</span>instruction_id);
             <span class="kw">for </span>result_value <span class="kw">in </span>result_values {
-                defined_vars.insert(dfg.resolve(<span class="kw-2">*</span>result_value));
+                defined_vars.insert(<span class="kw-2">*</span>result_value);
             }
         }
 

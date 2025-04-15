@@ -325,14 +325,14 @@
         <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
             <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction_id] {
                 Instruction::ArrayGet { array, .. } =&gt; {
-                    <span class="kw">let </span>array = <span class="self">self</span>.dfg.resolve(<span class="kw-2">*</span>array);
+                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.array_to_last_use.insert(array, <span class="kw-2">*</span>instruction_id) {
                         <span class="self">self</span>.instructions_that_can_be_made_mutable.remove(<span class="kw-2">&amp;</span>existing);
                     }
                 }
                 Instruction::ArraySet { array, .. } =&gt; {
-                    <span class="kw">let </span>array = <span class="self">self</span>.dfg.resolve(<span class="kw-2">*</span>array);
+                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.array_to_last_use.insert(array, <span class="kw-2">*</span>instruction_id) {
                         <span class="self">self</span>.instructions_that_can_be_made_mutable.remove(<span class="kw-2">&amp;</span>existing);
@@ -351,7 +351,7 @@
                     </span><span class="kw">let </span><span class="kw-2">mut </span>is_array_in_terminator = <span class="bool-val">false</span>;
                     terminator.for_each_value(|value| {
                         <span class="comment">// The terminator can contain original IDs, while the SSA has replaced the array value IDs; we need to resolve to compare.
-                        </span><span class="kw">if </span>!is_array_in_terminator &amp;&amp; <span class="self">self</span>.dfg.resolve(value) == array {
+                        </span><span class="kw">if </span>!is_array_in_terminator &amp;&amp; value == array {
                             is_array_in_terminator = <span class="bool-val">true</span>;
                         }
                     });
@@ -373,7 +373,7 @@
                     <span class="kw">for </span>argument <span class="kw">in </span>arguments {
                         <span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>argument), Array { .. } | Slice { .. })
                         {
-                            <span class="kw">let </span>argument = <span class="self">self</span>.dfg.resolve(<span class="kw-2">*</span>argument);
+                            <span class="kw">let </span>argument = <span class="kw-2">*</span>argument;
 
                             <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) =
                                 <span class="self">self</span>.array_to_last_use.insert(argument, <span class="kw-2">*</span>instruction_id)

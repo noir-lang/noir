@@ -153,11 +153,7 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#155" id="155">155</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
@@ -214,7 +210,6 @@
         value_id: ValueId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; BrilligVariable {
-        <span class="kw">let </span>value_id = dfg.resolve(value_id);
         <span class="kw">let </span>variable = allocate_value(value_id, brillig_context, dfg);
 
         <span class="kw">if </span>function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
@@ -263,10 +258,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function_context: <span class="kw-2">&amp;</span>FunctionContext,
         value_id: ValueId,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; BrilligVariable {
-        <span class="kw">let </span>value_id = dfg.resolve(value_id);
-
         <span class="macro">assert!</span>(
             <span class="self">self</span>.available_variables.contains(<span class="kw-2">&amp;</span>value_id),
             <span class="string">"ICE: ValueId {value_id:?} is not available"

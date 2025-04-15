@@ -195,7 +195,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>used_function_ids = BTreeSet::default();
 
     <span class="kw">let </span><span class="kw-2">mut </span>find_functions = |value| {
-        <span class="kw">if let </span>Value::Function(function) = func.dfg[func.dfg.resolve(value)] {
+        <span class="kw">if let </span>Value::Function(function) = func.dfg[value] {
             used_function_ids.insert(function);
         }
     };

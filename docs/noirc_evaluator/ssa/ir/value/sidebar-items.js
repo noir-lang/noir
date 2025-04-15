@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Value"],"fn":["resolve_value"],"type":["ValueId"]};
+window.SIDEBAR_ITEMS = {"enum":["Value"],"struct":["ValueMapping"],"type":["ValueId"]};

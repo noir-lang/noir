@@ -366,8 +366,7 @@
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
 <a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#368" id="368">368</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -454,7 +453,6 @@
 <span class="doccomment">/// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
 </span><span class="kw">fn </span>value(dfg: <span class="kw-2">&amp;</span>DataFlowGraph, id: ValueId) -&gt; String {
-    <span class="kw">let </span>id = dfg.resolve(id);
     <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[id] {
         Value::NumericConstant { constant, typ } =&gt; {
             <span class="macro">format!</span>(<span class="string">"{typ} {constant}"</span>)
