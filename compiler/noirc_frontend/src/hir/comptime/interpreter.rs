@@ -1267,7 +1267,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
             let typ = loop_index_type.into_owned();
-            return Err(InterpreterError::NonIntegerUsedInLoop { typ, location });
+            Err(InterpreterError::NonIntegerUsedInLoop { typ, location })
         }
     }
 
