@@ -49,6 +49,7 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
     ssa_gen::generate_ssa(program).unwrap()
 }
 
+/// Test the SSA we get when we use negative range literals with modulo.
 #[test]
 fn test_modulo_of_negative_literals_in_range() {
     use super::expr::{int_literal, range_modulo};
