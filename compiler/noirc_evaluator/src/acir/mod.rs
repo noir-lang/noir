@@ -3693,4 +3693,203 @@ mod test {
 
         assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
     }
+
+    // Convert the SSA input into ACIR and use ACVM to execute it
+    // Returns the ACVM execution status and the value of the 'output' witness value,
+    // unless the provided output is None or ACVM fail execution.
+    fn execute_ssa(
+        ssa: Ssa,
+        initial_witness: WitnessMap<FieldElement>,
+        output: Option<&Witness>,
+    ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let (acir_functions, brillig_functions, _, _) = ssa
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
+        assert_eq!(acir_functions.len(), 1);
+        let main = &acir_functions[0];
+        let mut acvm = ACVM::new(
+            &StubbedBlackBoxSolver(true),
+            main.opcodes(),
+            initial_witness,
+            &brillig_functions,
+            &[],
+        );
+        let status = acvm.solve();
+        if status == ACVMStatus::Solved {
+            (status, output.map(|o| acvm.witness_map()[o]))
+        } else {
+            (status, None)
+        }
+    }
+
+    fn get_constant_main_src(v0: FieldElement, v1: FieldElement, typ: &str) -> String {
+        format!(
+            "acir(inline) fn main f0 {{
+            b0(v0: [{typ}; 2]):
+             v6 = make_array [{typ} {v0}, {typ} {v1}] : [{typ}; 2]
+             v1 = array_get v6, index u32 0 -> {typ}
+             v2 = array_get v6, index u32 1 -> {typ}
+            "
+        )
+    }
+
+    fn get_main_src(typ: &str) -> String {
+        format!(
+            "acir(inline) fn main f0 {{
+            b0(v0: [{typ}; 2]):
+              v1 = array_get v0, index u32 0 -> {typ}
+              v2 = array_get v0, index u32 1 -> {typ}
+              "
+        )
+    }
+
+    // Create a ssa instruction corresponding to the operator, using v1 and v2 as operands.
+    // Additional information can be added to the string,
+    // for instance, "range_check 8" creates 'range_check v1 to 8 bits'
+    fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
+        let ops = operator.split(" ").collect::<Vec<_>>();
+        let op = ops[0];
+        let mut output = true;
+        let src = match op {
+            "constrain" => {
+                output = false;
+                format!("constrain v1 {} v2", ops[1])
+            }
+            "not" => format!("v3 = {} v1", op),
+            "truncate" => format!("v3 = truncate v1 to {} bits, max_bit_size: {}", ops[1], ops[2]),
+            "range_check" => {
+                output = false;
+                format!("range_check v1 to {} bits", ops[1])
+            }
+            _ => format!("v3 = {} v1, v2", op),
+        };
+
+        if output {
+            (
+                format!(
+                    "
+            {src}
+        return v3
+        }}"
+                ),
+                true,
+            )
+        } else {
+            (
+                format!(
+                    "
+            {src}
+        return
+        }}"
+                ),
+                false,
+            )
+        }
+    }
+
+    // Execute a simple operation for each operators
+    // The operation is executed from SSA IR using ACVM after acir-gen
+    // and also directly on the SSA IR via constant folding, by hardcoding the values
+    // via get_constant_main_src() prefix.
+    fn test_operators(
+        // The list of operators to test
+        operators: &[&str],
+        // the type of the input values
+        typ: &str,
+        // the values of the inputs
+        inputs: &[FieldElement],
+    ) {
+        let main = get_main_src(typ);
+        let const_main = get_constant_main_src(inputs[0], inputs[1], typ);
+        let inputs = inputs
+            .iter()
+            .enumerate()
+            .map(|(i, f)| (Witness(i as u32), *f))
+            .collect::<BTreeMap<_, _>>();
+        let len = inputs.len() as u32;
+        let initial_witness = WitnessMap::from(inputs);
+
+        for op in operators {
+            let (src, with_output) = generate_test_instruction_from_operator(op);
+            let output = if with_output { Some(Witness(len)) } else { None };
+            let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
+            let result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
+            let const_ssa = Ssa::from_str(&(const_main.to_owned() + &src)).unwrap();
+            let const_ssa = const_ssa.fold_constants();
+            let const_result = execute_ssa(const_ssa, initial_witness.clone(), output.as_ref());
+            match (result, const_result) {
+                ((ACVMStatus::Failure(_), _), (ACVMStatus::Failure(_), _)) => {
+                    // Both execution failed, so it is the same behavior, as expected.
+                }
+                ((_, result_value), (_, const_value)) => {
+                    assert_eq!(result_value, const_value);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_binary_on_field() {
+        // Test the following Binary operation on Fields
+        let operators = [
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "eq",
+            "and",
+            "xor",
+            "unchecked_add",
+            "unchecked_sub",
+            "unchecked_mul",
+            "range_check 32",
+            "truncate 32 254",
+        ];
+        let inputs = [FieldElement::from(1_usize), FieldElement::from(2_usize)];
+        test_operators(&operators, "Field", &inputs);
+    }
+
+    #[test]
+    fn test_u32() {
+        // Test the following operations on u32
+        let operators = [
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "eq",
+            "and",
+            "xor",
+            "unchecked_add",
+            "unchecked_sub",
+            "unchecked_mul",
+            "mod",
+            "lt",
+            "or",
+            "not",
+            "range_check 8",
+            "truncate 8 32",
+        ];
+        let inputs = [FieldElement::from(2_usize), FieldElement::from(1_usize)];
+        test_operators(&operators, "u32", &inputs);
+    }
+
+    #[test]
+    fn test_constraint() {
+        let operators = ["constrain ==", "constrain !="];
+        // Test constraints on Fields with distinct inputs
+        test_operators(
+            &operators,
+            "Field",
+            &[FieldElement::from(1_usize), FieldElement::from(2_usize)],
+        );
+
+        // u32, equal inputs
+        test_operators(
+            &operators,
+            "u32",
+            &[FieldElement::from(2_usize), FieldElement::from(2_usize)],
+        );
+    }
 }
