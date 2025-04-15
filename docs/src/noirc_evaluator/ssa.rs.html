@@ -654,7 +654,9 @@
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
 <a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -1268,6 +1270,7 @@
     <span class="kw">fn </span>print(<span class="kw-2">mut </span><span class="self">self</span>, msg: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
         <span class="comment">// Count the number of times we have seen this message.
         </span><span class="kw">let </span>cnt = <span class="self">self</span>.passed.entry(msg.to_string()).and_modify(|cnt| <span class="kw-2">*</span>cnt += <span class="number">1</span>).or_insert(<span class="number">1</span>);
+        <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"{msg} ({cnt})"</span>);
 
         <span class="comment">// Always normalize if we are going to print at least one of the passes
         </span><span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>.ssa_logging, SsaLogging::None) {
@@ -1284,8 +1287,9 @@
                 msg.to_lowercase().contains(string)
             }
         };
+
         <span class="kw">if </span>print_ssa_pass {
-            <span class="macro">println!</span>(<span class="string">"After {msg} ({cnt}):\n{}"</span>, <span class="self">self</span>.ssa);
+            <span class="macro">println!</span>(<span class="string">"After {msg}:\n{}"</span>, <span class="self">self</span>.ssa);
         }
         <span class="self">self
     </span>}
