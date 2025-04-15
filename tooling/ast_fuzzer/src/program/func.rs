@@ -278,8 +278,9 @@ impl<'a> FunctionContext<'a> {
         }
 
         // Function calls returning a value.
-        if freq.enabled_when("call", self.budget > 0) {
-            if let Some(expr) = self.gen_call(u, typ, max_depth)? {
+        if freq.enabled_when("call", allow_nested && self.budget > 0) {
+            // Decreasing the max depth in expression position because it can be very difficult to read.
+            if let Some(expr) = self.gen_call(u, typ, max_depth.saturating_sub(1))? {
                 return Ok(expr);
             }
         }
@@ -575,7 +576,11 @@ impl<'a> FunctionContext<'a> {
     /// Generate a statement, which is an expression that doesn't return anything,
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
+        let mut freq = if self.unconstrained() {
+            Freq::new(u, &self.ctx.config.stmt_freqs_brillig)?
+        } else {
+            Freq::new(u, &self.ctx.config.stmt_freqs_acir)?
+        };
         // TODO(#7926): Match
         // TODO(#7931): print
         // TODO(#7932): Constrain
@@ -585,23 +590,6 @@ impl<'a> FunctionContext<'a> {
             if let Some(e) = self.gen_drop(u)? {
                 return Ok(e);
             }
-        }
-
-        // Get loop out of the way quick, as it's always disabled for ACIR.
-        if freq.enabled_when("loop", self.budget > 1 && self.unconstrained()) {
-            return self.gen_loop(u);
-        }
-
-        if freq.enabled_when("while", self.budget > 1 && self.unconstrained()) {
-            return self.gen_while(u);
-        }
-
-        if freq.enabled_when("break", self.in_loop && self.unconstrained()) {
-            return Ok(Expression::Break);
-        }
-
-        if freq.enabled_when("continue", self.in_loop && self.unconstrained()) {
-            return Ok(Expression::Continue);
         }
 
         // Require a positive budget, so that we have some for the block itself and its contents.
@@ -616,6 +604,25 @@ impl<'a> FunctionContext<'a> {
         if freq.enabled_when("call", self.budget > 0) {
             if let Some(e) = self.gen_call(u, &Type::Unit, self.max_depth())? {
                 return Ok(e);
+            }
+        }
+
+        if self.unconstrained() {
+            // Get loop out of the way quick, as it's always disabled for ACIR.
+            if freq.enabled_when("loop", self.budget > 1) {
+                return self.gen_loop(u);
+            }
+
+            if freq.enabled_when("while", self.budget > 1) {
+                return self.gen_while(u);
+            }
+
+            if freq.enabled_when("break", self.in_loop) {
+                return Ok(Expression::Break);
+            }
+
+            if freq.enabled_when("continue", self.in_loop) {
+                return Ok(Expression::Continue);
             }
         }
 

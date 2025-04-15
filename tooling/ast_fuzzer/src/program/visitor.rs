@@ -6,7 +6,7 @@ use noirc_frontend::monomorphization::ast::{Expression, LValue, Literal};
 /// of the visited expression.
 ///
 /// Gets mutable references so it can manipulate the expressions if needed.
-pub(crate) fn visit_expr_mut<V>(expr: &mut Expression, visit: &mut V)
+pub fn visit_expr_mut<V>(expr: &mut Expression, visit: &mut V)
 where
     V: FnMut(&mut Expression) -> bool,
 {
@@ -141,7 +141,7 @@ where
 ///
 /// This is a read-only version, for cases where we don't have/need
 /// a mutable reference to the AST.
-pub(crate) fn visit_expr<V>(expr: &Expression, visit: &mut V)
+pub fn visit_expr<V>(expr: &Expression, visit: &mut V)
 where
     V: FnMut(&Expression) -> bool,
 {
