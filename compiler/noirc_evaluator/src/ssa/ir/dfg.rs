@@ -383,13 +383,37 @@ impl DataFlowGraph {
         self.instructions[id] = instruction;
     }
 
+    /// Replaces values in the given block according to the given HashMap.
+    pub(crate) fn replace_values_in_block(
+        &mut self,
+        block: BasicBlockId,
+        values_to_replace: &HashMap<ValueId, ValueId>,
+    ) {
+        self.replace_values_in_block_instructions(block, values_to_replace);
+        self.replace_values_in_block_terminator(block, values_to_replace);
+    }
+
+    /// Replaces values in the given block instructions according to the given HashMap.
+    pub(crate) fn replace_values_in_block_instructions(
+        &mut self,
+        block: BasicBlockId,
+        values_to_replace: &HashMap<ValueId, ValueId>,
+    ) {
+        let instruction_ids = self.blocks[block].take_instructions();
+        for instruction_id in &instruction_ids {
+            let instruction = &mut self[*instruction_id];
+            instruction.replace_values(values_to_replace);
+        }
+        *self[block].instructions_mut() = instruction_ids;
+    }
+
     /// Replaces values in the given block terminator (if it has any) according to the given HashMap.
     pub(crate) fn replace_values_in_block_terminator(
         &mut self,
         block: BasicBlockId,
         values_to_replace: &HashMap<ValueId, ValueId>,
     ) {
-        if self[block].terminator().is_some() {
+        if !values_to_replace.is_empty() && self[block].terminator().is_some() {
             self[block]
                 .unwrap_terminator_mut()
                 .map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
