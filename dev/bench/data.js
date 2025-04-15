@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744707959018,
+  "lastUpdate": 1744707984557,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,70 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a634ca0111981fc117293c33f595b57ff88bc700",
-          "message": "feat(LSP): Workspace Symbol (#7953)",
-          "timestamp": "2025-04-09T13:31:46Z",
-          "tree_id": "2aea8222b6a865a3d08f3e1df626fc2c423f61bc",
-          "url": "https://github.com/noir-lang/noir/commit/a634ca0111981fc117293c33f595b57ff88bc700"
-        },
-        "date": 1744207188974,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 474.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.52,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "def2e8cc249b601bba58c9c526dae8a2ccfd18e8",
           "message": "fix: don't use relative path in nargo_cli build script (#7982)",
           "timestamp": "2025-04-09T14:13:34Z",
@@ -14540,6 +14476,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 462.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.72,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "73a1385496581c49360cfc68f4bf546353a4f966",
+          "message": "fix: SSA pass print filter to include the count (#8074)",
+          "timestamp": "2025-04-15T08:40:35Z",
+          "tree_id": "e556a29e51f571353cf84b34fb289f47af496e6f",
+          "url": "https://github.com/noir-lang/noir/commit/73a1385496581c49360cfc68f4bf546353a4f966"
+        },
+        "date": 1744707978967,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.05,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 486.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 462.78,
             "unit": "MB"
           },
           {
