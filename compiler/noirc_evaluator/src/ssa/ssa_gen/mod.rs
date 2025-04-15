@@ -6,7 +6,7 @@ mod value;
 use acvm::AcirField;
 use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
-pub(crate) use program::Ssa;
+pub use program::Ssa;
 
 use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
