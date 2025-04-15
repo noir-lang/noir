@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744717710443,
+  "lastUpdate": 1744724876886,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19588,6 +19588,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 233984,
             "range": "± 2027",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "28b000e416da57dd7e69eecc0f9b54ced4882e76",
+          "message": "fix: replace values in data_bus too (#8086)",
+          "timestamp": "2025-04-15T13:31:01Z",
+          "tree_id": "ddf5b58f295e579279187658c68b8b332f2513f1",
+          "url": "https://github.com/noir-lang/noir/commit/28b000e416da57dd7e69eecc0f9b54ced4882e76"
+        },
+        "date": 1744724870781,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267029,
+            "range": "± 1032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235171,
+            "range": "± 7761",
             "unit": "ns/iter"
           }
         ]
