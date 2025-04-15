@@ -1,0 +1,71 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "ops",
+        "type": {
+          "kind": "array",
+          "length": 15,
+          "type": {
+            "kind": "struct",
+            "path": "SignedDivOp",
+            "fields": [
+              {
+                "name": "lhs",
+                "type": {
+                  "kind": "integer",
+                  "sign": "signed",
+                  "width": 8
+                }
+              },
+              {
+                "name": "rhs",
+                "type": {
+                  "kind": "integer",
+                  "sign": "signed",
+                  "width": 8
+                }
+              },
+              {
+                "name": "result",
+                "type": {
+                  "kind": "integer",
+                  "sign": "signed",
+                  "width": 8
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9Wbx08bQRTGx+C1vWtaSO+9E2khROTIIQkp9N7BYEwvyimKcljlECmX5F8OD2bsz499CIQX5a1kzezOb9/7puxUSJnDq23/l7LxtA1TEL4y1ZdL67ZheLarvYa2wqQ0phRorFOgsV6BxrQCjZ4CjRkFGrMKNOYUaPQVaAwUaMwr0NigQGOjAo1NCjQ2K9DYokDjBQUaWxVovKhA4yUFGi8r0HhFgcarCjReU6DxugKNNxRovKlA4y0FGm8r0HhHgca7CjTeU6DxvgKNDxRofKhA4yMFGh8r0PhEgcanCjQ+U6DxuQKNLxRofKlAY1sCGg8uPOgk0XSgRgdWdCBEBy50oEEHBrQhTxvetKFMG7a0IUobjrShRxtmtCFFGz60oUIbFrQhQAtuWtDSgpEWZLTgoQUFTdhpQkwTTprQ0YTp3v6PBnwaUGnAogGBOlzq0KjDoA+SGjw1KKqwNiNfrvD/2tC3YR2k1/BQrt1nfmtp/23YVbZvktH/2jeVuq+9/Y6iDzYT0B9mrZ13UcU+z4uB0HH8HWTfA/NeYD4A80FgeoDpEZiPwHwUmE/AfBKYz8B8FpgvwHwRmF5gegWmD5g+gekHpl9gBoAZEJhBYAYFZgiYIYEZBmZYYEaAGRGYUWBGBWYMmDGBGQdmXGAmgJkQmElgJgVmCpgpgZkGZlpgZoCZEZhZYGYFZg6YOYGZB2ZeYBaAWRCYRWAWBaYATEFgloBZEphlYJYFpghMUWBWgFkRmBIwJYFZBWZVYNaAWROYdWDWBWYDmA2B2QRmU2C2gNkSmG1gtgVmB5gdgdkFZldg9oDZY4wPcWNqPfZ3diY7dnYUG031eGkgL853OhnfKynmz7B8GuY/MEnOUw7/4A39OT28fFy80TFRRU+KpaWjo/lwaV5UnQ+6aJ79DjjetuqAG4D4oI0n2x4P56IJ1kF48Zg8u2fZyJSv8twOnrlydeWcQ56l+ZCWjqr9BPY+DX7QltPhMb7f3jfbMAPvuPdbYvxnmP8q3THPeLn4Mbwfw9OarsfG8/ZHbei3e8ck2eeEYbL9Slhy9r1k7JfXS5lk7Je/sWwy9jt4n491TXmahOeY5pmj/SHWo8f4WbA5Y+P5GLt1gl2P6cB1cL2p7icMe5d+QQzvx+S52d7nIC04gW/8PjKMz59Sa0MMnwfGZ1pRX8MptWbPWWt9jFbXxluY7W57H57p6irxvHngA33mmJ4LiegJQ2evldnnPnNMr9O/Y0NqZ3s23miO1n8rcF+P4XIx3HnVSXn+Y+LrJPjP6iRgep3+b1CG31lZN5n4OvlxDBfEcPybxu8T67OJ8c1Qhu45fqO8DhwfgYafYCO5dlGpB5/Z5z55umvD6Zhy4uMW8r9YvgL2TneN8oXtysT4Qo3GxI+Bblw56Zjt8p+Oap+nrreHdXWgNaqULebBMP8e4//YeywHF57ln1BKXYX20utCqfCmUCx2Lhd42RsoO/oO/gF1xiDRCTYAAA==",
+  "debug_symbols": "ldbRaoMwFMbxd8m1F54TNdFXGaNEjSUQokQdDPHdl5SNlbZQvhvxiD8i/EHOIUbb79eLC9O8iu7jEH4ezObmkKbjLEQfnffuerl/LMp80fr2/rqYkMd1M3ETHVFTCBvGfKeTn5y3oqvL87MQLb8Usv0TVf0oJCwqWNSwaGChYKFh0aKCyhInhBPGicTJu/ANP5EaJw1OFE40TlqYUIkTwgnjROIEr094fcLrE16f8PqE12e8PuP1Ga/PeH3G6zNen/H6jNdnvD7j9eW7+ko9EcIJ40TipMLImaYvE53pvf3dcqY9DHdLz/a92If9Z4nzYMc92rwJ/S9B+WsbXSh9+wengaQqqOJ0SDroBw==",
+  "file_map": {
+    "50": {
+      "source": "struct SignedDivOp {\n    lhs: i8,\n    rhs: i8,\n    result: i8,\n}\n\nfn main(ops: [SignedDivOp; 15]) {\n    for i in 0..15 {\n        assert_eq(ops[i].lhs / ops[i].rhs, ops[i].result);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -4,7 +4,7 @@
 //! # Usage
 //!
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
-//! The compiled program will be returned as an [`Artifacts`][ssa::Artifacts] type.
+//! The compiled program will be returned as an [`Artifacts`] type.
 
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
@@ -54,9 +54,10 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-pub(crate) use acir_context::GeneratedAcir;
+
 use acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
 use types::{AcirType, AcirVar};
+pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
 #[derive(Default)]
 struct SharedContext<F: AcirField> {
@@ -1965,7 +1966,7 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
+        mut max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
@@ -1986,6 +1987,7 @@ impl<'a> Context<'a> {
                     let integer_modulus = power_of_two::<FieldElement>(bit_size);
                     let integer_modulus = self.acir_context.add_constant(integer_modulus);
                     var = self.acir_context.add_var(var, integer_modulus)?;
+                    max_bit_size += 1;
                 }
             }
             Value::Param { .. } => {

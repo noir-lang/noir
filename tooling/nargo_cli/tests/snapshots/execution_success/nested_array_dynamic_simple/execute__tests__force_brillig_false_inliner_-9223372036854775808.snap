@@ -1,0 +1,38 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/6WPMQqFQAxE18+vxaMkm8RNOs9h52JsvKbeSxRFUbDxNQNTDG+KcFKEJ0fX7AnfwOsWQc3sKToSdhAtqwBLrhUVRaWPSuTKmixbAkMmx0GMfNjw1e3/4v726xeqsp3G+d4vQPNGhBABAAA=",
+  "debug_symbols": "TYzdCsMgDEbfJde96MbGwFcZo/gTS0CiRB0M6btPSwu9y/kOOQ0cmrouxD5mUO8GIVpdKHKnBvM+5aR5UC5aCqjb4z4BshvXa5vAU0BQz3n7dDBCIdC6XDN9/mohbQIe6Cvbiy2/dJrzP0m06KrgKO2u5/8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    // x = 3\n    let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];\n\n    let fetched_value = array[x - 3];\n    assert(fetched_value[0].0 == 1);\n    assert(fetched_value[0].1[0] == 2);\n    assert(fetched_value[0].2[0] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

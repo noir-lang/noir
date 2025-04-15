@@ -174,10 +174,6 @@ pub struct CompileOptions {
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
 
-    /// Used internally to test for non-determinism in the compiler.
-    #[clap(long, hide = true)]
-    pub check_non_determinism: bool,
-
     /// Unstable features to enable for this current build
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
     #[clap(long, short = 'Z', value_delimiter = ',')]

@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/81XW26DMBC0eRQI5aNqcg+/CPZfrsLz/heo1KB4Jcc4kSqvpY4ULcRmmFmv14KSB7r778teFzZm5Ahq481GFgdO8bhYQC4Wt3BzAfkpISG5jfvAjycgT5gwya5KrYNYueQjE2bSPVP9dNVc8173i9BSrlrpwUxmYIYrufKtN3LdHigQuDYrrCRpFjLz8herE9Pzh8PFtRRikPs8vTCullloIZZJsZmNs1iN4mZTQsl5mac758g3to2z2fSDy62jD1tHhb2n5AiaMC8YXgBVSsFVoEBixVd4hcxrRL+pclgHeGNzWBPcZoDtu3zhO5a3QfTtNoSGHE9j7JMYs4H/pXGxOAhErqfGdUop+OS86IZUfIQcmyGLgwBOLI3U8mFvvJakbTgsDnxf7zaB709k34AUdYTluSP/+3DZ16RLUEM5wW108BmTO+tOyfNBQwNzYLy2sbHx5DyDqFUAf5uGn1XkCLc/t94Y+C8Cz9EX95kX3819d2h2gTHg/LbR1Qs+Gi9eHF7EXHLgP6fhD67Vxbk+ez7dfN+QNAAf7ImSHJF5YzDX3zMUXx8nHvLAuwBQM2fnP8jnL/HwWrcbEgAA",
+  "debug_symbols": "ldNBCoMwEAXQu8zahSYTW71KKRI1SiAkEmOhiHdvFAURocwuf4Y3m09maFU99ZW2nRuhfM1gXCODdjamGdJtNA7SrmkM0gcoGSsSULaNL54vCXTaKChFurwTyKiAUQGnAqQCQQU5FTyo4EkFBbm4f1VjdhW3XXOBu+CiuApGFpwsbutGTHeBKK5C0EQMtdfG6L46/5U4/kivZW3UHrvJNqdt+A7H5vCDd41qJ6/WS9sunv8B",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested are:\n// Binary addition, multiplication, division, constant modulo\n// x = 3, y = 4, z = 5\nfn main(x: Field, y: Field, z: Field) -> pub Field {\n    //cast\n    assert(y as u1 == 0);\n\n    let a = x + x; // 3 + 3 = 6\n    let b = a - y; // 6 - 4 = 2\n    let c = b * z; // 2 * 5 = 10\n    let d = c / a; // 10 / 6 (This uses field inversion, so we test it by multiplying by `a`)\n    d * a\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

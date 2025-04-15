@@ -6,12 +6,12 @@ use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
         ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, If, LValue,
-        Literal, Type, Unary,
+        Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
 };
 
-use super::{Name, VariableId, types};
+use super::{Name, VariableId, types, visitor::visit_expr};
 
 /// Generate a literal expression according to a type.
 pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
@@ -226,6 +226,41 @@ pub(crate) fn u32_literal(value: u32) -> Expression {
     positive_int_literal(value, types::U32)
 }
 
+/// Create a variable.
+pub(crate) fn let_var(id: LocalId, mutable: bool, name: String, expr: Expression) -> Expression {
+    Expression::Let(Let { id, mutable, name, expression: Box::new(expr) })
+}
+
+/// Create an `if` expression, with an optional `else`.
+pub(crate) fn if_then(
+    condition: Expression,
+    consequence: Expression,
+    alternative: Option<Expression>,
+    typ: Type,
+) -> Expression {
+    Expression::If(If {
+        condition: Box::new(condition),
+        consequence: Box::new(consequence),
+        alternative: alternative.map(Box::new),
+        typ,
+    })
+}
+
+/// Make an if/else expression.
+pub(crate) fn if_else(
+    condition: Expression,
+    consequence: Expression,
+    alternative: Expression,
+    typ: Type,
+) -> Expression {
+    if_then(condition, consequence, Some(alternative), typ)
+}
+
+/// Assign a value to an identifier.
+pub(crate) fn assign(ident: Ident, expr: Expression) -> Expression {
+    Expression::Assign(Assign { lvalue: LValue::Ident(ident), expression: Box::new(expr) })
+}
+
 /// Cast an expression to a target type.
 pub(crate) fn cast(lhs: Expression, tgt_type: Type) -> Expression {
     Expression::Cast(Cast { lhs: Box::new(lhs), r#type: tgt_type, location: Location::dummy() })
@@ -244,12 +279,12 @@ pub(crate) fn range_modulo(lhs: Expression, typ: Type, max_size: usize) -> Expre
 
 /// Make a modulo expression.
 pub(crate) fn modulo(lhs: Expression, rhs: Expression) -> Expression {
-    Expression::Binary(Binary {
-        lhs: Box::new(lhs),
-        operator: BinaryOpKind::Modulo,
-        rhs: Box::new(rhs),
-        location: Location::dummy(),
-    })
+    binary(lhs, BinaryOpKind::Modulo, rhs)
+}
+
+/// Make an `==` expression.
+pub(crate) fn equal(lhs: Expression, rhs: Expression) -> Expression {
+    binary(lhs, BinaryOpKind::Equal, rhs)
 }
 
 /// Dereference an expression into a target type
@@ -277,30 +312,48 @@ pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expressi
     })
 }
 
-/// Make an if/else expression.
-pub(crate) fn if_else(
-    condition: Expression,
-    consequence: Expression,
-    alternative: Expression,
-    typ: Type,
-) -> Expression {
-    Expression::If(If {
-        condition: Box::new(condition),
-        consequence: Box::new(consequence),
-        alternative: Some(Box::new(alternative)),
-        typ,
-    })
+/// Check if an `Expression` contains any `Call` in any of its descendants.
+pub(crate) fn has_call(expr: &Expression) -> bool {
+    let mut has_call = false;
+    visit_expr(expr, &mut |expr| {
+        has_call |= matches!(expr, Expression::Call(_));
+        // Once we know there is a call, we can stop visiting more nodes.
+        !has_call
+    });
+    has_call
 }
 
-/// Make an assign to ident expression.
-pub(crate) fn assign_to_ident(ident: Ident, expression: Expression) -> Expression {
-    Expression::Assign(Assign {
-        lvalue: LValue::Ident(ident.clone()),
-        expression: Box::new(expression),
-    })
+/// Prepend an expression to a destination.
+///
+/// If the destination is a `Block`, it gets prepended with a new statement,
+/// otherwise it's turned into a `Block` first.
+pub(crate) fn prepend(dst: &mut Expression, expr: Expression) {
+    if !matches!(dst, Expression::Block(_)) {
+        let mut tmp = Expression::Block(vec![]);
+        std::mem::swap(dst, &mut tmp);
+        let Expression::Block(stmts) = dst else {
+            unreachable!("swapped with empty block");
+        };
+        stmts.push(tmp);
+    }
+    let Expression::Block(stmts) = dst else {
+        unreachable!("ensured it's a block");
+    };
+    let mut new_stmts = vec![expr];
+    new_stmts.append(stmts);
+    *stmts = new_stmts;
+}
+
+/// Replace an expression with another one, passing its current value to a function.
+pub(crate) fn replace(dst: &mut Expression, f: impl FnOnce(Expression) -> Expression) {
+    let mut tmp = Expression::Break;
+    std::mem::swap(dst, &mut tmp);
+    *dst = f(tmp);
 }
 
 /// Append statements to a given block.
+///
+/// Panics if `block` is not `Expression::Block`.
 #[allow(dead_code)]
 pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Expression {
     let Expression::Block(mut block_stmts) = block else {
@@ -313,6 +366,8 @@ pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Ex
 }
 
 /// Prepend statements to a given block.
+///
+/// Panics if `block` is not `Expression::Block`. Consider [prepend] which doesn't.
 #[allow(dead_code)]
 pub(crate) fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expression {
     let Expression::Block(block_stmts) = block else {

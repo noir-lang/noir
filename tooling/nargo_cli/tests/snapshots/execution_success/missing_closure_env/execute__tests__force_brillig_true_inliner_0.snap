@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUQQ6CMBAsUKIVuYgXfcUiEDhy8CONpO/o07XJNt1sKgdtJyFL0+3szNBQiIACq2RrEelZscJ/6BNyQVToHnzPHavCWpL9KqFZxeam5F9gnFTEX0L9g0LOnPl4zgz8cECepw383ItDi2t6h/yZ4+c5i/De4rtiZ3J824zZQxfR72c16PXKvJYknzQ6Hpp6c6h3dNWst2P6ZKasLoRXsFmNCP8RadPPnxcAP7eyIQefAYUk+7T/huvTFx/rjzrNrHszaKMnvW3jS/OcHOidegPN5nm0fQYAAA==",
+  "debug_symbols": "lZDLCsMgEEX/ZdYuYmjaNL8SSjBxDIKo+CgU8d+rpQvJzs0wd5hzFycBxz2em9TCeFjWBMocLEijS0qZwO6kUvLc2jMMddDb799bpmv0gbkAC31SAqh53ebCC6kQlmnILwJ06ibu3cSjm5j7iFzSmznJdoV/SSLqo3EWPhYv+qwzB/LosIpsHJa5jgMZp1Jbqr8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    let x1 = &mut 42;\n    let set_x1 = |y| { *x1 = y; };\n\n    assert(*x1 == 42);\n    set_x1(44);\n    assert(*x1 == 44);\n    set_x1(*x1);\n    assert(*x1 == 44);\n    assert(x == 42);\n}\n\n#[test]\nfn test_main() {\n    main(42);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VSWw7DIAwr0Gnb9+g9Eh4l/O0qQ6P3P8I0DSSUsq9SS8iIRMYxiOkHWdYXc2Ex7VF7noXhGLDVsrA6l4PJaPEFJiby4HxaCQk9+bchazM5CjHFABGdzbj5aLciJsb5AtGZ+ZTh5eAAZGN8pO7Mw/jzQXjtznhp6mpgllVfn6MP186MS7PXbM7eO8BBVD1V+DLtIVmt9t6YPzHeH3IvqnNXxaOwbs5qnh9zj6dBlQQAAA==",
+  "debug_symbols": "lY3LCsMgEEX/ZdYuaiFQ/JVSgo8xDIjKqIUi+feakEC2WZ57Zu7t4NC0ZaboUwH17hCS1ZVSHNThsUcl67hRqZorqNckAKMDJaVcBXgKCGp6rh8B8tb9AMMUAi3zdXXEX82kTcADfYv2Yusvn+b8z5wsusa4Ne1u1P8B",
+  "file_map": {
+    "52": {
+      "source": "mod foo;\n// An example of the module system\nfn main(x: Field, y: Field) {\n    assert(x != foo::bar::from_bar(y));\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9Wa52rjQBRG5XidOL335iR2eplRsUapTmHfY8067/8Iey+WQGQ/2B/75ccdOMicgOHAOJbuuBGN14fws3zdEJrlVVf7i2sANwFcE7gfwLWAmwRuCrg2cNPAzQA3C9wccPPALQC3CNwScMvArQC3CtwacOvAbQC3CdwWcNvA7QC3C9wecPvAHQB3CFwHuCPgjoE7Aa5bc62SKPp7r9f3+Ne9Xb2u9nJPOBXOhHPhQrgUroRr4Ua4Fe4EJ3ghFhIhFTKhL+RCEArhXngQHoUn4Vl4EQbCq/AmvEfjz219TZTXQXlNXD9NR3k88on/5eJiGDKXZsN+8MFnIfsdhyQZhTTkxbDIXeHTZOQ/syL5dOPVqr2X+7/le7z3ct/ZPElsPjXSPEVsPjPS3CY2nxtpniY2XxhpniE2XxppniU2XxlpniM2Xxtpnic23xhpXiA23xppXiQ23xlpXiI2OyPNy8Rmb6R5hdgcG2leJTYnRprXiM2pkeZ1YnNmpHmD2Nw30rxJbM6NNG8Rm4OR5m1ic2GkeYfYfG+keZfY/GCkeY/Y/GikeZ/Y/GSk+YDY/Gyk+ZDY/GKkuUNsHhhpPiI2vxppPiY2vxlpPiE2vxtp7hKbP4jN1Vm4rl6tvzo7b5Z/17NkPVutfsehZ1F6NqNnFTq711m2znZ11qmzP52F6WxIZyU6O9BnaX221GctffbQe3G9N9V7Nb130e9y/W7T//WdaPw7Af1s6F7pRv9efwCuidAPDCMAAA==",
+  "debug_symbols": "ldVBCoMwEIXhu8zaha3OpPUqpZSoUQIhStRCEe/eKApSunnLyeTP5ltkptqUU/uyvukGKh4zua7So+18nGbK1HY29Nqv4zDqMFLBKiHjayqUWhJqrDPxLF2eCWW3f/fv6X7/kspvcAeDPEWDCxpc0SBDgxwNGA0EDRQaoNI5Ks2oNKPSjEozKs2oNKPSjEozKs2oNKPSgkoLKi2otKDSgkoLKi2otKDSgkoLJh2HMljnbPs6/zLx+K2D1aUz+9hMvjptx09/bI6+D11l6imY9aVtF5//Ag==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: [u8; 5], result: [u8; 32]) {\n    let digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

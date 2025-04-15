@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9Wa527iQBRGTVgS0nsvkIT0NuOCx6mkaN9j0ZL3f4S9V9iSlf321375cUc6Mjog0JEGbM/QiMbjQ/hZPm4IzfKoo/3FNYCbAK4J3A/gWsBNAjcFXBu4aeBmgJsFbg64eeAWgFsEbgm4ZeBWgFsFbg24deA2gNsEbgu4beB2gNsFbg+4feAOgOsA1wXuELgj4I6B69VcqySK/p7r9Tn+dW5Xj6u5fCKcCmfCuXAhXApXwrVwI9wKd4ITvBALiZAKmdAXciEIhXAvPAiPwpPwLLwIA+FVeBPeo/H3tj4myuOgPCaun6ajPB75xP9ycTEMmUuzYT/44LOQ/Y5DkoxCGvJiWOSu8Gky8p9ZkXy68WjV3sv93/AnvPdy39k8SWw+NdI8RWw+M9LcJjafG2meJjZfGGmeITZfGmmeJTZfGWmeIzZfG2meJzbfGGleIDbfGmleJDbfGWleIjY7I83LxGZvpHmF2BwbaV4lNidGmteIzamR5nVic2akeYPY3DfSvElszo00bxGbg5HmbWJzYaR5h9h8b6R5l9j8YKR5j9j8aKR5n9j8ZKT5gNj8bKS5Q2x+MdLcJTYPjDQfEptfjTQfEZvfjDQfE5vfjTT3iM0fxOZqL1xHq9Zf7Z03y+e7tdfoHmv1fw7dk9I9Gt2z0DV8XdPWNV5d89Q1QF0T0zUiXTPRNQS9p9Z7TL3n0nsQvSbXa1S9ZtNrGD2n6zmuU36m/ibod0TnTC/69/gDfnGOUgwjAAA=",
+  "debug_symbols": "ldVBCoMwEIXhu8zahTaZsfUqpZSosQRClKiFIr17U1GQ0s3bZTL82XyLLNTaen7cXej6karrQr5vzOT6kKaFVLnejYMJ33GcTJyoOnGRkQ1tOpXFO6POeUsV5+9bRur8r1Bab4WS/Le4oIXO4aKAixNcKLjQcMFwIXBRwgVsrmFzhs0ZNmfYnGFzhs0ZNmfYnGFzhs0ZNhfYXGBzgc0FNhfYXGBzgc0FNhfYXEDzNNTRee8e9+M/lK6fJjpTe7uN3Ryaw3Z6Dftm74fYN7ado/2+tO7S8x8=",
+  "file_map": {
+    "50": {
+      "source": "// blake3 circuit where the input is 5 bytes\n// not five field elements since blake3 operates over\n// bytes.\n//\n// If you do not cast, it will take all the bytes from the field element!\nfn main(x: [u8; 5], result: pub [u8; 32]) {\n    let mut digest = std::hash::blake3(x);\n    digest[0] = 5 as u8;\n    digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

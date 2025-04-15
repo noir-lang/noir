@@ -1,0 +1,64 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VXTU+DQBDdhQWKjQfr0aPHXmhAwIOmJtL/gTT8Dn66JZ0J43QWGt3VuAlZ6D7ee/MYPqrVeQSnTcO+gTlUlwMxe5izn42dQ67Mp0/9T3wGnnx+aQYNDWMbWNQbzCnMAVkPHRadMl2X/HVWVKlQn0P/eQqcxjN/5Ic/S4DnfZj4aS2oGzIcPyckmIZgGgvmQDAHhrmFfa0utXCN9nDD1mi/I/fqtN2paX8D+ynT8tF/1K/r63cv+EetNdRakzV6fQPwYjsfvceevKMu9pghfmLBT8TwD6yuFRyHhMcIPIhPBN0Vw1DdhOmO2FeG10K21INh2fq6rzWrmdYYCX4ihn+0ZEWz1QIP/h4LusmMbsx0pWzRm61v9S9na4QaI8FPxPBbtZxtIPBcm622ZLudyVbqW+qBPxP+Olv+TEB8rpazlZ5112YbWLLNZ7KV7kH+vqGciK9g9vyNkW0Ir2JaazV9A5rBvX5Vn6/5OMJhykH6A2PIOsW/wPGNpY79N332Vbvr87Zvn9rjsehantM46LvWtX5ZlLu6buuu7PrnovtY0v8ENImechEOAAA=",
+  "debug_symbols": "ldVLioQwFAXQvWTsIH+NW2mawk8sAiFK1IZG3HsnTVmI5eROxCceXsgd3I30tl2fDxeGcSb110b82DWLG0Oatr0gbXTeu+fj/JnQ/GDm//95akIe56WJC6lZaQpiQ5/eKpX84LwltaL7d0E4hQWDBYeFgIWEhYKFhkV5Kww7hCmvooKFQYWgsGCw4LAQsJCwuM2c0yNBzq4JCg2LEhYVLAwqJIUFgwWHxW3mnL+F+BASFgoWGhYlLCpYGFQoCov7zDU/hK6ugsNCwEJiYk/TTxNd03r7qsxhDd2pQZffyV7KdIpjZ/s12lyrp0bNd6h0oVk6CMvXk9ZqmXakPX8=",
+  "file_map": {
+    "50": {
+      "source": "// Test unsafe integer multiplication with overflow: 12^8 = 429 981 696\n// The circuit should handle properly the growth of the bit size\nfn main(mut x: u32, y: u32, z: u32) {\n    x *= y;\n    x *= x; //144\n    x *= x; //20736\n    x *= x; //429 981 696\n    assert(x == z);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

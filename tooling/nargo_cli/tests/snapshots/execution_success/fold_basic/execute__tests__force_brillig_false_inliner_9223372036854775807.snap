@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VTUQ6CMAztNon6LdxjZRtsf1xFItz/CELctCnoj+UlSxs6Xl9fOg0v6OWonFc51/CBInV6940hR/sfcCU+kabA8k3jBSYf+PIvEOGSWimXs533U99O6PBu2zTGYH0Yu4gRQwyPNjo3RR/7NKbeJvRuwjkkN2cyJafLKubNYcMbYQMMES7FCz8WQIJbyk8NsgtwYjOv2HtQe/Uriw2pG8GZC399DL89wxYNyWs2J/ViENJQ+MpuV7CFZrVy98L0KXl9yLWYnV4Ftxxr8q34+QS3m9IaSgYAAA==",
+  "debug_symbols": "tY/NCoMwEITfZc85qGgpeZUikl9ZCEnIT6GEvHujKNhbe+htvxlmmC0gFc/rgla7CPRRwDjBEjrbqEC3S9Ezu1FMLCSg442AshLoNFUCGo1qZ1fnBjygMbgu15ImP1lAxo06UGcrLm56+dM58z44oWQOamvavUq+mTZ092Pb0I8f4wj0vwX++81c3w==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: pub Field) {\n    let z = foo(x, y);\n    let z2 = foo(x, y);\n    let z3 = foo(x, y);\n    assert(z == z2);\n    assert(z2 == z3);\n}\n\n#[fold]\nfn foo(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main",
+    "foo"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

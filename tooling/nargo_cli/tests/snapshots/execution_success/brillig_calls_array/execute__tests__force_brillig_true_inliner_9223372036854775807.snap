@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYwWrcMBAd2ZJteQkp7a3QW9tjsbtenEAPOTSBHnroob20UEyS/Q5/enYTzWb27VgJxCKJwIxsPc+89yxpxRq6a9nmMqFvQzQi5rTfeOwsxOZprZ0xV5OKo3kFHLMEHG9bDh8/o+nGov6H6EPMxHg+o2gPdefMf9J0vVf0zch/6cHTVPnzNPmbMuT5Pt7nRy0kIuPwnVxgzgXmfAJzITAXgGHNieZEl9jT5REdrjPWwrVtmtqdgXoEOgnq15R0/rYG6jEf9If7R4wZ7/kYGLPjoQ4ec+O+jm2rNtd7gcO5lQncJ9H/HPqJ52OfeA9p3kU087NypF3brXnxjH1lnyuJhzEvxuy4X6cO91bUkbmYhwP8x3B/HGIh3uH33yj1C6i/x1t5hr54Be8VfLG5PoT+IlzbOfSH36HnW2fadz+mwz1Q7klTuXIlF+Od8CKP5HeA/xLi1q9/4JdL49dX5lxS3C8HfhVirAT9Wq4i4lel+KXld4BfRfyq0vi1ZM41xf2qwC95vqtBv1Fy+YhfteKXB4z0i/HfFL9ieuQ6wG+8UDhYRaMD/FmEg7bO0CvZLxUOEo/rbHfGUzik/G3btFPkbCd8MxOcfwDPOg3P5q3ISxSfr1KDth86wP8EDYnOfqoG+wgNcs9xExp+gYZUZxVNQ/YIDXIfqCY0/H4BGhaCqx3nr9+fNA3X5XOZo8M/gWR9B/i/4V7Of472CTzX/dCul8N6WA1XV93lgD4R+DR3/W419JdD37anXXvdtauH6t8ANf14OGETAAA=",
+  "debug_symbols": "zZjbasMwDED/xc9+8N1Rf2WMkrZuCYSkpOlglP777JHenEEJnRq9hChIxwes6EEntgmr425ZNdv2wBYfJ1a367Kv2iZGpzNnq66q62q3vP/MRHpo+M0/7MsmhYe+7Hq2kIXlLDSb+AYQ67dVHdjCijMfpWqAIdUI/yRV6CFVP6Z+cmYEEQ9JxEPN4iFl7qGJeBgiHpaIh3ujh7x5jPrUE/EoiHjALB4q7w8riHhIIh6KiMc756m6eeR9ag0RD0vEw83ioUf94Yl4FEQ8gIaHe3WemutQMMrkcIkJV5hwjQk3/wcfX6jFhDtMuMeEP/nvlRjdEkyt8GJyhZxcoSZX/NnKSl4r9JPx4YwZUp3VOdxgwi0m3GHC/atw5y9w73J4gQkHRHghMOHyVTiIC/xx0iS4woRrTLhBg59j9FV2Vbmqw7CQ2x6b9d1+rv/eh2xVt+/addgcu5CWdnf7umipHNcuKsvUJoXjIFOQrhUUBxPPi2f+AA==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls passing arrays around\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 9);\n        another_entry_point(x);\n    }\n}\n\nunconstrained fn inner(x: [u32; 3]) -> [u32; 3] {\n    [x[0] + 1, x[1] + 1, x[2] + 1]\n}\n\nunconstrained fn entry_point(x: [u32; 3]) -> u32 {\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn nested_fn_that_allocates(value: u32) -> u32 {\n    let x = [value, value, value];\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn another_entry_point(x: [u32; 3]) {\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n    assert(nested_fn_that_allocates(1) == 6);\n    // x should be unchanged\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71UwQ6CMAzdZESn0YNGL/oRJUDg6MEfWSR8xz7dmLRhvCxc2OilXdq9vtcu02oyzd7AWUVq3uxpnVUJsShKdMmk5sXest8F+SKhWAt9U+L31LQ2oi8h/9oyZs75CGYGfNozzsdP+KhFBV7q8M4/f+Y4fGdSc+C8xBeOLdzJsf+M+6FbhL/0OrHWB2jN9Va0mu+s5Bh76oXZq4R8SuBz32YOdAU9uBP5E4xP37/riaRv4ed7QDNBPqx/8vkY0WFW8Bw7V421G13rhqH5OpyTgjn9ADHRX24JBwAA",
+  "debug_symbols": "lZDLCsMgEEX/ZdYuEiEvf6WUYJIxCKLio1DEf6+WLqQ7NwN3OHMHToILj3jvUgvjgT0SKHPyII0uKWUCh5NKyXtv1zDUMU5f3luua/SBuwBs3gigvoAta7kWUiGwachPAuPcyS+d/NrJb308HXr4XNKLO8kPhT+VIuqzMRveFv8kW2dOvKLDqrsxXT9TSuhSakv1Bw==",
+  "file_map": {
+    "50": {
+      "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32) {\n    assert(x > foo());\n}\n\n#[field(bn254)]\nfn foo() -> u32 {\n    1\n}\n\n#[field(23)]\nfn foo() -> u32 {\n    2\n}\n\n#[field(bls12_381)]\nfn foo() -> u32 {\n    3\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
