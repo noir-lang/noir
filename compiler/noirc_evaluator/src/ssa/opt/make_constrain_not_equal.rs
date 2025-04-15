@@ -30,42 +30,30 @@ impl Function {
             return;
         }
 
-        for block in self.reachable_blocks() {
-            let instructions = self.dfg[block].instructions().to_vec();
+        self.mutate(|context| {
+            let instruction_id = context.instruction_id;
+            let instruction = context.instruction();
 
-            for instruction in instructions {
-                let constrain_ne: Instruction = match &self.dfg[instruction] {
-                    Instruction::Constrain(lhs, rhs, msg) => {
-                        if self
-                            .dfg
-                            .get_numeric_constant(*rhs)
-                            .is_some_and(|constant| constant.is_zero())
-                        {
-                            if let Value::Instruction { instruction, .. } = &self.dfg[*lhs] {
-                                if let Instruction::Binary(Binary {
-                                    lhs,
-                                    rhs,
-                                    operator: BinaryOp::Eq,
-                                    ..
-                                }) = self.dfg[*instruction]
-                                {
-                                    Instruction::ConstrainNotEqual(lhs, rhs, msg.clone())
-                                } else {
-                                    continue;
-                                }
-                            } else {
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        }
-                    }
-                    _ => continue,
-                };
+            let Instruction::Constrain(lhs, rhs, msg) = instruction else {
+                return;
+            };
 
-                self.dfg[instruction] = constrain_ne;
+            if !context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
+                return;
             }
-        }
+
+            let Value::Instruction { instruction, .. } = &context.dfg[*lhs] else {
+                return;
+            };
+
+            let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
+                context.dfg[*instruction]
+            else {
+                return;
+            };
+
+            context.dfg[instruction_id] = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
+        });
     }
 }
 
