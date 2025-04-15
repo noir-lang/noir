@@ -412,7 +412,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     /// Executes a single opcode using the dedicated solver.
     ///
-    /// Foreign or Acir Calls are deferred to the caller, which will
+    /// Foreign or ACIR Calls are deferred to the caller, which will
     /// either instantiate a new ACVM to execute the called ACIR function
     /// or a custom implementation to execute the foreign call.
     /// Then it will resume execution of the current ACVM with the results of the call.
@@ -452,7 +452,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     }
 
     /// Returns the status of the ACVM
-    /// If the status is in error, it converts the error into 'OpcodeResolutionError'
+    /// If the status is an error, it converts the error into [OpcodeResolutionError]
     fn handle_opcode_resolution(
         &mut self,
         resolution: Result<(), OpcodeResolutionError<F>>,
@@ -535,7 +535,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     }
 
     /// Solves a Brillig Call opcode, which represents a call to an unconstrained function.
-    /// It first handle the predicate and returns zero values if the predicate is false.
+    /// It first handles the predicate and returns zero values if the predicate is false.
     /// Then it executes (or resumes execution) the Brillig function using a Brillig VM.
     fn solve_brillig_call_opcode(
         &mut self,
@@ -675,7 +675,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     }
 
     /// Defer execution of the ACIR call opcode to the caller, or finalize the execution.
-    /// 1. It first handle the predicate and return zero values if the predicate is false.
+    /// 1. It first handles the predicate and return zero values if the predicate is false.
     /// 2. If the results of the execution are not available, it issues a 'AcirCallWaitInfo'
     ///     to notify the caller that it (the caller) needs to execute the ACIR function.
     /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.

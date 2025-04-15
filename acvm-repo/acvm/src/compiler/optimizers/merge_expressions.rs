@@ -31,14 +31,15 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     /// intermediate variable into the second one that uses it
     /// Note: This pass is only relevant for backends that can handle unlimited width
     ///
-    /// The first pass maps witness with the opcodes using it.
+    /// The first pass maps witnesses to the index of the opcodes using them.
     /// Public inputs are not considered because they cannot be simplified.
     /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
     /// if the memory block is an input to the call.
     ///
     /// The second pass looks for arithmetic opcodes having a witness which is only used by another arithmetic opcode.
     /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
-    /// For instance, if we have '_1' used only by these two opcodes:
+    /// For instance, if we have '_1' used only by these two opcodes,
+    /// where `_{value}` refers to a witness and `{value}` refers to a constant:
     /// [(1, _2,_3), (2, _2), (2, _1), (1, _3)]
     /// [(2, _3, _4), (2,_1), (1, _4)]
     /// We will remove the first one and modify the second one like this:

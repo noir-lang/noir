@@ -5,7 +5,7 @@ use acir::{
 use std::collections::HashSet;
 
 /// `UnusedMemoryOptimizer` will remove initializations of memory blocks which are unused.
-/// A first pass collect all memory blocks which are initialized but discard the ones
+/// A first pass collects all memory blocks which are initialized but discards the ones
 /// which are used in a MemoryOp or as input to a BrilligCall.
 /// The second pass removes the opcodes tagged as unused by the first pass.
 pub(crate) struct UnusedMemoryOptimizer<F: AcirField> {

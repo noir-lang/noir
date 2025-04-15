@@ -25,7 +25,7 @@ pub(crate) struct MemoryOpSolver<F> {
 
 impl<F: AcirField> MemoryOpSolver<F> {
     /// Convert a field element into a memory index
-    /// Only 32 bits values are valid memory index
+    /// Only 32 bits values are valid memory indices
     fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
         if index.num_bits() <= 32 {
             let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
@@ -86,7 +86,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
     /// Update the 'block_values' by processing the provided Memory opcode
     /// The opcode 'op' contains the index and value of the operation and the type
     /// of the operation.
-    /// They are all stored as 'Expressions'
+    /// They are all stored as an [Expression]
     /// The type of 'operation' is '0' for a read and '1' for a write. It must be a constant
     /// expression.
     /// Index is not required to be constant but it must reduce to a known value
@@ -105,7 +105,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         &mut self,
         op: &MemOp<F>,
         initial_witness: &mut WitnessMap<F>,
-        predicate: &Option<Expression<F>>, //TODO il faut enlver le predicat !?
+        predicate: &Option<Expression<F>>,
         pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
