@@ -108,14 +108,8 @@ fn regression_7297() {
             "borrow_mut_two should create a fresh array and not decrease its RC",
         );
 
-        // Difference from other inliner cases. With inliner max we fail to remove a inc_ref
+        // Difference from min & 0 inliner settings: we fail to remove an inc_rc here
         assert_eq(refcount_1, 2);
-
-        // XXX: This assertion is here to demonstrate that this is happening, not because it must be like this
-        assert_eq(
-            refcount_2,
-            refcount_1 + 1,
-            "not ideal, but original RC permanently increased by copy_mut",
-        );
+        assert_eq(refcount_2, refcount_1);
     }
 }

@@ -1,9 +1,10 @@
 use fm::FileManager;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledContract, CompiledProgram, link_to_debug_crate,
+    CompilationResult, CompileOptions, CompiledContract, CompiledProgram, CrateId, check_crate,
+    link_to_debug_crate,
 };
 use noirc_frontend::debug::DebugInstrumenter;
-use noirc_frontend::hir::ParsedFiles;
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use crate::errors::CompileError;
 use crate::prepare_package;
@@ -150,4 +151,15 @@ pub fn report_errors<T>(
     );
 
     Ok(t)
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub fn check_crate_and_report_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    options: &CompileOptions,
+) -> Result<(), CompileError> {
+    let result = check_crate(context, crate_id, options);
+    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }

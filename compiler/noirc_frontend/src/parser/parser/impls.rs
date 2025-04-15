@@ -22,7 +22,7 @@ impl Parser<'_> {
     ///     = TypeImpl
     ///     | TraitImpl
     pub(crate) fn parse_impl(&mut self) -> Impl {
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
 
         let type_location_start = self.current_token_location;
         let object_type = self.parse_type_or_error();

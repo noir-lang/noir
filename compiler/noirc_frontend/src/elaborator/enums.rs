@@ -669,7 +669,7 @@ impl Elaborator<'_> {
                 let actual_type = global_type.instantiate(self.interner).0;
                 (actual_type, Vec::new(), variant_index)
             }
-            PathResolutionItem::Method(_type_id, _type_turbofish, func_id) => {
+            PathResolutionItem::Method(_, _, func_id) | PathResolutionItem::SelfMethod(func_id) => {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let meta = self.interner.function_meta(func_id);
                 let Some(variant_index) = meta.enum_variant_index else {

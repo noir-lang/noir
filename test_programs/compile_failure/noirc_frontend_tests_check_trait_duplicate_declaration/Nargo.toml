@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_check_trait_duplicate_declaration"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

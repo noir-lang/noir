@@ -19,11 +19,14 @@ struct CfgNode {
 }
 
 #[derive(Clone, Default)]
-/// The Control Flow Graph maintains a mapping of blocks to their predecessors
+/// The Control Flow Graph (CFG) maintains a mapping of blocks to their predecessors
 /// and successors where predecessors are basic blocks and successors are
 /// basic blocks.
 pub(crate) struct ControlFlowGraph {
     data: HashMap<BasicBlockId, CfgNode>,
+    /// Flag stating whether this CFG has been reversed.
+    /// In a reversed CFG, successors become predecessors.
+    reversed: bool,
 }
 
 impl ControlFlowGraph {
@@ -37,7 +40,7 @@ impl ControlFlowGraph {
         let mut data = HashMap::default();
         data.insert(entry_block, empty_node);
 
-        let mut cfg = ControlFlowGraph { data };
+        let mut cfg = ControlFlowGraph { data, reversed: false };
         cfg.compute(func);
         cfg
     }
@@ -89,10 +92,12 @@ impl ControlFlowGraph {
     /// Add a directed edge making `from` a predecessor of `to`.
     fn add_edge(&mut self, from: BasicBlockId, to: BasicBlockId) {
         let predecessor_node = self.data.entry(from).or_default();
-        assert!(
-            predecessor_node.successors.len() < 2,
-            "ICE: A cfg node cannot have more than two successors"
-        );
+        if !self.reversed {
+            assert!(
+                predecessor_node.successors.len() < 2,
+                "ICE: A cfg node cannot have more than two successors"
+            );
+        }
         predecessor_node.successors.insert(to);
         let successor_node = self.data.entry(to).or_default();
         successor_node.predecessors.insert(from);
@@ -125,9 +130,8 @@ impl ControlFlowGraph {
     }
 
     /// Reverse the control flow graph
-    #[cfg(test)]
     pub(crate) fn reverse(&self) -> Self {
-        let mut reversed_cfg = ControlFlowGraph::default();
+        let mut reversed_cfg = ControlFlowGraph { reversed: true, ..Default::default() };
 
         for (block_id, node) in &self.data {
             // For each block, reverse the edges

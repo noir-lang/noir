@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9Va0VLbMBA823HsEChQQqGFFlpCaYAHn52A88avQHH+/xMagW8qZJFhJnszys14bGSx7N6dVkAU0WvcLq9Z+xwtr6S9m8iXV699TqgbMu+hvRfrBQOxCg9dFHatiF1GVm5z6zlua2DqkS6v/vLKZI5dOPtKrG92xxLPWM8zlnrG+p6xzDOW0/8mkRhgE/amaaribjpt7suGK34syvlTPSums6e7mmue1bPnsq6qpp7W9/On+X0x52nV8GI2rxYtWATAahavEeOwnhMc1ryHw+IUhtVwH4b1lzMYVs05YU0JbJpl3q6zGIs7zYHragDUq5BDVsphiczhFmE9U8LVvC7PDIg1BGsG1/fFZ4C9zabGQ09/r5vHbQrbwwy/bQXdO2HrZi3dn8C6JdBe0Qdi7VLYXmG0AvuRTY13FXpnj8L2CsNvT0H3fti6WUv3Z9oMr0iBWAcUtlcYrcB+ZFPjA4XeGVHYXmH4jRR0H4atm7V0f6HN8IoeEOuIwvYKoxXYj2xqfKTQO8cUtlcYfscKur+GrZu1dH+jzfCKBIh1QmF7hdEK7Ec2NT5R6J1TCtsrDL9TBd3fw9bNWrp/0GZ4RQzEOqOwvcLgAfuRTY3PFHrnnML2CsPvXEH3z7B1s5buX7QZXhEBsS6AdZHP+GPqRrgHOhq9Ax386usS4/Z+KQmRwwxj6h5wMJNyh1SimMT1PswueEy4prxUKi56ISI1/6awN23Tk8CNgY3ZXhDexK9wHF/+2RPT24NGaCMzdb8C4rZnhBZjYB5s/X+0E4FqXF8i1m2uCTCpGjk0xZlYxULpXrWzE1iDjYnOD7J+di6u2/uNkJZd3AycO4lC7+ITYKFvgFi3QCw7p7dWTtG7x6QtJhr3hjZjgVwTdtfoOTxXhayL/fYux3lTCyMB8hP8vg4+C36mg19l1A17LHXy6vstRjgNnJyDuT5GHn6J8zNdjvacHnXD3Yx6znjygbm+vpR3ex5+7vcNPFztMemtHeqGWxf5ay99Byuz3tvzM2euVg0PPJxc7vJuS4dDKfhDHfzCt6a2rOeh8076ytef0Ttfx8591dxoBa6vpwRTamXzFR1unxxauBr+N9LB99bq0HoeOTrtfD+AOAierNeUuhE772Suu2YiPD92ufj2AgnpmZE1Jvn8B3x5JnfUNQAA",
+  "debug_symbols": "ldbNaoQwFEDhd8nahffe2Gl9lVIGf+IQEJWohSLz7tWhwhRmc3behJPNh5rNtaFeb9c4dOPsys/N9WNTLXEc9mlz8liap2o4pnmp0uJKySVzYWiPp8s9c13sgyuL/P6VOaWB0cDToKDBGw0uNHinwQcNJMcFthaMLVhbMLdgb8HggsUFkws2V2yu/P3G5orNFZsrNldsrthcsblic8Pmhs2Nf9SxuWFzw+aGzQ2bGzY3bO6xucfmHpt7/ifH5h6be2zusbnH5h6bF9i8wObFa3O1szD5V+xDnWLfx9v1+dK4L39XKVZ1H/7Gbh2ap93lZzp3zn5KYxPaNYXjpMfefvwv",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u8) {\n    // This would previously overflow in ACIR. Now it returns zero.\n    let value = 1 >> x;\n    assert_eq(value, 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_to_radix",
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

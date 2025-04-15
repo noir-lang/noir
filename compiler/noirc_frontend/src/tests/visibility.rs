@@ -1,5 +1,6 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::{assert_no_errors, check_errors};
 
+#[named]
 #[test]
 fn errors_once_on_unused_import_that_is_not_accessible() {
     // Tests that we don't get an "unused import" here given that the import is not accessible
@@ -14,9 +15,10 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
             let _ = Foo {};
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
@@ -28,9 +30,10 @@ fn errors_if_type_alias_aliases_more_private_type() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     let src = r#"
@@ -44,9 +47,10 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
     let src = r#"
@@ -62,9 +66,10 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
     let src = r#"
@@ -80,9 +85,10 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_pub_function_leaks_private_type_in_return() {
     let src = r#"
@@ -96,9 +102,10 @@ fn errors_if_pub_function_leaks_private_type_in_return() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_pub_function_leaks_private_type_in_arg() {
     let src = r#"
@@ -113,9 +120,10 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_pub_function_is_on_private_struct() {
     let src = r#"
@@ -134,9 +142,10 @@ fn does_not_error_if_pub_function_is_on_private_struct() {
     }
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_pub_function_on_pub_struct_returns_private() {
     let src = r#"
@@ -157,9 +166,10 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
     let src = r#"
@@ -182,9 +192,10 @@ fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
     }
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_pub_trait_returns_private_struct() {
     let src = r#"
@@ -202,9 +213,10 @@ fn errors_if_pub_trait_returns_private_struct() {
     }
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_trait_with_default_visibility_returns_struct_with_default_visibility() {
     let src = r#"
@@ -225,9 +237,10 @@ fn does_not_error_if_trait_with_default_visibility_returns_struct_with_default_v
         let _ = foo.bar();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_trying_to_access_public_function_inside_private_module() {
     let src = r#"
@@ -242,9 +255,10 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
              ~~~ bar is private
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_calling_private_struct_method() {
     let src = r#"
@@ -266,9 +280,10 @@ fn warns_if_calling_private_struct_method() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_warn_if_calling_pub_crate_struct_method_from_same_crate() {
     let src = r#"
@@ -288,9 +303,10 @@ fn does_not_warn_if_calling_pub_crate_struct_method_from_same_crate() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     let src = r#"
@@ -310,9 +326,10 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
         let _ = Foo {};
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_calling_private_struct_function_from_same_module() {
     let src = r#"
@@ -329,9 +346,10 @@ fn does_not_error_if_calling_private_struct_function_from_same_module() {
         assert_eq(Foo::bar(), 0);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_when_accessing_private_struct_field() {
     let src = r#"
@@ -349,9 +367,10 @@ fn error_when_accessing_private_struct_field() {
 
     fn main() {}
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_when_accessing_private_struct_field_from_nested_module() {
     let src = r#"
@@ -369,9 +388,10 @@ fn does_not_error_when_accessing_private_struct_field_from_nested_module() {
         let _ = Foo { x: 1 };
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_when_accessing_pub_crate_struct_field_from_nested_module() {
     let src = r#"
@@ -389,9 +409,10 @@ fn does_not_error_when_accessing_pub_crate_struct_field_from_nested_module() {
         let _ = moo::Foo { x: 1 };
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_when_using_private_struct_field_in_constructor() {
     let src = r#"
@@ -407,9 +428,10 @@ fn error_when_using_private_struct_field_in_constructor() {
                            ~ x is private
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_when_using_private_struct_field_in_struct_pattern() {
     let src = r#"
@@ -429,9 +451,10 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
     fn main() {
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_referring_to_top_level_private_module_via_crate() {
     let src = r#"
@@ -445,9 +468,10 @@ fn does_not_error_if_referring_to_top_level_private_module_via_crate() {
         bar()
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn visibility_bug_inside_comptime() {
     let src = r#"
@@ -470,9 +494,10 @@ fn visibility_bug_inside_comptime() {
         let _ = comptime { Foo::new(5) };
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_accessing_private_struct_member_inside_comptime_context() {
     let src = r#"
@@ -499,9 +524,10 @@ fn errors_if_accessing_private_struct_member_inside_comptime_context() {
         };
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_accessing_private_struct_member_inside_function_generated_at_comptime() {
     let src = r#"
@@ -533,5 +559,5 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
         let _ = bar_get_foo_inner(x);
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }

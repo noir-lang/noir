@@ -152,6 +152,18 @@ mod hover_tests {
     }
 
     #[test]
+    async fn hover_on_global_array() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 116, character: 9 },
+            r#"    two
+    global array: [Field; 3] = [1, 5, 4]"#,
+        )
+        .await;
+    }
+
+    #[test]
     async fn hover_on_function() {
         assert_hover(
             "workspace",

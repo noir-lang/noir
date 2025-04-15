@@ -2,7 +2,6 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::ssa::{
     function_builder::data_bus::DataBus,
-    ir::instruction::SimplifyResult,
     opt::pure::{FunctionPurities, Purity},
 };
 
@@ -15,7 +14,7 @@ use super::{
     },
     map::DenseMap,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, ValueId, resolve_value},
 };
 
 use acvm::{FieldElement, acir::AcirField};
@@ -24,6 +23,9 @@ use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
+use simplify::{SimplifyResult, simplify};
+
+pub(crate) mod simplify;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -118,7 +120,7 @@ pub(crate) struct DataFlowGraph {
 /// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub(crate) struct GlobalsGraph {
+pub struct GlobalsGraph {
     /// Storage for all of the global values
     values: DenseMap<Value>,
     /// All of the instructions in the global value space.
@@ -314,7 +316,7 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
+        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -379,6 +381,43 @@ impl DataFlowGraph {
     /// Replace an existing instruction with a new one.
     pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
         self.instructions[id] = instruction;
+    }
+
+    /// Replaces values in the given block according to the given HashMap.
+    pub(crate) fn replace_values_in_block(
+        &mut self,
+        block: BasicBlockId,
+        values_to_replace: &HashMap<ValueId, ValueId>,
+    ) {
+        self.replace_values_in_block_instructions(block, values_to_replace);
+        self.replace_values_in_block_terminator(block, values_to_replace);
+    }
+
+    /// Replaces values in the given block instructions according to the given HashMap.
+    pub(crate) fn replace_values_in_block_instructions(
+        &mut self,
+        block: BasicBlockId,
+        values_to_replace: &HashMap<ValueId, ValueId>,
+    ) {
+        let instruction_ids = self.blocks[block].take_instructions();
+        for instruction_id in &instruction_ids {
+            let instruction = &mut self[*instruction_id];
+            instruction.replace_values(values_to_replace);
+        }
+        *self[block].instructions_mut() = instruction_ids;
+    }
+
+    /// Replaces values in the given block terminator (if it has any) according to the given HashMap.
+    pub(crate) fn replace_values_in_block_terminator(
+        &mut self,
+        block: BasicBlockId,
+        values_to_replace: &HashMap<ValueId, ValueId>,
+    ) {
+        if !values_to_replace.is_empty() && self[block].terminator().is_some() {
+            self[block]
+                .unwrap_terminator_mut()
+                .map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
+        }
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
@@ -557,30 +596,6 @@ impl DataFlowGraph {
         matches!(self.values[value].get_type().as_ref(), Type::Reference(_))
     }
 
-    /// Replaces an instruction result with a fresh id.
-    pub(crate) fn replace_result(
-        &mut self,
-        instruction_id: InstructionId,
-        prev_value_id: ValueId,
-    ) -> ValueId {
-        let typ = self.type_of_value(prev_value_id);
-        let results = self.results.get_mut(&instruction_id).unwrap();
-        let res_position = results
-            .iter()
-            .position(|&id| id == prev_value_id)
-            .expect("Result id not found while replacing");
-
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: res_position,
-            instruction: instruction_id,
-        });
-
-        // Replace the value in list of results for this instruction
-        results[res_position] = value_id;
-        value_id
-    }
-
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
@@ -671,19 +686,6 @@ impl DataFlowGraph {
                 if index.to_u128() < (len as u128 * elements.len() as u128) =>
             {
                 true
-            }
-            _ => false,
-        }
-    }
-
-    /// Arrays are represented as `[RC, ...items]` where RC stands for reference count.
-    /// By the time of Brillig generation we expect all constant indices
-    /// to already account for the extra offset from the RC.
-    pub(crate) fn is_safe_brillig_index(&self, index: ValueId, array: ValueId) -> bool {
-        #[allow(clippy::match_like_matches_macro)]
-        match (self.type_of_value(array), self.get_numeric_constant(index)) {
-            (Type::Array(elements, len), Some(index)) => {
-                (index.to_u128() - 1) < (len as u128 * elements.len() as u128)
             }
             _ => false,
         }
@@ -861,7 +863,7 @@ impl std::ops::Index<InstructionId> for GlobalsGraph {
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
 #[derive(Debug)]
-pub(crate) enum InsertInstructionResult<'dfg> {
+pub enum InsertInstructionResult<'dfg> {
     /// Results is the standard case containing the instruction id and the results of that instruction.
     Results(InstructionId, &'dfg [ValueId]),
     SimplifiedTo(ValueId),

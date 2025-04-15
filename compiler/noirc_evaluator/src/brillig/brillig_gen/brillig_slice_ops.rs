@@ -190,7 +190,7 @@ mod tests {
         let mut brillig_context = create_context(ssa.main_id);
         brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(0)));
 
-        let function_context = FunctionContext::new(ssa.main());
+        let function_context = FunctionContext::new(ssa.main(), true);
         (ssa, function_context, brillig_context)
     }
 

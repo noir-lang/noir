@@ -130,7 +130,7 @@ impl Elaborator<'_> {
         }
 
         let warn_if_unused =
-            !let_stmt.attributes.iter().any(|attr| attr.is_allow_unused_variables());
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
@@ -426,6 +426,8 @@ impl Elaborator<'_> {
             LValue::Index { array, index, location } => {
                 let expr_location = index.location;
                 let (index, index_type) = self.elaborate_expression(index);
+
+                self.push_index_to_check(index);
 
                 let expected = self.polymorphic_integer_or_field();
                 self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {

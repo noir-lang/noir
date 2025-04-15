@@ -264,7 +264,7 @@ impl Translator {
                 let value_id = self.builder.insert_cast(lhs, typ.unwrap_numeric());
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Constrain { lhs, rhs, assert_message } => {
+            ParsedInstruction::Constrain { lhs, equals, rhs, assert_message } => {
                 let lhs = self.translate_value(lhs)?;
                 let rhs = self.translate_value(rhs)?;
                 let assert_message = match assert_message {
@@ -282,7 +282,12 @@ impl Translator {
                     }
                     None => None,
                 };
-                self.builder.insert_constrain(lhs, rhs, assert_message);
+                if equals {
+                    self.builder.insert_constrain(lhs, rhs, assert_message);
+                } else {
+                    let instruction = Instruction::ConstrainNotEqual(lhs, rhs, assert_message);
+                    self.builder.insert_instruction(instruction, None);
+                }
             }
             ParsedInstruction::DecrementRc { value } => {
                 let value = self.translate_value(value)?;
@@ -291,6 +296,22 @@ impl Translator {
             ParsedInstruction::EnableSideEffectsIf { condition } => {
                 let condition = self.translate_value(condition)?;
                 self.builder.insert_enable_side_effects_if(condition);
+            }
+            ParsedInstruction::IfElse {
+                target,
+                then_condition,
+                then_value,
+                else_condition,
+                else_value,
+            } => {
+                let then_condition = self.translate_value(then_condition)?;
+                let then_value = self.translate_value(then_value)?;
+                let else_condition = self.translate_value(else_condition)?;
+                let else_value = self.translate_value(else_value)?;
+                let instruction =
+                    Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+                let value_id = self.builder.insert_instruction(instruction, None).first();
+                self.define_variable(target, value_id)?;
             }
             ParsedInstruction::IncrementRc { value } => {
                 let value = self.translate_value(value)?;

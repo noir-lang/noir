@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/6XOQQqAMAwEwBZ8UNIkTXLzK5am/3+CFBQF0YtzWdjDsjldcno6u/VI+AfvWwSVObQEEm5QvJkAS6uGhmLSixGFsak3V3BkChziFGPqOr8tH9/f7DezAkr0AAAA",
+  "debug_symbols": "TYxLCsMwDAXvonUWyaLQ+iqlBH/kIDCyke1CMbl77ZBAdpo3aBo4NHVbiX3MoN4NQrS6UORODeZjyknzoFy0FFDLa5kA2Y3ruU/gKSCox7x/OhihEGhb75k+f7WQNgFP9JXtzZZfusz1nyRadFVwlA7X838=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    let x1 = &mut 42;\n    let set_x1 = |y| { *x1 = y; };\n\n    assert(*x1 == 42);\n    set_x1(44);\n    assert(*x1 == 44);\n    set_x1(*x1);\n    assert(*x1 == 44);\n    assert(x == 42);\n}\n\n#[test]\nfn test_main() {\n    main(42);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

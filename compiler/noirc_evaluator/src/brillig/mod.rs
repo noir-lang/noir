@@ -1,5 +1,5 @@
 pub(crate) mod brillig_gen;
-pub(crate) mod brillig_ir;
+pub mod brillig_ir;
 
 use acvm::FieldElement;
 use brillig_gen::brillig_globals::BrilligGlobals;
@@ -33,11 +33,12 @@ pub use self::brillig_ir::procedures::ProcedureId;
 pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
+    pub enable_array_copy_counter: bool,
 }
 
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
@@ -53,8 +54,10 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
+        is_entry_point: bool,
     ) {
-        let obj = convert_ssa_function(func, options, globals, hoisted_global_constants);
+        let obj =
+            convert_ssa_function(func, options, globals, hoisted_global_constants, is_entry_point);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -87,7 +90,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
+    pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
         self.to_brillig_with_globals(options, HashMap::default())
     }
 
@@ -130,7 +133,15 @@ impl Ssa {
                 .unwrap_or((&empty_allocations, &empty_const_allocations));
 
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func, options, globals_allocations, hoisted_constant_allocations);
+            let is_entry_point = brillig_globals.entry_points().contains_key(&brillig_function_id);
+
+            brillig.compile(
+                func,
+                options,
+                globals_allocations,
+                hoisted_constant_allocations,
+                is_entry_point,
+            );
         }
 
         brillig

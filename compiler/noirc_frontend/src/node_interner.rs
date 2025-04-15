@@ -876,8 +876,12 @@ impl NodeInterner {
     }
 
     /// Store [Location] of [Type] reference
-    pub fn push_type_ref_location(&mut self, typ: Type, location: Location) {
-        self.type_ref_locations.push((typ, location));
+    pub fn push_type_ref_location(&mut self, typ: &Type, location: Location) {
+        if !self.is_in_lsp_mode() {
+            return;
+        }
+
+        self.type_ref_locations.push((typ.clone(), location));
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1993,7 +1997,7 @@ impl NodeInterner {
 
     /// This function is needed when creating a NodeInterner for testing so that calls
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test_utils"))]
     pub fn populate_dummy_operator_traits(&mut self) {
         let dummy_trait = TraitId(ModuleId::dummy_id());
         self.infix_operator_traits.insert(BinaryOpKind::Add, dummy_trait);

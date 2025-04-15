@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_unused_items_resolves_trait_where_clause_in_the_correct_module"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

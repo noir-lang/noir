@@ -1,10 +1,10 @@
 use crate::cmp::Eq;
 
-unconstrained fn __get_shuffle_indices<T, let N: u32>(lhs: [T; N], rhs: [T; N]) -> [Field; N]
+unconstrained fn __get_shuffle_indices<T, let N: u32>(lhs: [T; N], rhs: [T; N]) -> [u32; N]
 where
     T: Eq,
 {
-    let mut shuffle_indices: [Field; N] = [0; N];
+    let mut shuffle_indices: [u32; N] = [0; N];
 
     let mut shuffle_mask: [bool; N] = [false; N];
     for i in 0..N {
@@ -13,7 +13,7 @@ where
             if ((shuffle_mask[j] == false) & (!found)) {
                 if (lhs[i] == rhs[j]) {
                     found = true;
-                    shuffle_indices[i] = j as Field;
+                    shuffle_indices[i] = j;
                     shuffle_mask[j] = true;
                 }
             }
@@ -27,11 +27,11 @@ where
     shuffle_indices
 }
 
-unconstrained fn __get_index<let N: u32>(indices: [Field; N], idx: Field) -> Field {
+unconstrained fn __get_index<let N: u32>(indices: [u32; N], idx: u32) -> u32 {
     let mut result = 0;
     for i in 0..N {
         if (indices[i] == idx) {
-            result = i as Field;
+            result = i;
             break;
         }
     }
@@ -48,8 +48,8 @@ where
         let shuffle_indices = __get_shuffle_indices(lhs, rhs);
 
         for i in 0..N {
-            let idx = __get_index(shuffle_indices, i as Field);
-            assert_eq(shuffle_indices[idx], i as Field);
+            let idx = __get_index(shuffle_indices, i);
+            assert_eq(shuffle_indices[idx], i);
         }
         for i in 0..N {
             let idx = shuffle_indices[i];
