@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744668027368,
+  "lastUpdate": 1744676356014,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19576,6 +19576,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 237152,
             "range": "± 2650",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f2cfe3e90872e84957473e9640d361ed94afeb8d",
+          "message": "fix: allow keywords in function names in SSA parser (#8063)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-15T00:02:34Z",
+          "tree_id": "d2906b310ae818c204634849163ba71e307db150",
+          "url": "https://github.com/noir-lang/noir/commit/f2cfe3e90872e84957473e9640d361ed94afeb8d"
+        },
+        "date": 1744676350697,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269070,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 238756,
+            "range": "± 5118",
             "unit": "ns/iter"
           }
         ]
