@@ -380,15 +380,28 @@
 <a href="#379" id="379">379</a>
 <a href="#380" id="380">380</a>
 <a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
 
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, If, LValue,
-        Let, Literal, LocalId, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, IdentId, If,
+        LValue, Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
 };
@@ -573,21 +586,34 @@
 }
 
 <span class="doccomment">/// Make an `Ident` expression out of a variable.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ident(id: VariableId, mutable: bool, name: Name, typ: Type) -&gt; Expression {
-    Expression::Ident(ident_inner(id, mutable, name, typ))
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ident(
+    variable_id: VariableId,
+    id: IdentId,
+    mutable: bool,
+    name: Name,
+    typ: Type,
+) -&gt; Expression {
+    Expression::Ident(ident_inner(variable_id, id, mutable, name, typ))
 }
 
 <span class="doccomment">/// Make an `Ident` out of a variable.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ident_inner(id: VariableId, mutable: bool, name: Name, typ: Type) -&gt; Ident {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ident_inner(
+    variable_id: VariableId,
+    id: IdentId,
+    mutable: bool,
+    name: Name,
+    typ: Type,
+) -&gt; Ident {
     Ident {
         location: <span class="prelude-val">None</span>,
-        definition: <span class="kw">match </span>id {
+        definition: <span class="kw">match </span>variable_id {
             VariableId::Global(id) =&gt; Definition::Global(id),
             VariableId::Local(id) =&gt; Definition::Local(id),
         },
         mutable,
         name,
         typ,
+        id,
     }
 }
 

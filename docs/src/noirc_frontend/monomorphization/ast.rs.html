@@ -498,7 +498,14 @@
 <a href="#497" id="497">497</a>
 <a href="#498" id="498">498</a>
 <a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -588,6 +595,12 @@
 </span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>FuncId(<span class="kw">pub </span>u32);
 
+<span class="doccomment">/// Each identifier is given a unique ID to distinguish different uses of identifiers.
+/// This is used, for example, in last use analysis to determine which identifiers represent
+/// the last use of their definition and can thus be moved instead of cloned.
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="kw">pub struct </span>IdentId(<span class="kw">pub </span>u32);
+
 <span class="kw">impl </span>Display <span class="kw">for </span>FuncId {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.<span class="number">0</span>)
@@ -601,6 +614,7 @@
     <span class="kw">pub </span>mutable: bool,
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>typ: Type,
+    <span class="kw">pub </span>id: IdentId,
 }
 
 <span class="attr">#[derive(Debug, Clone, Hash)]

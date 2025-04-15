@@ -96,16 +96,49 @@
 <a href="#95" id="95">95</a>
 <a href="#96" id="96">96</a>
 <a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>noirc_frontend::{
     ast::BinaryOpKind,
-    monomorphization::ast::{Definition, Expression, LocalId, Program, Type},
+    monomorphization::ast::{Definition, Expression, Function, IdentId, LocalId, Program, Type},
     shared::Visibility,
 };
 
-<span class="kw">use super</span>::{Context, VariableId, expr, func, types, visitor::visit_expr_mut};
+<span class="kw">use super</span>::{
+    Context, VariableId, expr, func, types,
+    visitor::{visit_expr, visit_expr_mut},
+};
 
 <span class="doccomment">/// Find recursive functions and add a `ctx_depth` parameter to them.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_recursion_depth(
@@ -127,10 +160,13 @@
         // 1) caching this value in a "function meta" construct, or
         // 2) using `u32::MAX`, but we wouldn't be able to add caching to `Program`,
         // so eventually we'll need to look at the values to do random mutations.
-        </span><span class="kw">let </span>depth_id = LocalId(func::next_local_id(func));
+        </span><span class="kw">let </span>(next_local_id, next_ident_id) = next_local_and_ident_id(func);
+        <span class="kw">let </span>depth_id = LocalId(next_local_id);
         <span class="kw">let </span>depth_name = <span class="string">"ctx_depth"</span>.to_string();
+        <span class="kw">let </span>depth_ident_id = IdentId(next_ident_id);
         <span class="kw">let </span>depth_ident = expr::ident_inner(
             VariableId::Local(depth_id),
+            depth_ident_id,
             !is_main,
             depth_name.clone(),
             types::U32,
@@ -193,5 +229,29 @@
     }
 
     <span class="prelude-val">Ok</span>(())
+}
+
+<span class="doccomment">/// Find the next local ID and ident IDs (in that order) that we can use to add
+/// variables to a [Function] during mutations.
+</span><span class="kw">fn </span>next_local_and_ident_id(func: <span class="kw-2">&amp;</span>Function) -&gt; (u32, u32) {
+    <span class="kw">let </span><span class="kw-2">mut </span>next_local_id = func.parameters.iter().map(|p| p.<span class="number">0.0 </span>+ <span class="number">1</span>).max().unwrap_or_default();
+    <span class="kw">let </span><span class="kw-2">mut </span>next_ident_id = <span class="number">0</span>;
+
+    visit_expr(<span class="kw-2">&amp;</span>func.body, <span class="kw-2">&amp;mut </span>|expr| {
+        <span class="kw">let </span>local_id = <span class="kw">match </span>expr {
+            Expression::Let(let_) =&gt; <span class="prelude-val">Some</span>(let_.id),
+            Expression::For(for_) =&gt; <span class="prelude-val">Some</span>(for_.index_variable),
+            Expression::Ident(ident) =&gt; {
+                next_ident_id = next_ident_id.max(ident.id.<span class="number">0 </span>+ <span class="number">1</span>);
+                <span class="prelude-val">None
+            </span>}
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        };
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = local_id {
+            next_local_id = next_local_id.max(id.<span class="number">0 </span>+ <span class="number">1</span>);
+        }
+        <span class="bool-val">true
+    </span>});
+    (next_local_id, next_ident_id)
 }
 </code></pre></div></section></main></body></html>

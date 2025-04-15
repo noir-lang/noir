@@ -1042,7 +1042,23 @@
 <a href="#1041" id="1041">1041</a>
 <a href="#1042" id="1042">1042</a>
 <a href="#1043" id="1043">1043</a>
-<a href="#1044" id="1044">1044</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashSet},
     fmt::Debug,
@@ -1054,9 +1070,9 @@
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{<span class="self">self</span>, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
-        GlobalId, Ident, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
-        Type, While,
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
+        IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type,
+        While,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -1068,7 +1084,6 @@
     make_name,
     scope::{Scope, ScopeStack, Variable},
     types,
-    visitor::visit_expr,
 };
 
 <span class="doccomment">/// Something akin to a forward declaration of a function, capturing the details required to:
@@ -1155,6 +1170,9 @@
     <span class="doccomment">/// Every variable created in the function will have an increasing ID,
     /// which does not reset when variables go out of scope.
     </span>next_local_id: u32,
+    <span class="doccomment">/// Every identifier created in the function will have an increasing ID,
+    /// which does not reset when variables go out of scope.
+    </span>next_ident_id: u32,
     <span class="doccomment">/// Number of statements remaining to be generated in the function.
     </span>budget: usize,
     <span class="doccomment">/// Global variables.
@@ -1209,7 +1227,17 @@
             })
             .collect();
 
-        <span class="self">Self </span>{ ctx, id, next_local_id, budget, globals, locals, in_loop: <span class="bool-val">false</span>, call_targets }
+        <span class="self">Self </span>{
+            ctx,
+            id,
+            next_local_id,
+            budget,
+            globals,
+            locals,
+            in_loop: <span class="bool-val">false</span>,
+            call_targets,
+            next_ident_id: <span class="number">0</span>,
+        }
     }
 
     <span class="doccomment">/// Generate the function body.
@@ -1241,6 +1269,13 @@
     </span><span class="kw">fn </span>next_local_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; LocalId {
         <span class="kw">let </span>id = LocalId(<span class="self">self</span>.next_local_id);
         <span class="self">self</span>.next_local_id += <span class="number">1</span>;
+        id
+    }
+
+    <span class="doccomment">/// Get and increment the next ident ID.
+    </span><span class="kw">fn </span>next_ident_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IdentId {
+        <span class="kw">let </span>id = IdentId(<span class="self">self</span>.next_ident_id);
+        <span class="self">self</span>.next_ident_id += <span class="number">1</span>;
         id
     }
 
@@ -1351,7 +1386,8 @@
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.choose_producer(u, typ)<span class="question-mark">? </span>{
             <span class="kw">let </span>(mutable, src_name, src_type) = <span class="self">self</span>.get_variable(<span class="kw-2">&amp;</span>id).clone();
-            <span class="kw">let </span>src_expr = expr::ident(id, mutable, src_name, src_type.clone());
+            <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
+            <span class="kw">let </span>src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
             <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_expr_from_source(u, src_expr, <span class="kw-2">&amp;</span>src_type, typ, max_depth)<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr));
             }
@@ -1715,7 +1751,14 @@
         <span class="comment">// Remove variable so we stop using it.
         </span><span class="self">self</span>.locals.remove(<span class="kw-2">&amp;</span>id);
 
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), mutable, name, typ)))))
+        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Drop(Box::new(expr::ident(
+            VariableId::Local(id),
+            ident_id,
+            mutable,
+            name,
+            typ,
+        )))))
     }
 
     <span class="doccomment">/// Assign to a mutable variable, if we have one in scope.
@@ -1733,7 +1776,8 @@
 
         <span class="kw">let </span>id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
         <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id).clone();
-        <span class="kw">let </span>ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
+        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
+        <span class="kw">let </span>ident = expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone());
         <span class="kw">let </span>ident = LValue::Ident(ident);
 
         <span class="comment">// For arrays and tuples we can consider assigning to their items.
@@ -1902,6 +1946,7 @@
                     Box::new(Type::Unit),
                     callee.unconstrained,
                 ),
+                id: <span class="self">self</span>.next_ident_id(),
             })),
             arguments: args,
             return_type: callee.return_type.clone(),
@@ -1918,17 +1963,19 @@
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
         </span><span class="kw">let </span>idx_type = types::U32;
-        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_local_id();
-        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
+        <span class="kw">let </span>idx_local_id = <span class="self">self</span>.next_local_id();
+        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_ident_id();
+        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_local_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
+        <span class="kw">let </span>idx_variable_id = VariableId::Local(idx_local_id);
         <span class="kw">let </span>idx_ident =
-            expr::ident_inner(VariableId::Local(idx_id), <span class="bool-val">true</span>, idx_name.clone(), idx_type);
+            expr::ident_inner(idx_variable_id, idx_id, <span class="bool-val">true</span>, idx_name.clone(), idx_type);
         <span class="kw">let </span>idx_expr = Expression::Ident(idx_ident.clone());
 
         <span class="comment">// Decrease budget so we don't nest endlessly.
         </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
 
         <span class="comment">// Start building the loop harness, initialize index to 0
-        </span><span class="kw">let </span>let_idx = expr::let_var(idx_id, <span class="bool-val">true</span>, idx_name, expr::u32_literal(<span class="number">0</span>));
+        </span><span class="kw">let </span>let_idx = expr::let_var(idx_local_id, <span class="bool-val">true</span>, idx_name, expr::u32_literal(<span class="number">0</span>));
 
         <span class="comment">// Get the randomized loop body
         </span><span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
@@ -1965,10 +2012,12 @@
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
         </span><span class="kw">let </span>idx_type = types::U32;
-        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_local_id();
-        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
+        <span class="kw">let </span>idx_local_id = <span class="self">self</span>.next_local_id();
+        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_ident_id();
+        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_local_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
+        <span class="kw">let </span>idx_variable_id = VariableId::Local(idx_local_id);
         <span class="kw">let </span>idx_ident =
-            expr::ident_inner(VariableId::Local(idx_id), <span class="bool-val">true</span>, idx_name.clone(), idx_type);
+            expr::ident_inner(idx_variable_id, idx_id, <span class="bool-val">true</span>, idx_name.clone(), idx_type);
         <span class="kw">let </span>idx_expr = Expression::Ident(idx_ident.clone());
 
         <span class="comment">// Decrease budget so we don't nest endlessly.
@@ -1976,7 +2025,7 @@
 
         <span class="comment">// Start building the loop harness, initialize index to 0
         </span><span class="kw">let </span><span class="kw-2">mut </span>stmts = <span class="macro">vec!</span>[Expression::Let(Let {
-            id: idx_id,
+            id: idx_local_id,
             mutable: <span class="bool-val">true</span>,
             name: idx_name,
             expression: Box::new(expr::u32_literal(<span class="number">0</span>)),
@@ -2018,23 +2067,6 @@
 
         <span class="prelude-val">Ok</span>(Expression::Block(stmts))
     }
-}
-
-<span class="doccomment">/// Find the next local ID we can use to add variables to a [Function] during mutations.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>next_local_id(func: <span class="kw-2">&amp;</span>Function) -&gt; u32 {
-    <span class="kw">let </span><span class="kw-2">mut </span>next = func.parameters.iter().map(|p| p.<span class="number">0.0 </span>+ <span class="number">1</span>).max().unwrap_or_default();
-    visit_expr(<span class="kw-2">&amp;</span>func.body, <span class="kw-2">&amp;mut </span>|expr| {
-        <span class="kw">let </span>id = <span class="kw">match </span>expr {
-            Expression::Let(let_) =&gt; <span class="prelude-val">Some</span>(let_.id),
-            Expression::For(for_) =&gt; <span class="prelude-val">Some</span>(for_.index_variable),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        };
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = id {
-            next = next.max(id.<span class="number">0 </span>+ <span class="number">1</span>);
-        }
-        <span class="bool-val">true
-    </span>});
-    next
 }
 
 <span class="attr">#[test]
