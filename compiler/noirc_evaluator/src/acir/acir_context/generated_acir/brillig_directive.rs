@@ -43,7 +43,7 @@ impl<F: AcirField> BrilligStdLib<F> {
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) enum BrilligStdlibFunc {
+pub enum BrilligStdlibFunc {
     Inverse,
     Quotient,
     ToLeBytes,
