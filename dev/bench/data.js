@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744734355453,
+  "lastUpdate": 1744735788777,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19654,6 +19654,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 234940,
             "range": "± 4654",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6e2ea75650075292210d5d7fe48ecaa420430574",
+          "message": "feat: `#[allow(dead_code)]` (#8066)",
+          "timestamp": "2025-04-15T16:33:43Z",
+          "tree_id": "f15e2a041c049842f4d8a28a569f9601fa337a51",
+          "url": "https://github.com/noir-lang/noir/commit/6e2ea75650075292210d5d7fe48ecaa420430574"
+        },
+        "date": 1744735782693,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265441,
+            "range": "± 875",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233857,
+            "range": "± 3832",
             "unit": "ns/iter"
           }
         ]
