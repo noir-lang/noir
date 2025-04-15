@@ -1,0 +1,68 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "array",
+            "length": 2,
+            "type": {
+              "kind": "boolean"
+            }
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 2,
+        "type": {
+          "kind": "boolean"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZzY7aMBCeBAcIu2hR+yIhCQ1HDt3fy0q9tT0FED301EPVSyvl0Yu1nvB5kqiVyGiVFZaQnczn+R/HNgG9tOnxF7ixcX1IzcaYjeuT89qyR16J1W2srG/Qo75aOoYD0HE0AB3NAHSMBqDjmPqtcdaR16cJvaxf9QMJkE02G0zrLFwgWhmAAyrXxwIfOJ6bnhwUC7l98l8n+T4mv/WsfxYDTwX+BfM3OvwTzpmPlc+fhNyRwMk5iLkFzG0H5g4wdx2Ye8Dcd2AeAPPQgXkEzGMH5gkwTwIzd+PgBKlt5/ho1Mcxf1fK8c/m5Mcc7WbZkY7sPBDyMB5IY/kzUq21ZSDksT7SP6Hwz0RHn4T5T5X4s71xi72YzxNh75WOPinn4gz0kbl4rSM7+99cZPkzoatWLl5TMzboH47TnDHVSZ9Y0EzVtINpEdA4vjbvnsE+pKE+uD5wri6omSust3LdpMp1s7zUTd0udQO0gddNrlw36aVu6napG6Bp1w3HWe7RWeYXGH8V8sMW+RgzuRfU2JsezwFb5XNA2hZPGWtT+bKRhvE04M9n4R+lc9JW+RyevqfuHOJ8mFRUt5HwJ/qIfTZFvKDFQDOVL2fmng3IQV6sRyTwn93zjevHMIfnL1rkj4V8T++Wd+gjyWvU8o7x9n7qkxtfuZ/NoV88h1RroF4D8Z6s7fvE8m+ouR7x3Ij8teI72FiK+bjeR8JWpXu3+uzHtpgOW1m3kJq+5zHay+++ud7G74/gJ795XWvqgpr+ZZy8t0Cc9fFPN37LPv7h+tf2sbwfwzm2hnlfYCqfvnHvkzNasT5djPMaGpF/X0NCfiTwv90z7q24P+ePkENRLg9ZeShX5X6f78p3gr9tIfipb/llka13ab4rtquszD78U/5fzDlg8xEdAAA=",
+  "debug_symbols": "ldRRC4MgEAfw73LPPuhlK/sqYwwrG4JYWA1G9N2nsbFYvdyL+Bd/KBx3C7Smnh9367t+hOq6gOsbPdnex7SsDOpgnbOP+/4YeFoUbvfHQfsUx0mHCSpRXhgY38ad4tF31hmocr7eGKiMLCRZFGcC86/Ay0GUZKGoQnBOJ4JOkE4yOpF0cl4V5F+C8kBKOlFkIjidCDpBOsnoRNLIGtNTB6trZz7d3s2+2TX/9BrM3xwYQt+Ydg4mTYTfMEi/LRQr1VaHGIRQTKDc/pUi5jEW8c347hs=",
+  "file_map": {
+    "50": {
+      "source": "// Regression taken from issue #7961 (https://github.com/noir-lang/noir/issues/7961)\nfn main(a: bool, b: [[bool; 2]; 3]) -> pub [bool; 2] {\n    if (!!a) {\n        if (!!a) {\n            b[0]\n        } else {\n            b[0]\n        }\n    } else {\n        b[0]\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

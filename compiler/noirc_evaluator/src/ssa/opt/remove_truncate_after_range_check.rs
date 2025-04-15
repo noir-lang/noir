@@ -29,10 +29,15 @@ impl Function {
         for block in &blocks {
             let block = *block;
             let mut instructions_to_remove = HashSet::default();
+            let mut instruction_ids = self.dfg[block].take_instructions();
 
-            for instruction_id in self.dfg[block].instructions() {
+            for instruction_id in &instruction_ids {
+                if !values_to_replace.is_empty() {
+                    let instruction = &mut self.dfg[*instruction_id];
+                    instruction.replace_values(&values_to_replace);
+                }
+
                 let instruction = &self.dfg[*instruction_id];
-
                 match instruction {
                     // If this is a range_check instruction, associate the max bit size with the value
                     Instruction::RangeCheck { value, max_bit_size, .. } => {
@@ -66,16 +71,12 @@ impl Function {
                 }
             }
 
-            if instructions_to_remove.is_empty() {
-                continue;
+            if !instructions_to_remove.is_empty() {
+                instruction_ids.retain(|instruction| !instructions_to_remove.contains(instruction));
             }
-
-            self.dfg[block]
-                .instructions_mut()
-                .retain(|instruction| !instructions_to_remove.contains(instruction));
+            *self.dfg[block].instructions_mut() = instruction_ids;
+            self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
         }
-
-        self.dfg.replace_values_in_blocks(blocks.into_iter(), &values_to_replace);
     }
 }
 
