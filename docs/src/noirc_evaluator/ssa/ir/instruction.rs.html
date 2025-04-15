@@ -843,9 +843,9 @@
     value::{Value, ValueId, resolve_value},
 };
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>binary;
+<span class="kw">pub mod </span>binary;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>binary::{Binary, BinaryOp};
+<span class="kw">pub use </span>binary::{Binary, BinaryOp};
 
 <span class="doccomment">/// Reference to an instruction
 ///
@@ -862,7 +862,7 @@
 /// - Opcodes which have no function definition in the
 ///   source code and must be processed by the IR.
 </span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Intrinsic {
+</span><span class="kw">pub enum </span>Intrinsic {
     ArrayLen,
     ArrayAsStrUnchecked,
     AsSlice,
@@ -1026,14 +1026,14 @@
 
 <span class="doccomment">/// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
 </span><span class="attr">#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Endian {
+</span><span class="kw">pub enum </span>Endian {
     Big,
     Little,
 }
 
 <span class="doccomment">/// Compiler hints.
 </span><span class="attr">#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Hint {
+</span><span class="kw">pub enum </span>Hint {
     <span class="doccomment">/// Hint to the compiler to treat the call as having potential side effects,
     /// so that the value passed to it can survive SSA passes without being
     /// simplified out completely. This facilitates testing and reproducing
@@ -1044,7 +1044,7 @@
 <span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 </span><span class="doccomment">/// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Instruction {
+</span><span class="kw">pub enum </span>Instruction {
     <span class="doccomment">/// Binary Operations like +, -, *, /, ==, !=
     </span>Binary(Binary),
 
@@ -1502,7 +1502,7 @@
 }
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ConstrainError {
+</span><span class="kw">pub enum </span>ConstrainError {
     <span class="comment">// Static string errors are not handled inside the program as data for efficiency reasons.
     </span>StaticString(String),
     <span class="comment">// These errors are handled by the program as data.

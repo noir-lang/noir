@@ -148,7 +148,7 @@
 <a href="#147" id="147">147</a>
 <a href="#148" id="148">148</a>
 <a href="#149" id="149">149</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_ir;
+<span class="kw">pub mod </span>brillig_ir;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>brillig_gen::brillig_globals::BrilligGlobals;
@@ -239,7 +239,7 @@
 
 <span class="kw">impl </span>Ssa {
     <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; Brillig {
+    </span><span class="kw">pub fn </span>to_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; Brillig {
         <span class="self">self</span>.to_brillig_with_globals(options, HashMap::default())
     }
 

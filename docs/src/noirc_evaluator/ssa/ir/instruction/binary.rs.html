@@ -390,7 +390,7 @@
 /// e.g. equality for a compound type like a struct, one must add a
 /// separate Eq operation for each field and combine them later with And.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>BinaryOp {
+</span><span class="kw">pub enum </span>BinaryOp {
     <span class="doccomment">/// Addition of lhs + rhs.
     </span>Add { unchecked: bool },
     <span class="doccomment">/// Subtraction of lhs - rhs.
@@ -446,7 +446,7 @@
 
 <span class="doccomment">/// A binary instruction in the IR.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Binary {
+</span><span class="kw">pub struct </span>Binary {
     <span class="doccomment">/// Left hand side of the binary operation
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) lhs: ValueId,
     <span class="doccomment">/// Right hand side of the binary operation

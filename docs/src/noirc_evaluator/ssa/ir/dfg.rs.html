@@ -1040,7 +1040,7 @@
 /// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
 </span><span class="attr">#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>GlobalsGraph {
+</span><span class="kw">pub struct </span>GlobalsGraph {
     <span class="doccomment">/// Storage for all of the global values
     </span>values: DenseMap&lt;Value&gt;,
     <span class="doccomment">/// All of the instructions in the global value space.
@@ -1759,7 +1759,7 @@
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
 </span><span class="attr">#[derive(Debug)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>InsertInstructionResult&lt;<span class="lifetime">'dfg</span>&gt; {
+</span><span class="kw">pub enum </span>InsertInstructionResult&lt;<span class="lifetime">'dfg</span>&gt; {
     <span class="doccomment">/// Results is the standard case containing the instruction id and the results of that instruction.
     </span>Results(InstructionId, <span class="kw-2">&amp;</span><span class="lifetime">'dfg </span>[ValueId]),
     SimplifiedTo(ValueId),

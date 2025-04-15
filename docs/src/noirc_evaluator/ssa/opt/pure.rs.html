@@ -488,7 +488,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>FunctionPurities = HashMap&lt;FunctionId, Purity&gt;;
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Purity {
+</span><span class="kw">pub enum </span>Purity {
     <span class="doccomment">/// Function is completely pure and doesn't rely on a predicate at all.
     /// Pure functions can be freely deduplicated or even removed from the program.
     </span>Pure,

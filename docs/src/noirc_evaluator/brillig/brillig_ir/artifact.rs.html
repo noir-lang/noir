@@ -390,7 +390,7 @@
 <span class="attr">#[derive(Default, Debug, Clone)]
 </span><span class="doccomment">/// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BrilligArtifact&lt;F&gt; {
+</span><span class="kw">pub struct </span>BrilligArtifact&lt;F&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) byte_code: Vec&lt;BrilligOpcode&lt;F&gt;&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) error_types: BTreeMap&lt;ErrorSelector, ErrorType&gt;,
     <span class="doccomment">/// The set of jumps that need to have their locations

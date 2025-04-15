@@ -580,31 +580,7 @@
 <a href="#579" id="579">579</a>
 <a href="#580" id="580">580</a>
 <a href="#581" id="581">581</a>
-<a href="#582" id="582">582</a>
-<a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a>
-<a href="#585" id="585">585</a>
-<a href="#586" id="586">586</a>
-<a href="#587" id="587">587</a>
-<a href="#588" id="588">588</a>
-<a href="#589" id="589">589</a>
-<a href="#590" id="590">590</a>
-<a href="#591" id="591">591</a>
-<a href="#592" id="592">592</a>
-<a href="#593" id="593">593</a>
-<a href="#594" id="594">594</a>
-<a href="#595" id="595">595</a>
-<a href="#596" id="596">596</a>
-<a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>data_bus;
+<a href="#582" id="582">582</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -641,8 +617,8 @@
 ///
 /// Contrary to the name, this struct has the capacity to build as many
 /// functions as needed, although it is limited to one function at a time.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>FunctionBuilder {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) current_function: Function,
+</span><span class="kw">pub struct </span>FunctionBuilder {
+    <span class="kw">pub </span>current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec&lt;Function&gt;,
     call_stack: CallStackId,
@@ -650,7 +626,7 @@
 
     <span class="doccomment">/// Whether instructions are simplified as soon as they are inserted into this builder.
     /// This is true by default unless changed to false after constructing a builder.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) simplify: bool,
+    </span><span class="kw">pub </span>simplify: bool,
 
     globals: Arc&lt;GlobalsGraph&gt;,
     purities: Arc&lt;FunctionPurities&gt;,
@@ -661,7 +637,7 @@
     ///
     /// This creates the new function internally so there is no need to call .new_function()
     /// right after constructing a new FunctionBuilder.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(function_name: String, function_id: FunctionId) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new(function_name: String, function_id: FunctionId) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>new_function = Function::new(function_name, function_id);
         <span class="self">Self </span>{
             current_block: new_function.entry_block(),
@@ -677,7 +653,7 @@
 
     <span class="doccomment">/// Create a function builder with a new function created with the same
     /// name, globals, and function purities taken from an existing function.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_existing(function: <span class="kw-2">&amp;</span>Function, function_id: FunctionId) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>from_existing(function: <span class="kw-2">&amp;</span>Function, function_id: FunctionId) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>this = <span class="self">Self</span>::new(function.name().to_owned(), function_id);
         this.set_globals(function.dfg.globals.clone());
         this.purities = function.dfg.function_purities.clone();
@@ -690,7 +666,7 @@
     /// the FunctionBuilder. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
     /// This should only be used immediately following construction of a FunctionBuilder
     /// and will panic if there are any already finished functions.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_runtime(<span class="kw-2">&amp;mut </span><span class="self">self</span>, runtime: RuntimeType) {
+    </span><span class="kw">pub fn </span>set_runtime(<span class="kw-2">&amp;mut </span><span class="self">self</span>, runtime: RuntimeType) {
         <span class="macro">assert_eq!</span>(
             <span class="self">self</span>.finished_functions.len(),
             <span class="number">0</span>,
@@ -699,7 +675,7 @@
         <span class="self">self</span>.current_function.set_runtime(runtime);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>, globals: Arc&lt;GlobalsGraph&gt;) {
+    <span class="kw">pub fn </span>set_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>, globals: Arc&lt;GlobalsGraph&gt;) {
         <span class="self">self</span>.globals = globals;
         <span class="self">self</span>.apply_globals();
     }
@@ -711,7 +687,7 @@
         <span class="self">self</span>.current_function.set_globals(<span class="self">self</span>.globals.clone());
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_purities(<span class="kw-2">&amp;mut </span><span class="self">self</span>, purities: Arc&lt;FunctionPurities&gt;) {
+    <span class="kw">pub fn </span>set_purities(<span class="kw-2">&amp;mut </span><span class="self">self</span>, purities: Arc&lt;FunctionPurities&gt;) {
         <span class="self">self</span>.purities = purities.clone();
         <span class="self">self</span>.current_function.dfg.set_function_purities(purities);
     }
@@ -742,17 +718,12 @@
     }
 
     <span class="doccomment">/// Finish the current function and create a new ACIR function.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_function(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        name: String,
-        function_id: FunctionId,
-        inline_type: InlineType,
-    ) {
+    </span><span class="kw">pub fn </span>new_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, function_id: FunctionId, inline_type: InlineType) {
         <span class="self">self</span>.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
     }
 
     <span class="doccomment">/// Finish the current function and create a new unconstrained function.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_brillig_function(
+    </span><span class="kw">pub fn </span>new_brillig_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: String,
         function_id: FunctionId,
@@ -762,20 +733,20 @@
     }
 
     <span class="doccomment">/// Consume the FunctionBuilder returning all the functions it has generated.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>finish(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
+    </span><span class="kw">pub fn </span>finish(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="self">self</span>.finished_functions.push(<span class="self">self</span>.current_function);
         Ssa::new(<span class="self">self</span>.finished_functions, <span class="self">self</span>.error_types)
     }
 
     <span class="doccomment">/// Add a parameter to the current function with the given parameter type.
     /// Returns the newly-added parameter.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>add_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type) -&gt; ValueId {
         <span class="kw">let </span>entry = <span class="self">self</span>.current_function.entry_block();
         <span class="self">self</span>.current_function.dfg.add_block_parameter(entry, typ)
     }
 
     <span class="doccomment">/// Insert a numeric constant into the current function
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>numeric_constant(
+    </span><span class="kw">pub fn </span>numeric_constant(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value: <span class="kw">impl </span>Into&lt;FieldElement&gt;,
         typ: NumericType,
@@ -785,39 +756,39 @@
 
     <span class="doccomment">/// Insert a numeric constant into the current function of type Field
     </span><span class="attr">#[cfg(test)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw">impl </span>Into&lt;FieldElement&gt;) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>field_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw">impl </span>Into&lt;FieldElement&gt;) -&gt; ValueId {
         <span class="self">self</span>.numeric_constant(value.into(), NumericType::NativeField)
     }
 
     <span class="doccomment">/// Insert a numeric constant into the current function of type Type::length_type()
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>length_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw">impl </span>Into&lt;FieldElement&gt;) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>length_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw">impl </span>Into&lt;FieldElement&gt;) -&gt; ValueId {
         <span class="self">self</span>.numeric_constant(value.into(), NumericType::length_type())
     }
 
     <span class="doccomment">/// Returns the type of the given value.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_of_value(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; Type {
+    </span><span class="kw">pub fn </span>type_of_value(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; Type {
         <span class="self">self</span>.current_function.dfg.type_of_value(value)
     }
 
     <span class="doccomment">/// Insert a new block into the current function and return it.
     /// Note that this block is unreachable until another block is set to jump to it.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; BasicBlockId {
+    </span><span class="kw">pub fn </span>insert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; BasicBlockId {
         <span class="self">self</span>.current_function.dfg.make_block()
     }
 
     <span class="doccomment">/// Adds a parameter with the given type to the given block.
     /// Returns the newly-added parameter.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_block_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, typ: Type) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>add_block_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, typ: Type) -&gt; ValueId {
         <span class="self">self</span>.current_function.dfg.add_block_parameter(block, typ)
     }
 
     <span class="doccomment">/// Returns the parameters of the given block in the current function.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>block_parameters(<span class="kw-2">&amp;</span><span class="self">self</span>, block: BasicBlockId) -&gt; <span class="kw-2">&amp;</span>[ValueId] {
+    </span><span class="kw">pub fn </span>block_parameters(<span class="kw-2">&amp;</span><span class="self">self</span>, block: BasicBlockId) -&gt; <span class="kw-2">&amp;</span>[ValueId] {
         <span class="self">self</span>.current_function.dfg.block_parameters(block)
     }
 
     <span class="doccomment">/// Inserts a new instruction at the end of the current block and returns its results
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction(
+    </span><span class="kw">pub fn </span>insert_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: Instruction,
         ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
@@ -843,7 +814,7 @@
     <span class="doccomment">/// Switch to inserting instructions in the given block.
     /// Expects the given block to be within the same function. If you want to insert
     /// instructions into a new function, call new_function instead.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>switch_to_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId) {
+    </span><span class="kw">pub fn </span>switch_to_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId) {
         <span class="self">self</span>.current_block = block;
     }
 
@@ -852,25 +823,29 @@
         <span class="self">self</span>.current_block
     }
 
+    <span class="kw">pub fn </span>get_current_block_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; BasicBlockId {
+        <span class="self">self</span>.current_block
+    }
+
     <span class="doccomment">/// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, element_type: Type) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, element_type: Type) -&gt; ValueId {
         <span class="kw">let </span>reference_type = Type::Reference(Arc::new(element_type));
         <span class="self">self</span>.insert_instruction(Instruction::Allocate, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[reference_type])).first()
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: Location) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
+    <span class="kw">pub fn </span>set_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: Location) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
         <span class="self">self</span>.call_stack = <span class="self">self</span>.current_function.dfg.call_stack_data.add_location_to_root(location);
         <span class="self">self
     </span>}
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
+    <span class="kw">pub fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
         <span class="self">self</span>.call_stack = call_stack;
         <span class="self">self
     </span>}
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CallStack {
+    <span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CallStack {
         <span class="self">self</span>.current_function.dfg.get_call_stack(<span class="self">self</span>.call_stack)
     }
 
@@ -878,55 +853,45 @@
     /// which should point to a previous Allocate instruction. Note that this is limited to loading
     /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
     /// Returns the element that was loaded.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, type_to_load: Type) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, type_to_load: Type) -&gt; ValueId {
         <span class="self">self</span>.insert_instruction(Instruction::Load { address }, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[type_to_load])).first()
     }
 
     <span class="doccomment">/// Insert a Store instruction at the end of the current block, storing the given element
     /// at the given address. Expects that the address points somewhere
     /// within a previous Allocate instruction.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) {
+    </span><span class="kw">pub fn </span>insert_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) {
         <span class="self">self</span>.insert_instruction(Instruction::Store { address, value }, <span class="prelude-val">None</span>);
     }
 
     <span class="doccomment">/// Insert a binary instruction at the end of the current block.
     /// Returns the result of the binary instruction.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_binary(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        lhs: ValueId,
-        operator: BinaryOp,
-        rhs: ValueId,
-    ) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -&gt; ValueId {
         <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
     }
 
     <span class="doccomment">/// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) -&gt; ValueId {
         <span class="self">self</span>.insert_instruction(Instruction::Not(rhs), <span class="prelude-val">None</span>).first()
     }
 
     <span class="doccomment">/// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, typ: NumericType) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, typ: NumericType) -&gt; ValueId {
         <span class="self">self</span>.insert_instruction(Instruction::Cast(value, typ), <span class="prelude-val">None</span>).first()
     }
 
     <span class="doccomment">/// Insert a truncate instruction at the end of the current block.
     /// Returns the result of the truncate instruction.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_truncate(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        value: ValueId,
-        bit_size: u32,
-        max_bit_size: u32,
-    ) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_truncate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, bit_size: u32, max_bit_size: u32) -&gt; ValueId {
         <span class="self">self</span>.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, <span class="prelude-val">None</span>)
             .first()
     }
 
     <span class="doccomment">/// Insert a constrain instruction at the end of the current block.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_constrain(
+    </span><span class="kw">pub fn </span>insert_constrain(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: ValueId,
         rhs: ValueId,
@@ -936,7 +901,7 @@
     }
 
     <span class="doccomment">/// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_range_check(
+    </span><span class="kw">pub fn </span>insert_range_check(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value: ValueId,
         max_bit_size: u32,
@@ -950,7 +915,7 @@
 
     <span class="doccomment">/// Insert a call instruction at the end of the current block and return
     /// the results of the call.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_call(
+    </span><span class="kw">pub fn </span>insert_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func: ValueId,
         arguments: Vec&lt;ValueId&gt;,
@@ -960,7 +925,7 @@
     }
 
     <span class="doccomment">/// Insert an instruction to extract an element from an array
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_array_get(
+    </span><span class="kw">pub fn </span>insert_array_get(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
@@ -971,18 +936,13 @@
     }
 
     <span class="doccomment">/// Insert an instruction to create a new array with the given index replaced with a new value
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_array_set(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        array: ValueId,
-        index: ValueId,
-        value: ValueId,
-    ) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_array_set(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, index: ValueId, value: ValueId) -&gt; ValueId {
         <span class="self">self</span>.insert_instruction(Instruction::ArraySet { array, index, value, mutable: <span class="bool-val">false </span>}, <span class="prelude-val">None</span>)
             .first()
     }
 
     <span class="attr">#[cfg(test)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_mutable_array_set(
+    </span><span class="kw">pub fn </span>insert_mutable_array_set(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
@@ -994,7 +954,7 @@
 
     <span class="doccomment">/// Insert an instruction to increment an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_inc_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) {
+    </span><span class="kw">pub fn </span>insert_inc_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) {
         <span class="self">self</span>.insert_instruction(Instruction::IncrementRc { value }, <span class="prelude-val">None</span>);
     }
 
@@ -1006,17 +966,13 @@
 
     <span class="doccomment">/// Insert an enable_side_effects_if instruction. These are normally only automatically
     /// inserted during the flattening pass when branching is removed.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_enable_side_effects_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId) {
+    </span><span class="kw">pub fn </span>insert_enable_side_effects_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId) {
         <span class="self">self</span>.insert_instruction(Instruction::EnableSideEffectsIf { condition }, <span class="prelude-val">None</span>);
     }
 
     <span class="doccomment">/// Insert a `make_array` instruction to create a new array or slice.
     /// Returns the new array value. Expects `typ` to be an array or slice type.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_make_array(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        elements: im::Vector&lt;ValueId&gt;,
-        typ: Type,
-    ) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>insert_make_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: im::Vector&lt;ValueId&gt;, typ: Type) -&gt; ValueId {
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ, Type::Array(..) | Type::Slice(<span class="kw">_</span>)));
         <span class="self">self</span>.insert_instruction(Instruction::MakeArray { elements, typ }, <span class="prelude-val">None</span>).first()
     }
@@ -1031,11 +987,7 @@
 
     <span class="doccomment">/// Terminate the current block with a jmp instruction to jmp to the given
     /// block with the given arguments.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>terminate_with_jmp(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        destination: BasicBlockId,
-        arguments: Vec&lt;ValueId&gt;,
-    ) {
+    </span><span class="kw">pub fn </span>terminate_with_jmp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: BasicBlockId, arguments: Vec&lt;ValueId&gt;) {
         <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
         <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Jmp {
             destination,
@@ -1046,7 +998,7 @@
 
     <span class="doccomment">/// Terminate the current block with a jmpif instruction to jmp with the given arguments
     /// block with the given arguments.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>terminate_with_jmpif(
+    </span><span class="kw">pub fn </span>terminate_with_jmpif(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         condition: ValueId,
         then_destination: BasicBlockId,
@@ -1062,35 +1014,35 @@
     }
 
     <span class="doccomment">/// Terminate the current block with a return instruction
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>terminate_with_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_values: Vec&lt;ValueId&gt;) {
+    </span><span class="kw">pub fn </span>terminate_with_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_values: Vec&lt;ValueId&gt;) {
         <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
         <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
     }
 
     <span class="doccomment">/// Returns a ValueId pointing to the given function or imports the function
     /// into the current function if it was not already, and returns that ID.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>import_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FunctionId) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>import_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FunctionId) -&gt; ValueId {
         <span class="self">self</span>.current_function.dfg.import_function(function)
     }
 
     <span class="doccomment">/// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
     /// into the current function if it was not already, and returns that ID.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>import_foreign_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>str) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>import_foreign_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>str) -&gt; ValueId {
         <span class="self">self</span>.current_function.dfg.import_foreign_function(function)
     }
 
     <span class="doccomment">/// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>import_intrinsic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+    </span><span class="kw">pub fn </span>import_intrinsic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
         Intrinsic::lookup(name).map(|intrinsic| <span class="self">self</span>.import_intrinsic_id(intrinsic))
     }
 
     <span class="doccomment">/// Retrieve a value reference to the given intrinsic operation.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>import_intrinsic_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, intrinsic: Intrinsic) -&gt; ValueId {
+    </span><span class="kw">pub fn </span>import_intrinsic_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, intrinsic: Intrinsic) -&gt; ValueId {
         <span class="self">self</span>.current_function.dfg.import_intrinsic(intrinsic)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_intrinsic_from_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;Intrinsic&gt; {
+    <span class="kw">pub fn </span>get_intrinsic_from_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;Intrinsic&gt; {
         <span class="kw">match </span><span class="self">self</span>.current_function.dfg[value] {
             Value::Intrinsic(intrinsic) =&gt; <span class="prelude-val">Some</span>(intrinsic),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -1143,7 +1095,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>record_error_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, selector: ErrorSelector, typ: HirType) {
+    <span class="kw">pub fn </span>record_error_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, selector: ErrorSelector, typ: HirType) {
         <span class="self">self</span>.error_types.insert(selector, typ);
     }
 }

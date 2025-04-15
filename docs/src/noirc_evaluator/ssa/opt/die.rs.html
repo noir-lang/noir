@@ -917,7 +917,7 @@
     ///
     /// This step should come after the flattening of the CFG and mem2reg.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination(<span class="self">self</span>) -&gt; Ssa {
+    </span><span class="kw">pub fn </span>dead_instruction_elimination(<span class="self">self</span>) -&gt; Ssa {
         <span class="self">self</span>.dead_instruction_elimination_inner(<span class="bool-val">true</span>, <span class="bool-val">false</span>)
     }
 

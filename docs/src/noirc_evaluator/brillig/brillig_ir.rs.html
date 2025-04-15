@@ -520,7 +520,7 @@
 //! The instructions are low level operations that are printed via debug_show.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>artifact;
+</span><span class="kw">pub mod </span>artifact;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_variable;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>debug_show;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>procedures;
@@ -537,7 +537,7 @@
 
 <span class="kw">use </span>artifact::Label;
 <span class="kw">use </span>brillig_variable::SingleAddrVariable;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>instructions::BrilligBinaryOp;
+<span class="kw">pub use </span>instructions::BrilligBinaryOp;
 <span class="kw">use </span>registers::{RegisterAllocator, ScratchSpace};
 
 <span class="kw">use </span><span class="self">self</span>::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};

@@ -656,7 +656,30 @@
 <a href="#655" id="655">655</a>
 <a href="#656" id="656">656</a>
 <a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -698,7 +721,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::acir::GeneratedAcir;
 
 <span class="kw">mod </span>checks;
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>function_builder;
+<span class="kw">pub mod </span>function_builder;
 <span class="kw">pub mod </span>ir;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>opt;
 <span class="attr">#[cfg(test)]
@@ -773,7 +796,7 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ArtifactsAndWarnings(Artifacts, Vec&lt;SsaReport&gt;);
+<span class="kw">pub struct </span>ArtifactsAndWarnings(<span class="kw">pub </span>Artifacts, <span class="kw">pub </span>Vec&lt;SsaReport&gt;);
 
 <span class="doccomment">/// The default SSA optimization pipeline.
 ///
@@ -868,7 +891,7 @@
     ]
 }
 
-<span class="doccomment">/// Optimize the given program by converting it into SSA
+<span class="doccomment">/// Optimize the given SsaBuilder by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
@@ -881,8 +904,8 @@
 ///
 /// See the [primary_passes] and [secondary_passes] for
 /// the default implementations.
-</span><span class="kw">fn </span>optimize_into_acir&lt;S&gt;(
-    program: Program,
+</span><span class="kw">pub fn </span>optimize_ssa_builder_into_acir&lt;S&gt;(
+    builder: SsaBuilder,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
     primary: <span class="kw-2">&amp;</span>[SsaPass],
     secondary: S,
@@ -892,19 +915,11 @@
 {
     <span class="kw">let </span>ssa_gen_span = <span class="macro">span!</span>(Level::TRACE, <span class="string">"ssa_generation"</span>);
     <span class="kw">let </span>ssa_gen_span_guard = ssa_gen_span.enter();
-    <span class="kw">let </span>builder = SsaBuilder::new(
-        program,
-        options.ssa_logging.clone(),
-        options.print_codegen_timings,
-        <span class="kw-2">&amp;</span>options.emit_ssa,
-    )<span class="question-mark">?</span>;
-
     <span class="kw">let </span><span class="kw-2">mut </span>builder = builder.run_passes(primary)<span class="question-mark">?</span>;
     <span class="kw">let </span>passed = std::mem::take(<span class="kw-2">&amp;mut </span>builder.passed);
     <span class="kw">let </span><span class="kw-2">mut </span>ssa = builder.finish();
 
     <span class="kw">let </span><span class="kw-2">mut </span>ssa_level_warnings = <span class="macro">vec!</span>[];
-
     drop(ssa_gen_span_guard);
 
     <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
@@ -945,12 +960,43 @@
     };
 
     drop(ssa_gen_span_guard);
-
     <span class="kw">let </span>artifacts = time(<span class="string">"SSA to ACIR"</span>, options.print_codegen_timings, || {
         ssa.into_acir(<span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options.brillig_options, options.expression_width)
     })<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
+}
+
+<span class="doccomment">/// Optimize the given program by converting it into SSA
+/// form and performing optimizations there. When finished,
+/// convert the final SSA into an ACIR program and return it.
+/// An ACIR program is made up of both ACIR functions
+/// and Brillig functions for unconstrained execution.
+///
+/// The `primary` SSA passes are applied on the initial SSA.
+/// Then we compile the Brillig functions, and use the output
+/// to run a `secondary` pass, which can use the Brillig
+/// artifacts to do constant folding.
+///
+/// See the [primary_passes] and [secondary_passes] for
+/// the default implementations.
+</span><span class="kw">pub fn </span>optimize_into_acir&lt;S&gt;(
+    program: Program,
+    options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
+    primary: <span class="kw-2">&amp;</span>[SsaPass],
+    secondary: S,
+) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt;
+<span class="kw">where
+    </span>S: <span class="kw">for</span>&lt;<span class="lifetime">'b</span>&gt; Fn(<span class="kw-2">&amp;</span><span class="lifetime">'b </span>Brillig) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'b</span>&gt;&gt;,
+{
+    <span class="kw">let </span>builder = SsaBuilder::new(
+        program,
+        options.ssa_logging.clone(),
+        options.print_codegen_timings,
+        <span class="kw-2">&amp;</span>options.emit_ssa,
+    )<span class="question-mark">?</span>;
+
+    optimize_ssa_builder_into_acir(builder, options, primary, secondary)
 }
 
 <span class="comment">// Helper to time SSA passes
@@ -979,7 +1025,7 @@
 }
 
 <span class="kw">impl </span>SsaProgramArtifact {
-    <span class="kw">fn </span>new(
+    <span class="kw">pub fn </span>new(
         unconstrained_functions: Vec&lt;BrilligBytecode&lt;FieldElement&gt;&gt;,
         error_types: BTreeMap&lt;ErrorSelector, ErrorType&gt;,
     ) -&gt; <span class="self">Self </span>{
@@ -996,7 +1042,7 @@
         }
     }
 
-    <span class="kw">fn </span>add_circuit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>circuit_artifact: SsaCircuitArtifact, is_main: bool) {
+    <span class="kw">pub fn </span>add_circuit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>circuit_artifact: SsaCircuitArtifact, is_main: bool) {
         <span class="self">self</span>.program.functions.push(circuit_artifact.circuit);
         <span class="self">self</span>.debug.push(circuit_artifact.debug_info);
         <span class="self">self</span>.warnings.append(<span class="kw-2">&amp;mut </span>circuit_artifact.warnings);
@@ -1084,16 +1130,16 @@
 }
 
 <span class="kw">pub struct </span>SsaCircuitArtifact {
-    name: String,
-    circuit: Circuit&lt;FieldElement&gt;,
-    debug_info: DebugInfo,
-    warnings: Vec&lt;SsaReport&gt;,
-    input_witnesses: Vec&lt;Witness&gt;,
-    return_witnesses: Vec&lt;Witness&gt;,
-    error_types: BTreeMap&lt;ErrorSelector, ErrorType&gt;,
+    <span class="kw">pub </span>name: String,
+    <span class="kw">pub </span>circuit: Circuit&lt;FieldElement&gt;,
+    <span class="kw">pub </span>debug_info: DebugInfo,
+    <span class="kw">pub </span>warnings: Vec&lt;SsaReport&gt;,
+    <span class="kw">pub </span>input_witnesses: Vec&lt;Witness&gt;,
+    <span class="kw">pub </span>return_witnesses: Vec&lt;Witness&gt;,
+    <span class="kw">pub </span>error_types: BTreeMap&lt;ErrorSelector, ErrorType&gt;,
 }
 
-<span class="kw">fn </span>convert_generated_acir_into_circuit(
+<span class="kw">pub fn </span>convert_generated_acir_into_circuit(
     <span class="kw-2">mut </span>generated_acir: GeneratedAcir&lt;FieldElement&gt;,
     func_sig: FunctionSignature,
     debug_variables: DebugVariables,
@@ -1206,11 +1252,11 @@
 }
 
 <span class="comment">// This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
-</span><span class="kw">struct </span>SsaBuilder {
-    ssa: Ssa,
-    ssa_logging: SsaLogging,
-    print_codegen_timings: bool,
-    passed: HashMap&lt;String, usize&gt;,
+</span><span class="kw">pub struct </span>SsaBuilder {
+    <span class="kw">pub </span>ssa: Ssa,
+    <span class="kw">pub </span>ssa_logging: SsaLogging,
+    <span class="kw">pub </span>print_codegen_timings: bool,
+    <span class="kw">pub </span>passed: HashMap&lt;String, usize&gt;,
 }
 
 <span class="kw">impl </span>SsaBuilder {
@@ -1236,7 +1282,7 @@
         <span class="prelude-val">Ok</span>(builder)
     }
 
-    <span class="kw">fn </span>finish(<span class="self">self</span>) -&gt; Ssa {
+    <span class="kw">pub fn </span>finish(<span class="self">self</span>) -&gt; Ssa {
         <span class="self">self</span>.ssa.generate_entry_point_index()
     }
 

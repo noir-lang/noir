@@ -98,12 +98,12 @@
     types::{NumericType, Type},
 };
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>ValueId = Id&lt;Value&gt;;
+<span class="kw">pub type </span>ValueId = Id&lt;Value&gt;;
 
 <span class="doccomment">/// Value is the most basic type allowed in the IR.
 /// Transition Note: A `Id&lt;Value&gt;` is similar to `NodeId` in our previous IR.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Value {
+</span><span class="kw">pub enum </span>Value {
     <span class="doccomment">/// This value was created due to an instruction
     ///
     /// * `instruction`: This is the instruction which defined it

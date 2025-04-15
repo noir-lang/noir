@@ -313,7 +313,7 @@
 /// particular map type, users need to take care not to use it with
 /// another map where it will likely be invalid.
 </span><span class="attr">#[derive(Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Id&lt;T&gt; {
+</span><span class="kw">pub struct </span>Id&lt;T&gt; {
     index: u32,
     <span class="comment">// If we do not skip this field it will simply serialize as `"_marker":null` which is useless extra data
     </span><span class="attr">#[serde(skip)]
@@ -325,12 +325,12 @@
     ///
     /// This is private so that we can guarantee ids created from this function
     /// point to valid T values in their external maps.
-    </span><span class="kw">fn </span>new(index: u32) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new(index: u32) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ index, _marker: std::marker::PhantomData }
     }
 
     <span class="doccomment">/// Returns the underlying index of this Id.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_u32(<span class="self">self</span>) -&gt; u32 {
+    </span><span class="kw">pub fn </span>to_u32(<span class="self">self</span>) -&gt; u32 {
         <span class="self">self</span>.index
     }
 
@@ -415,7 +415,7 @@
 }
 
 <span class="attr">#[derive(Error, Debug)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>IdDisplayFromStrErr {
+</span><span class="kw">pub enum </span>IdDisplayFromStrErr {
     <span class="attr">#[error(<span class="string">"Invalid id when deserializing SSA: {0}"</span>)]
     </span>InvalidId(String),
 }
@@ -569,7 +569,7 @@
 ///
 /// This type wraps an AtomicUsize so it can safely be used across threads.
 </span><span class="attr">#[derive(Debug, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>AtomicCounter&lt;T&gt; {
+</span><span class="kw">pub struct </span>AtomicCounter&lt;T&gt; {
     next: AtomicU32,
     _marker: std::marker::PhantomData&lt;T&gt;,
 }

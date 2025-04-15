@@ -268,7 +268,7 @@
 <span class="kw">use </span><span class="kw">super</span>::value::ValueId;
 
 <span class="attr">#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>RuntimeType {
+</span><span class="kw">pub enum </span>RuntimeType {
     <span class="comment">// A noir function, to be compiled in ACIR and executed by ACVM
     </span>Acir(InlineType),
     <span class="comment">// Unconstrained function, to be compiled to brillig and executed by the Brillig VM
@@ -325,7 +325,7 @@
 /// To reference external functions its FunctionId can be used but this
 /// cannot be checked for correctness until inlining is performed.
 </span><span class="attr">#[derive(Debug, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Function {
+</span><span class="kw">pub struct </span>Function {
     <span class="doccomment">/// The first basic block in the function
     </span>entry_block: BasicBlockId,
 

@@ -3694,13 +3694,14 @@
 <a href="#3693" id="3693">3693</a>
 <a href="#3694" id="3694">3694</a>
 <a href="#3695" id="3695">3695</a>
-<a href="#3696" id="3696">3696</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#3696" id="3696">3696</a>
+<a href="#3697" id="3697">3697</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
 //!
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
-//! The compiled program will be returned as an [`Artifacts`][ssa::Artifacts] type.
+//! The compiled program will be returned as an [`Artifacts`] type.
 
 </span><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
@@ -3750,9 +3751,10 @@
     },
     ssa_gen::Ssa,
 };
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>acir_context::GeneratedAcir;
+
 <span class="kw">use </span>acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
 <span class="kw">use </span>types::{AcirType, AcirVar};
+<span class="kw">pub use </span>{acir_context::GeneratedAcir, ssa::Artifacts};
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">struct </span>SharedContext&lt;F: AcirField&gt; {

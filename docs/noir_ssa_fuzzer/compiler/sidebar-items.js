@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compile","convert_generated_acir_into_circuit_without_signature","create_program","generate_abi","optimize_into_acir"]};

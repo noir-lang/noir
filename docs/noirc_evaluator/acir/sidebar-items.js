@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["can_omit_element_sizes_array"],"mod":["acir_context","ssa","types"],"struct":["Context","SharedContext"]};
+window.SIDEBAR_ITEMS = {"fn":["can_omit_element_sizes_array"],"mod":["acir_context","ssa","types"],"struct":["Context","GeneratedAcir","SharedContext"],"type":["Artifacts"]};

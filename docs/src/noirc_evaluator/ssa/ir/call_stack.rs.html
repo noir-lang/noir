@@ -132,10 +132,10 @@
 
 <span class="kw">use </span>noirc_errors::Location;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>CallStack = Vec&lt;Location&gt;;
+<span class="kw">pub type </span>CallStack = Vec&lt;Location&gt;;
 
 <span class="attr">#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>CallStackId(u32);
+</span><span class="kw">pub struct </span>CallStackId(u32);
 
 <span class="kw">impl </span>CallStackId {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>root() -&gt; <span class="self">Self </span>{

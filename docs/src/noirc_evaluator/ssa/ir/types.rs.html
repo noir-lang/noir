@@ -496,7 +496,7 @@
 
 <span class="doccomment">/// All types representable in the IR.
 </span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Type {
+</span><span class="kw">pub enum </span>Type {
     <span class="doccomment">/// Represents numeric types in the IR, including field elements
     </span>Numeric(NumericType),
 
@@ -515,42 +515,42 @@
 
 <span class="kw">impl </span>Type {
     <span class="doccomment">/// Returns whether the `Type` represents an unsigned numeric type.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    </span><span class="kw">pub fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>, Type::Numeric(NumericType::Unsigned { .. }))
     }
 
     <span class="doccomment">/// Create a new signed integer type with the given amount of bits.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>signed(bit_size: u32) -&gt; Type {
+    </span><span class="kw">pub fn </span>signed(bit_size: u32) -&gt; Type {
         Type::Numeric(NumericType::Signed { bit_size })
     }
 
     <span class="doccomment">/// Create a new unsigned integer type with the given amount of bits.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unsigned(bit_size: u32) -&gt; Type {
+    </span><span class="kw">pub fn </span>unsigned(bit_size: u32) -&gt; Type {
         Type::Numeric(NumericType::Unsigned { bit_size })
     }
 
     <span class="doccomment">/// Creates the boolean type, represented as u1.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bool() -&gt; Type {
+    </span><span class="kw">pub fn </span>bool() -&gt; Type {
         Type::unsigned(<span class="number">1</span>)
     }
 
     <span class="doccomment">/// Creates the char type, represented as u8.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>char() -&gt; Type {
+    </span><span class="kw">pub fn </span>char() -&gt; Type {
         Type::unsigned(<span class="number">8</span>)
     }
 
     <span class="doccomment">/// Creates the `str&lt;N&gt;` type, of the given length N
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>str(length: u32) -&gt; Type {
+    </span><span class="kw">pub fn </span>str(length: u32) -&gt; Type {
         Type::Array(Arc::new(<span class="macro">vec!</span>[Type::char()]), length)
     }
 
     <span class="doccomment">/// Creates the native field type.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field() -&gt; Type {
+    </span><span class="kw">pub fn </span>field() -&gt; Type {
         Type::Numeric(NumericType::NativeField)
     }
 
     <span class="doccomment">/// Creates the type of an array's length.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>length_type() -&gt; Type {
+    </span><span class="kw">pub fn </span>length_type() -&gt; Type {
         Type::unsigned(SSA_WORD_SIZE)
     }
 

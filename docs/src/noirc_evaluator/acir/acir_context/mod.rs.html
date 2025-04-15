@@ -1644,7 +1644,8 @@
 <a href="#1643" id="1643">1643</a>
 <a href="#1644" id="1644">1644</a>
 <a href="#1645" id="1645">1645</a>
-<a href="#1646" id="1646">1646</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1684,7 +1685,8 @@
 };
 <span class="kw">use </span>big_int::BigIntContext;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>generated_acir::{BrilligStdLib, BrilligStdlibFunc, GeneratedAcir};
+<span class="kw">pub use </span>generated_acir::GeneratedAcir;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 
 <span class="attr">#[derive(Debug, Default)]
 </span><span class="doccomment">/// Context object which holds the relationship between
