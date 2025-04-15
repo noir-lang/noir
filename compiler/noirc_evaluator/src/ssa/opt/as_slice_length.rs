@@ -3,7 +3,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, Intrinsic},
         types::{NumericType, Type},
-        value::{Value, ValueMapping},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -27,46 +27,30 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn as_slice_optimization(&mut self) {
-        let mut values_to_replace = ValueMapping::default();
+        self.mutate(|mut context| {
+            let instruction_id = context.instruction_id;
+            let instruction = context.instruction();
 
-        for block in self.reachable_blocks() {
-            let instruction_ids = self.dfg[block].take_instructions();
-            for instruction_id in &instruction_ids {
-                let (target_func, first_argument) = {
-                    let instruction = &mut self.dfg[*instruction_id];
-                    instruction.replace_values(&values_to_replace);
+            let (target_func, arguments) = match &instruction {
+                Instruction::Call { func, arguments } => (func, arguments),
+                _ => return,
+            };
 
-                    let (target_func, arguments) = match &instruction {
-                        Instruction::Call { func, arguments } => (func, arguments),
-                        _ => continue,
-                    };
+            let Value::Intrinsic(Intrinsic::AsSlice) = context.dfg[*target_func] else {
+                return;
+            };
 
-                    (*target_func, arguments.first().copied())
-                };
+            let first_argument = arguments.first().unwrap();
+            let array_typ = context.dfg.type_of_value(*first_argument);
+            let Type::Array(_, length) = array_typ else {
+                unreachable!("AsSlice called with non-array {}", array_typ);
+            };
 
-                match &self.dfg[target_func] {
-                    Value::Intrinsic(Intrinsic::AsSlice) => {
-                        let first_argument = first_argument.unwrap();
-                        let array_typ = self.dfg.type_of_value(first_argument);
-                        if let Type::Array(_, length) = array_typ {
-                            let call_returns = self.dfg.instruction_results(*instruction_id);
-                            let original_slice_length = call_returns[0];
-                            let known_length =
-                                self.dfg.make_constant(length.into(), NumericType::length_type());
-                            values_to_replace.insert(original_slice_length, known_length);
-                        } else {
-                            unreachable!("AsSlice called with non-array {}", array_typ);
-                        }
-                    }
-                    _ => continue,
-                };
-            }
-
-            *self.dfg[block].instructions_mut() = instruction_ids;
-            self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
-        }
-
-        self.dfg.data_bus.replace_values(&values_to_replace);
+            let call_returns = context.dfg.instruction_results(instruction_id);
+            let original_slice_length = call_returns[0];
+            let known_length = context.dfg.make_constant(length.into(), NumericType::length_type());
+            context.replace_value(original_slice_length, known_length);
+        });
     }
 }
 

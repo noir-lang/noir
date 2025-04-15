@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::hash::Hash;
 use std::sync::Arc;
 
 use iter_extended::vecmap;
@@ -7,10 +8,12 @@ use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
-use super::instruction::TerminatorInstruction;
+use super::instruction::{Instruction, InstructionId, TerminatorInstruction};
 use super::map::Id;
 use super::types::Type;
-use super::value::ValueId;
+use super::value::{ValueId, ValueMapping};
+
+use fxhash::FxHashSet as HashSet;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum RuntimeType {
@@ -217,6 +220,45 @@ impl Function {
             })
             .sum()
     }
+
+    pub(crate) fn mutate<F>(&mut self, mut f: F)
+    where
+        F: FnMut(FunctionMutationContext<'_, '_, '_>),
+    {
+        let mut values_to_replace = ValueMapping::default();
+
+        for block_id in self.reachable_blocks() {
+            let mut instructions_to_remove = HashSet::default();
+
+            let mut instruction_ids = self.dfg[block_id].take_instructions();
+            for instruction_id in &instruction_ids {
+                let instruction_id = *instruction_id;
+
+                if !values_to_replace.is_empty() {
+                    let instruction = &mut self.dfg[instruction_id];
+                    instruction.replace_values(&values_to_replace);
+                }
+
+                let context = FunctionMutationContext {
+                    block_id,
+                    instruction_id,
+                    dfg: &mut self.dfg,
+                    instructions_to_remove: &mut instructions_to_remove,
+                    values_to_replace: &mut values_to_replace,
+                };
+                f(context);
+            }
+
+            if !instructions_to_remove.is_empty() {
+                instruction_ids.retain(|instruction| !instructions_to_remove.contains(instruction));
+            }
+
+            *self.dfg[block_id].instructions_mut() = instruction_ids;
+            self.dfg.replace_values_in_block_terminator(block_id, &values_to_replace);
+        }
+
+        self.dfg.data_bus.replace_values(&values_to_replace);
+    }
 }
 
 impl Clone for Function {
@@ -239,6 +281,29 @@ impl std::fmt::Display for RuntimeType {
 /// This Id is how each function refers to other functions
 /// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
+
+pub(crate) struct FunctionMutationContext<'dfg, 'mapping, 'remove> {
+    #[allow(unused)]
+    pub(crate) block_id: BasicBlockId,
+    pub(crate) instruction_id: InstructionId,
+    pub(crate) dfg: &'dfg mut DataFlowGraph,
+    values_to_replace: &'mapping mut ValueMapping,
+    instructions_to_remove: &'remove mut HashSet<InstructionId>,
+}
+
+impl FunctionMutationContext<'_, '_, '_> {
+    pub(crate) fn instruction(&self) -> &Instruction {
+        &self.dfg[self.instruction_id]
+    }
+
+    pub(crate) fn replace_value(&mut self, from: ValueId, to: ValueId) {
+        self.values_to_replace.insert(from, to);
+    }
+
+    pub(crate) fn remove_instruction(&mut self, instruction_id: InstructionId) {
+        self.instructions_to_remove.insert(instruction_id);
+    }
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct Signature {
