@@ -1488,6 +1488,9 @@ mod tests {
 
     #[test]
     fn do_not_unroll_loop_with_break() {
+        // One of the loop header's (b1) successors (b3) has multiple predecessors (b1 and b4).
+        // This logic is how we identify a loop with a break expression.
+        // We do not support unrolling these types of loops.
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
