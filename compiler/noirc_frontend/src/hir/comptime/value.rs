@@ -523,6 +523,7 @@ impl Value {
             Value::U16(value) => vec![Token::Int((value as u128).into())],
             Value::U32(value) => vec![Token::Int((value as u128).into())],
             Value::U64(value) => vec![Token::Int((value as u128).into())],
+            Value::U128(value) => vec![Token::Int(value.into())],
             Value::I8(value) => {
                 if value < 0 {
                     vec![Token::Minus, Token::Int((-value as u128).into())]

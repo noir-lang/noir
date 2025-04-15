@@ -1536,6 +1536,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::U16(value) => Ok(Value::U16(0 - value)),
             Value::U32(value) => Ok(Value::U32(0 - value)),
             Value::U64(value) => Ok(Value::U64(0 - value)),
+            Value::U128(value) => Ok(Value::U128(0 - value)),
             value => {
                 let operator = "minus";
                 let typ = value.get_type().into_owned();
@@ -1552,6 +1553,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::U16(value) => Ok(Value::U16(!value)),
             Value::U32(value) => Ok(Value::U32(!value)),
             Value::U64(value) => Ok(Value::U64(!value)),
+            Value::U128(value) => Ok(Value::U128(!value)),
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::InvalidValueForUnary { typ, location, operator: "not" })
