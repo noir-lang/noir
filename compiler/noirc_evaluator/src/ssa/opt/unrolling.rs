@@ -1198,6 +1198,15 @@ mod tests {
     }
 
     #[test]
+    fn test_boilerplate_stats_i64() {
+        // Looping from 0..-1, but
+        let ssa = brillig_unroll_test_case_6470_with_params("i64", "0", "18446744073709551615");
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.unrolled_instructions(), 0);
+        assert_eq!(stats.iterations, 0);
+    }
+
+    #[test]
     fn test_boilerplate_stats_6470() {
         let ssa = brillig_unroll_test_case_6470(3);
         let stats = loop0_stats(&ssa);
@@ -1393,30 +1402,36 @@ mod tests {
     /// removing the `unconstrained` from the `main` function and
     /// compiling the program with `nargo --test-program . compile --show-ssa`.
     fn brillig_unroll_test_case() -> Ssa {
-        let src = "
+        brillig_unroll_test_case_with_params("u32", "0", "4")
+    }
+
+    fn brillig_unroll_test_case_with_params(idx_type: &str, lower: &str, upper: &str) -> Ssa {
+        let src = format!(
+            "
         // After `static_assert` and `assert_constant`:
-        brillig(inline) fn main f0 {
+        brillig(inline) fn main f0 {{
           b0(v0: u32):
             v2 = allocate -> &mut u32
             store u32 0 at v2
-            jmp b1(u32 0)
-          b1(v1: u32):
-            v5 = lt v1, u32 4
+            jmp b1({idx_type} {lower})
+          b1(v1: {idx_type}):
+            v5 = lt v1, {idx_type} {upper}
             jmpif v5 then: b3, else: b2
           b3():
             v8 = load v2 -> u32
             v9 = add v8, v1
             store v9 at v2
-            v11 = add v1, u32 1
+            v11 = add v1, {idx_type} 1
             jmp b1(v11)
           b2():
             v6 = load v2 -> u32
             v7 = eq v6, v0
             constrain v6 == v0
             return
-        }
-        ";
-        Ssa::from_str(src).unwrap()
+        }}
+        "
+        );
+        Ssa::from_str(&src).unwrap()
     }
 
     /// Test case from #6470:
@@ -1433,6 +1448,10 @@ mod tests {
     /// ```
     /// The `num_iterations` parameter can be used to make it more costly to inline.
     fn brillig_unroll_test_case_6470(num_iterations: usize) -> Ssa {
+        brillig_unroll_test_case_6470_with_params("u32", "0", &format!("{num_iterations}"))
+    }
+
+    fn brillig_unroll_test_case_6470_with_params(idx_type: &str, lower: &str, upper: &str) -> Ssa {
         let src = format!(
             "
         // After `static_assert` and `assert_constant`:
@@ -1443,18 +1462,18 @@ mod tests {
             inc_rc v3
             v4 = allocate -> &mut [u64; 6]
             store v3 at v4
-            jmp b1(u32 0)
-          b1(v1: u32):
-            v7 = lt v1, u32 {num_iterations}
+            jmp b1({idx_type} {lower})
+          b1(v1: {idx_type}):
+            v7 = lt v1, {idx_type} {upper}
             jmpif v7 then: b3, else: b2
           b3():
             v9 = load v4 -> [u64; 6]
             v10 = array_get v0, index v1 -> u64
             v12 = add v10, u64 1
             v13 = array_set v9, index v1, value v12
-            v15 = add v1, u32 1
+            v15 = add v1, {idx_type} 1
             store v13 at v4
-            v16 = add v1, u32 1 // duplicate
+            v16 = add v1, {idx_type} 1 // duplicate
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
