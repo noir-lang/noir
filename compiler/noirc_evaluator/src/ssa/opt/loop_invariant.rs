@@ -439,7 +439,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let results =
                     self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
                 assert!(results.len() == 1);
-                self.inserter.function.dfg.set_value_from_id(results[0], id);
+                self.inserter.map_value(results[0], id);
                 true
             }
             SimplifyResult::SimplifiedToInstruction(instruction) => {
