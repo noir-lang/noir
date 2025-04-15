@@ -16,7 +16,6 @@ pub(super) fn simplify_cast(
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     use SimplifyResult::*;
-    let value = dfg.resolve(value);
 
     if let Value::Instruction { instruction, .. } = &dfg[value] {
         if let Instruction::Cast(original_value, _) = &dfg[*instruction] {

@@ -25,7 +25,7 @@ impl Ssa {
     ///
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination(self) -> Ssa {
+    pub fn dead_instruction_elimination(self) -> Ssa {
         self.dead_instruction_elimination_inner(true, false)
     }
 
@@ -206,7 +206,6 @@ impl Context {
 
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
         if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. })
             || dfg.is_global(value_id)
         {

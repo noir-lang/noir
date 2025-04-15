@@ -40,6 +40,9 @@ members = [
     "acvm-repo/bn254_blackbox_solver",
     # Utility crates
     "utils/iter-extended",
+
+    "tooling/ssa_fuzzer",
+    "tooling/ssa_fuzzer/fuzzer",
     "utils/protobuf",
 ]
 default-members = [
@@ -153,6 +156,7 @@ rmp = "0.8.14"
 rmp-serde = "1.3.0"
 
 arbitrary = "1.4.1"
+arbtest = "0.3.2"
 cfg-if = "1.0.0"
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }

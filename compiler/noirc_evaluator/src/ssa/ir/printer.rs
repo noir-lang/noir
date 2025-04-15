@@ -85,7 +85,6 @@ fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter)
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
 fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
-    let id = dfg.resolve(id);
     match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")

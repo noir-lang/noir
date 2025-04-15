@@ -329,7 +329,6 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
-        let id = self.source_function.dfg.resolve(id);
         if let Some(value) = self.values.get(&id) {
             return *value;
         }
@@ -636,8 +635,7 @@ impl<'function> PerFunctionContext<'function> {
             .dfg
             .call_stack_data
             .extend_call_stack(call_stack, &source_call_stack);
-        let results = self.source_function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
+        let results = self.source_function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
