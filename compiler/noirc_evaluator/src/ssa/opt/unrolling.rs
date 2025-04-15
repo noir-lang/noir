@@ -677,7 +677,9 @@ impl Loop {
     /// of unrolled instructions times the number of iterations would result in smaller bytecode
     /// than if we keep the loops with their overheads.
     fn is_small_loop(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
-        self.boilerplate_stats(function, cfg).map(|s| s.is_small()).unwrap_or_default()
+        self.boilerplate_stats(function, cfg)
+            .map(|s| s.is_small() && self.is_fully_executed(cfg))
+            .unwrap_or_default()
     }
 
     /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,
@@ -1521,5 +1523,53 @@ mod tests {
     #[test_case(1000, 250, -1250, false; "demanding more than minus 100 is handled")]
     fn test_is_new_size_ok(old: usize, new: usize, max: i32, ok: bool) {
         assert_eq!(is_new_size_ok(old, new, max), ok);
+    }
+
+    #[test]
+    fn do_not_unroll_loop_with_break() {
+        // One of the loop header's (b1) successors (b3) has multiple predecessors (b1 and b4).
+        // This logic is how we identify a loop with a break expression.
+        // We do not support unrolling these types of loops.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 5
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            return u1 1
+          b4():
+            jmp b3()
+          b5():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "All loops should be unrolled");
+
+        // The SSA is expected to be unchanged
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 5
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            return u1 1
+          b4():
+            jmp b3()
+          b5():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+        }
+        "#);
     }
 }
