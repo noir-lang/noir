@@ -234,8 +234,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let target_block = &dfg[*destination_block];
                 for (src, dest) in arguments.iter().zip(target_block.parameters()) {
                     // Destinations are block parameters so they should have been allocated previously.
-                    let destination =
-                        self.variables.get_allocation(self.function_context, *dest, dfg);
+                    let destination = self.variables.get_allocation(self.function_context, *dest);
                     let source = self.convert_ssa_value(*src, dfg);
                     self.brillig_context
                         .mov_instruction(destination.extract_register(), source.extract_register());
@@ -586,7 +585,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         | Intrinsic::SliceRemove => {
                             self.convert_ssa_slice_intrinsic_call(
                                 dfg,
-                                &dfg[dfg.resolve(*func)],
+                                &dfg[*func],
                                 instruction_id,
                                 arguments,
                             );
@@ -1451,8 +1450,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[dfg.resolve(binary.lhs)].get_type().as_ref(),
-            dfg[dfg.resolve(binary.rhs)].get_type().as_ref(),
+            dfg[binary.lhs].get_type().as_ref(),
+            dfg[binary.rhs].get_type().as_ref(),
             binary.operator,
         );
 
@@ -1728,7 +1727,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
         if let Some(variable) = self.get_hoisted_global(dfg, value_id) {
@@ -1747,14 +1745,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         panic!("ICE: Global value not found in cache {value_id}")
                     })
                 } else {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                    self.variables.get_allocation(self.function_context, value_id)
                 }
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
                 if self.variables.is_allocated(&value_id) {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                    self.variables.get_allocation(self.function_context, value_id)
                 } else if dfg.is_global(value_id) {
                     *self.globals.get(&value_id).unwrap_or_else(|| {
                         panic!("ICE: Global value not found in cache {value_id}")
