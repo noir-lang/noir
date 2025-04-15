@@ -1250,15 +1250,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.push_scope();
                 self.current_scope_mut().insert(for_.identifier.id, make_value(i));
 
-                let must_break = match self.evaluate(for_.block) {
-                    Ok(_) => false,
-                    Err(InterpreterError::Break) => true,
-                    Err(InterpreterError::Continue) => false,
-                    Err(error) => {
-                        result = Err(error);
-                        true
-                    }
-                };
+                let must_break = self.evaluate_loop_body(for_.block, &mut result);
 
                 self.pop_scope();
 
@@ -1286,15 +1278,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.push_scope();
                 self.current_scope_mut().insert(for_.identifier.id, make_value(i));
 
-                let must_break = match self.evaluate(for_.block) {
-                    Ok(_) => false,
-                    Err(InterpreterError::Break) => true,
-                    Err(InterpreterError::Continue) => false,
-                    Err(error) => {
-                        result = Err(error);
-                        true
-                    }
-                };
+                let must_break = self.evaluate_loop_body(for_.block, &mut result);
 
                 self.pop_scope();
 
@@ -1317,15 +1301,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         loop {
             self.push_scope();
 
-            let must_break = match self.evaluate(expr) {
-                Ok(_) => false,
-                Err(InterpreterError::Break) => true,
-                Err(InterpreterError::Continue) => false,
-                Err(error) => {
-                    result = Err(error);
-                    true
-                }
-            };
+            let must_break = self.evaluate_loop_body(expr, &mut result);
 
             self.pop_scope();
 
@@ -1366,16 +1342,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
             self.push_scope();
 
-            let must_break = match self.evaluate(block) {
-                Ok(_) => false,
-                Err(InterpreterError::Break) => true,
-                Err(InterpreterError::Continue) => false,
-                Err(error) => {
-                    result = Err(error);
-                    true
-                }
-            };
-
+            let must_break = self.evaluate_loop_body(block, &mut result);
             self.pop_scope();
 
             if must_break {
@@ -1392,6 +1359,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         self.in_loop = was_in_loop;
         result
+    }
+
+    fn evaluate_loop_body(&mut self, body: ExprId, result: &mut IResult<Value>) -> bool {
+        match self.evaluate(body) {
+            Ok(_) => false,
+            Err(InterpreterError::Break) => true,
+            Err(InterpreterError::Continue) => false,
+            Err(error) => {
+                *result = Err(error);
+                true
+            }
+        }
     }
 
     fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
