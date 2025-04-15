@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744677083983,
+  "lastUpdate": 1744707359638,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19582,6 +19582,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 238756,
             "range": "± 5118",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "73a1385496581c49360cfc68f4bf546353a4f966",
+          "message": "fix: SSA pass print filter to include the count (#8074)",
+          "timestamp": "2025-04-15T08:40:35Z",
+          "tree_id": "e556a29e51f571353cf84b34fb289f47af496e6f",
+          "url": "https://github.com/noir-lang/noir/commit/73a1385496581c49360cfc68f4bf546353a4f966"
+        },
+        "date": 1744707353972,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 270644,
+            "range": "± 650",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237748,
+            "range": "± 1432",
             "unit": "ns/iter"
           }
         ]
