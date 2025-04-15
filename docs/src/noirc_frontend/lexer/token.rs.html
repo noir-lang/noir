@@ -1328,7 +1328,11 @@
 <a href="#1327" id="1327">1327</a>
 <a href="#1328" id="1328">1328</a>
 <a href="#1329" id="1329">1329</a>
-<a href="#1330" id="1330">1330</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -2189,6 +2193,10 @@
         <span class="self">self</span>.has_secondary_attr(<span class="kw-2">&amp;</span>SecondaryAttributeKind::Export)
     }
 
+    <span class="kw">pub fn </span>has_allow(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; bool {
+        <span class="self">self</span>.secondary.iter().any(|attr| attr.kind.is_allow(name))
+    }
+
     <span class="doccomment">/// Check if secondary attributes contain a specific instance.
     </span><span class="kw">pub fn </span>has_secondary_attr(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: <span class="kw-2">&amp;</span>SecondaryAttributeKind) -&gt; bool {
         <span class="self">self</span>.secondary.iter().any(|attr| <span class="kw-2">&amp;</span>attr.kind == kind)
@@ -2358,9 +2366,9 @@
 }
 
 <span class="kw">impl </span>SecondaryAttributeKind {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_allow_unused_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_allow(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
-            SecondaryAttributeKind::Allow(string) =&gt; string == <span class="string">"unused_variables"</span>,
+            SecondaryAttributeKind::Allow(string) =&gt; string == name,
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }

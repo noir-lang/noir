@@ -1681,7 +1681,23 @@
 <a href="#1680" id="1680">1680</a>
 <a href="#1681" id="1681">1681</a>
 <a href="#1682" id="1682">1682</a>
-<a href="#1683" id="1683">1683</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2133,6 +2149,8 @@
             <span class="kw">let </span><span class="kw-2">mut </span>trait_definition = trait_definition.item;
             <span class="kw">let </span>name = trait_definition.name.clone();
             <span class="kw">let </span>location = trait_definition.location;
+            <span class="kw">let </span>has_allow_dead_code =
+                trait_definition.attributes.iter().any(|attr| attr.kind.is_allow(<span class="string">"dead_code"</span>));
 
             <span class="comment">// Create the corresponding module for the trait namespace
             </span><span class="kw">let </span>trait_id = <span class="kw">match </span><span class="self">self</span>.push_child_module(
@@ -2164,12 +2182,14 @@
             );
 
             <span class="kw">let </span>parent_module_id = ModuleId { krate, local_id: <span class="self">self</span>.module_id };
-            context.usage_tracker.add_unused_item(
-                parent_module_id,
-                name.clone(),
-                UnusedItem::Trait(trait_id),
-                visibility,
-            );
+            <span class="kw">if </span>!has_allow_dead_code {
+                context.usage_tracker.add_unused_item(
+                    parent_module_id,
+                    name.clone(),
+                    UnusedItem::Trait(trait_id),
+                    visibility,
+                );
+            }
 
             <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = result {
                 <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
@@ -2696,6 +2716,7 @@
         function.name() == MAIN_FUNCTION
     };
     <span class="kw">let </span>has_export = function.def.attributes.has_export();
+    <span class="kw">let </span>has_allow_dead_code = function.def.attributes.has_allow(<span class="string">"dead_code"</span>);
 
     <span class="kw">let </span>name = function.name_ident().clone();
     <span class="kw">let </span>func_id = interner.push_empty_fn();
@@ -2706,7 +2727,12 @@
         interner.register_function(func_id, <span class="kw-2">&amp;</span>function.def);
     }
 
-    <span class="kw">if </span>!is_test &amp;&amp; !is_fuzzing_harness &amp;&amp; !is_entry_point_function &amp;&amp; !has_export {
+    <span class="kw">if </span>!is_test
+        &amp;&amp; !is_fuzzing_harness
+        &amp;&amp; !is_entry_point_function
+        &amp;&amp; !has_export
+        &amp;&amp; !has_allow_dead_code
+    {
         <span class="kw">let </span>item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
@@ -2792,7 +2818,10 @@
 
     <span class="kw">let </span>parent_module_id = ModuleId { krate, local_id: module_id };
 
-    <span class="kw">if </span>!unresolved.struct_def.is_abi() {
+    <span class="kw">let </span>has_allow_dead_code =
+        unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow(<span class="string">"dead_code"</span>));
+
+    <span class="kw">if </span>!unresolved.struct_def.is_abi() &amp;&amp; !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),
@@ -2883,7 +2912,10 @@
 
     <span class="kw">let </span>parent_module_id = ModuleId { krate, local_id: module_id };
 
-    <span class="kw">if </span>!unresolved.enum_def.is_abi() {
+    <span class="kw">let </span>has_allow_dead_code =
+        unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow(<span class="string">"dead_code"</span>));
+
+    <span class="kw">if </span>!unresolved.enum_def.is_abi() &amp;&amp; !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),

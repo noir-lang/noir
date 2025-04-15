@@ -3386,7 +3386,21 @@
 <a href="#3385" id="3385">3385</a>
 <a href="#3386" id="3386">3386</a>
 <a href="#3387" id="3387">3387</a>
-<a href="#3388" id="3388">3388</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
+<a href="#3388" id="3388">3388</a>
+<a href="#3389" id="3389">3389</a>
+<a href="#3390" id="3390">3390</a>
+<a href="#3391" id="3391">3391</a>
+<a href="#3392" id="3392">3392</a>
+<a href="#3393" id="3393">3393</a>
+<a href="#3394" id="3394">3394</a>
+<a href="#3395" id="3395">3395</a>
+<a href="#3396" id="3396">3396</a>
+<a href="#3397" id="3397">3397</a>
+<a href="#3398" id="3398">3398</a>
+<a href="#3399" id="3399">3399</a>
+<a href="#3400" id="3400">3400</a>
+<a href="#3401" id="3401">3401</a>
+<a href="#3402" id="3402">3402</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>completion_tests {
     <span class="kw">use crate</span>::{
         notifications::on_did_open_text_document,
@@ -5798,6 +5812,20 @@ fn main() {
         assert_completion_excluding_auto_import(
             src,
             <span class="macro">vec!</span>[simple_completion_item(<span class="string">"no_predicates"</span>, CompletionItemKind::METHOD, <span class="prelude-val">None</span>)],
+        )
+        .<span class="kw">await</span>;
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_suggests_built_in_allow_function_attribute() {
+        <span class="kw">let </span>src = <span class="string">r#"
+            #[dead_c&gt;|&lt;]
+            fn foo() {}
+        "#</span>;
+
+        assert_completion_excluding_auto_import(
+            src,
+            <span class="macro">vec!</span>[simple_completion_item(<span class="string">"allow(dead_code)"</span>, CompletionItemKind::METHOD, <span class="prelude-val">None</span>)],
         )
         .<span class="kw">await</span>;
     }

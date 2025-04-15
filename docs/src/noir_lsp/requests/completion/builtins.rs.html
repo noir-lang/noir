@@ -306,7 +306,18 @@
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::CompletionItemKind;
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::CompletionItemKind;
 <span class="kw">use </span>noirc_frontend::{ast::AttributeTarget, token::Keyword};
 <span class="kw">use </span>strum::IntoEnumIterator;
 
@@ -396,12 +407,17 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>suggest_builtin_attributes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, prefix: <span class="kw-2">&amp;</span>str, target: AttributeTarget) {
         <span class="kw">match </span>target {
-            AttributeTarget::Module | AttributeTarget::Trait =&gt; (),
+            AttributeTarget::Module =&gt; (),
+            AttributeTarget::Trait =&gt; {
+                <span class="self">self</span>.suggest_allow(<span class="string">"dead_code"</span>, prefix);
+            }
             AttributeTarget::Struct =&gt; {
                 <span class="self">self</span>.suggest_one_argument_attributes(prefix, <span class="kw-2">&amp;</span>[<span class="string">"abi"</span>]);
+                <span class="self">self</span>.suggest_allow(<span class="string">"dead_code"</span>, prefix);
             }
             AttributeTarget::Enum =&gt; {
                 <span class="self">self</span>.suggest_one_argument_attributes(prefix, <span class="kw-2">&amp;</span>[<span class="string">"abi"</span>]);
+                <span class="self">self</span>.suggest_allow(<span class="string">"dead_code"</span>, prefix);
             }
             AttributeTarget::Function =&gt; {
                 <span class="kw">let </span>no_arguments_attributes = <span class="kw-2">&amp;</span>[
@@ -455,16 +471,22 @@
                         <span class="prelude-val">None</span>,
                     ));
                 }
+
+                <span class="self">self</span>.suggest_allow(<span class="string">"dead_code"</span>, prefix);
             }
             AttributeTarget::Let =&gt; {
-                <span class="kw">if </span>name_matches(<span class="string">"allow"</span>, prefix) || name_matches(<span class="string">"unused_variables"</span>, prefix) {
-                    <span class="self">self</span>.completion_items.push(simple_completion_item(
-                        <span class="string">"allow(unused_variables)"</span>,
-                        CompletionItemKind::METHOD,
-                        <span class="prelude-val">None</span>,
-                    ));
-                }
+                <span class="self">self</span>.suggest_allow(<span class="string">"unused_variables"</span>, prefix);
             }
+        }
+    }
+
+    <span class="kw">fn </span>suggest_allow(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, prefix: <span class="kw-2">&amp;</span>str) {
+        <span class="kw">if </span>name_matches(<span class="string">"allow"</span>, prefix) || name_matches(name, prefix) {
+            <span class="self">self</span>.completion_items.push(simple_completion_item(
+                <span class="macro">format!</span>(<span class="string">"allow({name})"</span>),
+                CompletionItemKind::METHOD,
+                <span class="prelude-val">None</span>,
+            ));
         }
     }
 }
