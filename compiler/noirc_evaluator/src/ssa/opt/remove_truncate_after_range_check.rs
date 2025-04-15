@@ -52,7 +52,7 @@ impl Function {
                             let result =
                                 context.dfg.instruction_results(instruction_id).first().unwrap();
                             context.replace_value(*result, *value);
-                            context.remove_instruction(instruction_id);
+                            context.remove_current_instruction();
                         }
                     }
                 }

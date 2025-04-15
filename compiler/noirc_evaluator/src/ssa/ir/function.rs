@@ -221,6 +221,13 @@ impl Function {
             .sum()
     }
 
+    /// An almost general-purpose way to mutate a function's blocks, instructions and values.
+    ///
+    /// The function's reachable blocks are traversed in turn, and instructions in those blocks
+    /// are then traversed in turn. For each one, `f` will be called with a context. The context
+    /// has access to the current instruction and has methods to perform some mutations such
+    /// as removing an instruction or replacing a value with another one. The context also
+    /// has direct access to the DataFlowGraf so instructions can also be replaced.
     pub(crate) fn mutate<F>(&mut self, mut f: F)
     where
         F: FnMut(FunctionMutationContext<'_, '_, '_>),
@@ -292,16 +299,20 @@ pub(crate) struct FunctionMutationContext<'dfg, 'mapping, 'remove> {
 }
 
 impl FunctionMutationContext<'_, '_, '_> {
+    /// Returns the current instruction being visited.
     pub(crate) fn instruction(&self) -> &Instruction {
         &self.dfg[self.instruction_id]
     }
 
+    /// Instructs this context to replace a value with another value. The value will be replaced
+    /// in all subsequent instructions.
     pub(crate) fn replace_value(&mut self, from: ValueId, to: ValueId) {
         self.values_to_replace.insert(from, to);
     }
 
-    pub(crate) fn remove_instruction(&mut self, instruction_id: InstructionId) {
-        self.instructions_to_remove.insert(instruction_id);
+    /// Instructs this context to remove the current instruction from its block.
+    pub(crate) fn remove_current_instruction(&mut self) {
+        self.instructions_to_remove.insert(self.instruction_id);
     }
 }
 
