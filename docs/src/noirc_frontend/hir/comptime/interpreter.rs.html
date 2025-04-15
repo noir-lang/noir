@@ -1611,62 +1611,7 @@
 <a href="#1610" id="1610">1610</a>
 <a href="#1611" id="1611">1611</a>
 <a href="#1612" id="1612">1612</a>
-<a href="#1613" id="1613">1613</a>
-<a href="#1614" id="1614">1614</a>
-<a href="#1615" id="1615">1615</a>
-<a href="#1616" id="1616">1616</a>
-<a href="#1617" id="1617">1617</a>
-<a href="#1618" id="1618">1618</a>
-<a href="#1619" id="1619">1619</a>
-<a href="#1620" id="1620">1620</a>
-<a href="#1621" id="1621">1621</a>
-<a href="#1622" id="1622">1622</a>
-<a href="#1623" id="1623">1623</a>
-<a href="#1624" id="1624">1624</a>
-<a href="#1625" id="1625">1625</a>
-<a href="#1626" id="1626">1626</a>
-<a href="#1627" id="1627">1627</a>
-<a href="#1628" id="1628">1628</a>
-<a href="#1629" id="1629">1629</a>
-<a href="#1630" id="1630">1630</a>
-<a href="#1631" id="1631">1631</a>
-<a href="#1632" id="1632">1632</a>
-<a href="#1633" id="1633">1633</a>
-<a href="#1634" id="1634">1634</a>
-<a href="#1635" id="1635">1635</a>
-<a href="#1636" id="1636">1636</a>
-<a href="#1637" id="1637">1637</a>
-<a href="#1638" id="1638">1638</a>
-<a href="#1639" id="1639">1639</a>
-<a href="#1640" id="1640">1640</a>
-<a href="#1641" id="1641">1641</a>
-<a href="#1642" id="1642">1642</a>
-<a href="#1643" id="1643">1643</a>
-<a href="#1644" id="1644">1644</a>
-<a href="#1645" id="1645">1645</a>
-<a href="#1646" id="1646">1646</a>
-<a href="#1647" id="1647">1647</a>
-<a href="#1648" id="1648">1648</a>
-<a href="#1649" id="1649">1649</a>
-<a href="#1650" id="1650">1650</a>
-<a href="#1651" id="1651">1651</a>
-<a href="#1652" id="1652">1652</a>
-<a href="#1653" id="1653">1653</a>
-<a href="#1654" id="1654">1654</a>
-<a href="#1655" id="1655">1655</a>
-<a href="#1656" id="1656">1656</a>
-<a href="#1657" id="1657">1657</a>
-<a href="#1658" id="1658">1658</a>
-<a href="#1659" id="1659">1659</a>
-<a href="#1660" id="1660">1660</a>
-<a href="#1661" id="1661">1661</a>
-<a href="#1662" id="1662">1662</a>
-<a href="#1663" id="1663">1663</a>
-<a href="#1664" id="1664">1664</a>
-<a href="#1665" id="1665">1665</a>
-<a href="#1666" id="1666">1666</a>
-<a href="#1667" id="1667">1667</a>
-<a href="#1668" id="1668">1668</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1613" id="1613">1613</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::blackbox_solver::BigIntSolverWithId;
@@ -1713,6 +1658,7 @@
 <span class="kw">use </span><span class="kw">super</span>::value::{Closure, Value, unwrap_rc};
 
 <span class="kw">mod </span>builtin;
+<span class="kw">mod </span>cast;
 <span class="kw">mod </span>foreign;
 <span class="kw">mod </span>infix;
 <span class="kw">mod </span>unquote;
@@ -2665,7 +2611,7 @@
     <span class="kw">fn </span>evaluate_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cast: <span class="kw-2">&amp;</span>HirCastExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>evaluated_lhs = <span class="self">self</span>.evaluate(cast.lhs)<span class="question-mark">?</span>;
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-        evaluate_cast_one_step(<span class="kw-2">&amp;</span>cast.r#type, location, evaluated_lhs)
+        cast::evaluate_cast_one_step(<span class="kw-2">&amp;</span>cast.r#type, location, evaluated_lhs)
     }
 
     <span class="kw">fn </span>evaluate_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, if_: HirIfExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
@@ -2878,44 +2824,62 @@
     }
 
     <span class="kw">fn </span>evaluate_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, for_: HirForStatement) -&gt; IResult&lt;Value&gt; {
-        <span class="comment">// i128 can store all values from i8 - u64
-        </span><span class="kw">let </span>get_index = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, expr| -&gt; IResult&lt;(<span class="kw">_</span>, <span class="kw">fn</span>(<span class="kw">_</span>) -&gt; <span class="kw">_</span>)&gt; {
-            <span class="kw">match </span>this.evaluate(expr)<span class="question-mark">? </span>{
-                Value::I8(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::I8(i <span class="kw">as </span>i8))),
-                Value::I16(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::I16(i <span class="kw">as </span>i16))),
-                Value::I32(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::I32(i <span class="kw">as </span>i32))),
-                Value::I64(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::I64(i <span class="kw">as </span>i64))),
-                Value::U8(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::U8(i <span class="kw">as </span>u8))),
-                Value::U16(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::U16(i <span class="kw">as </span>u16))),
-                Value::U32(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::U32(i <span class="kw">as </span>u32))),
-                Value::U64(value) =&gt; <span class="prelude-val">Ok</span>((value <span class="kw">as </span>i128, |i| Value::U64(i <span class="kw">as </span>u64))),
-                value =&gt; {
-                    <span class="kw">let </span>location = this.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>expr);
-                    <span class="kw">let </span>typ = value.get_type().into_owned();
-                    <span class="prelude-val">Err</span>(InterpreterError::NonIntegerUsedInLoop { typ, location })
-                }
-            }
-        };
+        <span class="kw">let </span>start_value = <span class="self">self</span>.evaluate(for_.start_range)<span class="question-mark">?</span>;
+        <span class="kw">let </span>end_value = <span class="self">self</span>.evaluate(for_.end_range)<span class="question-mark">?</span>;
+        <span class="kw">let </span>loop_index_type = start_value.get_type();
 
-        <span class="kw">let </span>(start, make_value) = get_index(<span class="self">self</span>, for_.start_range)<span class="question-mark">?</span>;
-        <span class="kw">let </span>(end, <span class="kw">_</span>) = get_index(<span class="self">self</span>, for_.end_range)<span class="question-mark">?</span>;
+        <span class="kw">if </span>loop_index_type.is_signed() {
+            <span class="kw">let </span>get_index = <span class="kw">match </span>start_value {
+                Value::I8(<span class="kw">_</span>) =&gt; |i| Value::I8(i <span class="kw">as </span>i8),
+                Value::I16(<span class="kw">_</span>) =&gt; |i| Value::I16(i <span class="kw">as </span>i16),
+                Value::I32(<span class="kw">_</span>) =&gt; |i| Value::I32(i <span class="kw">as </span>i32),
+                Value::I64(<span class="kw">_</span>) =&gt; |i| Value::I64(i <span class="kw">as </span>i64),
+                value =&gt; <span class="macro">unreachable!</span>(<span class="string">"Checked above that value is signed type"</span>),
+            };
+
+            <span class="comment">// i128 can store all values from i8 - u64
+            </span><span class="kw">let </span>start = to_i128(start_value).expect(<span class="string">"Checked above that value is signed type"</span>);
+            <span class="kw">let </span>end = to_i128(end_value).expect(<span class="string">"Checked above that value is signed type"</span>);
+
+            <span class="self">self</span>.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+        } <span class="kw">else if </span>loop_index_type.is_unsigned() {
+            <span class="kw">let </span>get_index = <span class="kw">match </span>start_value {
+                Value::U8(<span class="kw">_</span>) =&gt; |i| Value::U8(i <span class="kw">as </span>u8),
+                Value::U16(<span class="kw">_</span>) =&gt; |i| Value::U16(i <span class="kw">as </span>u16),
+                Value::U32(<span class="kw">_</span>) =&gt; |i| Value::U32(i <span class="kw">as </span>u32),
+                Value::U64(<span class="kw">_</span>) =&gt; |i| Value::U64(i <span class="kw">as </span>u64),
+                Value::U128(<span class="kw">_</span>) =&gt; |i| Value::U128(i),
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Checked above that value is unsigned type"</span>),
+            };
+
+            <span class="comment">// u128 can store all values from u8 - u128
+            </span><span class="kw">let </span>start = to_u128(start_value).expect(<span class="string">"Checked above that value is unsigned type"</span>);
+            <span class="kw">let </span>end = to_u128(end_value).expect(<span class="string">"Checked above that value is unsigned type"</span>);
+
+            <span class="self">self</span>.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>for_.start_range);
+            <span class="kw">let </span>typ = loop_index_type.into_owned();
+            <span class="prelude-val">Err</span>(InterpreterError::NonIntegerUsedInLoop { typ, location })
+        }
+    }
+
+    <span class="kw">fn </span>evaluate_for_loop&lt;T&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        range_iterator: <span class="kw">impl </span>Iterator&lt;Item = T&gt;,
+        get_index: <span class="kw">fn</span>(T) -&gt; Value,
+        index_id: DefinitionId,
+        block: ExprId,
+    ) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="prelude-val">Ok</span>(Value::Unit);
 
-        <span class="kw">for </span>i <span class="kw">in </span>start..end {
+        <span class="kw">for </span>i <span class="kw">in </span>range_iterator {
             <span class="self">self</span>.push_scope();
-            <span class="self">self</span>.current_scope_mut().insert(for_.identifier.id, make_value(i));
+            <span class="self">self</span>.current_scope_mut().insert(index_id, get_index(i));
 
-            <span class="kw">let </span>must_break = <span class="kw">match </span><span class="self">self</span>.evaluate(for_.block) {
-                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-                <span class="prelude-val">Err</span>(InterpreterError::Break) =&gt; <span class="bool-val">true</span>,
-                <span class="prelude-val">Err</span>(InterpreterError::Continue) =&gt; <span class="bool-val">false</span>,
-                <span class="prelude-val">Err</span>(error) =&gt; {
-                    result = <span class="prelude-val">Err</span>(error);
-                    <span class="bool-val">true
-                </span>}
-            };
+            <span class="kw">let </span>must_break = <span class="self">self</span>.evaluate_loop_body(block, <span class="kw-2">&amp;mut </span>result);
 
             <span class="self">self</span>.pop_scope();
 
@@ -2937,15 +2901,7 @@
         <span class="kw">loop </span>{
             <span class="self">self</span>.push_scope();
 
-            <span class="kw">let </span>must_break = <span class="kw">match </span><span class="self">self</span>.evaluate(expr) {
-                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-                <span class="prelude-val">Err</span>(InterpreterError::Break) =&gt; <span class="bool-val">true</span>,
-                <span class="prelude-val">Err</span>(InterpreterError::Continue) =&gt; <span class="bool-val">false</span>,
-                <span class="prelude-val">Err</span>(error) =&gt; {
-                    result = <span class="prelude-val">Err</span>(error);
-                    <span class="bool-val">true
-                </span>}
-            };
+            <span class="kw">let </span>must_break = <span class="self">self</span>.evaluate_loop_body(expr, <span class="kw-2">&amp;mut </span>result);
 
             <span class="self">self</span>.pop_scope();
 
@@ -2986,16 +2942,7 @@
 
             <span class="self">self</span>.push_scope();
 
-            <span class="kw">let </span>must_break = <span class="kw">match </span><span class="self">self</span>.evaluate(block) {
-                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-                <span class="prelude-val">Err</span>(InterpreterError::Break) =&gt; <span class="bool-val">true</span>,
-                <span class="prelude-val">Err</span>(InterpreterError::Continue) =&gt; <span class="bool-val">false</span>,
-                <span class="prelude-val">Err</span>(error) =&gt; {
-                    result = <span class="prelude-val">Err</span>(error);
-                    <span class="bool-val">true
-                </span>}
-            };
-
+            <span class="kw">let </span>must_break = <span class="self">self</span>.evaluate_loop_body(block, <span class="kw-2">&amp;mut </span>result);
             <span class="self">self</span>.pop_scope();
 
             <span class="kw">if </span>must_break {
@@ -3012,6 +2959,18 @@
 
         <span class="self">self</span>.in_loop = was_in_loop;
         result
+    }
+
+    <span class="kw">fn </span>evaluate_loop_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, body: ExprId, result: <span class="kw-2">&amp;mut </span>IResult&lt;Value&gt;) -&gt; bool {
+        <span class="kw">match </span><span class="self">self</span>.evaluate(body) {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+            <span class="prelude-val">Err</span>(InterpreterError::Break) =&gt; <span class="bool-val">true</span>,
+            <span class="prelude-val">Err</span>(InterpreterError::Continue) =&gt; <span class="bool-val">false</span>,
+            <span class="prelude-val">Err</span>(error) =&gt; {
+                <span class="kw-2">*</span>result = <span class="prelude-val">Err</span>(error);
+                <span class="bool-val">true
+            </span>}
+        }
     }
 
     <span class="kw">fn </span>evaluate_break(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: StmtId) -&gt; IResult&lt;Value&gt; {
@@ -3149,98 +3108,6 @@
     }
 }
 
-<span class="doccomment">/// evaluate_cast without recursion
-</span><span class="kw">fn </span>evaluate_cast_one_step(typ: <span class="kw-2">&amp;</span>Type, location: Location, evaluated_lhs: Value) -&gt; IResult&lt;Value&gt; {
-    <span class="macro">macro_rules!</span> signed_int_to_field {
-        (<span class="macro-nonterminal">$x</span>:expr) =&gt; {{
-            <span class="comment">// Need to convert the signed integer to an i128 before
-            // we negate it to preserve the MIN value.
-            </span><span class="kw">let </span><span class="kw-2">mut </span>value = <span class="macro-nonterminal">$x </span><span class="kw">as </span>i128;
-            <span class="kw">let </span>is_negative = value &lt; <span class="number">0</span>;
-            <span class="kw">if </span>is_negative {
-                value = -value;
-            }
-            ((value <span class="kw">as </span>u128).into(), is_negative)
-        }};
-    }
-
-    <span class="kw">let </span>(<span class="kw-2">mut </span>lhs, lhs_is_negative) = <span class="kw">match </span>evaluated_lhs {
-        Value::Field(value) =&gt; (value, <span class="bool-val">false</span>),
-        Value::U1(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U8(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U16(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U32(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U64(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::I8(value) =&gt; <span class="macro">signed_int_to_field!</span>(value),
-        Value::I16(value) =&gt; <span class="macro">signed_int_to_field!</span>(value),
-        Value::I32(value) =&gt; <span class="macro">signed_int_to_field!</span>(value),
-        Value::I64(value) =&gt; <span class="macro">signed_int_to_field!</span>(value),
-        Value::Bool(value) =&gt; {
-            (<span class="kw">if </span>value { FieldElement::one() } <span class="kw">else </span>{ FieldElement::zero() }, <span class="bool-val">false</span>)
-        }
-        value =&gt; {
-            <span class="kw">let </span>typ = value.get_type().into_owned();
-            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NonNumericCasted { typ, location });
-        }
-    };
-
-    <span class="macro">macro_rules!</span> cast_to_int {
-        (<span class="macro-nonterminal">$x</span>:expr, <span class="macro-nonterminal">$method</span>:ident, <span class="macro-nonterminal">$typ</span>:ty, <span class="macro-nonterminal">$f</span>:ident) =&gt; {{
-            <span class="kw">let </span><span class="kw-2">mut </span>value = <span class="macro-nonterminal">$x</span>.<span class="macro-nonterminal">$method</span>() <span class="kw">as </span><span class="macro-nonterminal">$typ</span>;
-            <span class="kw">if </span>lhs_is_negative {
-                value = <span class="number">0 </span>- value;
-            }
-            <span class="prelude-val">Ok</span>(Value::<span class="macro-nonterminal">$f</span>(value))
-        }};
-    }
-
-    <span class="comment">// Now actually cast the lhs, bit casting and wrapping as necessary
-    </span><span class="kw">match </span>typ.follow_bindings() {
-        Type::FieldElement =&gt; {
-            <span class="kw">if </span>lhs_is_negative {
-                lhs = FieldElement::zero() - lhs;
-            }
-            <span class="prelude-val">Ok</span>(Value::Field(lhs))
-        }
-        Type::Integer(sign, bit_size) =&gt; <span class="kw">match </span>(sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) =&gt; {
-                <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-            }
-            (Signedness::Unsigned, IntegerBitSize::Eight) =&gt; <span class="macro">cast_to_int!</span>(lhs, to_u128, u8, U8),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) =&gt; {
-                <span class="macro">cast_to_int!</span>(lhs, to_u128, u16, U16)
-            }
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) =&gt; {
-                <span class="macro">cast_to_int!</span>(lhs, to_u128, u32, U32)
-            }
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) =&gt; {
-                <span class="macro">cast_to_int!</span>(lhs, to_u128, u64, U64)
-            }
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) =&gt; {
-                <span class="macro">cast_to_int!</span>(lhs, to_u128, u128, U128)
-            }
-            (Signedness::Signed, IntegerBitSize::One) =&gt; {
-                <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-            }
-            (Signedness::Signed, IntegerBitSize::Eight) =&gt; <span class="macro">cast_to_int!</span>(lhs, to_i128, i8, I8),
-            (Signedness::Signed, IntegerBitSize::Sixteen) =&gt; {
-                <span class="macro">cast_to_int!</span>(lhs, to_i128, i16, I16)
-            }
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) =&gt; {
-                <span class="macro">cast_to_int!</span>(lhs, to_i128, i32, I32)
-            }
-            (Signedness::Signed, IntegerBitSize::SixtyFour) =&gt; {
-                <span class="macro">cast_to_int!</span>(lhs, to_i128, i64, I64)
-            }
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) =&gt; {
-                <span class="macro">todo!</span>()
-            }
-        },
-        Type::Bool =&gt; <span class="prelude-val">Ok</span>(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
-        typ =&gt; <span class="prelude-val">Err</span>(InterpreterError::CastToNonNumericType { typ, location }),
-    }
-}
-
 <span class="doccomment">/// Bounds check the given array and index pair.
 /// This will also ensure the given arguments are in fact an array and integer.
 </span><span class="kw">fn </span>bounds_check(array: Value, index: Value, location: Location) -&gt; IResult&lt;(Vector&lt;Value&gt;, usize)&gt; {
@@ -3295,6 +3162,7 @@
             Value::U16(value) =&gt; <span class="prelude-val">Ok</span>(Value::U16(<span class="number">0 </span>- value)),
             Value::U32(value) =&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0 </span>- value)),
             Value::U64(value) =&gt; <span class="prelude-val">Ok</span>(Value::U64(<span class="number">0 </span>- value)),
+            Value::U128(value) =&gt; <span class="prelude-val">Ok</span>(Value::U128(<span class="number">0 </span>- value)),
             value =&gt; {
                 <span class="kw">let </span>operator = <span class="string">"minus"</span>;
                 <span class="kw">let </span>typ = value.get_type().into_owned();
@@ -3311,6 +3179,7 @@
             Value::U16(value) =&gt; <span class="prelude-val">Ok</span>(Value::U16(!value)),
             Value::U32(value) =&gt; <span class="prelude-val">Ok</span>(Value::U32(!value)),
             Value::U64(value) =&gt; <span class="prelude-val">Ok</span>(Value::U64(!value)),
+            Value::U128(value) =&gt; <span class="prelude-val">Ok</span>(Value::U128(!value)),
             value =&gt; {
                 <span class="kw">let </span>typ = value.get_type().into_owned();
                 <span class="prelude-val">Err</span>(InterpreterError::InvalidValueForUnary { typ, location, operator: <span class="string">"not" </span>})
@@ -3332,6 +3201,27 @@
                 <span class="prelude-val">Err</span>(InterpreterError::NonPointerDereferenced { typ, location })
             }
         },
+    }
+}
+
+<span class="kw">fn </span>to_u128(value: Value) -&gt; <span class="prelude-ty">Option</span>&lt;u128&gt; {
+    <span class="kw">match </span>value {
+        Value::U8(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>u128),
+        Value::U16(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>u128),
+        Value::U32(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>u128),
+        Value::U64(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>u128),
+        Value::U128(value) =&gt; <span class="prelude-val">Some</span>(value),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+    }
+}
+
+<span class="kw">fn </span>to_i128(value: Value) -&gt; <span class="prelude-ty">Option</span>&lt;i128&gt; {
+    <span class="kw">match </span>value {
+        Value::I8(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>i128),
+        Value::I16(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>i128),
+        Value::I32(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>i128),
+        Value::I64(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>i128),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
     }
 }
 </code></pre></div></section></main></body></html>

@@ -638,7 +638,18 @@
 <a href="#637" id="637">637</a>
 <a href="#638" id="638">638</a>
 <a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -1163,6 +1174,7 @@
             Value::U16(value) =&gt; <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into())],
             Value::U32(value) =&gt; <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into())],
             Value::U64(value) =&gt; <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into())],
+            Value::U128(value) =&gt; <span class="macro">vec!</span>[Token::Int(value.into())],
             Value::I8(value) =&gt; {
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
                     <span class="macro">vec!</span>[Token::Minus, Token::Int((-value <span class="kw">as </span>u128).into())]
@@ -1203,7 +1215,16 @@
         <span class="kw">use </span>Value::<span class="kw-2">*</span>;
         <span class="macro">matches!</span>(
             <span class="self">self</span>,
-            Field(<span class="kw">_</span>) | I8(<span class="kw">_</span>) | I16(<span class="kw">_</span>) | I32(<span class="kw">_</span>) | I64(<span class="kw">_</span>) | U8(<span class="kw">_</span>) | U16(<span class="kw">_</span>) | U32(<span class="kw">_</span>) | U64(<span class="kw">_</span>)
+            Field(<span class="kw">_</span>)
+                | I8(<span class="kw">_</span>)
+                | I16(<span class="kw">_</span>)
+                | I32(<span class="kw">_</span>)
+                | I64(<span class="kw">_</span>)
+                | U8(<span class="kw">_</span>)
+                | U16(<span class="kw">_</span>)
+                | U32(<span class="kw">_</span>)
+                | U64(<span class="kw">_</span>)
+                | U128(<span class="kw">_</span>)
         )
     }
 
@@ -1224,6 +1245,7 @@
             <span class="self">Self</span>::U16(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::U32(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::U64(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
+            <span class="self">Self</span>::U128(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value).into()),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
