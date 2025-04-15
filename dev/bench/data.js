@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744741251060,
+  "lastUpdate": 1744742115391,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19727,6 +19727,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 235142,
             "range": "± 4511",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dd01f112d178711f176a6c902f2e3aa117650fd3",
+          "message": "fix: add proper handling for `u128` in comptime interpreter  (#8079)",
+          "timestamp": "2025-04-15T18:18:15Z",
+          "tree_id": "42b45d71b985cd98d523c08e5e84a2ccda644243",
+          "url": "https://github.com/noir-lang/noir/commit/dd01f112d178711f176a6c902f2e3aa117650fd3"
+        },
+        "date": 1744742109965,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266753,
+            "range": "± 881",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235944,
+            "range": "± 2882",
             "unit": "ns/iter"
           }
         ]
