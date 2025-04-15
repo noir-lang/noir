@@ -265,7 +265,6 @@ impl<'brillig> Context<'brillig> {
         terminator.map_values_mut(|value| {
             Self::resolve_cache(
                 block_id,
-                &function.dfg,
                 dom,
                 self.get_constraint_map(side_effects_enabled_var),
                 value,
@@ -364,21 +363,19 @@ impl<'brillig> Context<'brillig> {
     // constraints to the cache.
     fn resolve_cache(
         block: BasicBlockId,
-        dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
         cache: &HashMap<ValueId, SimplificationCache>,
         value_id: ValueId,
     ) -> ValueId {
-        let resolved_id = dfg.resolve(value_id);
-        match cache.get(&resolved_id) {
+        match cache.get(&value_id) {
             Some(simplification_cache) => {
                 if let Some(simplified) = simplification_cache.get(block, dom) {
-                    Self::resolve_cache(block, dfg, dom, cache, simplified)
+                    Self::resolve_cache(block, dom, cache, simplified)
                 } else {
-                    resolved_id
+                    value_id
                 }
             }
-            None => resolved_id,
+            None => value_id,
         }
     }
 
@@ -394,9 +391,9 @@ impl<'brillig> Context<'brillig> {
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
         instruction.map_values_mut(|value_id| {
-            Self::resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
+            Self::resolve_cache(block, dom, constraint_simplification_mapping, value_id)
         });
-        instruction.map_values(|v| dfg.resolve(v))
+        instruction
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations

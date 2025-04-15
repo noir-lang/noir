@@ -206,7 +206,6 @@ impl Context {
 
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
         if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. })
             || dfg.is_global(value_id)
         {

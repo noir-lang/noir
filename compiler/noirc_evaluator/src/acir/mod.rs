@@ -878,7 +878,7 @@ impl<'a> Context<'a> {
     ) -> Result<(), RuntimeError> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
-                let array_id = dfg.resolve(*result_id);
+                let array_id = *result_id;
                 let block_id = self.block_id(&array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
@@ -956,8 +956,6 @@ impl<'a> Context<'a> {
                 .into());
             }
         };
-        // Ensure that array id is fully resolved.
-        let array = dfg.resolve(array);
 
         let array_typ = dfg.type_of_value(array);
         // Compiler sanity checks
@@ -1794,7 +1792,6 @@ impl<'a> Context<'a> {
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
-        let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();

@@ -84,13 +84,6 @@ pub(crate) struct DataFlowGraph {
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
 
-    /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
-    /// for that of another. In theory this information is purely used for printing the SSA,
-    /// and has no material effect on the SSA itself, however in practice the IDs can get out of
-    /// sync and may need this resolution before they can be compared.
-    #[serde(skip)]
-    replaced_value_ids: HashMap<ValueId, ValueId>,
-
     /// Source location of each instruction for debugging and issuing errors.
     ///
     /// The `CallStack` here corresponds to the entire callstack of locations. Initially this
@@ -436,17 +429,6 @@ impl DataFlowGraph {
         }
     }
 
-    /// If `original_value_id`'s underlying `Value` has been substituted for that of another
-    /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
-    /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
-    /// is returned.
-    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ValueId {
-        match self.replaced_value_ids.get(&original_value_id) {
-            Some(id) => self.resolve(*id),
-            None => original_value_id,
-        }
-    }
-
     /// Creates a new constant value, or returns the Id to an existing one if
     /// one already exists.
     pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: NumericType) -> ValueId {
@@ -558,7 +540,7 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        match self[self.resolve(value)] {
+        match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
@@ -617,7 +599,7 @@ impl DataFlowGraph {
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, NumericType)> {
-        match &self[self.resolve(value)] {
+        match &self[value] {
             Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
             _ => None,
         }
@@ -626,7 +608,6 @@ impl DataFlowGraph {
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        let value = self.resolve(value);
         if let Some(instruction) = self.get_local_or_global_instruction(value) {
             match instruction {
                 Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
@@ -715,14 +696,14 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
-        match &self.values[self.resolve(value)] {
+        match &self.values[value] {
             Value::Instruction { instruction, .. } => self.get_instruction_call_stack(*instruction),
             _ => CallStack::new(),
         }
     }
 
     pub(crate) fn get_value_call_stack_id(&self, value: ValueId) -> CallStackId {
-        match &self.values[self.resolve(value)] {
+        match &self.values[value] {
             Value::Instruction { instruction, .. } => {
                 self.get_instruction_call_stack_id(*instruction)
             }
@@ -732,7 +713,6 @@ impl DataFlowGraph {
 
     /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        let argument = self.resolve(argument);
         match &self[argument] {
             Value::Param { .. } => false,
             Value::Instruction { .. } => {
