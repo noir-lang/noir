@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744736482220,
+  "lastUpdate": 1744739811867,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19660,6 +19660,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 233857,
             "range": "± 3832",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea3b681406b8a1bdf0f79302396abc64552b0bda",
+          "message": "fix(ssa): Do not unroll loop with break (#8090)",
+          "timestamp": "2025-04-15T17:40:59Z",
+          "tree_id": "6697d0eb3b447682930ffabc0ba33362b4c79a83",
+          "url": "https://github.com/noir-lang/noir/commit/ea3b681406b8a1bdf0f79302396abc64552b0bda"
+        },
+        "date": 1744739805978,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265973,
+            "range": "± 1129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233988,
+            "range": "± 3603",
             "unit": "ns/iter"
           }
         ]
