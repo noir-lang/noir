@@ -82,7 +82,7 @@ impl Ssa {
     /// Performs constant folding on each instruction while also replacing calls to brillig functions
     /// with all constant arguments by trying to evaluate those calls.
     #[tracing::instrument(level = "trace", skip(self, brillig))]
-    pub(crate) fn fold_constants_with_brillig(mut self, brillig: &Brillig) -> Ssa {
+    pub fn fold_constants_with_brillig(mut self, brillig: &Brillig) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
         for (func_id, func) in &self.functions {
