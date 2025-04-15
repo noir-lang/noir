@@ -420,19 +420,6 @@ impl DataFlowGraph {
         }
     }
 
-    /// Set the value of value_to_replace to refer to the value referred to by new_value.
-    ///
-    /// This is the preferred method to call for optimizations simplifying
-    /// values since other instructions referring to the same ValueId need
-    /// not be modified to refer to a new ValueId.
-    pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        if value_to_replace != new_value {
-            self.replaced_value_ids.insert(value_to_replace, self.resolve(new_value));
-            let new_value = self.values[new_value].clone();
-            self.values[value_to_replace] = new_value;
-        }
-    }
-
     /// Set the type of value_id to the target_type.
     pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
         let value = &mut self.values[value_id];
