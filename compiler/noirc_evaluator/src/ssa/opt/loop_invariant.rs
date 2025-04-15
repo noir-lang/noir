@@ -59,7 +59,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
-            binary::eval_constant_binary_op,
+            binary::{convert_signed_integer_to_field_element, eval_constant_binary_op},
         },
         post_order::PostOrder,
         types::{NumericType, Type},
@@ -367,6 +367,9 @@ impl<'f> LoopInvariantContext<'f> {
     fn set_induction_var_bounds(&mut self, loop_: &Loop, current_loop: bool) {
         let bounds = loop_.get_const_bounds(self.inserter.function, self.pre_header());
         if let Some((lower_bound, upper_bound)) = bounds {
+            let bit_size = NumericType::length_type().bit_size();
+            let lower_bound = convert_signed_integer_to_field_element(lower_bound, bit_size);
+            let upper_bound = convert_signed_integer_to_field_element(upper_bound, bit_size);
             let induction_variable = loop_.get_induction_variable(self.inserter.function);
             let induction_variable = self.inserter.resolve(induction_variable);
             if current_loop {

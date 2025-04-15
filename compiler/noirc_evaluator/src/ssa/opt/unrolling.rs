@@ -20,7 +20,7 @@
 //! only used by Brillig bytecode.
 use std::collections::BTreeSet;
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::acir::AcirField;
 use im::HashSet;
 
 use crate::{
@@ -34,8 +34,12 @@ use crate::{
             dom::DominatorTree,
             function::Function,
             function_inserter::{ArrayCache, FunctionInserter},
-            instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+            instruction::{
+                Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction,
+                binary::try_convert_field_element_to_signed_integer,
+            },
             post_order::PostOrder,
+            types::NumericType,
             value::ValueId,
         },
         ssa_gen::Ssa,
@@ -282,6 +286,17 @@ impl Loop {
         Self { header, back_edge_start, blocks }
     }
 
+    /// Handle negative values represented as fields.
+    fn get_const_as_i128(function: &Function, id: ValueId) -> Option<i128> {
+        let (value, typ) = function.dfg.get_numeric_constant_with_type(id)?;
+        if matches!(typ, NumericType::NativeField) {
+            // Shouldn't happen, as fields don't have meaningful ordering.
+            value.try_into_i128()
+        } else {
+            try_convert_field_element_to_signed_integer(value, typ.bit_size())
+        }
+    }
+
     /// Find the lower bound of the loop in the pre-header and return it
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
@@ -296,13 +311,9 @@ impl Loop {
     ///     v5 = lt v1, u32 4
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_lower_bound(
-        &self,
-        function: &Function,
-        pre_header: BasicBlockId,
-    ) -> Option<FieldElement> {
+    fn get_const_lower_bound(&self, function: &Function, pre_header: BasicBlockId) -> Option<i128> {
         let jump_value = get_induction_variable(function, pre_header).ok()?;
-        function.dfg.get_numeric_constant(jump_value)
+        Self::get_const_as_i128(function, jump_value)
     }
 
     /// Find the upper bound of the loop in the loop header and return it
@@ -319,7 +330,7 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
+    fn get_const_upper_bound(&self, function: &Function) -> Option<i128> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
@@ -336,14 +347,14 @@ impl Loop {
 
         match &function.dfg[instructions[0]] {
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                function.dfg.get_numeric_constant(*rhs)
+                Self::get_const_as_i128(function, *rhs)
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b3, else: b2
-                function.dfg.get_numeric_constant(*rhs).map(|c| c + FieldElement::one())
+                Self::get_const_as_i128(function, *rhs).map(|c| c + 1)
             }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
@@ -354,7 +365,7 @@ impl Loop {
         &self,
         function: &Function,
         pre_header: BasicBlockId,
-    ) -> Option<(FieldElement, FieldElement)> {
+    ) -> Option<(i128, i128)> {
         let lower = self.get_const_lower_bound(function, pre_header)?;
         let upper = self.get_const_upper_bound(function)?;
         Some((lower, upper))
@@ -678,8 +689,6 @@ impl Loop {
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let (lower, upper) = self.get_const_bounds(function, pre_header)?;
-        let lower = lower.try_to_u64()?;
-        let upper = upper.try_to_u64()?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
@@ -687,7 +696,7 @@ impl Loop {
         let all_instructions = self.count_all_instructions(function);
 
         Some(BoilerplateStats {
-            iterations: (upper - lower) as usize,
+            iterations: (upper - lower).max(0) as usize,
             loads,
             stores,
             increments,
@@ -1029,7 +1038,6 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use acvm::FieldElement;
     use test_case::test_case;
 
     use crate::assert_ssa_snapshot;
@@ -1160,8 +1168,8 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
 
-        assert_eq!(lower, FieldElement::from(0u32));
-        assert_eq!(upper, FieldElement::from(4u32));
+        assert_eq!(lower, 0);
+        assert_eq!(upper, 4);
     }
 
     #[test]

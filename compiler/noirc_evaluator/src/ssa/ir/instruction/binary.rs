@@ -202,7 +202,10 @@ pub(crate) fn eval_constant_binary_op(
 /// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers
 ///
 /// Values in the range `[2^(bit_size-1), 2^bit_size)` are interpreted as negative integers.
-fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u32) -> Option<i128> {
+pub(crate) fn try_convert_field_element_to_signed_integer(
+    field: FieldElement,
+    bit_size: u32,
+) -> Option<i128> {
     let unsigned_int = truncate(field.try_into_u128()?, bit_size);
 
     let max_positive_value = 1 << (bit_size - 1);
@@ -219,7 +222,7 @@ fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u3
     Some(signed_int)
 }
 
-fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
+pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
     if int >= 0 {
         FieldElement::from(int)
     } else {
