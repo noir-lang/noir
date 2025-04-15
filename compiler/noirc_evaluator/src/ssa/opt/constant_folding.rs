@@ -39,7 +39,7 @@ use crate::{
             function::{Function, FunctionId, RuntimeType},
             instruction::{BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
-            value::{Value, ValueId},
+            value::{Value, ValueId, ValueMapping},
         },
         opt::pure::Purity,
         ssa_gen::Ssa,
@@ -145,7 +145,7 @@ struct Context<'a> {
     // Cache of instructions without any side-effects along with their outputs.
     cached_instruction_results: InstructionResultCache,
 
-    values_to_replace: HashMap<ValueId, ValueId>,
+    values_to_replace: ValueMapping,
 }
 
 #[derive(Copy, Clone)]
@@ -945,7 +945,6 @@ pub(crate) fn can_be_deduplicated(
 
 #[cfg(test)]
 mod test {
-    use fxhash::FxHashMap as HashMap;
     use std::sync::Arc;
 
     use noirc_frontend::monomorphization::ast::InlineType;
@@ -960,6 +959,7 @@ mod test {
                 function::RuntimeType,
                 map::Id,
                 types::{NumericType, Type},
+                value::ValueMapping,
             },
             opt::assert_normalized_ssa_equals,
         },
@@ -987,7 +987,7 @@ mod test {
         let v0 = main.parameters()[0];
         let two = main.dfg.make_constant(2_u128.into(), NumericType::NativeField);
 
-        let mut values_to_replace = HashMap::default();
+        let mut values_to_replace = ValueMapping::default();
         values_to_replace.insert(v0, two);
         main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
@@ -1026,7 +1026,7 @@ mod test {
         let constant = 2_u128.pow(8);
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        let mut values_to_replace = HashMap::default();
+        let mut values_to_replace = ValueMapping::default();
         values_to_replace.insert(v1, constant);
         main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
@@ -1067,7 +1067,7 @@ mod test {
         let constant = 2_u128.pow(8) - 1;
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        let mut values_to_replace = HashMap::default();
+        let mut values_to_replace = ValueMapping::default();
         values_to_replace.insert(v1, constant);
         main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 

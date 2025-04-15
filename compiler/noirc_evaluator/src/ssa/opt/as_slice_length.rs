@@ -3,11 +3,10 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, Intrinsic},
         types::{NumericType, Type},
-        value::Value,
+        value::{Value, ValueMapping},
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// A simple SSA pass to find any calls to `Intrinsic::AsSlice` and replacing any references to the length of the
@@ -28,7 +27,7 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn as_slice_optimization(&mut self) {
-        let mut values_to_replace = HashMap::default();
+        let mut values_to_replace = ValueMapping::default();
 
         for block in self.reachable_blocks() {
             let instruction_ids = self.dfg[block].take_instructions();
