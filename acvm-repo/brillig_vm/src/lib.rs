@@ -412,10 +412,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     ///     compute the sum and write it to the 'result' memory address.
     /// 3. Update the program counter, usually by incrementing it.
     ///
-    /// - Control flow opcodes will will jump around the bytecode by setting the program counter.
-    /// - Foreign call opcode pause the VM until the foreign call results are available
-    /// - Function call opcode backup the current program counter into the call stack and jump to the function entry point.
-    ///     stack frame for function calls are handled during codegen.
+    /// - Control flow opcodes jump around the bytecode by setting the program counter.
+    /// - Foreign call opcodes pause the VM until the foreign call results are available
+    /// - Function call opcodes backup the current program counter into the call stack and jump to the function entry point.
+    ///     The stack frame for function calls is handled during codegen.
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
@@ -723,14 +723,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
     }
 
-    /// Write a foreign call results to the VM memory.
+    /// Write a foreign call's results to the VM memory.
     ///
     /// We match the expected types with the actual results.
-    /// However foreign call results does not support nested structures:
+    /// However foreign call results do not support nested structures:
     /// They are either a single integer value or a vector of integer values (field elements).
     /// Therefore, nested arrays returned from foreign call results are flattened.
     /// If the expected array sizes do not match the actual size, we reconstruct the nested
-    /// structure from the flatten output array.
+    /// structure from the flat output array.
     fn write_foreign_call_result(
         &mut self,
         destinations: &[ValueOrArray],
