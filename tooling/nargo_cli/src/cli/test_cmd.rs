@@ -14,14 +14,18 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    foreign_calls::DefaultForeignCallBuilder, insert_all_files_for_workspace_into_file_manager,
-    ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
+    foreign_calls::DefaultForeignCallBuilder,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::{TestStatus, check_crate_and_report_errors},
+    package::Package,
+    parse_all, prepare_package,
+    workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 
-use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 

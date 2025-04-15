@@ -183,7 +183,7 @@ pub(super) fn decompose_constrain(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
     fn simplifies_assertions_that_squared_values_are_equal_to_zero() {
@@ -197,15 +197,14 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v1 = mul v0, v0
             constrain v0 == Field 0
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -221,13 +220,12 @@ mod tests {
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u8):
             return v0
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -247,18 +245,17 @@ mod tests {
             ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: u1):
-                v3 = mul v0, v1
-                v4 = not v2
-                v5 = mul v3, v4
-                constrain v0 == u1 1
-                constrain v1 == u1 1
-                constrain v2 == u1 0
-                return
-            }
-            ";
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = mul v0, v1
+            v4 = not v2
+            v5 = mul v3, v4
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            constrain v2 == u1 0
+            return
+        }
+        ");
     }
 }

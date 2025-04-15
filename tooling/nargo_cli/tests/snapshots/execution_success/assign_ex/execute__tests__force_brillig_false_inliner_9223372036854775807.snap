@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/62RSw6AMAhErfFAUMDCzqvYSO9/BP+JqXFlX0JIWAwwE7qTsFXfvbln09XhH9hSKzy0CEZmT9GRcIZoWQVY8qioKCpLVCJX1mTZEhgyORYx8nLgtwetfw0PLxvdWnbNocqn3vXFChYdE0DwAQAA",
+  "debug_symbols": "bY1bCsMgEEX3Mt9+GGha4lZKCT7GMCAqPgpFsveakEAK/Tz3nrnTwKCqy0zehgzi2cAFLQsF36kB36Mcpd8oF5kKiPuNAXoD4sFXBpYcghj5+mIw/NOn6dAHPv74HVQi52iZr097/JaJpHJ4oK1eX9ryiWdz3scUNJqacFvauz7/BQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) {\n    let mut z = x + y;\n    assert(z == 3);\n    z = x * y;\n    assert(z == 2);\n\n    regression_3057();\n}\n// Ensure parsing parenthesized lvalues works\nfn regression_3057() {\n    let mut array = [[0, 1], [2, 3]];\n    (array[0])[1] = 2;\n    assert(array[0][1] == 2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

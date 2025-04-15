@@ -1,0 +1,76 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "d",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 8
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9WWzW7CMAzHnaRNySYu+3iDHXbYoRlFLdplhwF7jQjGc/TRR7VYdd2kQxAOWKoS6n/sn52kQsCfZcdHkDkdqaHm04/lZWYTxiqvySluhFPeCKdKyCkIZzaaePiuMSpQUBZ49+FH40dJ/AnBrWF5U8ZvymplYGiJ+RfGx8yvE7/C+Po68cvCx/lq+/i0FsyrmI6voZo10awjmg3RbIhGEM2WaLZMMydzzoM+CWOOOctB86OP3gfMOzs+T9DPn6Ff09l3O+TrzDCOxGe7MTCsJfXdfIzwd3bv+/AOw7rx7EgY90ME3mvSq1P0BdmDU/ToK2B8vuheC7benKifEZ4pvQr4chZLBXLoQD10LZyRt4jEzAIx+XeN+pBNR/QYL2f6Fz92PWsiNUCAi+81zacjesUYUP86wSACDLR2GeHTEb1gDKh/m2CQAQZa+yzCpyN6yRhQXwYY5hPru3uPdzVre3+q707d9H9mVNsz03MBLH/O9LX/fUf4ccwu4DzUzh4W7uCWbr+vdu6BxQfWp9T5q6Wrd662dlXZn8ou/8v/C0qGF1vZDAAA",
+  "debug_symbols": "ldTZaoUwEADQf8mzD9kXf6WUi0u8BETFpVDEf28sai/TcGVexJE5TOIks5Lal8vzEbqmn0j+sZK2r4o59F2M1i0j5RjaNjwfr58J3R+c/+ZPQ9Ht4TQX40xyLTPiuzq+uKib0HqSK7p9ZoSLVL4VR761MF+m8hnlB2DUQKGSgrNTcA2FTgpJTyEVFCYplDuFllDYpDDXqsy/nbukuH4VcxQIQdM1rn04BgVLCqcOwSmHgr+vwamAQqCFRAuFFvpOwHMlDFpYtHBYIW96zhnsuWRowdFCoMVdzxm8g1KhhUYLgxNbjL6KMRRl64/R2Sxd9TJJ5+/Bg6E6jH3l62X0+3j9m6xs76yimVJxIWxvmtKZsrFGrPMD",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: bool, b: bool, c: u8, d: u8) -> pub u8 {\n    let i = a & b;\n    let j = a ^ b;\n    let k = a | b;\n    let x = c & d;\n    let y = c ^ d;\n    let z = c | d;\n    (i as u8) + (j as u8) + (k as u8) + x + y + z\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

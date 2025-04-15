@@ -38,7 +38,8 @@ use super::{
 };
 use big_int::BigIntContext;
 
-pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc, GeneratedAcir};
+pub use generated_acir::GeneratedAcir;
+pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -1546,7 +1547,7 @@ pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
     };
 
     let bytes_be: Vec<u8> = std::iter::once(most_significant_byte)
-        .chain(std::iter::repeat(0).take(full_bytes as usize))
+        .chain(std::iter::repeat_n(0, full_bytes as usize))
         .collect();
 
     F::from_be_bytes_reduce(&bytes_be)

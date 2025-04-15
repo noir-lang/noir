@@ -1,0 +1,66 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 64
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 16
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldvdSuNAGIDhe8mxB/n+5qe3sixStUqhtFLrwiLe+1Yx4maGhPdwknlz8pQm/Ujfhofd3evT7f74eHoZNr/ehsPpfnvZn47X1dtgn4denrfHj9XLZXu+DJsaN8Pu+DBsZNT3m+Fxf9gNmxjff98MDvcH3J/g/gz3F7i/wv0y0kBooDSgxkKRhSoLZRbqLBRaqLRSaaXSSqWVSiuVViqtVFqptFJppdJGpY1KG5U2Km1U2qi0UWmj0kaljUo7lXYq7VTa8R2aSjuVdirtVNqptFPpoNJBpYNKB5UO/DBGpYNKx5p0nQddaVGbChvnRaVFGnEhuFBcGC4cF7FWpHnRFZc6TkVtioyLgotKizziQnChuDBcOC4CF9g8Y/OMzTM2L9i8rJjraPOia66Sp0KbwnDhuAhcJFxkXBRc1LVifv+oXXPTSdA0zwvBheLCcNE1N/8ufP7ZrYGLhIuMi4KLSgsZR57IShLeJH32VKYkt4nxxHkSPEk8yTwpPKk46Y/YlhPhCdcXri9cX7i+cH3h+sL1hesr11eur1xfub5yfeX6yvWV6yvXV65vXN+4vnF94/rG9W1Nv4xN0tev/pX42CaZJ4UnFSf98dxyIjxRnhhPnCfBE67vXN+5vnP94PrB9YPrB9cPrh9cP7h+cP3g+sH1E9dPXD9x/cT1E9dPXD9x/cT1E9dPXD9z/cz186p+87uyP9Hz74mFS20S50nwJPEk86TwpOKkP9hbToQnyhOuX7h+4fr98Z6bTomVJsk8KTypOOmP+JYT4YnyxFaSdgzVH/N5msZQntokeJJ4knlSeFJpov1Z33IiPFGeGE+cJ8GTxJPMk8ITri9r+rl9y6qvX6ZvyxilSZQnxhPnSfAk8STzpPCk4qQ/61tOuL5yfeX6yvWV6yvXV66vXF+5vnF94/rG9Y3rG9c3rm9c37i+cX3j+s71nes713eu71zfub5zfef6zvWd6wfXD64fXD+4fnD94PrB9YPrB9cPrp+4fuL6aVW/eRztz/pCpwFRNG/gaX/Wt5wETxJPMk8KTypO+rO+5UR4ojzh+pnrZ66fuX7m+pnrZ65fuH7h+oXrF65fuH7h+oXrF65fuH7h+pXrV65fuX7l+pXrV65fV/Xjv+S6uDvvD4f90+3PP4JeD//Znvfbu8Pua/n4erz/cfby93k6M/XP59P97uH1vPu40ue56+X/AQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u64, y: u8, z: i16) {\n    // runtime shifts on compile-time known values\n    assert(64 << y == 128);\n    assert(64 >> y == 32);\n    // runtime shifts on runtime values\n    assert(x << y == 128);\n    assert(x >> y == 32);\n\n    // Bit-shift with signed integers\n    let mut a: i8 = y as i8;\n    let mut b: i8 = x as i8;\n    assert(b << 1 == -128);\n    assert(b >> 2 == 16);\n    assert(b >> y == 32);\n    a = -a;\n    assert(a << 7 == -128);\n    assert(a << y == -2);\n\n    assert(x >> (x as u8) == 0);\n\n    assert_eq(z >> 3, -97);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_to_radix",
+    "directive_invert"
+  ]
+}

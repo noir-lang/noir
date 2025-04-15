@@ -18,7 +18,8 @@ use noirc_frontend::{
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
-        Attributes, FmtStrFragment, LocatedToken, MetaAttribute, SecondaryAttribute, Token, Tokens,
+        Attributes, FmtStrFragment, LocatedToken, MetaAttribute, MetaAttributeName,
+        SecondaryAttribute, SecondaryAttributeKind, Token, Tokens,
     },
 };
 
@@ -577,28 +578,29 @@ fn secondary_attribute_with_file(
     secondary_attribute: SecondaryAttribute,
     file: FileId,
 ) -> SecondaryAttribute {
-    match secondary_attribute {
-        SecondaryAttribute::Meta(meta_attribute) => {
-            SecondaryAttribute::Meta(meta_attribute_with_file(meta_attribute, file))
+    let kind = match secondary_attribute.kind {
+        SecondaryAttributeKind::Meta(meta_attribute) => {
+            SecondaryAttributeKind::Meta(meta_attribute_with_file(meta_attribute, file))
         }
-        SecondaryAttribute::Deprecated(_)
-        | SecondaryAttribute::ContractLibraryMethod
-        | SecondaryAttribute::Export
-        | SecondaryAttribute::Field(_)
-        | SecondaryAttribute::Tag(..)
-        | SecondaryAttribute::Abi(_)
-        | SecondaryAttribute::Varargs
-        | SecondaryAttribute::UseCallersScope
-        | SecondaryAttribute::Allow(_) => secondary_attribute,
-    }
+        SecondaryAttributeKind::Deprecated(_)
+        | SecondaryAttributeKind::ContractLibraryMethod
+        | SecondaryAttributeKind::Export
+        | SecondaryAttributeKind::Field(_)
+        | SecondaryAttributeKind::Tag(..)
+        | SecondaryAttributeKind::Abi(_)
+        | SecondaryAttributeKind::Varargs
+        | SecondaryAttributeKind::UseCallersScope
+        | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
+    };
+    SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
 }
 
 fn meta_attribute_with_file(meta_attribute: MetaAttribute, file: FileId) -> MetaAttribute {
-    MetaAttribute {
-        name: path_with_file(meta_attribute.name, file),
-        arguments: expressions_with_file(meta_attribute.arguments, file),
-        location: location_with_file(meta_attribute.location, file),
-    }
+    let name = match meta_attribute.name {
+        MetaAttributeName::Path(path) => MetaAttributeName::Path(path_with_file(path, file)),
+        MetaAttributeName::Resolved(expr_id) => MetaAttributeName::Resolved(expr_id),
+    };
+    MetaAttribute { name, arguments: expressions_with_file(meta_attribute.arguments, file) }
 }
 
 fn expressions_with_file(expressions: Vec<Expression>, file: FileId) -> Vec<Expression> {

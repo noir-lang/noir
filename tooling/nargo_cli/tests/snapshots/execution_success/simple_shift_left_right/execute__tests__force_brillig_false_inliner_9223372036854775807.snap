@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9VVzU7DMAxO07TAJrhw4cBhj2DnZ01uvAoV6fs/Ag3EUhbCkJg7aZYsu7Flff7yKe3Et42rP+W8W73PMdlhdZVzKX4a9b3lCJcZMs6CBlym2QiywYGsCUz+Wp3JglCyfkMSDRytjZOOaPAddJi9A+vmo0ePzrsP7Y2J3vopzGGCgNZEXFwwcfky7BhmLRmY5NsRridKBMa72UKUSIlsaEoRIX0RVXWWvg8VKF5RnpL4TyHpLCTsBZ8olbhFUQJy4m7A5ZmNp6IcchyJEBJgKrxUZ6npvgLF/VIqwfVSAg6CT5Sj2OZyJTN/nH+HgXFnetRIZ38Z9ZDeHnLcFfWeD5+m+ftt5sNdY8ddke+rGulCid+5qb9lFc/1dmfmPjZqNPM5xxIv7fEJiEFuZr8KAAA=",
+  "debug_symbols": "ldJNDoMgEAXgu8zahVh/Wq/SNAYVDQkBg9CkId69YEpjDC5mx5uXbzaMg5H1du64nNQK7dOBUAM1XEmfHJB9tC5UhrQaqg20pCAZMDmGV7NlMHHBoK3y7ZVBgQU3LCixoEqC8g/KM6ixoMGCOxY8kqCuImjICZAcLQhaFGiR/u06vxA+9JoLwefueJZ+/Kaa016wX5ysHA6t+SyxiX7RamCj1Sxs2ju//gs=",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested are left and right shifts.\nfn main(x: u32) {\n    let z = x >> 4;\n    let t = x << 4;\n    assert(z == t >> 8);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

@@ -671,17 +671,20 @@ mod tests {
     use acvm::{FieldElement, acir::AcirField};
     use im::vector;
 
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::DataFlowGraph,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::Type,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                basic_block::BasicBlockId,
+                dfg::DataFlowGraph,
+                instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+                map::Id,
+                types::Type,
+            },
+            opt::assert_normalized_ssa_equals,
         },
-        opt::assert_normalized_ssa_equals,
     };
 
     #[test]
@@ -1111,11 +1114,13 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
+        let ssa = ssa.mem2reg();
+
         // The repeated load from v3 should be removed
         // b3 should only have three loads now rather than four previously
         //
         // All stores are expected to remain.
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             v1 = allocate -> &mut Field
@@ -1141,10 +1146,7 @@ mod tests {
             constrain v9 == Field 2
             return
         }
-        ";
-
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]

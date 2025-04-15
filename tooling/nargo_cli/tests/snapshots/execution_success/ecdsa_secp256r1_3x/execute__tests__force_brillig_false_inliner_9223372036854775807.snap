@@ -1,0 +1,182 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "hashed_message",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "hashed_message_2",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x_2",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y_2",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature_2",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "hashed_message_3",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x_3",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y_3",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature_3",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "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",
+  "debug_symbols": "bdDdCoQgEAXgd5nrLvpRM19lWcLKQhANs4Uleve1SLbQyzOHbxhmg0F069RKPZoF2GsDZXrupNE+bYBofg6XmesjL45bB6yqaQZCD8AQwXsGo1QCGM73d+ZJkSLoT5oqImWK4BJdhGAakSpFSF0EQmOCUqQumotQHB+GU4QSEgh9Eh86K5WSU3v/ox9/uJW8U+KK46r7W+u+c2iCn63pxbBacWw6O7/+Bw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(\n    hashed_message: [u8; 32],\n    pub_key_x: [u8; 32],\n    pub_key_y: [u8; 32],\n    signature: [u8; 64],\n    hashed_message_2: [u8; 32],\n    pub_key_x_2: [u8; 32],\n    pub_key_y_2: [u8; 32],\n    signature_2: [u8; 64],\n    hashed_message_3: [u8; 32],\n    pub_key_x_3: [u8; 32],\n    pub_key_y_3: [u8; 32],\n    signature_3: [u8; 64],\n) {\n    let valid_signature =\n        std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);\n    assert(valid_signature);\n    let valid_signature_2 = std::ecdsa_secp256r1::verify_signature(\n        pub_key_x_2,\n        pub_key_y_2,\n        signature_2,\n        hashed_message_2,\n    );\n    assert(valid_signature_2);\n    let valid_signature_3 = std::ecdsa_secp256r1::verify_signature(\n        pub_key_x_3,\n        pub_key_y_3,\n        signature_3,\n        hashed_message_3,\n    );\n    assert(valid_signature_3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

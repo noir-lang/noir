@@ -50,6 +50,7 @@ criterion.workspace = true
 pprof.workspace = true
 num-bigint.workspace = true
 rmpv.workspace = true
+insta.workspace = true
 
 acir = { path = ".", features = ["arb"] } # Self to turn on `arb`.
 
@@ -58,6 +59,10 @@ default = []
 bn254 = ["acir_field/bn254"]
 bls12_381 = ["acir_field/bls12_381"]
 arb = ["proptest", "proptest-derive", "brillig/arb"]
+
+[lib]
+# See https://bheisler.github.io/criterion.rs/book/faq.html#cargo-bench-gives-unrecognized-option-errors-for-valid-command-line-options
+bench = false
 
 [[bench]]
 name = "serialization"

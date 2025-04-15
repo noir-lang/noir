@@ -1,0 +1,59 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9WaWVLbQBCG5Q2EjdmMAbPaZjPGGK22xG6M8WuuEFek91wiB8gl8ppz5Ax5zDVSle4wqkyJhofQTqWn6q8x/4j2fO0ZjTRSxngqY9A79TkDyqkai5nyMoSXJbwc4eUJr0B4M4Q3S3gm4c0RXpHwSoQ3T3hlwlsgvEXCWyK8ZcJbIbwK4a0SXpXw1ghvnfA2CK9GeJuEt0V424S3Q3i7hLdHeHXl4bjBkjWel2Sc3qnaeluxGWNZRHeZYtuxnouGqptGKoENlTzdw4MKqU5lmZPY1GK5Vs/zor4T2a793nLCSeBbnj/pBXZg+4H/wQlcNwq8oB9Owr4V2p4b2bEfurEKts/YLz0P+0QeclMcTH+bhyjGEjkNxpw2jekM8v95HB2w9cvz9XGEcU1juvPpgDEPh8Z05tOhsDwcMcbS83AkLA/HBtc5Ko71PBwbfxb0gpYTfc4k65HJmh/H4o1nWWZqjOu/s87K+J0+xmuBTkBt0CmoAzoDdUHn+B0gXGQc/O1AHsgH9UB9UAAKQRegS9AV6Bp0A7pVfR2A7kFD0ANoBHo0nm4K9JIewxxzhilXdsv4N+vZW5mzjMwnQphzjMxtIcx5RuZTIcwFRuaOEOYZRuYzIcyzjMxdIcwmI/O5EOY5RmZLCHORkdkWwlxiZHaEMM8zMrtCmMuMzJ4Q5gVGZl8I8yIjc08I8xIjc18I8zIjcyCEeYWRORTCXGFkvhDCvMrIfCmEucrIfCWEeY2R+VoI8zoj840Q5g1G5lshzDVG5jshzJuMzAMhzFuMzPdCmLcZmYdCmHcYmR+EMO8yMo+EMO8xMj8KYa4zMo8ZmZOXRrE0NP7kpdOcasdnT/gsJnlJFPeucS8X9zZxrw/3vnAvCPdGcK8A753xXhLvrfBeA6+98VoUr83wWgXXblzL8NyO5zqc+zgXcGzUjeclr31uqbr6Y1D7+O3LSD+u/UpbR9XDn9/HXz9/ault3Rfakpcfk3cP5lRd1NoZn786SfzSdOL/fraULkXtcynVlsyDPPF/mRf+zqbq145N+7pXJtqSmBVV6/1NOH4BLYHXPXUtAAA=",
+  "debug_symbols": "ldbLioQwEIXhd8nahUlMlfFVhqHxEpuAqHgZGKTffdKNGRo7m7OzTP1B+DYeonPNfr/5sZ9WUX0dYpjaevPTGKZDaP16t871+BzXrV42UZUqE27swkP5yETvBycqkz++M6ELcN+A+wTuM7hfgvs2tS8Nn4EkdSmKHC5ksrBFLKy9Fgouks4ql2ehcroWBVyYdFHGQuprQXCR9FaaYmE+vioprvi/sB8eFi1MDhcSLhRcaLgo4MLABcEFwwVsbmBzgs0JNifYnGBzgs0JNifYnGBzgs0JNmfYnGFzhs0ZNmfYnGFzhs0ZNmfYnEHzMDSLHwZ/v73/N4XXP/Xi62Zw59jvY/t2uv3O8ST28zK1rtsX97zpdRau/wM=",
+  "file_map": {
+    "50": {
+      "source": "// Regression test for issue #4449\nfn main(x: u8, result: [u8; 32]) {\n    let x = x % 31;\n    let mut digest = [0; 32];\n    for i in 0..70 {\n        let y = x + i;\n        let a = [y, x, 32, 0, y + 1, y - 1, y - 2, 5];\n        digest = std::hash::blake3(a);\n    }\n\n    assert(digest == result);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

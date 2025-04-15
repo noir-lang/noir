@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "value",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VXy07DMBB0iN00LaUVfATXpA+oBIeC6AFx5oZAoaXf4U+nVr1ksrXTAjZYivxaz8yu106SiF1J7GOKtPWJ2C9ks7B18btSBsQqYupMIulsBDkR/kJzb7bO2XoznwZ0OGe8IfHnxfQqd/gXUP8kB8wI+GPCl3Hwi8ziPOgmvmC8NLbUdSyXbM1ANA844tIc5iGt726fM1G3h7adM7wYuYGaQsf2wqGfuPrW11vmawrxCaWD51BA7JKwO3Fi+JX/3Tj4E9qfDGKTOnwifspjBfaJpyYsPkdcPYYV+m5t8w31U06OmD2PgQ8r+yZW7piLsaedFr+Rf9CideTRGiomksUk0j0/5jFRoPXkSD0inJ5SMT2Xtjbn7N62BxRTXWtQYLcEO36/Sd304z9yDWOH/MfcN205Q3sR8/2IvqkDvhH/UOznk/obrdNj94FrxfsA16KtaPGLzymPn74YiHAxKBLGJz3aE6aV7G+YzljfnOfMf+Tqi/qfQ+rw/NfzXZxMoXtFieZ3l2D8itnf2X7P48fihzo311W5mVSbalat19NVxeNkCn4/huZfza7eV9NZVXyUpjs+xE/f6UrX83hXm9KxfaMrddjjuUH7R+pvnyfbpveB1Pt8xu7VjlH+dEFL6HepKRnqYHqQf+iwp3ZkrZM2rZlDqyvGiadGLBzLdHMs1/v2GKeMcffQns31YU4ynlPbx1xDLNKhmP2L7dM+dWENrR85+HHPOJeLH+9gjpU6xsje5PYz4dla6hor5D8DniNzxj8BxchzSrkTAAA=",
+  "debug_symbols": "lZbdioMwEEbfJddeJDMmRl9lWYo/sQRExZ+FRXz3TRZpixXKdyOOnIPIEZ1NNK5a7zfft8Msiq9NdENdLn7ow7Ttiagm33X+fnu9LGQ8KPPPz2PZx3FeymkRhZGJcH0TTlSwW985UWi5fydCZSBvQT7HeJIgr0CeQJ5BPgV5DfJgXwL7EtiXwL4M9mWwL4N9GezLYF8G+zLYl8G+DPbl67724LP8xKcS5BXIE8gzyKcgr0H+si9JdQgk7dnIYMPCxmVlUg9DnQ0tYUPBBn14jneDPxjEZyOFDQ0bBjYy2LCYsYfpp5x8WXXuWCrata9fdozld3SndWOchto16+Ti4vHcOWImkyd5Gv/38b0InxOj4xCTG5MYG+4X7vkH",
+  "file_map": {
+    "50": {
+      "source": "fn main(value: Field, index: u32) {\n    let mut args = &[0, 1];\n    args[index] = value;\n    // Safety: n/a\n    unsafe { store(args) };\n    // Dummy test to remove the 'underconstraint bug'\n    assert(args[0] + args[1] != 0);\n}\n\npub unconstrained fn store(_: [Field]) {}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

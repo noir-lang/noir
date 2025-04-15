@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VTwQ6CMAwdMKNTuWj0oom/MASEowd/ZIJ8B5+uaJvVZuiBrQnpmnWv7z22SNiIIEtWC0fPFbKeFplHLO0k+iuw5wRZQY7JfuJRrGJzfeLXuiiVQ59H/rkCzJD+IGYAfD0HnFtv8bmWIVKo6R3CM4vXtxZ2ncJasTMh/m1A7/XWwR9nrUDrnmmNiT+eeORUmyCcXLySEc/pOrRvEZsrR3jh/Bnr30Ee/D0Sv/Ety94/76r+8H572FteyImGJPu0/wD1kmjELCfw7CqTdbnpTGnatmjMhuEL8X0vfc9vysu9KUqjH9lQnv/NfwLOUONDQQcAAA==",
+  "debug_symbols": "lZFBCsMgEEXvMmsXapMmzVVKCSaZBEE0GFMo4t3rlC4kOzfiH+bxB16EBadzG7Vd3QHDM4Jxswra2ZxiYjB5bYzexnIMnB7R/PaPXVmKR1A+wCAayQDtQr8u86s2CEPL04uBaKuJezXRVRN9NfGoJSSvI1JOb+W1mgz+RaynnQsv4bPjRdHu3YzL6ZFkFZ6oW0omOzpdUOjZjeeO3PMF",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field) {\n    // x = 3\n    let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];\n\n    let fetched_value = array[x - 3];\n    assert(fetched_value[0].0 == 1);\n    assert(fetched_value[0].1[0] == 2);\n    assert(fetched_value[0].2[0] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
