@@ -2530,7 +2530,7 @@
                 <span class="kw">let </span>results =
                     <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction_id).to_vec();
                 <span class="macro">assert!</span>(results.len() == <span class="number">1</span>);
-                <span class="self">self</span>.inserter.function.dfg.set_value_from_id(results[<span class="number">0</span>], id);
+                <span class="self">self</span>.inserter.map_value(results[<span class="number">0</span>], id);
                 <span class="bool-val">true
             </span>}
             SimplifyResult::SimplifiedToInstruction(instruction) =&gt; {
