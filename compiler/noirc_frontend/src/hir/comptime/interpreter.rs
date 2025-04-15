@@ -1216,7 +1216,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if loop_index_type.is_signed() {
             // i128 can store all values from i8 - u64
-            let into_i128 = |value| -> i128 {
+            fn into_i128(value: Value) -> i128 {
                 match value {
                     Value::I8(value) => value as i128,
                     Value::I16(value) => value as i128,
@@ -1240,14 +1240,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } else if loop_index_type.is_unsigned() {
             // u128 can store all values from u8 - u128
-            let into_u128 = |value| -> u128 {
+            fn into_u128(value: Value) -> u128 {
                 match value {
                     Value::U8(value) => value as u128,
                     Value::U16(value) => value as u128,
                     Value::U32(value) => value as u128,
                     Value::U64(value) => value as u128,
                     Value::U128(value) => value,
-                    value => unreachable!("Checked above that value is signed type"),
+                    _ => unreachable!("Checked above that value is signed type"),
                 }
             };
 
@@ -1257,7 +1257,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::U32(value) => |i| Value::U32(i as u32),
                 Value::U64(value) => |i| Value::U64(i as u64),
                 Value::U128(value) => |i| Value::U128(i),
-                value => unreachable!("Checked above that value is unsigned type"),
+                _ => unreachable!("Checked above that value is unsigned type"),
             };
 
             let start = into_u128(start_value);

@@ -585,6 +585,7 @@ impl Value {
             Self::U16(value) => Some((*value as u128).into()),
             Self::U32(value) => Some((*value as u128).into()),
             Self::U64(value) => Some((*value as u128).into()),
+            Self::U128(value) => Some((*value).into()),
             _ => None,
         }
     }
