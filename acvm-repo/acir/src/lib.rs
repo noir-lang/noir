@@ -121,7 +121,7 @@ mod reflection {
         let namespace = "Witnesses";
         let mut code = CustomCode::default();
         // The `WitnessMap` type will have a field of type `std::map<Witnesses::Witness, std::string>`,
-        // which requires us to implement the comparison operatior.
+        // which requires us to implement the comparison operator.
         code.insert(
             vec![namespace.to_string(), "Witness".to_string()],
             "bool operator<(Witness const& rhs) const { return value < rhs.value; }".to_string(),
