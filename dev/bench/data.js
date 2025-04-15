@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744716032996,
+  "lastUpdate": 1744716291012,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "7e4deb985025563bd4f23b7c47e8c7b3db2fe7ef",
-          "message": "fix(docs): Reduce header image size (#7988)",
-          "timestamp": "2025-04-09T17:46:31Z",
-          "tree_id": "623143d68b9065fc79b07ce2e50719d9287e5f25",
-          "url": "https://github.com/noir-lang/noir/commit/7e4deb985025563bd4f23b7c47e8c7b3db2fe7ef"
-        },
-        "date": 1744222441115,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.074,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.303,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.794,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.531,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0044ffdfda7088bd14cf487b300ee3bfc00333e5",
+          "message": "chore: Accept optional test path for emitting integration tests (#8062)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
+          "timestamp": "2025-04-15T11:04:14Z",
+          "tree_id": "806b3fd4f41b64ee8e75696b8699765976b51fe4",
+          "url": "https://github.com/noir-lang/noir/commit/0044ffdfda7088bd14cf487b300ee3bfc00333e5"
+        },
+        "date": 1744716285494,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.029,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.164,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.333,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.215,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
             "unit": "s"
           },
           {
