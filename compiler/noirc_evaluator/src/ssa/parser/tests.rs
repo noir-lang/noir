@@ -610,3 +610,26 @@ fn parses_purity() {
     ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_parses_if_else() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v4 = if v0 then Field 1 else (if v1) Field 2
+            return v4
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_parses_keyword_in_function_name() {
+    let src = "
+        acir(inline) fn add f0 {
+          b0():
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}

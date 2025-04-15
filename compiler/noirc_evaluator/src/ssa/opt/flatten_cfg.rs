@@ -1522,4 +1522,73 @@ mod test {
         }
         ");
     }
+
+    #[test]
+    fn do_not_replace_else_condition_with_nested_if_same_then_cond() {
+        // When inserting an `IfElse` instruction we will attempt to simplify when the then condition
+        // of the inner if-else matches the parent's if-else then condition.
+        // e.g. such as the following pseudocode:
+        // ```
+        // if cond {
+        //   if cond { ... } else { ... }
+        // } else {
+        //   ...
+        // }
+        // ```
+        // In the SSA below we can see how the jmpif condition in b0 matches the jmpif condition in b1.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: [[u1; 2]; 3]):
+            v4 = not v0
+            jmpif v0 then: b1, else: b2
+          b1():
+            v7 = not v0
+            jmpif v0 then: b3, else: b4
+          b2():
+            v6 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b5(v6)
+          b3():
+            v9 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b6(v9)
+          b4():
+            v8 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b6(v8)
+          b5(v2: [u1; 2]):
+            return v2
+          b6(v3: [u1; 2]):
+            jmp b5(v3)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // You will notice in the expected SSA that there is no nested if statement. This is because the
+        // final instruction `v12 = if v0 then v5 else (if v6) v10` used to have `v9` as its then block value.
+        // As they share the same then condition we can simplify the then value in the outer if-else statement to the inner if-else
+        // statement's then value. This is why the then value is `v5` in both if-else instructions below.
+        // We want to make sure that the else condition in the final instruction `v12 = if v0 then v5 else (if v6) v10`
+        // remains v6 and is not altered when performing this optimization.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: [[u1; 2]; 3]):
+            v2 = not v0
+            enable_side_effects v0
+            v3 = not v0
+            enable_side_effects v0
+            v5 = array_get v1, index u32 0 -> [u1; 2]
+            v6 = not v0
+            v7 = unchecked_mul v0, v6
+            enable_side_effects v7
+            v8 = array_get v1, index u32 0 -> [u1; 2]
+            enable_side_effects v0
+            v9 = if v0 then v5 else (if v7) v8
+            enable_side_effects v6
+            v10 = array_get v1, index u32 0 -> [u1; 2]
+            enable_side_effects u1 1
+            v12 = if v0 then v5 else (if v6) v10
+            return v12
+        }
+        ");
+    }
 }

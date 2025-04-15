@@ -1,7 +1,8 @@
 import { abiDecodeError, abiEncode, InputMap } from '@noir-lang/noirc_abi';
 import { base64Decode } from './base64_decode.js';
 import { WitnessStack, ForeignCallHandler, ForeignCallInput, ExecutionError, executeProgram } from '@noir-lang/acvm_js';
-import { Abi, CompiledCircuit } from '@noir-lang/types';
+import { CompiledCircuit } from '@noir-lang/types';
+import { extractCallStack, parseDebugSymbols } from './debug.js';
 
 const defaultForeignCallHandler: ForeignCallHandler = async (name: string, args: ForeignCallInput[]) => {
   if (name == 'print') {
@@ -16,26 +17,45 @@ const defaultForeignCallHandler: ForeignCallHandler = async (name: string, args:
 
 // Payload is any since it can be of any type defined by the circuit dev.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ErrorWithPayload = ExecutionError & { decodedAssertionPayload?: any };
+export type ErrorWithPayload = ExecutionError & { decodedAssertionPayload?: any; noirCallStack?: string[] };
 
-function parseErrorPayload(abi: Abi, originalError: ExecutionError): Error {
-  const payload = originalError.rawAssertionPayload;
-  if (!payload) return originalError;
+function enrichExecutionError(artifact: CompiledCircuit, originalError: ExecutionError): Error {
   const enrichedError = originalError as ErrorWithPayload;
 
-  try {
-    // Decode the payload
-    const decodedPayload = abiDecodeError(abi, payload);
+  if (originalError.rawAssertionPayload) {
+    try {
+      // Decode the payload
+      const decodedPayload = abiDecodeError(artifact.abi, originalError.rawAssertionPayload);
 
-    if (typeof decodedPayload === 'string') {
-      // If it's a string, just add it to the error message
-      enrichedError.message = `Circuit execution failed: ${decodedPayload}`;
-    } else {
-      // If not, attach the payload to the original error
-      enrichedError.decodedAssertionPayload = decodedPayload;
+      if (typeof decodedPayload === 'string') {
+        // If it's a string, just add it to the error message
+        enrichedError.message = `Circuit execution failed: ${decodedPayload}`;
+      } else {
+        // If not, attach the payload to the original error
+        enrichedError.decodedAssertionPayload = decodedPayload;
+      }
+    } catch (_errorDecoding) {
+      // Ignore errors decoding the payload
     }
-  } catch (_errorDecoding) {
-    // Ignore errors decoding the payload
+  }
+
+  try {
+    // Decode the callstack
+    const callStack = extractCallStack(
+      originalError,
+      parseDebugSymbols(artifact.debug_symbols)[originalError.acirFunctionId!],
+      artifact.file_map,
+    );
+
+    enrichedError.noirCallStack = callStack?.map((errorLocation) => {
+      if (typeof errorLocation === 'string') {
+        return `at opcode ${errorLocation}`;
+      } else {
+        return `at ${errorLocation.locationText} (${errorLocation.filePath}:${errorLocation.line}:${errorLocation.column})`;
+      }
+    });
+  } catch (_errorResolving) {
+    // Ignore errors resolving the callstack
   }
 
   return enrichedError;
@@ -58,7 +78,7 @@ export async function generateWitness(
   } catch (err) {
     // Typescript types catched errors as unknown or any, so we need to narrow its type to check if it has raw assertion payload.
     if (typeof err === 'object' && err !== null && 'rawAssertionPayload' in err) {
-      throw parseErrorPayload(compiledProgram.abi, err as ExecutionError);
+      throw enrichExecutionError(compiledProgram, err as ExecutionError);
     }
     throw new Error(`Circuit execution failed: ${err}`);
   }

@@ -36,6 +36,8 @@ jobs:
       - name: Run ACVM benchmarks
         run: |
           cargo bench -p acvm -- --output-format bencher | tee acvm-bench.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store ACVM benchmarks result
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
