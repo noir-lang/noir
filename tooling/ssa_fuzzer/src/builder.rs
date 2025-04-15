@@ -33,9 +33,9 @@ pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, TypedValue) -> TypedValu
 /// Builder for generating fuzzed SSA functions
 /// Contains a FunctionBuilder and tracks the current numeric type being used
 pub struct FuzzerBuilder {
-    builder: FunctionBuilder,
-    numeric_type: NumericType,
-    type_: Type,
+    pub(crate) builder: FunctionBuilder,
+    pub(crate) numeric_type: NumericType,
+    pub(crate) type_: Type,
 }
 
 impl FuzzerBuilder {
