@@ -29,7 +29,7 @@ mod reflection {
     //! and the [`WitnessMap`] structs. These get checked against the C++ files committed to the `codegen` folder
     //! to see if changes have been to the serialization format. These are almost always a breaking change!
     //!
-    //! If you want to make a breaking change to the ACIR serialization format, then just comment out the gions
+    //! If you want to make a breaking change to the ACIR serialization format, then just comment out the assertions
     //! that the file hashes must match and rerun the tests. This will overwrite the `codegen` folder with the new
     //! logic. Make sure to uncomment these lines afterwards and to commit the changes to the `codegen` folder.
 
