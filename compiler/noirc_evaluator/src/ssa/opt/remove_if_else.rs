@@ -153,9 +153,8 @@ impl Context {
             }
         }
 
-        if !values_to_replace.is_empty() {
-            function.dfg.replace_values_in_block_terminator(block, &values_to_replace);
-        }
+        function.dfg.replace_values_in_block_terminator(block, &values_to_replace);
+        function.dfg.data_bus.replace_values(&values_to_replace);
     }
 
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
