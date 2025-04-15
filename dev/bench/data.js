@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744713034094,
+  "lastUpdate": 1744713121797,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19584,6 +19584,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 231023,
             "range": "± 3281",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2714a743e33846cc3d43fda791007ecf8c067c7e",
+          "message": "fix: Allow more slack in AST calibration for CI (#8076)",
+          "timestamp": "2025-04-15T10:16:44Z",
+          "tree_id": "68c83fab130e454a12afcfa1f3aeccc9be799c09",
+          "url": "https://github.com/noir-lang/noir/commit/2714a743e33846cc3d43fda791007ecf8c067c7e"
+        },
+        "date": 1744713116491,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269528,
+            "range": "± 729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236575,
+            "range": "± 1810",
             "unit": "ns/iter"
           }
         ]
