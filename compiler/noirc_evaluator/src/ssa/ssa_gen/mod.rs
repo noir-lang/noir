@@ -6,7 +6,7 @@ mod value;
 use acvm::AcirField;
 use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
-pub(crate) use program::Ssa;
+pub use program::Ssa;
 
 use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
@@ -45,7 +45,7 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
+pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
@@ -625,7 +625,7 @@ impl FunctionContext<'_> {
     ///   jmp while_entry()
     /// while_entry:
     ///   v0 = ... codegen cond ...
-    ///   jmpif v0, then: while_body, else: while_end  
+    ///   jmpif v0, then: while_body, else: while_end
     /// while_body():
     ///   v3 = ... codegen body ...
     ///   jmp while_entry()

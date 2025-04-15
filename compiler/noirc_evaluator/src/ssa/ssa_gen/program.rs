@@ -17,7 +17,7 @@ use super::ValueId;
 /// Contains the entire SSA representation of the program.
 #[serde_as]
 #[derive(Serialize, Deserialize)]
-pub(crate) struct Ssa {
+pub struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
     pub(crate) used_globals: HashMap<FunctionId, HashSet<ValueId>>,
