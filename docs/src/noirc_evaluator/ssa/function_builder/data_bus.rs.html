@@ -265,12 +265,18 @@
 <a href="#264" id="264">264</a>
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
-<a href="#267" id="267">267</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::RuntimeType,
     types::{NumericType, Type},
-    value::ValueId,
+    value::{ValueId, resolve_value},
 };
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -359,6 +365,12 @@
             })
             .collect();
         DataBus { call_data, return_data: <span class="self">self</span>.return_data.map(<span class="kw-2">&amp;mut </span>f) }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>, values_to_replace: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;) {
+        <span class="kw">if </span>!values_to_replace.is_empty() {
+            <span class="self">self</span>.map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
+        }
     }
 
     <span class="doccomment">/// Updates the databus values in place with the provided function

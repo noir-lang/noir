@@ -98,7 +98,9 @@
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::Function,
         instruction::{Instruction, Intrinsic},
@@ -166,6 +168,8 @@
             <span class="kw-2">*</span><span class="self">self</span>.dfg[block].instructions_mut() = instruction_ids;
             <span class="self">self</span>.dfg.replace_values_in_block_terminator(block, <span class="kw-2">&amp;</span>values_to_replace);
         }
+
+        <span class="self">self</span>.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
     }
 }
 

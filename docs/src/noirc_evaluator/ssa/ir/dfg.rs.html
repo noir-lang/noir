@@ -1309,7 +1309,7 @@
         block: BasicBlockId,
         values_to_replace: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;,
     ) {
-        <span class="kw">if </span><span class="self">self</span>[block].terminator().is_some() {
+        <span class="kw">if </span>!values_to_replace.is_empty() &amp;&amp; <span class="self">self</span>[block].terminator().is_some() {
             <span class="self">self</span>[block]
                 .unwrap_terminator_mut()
                 .map_values_mut(|value_id| resolve_value(values_to_replace, value_id));

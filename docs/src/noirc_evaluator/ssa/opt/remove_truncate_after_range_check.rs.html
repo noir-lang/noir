@@ -153,7 +153,9 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -232,6 +234,8 @@
             <span class="kw-2">*</span><span class="self">self</span>.dfg[block].instructions_mut() = instruction_ids;
             <span class="self">self</span>.dfg.replace_values_in_block_terminator(block, <span class="kw-2">&amp;</span>values_to_replace);
         }
+
+        <span class="self">self</span>.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
     }
 }
 
