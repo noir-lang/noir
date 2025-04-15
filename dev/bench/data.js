@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744716654106,
+  "lastUpdate": 1744717110292,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19582,6 +19582,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 233760,
             "range": "± 6566",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c1106e9a1aa7684a1da4a9a4f947d26b404dce7f",
+          "message": "chore: bump bignum timeout (#8080)",
+          "timestamp": "2025-04-15T11:18:49Z",
+          "tree_id": "38946e94af03b3d432f1a0be81618e036b3bc2a7",
+          "url": "https://github.com/noir-lang/noir/commit/c1106e9a1aa7684a1da4a9a4f947d26b404dce7f"
+        },
+        "date": 1744717105046,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266820,
+            "range": "± 1663",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233984,
+            "range": "± 2027",
             "unit": "ns/iter"
           }
         ]
