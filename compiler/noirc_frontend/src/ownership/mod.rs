@@ -37,8 +37,8 @@
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{
-        Definition, Expression, Function, Ident, IdentId, LValue, Literal, LocalId,
-        Program, Type, Unary,
+        Definition, Expression, Function, Ident, IdentId, LValue, Literal, LocalId, Program, Type,
+        Unary,
     },
 };
 
@@ -48,12 +48,8 @@ mod last_uses;
 mod tests;
 
 impl Program {
-    pub(crate) fn handle_ownership(
-        mut self,
-    ) -> Self {
-        let mut context = Context {
-            variables_to_move: Default::default(),
-        };
+    pub(crate) fn handle_ownership(mut self) -> Self {
+        let mut context = Context { variables_to_move: Default::default() };
 
         for function in self.functions.iter_mut() {
             context.handle_ownership_in_function(function);
@@ -194,8 +190,7 @@ impl Context {
     /// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop).
     fn should_clone_ident(&self, ident: &Ident) -> bool {
         if let Definition::Local(local_id) = &ident.definition {
-            if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id)
-            {
+            if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id) {
                 return true;
             }
         }

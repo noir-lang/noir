@@ -181,11 +181,7 @@ fn check_errors_with_options(
             panic!("get_monomorphized: test program contains no 'main' function")
         });
 
-        let result = crate::monomorphization::monomorphize(
-            main,
-            &mut context.def_interner,
-            false,
-        );
+        let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
         match result {
             Ok(_) => {
                 if primary_spans_with_errors.is_empty() {

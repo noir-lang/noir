@@ -696,11 +696,7 @@ pub fn compile_no_check(
             force_unconstrained,
         )?
     } else {
-        monomorphize(
-            main_function,
-            &mut context.def_interner,
-            force_unconstrained,
-        )?
+        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
     };
 
     if options.show_monomorphized {

@@ -27,9 +27,7 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
-pub fn get_monomorphized_no_emit_test(
-    src: &str,
-) -> Result<Program, MonomorphizationError> {
+pub fn get_monomorphized_no_emit_test(src: &str) -> Result<Program, MonomorphizationError> {
     get_monomorphized(src, None, Expect::Success)
 }
 

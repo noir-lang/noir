@@ -139,12 +139,7 @@ pub fn monomorphize(
     interner: &mut NodeInterner,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(
-        main,
-        interner,
-        &DebugInstrumenter::default(),
-        force_unconstrained,
-    )
+    monomorphize_debug(main, interner, &DebugInstrumenter::default(), force_unconstrained)
 }
 
 pub fn monomorphize_debug(
@@ -208,8 +203,7 @@ pub fn monomorphize_debug(
         debug_functions,
         debug_types,
     );
-    Ok(program.handle_ownership(
-    ))
+    Ok(program.handle_ownership())
 }
 
 impl<'interner> Monomorphizer<'interner> {
