@@ -78,6 +78,13 @@ pub(crate) fn resolve_value(
     value_id: ValueId,
 ) -> ValueId {
     if let Some(replacement_id) = values_to_replace.get(&value_id) {
+        // Ideally we don't map a value to itself in `values_to_replace` but currently this
+        // isn't the case. This could be solved by wrapping the `HashMap` in another structure
+        // that makes sure not to add self-mapping values, but this is left for a future refactor.
+        if replacement_id == &value_id {
+            return value_id;
+        }
+
         resolve_value(values_to_replace, *replacement_id)
     } else {
         value_id

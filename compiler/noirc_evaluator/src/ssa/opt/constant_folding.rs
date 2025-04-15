@@ -148,6 +148,8 @@ struct Context<'a> {
 
     // Cache of instructions without any side-effects along with their outputs.
     cached_instruction_results: InstructionResultCache,
+
+    values_to_replace: HashMap<ValueId, ValueId>,
 }
 
 #[derive(Copy, Clone)]
@@ -227,6 +229,7 @@ impl<'brillig> Context<'brillig> {
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
+            values_to_replace: Default::default(),
         }
     }
 
@@ -243,6 +246,11 @@ impl<'brillig> Context<'brillig> {
             function.dfg.make_constant(FieldElement::one(), NumericType::bool());
 
         for instruction_id in instructions {
+            if !self.values_to_replace.is_empty() {
+                let instruction = &mut function.dfg[instruction_id];
+                instruction.replace_values(&self.values_to_replace);
+            }
+
             self.fold_constants_into_instruction(
                 function,
                 dom,
@@ -265,6 +273,9 @@ impl<'brillig> Context<'brillig> {
             )
         });
         function.dfg[block_id].set_terminator(terminator);
+
+        function.dfg.replace_values_in_block_terminator(block_id, &self.values_to_replace);
+        function.dfg.data_bus.replace_values(&self.values_to_replace);
 
         self.block_queue.extend(function.dfg[block_id].successors());
     }
@@ -301,7 +312,8 @@ impl<'brillig> Context<'brillig> {
                         dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
                     }
 
-                    Self::replace_result_ids(dfg, &old_results, cached);
+                    let cached = cached.to_vec();
+                    self.replace_result_ids(&old_results, &cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
@@ -332,7 +344,7 @@ impl<'brillig> Context<'brillig> {
             })
         };
 
-        Self::replace_result_ids(dfg, &old_results, &new_results);
+        self.replace_result_ids(&old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
@@ -504,13 +516,9 @@ impl<'brillig> Context<'brillig> {
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-    fn replace_result_ids(
-        dfg: &mut DataFlowGraph,
-        old_results: &[ValueId],
-        new_results: &[ValueId],
-    ) {
+    fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
-            dfg.set_value_from_id(*old_result, *new_result);
+            self.values_to_replace.insert(*old_result, *new_result);
         }
     }
 
