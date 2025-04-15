@@ -1,7 +1,0 @@
-
-            [package]
-            name = "last_uses_smoke_test"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
