@@ -1,4 +1,3 @@
-use fxhash::FxHashMap as HashMap;
 use std::hash::{Hash, Hasher};
 
 use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
@@ -15,7 +14,7 @@ use super::{
     dfg::DataFlowGraph,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId, resolve_value},
+    value::{Value, ValueId, ValueMapping},
 };
 
 pub mod binary;
@@ -423,10 +422,10 @@ impl Instruction {
         }
     }
 
-    /// Replaces values present in this instruction with other values according to the given HashMap.
-    pub(crate) fn replace_values(&mut self, values_to_replace: &HashMap<ValueId, ValueId>) {
-        if !values_to_replace.is_empty() {
-            self.map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
+    /// Replaces values present in this instruction with other values according to the given mapping.
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
+        if !mapping.is_empty() {
+            self.map_values_mut(|value_id| mapping.get(value_id));
         }
     }
 

@@ -411,7 +411,7 @@ impl<'f> PerFunctionContext<'f> {
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
-                let address = self.inserter.function.dfg.resolve(*address);
+                let address = *address;
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
@@ -450,8 +450,8 @@ impl<'f> PerFunctionContext<'f> {
                 references.set_last_load(address, instruction);
             }
             Instruction::Store { address, value } => {
-                let address = self.inserter.function.dfg.resolve(*address);
-                let value = self.inserter.function.dfg.resolve(*value);
+                let address = *address;
+                let value = *value;
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
@@ -474,7 +474,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
-                references.keep_last_load_for(address, self.inserter.function);
+                references.keep_last_load_for(address);
                 references.last_stores.insert(address, instruction);
             }
             Instruction::Allocate => {
@@ -488,7 +488,7 @@ impl<'f> PerFunctionContext<'f> {
                 references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let array = *array;
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -502,7 +502,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 if Self::contains_references(&element_type) {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let array = *array;
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
@@ -579,12 +579,12 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
-                let value = self.inserter.function.dfg.resolve(*value);
+                let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
-                references.keep_last_load_for(value, self.inserter.function);
+                references.keep_last_load_for(value);
             }
         }
     }
@@ -625,7 +625,7 @@ impl<'f> PerFunctionContext<'f> {
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
                     if self.inserter.function.dfg.value_is_reference(*parameter) {
-                        let argument = self.inserter.function.dfg.resolve(*argument);
+                        let argument = *argument;
 
                         if let Some(expression) = references.expressions.get(&argument) {
                             if let Some(aliases) = references.aliases.get_mut(expression) {

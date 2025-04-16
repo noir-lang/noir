@@ -81,15 +81,11 @@ impl AstPrinter {
             })
             .unwrap_or_default();
 
-        write!(
-            f,
-            "{}fn {}({}) -> {}{} {{",
-            if function.unconstrained { "unconstrained " } else { "" },
-            self.fmt_func(&function.name, function.id),
-            params,
-            vis,
-            function.return_type,
-        )?;
+        let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
+        let name = self.fmt_func(&function.name, function.id);
+        let return_type = &function.return_type;
+
+        write!(f, "{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;

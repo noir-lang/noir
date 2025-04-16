@@ -450,6 +450,8 @@ impl ModCollector<'_> {
             let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
             let location = trait_definition.location;
+            let has_allow_dead_code =
+                trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -481,12 +483,14 @@ impl ModCollector<'_> {
             );
 
             let parent_module_id = ModuleId { krate, local_id: self.module_id };
-            context.usage_tracker.add_unused_item(
-                parent_module_id,
-                name.clone(),
-                UnusedItem::Trait(trait_id),
-                visibility,
-            );
+            if !has_allow_dead_code {
+                context.usage_tracker.add_unused_item(
+                    parent_module_id,
+                    name.clone(),
+                    UnusedItem::Trait(trait_id),
+                    visibility,
+                );
+            }
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -1013,6 +1017,7 @@ pub fn collect_function(
         function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
+    let has_allow_dead_code = function.def.attributes.has_allow("dead_code");
 
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
@@ -1023,7 +1028,12 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_fuzzing_harness && !is_entry_point_function && !has_export {
+    if !is_test
+        && !is_fuzzing_harness
+        && !is_entry_point_function
+        && !has_export
+        && !has_allow_dead_code
+    {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
@@ -1109,7 +1119,10 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    if !unresolved.struct_def.is_abi() {
+    let has_allow_dead_code =
+        unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+    if !unresolved.struct_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),
@@ -1200,7 +1213,10 @@ pub fn collect_enum(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    if !unresolved.enum_def.is_abi() {
+    let has_allow_dead_code =
+        unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+    if !unresolved.enum_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),
