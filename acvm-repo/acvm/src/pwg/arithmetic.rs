@@ -176,7 +176,7 @@ impl ExpressionSolver {
                             // let assignment = -total_sum / (q + b);
                             // insert_value(&w1, assignment, initial_witness)
                             // but we want to add this to pending_arithmetic_opcodes
-                            println!("position_1"); 
+                            println!("position_1");
                             pending_arithmetic_opcodes.add_pending_op(-total_sum, x, w1)
                         }
                     }
@@ -215,7 +215,7 @@ impl ExpressionSolver {
                         // let assignment = -(total_sum / partial_prod);
                         // insert_value(&unknown_var, assignment, initial_witness)
                         // but we want to add this to pending_arithmetic_opcodes
-                        println!("position_2"); 
+                        println!("position_2");
                         pending_arithmetic_opcodes.add_pending_op(
                             -total_sum,
                             partial_prod,
@@ -255,12 +255,8 @@ impl ExpressionSolver {
                             Ok(())
                         }
                     }
-                    x if x == F::one() => {
-                        println!("happened when something was 1"); 
-                        insert_value(&unknown_var, -total_sum, initial_witness)},
-                    x if x == -F::one() => {
-                        println!("happened when something was -1"); 
-                        insert_value(&unknown_var, total_sum, initial_witness)},
+                    x if x == F::one() => insert_value(&unknown_var, -total_sum, initial_witness),
+                    x if x == -F::one() => insert_value(&unknown_var, total_sum, initial_witness),
                     _ => {
                         // normally we would do
                         // let assignment = -(total_sum / coeff);
@@ -621,7 +617,8 @@ mod tests {
             q_c: -FieldElement::one(),
         };
         let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
-        ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
+        let _ =
+            ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
         println!("pending_ops: {:?}", pending_ops);
     }
     #[test]
@@ -644,10 +641,12 @@ mod tests {
             q_c: -FieldElement::one(),
         };
         let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
-        ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
+        let _ =
+            ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
         println!("pending_ops: {:?}", pending_ops);
         println!("initial_witness: {:?}", initial_witness);
-        ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_b, &mut pending_ops);
+        let _ =
+            ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_b, &mut pending_ops);
         println!("pending_ops: {:?}", pending_ops);
         println!("initial_witness: {:?}", initial_witness);
     }
@@ -723,66 +722,54 @@ mod tests {
         assert_eq!(initial_witness.get(&w4).unwrap(), &FieldElement::from(45_i128));
     }
     #[test]
-    fn test_pending_ops_batching_multiplication_terms() { 
-        // 5 * w0 = 15 => w0 = 3 // opcode0 = 5 * w0 - 15 = 0 
-        // 3 * w1 = 12 => w1 = 4 // opcode1 = 3 * w1 - 12 = 0 
-        // w2 * w0 = 15 => w2 = 5 // opcode2 = w2 * w0 - 15 = 0 
-        // w3 + 2 = w2  => true // opcode3 = w3 + 2 - w2 = 0 
-        // 
+    fn test_pending_ops_batching_multiplication_terms() {
+        // 5 * w0 = 15 => w0 = 3 // opcode0 = 5 * w0 - 15 = 0
+        // 3 * w1 = 12 => w1 = 4 // opcode1 = 3 * w1 - 12 = 0
+        // w2 * w0 = 15 => w2 = 5 // opcode2 = w2 * w0 - 15 = 0
+        // w3 + 2 = w2  => true // opcode3 = w3 + 2 - w2 = 0
+        //
         let mut pending_ops: Pending_Arithmetic_Opcodes<FieldElement> =
             Pending_Arithmetic_Opcodes::new();
         let w0 = Witness(0);
         let w1 = Witness(1);
         let w2 = Witness(2);
 
-        // opcode0 : 5 * w0 - 15 = 0 
+        // opcode0 : 5 * w0 - 15 = 0
         let opcode0 = Expression {
-            mul_terms: vec![], 
+            mul_terms: vec![],
             linear_combinations: vec![(FieldElement::from(5_i128), w0)],
             q_c: -FieldElement::from(15_i128),
-        }; 
-        // opcode1 = 3 * w1 - 12 = 0 
+        };
+        // opcode1 = 3 * w1 - 12 = 0
         let opcode1 = Expression {
-            mul_terms: vec![], 
-            linear_combinations: vec![(FieldElement::from(3_i128) , w1)], 
-            q_c: -FieldElement::from(12_i128), 
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::from(3_i128), w1)],
+            q_c: -FieldElement::from(12_i128),
+        };
+        // opcode2 = w2 * w0 - 15 = 0
+        let opcode2 = Expression {
+            mul_terms: vec![(FieldElement::one(), w0, w2)],
+            linear_combinations: vec![],
+            q_c: -FieldElement::from(15_i128),
+        };
+        // opcode3 = w0 + 2 - w2 = 0
+        let opcode3 = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::one(), w0), (-FieldElement::one(), w2)],
+            q_c: FieldElement::from(2_i128),
+        };
+        // set up an empty witness map
+        let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
+        // now we run the opcodes
+        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode0, &mut pending_ops);
+        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode1, &mut pending_ops);
+        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode2, &mut pending_ops);
+        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode3, &mut pending_ops);
 
-        }; 
-        // opcode2 = w2 * w0 - 15 = 0 
-        let opcode2 = Expression { 
-            mul_terms: vec![(FieldElement::one() ,w0 , w2)], 
-            linear_combinations: vec![], 
-            q_c: FieldElement::from(15_i128), 
-        }; 
-        // opcode3 = w0 + 2 - w2 = 0 
-        let opcode3 = Expression { 
-            mul_terms: vec![], 
-            linear_combinations: vec![(FieldElement::one(), w0) , (- FieldElement::one() , w2)], 
-            q_c: FieldElement::from(2_i128)
-        }; 
-        // set up an empty witness map 
-        let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new(); 
-        // now we run the opcodes 
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode0, &mut pending_ops); 
-        println!("the witness map is {:?}:", initial_witness); 
-        println!("the list of pending ops is {:?}", pending_ops); 
-        println!("1"); 
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode1, &mut pending_ops); 
-        println!("the witness map is {:?}:", initial_witness); 
-        println!("the list of pending ops is {:?}", pending_ops); 
-        println!("2"); 
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode2, &mut pending_ops); 
-        println!("the witness map is {:?}:", initial_witness); 
-        println!("the list of pending ops is {:?}", pending_ops); 
-        println!("3"); 
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode3, &mut pending_ops); 
-        println!("the witness map is {:?}:", initial_witness); 
-        println!("the list of pending ops is {:?}", pending_ops); 
-        
         // empty the pending writes
-        let _  = pending_ops.write_pending_ops(&mut initial_witness); 
+        let _ = pending_ops.write_pending_ops(&mut initial_witness);
         assert_eq!(initial_witness.get(&w0).unwrap(), &FieldElement::from(3_i128));
-        assert_eq!(initial_witness.get(&w1).unwrap() , &FieldElement::from(4_i128)); 
-        assert_eq!(initial_witness.get(&w2).unwrap() , &FieldElement::from(5_i128)); 
+        assert_eq!(initial_witness.get(&w1).unwrap(), &FieldElement::from(4_i128));
+        assert_eq!(initial_witness.get(&w2).unwrap(), &FieldElement::from(5_i128));
     }
 }

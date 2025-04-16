@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 6a5cd355acc9373871792fc3df09bae47993ca04f5f454984e367f815876eec6 # shrinks to (comptime_expr, runtime_expr, a, b) = ("135498780 - 3261502582", "a - b", 135498780, 3261502582)
+cc a08277a802c111eae18b6dd790863276ef5beee388af841c77b82d8983a93ca5 # shrinks to (comptime_expr, runtime_expr, a, b) = ("219873777 * 3665822852", "a * b", 219873777, 3665822852)
+cc 3a95092b2ef83275163af01b6d7872871b9c3509ab36c84b4f15a6c4f8deeaa5 # shrinks to (comptime_expr, runtime_expr, a, b) = ("168250881 / 1518081420", "a / b", 168250881, 1518081420)
+cc 2255f39f8b52de7d71b7f0c64868e2bb295295c3fc16c4e73adec37f4cf6d09e # shrinks to (comptime_expr, runtime_expr, a, b) = ("9338499 + 814394354", "a + b", 9338499, 814394354)
