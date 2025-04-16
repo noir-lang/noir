@@ -34,7 +34,7 @@ impl Parser<'_> {
             return (noir_trait, no_implicit_impl);
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
 
         // Trait aliases:
         // trait Foo<..> = A + B + E where ..;
@@ -66,7 +66,7 @@ impl Parser<'_> {
         let noir_impl = is_alias.then(|| {
             let object_type_ident = Ident::from(Located::from(location, "#T".to_string()));
             let object_type_path = Path::from_ident(object_type_ident.clone());
-            let object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
+            let object_type_generic = UnresolvedGeneric::Variable(object_type_ident, Vec::new());
 
             let is_synthesized = true;
             let object_type = UnresolvedType {

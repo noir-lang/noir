@@ -79,3 +79,12 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     println!("Got:\n~~~\n{ssa}\n~~~");
     similar_asserts::assert_eq!(expected_ssa, ssa);
 }
+
+#[macro_export]
+macro_rules! assert_ssa_snapshot {
+    ($ssa:expr, $($arg:tt)*) => {
+        let mut mut_ssa = $ssa;
+        mut_ssa.normalize_ids();
+        insta::assert_snapshot!(mut_ssa, $($arg)*)
+    };
+}

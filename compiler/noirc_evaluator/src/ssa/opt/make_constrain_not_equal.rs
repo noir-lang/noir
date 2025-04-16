@@ -41,9 +41,7 @@ impl Function {
                             .get_numeric_constant(*rhs)
                             .is_some_and(|constant| constant.is_zero())
                         {
-                            if let Value::Instruction { instruction, .. } =
-                                &self.dfg[self.dfg.resolve(*lhs)]
-                            {
+                            if let Value::Instruction { instruction, .. } = &self.dfg[*lhs] {
                                 if let Instruction::Binary(Binary {
                                     lhs,
                                     rhs,

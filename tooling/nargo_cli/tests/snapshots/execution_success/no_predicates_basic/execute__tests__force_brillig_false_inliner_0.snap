@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VSWw4CIQzkoVG/Ze/R8ljKn1eRyN7/CMYICWH7t+wkZAhthpmCFH+oun64VJZij9bzqgzHgL2Wg9X7Em1Bh2+wKVMAH/JKSBgofCw5V8hTTDlFSOhdwS0kt1UxOc8XSCbzKeHV5AGozvhMXe5TSOZsrD0GXrq6njjLpm/O0Ycbk3Hp9mbIyb0DHETT05WvYg811FrvffAn5/vD0Ytm7mp4VjbdWZvnF3hgTpCVBAAA",
+  "debug_symbols": "tY/NCsMgEITfZc8eYoNQfJVSgr9hQVT8KRTJu9eEBISec9tvZnZgGmgj67qgtyEDfzVwQYmCwXdqMB1SjsLvlItIBfj8JGC8Bs7YRsCiM/2cNvIXpA92JulMx+ibAL2puYNM6Byuy7ikyx+RUEhnTrTVq8Et33g5139MQRldk9mbDq/X/wA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: pub Field) {\n    basic_check(x, y);\n}\n\n#[no_predicates]\nfn basic_check(x: Field, y: Field) {\n    assert(x != y);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

@@ -4,7 +4,7 @@
 //! # Usage
 //!
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
-//! The compiled program will be returned as an [`Artifacts`][ssa::Artifacts] type.
+//! The compiled program will be returned as an [`Artifacts`] type.
 
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
@@ -54,12 +54,15 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-pub(crate) use acir_context::GeneratedAcir;
-use acir_context::{AcirContext, BrilligStdlibFunc, power_of_two};
+
+use acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
 use types::{AcirType, AcirVar};
+pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
 #[derive(Default)]
-struct SharedContext<F> {
+struct SharedContext<F: AcirField> {
+    brillig_stdlib: BrilligStdLib<F>,
+
     /// Final list of Brillig functions which will be part of the final program
     /// This is shared across `Context` structs as we want one list of Brillig
     /// functions across all ACIR artifacts
@@ -122,14 +125,14 @@ impl<F: AcirField> SharedContext<F> {
         {
             self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         } else {
-            let code = brillig_stdlib_func.get_generated_brillig();
+            let code = self.brillig_stdlib.get_code(*brillig_stdlib_func);
             let generated_pointer = self.new_generated_pointer();
             self.insert_generated_brillig_stdlib(
                 *brillig_stdlib_func,
                 generated_pointer,
                 func_id,
                 opcode_location,
-                code,
+                code.clone(),
             );
         }
     }
@@ -224,9 +227,10 @@ impl<'a> Context<'a> {
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
         brillig: &'a Brillig,
+        brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
-        let mut acir_context = AcirContext::default();
+        let mut acir_context = AcirContext::new(brillig_stdlib, Bn254BlackBoxSolver::default());
         acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
@@ -874,7 +878,7 @@ impl<'a> Context<'a> {
     ) -> Result<(), RuntimeError> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
-                let array_id = dfg.resolve(*result_id);
+                let array_id = *result_id;
                 let block_id = self.block_id(&array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
@@ -952,8 +956,6 @@ impl<'a> Context<'a> {
                 .into());
             }
         };
-        // Ensure that array id is fully resolved.
-        let array = dfg.resolve(array);
 
         let array_typ = dfg.type_of_value(array);
         // Compiler sanity checks
@@ -1084,12 +1086,14 @@ impl<'a> Context<'a> {
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
     /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
-    ///     in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
-    ///     Thus internal array element type sizes need to be computed to accurately transform the index.
+    ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
+    ///   Thus internal array element type sizes need to be computed to accurately transform the index.
+    ///
     /// - predicate_index is offset, or the index if the predicate is true
+    ///
     /// - new_value is the optional value when the operation is an array_set
-    ///     When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///     It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    ///   When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    ///   It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -1328,10 +1332,10 @@ impl<'a> Context<'a> {
     }
 
     /// If `mutate_array` is:
-    /// - true: Mutate the array directly
-    /// - false: Copy the array and generates a write opcode on the new array. This is
-    ///          generally very inefficient and should be avoided if possible. Currently
-    ///          this is controlled by SSA's array set optimization pass.
+    /// - `true`: Mutate the array directly
+    /// - `false`: Copy the array and generates a write opcode on the new array. This is
+    ///   generally very inefficient and should be avoided if possible. Currently
+    ///   this is controlled by SSA's array set optimization pass.
     fn array_set(
         &mut self,
         instruction: InstructionId,
@@ -1788,7 +1792,6 @@ impl<'a> Context<'a> {
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
-        let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();
@@ -1960,7 +1963,7 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
+        mut max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
@@ -1981,6 +1984,7 @@ impl<'a> Context<'a> {
                     let integer_modulus = power_of_two::<FieldElement>(bit_size);
                     let integer_modulus = self.acir_context.add_constant(integer_modulus);
                     var = self.acir_context.add_var(var, integer_modulus)?;
+                    max_bit_size += 1;
                 }
             }
             Value::Param { .. } => {
@@ -2760,7 +2764,7 @@ mod test {
             },
             circuit::{
                 ExpressionWidth, Opcode, OpcodeLocation,
-                brillig::{BrilligBytecode, BrilligFunctionId},
+                brillig::BrilligFunctionId,
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
             },
             native_types::{Witness, WitnessMap},
@@ -2773,8 +2777,8 @@ mod test {
     use std::collections::BTreeMap;
 
     use crate::{
-        acir::BrilligStdlibFunc,
-        brillig::{Brillig, BrilligOptions},
+        acir::{BrilligStdlibFunc, acir_context::BrilligStdLib, ssa::codegen_acir},
+        brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
@@ -3595,16 +3599,6 @@ mod test {
         }";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let (acir_functions, mut brillig_functions, _, _) = ssa
-            .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
-            .expect("Should compile manually written SSA into ACIR");
-
-        assert_eq!(acir_functions.len(), 1);
-        // [`directive_quotient`, `directive_invert`]
-        assert_eq!(brillig_functions.len(), 2);
-
-        let main = &acir_functions[0];
-
         // Here we're attempting to perform a truncation of a `Field` type into 32 bits. We then do a euclidean
         // division `a/b` with `a` and `b` taking the values:
         //
@@ -3635,8 +3629,8 @@ mod test {
 
         // This brillig function replaces the standard implementation of `directive_quotient` with
         // an implementation which returns `(malicious_q, malicious_r)`.
-        let malicious_quotient = BrilligBytecode {
-            bytecode: vec![
+        let malicious_quotient = GeneratedBrillig {
+            byte_code: vec![
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(10),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
@@ -3664,15 +3658,34 @@ mod test {
                     },
                 },
             ],
+            name: "malicious_directive_quotient".to_string(),
+            ..Default::default()
         };
-        let malicious_brillig = [malicious_quotient, brillig_functions.remove(1)];
+
+        let malicious_brillig_stdlib =
+            BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
+
+        let (acir_functions, brillig_functions, _, _) = codegen_acir(
+            ssa,
+            &Brillig::default(),
+            malicious_brillig_stdlib,
+            &BrilligOptions::default(),
+            ExpressionWidth::default(),
+        )
+        .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+        // [`malicious_directive_quotient`, `directive_invert`]
+        assert_eq!(brillig_functions.len(), 2);
+
+        let main = &acir_functions[0];
 
         let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
         let mut acvm = ACVM::new(
             &StubbedBlackBoxSolver(true),
             main.opcodes(),
             initial_witness,
-            &malicious_brillig,
+            &brillig_functions,
             &[],
         );
 

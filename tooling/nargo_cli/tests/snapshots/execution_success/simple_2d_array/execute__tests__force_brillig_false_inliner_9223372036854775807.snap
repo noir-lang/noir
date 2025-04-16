@@ -1,0 +1,55 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "array_input",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "array",
+            "length": 2,
+            "type": {
+              "kind": "field"
+            }
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7WTUQrDMAiGk7bZeTRqo2+7ysLS+x9hK81gbA99qPlAfBDk+0FjOEjvWsI/U+/33glW5lZyQ8IHZKsqwFJXRUVReWYlasparFoBQ6aGmxhtcPC9C66Bk98uGJk5OmaeB2WOzpkXP08a6ZkcPXe3zw/dfpz3m5r7PIVzXmosormYAwAA",
+  "debug_symbols": "lY9LCoMwFEX38sYOTFJbcCulSL4SCEnIp1CCe28UAyJOnL1zL+fCKyAky/OkrXIRxncB4zhN2tlKBfotip7alWKiIcGI0KMDaUW9yHPpQGkjYRz65dMBuhSGvgkvfBLwlYAJ2gU8kJNA7gkVWNDG6Hk6flbjLw2aMiN3VNnyQ5t+vjXN98FxKXKQ69LW1fk/",
+  "file_map": {
+    "50": {
+      "source": "// Test accessing a multidimensional array\nfn main(x: Field, y: Field, array_input: [[Field; 2]; 2]) {\n    assert(array_input[0][0] == x);\n    assert(array_input[0][1] == y);\n\n    let arr: [[Field; 2]; 1] = [[3, 3]];\n    assert_eq(arr[0], array_input[1]);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

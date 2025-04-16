@@ -1,8 +1,9 @@
 use acir::{FieldElement, native_types::WitnessStack};
+use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr, bail};
-use nargo::{NargoError, PrintOutput, foreign_calls::DefaultForeignCallBuilder};
+use nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::monomorphization::ast::Program;
@@ -64,15 +65,18 @@ impl CompareResult {
     pub fn return_value_or_err(&self) -> eyre::Result<Option<&InputValue>> {
         match self {
             CompareResult::BothFailed(e1, e2) => {
-                // For now raise an error to catch anything unexpected, but in the future if
-                // both fail the same way (e.g. assertion failure) then it should be okay.
-                bail!("both programs failed: {e1}; {e2}")
+                if Self::errors_match(e1, e2) {
+                    // Both programs failed the same way.
+                    Ok(None)
+                } else {
+                    bail!("both programs failed: {e1} vs {e2}\n{e1:?}\n{e2:?}")
+                }
             }
             CompareResult::LeftFailed(e, _) => {
-                bail!("first program failed: {e}")
+                bail!("first program failed: {e}\n{e:?}")
             }
             CompareResult::RightFailed(_, e) => {
-                bail!("second program failed: {e}")
+                bail!("second program failed: {e}\n{e:?}")
             }
             CompareResult::BothPassed(o1, o2) => {
                 if o1.return_value != o2.return_value {
@@ -93,6 +97,32 @@ impl CompareResult {
             }
         }
     }
+
+    /// Check whether two errors can be considered equivalent.
+    fn errors_match(e1: &NargoError<FieldElement>, e2: &NargoError<FieldElement>) -> bool {
+        use ExecutionError::*;
+
+        // For now consider non-execution errors as failures we need to investigate.
+        let NargoError::ExecutionError(ee1) = e1 else {
+            return false;
+        };
+        let NargoError::ExecutionError(ee2) = e2 else {
+            return false;
+        };
+
+        match (ee1, ee2) {
+            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
+            (SolvingError(s1, _), SolvingError(s2, _)) => s1 == s2,
+            (SolvingError(s, _), AssertionFailed(p, _, _))
+            | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
+                (
+                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
+                    ResolvedAssertionPayload::String(s),
+                ) => s == "Attempted to divide by zero",
+                _ => false,
+            },
+        }
+    }
 }
 
 /// Compare the execution of different SSA representations of equivalent program(s).
@@ -111,11 +141,11 @@ impl<P> CompareSsa<P> {
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
         let do_exec = |program| {
-            let mut print = String::new();
+            let mut print = Vec::new();
 
             let mut foreign_call_executor = DefaultForeignCallBuilder::default()
                 .with_mocks(false)
-                .with_output(PrintOutput::String(&mut print))
+                .with_output(&mut print)
                 .build();
 
             let res = nargo::ops::execute_program(
@@ -125,6 +155,7 @@ impl<P> CompareSsa<P> {
                 &mut foreign_call_executor,
             );
 
+            let print = String::from_utf8(print).expect("should be valid utf8 string");
             (res, print)
         };
 

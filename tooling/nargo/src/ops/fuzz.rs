@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{io, path::PathBuf};
 
 use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -15,7 +15,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, def_map::FuzzingHarness};
 use serde::{Deserialize, Serialize};
 
-use crate::{PrintOutput, foreign_calls::ForeignCallExecutor};
+use crate::foreign_calls::ForeignCallExecutor;
 use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{DefaultForeignCallBuilder, layers},
@@ -97,10 +97,9 @@ fn build_foreign_call_executor<
         DefaultForeignCallBuilder { output, enable_mocks: true }.build_with_base(base)
     };
     // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-    let inner_executor = build_foreign_call_executor(
-        if show_output { PrintOutput::Stdout } else { PrintOutput::None },
-        layers::Unhandled,
-    );
+    let writer: Box<dyn io::Write> =
+        if show_output { Box::new(io::stdout()) } else { Box::new(io::empty()) };
+    let inner_executor = build_foreign_call_executor(writer, layers::Unhandled);
 
     TestForeignCallExecutor::new(inner_executor)
 }

@@ -125,6 +125,8 @@ pub enum ParserErrorReason {
     ExpectedValueFoundBuiltInType { typ: UnresolvedType },
     #[error("Logical and used instead of bitwise and")]
     LogicalAnd,
+    #[error("Trait bounds are not allowed here")]
+    TraitBoundsNotAllowedHere,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -246,7 +248,7 @@ impl std::fmt::Display for ParserError {
         } else {
             let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
-            write!(f, "Unexpected {:?}, expected one of {}{}", self.found, expected, reason_str)
+            write!(f, "Unexpected '{}', expected one of {}{}", self.found, expected, reason_str)
         }
     }
 }

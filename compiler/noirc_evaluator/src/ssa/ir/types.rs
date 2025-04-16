@@ -1,9 +1,8 @@
+use acvm::{FieldElement, acir::AcirField};
+use iter_extended::vecmap;
 use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-use acvm::{FieldElement, acir::AcirField};
-use iter_extended::vecmap;
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 
@@ -85,11 +84,51 @@ impl NumericType {
     pub(crate) fn is_unsigned(&self) -> bool {
         matches!(self, NumericType::Unsigned { .. })
     }
+
+    pub(crate) fn max_value(&self) -> Result<FieldElement, String> {
+        match self {
+            NumericType::Unsigned { bit_size } => match bit_size {
+                bit_size if *bit_size > 128 => {
+                    Err("Cannot get max value for unsigned type: bit size is greater than 128"
+                        .to_string())
+                }
+                128 => Ok(FieldElement::from(u128::MAX)),
+                _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
+            },
+            other => Err(format!("Cannot get max value for type: {other}")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod props {
+    use proptest::{
+        prelude::{Arbitrary, BoxedStrategy, Just, Strategy as _},
+        prop_oneof,
+    };
+
+    use super::NumericType;
+
+    impl Arbitrary for NumericType {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let signed = prop_oneof!(Just(8), Just(16), Just(32), Just(64));
+            let unsigned = prop_oneof!(Just(1), Just(8), Just(16), Just(32), Just(64), Just(128));
+            prop_oneof![
+                signed.prop_map(|bit_size| NumericType::Signed { bit_size }),
+                unsigned.prop_map(|bit_size| NumericType::Unsigned { bit_size }),
+                Just(NumericType::NativeField),
+            ]
+            .boxed()
+        }
+    }
 }
 
 /// All types representable in the IR.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-pub(crate) enum Type {
+pub enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
@@ -108,42 +147,42 @@ pub(crate) enum Type {
 
 impl Type {
     /// Returns whether the `Type` represents an unsigned numeric type.
-    pub(crate) fn is_unsigned(&self) -> bool {
+    pub fn is_unsigned(&self) -> bool {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
     }
 
     /// Create a new signed integer type with the given amount of bits.
-    pub(crate) fn signed(bit_size: u32) -> Type {
+    pub fn signed(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
     }
 
     /// Create a new unsigned integer type with the given amount of bits.
-    pub(crate) fn unsigned(bit_size: u32) -> Type {
+    pub fn unsigned(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Unsigned { bit_size })
     }
 
     /// Creates the boolean type, represented as u1.
-    pub(crate) fn bool() -> Type {
+    pub fn bool() -> Type {
         Type::unsigned(1)
     }
 
     /// Creates the char type, represented as u8.
-    pub(crate) fn char() -> Type {
+    pub fn char() -> Type {
         Type::unsigned(8)
     }
 
     /// Creates the `str<N>` type, of the given length N
-    pub(crate) fn str(length: u32) -> Type {
+    pub fn str(length: u32) -> Type {
         Type::Array(Arc::new(vec![Type::char()]), length)
     }
 
     /// Creates the native field type.
-    pub(crate) fn field() -> Type {
+    pub fn field() -> Type {
         Type::Numeric(NumericType::NativeField)
     }
 
     /// Creates the type of an array's length.
-    pub(crate) fn length_type() -> Type {
+    pub fn length_type() -> Type {
         Type::unsigned(SSA_WORD_SIZE)
     }
 
@@ -296,6 +335,7 @@ impl std::fmt::Display for NumericType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_u8_value_is_outside_limits() {
@@ -314,5 +354,15 @@ mod tests {
         assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+    }
+
+    proptest! {
+        #[test]
+        fn test_max_value_is_in_limits(input: NumericType) {
+            let max_value = input.max_value();
+            if let Ok(max_value) = max_value {
+                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
+            }
+        }
     }
 }

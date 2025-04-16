@@ -18,14 +18,17 @@ use crate::{
     },
     parser::{Item, ItemKind, ParsedSubModule},
     signed_field::SignedField,
-    token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens},
+    token::{
+        FmtStrFragment, MetaAttribute, MetaAttributeName, SecondaryAttribute,
+        SecondaryAttributeKind, Tokens,
+    },
 };
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
     MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, UnsafeExpression,
+    UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -458,6 +461,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_unresolved_generic(&mut self, _: &UnresolvedGeneric) -> bool {
+        true
+    }
+
     fn visit_function_return_type(&mut self, _: &FunctionReturnType) -> bool {
         true
     }
@@ -522,7 +529,21 @@ pub trait Visitor {
         true
     }
 
-    fn visit_meta_attribute(&mut self, _: &MetaAttribute, _target: AttributeTarget) -> bool {
+    fn visit_secondary_attribute_kind(
+        &mut self,
+        _: &SecondaryAttributeKind,
+        _target: AttributeTarget,
+        _span: Span,
+    ) -> bool {
+        true
+    }
+
+    fn visit_meta_attribute(
+        &mut self,
+        _: &MetaAttribute,
+        _target: AttributeTarget,
+        _span: Span,
+    ) -> bool {
         true
     }
 }
@@ -612,6 +633,8 @@ impl NoirFunction {
             attribute.accept(AttributeTarget::Function, visitor);
         }
 
+        visit_unresolved_generics(&self.def.generics, visitor);
+
         for param in &self.def.parameters {
             param.typ.accept(visitor);
         }
@@ -634,6 +657,8 @@ impl NoirTraitImpl {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        visit_unresolved_generics(&self.impl_generics, visitor);
+
         self.r#trait.accept(visitor);
         self.object_type.accept(visitor);
 
@@ -711,6 +736,8 @@ impl NoirTrait {
         for attribute in &self.attributes {
             attribute.accept(AttributeTarget::Trait, visitor);
         }
+
+        visit_unresolved_generics(&self.generics, visitor);
 
         for bound in &self.bounds {
             bound.accept(visitor);
@@ -1604,6 +1631,28 @@ impl Pattern {
     }
 }
 
+impl UnresolvedGeneric {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_unresolved_generic(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        match self {
+            UnresolvedGeneric::Variable(_ident, trait_bounds) => {
+                for trait_bound in trait_bounds {
+                    trait_bound.accept(visitor);
+                }
+            }
+            UnresolvedGeneric::Numeric { ident: _, typ } => {
+                typ.accept(visitor);
+            }
+            UnresolvedGeneric::Resolved(_quoted_type_id, _location) => (),
+        }
+    }
+}
+
 impl SecondaryAttribute {
     pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
         if visitor.visit_secondary_attribute(self, target) {
@@ -1612,21 +1661,35 @@ impl SecondaryAttribute {
     }
 
     pub fn accept_children(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if let SecondaryAttribute::Meta(meta_attribute) = self {
-            meta_attribute.accept(target, visitor);
+        self.kind.accept(target, self.location.span, visitor);
+    }
+}
+
+impl SecondaryAttributeKind {
+    pub fn accept(&self, target: AttributeTarget, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_secondary_attribute_kind(self, target, span) {
+            self.accept_children(target, span, visitor);
+        }
+    }
+
+    pub fn accept_children(&self, target: AttributeTarget, span: Span, visitor: &mut impl Visitor) {
+        if let SecondaryAttributeKind::Meta(meta_attribute) = self {
+            meta_attribute.accept(target, span, visitor);
         }
     }
 }
 
 impl MetaAttribute {
-    pub fn accept(&self, target: AttributeTarget, visitor: &mut impl Visitor) {
-        if visitor.visit_meta_attribute(self, target) {
+    pub fn accept(&self, target: AttributeTarget, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_meta_attribute(self, target, span) {
             self.accept_children(visitor);
         }
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.name.accept(visitor);
+        if let MetaAttributeName::Path(path) = &self.name {
+            path.accept(visitor);
+        }
         visit_expressions(&self.arguments, visitor);
     }
 }
@@ -1640,5 +1703,11 @@ fn visit_expressions(expressions: &[Expression], visitor: &mut impl Visitor) {
 fn visit_unresolved_types(unresolved_type: &[UnresolvedType], visitor: &mut impl Visitor) {
     for unresolved_type in unresolved_type {
         unresolved_type.accept(visitor);
+    }
+}
+
+fn visit_unresolved_generics(generics: &[UnresolvedGeneric], visitor: &mut impl Visitor) {
+    for generic in generics {
+        generic.accept(visitor);
     }
 }

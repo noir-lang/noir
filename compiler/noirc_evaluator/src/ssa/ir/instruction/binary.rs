@@ -12,7 +12,7 @@ use super::{DataFlowGraph, InstructionResultType, NumericType, Type, ValueId};
 /// e.g. equality for a compound type like a struct, one must add a
 /// separate Eq operation for each field and combine them later with And.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
-pub(crate) enum BinaryOp {
+pub enum BinaryOp {
     /// Addition of lhs + rhs.
     Add { unchecked: bool },
     /// Subtraction of lhs - rhs.
@@ -68,7 +68,7 @@ impl std::fmt::Display for BinaryOp {
 
 /// A binary instruction in the IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) struct Binary {
+pub struct Binary {
     /// Left hand side of the binary operation
     pub(crate) lhs: ValueId,
     /// Right hand side of the binary operation
@@ -324,15 +324,6 @@ impl BinaryOp {
             BinaryOp::Sub { .. } => BinaryOp::Sub { unchecked: true },
             BinaryOp::Mul { .. } => BinaryOp::Mul { unchecked: true },
             _ => self,
-        }
-    }
-
-    pub(crate) fn is_unchecked(self) -> bool {
-        match self {
-            BinaryOp::Add { unchecked }
-            | BinaryOp::Sub { unchecked }
-            | BinaryOp::Mul { unchecked } => unchecked,
-            _ => true,
         }
     }
 }

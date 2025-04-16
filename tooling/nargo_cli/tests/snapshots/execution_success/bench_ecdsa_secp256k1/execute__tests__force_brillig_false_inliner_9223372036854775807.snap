@@ -1,0 +1,78 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "hashed_message",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/6WYd29bZRhHbwiElFJKKaWUUkgpI2w7thOb1YQywt57JWkdwt57pcyw94Y26idtf7qvpdPoSP2jV4r86kSKovtazzl6hqr6WT3yc6ich478DJfPPKNr2JCwE4QNCztR2EnCRoSdLGxU2DphpwhbL+xUYRuEnSZso7DThW0SdoawzcLOFLZF2FnCtgo7W9g2YecI2y7sXGE7hJ0n7HxhY8J2CrtA2C5hFwq7SNjFwi4RNi7sUmGXCbtc2BXCrhR2lbCrhTWENYVNCGsJawvrCJsUNiWsK6wn7Bph1wq7Ttj1wm4QtlvYtLAZYTcK2yPsJmE3C7tF2K3CZoXdJux2YXcIu1PYXcLuFnaPsHuF3SfsfmEPCHtQ2EPCHhb2iLBHhT0m7HFhTwh7UthTwp4W9oywOWHzwhaE7RW2T1hf2KKwZ4UtCXtO2PPCXhD2orCXhL0s7BVhrwp7Tdjrwt4Q9qawt4S9LewdYe8Ke0/Y+8I+EPahsI+EfSzsE2HLwvYL+1TYZ8I+F/aFsC+FfSVsRdjXwr4R9q2w74R9L+wHYT8K+0nYz8J+EfarsN+E/S7sD2F/CvtL2N/C/hH2r7D/hP0v7ICwg2Aj5XMMbCfO7L1dOLPv2HXsOXbcOM7sNvYaO419xi5jj7HD2F/sLvYWO4t9xa5iT7Gj2E/sJvYSO4l9xC5iD7GDpnGewZm9swdn9g27hj3DjpnFmd3CXmGnsE/YJewRdgj7g93B3mBnsC/YFewJdgT7gd3AXmAnsA/YBewBdsAczvM40/d7cabf6XX6nB5fwpnepq/pafqZXqaP6WH6l96lb+lZ+pVepU/pUfqT3qQv6Un6kV6kD+nBZZz340zf0XP0G71Gn9FjKzjTW/QVPUU/0Uv0ET1E/9A79A09Q7/QK/QJPUJ/0Bv0BT1BP9AL9AE9UOE8hPPafdPgzP0S90rcJ3GPNIoz90bcF3FPxP0Q90LcB3EPxP0P9z7c93DPw/0O9zrc53CPw/0N9zbc13BPw/0M9zLcxwz2MKvV0c/gPqbLZ+P4nuYq/larMdlu96cm+s1Wc74x0VvodhrtzsJkt9ltdrqdfRPdVqvfbXenegu9qUav2W71m4udXmux/LHB3Vdr/u/Bd2W4/D7fiRF8B9aVu15f7nZDucuN5e42lbvaXO5mS7mLreXdbyvvent5tzvKu8w7HKvqZkmrpFHSJmmStEgaZLyqmyOtkcZIW6Qp0hJpiLRDmiGtkEZIG6QJ0gJpgLg/zo/r4/i4PU6Py3eXdztT1a6Oo+PmODkujoNnq9q5cW0cG7fGqXFpHBp3xplxZRwZN8aJcWEcGPfFeXFdHBe3xWlxWRw2V9XOiqviqLgpToqL4qClqnZOXBPHxC1xSlwSh8QdcUZcEUfEDXFCXBAHZPZn5mfWZ8ZntmemZ5Znhi9X9czOrM6MzmzOTM4szgxeqeqZm1mbGZvZmpmaWZoZmtmZmZlZmRmZ2ZiZmFmYGZjZl5mXWZcZl9mWmZZZlhl2rOcwyWI3y3wXAAA=",
+  "debug_symbols": "bY1bCoMwFET3cr/zYbRKyVZKkTzlQkhCHoUS3HujVGrBzzPDmamgtCjLjM74BOxRwXrJM3rXqAKduj1MgbuNU+YxA6O3OwHtFLB+GFcCBq0GNnbrkzSFXin9T5mGP6WBiGgtLvP5u8UvHpELq79oipOnNr/D0Rx+iF5qVaLelvauzX8A",
+  "file_map": {
+    "50": {
+      "source": "use dep::std;\n\nfn main(hashed_message: [u8; 32], pub_key_x: [u8; 32], pub_key_y: [u8; 32], signature: [u8; 64]) {\n    let valid_signature =\n        std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);\n    assert(valid_signature);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

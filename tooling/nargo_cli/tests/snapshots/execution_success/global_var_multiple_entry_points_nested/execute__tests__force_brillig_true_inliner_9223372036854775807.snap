@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUTU/DMAx1ukYQJiQEB25wgXu2FnXHSnz8j4ipv6M/HVXYq/uWXjbH0uRMjp+fn506+jfHv8lq9hWdm9zp2cfrbGeIFUvydIV4nojqs6N14d/ZB1oOaYpvDBsOGU5W+IfYdiHTnyH/JijMAvh7wa/L4Mcbxvkel/gEde9p+Xh1jsT0Q/7h2C3H5fzA5wB4JeauOVnr9pThX6neJvscZz2M6u4F+8seu9nyjF5n6MU+EPSF+6D3BXNxP3TMZ3KlPw93n9nLfD3g9TZaxEeFS1AL+SPnnC5uJRf3BnXqbfppsa6n9f1FzV+AX6lvUU5zqbWl+V3Vo3397hCj1N2Msw44Y13fw/03/n+30kd/Ic+hS7uhSUP6SMdj+5tQp8kqpdMfP5PduG0JAAA=",
+  "debug_symbols": "1ZXNioMwFEbfJesschPz56sMQ4kaSyBEiTowiO8+cVCQFLpphboRrxwPZ/fNqLHVdL+50HYDKr9m5LvajK4L6ZoXjKrovHf32/EzIusD5D8/9Cas5zCaOKISGMfIhia9cZH+b523qORkwQ8oFTtKJT2i3xiBeqNc5HL9qlzpXa55JqfkTDmcKadnytmLckbohjJQz1GuYEMFKZ6jQqodVTJPLj49WUOezD8yWZJiQyWQPFlcL1leL1ldL1lfLHlJ14+JzlTebuvZTqE+jOn429tsV/vY1baZol0X9jCu64owwEwkbVL/AQ==",
+  "file_map": {
+    "50": {
+      "source": "global TWO: Field = 2;\nglobal THREE: Field = 3;\n\nfn main(x: Field, y: pub Field) {\n    // Safety: testing context\n    unsafe {\n        entry_point_one(x, y);\n        entry_point_two(x, y);\n    }\n}\n\nunconstrained fn entry_point_one(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n    inner_func(x, y);\n}\n\n// Identical to `entry_point_one`\nunconstrained fn entry_point_two(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n    inner_func(x, y);\n}\n\nunconstrained fn inner_func(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n    nested_inner_func(x, y);\n}\n\nunconstrained fn nested_inner_func(x: Field, y: Field) {\n    let z = THREE + x + y;\n    assert(z == 4);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

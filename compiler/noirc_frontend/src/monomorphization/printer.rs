@@ -1,52 +1,105 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::ast::UnaryOp;
+use crate::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
 
-use super::ast::{Definition, Expression, Function, GlobalId, LValue, While};
+use super::ast::{
+    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
+};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
+    in_unconstrained: bool,
+    pub show_id: bool,
+}
+
+impl Default for AstPrinter {
+    fn default() -> Self {
+        Self { indent_level: 0, in_unconstrained: false, show_id: true }
+    }
 }
 
 impl AstPrinter {
+    fn fmt_ident(&self, name: &str, definition: &Definition) -> String {
+        if self.show_id { format!("{}${}", name, definition) } else { name.to_string() }
+    }
+
+    fn fmt_local(&self, name: &str, id: LocalId) -> String {
+        self.fmt_ident(name, &Definition::Local(id))
+    }
+
+    fn fmt_global(&self, name: &str, id: GlobalId) -> String {
+        self.fmt_ident(name, &Definition::Global(id))
+    }
+
+    fn fmt_func(&self, name: &str, id: FuncId) -> String {
+        self.fmt_ident(name, &Definition::Function(id))
+    }
+
+    pub fn print_program(&mut self, program: &Program, f: &mut Formatter) -> std::fmt::Result {
+        for (id, global) in &program.globals {
+            self.print_global(id, global, f)?;
+        }
+        for function in &program.functions {
+            let vis = (function.id == Program::main_id()).then_some(program.return_visibility);
+            self.print_function(function, vis, f)?;
+        }
+        Ok(())
+    }
+
     pub fn print_global(
         &mut self,
         id: &GlobalId,
-        expr: &Expression,
+        (name, typ, expr): &(String, Type, Expression),
         f: &mut Formatter,
     ) -> std::fmt::Result {
-        // At the moment globals don't carry their name, nor a type.
-        write!(f, "global $g{} = ", id.0)?;
+        write!(f, "global {}: {} = ", self.fmt_global(name, *id), typ)?;
         self.print_expr(expr, f)?;
         write!(f, ";")?;
         self.next_line(f)
     }
 
-    pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
+    pub fn print_function(
+        &mut self,
+        function: &Function,
+        return_visibility: Option<Visibility>,
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
+            format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
         })
         .join(", ");
 
-        write!(
-            f,
-            "fn {}$f{}({}) -> {} {{",
-            function.name, function.id, params, function.return_type
-        )?;
+        let vis = return_visibility
+            .map(|vis| match vis {
+                Visibility::Private => "".to_string(),
+                Visibility::Public => "pub ".to_string(),
+                Visibility::ReturnData => "return_data ".to_string(),
+                Visibility::CallData(i) => format!("call_data({i}) "),
+            })
+            .unwrap_or_default();
+
+        let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
+        let name = self.fmt_func(&function.name, function.id);
+        let return_type = &function.return_type;
+
+        write!(f, "{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
+        self.in_unconstrained = function.unconstrained;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
+        self.in_unconstrained = false;
         self.next_line(f)?;
-        writeln!(f, "}}")
+        writeln!(f, "}}")?;
+        Ok(())
     }
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
         match expr {
             Expression::Ident(ident) => {
-                write!(f, "{}${}", ident.name, ident.definition)
+                write!(f, "{}", self.fmt_ident(&ident.name, &ident.definition))
             }
             Expression::Literal(literal) => self.print_literal(literal, f),
             Expression::Block(exprs) => self.print_block(exprs, f),
@@ -75,7 +128,12 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
-                write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
+                write!(
+                    f,
+                    "let {}{} = ",
+                    if let_expr.mutable { "mut " } else { "" },
+                    self.fmt_local(&let_expr.name, let_expr.id),
+                )?;
                 self.print_expr(&let_expr.expression, f)
             }
             Expression::Constrain(expr, ..) => {
@@ -225,7 +283,7 @@ impl AstPrinter {
         for_expr: &super::ast::For,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "for {}${} in ", for_expr.index_name, for_expr.index_variable.0)?;
+        write!(f, "for {} in ", self.fmt_local(&for_expr.index_name, for_expr.index_variable))?;
         self.print_expr(&for_expr.start_range, f)?;
         write!(f, " .. ")?;
         self.print_expr(&for_expr.end_range, f)?;
@@ -349,15 +407,28 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
+        let print_unsafe = match call.func.as_ref() {
+            Expression::Ident(Ident { typ: Type::Function(_, _, _, unconstrained), .. }) => {
+                *unconstrained && !self.in_unconstrained
+            }
+            _ => false,
+        };
+        if print_unsafe {
+            write!(f, "unsafe {{ ")?;
+        }
         self.print_expr(&call.func, f)?;
         write!(f, "(")?;
         self.print_comma_separated(&call.arguments, f)?;
-        write!(f, ")")
+        write!(f, ")")?;
+        if print_unsafe {
+            write!(f, " }}")?;
+        }
+        Ok(())
     }
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
         match lvalue {
-            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
+            LValue::Ident(ident) => write!(f, "{}", self.fmt_ident(&ident.name, &ident.definition)),
             LValue::Index { array, index, .. } => {
                 self.print_lvalue(array, f)?;
                 write!(f, "[")?;

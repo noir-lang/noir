@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "y",
+        "type": {
+          "kind": "struct",
+          "path": "myStruct",
+          "fields": [
+            {
+              "name": "foo",
+              "type": {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 32
+              }
+            },
+            {
+              "name": "bar",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAwdMqKTqInGi170D4aAcOSgH7JI+A4+XRdbKXVcdHsJ2Ui7915LRyTeiOCxkLDOxDcwp4FV/4fMI5cO6TMK5PODmcO8q6AzrIqds/HYY8GK6frkr3VxVY76PPrPFeEMwH9BfhmGX8+B59aP+QXTjVme68xKjC84zcEYnb87xBavZy2G/Qb2ivGFmA3qyXdvdw7/qJVCrUdWa6A5KtEHfk8J/K7+WiQsf898JmF86i3hFUyLz4Pwp1tN1U9nI2IxzD0wf6Huqqs3qJWK4V8te//6Va016sb90AfsAYUkcZp/gvflRB3Njz67ymRdbjpTmrYtHob3yYLeuydUt66vjQgAAA==",
+  "debug_symbols": "ldJNCsMgEAXgu8zahT9NbbxKKcEkJgiiwZhCCbl7tbQgoZvZCE/mm8XwdhhNv82d9VNYQd13cGHQyQaf034Q6KN1zs5d/Q20POz6mV8X7Utck44JFGsFAeNHUJyK7CfrDKiGHg8CTKLFDS1arOAULdg/wZn8CS7PgqOFQIsLWjQ4ceT01NHq3plvPabND1Vb0msxp+IsMQxm3KIpFaraU67OJRE8r82r3w==",
+  "file_map": {
+    "50": {
+      "source": "// Note that fields are not in alphabetical order.\n// We want to check that this ordering is maintained\nstruct myStruct {\n    foo: u32,\n    bar: Field,\n}\n\nfn main(y: pub myStruct) {\n    assert(y.foo == 5);\n    assert(y.bar == 7);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
