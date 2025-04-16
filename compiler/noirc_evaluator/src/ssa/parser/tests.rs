@@ -638,7 +638,6 @@ fn test_parses_keyword_in_function_name() {
 #[should_panic = "Attempt to modulo fields"]
 fn regression_modulo_fields_brillig() {
     use crate::brillig::BrilligOptions;
-    use std::panic::AssertUnwindSafe;
 
     let src = "
         brillig(inline) predicate_pure fn main f0 {
