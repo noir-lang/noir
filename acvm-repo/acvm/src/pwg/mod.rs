@@ -409,10 +409,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         while self.status == ACVMStatus::InProgress {
             self.solve_opcode_optimized(&mut pending_arithmetic_opcodes);
         }
+        // write the pending opcodes that are not written down yet 
+        let final_write_result = pending_arithmetic_opcodes.write_pending_ops(&mut self.witness_map); 
+        if self.status == ACVMStatus::Solved && final_write_result.is_err() {
+            self.status(ACVMStatus::Failure(final_write_result.err().unwrap()));
+        }
         self.status.clone()
     }
 
-    pub fn solve_opcode_optimized(
+    pub(crate) fn solve_opcode_optimized(
         &mut self,
         pending_arithmetic_opcodes: &mut Pending_Arithmetic_Opcodes<F>,
     ) -> ACVMStatus<F> {
