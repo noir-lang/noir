@@ -373,8 +373,6 @@ impl<F: AcirField> From<Witness> for Expression<F> {
     }
 }
 
-/// A struct that keeps track of the witness writes that are not done yet in order to batch the inversion
-
 #[cfg(test)]
 mod tests {
     use super::*;
