@@ -136,8 +136,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             }
             if let Some(rhs_value) = rhs_value {
                 if lhs_type == NumericType::NativeField && !rhs_value.is_zero() {
-                    let rhs = dfg
-                        .make_constant(rhs_value.inverse(), NumericType::NativeField);
+                    let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
                     return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
                         lhs,
                         rhs,
