@@ -99,6 +99,8 @@ jobs:
 
       - name: Build noir-execute
         run: cargo build --package noir_artifact_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |

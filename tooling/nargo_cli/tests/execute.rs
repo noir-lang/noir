@@ -36,7 +36,6 @@ mod tests {
 
         // Enable enums and ownership as unstable features
         nargo.arg("-Zenums");
-        nargo.arg("-Zownership");
 
         if force_brillig.0 {
             {
