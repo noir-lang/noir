@@ -799,14 +799,7 @@
 <a href="#798" id="798">798</a>
 <a href="#799" id="799">799</a>
 <a href="#800" id="800">800</a>
-<a href="#801" id="801">801</a>
-<a href="#802" id="802">802</a>
-<a href="#803" id="803">803</a>
-<a href="#804" id="804">804</a>
-<a href="#805" id="805">805</a>
-<a href="#806" id="806">806</a>
-<a href="#807" id="807">807</a>
-<a href="#808" id="808">808</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#801" id="801">801</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -1495,7 +1488,6 @@
     force_compile: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, CompileError&gt; {
     <span class="kw">let </span>force_unconstrained = options.force_brillig;
-    <span class="kw">let </span>experimental_ownership = options.unstable_features.contains(<span class="kw-2">&amp;</span>UnstableFeature::Ownership);
 
     <span class="kw">let </span>program = <span class="kw">if </span>options.instrument_debug {
         monomorphize_debug(
@@ -1503,15 +1495,9 @@
             <span class="kw-2">&amp;mut </span>context.def_interner,
             <span class="kw-2">&amp;</span>context.debug_instrumenter,
             force_unconstrained,
-            experimental_ownership,
         )<span class="question-mark">?
     </span>} <span class="kw">else </span>{
-        monomorphize(
-            main_function,
-            <span class="kw-2">&amp;mut </span>context.def_interner,
-            force_unconstrained,
-            experimental_ownership,
-        )<span class="question-mark">?
+        monomorphize(main_function, <span class="kw-2">&amp;mut </span>context.def_interner, force_unconstrained)<span class="question-mark">?
     </span>};
 
     <span class="kw">if </span>options.show_monomorphized {

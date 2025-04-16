@@ -2570,19 +2570,7 @@
 <a href="#2569" id="2569">2569</a>
 <a href="#2570" id="2570">2570</a>
 <a href="#2571" id="2571">2571</a>
-<a href="#2572" id="2572">2572</a>
-<a href="#2573" id="2573">2573</a>
-<a href="#2574" id="2574">2574</a>
-<a href="#2575" id="2575">2575</a>
-<a href="#2576" id="2576">2576</a>
-<a href="#2577" id="2577">2577</a>
-<a href="#2578" id="2578">2578</a>
-<a href="#2579" id="2579">2579</a>
-<a href="#2580" id="2580">2580</a>
-<a href="#2581" id="2581">2581</a>
-<a href="#2582" id="2582">2582</a>
-<a href="#2583" id="2583">2583</a>
-<a href="#2584" id="2584">2584</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2572" id="2572">2572</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2722,15 +2710,8 @@
     main: node_interner::FuncId,
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     force_unconstrained: bool,
-    enable_ownership: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
-    monomorphize_debug(
-        main,
-        interner,
-        <span class="kw-2">&amp;</span>DebugInstrumenter::default(),
-        force_unconstrained,
-        enable_ownership,
-    )
+    monomorphize_debug(main, interner, <span class="kw-2">&amp;</span>DebugInstrumenter::default(), force_unconstrained)
 }
 
 <span class="kw">pub fn </span>monomorphize_debug(
@@ -2738,7 +2719,6 @@
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     debug_instrumenter: <span class="kw-2">&amp;</span>DebugInstrumenter,
     force_unconstrained: bool,
-    experimental_ownership: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
     <span class="kw">let </span>debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
     <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer = Monomorphizer::new(interner, debug_type_tracker);
@@ -2795,11 +2775,7 @@
         debug_functions,
         debug_types,
     );
-    <span class="prelude-val">Ok</span>(program.handle_ownership(
-        monomorphizer.next_local_id,
-        monomorphizer.next_ident_id,
-        experimental_ownership,
-    ))
+    <span class="prelude-val">Ok</span>(program.handle_ownership())
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'interner</span>&gt; Monomorphizer&lt;<span class="lifetime">'interner</span>&gt; {

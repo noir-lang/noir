@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"fn":["responds_to_side_effects_var"]};

@@ -135,31 +135,8 @@
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
-<span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
+<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueMapping;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},
     ssa_gen::Ssa,
@@ -180,64 +157,45 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_truncate_after_range_check(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
         <span class="comment">// Keeps the minimum bit size a value was range-checked against
         </span><span class="kw">let </span><span class="kw-2">mut </span>range_checks: HashMap&lt;ValueId, u32&gt; = HashMap::default();
 
-        <span class="kw">let </span>blocks = <span class="self">self</span>.reachable_blocks();
-        <span class="kw">for </span>block <span class="kw">in </span><span class="kw-2">&amp;</span>blocks {
-            <span class="kw">let </span>block = <span class="kw-2">*</span>block;
-            <span class="kw">let </span><span class="kw-2">mut </span>instructions_to_remove = HashSet::default();
-            <span class="kw">let </span><span class="kw-2">mut </span>instruction_ids = <span class="self">self</span>.dfg[block].take_instructions();
+        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+            <span class="kw">let </span>instruction_id = context.instruction_id;
+            <span class="kw">let </span>instruction = context.instruction();
 
-            <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
-                <span class="kw">if </span>!values_to_replace.is_empty() {
-                    <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction_id];
-                    instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
-                }
-
-                <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction_id];
-                <span class="kw">match </span>instruction {
-                    <span class="comment">// If this is a range_check instruction, associate the max bit size with the value
-                    </span>Instruction::RangeCheck { value, max_bit_size, .. } =&gt; {
-                        range_checks
-                            .entry(<span class="kw-2">*</span>value)
-                            .and_modify(|current_max| {
-                                <span class="kw">if </span><span class="kw-2">*</span>max_bit_size &lt; <span class="kw-2">*</span>current_max {
-                                    <span class="kw-2">*</span>current_max = <span class="kw-2">*</span>max_bit_size;
-                                }
-                            })
-                            .or_insert(<span class="kw-2">*</span>max_bit_size);
-                    }
-                    <span class="comment">// If this is a truncate instruction, check if there's a range check for that same value
-                    </span>Instruction::Truncate { value, bit_size, .. } =&gt; {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(range_check_bit_size) = range_checks.get(value) {
-                            <span class="kw">if </span>range_check_bit_size &lt;= bit_size {
-                                <span class="comment">// We need to replace the truncated value with the original one. That is, in:
-                                //
-                                // range_check v0 to 32 bits
-                                // v1 = truncate v0 to 32 bits, max_bit_size: 254
-                                //
-                                // we need to remove the `truncate` and all references to `v1` should now be `v0`.
-                                </span><span class="kw">let </span>result =
-                                    <span class="self">self</span>.dfg.instruction_results(<span class="kw-2">*</span>instruction_id).first().unwrap();
-                                values_to_replace.insert(<span class="kw-2">*</span>result, <span class="kw-2">*</span>value);
-                                instructions_to_remove.insert(<span class="kw-2">*</span>instruction_id);
+            <span class="kw">match </span>instruction {
+                <span class="comment">// If this is a range_check instruction, associate the max bit size with the value
+                </span>Instruction::RangeCheck { value, max_bit_size, .. } =&gt; {
+                    range_checks
+                        .entry(<span class="kw-2">*</span>value)
+                        .and_modify(|current_max| {
+                            <span class="kw">if </span><span class="kw-2">*</span>max_bit_size &lt; <span class="kw-2">*</span>current_max {
+                                <span class="kw-2">*</span>current_max = <span class="kw-2">*</span>max_bit_size;
                             }
+                        })
+                        .or_insert(<span class="kw-2">*</span>max_bit_size);
+                }
+                <span class="comment">// If this is a truncate instruction, check if there's a range check for that same value
+                </span>Instruction::Truncate { value, bit_size, .. } =&gt; {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(range_check_bit_size) = range_checks.get(value) {
+                        <span class="kw">if </span>range_check_bit_size &lt;= bit_size {
+                            <span class="comment">// We need to replace the truncated value with the original one. That is, in:
+                            //
+                            // range_check v0 to 32 bits
+                            // v1 = truncate v0 to 32 bits, max_bit_size: 254
+                            //
+                            // we need to remove the `truncate` and all references to `v1` should now be `v0`.
+                            </span><span class="kw">let </span>result =
+                                context.dfg.instruction_results(instruction_id).first().unwrap();
+                            context.replace_value(<span class="kw-2">*</span>result, <span class="kw-2">*</span>value);
+                            context.remove_current_instruction();
                         }
                     }
-                    <span class="kw">_ </span>=&gt; (),
                 }
+                <span class="kw">_ </span>=&gt; (),
             }
-
-            <span class="kw">if </span>!instructions_to_remove.is_empty() {
-                instruction_ids.retain(|instruction| !instructions_to_remove.contains(instruction));
-            }
-            <span class="kw-2">*</span><span class="self">self</span>.dfg[block].instructions_mut() = instruction_ids;
-            <span class="self">self</span>.dfg.replace_values_in_block_terminator(block, <span class="kw-2">&amp;</span>values_to_replace);
-        }
-
-        <span class="self">self</span>.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
+        });
     }
 }
 

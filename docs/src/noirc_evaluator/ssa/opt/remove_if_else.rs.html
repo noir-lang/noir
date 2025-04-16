@@ -383,15 +383,7 @@
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
+<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -399,7 +391,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::Hint;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::{ValueId, ValueMapping};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueId;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
     ir::{
@@ -452,31 +444,30 @@
 <span class="kw">impl </span>Context {
     <span class="kw">fn </span>remove_if_else(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function) {
         <span class="kw">let </span>block = function.entry_block();
-        <span class="kw">let </span>instructions = function.dfg[block].take_instructions();
+
+        <span class="comment">// Make sure this optimization runs when there's only one block
+        </span><span class="macro">assert_eq!</span>(function.dfg[block].successors().count(), <span class="number">0</span>);
+
         <span class="kw">let </span>one = FieldElement::one();
         <span class="kw">let </span><span class="kw-2">mut </span>current_conditional = function.dfg.make_constant(one, NumericType::bool());
-        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
 
-        <span class="kw">for </span>instruction <span class="kw">in </span>instructions {
-            <span class="comment">// Before we process instructions, replace any values we previously determined we need to replace
-            </span><span class="kw">if </span>!values_to_replace.is_empty() {
-                <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span>function.dfg[instruction];
-                instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
-            }
+        function.simple_reachable_blocks_optimization(|context| {
+            <span class="kw">let </span>instruction_id = context.instruction_id;
+            <span class="kw">let </span>instruction = context.instruction();
 
-            <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[instruction] {
+            <span class="kw">match </span>instruction {
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; {
                     <span class="kw">let </span>then_condition = <span class="kw-2">*</span>then_condition;
                     <span class="kw">let </span>else_condition = <span class="kw-2">*</span>else_condition;
                     <span class="kw">let </span>then_value = <span class="kw-2">*</span>then_value;
                     <span class="kw">let </span>else_value = <span class="kw-2">*</span>else_value;
 
-                    <span class="kw">let </span>typ = function.dfg.type_of_value(then_value);
+                    <span class="kw">let </span>typ = context.dfg.type_of_value(then_value);
                     <span class="macro">assert!</span>(!<span class="macro">matches!</span>(typ, Type::Numeric(<span class="kw">_</span>)));
 
-                    <span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack_id(instruction);
+                    <span class="kw">let </span>call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     <span class="kw">let </span><span class="kw-2">mut </span>value_merger = ValueMerger::new(
-                        <span class="kw-2">&amp;mut </span>function.dfg,
+                        context.dfg,
                         block,
                         <span class="kw-2">&amp;mut </span><span class="self">self</span>.slice_sizes,
                         <span class="kw-2">&amp;mut </span><span class="self">self</span>.array_set_conditionals,
@@ -491,8 +482,8 @@
                         else_value,
                     );
 
-                    <span class="kw">let </span>_typ = function.dfg.type_of_value(value);
-                    <span class="kw">let </span>results = function.dfg.instruction_results(instruction);
+                    <span class="kw">let </span>_typ = context.dfg.type_of_value(value);
+                    <span class="kw">let </span>results = context.dfg.instruction_results(instruction_id);
                     <span class="kw">let </span>result = results[<span class="number">0</span>];
                     <span class="comment">// let result = match typ {
                     //     Type::Array(..) =&gt; results[0],
@@ -500,54 +491,47 @@
                     //     other =&gt; unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
                     // };
 
-                    </span>values_to_replace.insert(result, value);
+                    </span>context.remove_current_instruction();
+                    context.replace_value(result, value);
                     <span class="self">self</span>.array_set_conditionals.insert(value, current_conditional);
                 }
                 Instruction::Call { func, arguments } =&gt; {
-                    <span class="kw">if let </span>Value::Intrinsic(intrinsic) = function.dfg[<span class="kw-2">*</span>func] {
-                        <span class="kw">let </span>results = function.dfg.instruction_results(instruction);
+                    <span class="kw">if let </span>Value::Intrinsic(intrinsic) = context.dfg[<span class="kw-2">*</span>func] {
+                        <span class="kw">let </span>results = context.dfg.instruction_results(instruction_id);
 
-                        <span class="kw">match </span>slice_capacity_change(<span class="kw-2">&amp;</span>function.dfg, intrinsic, arguments, results) {
+                        <span class="kw">match </span>slice_capacity_change(context.dfg, intrinsic, arguments, results) {
                             SizeChange::None =&gt; (),
                             SizeChange::SetTo(value, new_capacity) =&gt; {
                                 <span class="self">self</span>.slice_sizes.insert(value, new_capacity);
                             }
                             SizeChange::Inc { old, new } =&gt; {
-                                <span class="kw">let </span>old_capacity = <span class="self">self</span>.get_or_find_capacity(<span class="kw-2">&amp;</span>function.dfg, old);
+                                <span class="kw">let </span>old_capacity = <span class="self">self</span>.get_or_find_capacity(context.dfg, old);
                                 <span class="self">self</span>.slice_sizes.insert(new, old_capacity + <span class="number">1</span>);
                             }
                             SizeChange::Dec { old, new } =&gt; {
-                                <span class="kw">let </span>old_capacity = <span class="self">self</span>.get_or_find_capacity(<span class="kw-2">&amp;</span>function.dfg, old);
+                                <span class="kw">let </span>old_capacity = <span class="self">self</span>.get_or_find_capacity(context.dfg, old);
                                 <span class="comment">// We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
                                 </span><span class="self">self</span>.slice_sizes.insert(new, old_capacity.saturating_sub(<span class="number">1</span>));
                             }
                         }
                     }
-                    function.dfg[block].instructions_mut().push(instruction);
                 }
                 Instruction::ArraySet { array, .. } =&gt; {
-                    <span class="kw">let </span>results = function.dfg.instruction_results(instruction);
+                    <span class="kw">let </span>results = context.dfg.instruction_results(instruction_id);
                     <span class="kw">let </span>result = <span class="kw">if </span>results.len() == <span class="number">2 </span>{ results[<span class="number">1</span>] } <span class="kw">else </span>{ results[<span class="number">0</span>] };
 
                     <span class="self">self</span>.array_set_conditionals.insert(result, current_conditional);
 
-                    <span class="kw">let </span>old_capacity = <span class="self">self</span>.get_or_find_capacity(<span class="kw-2">&amp;</span>function.dfg, <span class="kw-2">*</span>array);
+                    <span class="kw">let </span>old_capacity = <span class="self">self</span>.get_or_find_capacity(context.dfg, <span class="kw-2">*</span>array);
                     <span class="self">self</span>.slice_sizes.insert(result, old_capacity);
-                    function.dfg[block].instructions_mut().push(instruction);
                 }
                 Instruction::EnableSideEffectsIf { condition } =&gt; {
                     current_conditional = <span class="kw-2">*</span>condition;
-                    function.dfg[block].instructions_mut().push(instruction);
                 }
-                <span class="kw">_ </span>=&gt; {
-                    function.dfg[block].instructions_mut().push(instruction);
-                }
+                <span class="kw">_ </span>=&gt; (),
             }
-        }
-
-        function.dfg.replace_values_in_block_terminator(block, <span class="kw-2">&amp;</span>values_to_replace);
-        function.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
+        });
     }
 
     <span class="kw">fn </span>get_or_find_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, value: ValueId) -&gt; u32 {

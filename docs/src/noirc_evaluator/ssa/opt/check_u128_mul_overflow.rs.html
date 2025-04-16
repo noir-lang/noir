@@ -278,13 +278,13 @@
 <a href="#277" id="277">277</a>
 <a href="#278" id="278">278</a>
 <a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
-        dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Instruction},
         types::NumericType,
@@ -292,6 +292,8 @@
     },
     ssa_gen::Ssa,
 };
+
+<span class="kw">use </span><span class="kw">super</span>::simple_optimization::SimpleOptimizationContext;
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// An SSA pass that checks that multiplying two u128 doesn't overflow because
@@ -314,30 +316,29 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
-            <span class="kw">let </span>instructions = <span class="self">self</span>.dfg[block].take_instructions();
+        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+            context.insert_current_instruction();
 
-            <span class="kw">for </span>instruction <span class="kw">in </span>instructions {
-                <span class="self">self</span>.dfg[block].insert_instruction(instruction);
+            <span class="kw">let </span>block_id = context.block_id;
+            <span class="kw">let </span>instruction_id = context.instruction_id;
+            <span class="kw">let </span>instruction = context.instruction();
+            <span class="kw">let </span>Instruction::Binary(Binary {
+                lhs,
+                rhs,
+                operator: BinaryOp::Mul { unchecked: <span class="bool-val">false </span>},
+            }) = instruction
+            <span class="kw">else </span>{
+                <span class="kw">return</span>;
+            };
 
-                <span class="kw">let </span>Instruction::Binary(Binary {
-                    lhs,
-                    rhs,
-                    operator: BinaryOp::Mul { unchecked: <span class="bool-val">false </span>},
-                }) = <span class="kw-2">&amp;</span><span class="self">self</span>.dfg[instruction]
-                <span class="kw">else </span>{
-                    <span class="kw">continue</span>;
-                };
+            <span class="kw">let </span>binary_type = context.dfg.type_of_value(<span class="kw-2">*</span>lhs).unwrap_numeric();
+            <span class="kw">let </span>NumericType::Unsigned { bit_size: <span class="number">128 </span>} = binary_type <span class="kw">else </span>{
+                <span class="kw">return</span>;
+            };
 
-                <span class="kw">let </span>binary_type = <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>lhs).unwrap_numeric();
-                <span class="kw">let </span>NumericType::Unsigned { bit_size: <span class="number">128 </span>} = binary_type <span class="kw">else </span>{
-                    <span class="kw">continue</span>;
-                };
-
-                <span class="kw">let </span>call_stack = <span class="self">self</span>.dfg.get_instruction_call_stack_id(instruction);
-                check_u128_mul_overflow(<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs, block, <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg, call_stack);
-            }
-        }
+            <span class="kw">let </span>call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
+            check_u128_mul_overflow(<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs, block_id, context, call_stack);
+        });
     }
 }
 
@@ -345,9 +346,10 @@
     lhs: ValueId,
     rhs: ValueId,
     block: BasicBlockId,
-    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
+    context: <span class="kw-2">&amp;mut </span>SimpleOptimizationContext&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt;,
     call_stack: CallStackId,
 ) {
+    <span class="kw">let </span>dfg = <span class="kw-2">&amp;mut </span>context.dfg;
     <span class="kw">let </span>lhs_value = dfg.get_numeric_constant(lhs);
     <span class="kw">let </span>rhs_value = dfg.get_numeric_constant(rhs);
 

@@ -2,7 +2,6 @@
     main: <a class="struct" href="../node_interner/struct.FuncId.html" title="struct noirc_frontend::node_interner::FuncId">FuncId</a>,
     interner: &amp;mut <a class="struct" href="../node_interner/struct.NodeInterner.html" title="struct noirc_frontend::node_interner::NodeInterner">NodeInterner</a>,
     force_unconstrained: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
-    enable_ownership: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="ast/struct.Program.html" title="struct noirc_frontend::monomorphization::ast::Program">Program</a>, <a class="enum" href="errors/enum.MonomorphizationError.html" title="enum noirc_frontend::monomorphization::errors::MonomorphizationError">MonomorphizationError</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Starting from the given <code>main</code> function, monomorphize the entire program,
 replacing all references to type variables and NamedGenerics with concrete
 types, duplicating definitions as necessary to do so.</p>

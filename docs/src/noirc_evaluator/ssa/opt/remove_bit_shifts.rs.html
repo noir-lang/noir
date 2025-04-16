@@ -400,41 +400,23 @@
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#402" id="402">402</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         call_stack::CallStackId,
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic},
+        instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
-        value::{ValueId, ValueMapping},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
+
+<span class="kw">use </span><span class="kw">super</span>::simple_optimization::SimpleOptimizationContext;
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Performs constant folding on each instruction.
@@ -458,70 +440,56 @@
         }
 
         <span class="kw">let </span>block = <span class="self">self</span>.entry_block();
-        <span class="kw">let </span><span class="kw-2">mut </span>context = Context {
-            function: <span class="self">self</span>,
-            new_instructions: Vec::new(),
-            block,
-            call_stack: CallStackId::root(),
-        };
 
-        context.remove_bit_shifts();
+        <span class="comment">// Make sure this optimization runs when there's only one block
+        </span><span class="macro">assert_eq!</span>(<span class="self">self</span>.dfg[block].successors().count(), <span class="number">0</span>);
+
+        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+            <span class="kw">let </span>instruction_id = context.instruction_id;
+            <span class="kw">let </span>instruction = context.instruction();
+
+            <span class="kw">let </span>Instruction::Binary(Binary { lhs, rhs, operator }) = instruction <span class="kw">else </span>{
+                <span class="kw">return</span>;
+            };
+
+            <span class="kw">if </span>!<span class="macro">matches!</span>(operator, BinaryOp::Shl | BinaryOp::Shr) {
+                <span class="kw">return</span>;
+            }
+
+            <span class="kw">let </span>lhs = <span class="kw-2">*</span>lhs;
+            <span class="kw">let </span>rhs = <span class="kw-2">*</span>rhs;
+            <span class="kw">let </span>operator = <span class="kw-2">*</span>operator;
+
+            context.remove_current_instruction();
+
+            <span class="kw">let </span>call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
+            <span class="kw">let </span>old_result = <span class="kw-2">*</span>context.dfg.instruction_results(instruction_id).first().unwrap();
+
+            <span class="kw">let </span>bit_size = <span class="kw">match </span>context.dfg.type_of_value(lhs) {
+                Type::Numeric(NumericType::Signed { bit_size })
+                | Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; bit_size,
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: right-shift attempted on non-integer"</span>),
+            };
+
+            <span class="kw">let </span>new_result = <span class="kw">if </span>operator == BinaryOp::Shl {
+                <span class="kw">let </span><span class="kw-2">mut </span>context = Context { context, call_stack };
+                context.insert_wrapping_shift_left(lhs, rhs, bit_size)
+            } <span class="kw">else </span>{
+                <span class="kw">let </span><span class="kw-2">mut </span>context = Context { context, call_stack };
+                context.insert_shift_right(lhs, rhs, bit_size)
+            };
+
+            context.replace_value(old_result, new_result);
+        });
     }
 }
 
-<span class="kw">struct </span>Context&lt;<span class="lifetime">'f</span>&gt; {
-    function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span><span class="kw-2">mut </span>Function,
-    new_instructions: Vec&lt;InstructionId&gt;,
-
-    block: BasicBlockId,
+<span class="kw">struct </span>Context&lt;<span class="lifetime">'m</span>, <span class="lifetime">'dfg</span>, <span class="lifetime">'mapping</span>&gt; {
+    context: <span class="kw-2">&amp;</span><span class="lifetime">'m </span><span class="kw-2">mut </span>SimpleOptimizationContext&lt;<span class="lifetime">'dfg</span>, <span class="lifetime">'mapping</span>&gt;,
     call_stack: CallStackId,
 }
 
-<span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">fn </span>remove_bit_shifts(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
-        <span class="kw">let </span>instructions = <span class="self">self</span>.function.dfg[<span class="self">self</span>.block].take_instructions();
-
-        <span class="kw">for </span>instruction_id <span class="kw">in </span>instructions {
-            <span class="kw">if </span>!values_to_replace.is_empty() {
-                <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.function.dfg[instruction_id];
-                instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
-            }
-
-            <span class="kw">match </span><span class="self">self</span>.function.dfg[instruction_id] {
-                Instruction::Binary(Binary { lhs, rhs, operator })
-                    <span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOp::Shl | BinaryOp::Shr) =&gt;
-                {
-                    <span class="self">self</span>.call_stack =
-                        <span class="self">self</span>.function.dfg.get_instruction_call_stack_id(instruction_id);
-                    <span class="kw">let </span>old_result =
-                        <span class="kw-2">*</span><span class="self">self</span>.function.dfg.instruction_results(instruction_id).first().unwrap();
-
-                    <span class="kw">let </span>bit_size = <span class="kw">match </span><span class="self">self</span>.function.dfg.type_of_value(lhs) {
-                        Type::Numeric(NumericType::Signed { bit_size })
-                        | Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; bit_size,
-                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: right-shift attempted on non-integer"</span>),
-                    };
-                    <span class="kw">let </span>new_result = <span class="kw">if </span>operator == BinaryOp::Shl {
-                        <span class="self">self</span>.insert_wrapping_shift_left(lhs, rhs, bit_size)
-                    } <span class="kw">else </span>{
-                        <span class="self">self</span>.insert_shift_right(lhs, rhs, bit_size)
-                    };
-
-                    values_to_replace.insert(old_result, new_result);
-                }
-                <span class="kw">_ </span>=&gt; {
-                    <span class="self">self</span>.new_instructions.push(instruction_id);
-                }
-            };
-        }
-
-        <span class="kw-2">*</span><span class="self">self</span>.function.dfg[<span class="self">self</span>.block].instructions_mut() =
-            std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.new_instructions);
-        <span class="self">self</span>.function.dfg.replace_values_in_block_terminator(<span class="self">self</span>.block, <span class="kw-2">&amp;</span>values_to_replace);
-        <span class="self">self</span>.function.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
-    }
-
+<span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="doccomment">/// Insert ssa instructions which computes lhs &lt;&lt; rhs by doing lhs*2^rhs
     /// and truncate the result to bit_size
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_wrapping_shift_left(
@@ -531,8 +499,8 @@
         bit_size: u32,
     ) -&gt; ValueId {
         <span class="kw">let </span>base = <span class="self">self</span>.field_constant(FieldElement::from(<span class="number">2_u128</span>));
-        <span class="kw">let </span>typ = <span class="self">self</span>.function.dfg.type_of_value(lhs).unwrap_numeric();
-        <span class="kw">let </span>(max_bit, pow) = <span class="kw">if let </span><span class="prelude-val">Some</span>(rhs_constant) = <span class="self">self</span>.function.dfg.get_numeric_constant(rhs)
+        <span class="kw">let </span>typ = <span class="self">self</span>.context.dfg.type_of_value(lhs).unwrap_numeric();
+        <span class="kw">let </span>(max_bit, pow) = <span class="kw">if let </span><span class="prelude-val">Some</span>(rhs_constant) = <span class="self">self</span>.context.dfg.get_numeric_constant(rhs)
         {
             <span class="comment">// Happy case is that we know precisely by how many bits the integer will
             // increase: lhs_bit_size + rhs
@@ -548,7 +516,7 @@
             }
             <span class="kw">let </span>pow = <span class="self">self</span>.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
 
-            <span class="kw">let </span>max_lhs_bits = <span class="self">self</span>.function.dfg.get_value_max_num_bits(lhs);
+            <span class="kw">let </span>max_lhs_bits = <span class="self">self</span>.context.dfg.get_value_max_num_bits(lhs);
             <span class="kw">let </span>max_bit_size = max_lhs_bits + bit_shift_size;
             <span class="comment">// There is no point trying to truncate to more than the Field size.
             // A higher `max_lhs_bits` input can come from trying to left-shift a Field.
@@ -593,7 +561,7 @@
         rhs: ValueId,
         bit_size: u32,
     ) -&gt; ValueId {
-        <span class="kw">let </span>lhs_typ = <span class="self">self</span>.function.dfg.type_of_value(lhs).unwrap_numeric();
+        <span class="kw">let </span>lhs_typ = <span class="self">self</span>.context.dfg.type_of_value(lhs).unwrap_numeric();
         <span class="kw">let </span>base = <span class="self">self</span>.field_constant(FieldElement::from(<span class="number">2_u128</span>));
         <span class="kw">let </span>pow = <span class="self">self</span>.pow(base, rhs);
         <span class="kw">let </span>pow = <span class="self">self</span>.pow_or_max_for_bit_size(pow, rhs, bit_size, lhs_typ);
@@ -660,7 +628,7 @@
         // pow = add pow_when_is_less_than_bit_size, pow_when_is_not_less_than_bit_size
         //
         // All operations here are unchecked because they work on field types.
-        </span><span class="kw">let </span>rhs_typ = <span class="self">self</span>.function.dfg.type_of_value(rhs).unwrap_numeric();
+        </span><span class="kw">let </span>rhs_typ = <span class="self">self</span>.context.dfg.type_of_value(rhs).unwrap_numeric();
         <span class="kw">let </span>bit_size = <span class="self">self</span>.numeric_constant(bit_size <span class="kw">as </span>u128, rhs_typ);
         <span class="kw">let </span>rhs_is_less_than_bit_size = <span class="self">self</span>.insert_binary(rhs, BinaryOp::Lt, bit_size);
         <span class="kw">let </span>rhs_is_not_less_than_bit_size = <span class="self">self</span>.insert_not(rhs_is_less_than_bit_size);
@@ -692,9 +660,9 @@
     ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
     /// }
     </span><span class="kw">fn </span>pow(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: ValueId, rhs: ValueId) -&gt; ValueId {
-        <span class="kw">let </span>typ = <span class="self">self</span>.function.dfg.type_of_value(rhs);
+        <span class="kw">let </span>typ = <span class="self">self</span>.context.dfg.type_of_value(rhs);
         <span class="kw">if let </span>Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            <span class="kw">let </span>to_bits = <span class="self">self</span>.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
+            <span class="kw">let </span>to_bits = <span class="self">self</span>.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
             <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), bit_size)];
             <span class="kw">let </span>rhs_bits = <span class="self">self</span>.insert_call(to_bits, <span class="macro">vec!</span>[rhs], result_types);
 
@@ -721,7 +689,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constant: FieldElement) -&gt; ValueId {
-        <span class="self">self</span>.function.dfg.make_constant(constant, NumericType::NativeField)
+        <span class="self">self</span>.context.dfg.make_constant(constant, NumericType::NativeField)
     }
 
     <span class="doccomment">/// Insert a numeric constant into the current function
@@ -730,7 +698,7 @@
         value: <span class="kw">impl </span>Into&lt;FieldElement&gt;,
         typ: NumericType,
     ) -&gt; ValueId {
-        <span class="self">self</span>.function.dfg.make_constant(value.into(), typ)
+        <span class="self">self</span>.context.dfg.make_constant(value.into(), typ)
     }
 
     <span class="doccomment">/// Insert a binary instruction at the end of the current block.
@@ -796,18 +764,12 @@
         instruction: Instruction,
         ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
     ) -&gt; InsertInstructionResult {
-        <span class="kw">let </span>result = <span class="self">self</span>.function.dfg.insert_instruction_and_results(
+        <span class="self">self</span>.context.dfg.insert_instruction_and_results(
             instruction,
-            <span class="self">self</span>.block,
+            <span class="self">self</span>.context.block_id,
             ctrl_typevars,
             <span class="self">self</span>.call_stack,
-        );
-
-        <span class="kw">if let </span>InsertInstructionResult::Results(instruction_id, <span class="kw">_</span>) = result {
-            <span class="self">self</span>.new_instructions.push(instruction_id);
-        }
-
-        result
+        )
     }
 }
 
