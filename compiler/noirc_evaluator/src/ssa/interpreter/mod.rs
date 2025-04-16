@@ -4,14 +4,16 @@ use super::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
+        types::Type,
         value::ValueId,
     },
 };
 use crate::errors::RuntimeError;
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
-use value::NumericValue;
+use noirc_frontend::Shared;
+use value::{ArrayValue, NumericValue};
 
 mod tests;
 pub mod value;
@@ -45,8 +47,8 @@ impl CallContext {
     }
 }
 
-type IResult = Result<Value, RuntimeError>;
-type IResults = Result<Vec<Value>, RuntimeError>;
+type IResult<T> = Result<T, RuntimeError>;
+type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 pub(crate) fn interpret(ssa: &Ssa) -> IResults {
@@ -78,6 +80,10 @@ impl<'ssa> Interpreter<'ssa> {
 
     fn dfg(&self) -> &'ssa DataFlowGraph {
         &self.current_function().dfg
+    }
+
+    fn in_unconstrained_context(&self) -> bool {
+        self.current_function().runtime().is_brillig()
     }
 
     /// Define or redefine a value.
@@ -186,9 +192,9 @@ impl<'ssa> Interpreter<'ssa> {
                 let result = Value::Numeric(NumericValue::from_constant(field, *numeric_type));
                 self.define(results[0], result);
             }
-            Instruction::Not(id) => self.interpret_not(id, results[0]),
+            Instruction::Not(id) => self.interpret_not(*id, results[0]),
             Instruction::Truncate { value, bit_size, max_bit_size } => {
-                self.interpret_truncate(*value, *bit_size, *max_bit_size, results[0])
+                self.interpret_truncate(*value, *bit_size, *max_bit_size, results[0]);
             }
             Instruction::Constrain(lhs, rhs, constrain_error) => {
                 let lhs = self.lookup(*lhs);
@@ -205,9 +211,11 @@ impl<'ssa> Interpreter<'ssa> {
                 }
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                self.interpret_range_check(*value, *max_bit_size, assert_message.as_ref())
+                self.interpret_range_check(*value, *max_bit_size, assert_message.as_ref());
             }
-            Instruction::Call { func, arguments } => self.interpret_call(*func, arguments, results),
+            Instruction::Call { func, arguments } => {
+                self.interpret_call(*func, arguments, results)?;
+            }
             Instruction::Allocate => self.interpret_allocate(results[0]),
             Instruction::Load { address } => self.interpret_load(*address, results[0]),
             Instruction::Store { address, value } => self.interpret_store(*address, *value),
@@ -215,10 +223,10 @@ impl<'ssa> Interpreter<'ssa> {
                 self.side_effects_enabled = self.lookup(*condition).as_bool().unwrap();
             }
             Instruction::ArrayGet { array, index } => {
-                self.interpret_array_get(*array, *index, results[0])
+                self.interpret_array_get(*array, *index, results[0]);
             }
             Instruction::ArraySet { array, index, value, mutable } => {
-                self.interpret_array_set(*array, *index, *value, *mutable, results[0])
+                self.interpret_array_set(*array, *index, *value, *mutable, results[0]);
             }
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
@@ -227,15 +235,258 @@ impl<'ssa> Interpreter<'ssa> {
                     *then_condition,
                     *then_value,
                     *else_condition,
-                    *else_condition,
+                    *else_value,
                     results[0],
                 ),
             Instruction::MakeArray { elements, typ } => {
-                self.interpret_make_array(elements, results[0])
+                self.interpret_make_array(elements, results[0]);
             }
             Instruction::Noop => (),
         }
         Ok(())
+    }
+
+    fn interpret_not(&mut self, id: ValueId, result: ValueId) {
+        let new_result = match self.lookup(id).as_numeric().unwrap() {
+            NumericValue::Field(field) => {
+                unreachable!("not: Expected integer value, found field {field}")
+            }
+            NumericValue::U1(value) => NumericValue::U1(!value),
+            NumericValue::U8(value) => NumericValue::U8(!value),
+            NumericValue::U16(value) => NumericValue::U16(!value),
+            NumericValue::U32(value) => NumericValue::U32(!value),
+            NumericValue::U64(value) => NumericValue::U64(!value),
+            NumericValue::U128(value) => NumericValue::U128(!value),
+            NumericValue::I8(value) => NumericValue::I8(!value),
+            NumericValue::I16(value) => NumericValue::I16(!value),
+            NumericValue::I32(value) => NumericValue::I32(!value),
+            NumericValue::I64(value) => NumericValue::I64(!value),
+        };
+        self.define(result, Value::Numeric(new_result));
+    }
+
+    fn interpret_truncate(
+        &mut self,
+        _value: ValueId,
+        _bit_size: u32,
+        _max_bit_size: u32,
+        _results: ValueId,
+    ) {
+        todo!()
+    }
+
+    fn interpret_range_check(
+        &mut self,
+        _value: ValueId,
+        _max_bit_size: u32,
+        _as_ref: Option<&String>,
+    ) {
+        todo!()
+    }
+
+    fn interpret_call(
+        &mut self,
+        function: ValueId,
+        arguments: &[ValueId],
+        results: &[ValueId],
+    ) -> IResult<()> {
+        let function = self.lookup(function);
+        let mut arguments = vecmap(arguments, |argument| self.lookup(*argument));
+
+        if self.side_effects_enabled() {
+            let new_results: Vec<Value> = match function {
+                Value::Function(id) => {
+                    // If we're crossing a constrained -> unconstrained boundary we have to wipe
+                    // any shared mutable fields in our arguments since brillig should conceptually
+                    // receive fresh array on each invocation.
+                    if !self.in_unconstrained_context()
+                        && self.ssa.functions[&id].runtime().is_brillig()
+                    {
+                        arguments.iter_mut().for_each(Self::reset_array_state);
+                    }
+                    self.call_function(id, arguments)?
+                }
+                Value::Intrinsic(intrinsic) => {
+                    todo!("call: Intrinsic({intrinsic}) is not yet implemented")
+                }
+                Value::ForeignFunction(name) => {
+                    todo!("call: ForeignFunction({name}) is not yet implemented")
+                }
+                other => panic!("call: Expected function, found {other:?}"),
+            };
+            assert_eq!(new_results.len(), results.len());
+
+            for (result, new_result) in results.iter().zip(new_results) {
+                self.define(*result, new_result);
+            }
+            Ok(())
+        } else {
+            todo!()
+        }
+    }
+
+    /// Reset the value's `Shared` states in each array within. This is used to mimic each
+    /// invocation of the brillig vm receiving fresh values. No matter the history of this value
+    /// (e.g. even if they were previously returned from another brillig function) the reference
+    /// count should always be 1 and it shouldn't alias any other arrays.
+    fn reset_array_state(value: &mut Value) {
+        match value {
+            Value::Numeric(_)
+            | Value::Function(_)
+            | Value::Intrinsic(_)
+            | Value::ForeignFunction(_) => (),
+
+            Value::Reference(_) => panic!(
+                "No reference values are allowed when crossing the constrained -> unconstrained boundary"
+            ),
+
+            Value::ArrayOrSlice(array_value) => {
+                let mut elements = array_value.elements.borrow().to_vec();
+                elements.iter_mut().for_each(Self::reset_array_state);
+                array_value.elements = Shared::new(elements);
+                array_value.rc = Shared::new(1);
+            }
+        }
+    }
+
+    fn interpret_allocate(&mut self, result: ValueId) {
+        let result_type = self.dfg().type_of_value(result);
+        let element_type = match result_type {
+            Type::Reference(element_type) => element_type,
+            other => unreachable!(
+                "Result of allocate should always be a reference type, but found {other}"
+            ),
+        };
+        self.define(result, Value::reference(result, element_type));
+    }
+
+    fn interpret_load(&mut self, address: ValueId, result: ValueId) {
+        let address = self.lookup(address);
+        let address = address.as_reference().unwrap();
+
+        let element = address.element.borrow();
+        let Some(value) = &*element else {
+            panic!(
+                "reference value {} is being loaded before it was stored to",
+                address.original_id
+            );
+        };
+
+        self.define(result, value.clone());
+    }
+
+    fn interpret_store(&mut self, address: ValueId, value: ValueId) {
+        let address = self.lookup(address);
+        let address = address.as_reference().unwrap();
+        let value = self.lookup(value);
+        *address.element.borrow_mut() = Some(value);
+    }
+
+    fn interpret_array_get(&mut self, array: ValueId, index: ValueId, result: ValueId) {
+        let element = if self.side_effects_enabled() {
+            let array = self.lookup(array);
+            let array = array.as_array_or_slice().unwrap();
+            let index = self.lookup(index).as_u32().unwrap();
+            array.elements.borrow()[index as usize].clone()
+        } else {
+            todo!()
+        };
+        self.define(result, element);
+    }
+
+    fn interpret_array_set(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        value: ValueId,
+        mutable: bool,
+        result: ValueId,
+    ) {
+        let result_array = if self.side_effects_enabled() {
+            let array = self.lookup(array);
+            let array = array.as_array_or_slice().unwrap();
+            let index = self.lookup(index).as_u32().unwrap();
+            let value = self.lookup(value);
+
+            let should_mutate =
+                if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+
+            if should_mutate {
+                array.elements.borrow_mut()[index as usize] = value;
+                Value::ArrayOrSlice(array.clone())
+            } else {
+                let mut elements = array.elements.borrow().to_vec();
+                elements[index as usize] = value;
+                let elements = Shared::new(elements);
+                let rc = Shared::new(1);
+                let element_types = array.element_types.clone();
+                let is_slice = array.is_slice;
+                Value::ArrayOrSlice(ArrayValue { elements, rc, element_types, is_slice })
+            }
+        } else {
+            // Side effects are disabled, return the original array
+            self.lookup(array)
+        };
+        self.define(result, result_array);
+    }
+
+    fn interpret_inc_rc(&self, array: ValueId) {
+        if self.in_unconstrained_context() {
+            let array = self.lookup(array);
+            let array = array.as_array_or_slice().unwrap();
+            let mut rc = array.rc.borrow_mut();
+
+            assert_ne!(*rc, 0, "inc_rc: increment from 0 back to 1 detected");
+            *rc += 1;
+        }
+    }
+
+    fn interpret_dec_rc(&self, array: ValueId) {
+        if self.in_unconstrained_context() {
+            let array = self.lookup(array);
+            let array = array.as_array_or_slice().unwrap();
+            let mut rc = array.rc.borrow_mut();
+
+            assert_ne!(*rc, 0, "dec_rc: underflow detected");
+            *rc -= 1;
+        }
+    }
+
+    fn interpret_if_else(
+        &mut self,
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_condition: ValueId,
+        else_value: ValueId,
+        result: ValueId,
+    ) {
+        let then_condition = self.lookup(then_condition).as_bool().unwrap();
+        let else_condition = self.lookup(else_condition).as_bool().unwrap();
+        let then_value = self.lookup(then_value);
+        let else_value = self.lookup(else_value);
+
+        assert_eq!(
+            then_condition, !else_condition,
+            "else_condition should always equal !then_condition"
+        );
+
+        let new_result = if then_condition { then_value } else { else_value };
+        self.define(result, new_result);
+    }
+
+    fn interpret_make_array(&mut self, elements: &im::Vector<ValueId>, result: ValueId) {
+        let elements = vecmap(elements, |element| self.lookup(*element));
+
+        let result_type = self.dfg().type_of_value(result);
+        let is_slice = matches!(&result_type, Type::Slice(..));
+
+        let array = Value::ArrayOrSlice(ArrayValue {
+            elements: Shared::new(elements),
+            rc: Shared::new(1),
+            element_types: result_type.element_types(),
+            is_slice,
+        });
+        self.define(result, array);
     }
 }
 
@@ -300,8 +551,8 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
-impl<'ssa> Interpreter<'ssa> {
-    fn interpret_binary(&mut self, binary: &Binary) -> IResult {
+impl Interpreter<'_> {
+    fn interpret_binary(&mut self, binary: &Binary) -> IResult<Value> {
         // TODO: Replace unwrap with real error
         let lhs = self.lookup(binary.lhs).as_numeric().unwrap();
         let rhs = self.lookup(binary.rhs).as_numeric().unwrap();
@@ -367,12 +618,18 @@ impl<'ssa> Interpreter<'ssa> {
         lhs: FieldElement,
         operator: BinaryOp,
         rhs: FieldElement,
-    ) -> IResult {
+    ) -> IResult<Value> {
         let result = match operator {
             BinaryOp::Add { unchecked: _ } => NumericValue::Field(lhs + rhs),
             BinaryOp::Sub { unchecked: _ } => NumericValue::Field(lhs - rhs),
             BinaryOp::Mul { unchecked: _ } => NumericValue::Field(lhs * rhs),
-            BinaryOp::Div => NumericValue::Field(lhs / rhs),
+            BinaryOp::Div => {
+                // FieldElement::div returns a value with panicking on divide by zero
+                if rhs.is_zero() {
+                    panic!("Field division by zero");
+                }
+                NumericValue::Field(lhs / rhs)
+            }
             BinaryOp::Mod => panic!("Unsupported operator `%` for Field"),
             BinaryOp::Eq => NumericValue::U1(lhs == rhs),
             BinaryOp::Lt => NumericValue::U1(lhs < rhs),
@@ -385,7 +642,12 @@ impl<'ssa> Interpreter<'ssa> {
         Ok(Value::Numeric(result))
     }
 
-    fn interpret_u1_binary_op(&mut self, lhs: bool, operator: BinaryOp, rhs: bool) -> IResult {
+    fn interpret_u1_binary_op(
+        &mut self,
+        lhs: bool,
+        operator: BinaryOp,
+        rhs: bool,
+    ) -> IResult<Value> {
         let result = match operator {
             BinaryOp::Add { unchecked: _ } => panic!("Unsupported operator `+` for u1"),
             BinaryOp::Sub { unchecked: _ } => panic!("Unsupported operator `-` for u1"),
@@ -393,7 +655,8 @@ impl<'ssa> Interpreter<'ssa> {
             BinaryOp::Div => todo!(),
             BinaryOp::Mod => todo!(),
             BinaryOp::Eq => lhs == rhs,
-            BinaryOp::Lt => lhs < rhs,
+            // clippy complains when you do `lhs < rhs` and recommends this instead
+            BinaryOp::Lt => !lhs & rhs,
             BinaryOp::And => lhs & rhs,
             BinaryOp::Or => lhs | rhs,
             BinaryOp::Xor => lhs ^ rhs,

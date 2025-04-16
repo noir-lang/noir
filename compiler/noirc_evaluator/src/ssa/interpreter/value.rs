@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
 use crate::ssa::ir::{
@@ -43,7 +44,10 @@ pub(crate) struct ReferenceValue {
     /// ReferenceValues which store the same element.
     pub original_id: ValueId,
 
-    pub element: Shared<Value>,
+    /// A value of `None` here means this allocation is currently uninitialized
+    pub element: Shared<Option<Value>>,
+
+    pub element_type: Arc<Type>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,12 +64,11 @@ pub(crate) struct ArrayValue {
 }
 
 impl Value {
+    #[allow(unused)]
     pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
-            Value::Reference(reference) => {
-                Type::Reference(Arc::new(reference.element.borrow().get_type()))
-            }
+            Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
@@ -76,8 +79,8 @@ impl Value {
         }
     }
 
-    pub(crate) fn reference(original_id: ValueId, element: Shared<Value>) -> Self {
-        Value::Reference(ReferenceValue { original_id, element })
+    pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>) -> Self {
+        Value::Reference(ReferenceValue { original_id, element_type, element: Shared::new(None) })
     }
 
     pub(crate) fn as_bool(&self) -> Option<bool> {
@@ -87,9 +90,30 @@ impl Value {
         }
     }
 
+    pub(crate) fn as_u32(&self) -> Option<u32> {
+        match self {
+            Value::Numeric(NumericValue::U32(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn as_numeric(&self) -> Option<NumericValue> {
         match self {
             Value::Numeric(value) => Some(*value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_reference(&self) -> Option<&ReferenceValue> {
+        match self {
+            Value::Reference(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_array_or_slice(&self) -> Option<&ArrayValue> {
+        match self {
+            Value::ArrayOrSlice(value) => Some(value),
             _ => None,
         }
     }
@@ -170,15 +194,66 @@ impl NumericValue {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),
             NumericValue::U1(_) => FieldElement::zero(),
-            NumericValue::U8(value) => FieldElement::from(*value),
-            NumericValue::U16(value) => FieldElement::from(*value),
+            NumericValue::U8(value) => FieldElement::from(*value as u32),
+            NumericValue::U16(value) => FieldElement::from(*value as u32),
             NumericValue::U32(value) => FieldElement::from(*value),
             NumericValue::U64(value) => FieldElement::from(*value),
             NumericValue::U128(value) => FieldElement::from(*value),
-            NumericValue::I8(value) => FieldElement::from(*value),
-            NumericValue::I16(value) => FieldElement::from(*value),
-            NumericValue::I32(value) => FieldElement::from(*value),
-            NumericValue::I64(value) => FieldElement::from(*value),
+            NumericValue::I8(value) => FieldElement::from(*value as i128),
+            NumericValue::I16(value) => FieldElement::from(*value as i128),
+            NumericValue::I32(value) => FieldElement::from(*value as i128),
+            NumericValue::I64(value) => FieldElement::from(*value as i128),
         }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Numeric(numeric_value) => write!(f, "{numeric_value}"),
+            Value::Reference(reference_value) => write!(f, "{reference_value}"),
+            Value::ArrayOrSlice(array_value) => write!(f, "{array_value}"),
+            Value::Function(id) => write!(f, "{id}"),
+            Value::Intrinsic(intrinsic) => write!(f, "{intrinsic}"),
+            Value::ForeignFunction(name) => write!(f, "ForeignFunction(\"{name}\")"),
+        }
+    }
+}
+
+impl std::fmt::Display for NumericValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NumericValue::Field(value) => write!(f, "Field {value}"),
+            NumericValue::U1(value) => write!(f, "u1 {value}"),
+            NumericValue::U8(value) => write!(f, "u8 {value}"),
+            NumericValue::U16(value) => write!(f, "u16 {value}"),
+            NumericValue::U32(value) => write!(f, "u32 {value}"),
+            NumericValue::U64(value) => write!(f, "u64 {value}"),
+            NumericValue::U128(value) => write!(f, "u128 {value}"),
+            NumericValue::I8(value) => write!(f, "i8 {value}"),
+            NumericValue::I16(value) => write!(f, "i16 {value}"),
+            NumericValue::I32(value) => write!(f, "i32 {value}"),
+            NumericValue::I64(value) => write!(f, "i64{value}"),
+        }
+    }
+}
+
+impl std::fmt::Display for ReferenceValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let element = self.element.borrow();
+        match &*element {
+            Some(element) => write!(f, "*{} = {}", self.original_id, element),
+            None => write!(f, "*{} = None", self.original_id),
+        }
+    }
+}
+
+impl std::fmt::Display for ArrayValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let elements = self.elements.borrow();
+        let elements = vecmap(elements.iter(), ToString::to_string).join(", ");
+
+        let is_slice = if self.is_slice { "&" } else { "" };
+        write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
     }
 }

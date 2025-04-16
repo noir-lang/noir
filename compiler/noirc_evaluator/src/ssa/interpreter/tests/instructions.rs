@@ -16,7 +16,9 @@ fn add() {
     assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
 }
 
+/// TODO: Replace panic with error
 #[test]
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn add_overflow() {
     expect_error(
         "
@@ -43,34 +45,148 @@ fn add_unchecked() {
 }
 
 #[test]
-fn sub() {}
+fn sub() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i32 10101, i32 101
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I32(10000)));
+}
+
+/// TODO: Replace panic with error
+#[test]
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
+fn sub_underflow() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i8 -120, i8 10
+            return v0
+        }
+    ",
+    );
+}
 
 #[test]
-fn sub_underflow() {}
+fn sub_unchecked() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub i8 3, i8 10
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-7)));
+}
 
 #[test]
-fn sub_unchecked() {}
+fn mul() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul u64 2, u64 100
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::U64(200)));
+}
+
+/// TODO: Replace panic with error
+#[test]
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
+fn mul_overflow() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul u8 128, u8 2
+            return v0
+        }
+    ",
+    );
+}
 
 #[test]
-fn mul() {}
+fn mul_unchecked() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul u8 128, u8 2
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::U8(0)));
+}
 
 #[test]
-fn mul_overflow() {}
+fn div() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = div i16 128, i16 2
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I16(64)));
+}
+
+/// TODO: Replace panic with error
+#[test]
+#[should_panic(expected = "Field division by zero")]
+fn div_zero() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = div Field 12, Field 0
+            return v0
+        }
+    ",
+    );
+}
 
 #[test]
-fn mul_unchecked() {}
+fn r#mod() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mod i64 5, i64 3
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I64(2)));
+}
 
+/// TODO: Replace panic with error
 #[test]
-fn div() {}
-
-#[test]
-fn div_zero() {}
-
-#[test]
-fn r#mod() {}
-
-#[test]
-fn mod_zero() {}
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
+fn mod_zero() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mod u8 12, u8 0
+            return v0
+        }
+    ",
+    );
+}
 
 #[test]
 fn eq() {}
@@ -154,7 +270,13 @@ fn array_set_disabled_by_enable_side_effects() {}
 fn increment_rc() {}
 
 #[test]
+fn increment_rc_disabled_in_acir() {}
+
+#[test]
 fn decrement_rc() {}
+
+#[test]
+fn decrement_rc_disabled_in_acir() {}
 
 #[test]
 fn if_else() {}
@@ -162,5 +284,18 @@ fn if_else() {}
 #[test]
 fn make_array() {}
 
-#[test]
-fn noop() {}
+// TODO: Add SSA parser support for Noop
+// #[test]
+// fn noop() {
+//     executes_with_no_errors(
+//         "
+//         acir(inline) fn main f0 {
+//           b0():
+//             noop
+//             noop
+//             noop
+//             return
+//         }
+//     ",
+//     );
+// }

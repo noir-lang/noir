@@ -63,3 +63,22 @@ fn return_all_numeric_constant_types() {
     assert_eq!(returns[9], Value::Numeric(NumericValue::I32(-3)));
     assert_eq!(returns[10], Value::Numeric(NumericValue::I64(-4)));
 }
+
+#[test]
+fn call_function() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1(u32 3) -> u32
+            return v1
+        }
+
+        acir(inline) fn double f1 {
+          b0(v1: u32):
+            v2 = mul v1, u32 2
+            return v2
+        }
+    ";
+    let actual = expect_value(src);
+    assert_eq!(Value::Numeric(NumericValue::U32(6)), actual);
+}
