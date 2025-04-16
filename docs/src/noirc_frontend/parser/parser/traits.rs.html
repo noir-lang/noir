@@ -594,7 +594,19 @@
 <a href="#593" id="593">593</a>
 <a href="#594" id="594">594</a>
 <a href="#595" id="595">595</a>
-<a href="#596" id="596">596</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span>noirc_errors::{Located, Location};
 
@@ -643,9 +655,7 @@
 
             <span class="kw">let </span>where_clause = <span class="self">self</span>.parse_where_clause();
             <span class="kw">let </span>items = Vec::new();
-            <span class="kw">if </span>!<span class="self">self</span>.eat_semicolon() {
-                <span class="self">self</span>.expected_token(Token::Semicolon);
-            }
+            <span class="self">self</span>.eat_semicolon_or_error();
 
             <span class="kw">let </span>is_alias = <span class="bool-val">true</span>;
             (bounds, where_clause, items, is_alias)
@@ -779,7 +789,7 @@
             }
         };
 
-        <span class="self">self</span>.eat_semicolons();
+        <span class="self">self</span>.eat_semicolon_or_error();
 
         <span class="prelude-val">Some</span>(TraitItem::Type { name })
     }
@@ -808,7 +818,7 @@
         <span class="kw">let </span>default_value =
             <span class="kw">if </span><span class="self">self</span>.eat_assign() { <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_expression_or_error()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 
-        <span class="self">self</span>.eat_semicolons();
+        <span class="self">self</span>.eat_semicolon_or_error();
 
         <span class="prelude-val">Some</span>(TraitItem::Constant { name, typ, default_value })
     }
@@ -1188,6 +1198,20 @@
         <span class="macro">assert_eq!</span>(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
         <span class="macro">assert_eq!</span>(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
         <span class="macro">assert!</span>(!noir_trait.is_alias);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_trait_with_constant_missing_semicolon() {
+        <span class="kw">let </span>src = <span class="string">"trait Foo { let x: Field = 1 }"</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(!errors.is_empty());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_trait_with_type_missing_semicolon() {
+        <span class="kw">let </span>src = <span class="string">"trait Foo { type X }"</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(!errors.is_empty());
     }
 }
 </code></pre></div></section></main></body></html>

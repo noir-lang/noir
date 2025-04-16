@@ -640,7 +640,13 @@
 <a href="#639" id="639">639</a>
 <a href="#640" id="640">640</a>
 <a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>modifiers::Modifiers;
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -1059,6 +1065,12 @@
         </span>} <span class="kw">else </span>{
             <span class="bool-val">false
         </span>}
+    }
+
+    <span class="kw">fn </span>eat_semicolon_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">if </span>!<span class="self">self</span>.eat_semicolons() {
+            <span class="self">self</span>.expected_token(Token::Semicolon);
+        }
     }
 
     <span class="kw">fn </span>eat_colon(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {

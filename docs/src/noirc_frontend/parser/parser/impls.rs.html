@@ -572,7 +572,21 @@
 <a href="#571" id="571">571</a>
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
-<a href="#574" id="574">574</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -744,7 +758,7 @@
             UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
         };
 
-        <span class="self">self</span>.eat_semicolons();
+        <span class="self">self</span>.eat_semicolon_or_error();
 
         <span class="prelude-val">Some</span>(TraitImplItemKind::Type { name, alias })
     }
@@ -772,7 +786,7 @@
             Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 
-        <span class="self">self</span>.eat_semicolons();
+        <span class="self">self</span>.eat_semicolon_or_error();
 
         <span class="prelude-val">Some</span>(TraitImplItemKind::Constant(name, typ, expr))
     }
@@ -1144,6 +1158,20 @@
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
         <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a trait impl item but found 'hello'"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_trait_impl_with_constant_missing_semicolon() {
+        <span class="kw">let </span>src = <span class="string">"impl Foo for Bar { let x: Field = 1 }"</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(!errors.is_empty());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_trait_impl_with_type_missing_semicolon() {
+        <span class="kw">let </span>src = <span class="string">"impl Foo for Bar { type x = Field }"</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(!errors.is_empty());
     }
 }
 </code></pre></div></section></main></body></html>

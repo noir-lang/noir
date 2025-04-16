@@ -193,9 +193,7 @@
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -203,7 +201,7 @@
         UnresolvedTypeData,
     },
     parser::ParserErrorReason,
-    token::{Attribute, Token},
+    token::Attribute,
 };
 
 <span class="kw">use </span><span class="kw">super</span>::Parser;
@@ -223,7 +221,7 @@
         <span class="kw">let </span>is_global_let = <span class="bool-val">true</span>;
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
-            <span class="self">self</span>.eat_semicolons();
+            <span class="self">self</span>.eat_semicolon();
             <span class="kw">return </span>LetStatement {
                 pattern: ident_to_pattern(Ident::default(), mutable),
                 r#type: UnresolvedType {
@@ -248,9 +246,7 @@
             Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 
-        <span class="kw">if </span>!<span class="self">self</span>.eat_semicolons() {
-            <span class="self">self</span>.expected_token(Token::Semicolon);
-        }
+        <span class="self">self</span>.eat_semicolon_or_error();
 
         LetStatement { pattern, r#type: typ, expression, attributes, comptime, is_global_let }
     }
