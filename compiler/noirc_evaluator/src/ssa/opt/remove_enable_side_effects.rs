@@ -41,6 +41,10 @@ impl Function {
             return;
         }
 
+        // Make sure this optimization runs when there's only one block
+        let block = self.entry_block();
+        assert_eq!(self.dfg[block].successors().count(), 0);
+
         let one = self.dfg.make_constant(FieldElement::one(), NumericType::bool());
         let mut active_condition = one;
         let mut last_side_effects_enabled_instruction = None;
