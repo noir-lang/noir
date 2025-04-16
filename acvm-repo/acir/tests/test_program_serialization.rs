@@ -350,12 +350,10 @@ fn memory_op_circuit() {
     let write = Opcode::MemoryOp {
         block_id: BlockId(0),
         op: MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
-        predicate: None,
     };
     let read = Opcode::MemoryOp {
         block_id: BlockId(0),
         op: MemOp::read_at_mem_index(FieldElement::one().into(), Witness(4)),
-        predicate: None,
     };
 
     let circuit = Circuit {

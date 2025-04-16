@@ -102,9 +102,6 @@ pub enum Opcode<F: AcirField> {
         block_id: BlockId,
         /// Describe the memory operation to perform
         op: MemOp<F>,
-        /// Predicate of the memory operation - indicates if it should be skipped
-        /// Disables the execution of the opcode when the expression evaluates to zero
-        predicate: Option<Expression<F>>,
     },
 
     /// Initialize an ACIR array from a vector of witnesses.
@@ -153,11 +150,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
         match self {
             Opcode::AssertZero(expr) => expr.fmt(f),
             Opcode::BlackBoxFuncCall(g) => g.fmt(f),
-            Opcode::MemoryOp { block_id, op, predicate } => {
+            Opcode::MemoryOp { block_id, op } => {
                 write!(f, "MEM ")?;
-                if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE = {pred}")?;
-                }
 
                 let is_read = op.operation.is_zero();
                 let is_write = op.operation == Expression::one();

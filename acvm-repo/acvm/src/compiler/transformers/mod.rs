@@ -295,14 +295,11 @@ where
                 self.fold_expr(expr);
             }
             Opcode::BlackBoxFuncCall(call) => self.fold_blackbox(call),
-            Opcode::MemoryOp { block_id: _, op, predicate } => {
+            Opcode::MemoryOp { block_id: _, op } => {
                 let MemOp { operation, index, value } = op;
                 self.fold_expr(operation);
                 self.fold_expr(index);
                 self.fold_expr(value);
-                if let Some(pred) = predicate {
-                    self.fold_expr(pred);
-                }
             }
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 for w in init {
