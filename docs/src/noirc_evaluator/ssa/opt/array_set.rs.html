@@ -216,28 +216,7 @@
 <a href="#215" id="215">215</a>
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::mem;
+<a href="#218" id="218">218</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::mem;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -292,9 +271,7 @@
         }
 
         <span class="kw">let </span>instructions_to_update = mem::take(<span class="kw-2">&amp;mut </span>context.instructions_that_can_be_made_mutable);
-        <span class="kw">for </span>block <span class="kw">in </span>reachable_blocks {
-            make_mutable(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg, block, <span class="kw-2">&amp;</span>instructions_to_update);
-        }
+        make_mutable(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg, <span class="kw-2">&amp;</span>instructions_to_update);
     }
 }
 
@@ -398,34 +375,15 @@
 }
 
 <span class="doccomment">/// Make each ArraySet instruction in `instructions_to_update` mutable.
-</span><span class="kw">fn </span>make_mutable(
-    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
-    block_id: BasicBlockId,
-    instructions_to_update: <span class="kw-2">&amp;</span>HashSet&lt;InstructionId&gt;,
-) {
-    <span class="kw">if </span>instructions_to_update.is_empty() {
-        <span class="kw">return</span>;
-    }
-
-    <span class="comment">// Take the instructions temporarily so we can mutate the DFG while we iterate through them
-    </span><span class="kw">let </span>block = <span class="kw-2">&amp;mut </span>dfg[block_id];
-    <span class="kw">let </span>instructions = block.take_instructions();
-
-    <span class="kw">for </span>instruction <span class="kw">in </span><span class="kw-2">&amp;</span>instructions {
-        <span class="kw">if </span>instructions_to_update.contains(instruction) {
-            <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span>dfg[<span class="kw-2">*</span>instruction];
-
-            <span class="kw">if let </span>Instruction::ArraySet { mutable, .. } = instruction {
-                <span class="kw-2">*</span>mutable = <span class="bool-val">true</span>;
-            } <span class="kw">else </span>{
-                <span class="macro">unreachable!</span>(
-                    <span class="string">"Non-ArraySet instruction in instructions_to_update!\n{instruction:?}"
-                </span>);
-            }
+</span><span class="kw">fn </span>make_mutable(dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph, instructions_to_update: <span class="kw-2">&amp;</span>HashSet&lt;InstructionId&gt;) {
+    <span class="kw">for </span>instruction_id <span class="kw">in </span>instructions_to_update {
+        <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span>dfg[<span class="kw-2">*</span>instruction_id];
+        <span class="kw">if let </span>Instruction::ArraySet { mutable, .. } = instruction {
+            <span class="kw-2">*</span>mutable = <span class="bool-val">true</span>;
+        } <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"Non-ArraySet instruction in instructions_to_update!\n{instruction:?}"</span>);
         }
     }
-
-    <span class="kw-2">*</span>dfg[block_id].instructions_mut() = instructions;
 }
 
 <span class="attr">#[cfg(test)]
