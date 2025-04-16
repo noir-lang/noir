@@ -35,7 +35,7 @@ impl Function {
             return;
         }
 
-        self.simple_optimization(|context| {
+        self.simple_reachable_blocks_optimization(|context| {
             context.insert_current_instruction();
 
             let block_id = context.block_id;

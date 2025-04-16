@@ -9,7 +9,7 @@ use crate::ssa::ir::{
 impl Function {
     /// Performs a simple optimization according to the given callback.
     ///
-    /// The function's reachable blocks are traversed in turn, and instructions in those blocks
+    /// The function's [`Function::reachable_blocks`] are traversed in turn, and instructions in those blocks
     /// are then traversed in turn. For each one, `f` will be called with a context.
     ///
     /// The current instruction will be inserted at the end of the callback given to `mutate` unless
@@ -20,7 +20,7 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_optimization<F>(&mut self, mut f: F)
+    pub(crate) fn simple_reachable_blocks_optimization<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
     {

@@ -42,7 +42,7 @@ impl Function {
         // Make sure this optimization runs when there's only one block
         assert_eq!(self.dfg[block].successors().count(), 0);
 
-        self.simple_optimization(|context| {
+        self.simple_reachable_blocks_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 

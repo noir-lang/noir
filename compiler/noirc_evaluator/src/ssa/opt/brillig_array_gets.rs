@@ -37,7 +37,7 @@ impl Ssa {
 
 impl Function {
     pub(super) fn brillig_array_gets(&mut self) {
-        self.simple_optimization(|context| {
+        self.simple_reachable_blocks_optimization(|context| {
             let instruction = context.instruction();
             let Instruction::ArrayGet { array, index } = instruction else {
                 return;

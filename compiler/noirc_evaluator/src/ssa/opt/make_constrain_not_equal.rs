@@ -30,7 +30,7 @@ impl Function {
             return;
         }
 
-        self.simple_optimization(|context| {
+        self.simple_reachable_blocks_optimization(|context| {
             let instruction = context.instruction();
 
             let Instruction::Constrain(lhs, rhs, msg) = instruction else {

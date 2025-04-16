@@ -66,7 +66,7 @@ impl Context {
         let one = FieldElement::one();
         let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
 
-        function.simple_optimization(|context| {
+        function.simple_reachable_blocks_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 

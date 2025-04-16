@@ -51,7 +51,7 @@ impl Function {
 
         let mut previous_block = None;
 
-        self.simple_optimization(|context| {
+        self.simple_reachable_blocks_optimization(|context| {
             if Some(context.block_id) != previous_block {
                 active_condition = one;
                 last_side_effects_enabled_instruction = None;

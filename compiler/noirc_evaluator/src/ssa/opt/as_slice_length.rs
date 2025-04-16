@@ -27,7 +27,7 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn as_slice_optimization(&mut self) {
-        self.simple_optimization(|context| {
+        self.simple_reachable_blocks_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
