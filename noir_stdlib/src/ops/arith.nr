@@ -539,7 +539,7 @@ impl WrappingMul for i64 {
 
 impl WrappingMul for u128 {
     fn wrapping_mul(self: u128, y: u128) -> u128 {
-        wrapping_mul128_hlp(self as Field, y as Field) as u128
+        wrapping_mul128_hlp(self , y )
     }
 }
 
@@ -568,25 +568,25 @@ where
     AsPrimitive::as_(x.as_() * y.as_())
 }
 
-global two_pow_64: Field = 0x10000000000000000;
+global two_pow_64: u128 = 0x10000000000000000;
 /// Splits a 128 bits number into two 64 bits limbs
-unconstrained fn split64(x: Field) -> (u64, u64) {
+unconstrained fn split64(x: u128) -> (u64, u64) {
     let lo = x as u64;
-    let hi = ((x - lo as Field) / two_pow_64) as u64;
+    let hi = (x / two_pow_64) as u64;
     (lo, hi)
 }
 
 /// Split a 128 bits number into two 64 bits limbs
 /// It will fail if the number is more than 128 bits
-fn split_into_64_bit_limbs(x: Field) -> (u64, u64) {
+fn split_into_64_bit_limbs(x: u128) -> (u64, u64) {
     // Safety: the limbs are constrained below
     let (x_lo, x_hi) = unsafe { split64(x) };
-    assert(x as Field == x_lo as Field + x_hi as Field * two_pow_64);
+    assert(x as Field == x_lo as Field + x_hi as Field * two_pow_64 as Field);
     (x_lo, x_hi)
 }
 
 #[field(bn254)]
-fn wrapping_mul128_hlp(x: Field, y: Field) -> Field {
+fn wrapping_mul128_hlp(x: u128, y: u128) -> u128 {
     let (x_lo, x_hi) = split_into_64_bit_limbs(x);
     let (y_lo, y_hi) = split_into_64_bit_limbs(y);
     // Multiplication using the limbs:(x_lo + 2**64*x_hi)*(y_lo + 2**64*y_hi)=x_lo*y_lo+...
@@ -594,8 +594,8 @@ fn wrapping_mul128_hlp(x: Field, y: Field) -> Field {
     // Working with u64 limbs ensures that we cannot overflow the field modulus.
     let low = x_lo as Field * y_lo as Field;
     let lo = low as u64 as Field;
-    let carry = (low - lo) / two_pow_64;
+    let carry = (low - lo) / two_pow_64 as Field;
     let high = x_lo as Field * y_hi as Field + x_hi as Field * y_lo as Field + carry;
     let hi = high as u64 as Field;
-    (lo + two_pow_64 * hi)
+    (lo + two_pow_64 as Field * hi) as u128
 }
