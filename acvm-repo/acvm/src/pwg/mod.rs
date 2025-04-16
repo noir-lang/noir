@@ -18,7 +18,9 @@ use acvm_blackbox_solver::BlackBoxResolutionError;
 use brillig_vm::BranchToFeatureMap;
 
 use self::{
-    arithmetic::{ExpressionSolver, Pending_Arithmetic_Opcodes}, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
+    arithmetic::{ExpressionSolver, Pending_Arithmetic_Opcodes},
+    blackbox::bigint::AcvmBigIntSolver,
+    memory_op::MemoryOpSolver,
 };
 use crate::BlackBoxFunctionSolver;
 use thiserror::Error;
@@ -401,7 +403,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// 2. The circuit has been found to be unsatisfiable.
     /// 2. A Brillig [foreign call][`ForeignCallWaitInfo`] has been encountered and must be resolved.
     pub fn solve(&mut self) -> ACVMStatus<F> {
-        let mut pending_arithmetic_opcodes: Pending_Arithmetic_Opcodes<F> = Pending_Arithmetic_Opcodes::new();
+        let mut pending_arithmetic_opcodes: Pending_Arithmetic_Opcodes<F> =
+            Pending_Arithmetic_Opcodes::new();
 
         while self.status == ACVMStatus::InProgress {
             self.solve_opcode_optimized(&mut pending_arithmetic_opcodes);
@@ -409,10 +412,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.status.clone()
     }
 
-    pub fn solve_opcode_optimized(&mut self, pending_arithmetic_opcodes: &mut Pending_Arithmetic_Opcodes<F>) -> ACVMStatus<F> {
+    pub fn solve_opcode_optimized(
+        &mut self,
+        pending_arithmetic_opcodes: &mut Pending_Arithmetic_Opcodes<F>,
+    ) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {
-            Opcode::AssertZero(expr) => ExpressionSolver::solve_optimized(&mut self.witness_map, expr, pending_arithmetic_opcodes),
+            Opcode::AssertZero(expr) => ExpressionSolver::solve_optimized(
+                &mut self.witness_map,
+                expr,
+                pending_arithmetic_opcodes,
+            ),
             Opcode::BlackBoxFuncCall(bb_func) => blackbox::solve(
                 self.backend,
                 &mut self.witness_map,
@@ -443,7 +453,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         };
         self.handle_opcode_resolution(resolution)
     }
-
 
     pub fn solve_opcode(&mut self) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];

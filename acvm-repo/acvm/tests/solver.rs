@@ -50,11 +50,12 @@ fn bls12_381_circuit() {
     let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &[], &[]);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
+    println!("solver_status: {:?}", solver_status);
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
     let witness_stack = acvm.finalize();
-
+    println!("witness_stack: {:?}", witness_stack);
     assert_eq!(witness_stack.get(&Witness(3)).unwrap(), &Bls12FieldElement::from(5u128));
 }
 
