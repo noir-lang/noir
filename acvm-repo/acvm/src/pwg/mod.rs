@@ -18,7 +18,7 @@ use acvm_blackbox_solver::BlackBoxResolutionError;
 use brillig_vm::BranchToFeatureMap;
 
 use self::{
-    arithmetic::{ExpressionSolver, Pending_Arithmetic_Opcodes},
+    arithmetic::{ExpressionSolver, PendingArithmeticOpcodes},
     blackbox::bigint::AcvmBigIntSolver,
     memory_op::MemoryOpSolver,
 };
@@ -403,8 +403,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// 2. The circuit has been found to be unsatisfiable.
     /// 2. A Brillig [foreign call][`ForeignCallWaitInfo`] has been encountered and must be resolved.
     pub fn solve(&mut self) -> ACVMStatus<F> {
-        let mut pending_arithmetic_opcodes: Pending_Arithmetic_Opcodes<F> =
-            Pending_Arithmetic_Opcodes::new();
+        let mut pending_arithmetic_opcodes: PendingArithmeticOpcodes<F> =
+            PendingArithmeticOpcodes::new();
 
         while self.status == ACVMStatus::InProgress {
             self.solve_opcode_optimized(&mut pending_arithmetic_opcodes);
@@ -420,7 +420,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     pub(crate) fn solve_opcode_optimized(
         &mut self,
-        pending_arithmetic_opcodes: &mut Pending_Arithmetic_Opcodes<F>,
+        pending_arithmetic_opcodes: &mut PendingArithmeticOpcodes<F>,
     ) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {

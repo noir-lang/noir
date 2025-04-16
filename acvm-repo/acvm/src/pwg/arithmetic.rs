@@ -8,12 +8,12 @@ use acir::{
 pub(crate) struct ExpressionSolver;
 
 #[derive(Clone, Debug)]
-pub(crate) struct Pending_Arithmetic_Opcodes<F: AcirField> {
+pub(crate) struct PendingArithmeticOpcodes<F: AcirField> {
     pending_witness_write: Vec<PendingOp<F>>,
     failures: u32,
 }
 
-impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
+impl<F: AcirField> PendingArithmeticOpcodes<F> {
     pub(crate) fn new() -> Self {
         Self { pending_witness_write: vec![], failures: 0 }
     }
@@ -42,9 +42,8 @@ impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
             .map(|pending_op| pending_op.denominator)
             .collect();
         batch_invert::<F>(&mut denominator_list);
-        for i in 0..denominator_list.len() {
-            let pending_op = &self.pending_witness_write[i];
-            let assignment = pending_op.neumerator * denominator_list[i];
+        for (idx, pending_op) in self.pending_witness_write.iter().enumerate() {
+            let assignment = pending_op.neumerator * denominator_list[idx];
             let res = insert_value(&pending_op.witness, assignment, initial_witness);
             if res.is_err() {
                 return Err(OpcodeResolutionError::UnsatisfiedConstrain {
@@ -60,7 +59,7 @@ impl<F: AcirField> Pending_Arithmetic_Opcodes<F> {
 }
 
 // this is the same function as in arkworks
-pub(crate) fn batch_invert<F: AcirField>(v: &mut Vec<F>) {
+pub(crate) fn batch_invert<F: AcirField>(v: &mut [F]) {
     // First pass: compute [a, ab, abc, ...]
     // we're never adding elements that are zero to this list
     let mut prod = Vec::with_capacity(v.len());
@@ -116,7 +115,7 @@ impl ExpressionSolver {
     pub(crate) fn solve_optimized<F: AcirField>(
         initial_witness: &mut WitnessMap<F>,
         opcode: &Expression<F>,
-        pending_arithmetic_opcodes: &mut Pending_Arithmetic_Opcodes<F>,
+        pending_arithmetic_opcodes: &mut PendingArithmeticOpcodes<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
         // Evaluate multiplication term
@@ -509,8 +508,6 @@ fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Mul;
-
     use super::*;
     use acir::FieldElement;
 
@@ -629,8 +626,8 @@ mod tests {
 
     #[test]
     fn test_pending_ops() {
-        let mut pending_ops: Pending_Arithmetic_Opcodes<FieldElement> =
-            Pending_Arithmetic_Opcodes::new();
+        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+            PendingArithmeticOpcodes::new();
         let a = Witness(0);
         let opcode_a = Expression {
             mul_terms: vec![],
@@ -644,8 +641,8 @@ mod tests {
     }
     #[test]
     fn test_pending_ops_2() {
-        let mut pending_ops: Pending_Arithmetic_Opcodes<FieldElement> =
-            Pending_Arithmetic_Opcodes::new();
+        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+            PendingArithmeticOpcodes::new();
         let a = Witness(0);
         let opcode_a = Expression {
             mul_terms: vec![],
@@ -684,8 +681,8 @@ mod tests {
         // a failure should happen so w1 and w2 should be written
         // w4 = 5 * w2
         // there's no unknowns here so the pending ops should be empty
-        let mut pending_ops: Pending_Arithmetic_Opcodes<FieldElement> =
-            Pending_Arithmetic_Opcodes::new();
+        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+            PendingArithmeticOpcodes::new();
         let w0 = Witness(0);
         let w1 = Witness(1);
         let w2 = Witness(2);
@@ -749,8 +746,8 @@ mod tests {
         // w2 * w0 = 15 => w2 = 5 // opcode2 = w2 * w0 - 15 = 0
         // w3 + 2 = w2  => true // opcode3 = w3 + 2 - w2 = 0
         //
-        let mut pending_ops: Pending_Arithmetic_Opcodes<FieldElement> =
-            Pending_Arithmetic_Opcodes::new();
+        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+            PendingArithmeticOpcodes::new();
         let w0 = Witness(0);
         let w1 = Witness(1);
         let w2 = Witness(2);
