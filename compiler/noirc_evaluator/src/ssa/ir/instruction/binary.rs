@@ -93,8 +93,8 @@ impl Binary {
         bit_size: u32,
     ) -> Option<&'static str> {
         // We try to optimize away operations that are guaranteed not to overflow
-        let max_lhs_bits = dfg.get_value_max_num_bits(self.lhs);
-        let max_rhs_bits = dfg.get_value_max_num_bits(self.rhs);
+        let max_lhs_bits = dfg.get_value_max_num_bits_2(self.lhs);
+        let max_rhs_bits = dfg.get_value_max_num_bits_2(self.rhs);
 
         let msg = match self.operator {
             BinaryOp::Add { unchecked: false } => {

@@ -546,6 +546,27 @@ impl DataFlowGraph {
                         // OTOH if we cast down, then we don't need the higher original size.
                         value_bit_size.min(original_bit_size)
                     }
+                    _ => value_bit_size,
+                }
+            }
+
+            Value::NumericConstant { constant, .. } => constant.num_bits(),
+            _ => self.type_of_value(value).bit_size(),
+        }
+    }
+
+    pub(crate) fn get_value_max_num_bits_2(&self, value: ValueId) -> u32 {
+        match self[value] {
+            Value::Instruction { instruction, .. } => {
+                let value_bit_size = self.type_of_value(value).bit_size();
+                match self[instruction] {
+                    Instruction::Cast(original_value, _) => {
+                        let original_bit_size = self.get_value_max_num_bits(original_value);
+                        // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                        // in which case we want to recover the original smaller bit size;
+                        // OTOH if we cast down, then we don't need the higher original size.
+                        value_bit_size.min(original_bit_size)
+                    }
                     Instruction::Binary(Binary { lhs, operator: BinaryOp::Mul { .. }, rhs })
                         if self.get_value_max_num_bits(lhs) == 1
                             && self.get_value_max_num_bits(rhs) == 1 =>
