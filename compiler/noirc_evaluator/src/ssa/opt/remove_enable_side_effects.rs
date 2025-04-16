@@ -233,4 +233,39 @@ mod test {
         "
         );
     }
+
+    #[test]
+    fn keeps_enable_side_effects_for_instructions_that_have_side_effects() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            enable_side_effects v0
+            v3 = allocate -> &mut Field
+            enable_side_effects v0
+            v4 = allocate -> &mut Field
+            enable_side_effects v1
+            v5 = allocate -> &mut Field
+            enable_side_effects u1 1
+            v6 = allocate -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            enable_side_effects v0
+            v2 = allocate -> &mut Field
+            v3 = allocate -> &mut Field
+            enable_side_effects v1
+            v4 = allocate -> &mut Field
+            enable_side_effects u1 1
+            v6 = allocate -> &mut Field
+            return
+        }
+        "
+        );
+    }
 }
