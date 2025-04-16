@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
-use super::instruction::{Instruction, InstructionId, TerminatorInstruction};
+use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
-use super::value::{ValueId, ValueMapping};
+use super::value::ValueId;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum RuntimeType {
@@ -218,56 +218,6 @@ impl Function {
             })
             .sum()
     }
-
-    /// An almost general-purpose way to mutate a function's blocks, instructions and values.
-    ///
-    /// The function's reachable blocks are traversed in turn, and instructions in those blocks
-    /// are then traversed in turn. For each one, `f` will be called with a context.
-    ///
-    /// The current instruction will be inserted at the end of the callback given to `mutate` unless
-    /// `remove_current_instruction` or `insert_current_instruction` are called.
-    ///
-    /// `insert_current_instruction` is useful if you need to insert new instructions after the current
-    /// one, so this can be done before the callback ends.
-    ///
-    /// `replace_value` can be used to replace a value with another one. This substitution will be
-    /// performed in all subsequent instructions.
-    pub(crate) fn mutate<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut FunctionMutationContext<'_, '_>),
-    {
-        let mut values_to_replace = ValueMapping::default();
-
-        for block_id in self.reachable_blocks() {
-            let instruction_ids = self.dfg[block_id].take_instructions();
-            self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
-            for instruction_id in &instruction_ids {
-                let instruction_id = *instruction_id;
-
-                if !values_to_replace.is_empty() {
-                    let instruction = &mut self.dfg[instruction_id];
-                    instruction.replace_values(&values_to_replace);
-                }
-
-                let mut context = FunctionMutationContext {
-                    block_id,
-                    instruction_id,
-                    dfg: &mut self.dfg,
-                    values_to_replace: &mut values_to_replace,
-                    insert_current_instruction_at_callback_end: true,
-                };
-                f(&mut context);
-
-                if context.insert_current_instruction_at_callback_end {
-                    self.dfg[block_id].insert_instruction(instruction_id);
-                }
-            }
-
-            self.dfg.replace_values_in_block_terminator(block_id, &values_to_replace);
-        }
-
-        self.dfg.data_bus.replace_values(&values_to_replace);
-    }
 }
 
 impl Clone for Function {
@@ -290,41 +240,6 @@ impl std::fmt::Display for RuntimeType {
 /// This Id is how each function refers to other functions
 /// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
-
-pub(crate) struct FunctionMutationContext<'dfg, 'mapping> {
-    #[allow(unused)]
-    pub(crate) block_id: BasicBlockId,
-    pub(crate) instruction_id: InstructionId,
-    pub(crate) dfg: &'dfg mut DataFlowGraph,
-    values_to_replace: &'mapping mut ValueMapping,
-    insert_current_instruction_at_callback_end: bool,
-}
-
-impl FunctionMutationContext<'_, '_> {
-    /// Returns the current instruction being visited.
-    pub(crate) fn instruction(&self) -> &Instruction {
-        &self.dfg[self.instruction_id]
-    }
-
-    /// Instructs this context to replace a value with another value. The value will be replaced
-    /// in all subsequent instructions.
-    pub(crate) fn replace_value(&mut self, from: ValueId, to: ValueId) {
-        self.values_to_replace.insert(from, to);
-    }
-
-    /// Instructs this context to insert the current instruction right away, as opposed
-    /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
-    pub(crate) fn insert_current_instruction(&mut self) {
-        self.dfg[self.block_id].insert_instruction(self.instruction_id);
-        self.insert_current_instruction_at_callback_end = false;
-    }
-
-    /// Instructs this context to remove the current instruction from its block.
-    pub(crate) fn remove_current_instruction(&mut self) {
-        self.insert_current_instruction_at_callback_end = false;
-    }
-}
-
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,

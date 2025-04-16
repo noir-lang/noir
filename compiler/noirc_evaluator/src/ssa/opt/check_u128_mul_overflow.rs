@@ -4,13 +4,15 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
-        function::{Function, FunctionMutationContext},
+        function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Instruction},
         types::NumericType,
         value::ValueId,
     },
     ssa_gen::Ssa,
 };
+
+use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
     /// An SSA pass that checks that multiplying two u128 doesn't overflow because
@@ -33,7 +35,7 @@ impl Function {
             return;
         }
 
-        self.mutate(|context| {
+        self.simple_optimization(|context| {
             context.insert_current_instruction();
 
             let block_id = context.block_id;
@@ -63,7 +65,7 @@ fn check_u128_mul_overflow(
     lhs: ValueId,
     rhs: ValueId,
     block: BasicBlockId,
-    context: &mut FunctionMutationContext<'_, '_>,
+    context: &mut SimpleOptimizationContext<'_, '_>,
     call_stack: CallStackId,
 ) {
     let dfg = &mut context.dfg;

@@ -6,13 +6,15 @@ use crate::ssa::{
     ir::{
         call_stack::CallStackId,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionMutationContext},
+        function::Function,
         instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
     ssa_gen::Ssa,
 };
+
+use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -40,7 +42,7 @@ impl Function {
         // Make sure this optimization runs when there's only one block
         assert_eq!(self.dfg[block].successors().count(), 0);
 
-        self.mutate(|context| {
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -81,7 +83,7 @@ impl Function {
 }
 
 struct Context<'m, 'dfg, 'mapping> {
-    context: &'m mut FunctionMutationContext<'dfg, 'mapping>,
+    context: &'m mut SimpleOptimizationContext<'dfg, 'mapping>,
     call_stack: CallStackId,
 }
 

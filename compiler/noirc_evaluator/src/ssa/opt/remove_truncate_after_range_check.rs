@@ -23,7 +23,7 @@ impl Function {
         // Keeps the minimum bit size a value was range-checked against
         let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
 
-        self.mutate(|context| {
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 

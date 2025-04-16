@@ -30,7 +30,7 @@ impl Function {
             return;
         }
 
-        self.mutate(|context| {
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 

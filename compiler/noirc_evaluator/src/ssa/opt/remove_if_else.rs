@@ -66,7 +66,7 @@ impl Context {
         let one = FieldElement::one();
         let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
 
-        function.mutate(|context| {
+        function.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -82,7 +82,7 @@ impl Context {
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger = ValueMerger::new(
-                        &mut context.dfg,
+                        context.dfg,
                         block,
                         &mut self.slice_sizes,
                         &mut self.array_set_conditionals,
@@ -114,17 +114,17 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        match slice_capacity_change(&context.dfg, intrinsic, arguments, results) {
+                        match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
                             SizeChange::None => (),
                             SizeChange::SetTo(value, new_capacity) => {
                                 self.slice_sizes.insert(value, new_capacity);
                             }
                             SizeChange::Inc { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(&context.dfg, old);
+                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
                                 self.slice_sizes.insert(new, old_capacity + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(&context.dfg, old);
+                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
                                 self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
@@ -138,7 +138,7 @@ impl Context {
 
                     self.array_set_conditionals.insert(result, current_conditional);
 
-                    let old_capacity = self.get_or_find_capacity(&context.dfg, *array);
+                    let old_capacity = self.get_or_find_capacity(context.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);
                 }
                 Instruction::EnableSideEffectsIf { condition } => {
