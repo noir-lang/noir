@@ -9,13 +9,11 @@
 //!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffectsIf]
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
 //!
-use std::collections::HashSet;
 
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
         instruction::{BinaryOp, Hint, Instruction, Intrinsic},
@@ -43,41 +41,21 @@ impl Function {
             return;
         }
 
-        let mut context = Context::default();
-        context.block_queue.push(self.entry_block());
-
-        while let Some(block) = context.block_queue.pop() {
-            if context.visited_blocks.contains(&block) {
-                continue;
-            }
-
-            context.visited_blocks.insert(block);
-            context.remove_enable_side_effects_in_block(self, block);
-        }
-    }
-}
-
-#[derive(Default)]
-struct Context {
-    visited_blocks: HashSet<BasicBlockId>,
-    block_queue: Vec<BasicBlockId>,
-}
-
-impl Context {
-    fn remove_enable_side_effects_in_block(
-        &mut self,
-        function: &mut Function,
-        block: BasicBlockId,
-    ) {
-        let instructions = function.dfg[block].take_instructions();
-
-        let one = FieldElement::one();
-        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
+        let one = self.dfg.make_constant(FieldElement::one(), NumericType::bool());
+        let mut active_condition = one;
         let mut last_side_effects_enabled_instruction = None;
 
-        let mut new_instructions = Vec::with_capacity(instructions.len());
-        for instruction_id in instructions {
-            let instruction = &function.dfg[instruction_id];
+        let mut previous_block = None;
+
+        self.simple_optimization(|context| {
+            if Some(context.block_id) != previous_block {
+                active_condition = one;
+                last_side_effects_enabled_instruction = None;
+            }
+            previous_block = Some(context.block_id);
+
+            let instruction_id = context.instruction_id;
+            let instruction = context.instruction();
 
             // If we run into another `Instruction::EnableSideEffectsIf` before encountering any
             // instructions with side effects then we can drop the instruction we're holding and
@@ -85,115 +63,112 @@ impl Context {
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 // If this instruction isn't changing the currently active condition then we can ignore it.
                 if active_condition == *condition {
-                    continue;
+                    context.remove_current_instruction();
+                    return;
                 }
 
                 // If we're seeing an `enable_side_effects u1 1` then we want to insert it immediately.
                 // This is because we want to maximize the effect it will have.
-                let condition_is_one = function
+                let condition_is_one = context
                     .dfg
                     .get_numeric_constant(*condition)
                     .is_some_and(|condition| condition.is_one());
                 if condition_is_one {
-                    new_instructions.push(instruction_id);
                     last_side_effects_enabled_instruction = None;
                     active_condition = *condition;
-                    continue;
+                    return;
                 }
 
                 last_side_effects_enabled_instruction = Some(instruction_id);
                 active_condition = *condition;
-                continue;
+                context.remove_current_instruction();
+                return;
             }
 
             // If we hit an instruction which is affected by the side effects var then we must insert the
             // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
-            if Self::responds_to_side_effects_var(&function.dfg, instruction) {
+            if responds_to_side_effects_var(context.dfg, instruction) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
-                    new_instructions.push(enable_side_effects_instruction_id);
+                    context.dfg[context.block_id]
+                        .insert_instruction(enable_side_effects_instruction_id);
                 }
             }
-            new_instructions.push(instruction_id);
-        }
-
-        *function.dfg[block].instructions_mut() = new_instructions;
-
-        self.block_queue.extend(function.dfg[block].successors());
+        });
     }
+}
 
-    fn responds_to_side_effects_var(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
-        use Instruction::*;
-        match instruction {
-            Binary(binary) => match binary.operator {
-                BinaryOp::Add { .. } | BinaryOp::Sub { .. } | BinaryOp::Mul { .. } => {
-                    dfg.type_of_value(binary.lhs).is_unsigned()
+fn responds_to_side_effects_var(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
+    use Instruction::*;
+    match instruction {
+        Binary(binary) => match binary.operator {
+            BinaryOp::Add { .. } | BinaryOp::Sub { .. } | BinaryOp::Mul { .. } => {
+                dfg.type_of_value(binary.lhs).is_unsigned()
+            }
+            BinaryOp::Div | BinaryOp::Mod => {
+                if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                    rhs == FieldElement::zero()
+                } else {
+                    true
                 }
-                BinaryOp::Div | BinaryOp::Mod => {
-                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                        rhs == FieldElement::zero()
-                    } else {
-                        true
-                    }
-                }
-                _ => false,
+            }
+            _ => false,
+        },
+
+        Cast(_, _)
+        | Not(_)
+        | Truncate { .. }
+        | Constrain(..)
+        | ConstrainNotEqual(..)
+        | RangeCheck { .. }
+        | IfElse { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. }
+        | Noop
+        | MakeArray { .. } => false,
+
+        EnableSideEffectsIf { .. }
+        | ArrayGet { .. }
+        | ArraySet { .. }
+        | Allocate
+        | Store { .. }
+        | Load { .. } => true,
+
+        // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+        Call { func, .. } => match dfg[*func] {
+            Value::Intrinsic(intrinsic) => match intrinsic {
+                Intrinsic::SlicePushBack
+                | Intrinsic::SlicePushFront
+                | Intrinsic::SlicePopBack
+                | Intrinsic::SlicePopFront
+                | Intrinsic::SliceInsert
+                | Intrinsic::SliceRemove => true,
+
+                Intrinsic::ArrayLen
+                | Intrinsic::ArrayAsStrUnchecked
+                | Intrinsic::AssertConstant
+                | Intrinsic::StaticAssert
+                | Intrinsic::ApplyRangeConstraint
+                | Intrinsic::StrAsBytes
+                | Intrinsic::ToBits(_)
+                | Intrinsic::ToRadix(_)
+                | Intrinsic::BlackBox(_)
+                | Intrinsic::Hint(Hint::BlackBox)
+                | Intrinsic::AsSlice
+                | Intrinsic::AsWitness
+                | Intrinsic::IsUnconstrained
+                | Intrinsic::DerivePedersenGenerators
+                | Intrinsic::ArrayRefCount
+                | Intrinsic::SliceRefCount
+                | Intrinsic::FieldLessThan => false,
             },
 
-            Cast(_, _)
-            | Not(_)
-            | Truncate { .. }
-            | Constrain(..)
-            | ConstrainNotEqual(..)
-            | RangeCheck { .. }
-            | IfElse { .. }
-            | IncrementRc { .. }
-            | DecrementRc { .. }
-            | Noop
-            | MakeArray { .. } => false,
+            // We must assume that functions contain a side effect as we cannot inspect more deeply.
+            Value::Function(_) => true,
 
-            EnableSideEffectsIf { .. }
-            | ArrayGet { .. }
-            | ArraySet { .. }
-            | Allocate
-            | Store { .. }
-            | Load { .. } => true,
-
-            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-            Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => match intrinsic {
-                    Intrinsic::SlicePushBack
-                    | Intrinsic::SlicePushFront
-                    | Intrinsic::SlicePopBack
-                    | Intrinsic::SlicePopFront
-                    | Intrinsic::SliceInsert
-                    | Intrinsic::SliceRemove => true,
-
-                    Intrinsic::ArrayLen
-                    | Intrinsic::ArrayAsStrUnchecked
-                    | Intrinsic::AssertConstant
-                    | Intrinsic::StaticAssert
-                    | Intrinsic::ApplyRangeConstraint
-                    | Intrinsic::StrAsBytes
-                    | Intrinsic::ToBits(_)
-                    | Intrinsic::ToRadix(_)
-                    | Intrinsic::BlackBox(_)
-                    | Intrinsic::Hint(Hint::BlackBox)
-                    | Intrinsic::AsSlice
-                    | Intrinsic::AsWitness
-                    | Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators
-                    | Intrinsic::ArrayRefCount
-                    | Intrinsic::SliceRefCount
-                    | Intrinsic::FieldLessThan => false,
-                },
-
-                // We must assume that functions contain a side effect as we cannot inspect more deeply.
-                Value::Function(_) => true,
-
-                _ => false,
-            },
-        }
+            _ => false,
+        },
     }
 }
 
