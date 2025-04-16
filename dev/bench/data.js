@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744821997520,
+  "lastUpdate": 1744827864345,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17936,42 +17936,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7fb652c888402f5283ed8ac560a95f02dc2513b8",
-          "message": "chore: add benchmark for ACVM arithmetic solver (#8003)",
-          "timestamp": "2025-04-10T23:42:06Z",
-          "tree_id": "4482b6c97c017d1430182a44d2bd6c18eee4c96f",
-          "url": "https://github.com/noir-lang/noir/commit/7fb652c888402f5283ed8ac560a95f02dc2513b8"
-        },
-        "date": 1744329562038,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 3610447,
-            "range": "± 17320",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 3580014,
-            "range": "± 58614",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19729,6 +19693,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 234245,
             "range": "± 3974",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a23bb647339293674012c27a35ae3e08fb5470b0",
+          "message": "chore(experimental): Function::simple_optimization for SSA optimizations (#8102)",
+          "timestamp": "2025-04-16T18:06:30Z",
+          "tree_id": "1cf405b86036c3e7c22e54a36a3b52bae7ea69c2",
+          "url": "https://github.com/noir-lang/noir/commit/a23bb647339293674012c27a35ae3e08fb5470b0"
+        },
+        "date": 1744827857998,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264946,
+            "range": "± 483",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233928,
+            "range": "± 582",
             "unit": "ns/iter"
           }
         ]
