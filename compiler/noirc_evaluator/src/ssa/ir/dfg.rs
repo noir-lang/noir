@@ -10,7 +10,8 @@ use super::{
     call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        TerminatorInstruction,
     },
     map::DenseMap,
     types::{NumericType, Type},
@@ -537,14 +538,22 @@ impl DataFlowGraph {
         match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
-                if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.type_of_value(original_value).bit_size();
-                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
-                    // in which case we want to recover the original smaller bit size;
-                    // OTOH if we cast down, then we don't need the higher original size.
-                    value_bit_size.min(original_bit_size)
-                } else {
-                    value_bit_size
+                match self[instruction] {
+                    Instruction::Cast(original_value, _) => {
+                        let original_bit_size = self.type_of_value(original_value).bit_size();
+                        // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                        // in which case we want to recover the original smaller bit size;
+                        // OTOH if we cast down, then we don't need the higher original size.
+                        value_bit_size.min(original_bit_size)
+                    }
+                    Instruction::Binary(Binary { lhs, operator: BinaryOp::Mul { .. }, rhs })
+                        if self.get_value_max_num_bits(lhs) == 1
+                            && self.get_value_max_num_bits(rhs) == 1 =>
+                    {
+                        // When multiplying two values, if their bitsize is 1 then the result's bitsize will be 1 too
+                        1
+                    }
+                    _ => value_bit_size,
                 }
             }
 
