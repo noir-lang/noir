@@ -1702,7 +1702,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     };
 
                     let rhs_may_be_zero =
-                        dfg.get_numeric_constant(binary.rhs).map_or(true, |rhs| rhs.is_zero());
+                        dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
                     if rhs_may_be_zero {
                         let is_right_zero =
                             SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
