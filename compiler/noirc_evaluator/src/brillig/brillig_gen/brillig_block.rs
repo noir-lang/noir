@@ -1720,7 +1720,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         self.brillig_context.deallocate_single_addr(is_right_zero);
                         self.brillig_context.deallocate_single_addr(zero);
                     } else {
-                        division_by_rhs_gives_lhs(self.brillig_context)
+                        division_by_rhs_gives_lhs(self.brillig_context);
                     }
                 }
                 _ => {}
