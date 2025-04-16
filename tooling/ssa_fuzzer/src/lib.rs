@@ -10,10 +10,12 @@ pub mod typed_value;
 mod tests {
     use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
     use crate::config;
+    use crate::runner::execute_single;
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
+    use noirc_evaluator::ssa::ir::instruction::BinaryOp;
     use rand::RngCore;
 
     struct TestHelper {
@@ -224,5 +226,40 @@ mod tests {
         let noir_res =
             run_instruction_double_arg(FuzzerBuilder::insert_shr_instruction, values.clone());
         compare_results(values[0] >> values[1], noir_res);
+    }
+
+    #[test]
+    fn regression_fields_mod_op_brillig() {
+        let mut brillig_builder = FuzzerBuilder::new_brillig();
+        let field_var_brillig_id_1 =
+            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+        let field_var_brillig_id_2 =
+            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+
+        let mod_brillig = brillig_builder.builder.insert_binary(
+            field_var_brillig_id_1,
+            BinaryOp::Mod,
+            field_var_brillig_id_2,
+        );
+
+        brillig_builder.builder.terminate_with_return(vec![mod_brillig]);
+        let brillig_program = brillig_builder.compile();
+        let brillig_program = match brillig_program {
+            Ok(program) => program,
+            Err(_e) => {
+                // compilation failed, its nice
+                return;
+            }
+        };
+
+        let mut initial_witness = WitnessMap::new();
+        initial_witness.insert(Witness(0), FieldElement::from(13371337_u32));
+        initial_witness.insert(Witness(1), FieldElement::from(12341234_u32));
+
+        let result_witness = Witness(2);
+        let execution_result =
+            execute_single(&brillig_program.program, initial_witness, result_witness);
+        println!("{:?}", execution_result);
+        assert!(execution_result.is_err());
     }
 }
