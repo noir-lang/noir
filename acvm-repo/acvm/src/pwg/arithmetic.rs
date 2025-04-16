@@ -176,7 +176,6 @@ impl ExpressionSolver {
                             // let assignment = -total_sum / (q + b);
                             // insert_value(&w1, assignment, initial_witness)
                             // but we want to add this to pending_arithmetic_opcodes
-                            println!("position_1");
                             pending_arithmetic_opcodes.add_pending_op(-total_sum, x, w1)
                         }
                     }
@@ -215,7 +214,6 @@ impl ExpressionSolver {
                         // let assignment = -(total_sum / partial_prod);
                         // insert_value(&unknown_var, assignment, initial_witness)
                         // but we want to add this to pending_arithmetic_opcodes
-                        println!("position_2");
                         pending_arithmetic_opcodes.add_pending_op(
                             -total_sum,
                             partial_prod,
