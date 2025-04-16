@@ -10,7 +10,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic},
         types::{NumericType, Type},
-        value::ValueId,
+        value::{ValueId, ValueMapping},
     },
     ssa_gen::Ssa,
 };
@@ -58,9 +58,15 @@ struct Context<'f> {
 
 impl Context<'_> {
     fn remove_bit_shifts(&mut self) {
+        let mut values_to_replace = ValueMapping::default();
         let instructions = self.function.dfg[self.block].take_instructions();
 
         for instruction_id in instructions {
+            if !values_to_replace.is_empty() {
+                let instruction = &mut self.function.dfg[instruction_id];
+                instruction.replace_values(&values_to_replace);
+            }
+
             match self.function.dfg[instruction_id] {
                 Instruction::Binary(Binary { lhs, rhs, operator })
                     if matches!(operator, BinaryOp::Shl | BinaryOp::Shr) =>
@@ -81,7 +87,7 @@ impl Context<'_> {
                         self.insert_shift_right(lhs, rhs, bit_size)
                     };
 
-                    self.function.dfg.set_value_from_id(old_result, new_result);
+                    values_to_replace.insert(old_result, new_result);
                 }
                 _ => {
                     self.new_instructions.push(instruction_id);
@@ -91,6 +97,8 @@ impl Context<'_> {
 
         *self.function.dfg[self.block].instructions_mut() =
             std::mem::take(&mut self.new_instructions);
+        self.function.dfg.replace_values_in_block_terminator(self.block, &values_to_replace);
+        self.function.dfg.data_bus.replace_values(&values_to_replace);
     }
 
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
@@ -379,5 +387,35 @@ impl Context<'_> {
         }
 
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn removes_shl() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = shl v0, u8 2
+            v3 = truncate v2 to 32 bits, max_bit_size: 33
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = cast v0 as Field
+            v3 = mul v1, Field 4
+            v4 = truncate v3 to 32 bits, max_bit_size: 34
+            v5 = cast v4 as u32
+            v6 = truncate v5 to 32 bits, max_bit_size: 33
+            return v5
+        }
+        ");
     }
 }

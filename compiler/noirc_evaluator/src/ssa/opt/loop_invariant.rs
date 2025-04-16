@@ -127,6 +127,21 @@ impl Loop {
     fn get_induction_variable(&self, function: &Function) -> ValueId {
         function.dfg.block_parameters(self.header)[0]
     }
+
+    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
+    // Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
+    // If a loop can have several exit blocks, we would need to update this function
+    pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
+        let Some(header) = self.blocks.first() else {
+            return true;
+        };
+        for block in cfg.successors(*header) {
+            if !self.blocks.contains(&block) {
+                return cfg.predecessors(block).len() == 1;
+            }
+        }
+        true
+    }
 }
 
 struct LoopInvariantContext<'f> {
@@ -192,20 +207,6 @@ impl<'f> LoopInvariantContext<'f> {
 
     fn pre_header(&self) -> BasicBlockId {
         self.current_pre_header.expect("ICE: Pre-header block should have been set")
-    }
-
-    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
-    // If a loop can have several exit blocks, we would need to update this function
-    fn is_fully_executed(&self, loop_: &Loop) -> bool {
-        let Some(header) = loop_.blocks.first() else {
-            return true;
-        };
-        for block in self.inserter.function.dfg[*header].successors() {
-            if !loop_.blocks.contains(&block) {
-                return self.cfg.predecessors(block).len() == 1;
-            }
-        }
-        true
     }
 
     fn hoist_loop_invariants(&mut self, loop_: &Loop) {
@@ -298,7 +299,7 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
-        self.no_break = self.is_fully_executed(loop_);
+        self.no_break = loop_.is_fully_executed(&self.cfg);
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -439,7 +440,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let results =
                     self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
                 assert!(results.len() == 1);
-                self.inserter.function.dfg.set_value_from_id(results[0], id);
+                self.inserter.map_value(results[0], id);
                 true
             }
             SimplifyResult::SimplifiedToInstruction(instruction) => {

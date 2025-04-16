@@ -1,6 +1,7 @@
 use fxhash::FxHashMap as HashMap;
 use fxhash::FxHashSet as HashSet;
 
+use crate::ssa::ir::value::ValueMapping;
 use crate::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},
     ssa_gen::Ssa,
@@ -21,7 +22,7 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_truncate_after_range_check(&mut self) {
-        let mut values_to_replace = HashMap::<ValueId, ValueId>::default();
+        let mut values_to_replace = ValueMapping::default();
         // Keeps the minimum bit size a value was range-checked against
         let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
 
@@ -77,6 +78,8 @@ impl Function {
             *self.dfg[block].instructions_mut() = instruction_ids;
             self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
         }
+
+        self.dfg.data_bus.replace_values(&values_to_replace);
     }
 }
 
