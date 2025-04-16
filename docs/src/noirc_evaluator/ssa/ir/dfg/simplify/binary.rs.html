@@ -291,7 +291,17 @@
 <a href="#290" id="290">290</a>
 <a href="#291" id="291">291</a>
 <a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -426,6 +436,16 @@
         BinaryOp::Div =&gt; {
             <span class="kw">if </span>rhs_is_one {
                 <span class="kw">return </span>SimplifyResult::SimplifiedTo(lhs);
+            }
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(rhs_value) = rhs_value {
+                <span class="kw">if </span>lhs_type == NumericType::NativeField &amp;&amp; !rhs_value.is_zero() {
+                    <span class="kw">let </span>rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
+                    <span class="kw">return </span>SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Mul { unchecked: <span class="bool-val">false </span>},
+                    }));
+                }
             }
         }
         BinaryOp::Mod =&gt; {
