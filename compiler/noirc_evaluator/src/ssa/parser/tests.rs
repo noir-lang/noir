@@ -647,9 +647,8 @@ fn regression_modulo_fields_brillig() {
         }
         ";
     let ssa = Ssa::from_str(src).unwrap();
-    match std::panic::catch_unwind(AssertUnwindSafe(|| ssa.to_brillig(&BrilligOptions::default())))
-    {
-        Ok(_) => panic!("Should fail on compilation"),
-        Err(_) => (),
-    }
+    assert!(
+        std::panic::catch_unwind(AssertUnwindSafe(|| ssa.to_brillig(&BrilligOptions::default())))
+            .is_err()
+    );
 }
