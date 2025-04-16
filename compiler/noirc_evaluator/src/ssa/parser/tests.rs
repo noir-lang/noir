@@ -633,3 +633,19 @@ fn test_parses_keyword_in_function_name() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+#[should_panic = "Attempt to modulo fields"]
+fn regression_modulo_fields_brillig() {
+    use crate::brillig::BrilligOptions;
+
+    let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = mod v0, v1
+            return v2
+        }
+        ";
+    let ssa = Ssa::from_str(src).unwrap();
+    ssa.to_brillig(&BrilligOptions::default());
+}
