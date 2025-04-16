@@ -512,7 +512,8 @@
 <a href="#511" id="511">511</a>
 <a href="#512" id="512">512</a>
 <a href="#513" id="513">513</a>
-<a href="#514" id="514">514</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         AcirField,
@@ -670,6 +671,7 @@
             right.bit_size
         );
         <span class="kw">let </span>bit_size = left.bit_size;
+        <span class="macro">assert!</span>(bit_size != BitSize::Field.to_u32::&lt;F&gt;(), <span class="string">"Attempt to modulo fields"</span>);
 
         <span class="kw">let </span>scratch_var_i = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), bit_size);
         <span class="kw">let </span>scratch_var_j = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), bit_size);
