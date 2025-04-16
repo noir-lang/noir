@@ -30,6 +30,8 @@ use crate::{
     types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
 };
 
+pub(crate) use workspace_symbol::WorkspaceSymbolCache;
+
 // Handlers
 // The handlers for `request` are not `async` because it compiles down to lifetimes that can't be added to
 // the router. To return a future that fits the trait, it is easiest wrap your implementations in an `async {}`
@@ -53,6 +55,7 @@ mod rename;
 mod signature_help;
 mod test_run;
 mod tests;
+mod workspace_symbol;
 
 pub(crate) use {
     code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
@@ -62,7 +65,7 @@ pub(crate) use {
     hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
     signature_help::on_signature_help_request, test_run::on_test_run_request,
-    tests::on_tests_request,
+    tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -285,6 +288,14 @@ pub(crate) fn on_initialize(
                     },
                     resolve_provider: None,
                 })),
+                workspace_symbol_provider: Some(lsp_types::OneOf::Right(
+                    lsp_types::WorkspaceSymbolOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        resolve_provider: None,
+                    },
+                )),
             },
             server_info: None,
         })

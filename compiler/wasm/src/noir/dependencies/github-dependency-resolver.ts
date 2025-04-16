@@ -32,7 +32,7 @@ export class GithubDependencyResolver implements DependencyResolver {
   async resolveDependency(_pkg: Package, dependency: DependencyConfig): Promise<Dependency | null> {
     // TODO accept ssh urls?
     // TODO github authentication?
-    if (!('git' in dependency) || !dependency.git.startsWith('https://github.com')) {
+    if (!('git' in dependency) || new URL(dependency.git).hostname != 'github.com') {
       return null;
     }
 

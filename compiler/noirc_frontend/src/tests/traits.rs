@@ -134,7 +134,6 @@ fn trait_inheritance_missing_parent_implementation() {
                      ~~~~~~ The trait `Foo` is not implemented for `Struct`
 
         fn main() {
-            let _ = Struct {}; // silence Struct never constructed warning
         }
     "#;
     check_errors!(src);
@@ -1396,6 +1395,102 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
         let bar = Bar::<i32> {};
         bar.bar::<Foo>();
     }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_1() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self;
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_magic_value() -> Foo {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_magic_value() -> Bar {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_2() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_3() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    impl MagicNumber for i32 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    impl MagicNumber for i64 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    fn main() {}
     ";
     assert_no_errors!(src);
 }

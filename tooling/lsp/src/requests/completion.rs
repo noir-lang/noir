@@ -34,7 +34,7 @@ use noirc_frontend::{
     hir_def::traits::Trait,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{MetaAttribute, Token, Tokens},
+    token::{MetaAttribute, MetaAttributeName, Token, Tokens},
 };
 use sort_text::underscore_sort_text;
 
@@ -1829,12 +1829,21 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
-    fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
-        if self.byte_index == attribute.name.location.span.end() as usize {
-            self.suggest_builtin_attributes(&attribute.name.to_string(), target);
+    fn visit_meta_attribute(
+        &mut self,
+        attribute: &MetaAttribute,
+        target: AttributeTarget,
+        _span: Span,
+    ) -> bool {
+        let MetaAttributeName::Path(path) = &attribute.name else {
+            return true;
+        };
+
+        if self.byte_index == path.location.span.end() as usize {
+            self.suggest_builtin_attributes(&path.to_string(), target);
         }
 
-        self.find_in_path(&attribute.name, RequestedItems::OnlyAttributeFunctions(target));
+        self.find_in_path(path, RequestedItems::OnlyAttributeFunctions(target));
 
         true
     }

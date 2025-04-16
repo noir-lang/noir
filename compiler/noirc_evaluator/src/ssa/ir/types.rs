@@ -15,7 +15,6 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -101,9 +100,35 @@ impl NumericType {
     }
 }
 
+#[cfg(test)]
+mod props {
+    use proptest::{
+        prelude::{Arbitrary, BoxedStrategy, Just, Strategy as _},
+        prop_oneof,
+    };
+
+    use super::NumericType;
+
+    impl Arbitrary for NumericType {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let signed = prop_oneof!(Just(8), Just(16), Just(32), Just(64));
+            let unsigned = prop_oneof!(Just(1), Just(8), Just(16), Just(32), Just(64), Just(128));
+            prop_oneof![
+                signed.prop_map(|bit_size| NumericType::Signed { bit_size }),
+                unsigned.prop_map(|bit_size| NumericType::Unsigned { bit_size }),
+                Just(NumericType::NativeField),
+            ]
+            .boxed()
+        }
+    }
+}
+
 /// All types representable in the IR.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-pub(crate) enum Type {
+pub enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
@@ -122,42 +147,42 @@ pub(crate) enum Type {
 
 impl Type {
     /// Returns whether the `Type` represents an unsigned numeric type.
-    pub(crate) fn is_unsigned(&self) -> bool {
+    pub fn is_unsigned(&self) -> bool {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
     }
 
     /// Create a new signed integer type with the given amount of bits.
-    pub(crate) fn signed(bit_size: u32) -> Type {
+    pub fn signed(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
     }
 
     /// Create a new unsigned integer type with the given amount of bits.
-    pub(crate) fn unsigned(bit_size: u32) -> Type {
+    pub fn unsigned(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Unsigned { bit_size })
     }
 
     /// Creates the boolean type, represented as u1.
-    pub(crate) fn bool() -> Type {
+    pub fn bool() -> Type {
         Type::unsigned(1)
     }
 
     /// Creates the char type, represented as u8.
-    pub(crate) fn char() -> Type {
+    pub fn char() -> Type {
         Type::unsigned(8)
     }
 
     /// Creates the `str<N>` type, of the given length N
-    pub(crate) fn str(length: u32) -> Type {
+    pub fn str(length: u32) -> Type {
         Type::Array(Arc::new(vec![Type::char()]), length)
     }
 
     /// Creates the native field type.
-    pub(crate) fn field() -> Type {
+    pub fn field() -> Type {
         Type::Numeric(NumericType::NativeField)
     }
 
     /// Creates the type of an array's length.
-    pub(crate) fn length_type() -> Type {
+    pub fn length_type() -> Type {
         Type::unsigned(SSA_WORD_SIZE)
     }
 

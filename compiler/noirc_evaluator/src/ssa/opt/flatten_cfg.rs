@@ -852,14 +852,16 @@ impl<'f> Context<'f> {
 mod test {
     use acvm::acir::AcirField;
 
-    use crate::ssa::{
-        Ssa,
-        ir::{
-            dfg::DataFlowGraph,
-            instruction::{Instruction, TerminatorInstruction},
-            value::{Value, ValueId},
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            ir::{
+                dfg::DataFlowGraph,
+                instruction::{Instruction, TerminatorInstruction},
+                value::{Value, ValueId},
+            },
         },
-        opt::assert_normalized_ssa_equals,
     };
 
     #[test]
@@ -879,23 +881,21 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1):
-                enable_side_effects v0
-                v1 = not v0
-                enable_side_effects u1 1
-                v3 = cast v0 as Field
-                v4 = cast v1 as Field
-                v6 = mul v3, Field 3
-                v8 = mul v4, Field 4
-                v9 = add v6, v8
-                return v9
-            }
-            ";
-
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            v3 = cast v0 as Field
+            v4 = cast v1 as Field
+            v6 = mul v3, Field 3
+            v8 = mul v4, Field 4
+            v9 = add v6, v8
+            return v9
+        }
+        ");
     }
 
     #[test]
@@ -914,20 +914,19 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1):
-                enable_side_effects v0
-                v2 = mul v1, v0
-                constrain v2 == v0
-                v3 = not v0
-                enable_side_effects u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
         assert_eq!(ssa.main().reachable_blocks().len(), 1);
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = mul v1, v0
+            constrain v2 == v0
+            v3 = not v0
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -945,24 +944,23 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: &mut Field):
-                enable_side_effects v0
-                v2 = load v1 -> Field
-                v3 = not v0
-                v4 = cast v0 as Field
-                v5 = cast v3 as Field
-                v7 = mul v4, Field 5
-                v8 = mul v5, v2
-                v9 = add v7, v8
-                store v9 at v1
-                enable_side_effects u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: &mut Field):
+            enable_side_effects v0
+            v2 = load v1 -> Field
+            v3 = not v0
+            v4 = cast v0 as Field
+            v5 = cast v3 as Field
+            v7 = mul v4, Field 5
+            v8 = mul v5, v2
+            v9 = add v7, v8
+            store v9 at v1
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -983,32 +981,31 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: &mut Field):
-                enable_side_effects v0
-                v2 = load v1 -> Field
-                v3 = not v0
-                v4 = cast v0 as Field
-                v5 = cast v3 as Field
-                v7 = mul v4, Field 5
-                v8 = mul v5, v2
-                v9 = add v7, v8
-                store v9 at v1
-                enable_side_effects v3
-                v10 = load v1 -> Field
-                v11 = cast v3 as Field
-                v12 = cast v0 as Field
-                v14 = mul v11, Field 6
-                v15 = mul v12, v10
-                v16 = add v14, v15
-                store v16 at v1
-                enable_side_effects u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: &mut Field):
+            enable_side_effects v0
+            v2 = load v1 -> Field
+            v3 = not v0
+            v4 = cast v0 as Field
+            v5 = cast v3 as Field
+            v7 = mul v4, Field 5
+            v8 = mul v5, v2
+            v9 = add v7, v8
+            store v9 at v1
+            enable_side_effects v3
+            v10 = load v1 -> Field
+            v11 = cast v3 as Field
+            v12 = cast v0 as Field
+            v14 = mul v11, Field 6
+            v15 = mul v12, v10
+            v16 = add v14, v15
+            store v16 at v1
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1095,7 +1092,16 @@ mod test {
 
         let ssa = ssa.flatten_cfg().mem2reg();
 
-        let expected = "
+        let main = ssa.main();
+        let ret = match main.dfg[main.entry_block()].terminator() {
+            Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
+            _ => unreachable!("Should have terminator instruction"),
+        };
+
+        let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
+        assert_eq!(merged_values, vec![2, 3, 5, 6]);
+
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             v2 = allocate -> &mut Field
@@ -1131,18 +1137,8 @@ mod test {
             v31 = add v29, v30
             enable_side_effects u1 1
             return v31
-        }";
-
-        let main = ssa.main();
-        let ret = match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
-            _ => unreachable!("Should have terminator instruction"),
-        };
-
-        let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![2, 3, 5, 6]);
-
-        assert_normalized_ssa_equals(ssa, expected);
+        }
+        ");
     }
 
     #[test]
@@ -1179,19 +1175,6 @@ mod test {
         let flattened_ssa = ssa.flatten_cfg();
 
         // Now assert that there is not a load between the allocate and its first store
-        // The Expected IR is:
-        let expected = "
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            enable_side_effects v0
-            v1 = allocate -> &mut Field
-            store Field 0 at v1
-            v3 = load v1 -> Field
-            v4 = not v0
-            enable_side_effects u1 1
-            return
-        }
-        ";
 
         let main = flattened_ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
@@ -1207,7 +1190,18 @@ mod test {
         assert!(allocate_index < store_index);
         assert!(store_index < load_index);
 
-        assert_normalized_ssa_equals(flattened_ssa, expected);
+        assert_ssa_snapshot!(flattened_ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = load v1 -> Field
+            v4 = not v0
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     /// Work backwards from an instruction to find all the constant values
@@ -1259,16 +1253,15 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                enable_side_effects u1 1
-                constrain u1 0 == u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 1
+            constrain u1 0 == u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1303,7 +1296,24 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let flattened_ssa = ssa.flatten_cfg();
+        let main = flattened_ssa.main();
+
+        // Now assert that there is not an always-false constraint after flattening:
+        let mut constrain_count = 0;
+        for instruction in main.dfg[main.entry_block()].instructions() {
+            if let Instruction::Constrain(lhs, rhs, ..) = main.dfg[*instruction] {
+                if let (Some(lhs), Some(rhs)) =
+                    (main.dfg.get_numeric_constant(lhs), main.dfg.get_numeric_constant(rhs))
+                {
+                    assert_eq!(lhs, rhs);
+                }
+                constrain_count += 1;
+            }
+        }
+        assert_eq!(constrain_count, 1);
+
+        assert_ssa_snapshot!(flattened_ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
             v2 = array_get v0, index u8 0 -> u8
@@ -1334,26 +1344,7 @@ mod test {
             constrain v5 == u1 1
             return
         }
-        ";
-
-        let flattened_ssa = ssa.flatten_cfg();
-        let main = flattened_ssa.main();
-
-        // Now assert that there is not an always-false constraint after flattening:
-        let mut constrain_count = 0;
-        for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(lhs, rhs, ..) = main.dfg[*instruction] {
-                if let (Some(lhs), Some(rhs)) =
-                    (main.dfg.get_numeric_constant(lhs), main.dfg.get_numeric_constant(rhs))
-                {
-                    assert_eq!(lhs, rhs);
-                }
-                constrain_count += 1;
-            }
-        }
-        assert_eq!(constrain_count, 1);
-
-        assert_normalized_ssa_equals(flattened_ssa, expected);
+        ");
     }
 
     #[test]
@@ -1422,7 +1413,7 @@ mod test {
             _ => unreachable!("Should have terminator instruction"),
         }
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
@@ -1430,9 +1421,7 @@ mod test {
             enable_side_effects u1 1
             return Field 200
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1475,7 +1464,7 @@ mod test {
 
         let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
             v1 = allocate -> &mut [Field; 1]
@@ -1489,9 +1478,7 @@ mod test {
             enable_side_effects u1 1
             return v8
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1523,7 +1510,7 @@ mod test {
             .fold_constants()
             .dead_instruction_elimination();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -1533,8 +1520,75 @@ mod test {
             enable_side_effects u1 1
             return v5
         }
+        ");
+    }
+
+    #[test]
+    fn do_not_replace_else_condition_with_nested_if_same_then_cond() {
+        // When inserting an `IfElse` instruction we will attempt to simplify when the then condition
+        // of the inner if-else matches the parent's if-else then condition.
+        // e.g. such as the following pseudocode:
+        // ```
+        // if cond {
+        //   if cond { ... } else { ... }
+        // } else {
+        //   ...
+        // }
+        // ```
+        // In the SSA below we can see how the jmpif condition in b0 matches the jmpif condition in b1.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: [[u1; 2]; 3]):
+            v4 = not v0
+            jmpif v0 then: b1, else: b2
+          b1():
+            v7 = not v0
+            jmpif v0 then: b3, else: b4
+          b2():
+            v6 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b5(v6)
+          b3():
+            v9 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b6(v9)
+          b4():
+            v8 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b6(v8)
+          b5(v2: [u1; 2]):
+            return v2
+          b6(v3: [u1; 2]):
+            jmp b5(v3)
+        }
         ";
 
-        assert_normalized_ssa_equals(ssa, expected);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // You will notice in the expected SSA that there is no nested if statement. This is because the
+        // final instruction `v12 = if v0 then v5 else (if v6) v10` used to have `v9` as its then block value.
+        // As they share the same then condition we can simplify the then value in the outer if-else statement to the inner if-else
+        // statement's then value. This is why the then value is `v5` in both if-else instructions below.
+        // We want to make sure that the else condition in the final instruction `v12 = if v0 then v5 else (if v6) v10`
+        // remains v6 and is not altered when performing this optimization.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: [[u1; 2]; 3]):
+            v2 = not v0
+            enable_side_effects v0
+            v3 = not v0
+            enable_side_effects v0
+            v5 = array_get v1, index u32 0 -> [u1; 2]
+            v6 = not v0
+            v7 = unchecked_mul v0, v6
+            enable_side_effects v7
+            v8 = array_get v1, index u32 0 -> [u1; 2]
+            enable_side_effects v0
+            v9 = if v0 then v5 else (if v7) v8
+            enable_side_effects v6
+            v10 = array_get v1, index u32 0 -> [u1; 2]
+            enable_side_effects u1 1
+            v12 = if v0 then v5 else (if v6) v10
+            return v12
+        }
+        ");
     }
 }

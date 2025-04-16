@@ -2,7 +2,7 @@
 title: Security checks
 description: Security checks currently provided by the compiler
 keywords: [Nargo, Security, Brillig, Unconstrained]
-sidebar_position: 2
+sidebar_position: 4
 ---
 
 # Security checks
@@ -58,4 +58,4 @@ fn main f0 (v0: Field, v1: Field) {
 }
 ```
 
-Normally, the addition operation over `v0` and `v1` happening before the call itself would prevent the call from being (correctly) considered properly constrained. With this option enabled, the false positive goes away at the cost of the check becoming somewhat less performant on large unrolled loops. 
+Normally, the addition operation over `v0` and `v1` happening before the call itself would prevent the call from being (correctly) considered properly constrained. With this option enabled, the false positive goes away at the cost of the check becoming somewhat less performant on large unrolled loops.
