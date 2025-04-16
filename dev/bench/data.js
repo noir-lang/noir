@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744819796012,
+  "lastUpdate": 1744820696957,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19732,6 +19732,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 234054,
             "range": "± 3432",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+jewelofchaos9@users.noreply.github.com",
+            "name": "defkit",
+            "username": "jewelofchaos9"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bee86cbca93df3b67a76c4292492747312dde5a7",
+          "message": "fix(ssa): fix possibility to `Field % Field` operaions in Brillig from SSA (#8105)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-16T16:03:15Z",
+          "tree_id": "e30f687fef7a7b12c6ce0b28d6ab6be4c6614706",
+          "url": "https://github.com/noir-lang/noir/commit/bee86cbca93df3b67a76c4292492747312dde5a7"
+        },
+        "date": 1744820690548,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 291580,
+            "range": "± 961",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 258167,
+            "range": "± 1426",
             "unit": "ns/iter"
           }
         ]
