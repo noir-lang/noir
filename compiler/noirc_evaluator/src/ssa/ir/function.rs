@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::hash::Hash;
 use std::sync::Arc;
 
 use iter_extended::vecmap;
