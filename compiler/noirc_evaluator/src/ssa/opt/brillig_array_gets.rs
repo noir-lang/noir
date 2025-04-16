@@ -38,7 +38,6 @@ impl Ssa {
 impl Function {
     pub(super) fn brillig_array_gets(&mut self) {
         self.simple_optimization(|context| {
-            let instruction_id = context.instruction_id;
             let instruction = context.instruction();
             if let Instruction::ArrayGet { array, index } = instruction {
                 let array = *array;
@@ -59,7 +58,8 @@ impl Function {
                         index_constant + offset.into(),
                         NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                     );
-                    context.dfg[instruction_id] = Instruction::ArrayGet { array, index };
+                    let new_instruction = Instruction::ArrayGet { array, index };
+                    context.replace_current_instruction_with(new_instruction);
                 }
             }
         });

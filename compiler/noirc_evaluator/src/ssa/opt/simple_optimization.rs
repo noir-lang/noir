@@ -90,4 +90,14 @@ impl SimpleOptimizationContext<'_, '_> {
     pub(crate) fn remove_current_instruction(&mut self) {
         self.insert_current_instruction_at_callback_end = false;
     }
+
+    /// Inserts an instruction in the current block right away.
+    pub(crate) fn insert_instruction(&mut self, instruction_id: InstructionId) {
+        self.dfg[self.block_id].insert_instruction(instruction_id);
+    }
+
+    /// Replaces the current instruction with another one.
+    pub(crate) fn replace_current_instruction_with(&mut self, instruction: Instruction) {
+        self.dfg[self.instruction_id] = instruction;
+    }
 }

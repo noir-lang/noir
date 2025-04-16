@@ -91,8 +91,7 @@ impl Function {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
-                    context.dfg[context.block_id]
-                        .insert_instruction(enable_side_effects_instruction_id);
+                    context.insert_instruction(enable_side_effects_instruction_id);
                 }
             }
         });

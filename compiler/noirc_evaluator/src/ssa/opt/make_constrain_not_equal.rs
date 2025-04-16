@@ -31,7 +31,6 @@ impl Function {
         }
 
         self.simple_optimization(|context| {
-            let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
             let Instruction::Constrain(lhs, rhs, msg) = instruction else {
@@ -52,7 +51,8 @@ impl Function {
                 return;
             };
 
-            context.dfg[instruction_id] = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
+            let new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
+            context.replace_current_instruction_with(new_instruction);
         });
     }
 }
