@@ -598,4 +598,11 @@ mod tests {
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
     }
+
+    #[test]
+    fn parse_trait_with_type_missing_semicoln() {
+        let src = "trait Foo { type X }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
 }

@@ -578,4 +578,11 @@ mod tests {
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
     }
+
+    #[test]
+    fn parse_trait_impl_with_type_missing_semicoln() {
+        let src = "impl Foo for Bar { type x = Field }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
 }
