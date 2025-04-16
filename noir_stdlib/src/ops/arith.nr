@@ -355,9 +355,9 @@ pub trait WrappingAdd {
 }
 // docs:end:wrapping-add-trait
 
-impl WrappingAdd for bool {
-    fn wrapping_add(self: bool, y: bool) -> bool {
-        wrapping_add_hlp(self, y)
+impl WrappingAdd for u1 {
+    fn wrapping_add(self: u1, y: u1) -> u1 {
+        self ^ y
     }
 }
 
@@ -421,9 +421,9 @@ pub trait WrappingSub {
 }
 // docs:start:wrapping-sub-trait
 
-impl WrappingSub for bool {
-    fn wrapping_sub(self: bool, y: bool) -> bool {
-        wrapping_sub_hlp(self, y)
+impl WrappingSub for u1 {
+    fn wrapping_sub(self: u1, y: u1) -> u1 {
+        self ^ y
     }
 }
 
@@ -484,9 +484,9 @@ pub trait WrappingMul {
 }
 // docs:start:wrapping-mul-trait
 
-impl WrappingMul for bool {
-    fn wrapping_mul(self: bool, y: bool) -> bool {
-        wrapping_mul_hlp(self, y)
+impl WrappingMul for u1 {
+    fn wrapping_mul(self: u1, y: u1) -> u1 {
+        self & y
     }
 }
 
