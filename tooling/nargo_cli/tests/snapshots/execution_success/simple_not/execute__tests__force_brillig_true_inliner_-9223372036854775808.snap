@@ -29,8 +29,13 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUWw6CMBBcoEYrURP50VuUAMKnH3qQRsI5OLoQt+lYKz+0kzTbx+5kZ9I2oQ8SHjME7Lkwe3eOah3KgFwq8fS5KMJXcOUoOaZwngUULj29hOLvVH2T9Ks5YP+VZM6Y/hjOCPxqyzyP0fK7WgiiyXNrZhzo+wFhzm4aR7LzE9TMeAKXqY/p7XQ3msjelgX99zNnHwpep55c9NH1FnNzsu9UjOG1tJ39VDLm34AWhIBzzL/weg/9myhW9Dm0uhwqPehG93390meHnxyf3vJxnPDpBQAA",
-  "debug_symbols": "XYzBCoAgEET/Zc8dKrrUr0SE2iYLomIahOy/p9AhvAy8ecxkOFAmvZM93QXLmsE4JSI5WyhzBzKQMaT3pr5FICENfngmq342Ph6bvQ9O4ZEC1qfqoK8xlFyHuRunjZk3fgE=",
-  "file_map": {},
+  "debug_symbols": "XY1JCgMhEEXvUmsXdsjUXqUJjUPZCKLiEAji3aMhC+nNh1/Uf6+CQlGO3TjtE7CtgvWSZ+Ndb7URENFYa459PgMdsdx//ylwN2rKPGZgj5UAOgXsSftaG4vAbrS9Wm9vHg0XFv9oXZycTPkT8CQN0UtUJeLQT+ae27KSy7VjO/oL",
+  "file_map": {
+    "50": {
+      "source": "// A simple program for testing the NOT op\nfn main(x: bool) -> pub bool {\n    !x\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],
