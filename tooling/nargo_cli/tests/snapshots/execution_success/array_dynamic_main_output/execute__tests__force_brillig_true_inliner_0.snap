@@ -43,14 +43,18 @@ expression: artifact
         "error_kind": "string",
         "string": "array ref-count underflow detected"
       },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VYzY7aQAyeQAIkWQrd7QNU6q3tARoo9NbDHnopUg9VL70EVvQ18ugds+PNNx8DK3UzlTKSNcnYsT//xA4k5nG9sZS469TtA7fLeWH8pbJf3b542Vp2qGsRC2PSA4yDHmAc9gBj2gOMWQ8wjnqAcdwDjJMeYMwjYIyBs+gQZwIYdUaWlm4sTS29sjSzNLf02tKtpTvzOG+fhNFRaeDSIKUByQsuL5AUqBRAbvxB/E8GTRvQP27P3Y4Dv8MmvczJbpf6t4v1l9z4q2P8VQ46I+jfq/40jv7F2Om5b3z9huzq2a5pY7mDZ4RyuO4+l6tV5FjUU/LfgC9qO4uU54TsGcqDIfuFiVp3y4TsKR6Oj/aFqco0LZ6EeGlz7ofyMuBpfqWvvQW5UG0hT7HI0toUHR9A30fj4xsE/EsC/sV8z21tH/9HbZ98bFr9nLu08W0j77n85KQzVnwi1Xt9dwG/XssaN+ZpDSmeGCON2QTliZcDL218O4W7T8EO6lIcGcm/d/czt4/gGX1+HrA/Ivse7sAZxoh1DQNnKi/fK+/cdelIaugb4Oa4c/+NNQe532nsQzbVJ54H2CszOqvcLv7uyD/sp9d67Nxc7oH8XKiW+R01HcbvWv/Xb7C08fF0ZHsvMf3hdOks8HJBmEbAGwbkMW5C44D8iGIra07yGOuZOc8J13ak3rZgv7G2Q/UyCPiIMcvo7N7todrmGuT6u1bbOJ+Yp/kqTdz62mzbH3Ja25nx309D9jOS/+7uC8Cv+0v+TDpu6uWxqo/1un54WB3qW9JvIIZlBPv1ptoePq0Om/26qqvPz9oPzSXsF7J0tuHsQ3nVl5H8T5W19Mtd87cL2hO54xW55MJ+0hE4Sxv/LDQT8VtB5dV20ZxjVF4JPOxlsm7cPcYLdSmOjOQP7l5zgvNdn58H7E/Ivoc7cMbfCmVAvgzIS35+qz63o+9d/9Y52ST9eMbYtHakrv8CPZw4WSkZAAA=",
-  "debug_symbols": "lZPRCoMwDEX/Jc99qNWmzl8ZY1Sto1CqVB0M8d/XjI0N2UteSm57SgI3d4Petevt6uMwztCcNwhjZxc/xqy2XUCbfAj+dv29BkmHLl/8PNlIcl5sWqAxWoCLfS4w/x58cNBouV8E6Oofj9WHV0deM3lk8obJ10z+xONRMvmCySsmXzJ5pr/I9BeZ/iLTX2T6iyx/96zuNnnbBveO1rDG7idpy2Nyh9BNaexcvyZH8fsmjxalLkQhVR6DXCqVqKgu6MUoYQwJ2g9Ti1rm5nmAJw==",
+  "bytecode": "H4sIAAAAAAAA/9VYzW7TQBBeJ3ZS2w0JLQ+AxA042HXSBHHhwIUDPYCExAEhJyEXJHgFPzo76U797WSSSNRbySuN1t4Zz3zzs7ObROZ+vLAUuefYzQM303pm/MGyH9xcPG6UHeoqQmGMeoBx0AOMwx5gjHuAMekBxlEPMI57gPGiBxjTABhD4Mw6xBkBRj4jc0uXliaWnlmaWppZem7pytK1uT9vH4TRUWrg1CCpAdEGpw1EBUoFkBr/IP4vg6YN6F83p27GA7/DJl2mwm6X+lfF4l1q/NEx/ioFnQH0r1l/HEZ/MXZ6Pja+fiPs8tpd08byDr4hSuG5+1zO54FjUU+E/wZ8YdtJoDxHwp4ReTDCfmaC1l0ZCXuMR8aH+8KEZZoWTyR4cXPoB/MS4HF+qa+9BDmttpDHWGhwbZKON6DvrfHxDRT/IsW/kPvc1vbuKWp772PT6pe5ixvfNvLO5ScVOkPFJ1C919dH8PMzjXFjHsZQxBNjxDG7QHnBS4EXN76dzL3HYAd1MY5EyL9271M3j+Ab/n6m2B8J+x5uZQ1jJHUNlTWWp/vKK/ecO6Ia+gy4Zdxl/w11Dsp+x7HXbLJP8jzAXpmItcrN5O9X4R/201M9dmaO90D5nVbLIfco7SEZw+QMLg2P6Q5PKXPw3rQ5+HYEQ4f2i1NnIt9L4yZILtbk43ena2KU+hSYRsAbKvKYI6KxIj8yvi80ZkIeYz01h/mX+z1Qvy+k37jftVodKD5izBKx9snN2n6X+0/W36n9jme25HG+chO2vpar9sct1zbvdTli4KP8F/eeAX6eH/MH225Zl7uq3tWLerudb+orod9ADPMA9utltdrczDfL9aKqq9snt79Z3K4380Vd/Crp9eacfe2ugP2KBt838D6C8qwvEfI/WNbST/cs75Noj+T+nJCLjsx7Hcpa3Phr2j0F728sz7az5hAj83LgYS+lceneMV6oi3EkQv63e+ec4J2Lv58p9i+EfQ+3sibP21yRzxV5ys+W9bkZfe/69+feptCPaxIb1w7V9T/tvRXNvRoAAA==",
+  "debug_symbols": "ldTNqsMgEAXgd5m1i/zp2LzK5VJMYoogJpikUELevVpaWko3ZxOc+ImDB2anwXbb5ezCOC3U/u3kp96sbgqp2g9BXXTeu8v58zcV+SPrh19mE3K5rCau1LIUZMOQFiqdHp231Mri+BckG9BL0CvQM+g16E+/vGpevvryqgB9CfoK9DXoG9BL0CvQM+g16MF8GcyXwXwZzJfBfBnK90jV1URnOm+fo2TcQv8xWdbbbL+GzByn3g5btHncvCdNfjh9EmVZpDZy13Ulmiqty7zDLPSjyO+la6Flujw1cAc=",
   "file_map": {
     "50": {
       "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",

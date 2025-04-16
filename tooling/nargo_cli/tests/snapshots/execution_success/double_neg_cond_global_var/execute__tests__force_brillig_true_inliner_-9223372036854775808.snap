@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUQQ6CMBDcSo1Wowe56C/aAMLRgz6kkfQdPF0bt2EthQvbSchC2x1mhiwCfhB4eUiyFiOsPbDqdTCMXFokdC6aSDXcsCqsG7JfMBpXCS1c/J2u7wqmnhn1Vwo5c+YTODPw6x3yPIeRP/bicYL/4aA9e9wP92fS4/Ei3KE/Z27f795kzs2UMJ/VEXMoZ7wCnw4NCZ+xrni+xcJZ6iHMjhz4M2y78UdVIP+WvJ9Ckn16/orPB6I/VLlCp2utcZV1trF9X7/tJeIHkpnP6QPX7oSfPQYAAA==",
+  "debug_symbols": "lY/LCsMgEEX/ZdYukpI0JL8SSjBxDIKo+CgU8d87lhakdNPNMHeYc+FkELinc1NG2gDLmkHbg0dlDaVcGOxeaa3OrT1DV0c/vv6D46bGELmPsAzDxACNqNtMvFQaYRm7cmPQX/8mpt/E+CHorSUKpTv3iu8a3wIymaPxiQ+HX2rO2wNF8lglGz+aaz+zy0C1VP0E",
+  "file_map": {
+    "50": {
+      "source": "// Regression from issue #7964 (https://github.com/noir-lang/noir/issues/7964)\nglobal G_A: bool = false;\nfn main(a: Field) -> pub Field {\n    if (\n        (\n            if (!G_A) {\n                if (!G_A) {\n                    (a as u128)\n                } else {\n                    (a as u128)\n                }\n            } else {\n                (a as u128)\n            }\n                <= (a as u128)\n        ) as bool\n    ) {\n        (-(-a))\n    } else {\n        (-(-a))\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

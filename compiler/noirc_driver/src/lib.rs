@@ -174,10 +174,6 @@ pub struct CompileOptions {
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
 
-    /// Used internally to test for non-determinism in the compiler.
-    #[clap(long, hide = true)]
-    pub check_non_determinism: bool,
-
     /// Unstable features to enable for this current build
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
     #[clap(long, short = 'Z', value_delimiter = ',')]
@@ -691,6 +687,7 @@ pub fn compile_no_check(
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
     let force_unconstrained = options.force_brillig;
+    let experimental_ownership = options.unstable_features.contains(&UnstableFeature::Ownership);
 
     let program = if options.instrument_debug {
         monomorphize_debug(
@@ -698,9 +695,15 @@ pub fn compile_no_check(
             &mut context.def_interner,
             &context.debug_instrumenter,
             force_unconstrained,
+            experimental_ownership,
         )?
     } else {
-        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
+        monomorphize(
+            main_function,
+            &mut context.def_interner,
+            force_unconstrained,
+            experimental_ownership,
+        )?
     };
 
     if options.show_monomorphized {

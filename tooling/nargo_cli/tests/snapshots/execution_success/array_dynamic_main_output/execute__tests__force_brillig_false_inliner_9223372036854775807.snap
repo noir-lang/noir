@@ -38,10 +38,15 @@ expression: artifact
       },
       "visibility": "public"
     },
-    "error_types": {}
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
   },
-  "bytecode": "H4sIAAAAAAAA/9Wa207CQBRFD4g38C6KiAiICI8znZZO3/wVieX/P8GZ0MQmYGLSfR72SU5KQjJZu7PaTidtya5WoafV76Pq2JXfaoVuV/91Qh+HPgl9Gvos9LnsV6s6flZHZ9ZpWuZJaZ39Mkmx8ZlJs83aW28zn30n3rnSpz4vNkVuCpu60m6zwm3Nrh5qY5mG1ZbDBRrf/nUOTLOyXeA50GJEzpMoTxTHSVBifFRgPAja9MofAEOzCjUgYHwSEqGGONCEVaghAeOzkAg1woE6VqFGBIwvQiLUGAeasgo1JmB8FRKhJjjQjFWoCQHjVEiEmuFA16xCzQgY34REqDkONGcVak7A+C4kQi1woJ5VqAUB44eQCLXEgRasQi0JGFeiJFQbDNoDyqm1m4vOfAHMrLXhiM58CcystSeGznwFzKy1bYPOfA3MrLWzgM58A8w8Jcl8C8ys9X6GznwHzKz1CoHOfA/MrLXKRWfuAzMjF2JxkdipxurV8v/n05T6pyzd2hhxLRKfzfFZFe/d8V4Wr+3oepz7vuzXD1jH6OQzIwAA",
-  "debug_symbols": "lY3LCsMgEEX/ZdYu2tAH+CulBB9jGBCVUQtF8u8xIYFsszz3zNzbwKKu00jBxQzy08BHowrF0KnBfYtyUmGlXBQXkK+HAAwW5HuYBTjyCPJ5m78ChivnHTST9zSN580e/xST0h53dDWYky3/dJjjP3E0aCvj2rS5Xr8A",
+  "bytecode": "H4sIAAAAAAAA/9Va21LCMBBdiooUQZSLIiIgIMJTem/f/A7fZCwv/qb+l82QDpkCjjM9edid2dnSdJZzNidtkkmFdrbOfK6uqyratLdK5pZqO8v8PPOLzGuZX2ZeV8+dqWjRoVVUfFNRlDPHBuTa7iw8Ardsbie/0GvRU7GfF6SqorwxKQCoGiyYJ0LfTyM3dTznQ7jJJg6EH2zC2ImdIA4+3djz0tiPo2STRCJxfC91tkHiblWuXvlcnsol+oY6sii4sjh7uL4QJnHeAXEeG8hITZ6qgShnkJdDbqYwIvuJDHcUjyIYwnhPZgY+fOQPgKS5CmrAAOMDMRHUEAfU5SqoIQOMj8REUCMcUI+roEYMMD4RE0GNcUB9roIaM8A4ISaCmuKABlwFNWWA8ZmYCGqGAxpyFdSMAcY5MRHUAgc04iqoBQOML8REUEsc0JiroJYMML4SE0GtcEATroJaMcC4JkOCssBAG0BxmtrNRXO+AnI2teGI5twEcja1J4bm3AJyNrVtg+Z8DeQ8YcK5DeRsavGL5nwD5GxqfYbmfAvkbGoJgebcAXI2NctFc+4COSMnYnKSmJ/Damj8/3OGSz/zZWs55FxEfpvlt0q+u+W7TI5tqXXZ913aT06J9HNg7db799ePjoHU/xHtz43ZWnsVVwu3XqgDOL+o0aHpNWwU2qxCfXSrnPhtFeJfzxbv6/eaR9rynB0Vdbw5j19EN08tJCgAAA==",
+  "debug_symbols": "lZDLCsMgEEX/ZdYu2jRa8FdKCT6DICo+CkXy7zWhQijduJsz98xdTAWpeFkX47RPQB8VrBcsG+8aVbgeqxSY2yllFjPQO0agnGwD2RBoYxVQfNmeCKYx/Tamz2M6/qeTuevTj05G9AY8GmvNupz/1dYvFg3jVn1RFydOaX6HnvT7EL1QskS1Nx1Zq/8A",
   "file_map": {
     "50": {
       "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
@@ -51,5 +56,7 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
 }
