@@ -28,25 +28,24 @@ fn last_use_in_if_branches() {
     }
     ";
 
-    let expected = "unconstrained fn main$f0(d$l0: [Field; 2]) -> () {
-    if (len$f1(d$l0.clone()) == 2) {
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(d$l0: [Field; 2]) -> () {
         if (len$f1(d$l0.clone()) == 2) {
+            if (len$f1(d$l0.clone()) == 2) {
+                constrain eq$f2(d$l0, [5, 6]);
+            }
+        } else {
             constrain eq$f2(d$l0, [5, 6]);
         }
-    } else {
-        constrain eq$f2(d$l0, [5, 6]);
     }
-}
-unconstrained fn len$f1(arr$l1: [Field; 2]) -> u32 {
-    2
-}
-unconstrained fn eq$f2(lhs$l2: [Field; 2], rhs$l3: [Field; 2]) -> bool {
-    ((lhs$l2[0] == rhs$l3[0]) & (lhs$l2[1] == rhs$l3[1]))
-}
-";
-
-    let program = get_monomorphized_no_emit_test(src).unwrap();
-    similar_asserts::assert_eq!(expected, program.to_string());
+    unconstrained fn len$f1(arr$l1: [Field; 2]) -> u32 {
+        2
+    }
+    unconstrained fn eq$f2(lhs$l2: [Field; 2], rhs$l3: [Field; 2]) -> bool {
+        ((lhs$l2[0] == rhs$l3[0]) & (lhs$l2[1] == rhs$l3[1]))
+    }
+    ");
 }
 
 #[test]
@@ -67,25 +66,24 @@ fn does_not_move_into_loop() {
     fn use_var<T>(_x: T) {}
     ";
 
-    let expected = "unconstrained fn main$f0(param$l0: [Field; 2]) -> () {
-    let local1$l1 = [0];
-    let local2$l2 = [1];
-    loop {
-        use_var$f1(param$l0.clone());;
-        use_var$f2(local1$l1.clone());;
-        use_var$f2(local2$l2.clone());;
-        break
-    };
-    use_var$f2(local2$l2);
-}
-unconstrained fn use_var$f1(_x$l3: [Field; 2]) -> () {
-}
-unconstrained fn use_var$f2(_x$l4: [Field; 1]) -> () {
-}
-";
-
     let program = get_monomorphized_no_emit_test(src).unwrap();
-    similar_asserts::assert_eq!(expected, program.to_string());
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(param$l0: [Field; 2]) -> () {
+        let local1$l1 = [0];
+        let local2$l2 = [1];
+        loop {
+            use_var$f1(param$l0.clone());;
+            use_var$f2(local1$l1.clone());;
+            use_var$f2(local2$l2.clone());;
+            break
+        };
+        use_var$f2(local2$l2);
+    }
+    unconstrained fn use_var$f1(_x$l3: [Field; 2]) -> () {
+    }
+    unconstrained fn use_var$f2(_x$l4: [Field; 1]) -> () {
+    }
+    ");
 }
 
 #[test]
@@ -102,17 +100,16 @@ fn can_move_within_loop() {
     fn use_var<T>(_x: T) {}
     ";
 
-    let expected = "unconstrained fn main$f0() -> () {
-    for _$l0 in 0 .. 10 {
-        let x$l1 = [1, 2];
-        use_var$f1(x$l1.clone());;
-        use_var$f1(x$l1);
-    }
-}
-unconstrained fn use_var$f1(_x$l2: [Field; 2]) -> () {
-}
-";
-
     let program = get_monomorphized_no_emit_test(src).unwrap();
-    similar_asserts::assert_eq!(expected, program.to_string());
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        for _$l0 in 0 .. 10 {
+            let x$l1 = [1, 2];
+            use_var$f1(x$l1.clone());;
+            use_var$f1(x$l1);
+        }
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field; 2]) -> () {
+    }
+    ");
 }
