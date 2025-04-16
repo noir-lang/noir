@@ -10,7 +10,6 @@ pub mod typed_value;
 mod tests {
     use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
     use crate::config;
-    use crate::runner::execute_single;
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
@@ -244,22 +243,12 @@ mod tests {
 
         brillig_builder.builder.terminate_with_return(vec![mod_brillig]);
         let brillig_program = brillig_builder.compile();
-        let brillig_program = match brillig_program {
-            Ok(program) => program,
+        match brillig_program {
+            Ok(_program) => panic!("Should fail on compilation"),
             Err(_e) => {
                 // compilation failed, its nice
                 return;
             }
         };
-
-        let mut initial_witness = WitnessMap::new();
-        initial_witness.insert(Witness(0), FieldElement::from(13371337_u32));
-        initial_witness.insert(Witness(1), FieldElement::from(12341234_u32));
-
-        let result_witness = Witness(2);
-        let execution_result =
-            execute_single(&brillig_program.program, initial_witness, result_witness);
-        println!("{:?}", execution_result);
-        assert!(execution_result.is_err());
     }
 }
