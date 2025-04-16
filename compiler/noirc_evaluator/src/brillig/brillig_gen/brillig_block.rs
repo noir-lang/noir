@@ -1682,17 +1682,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.brillig_context.deallocate_single_addr(condition);
                 }
                 BrilligBinaryOp::Mul => {
-                    let is_right_zero =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    let zero =
-                        self.brillig_context.make_constant_instruction(0_usize.into(), bit_size);
-                    self.brillig_context.binary_instruction(
-                        zero,
-                        right,
-                        is_right_zero,
-                        BrilligBinaryOp::Equals,
-                    );
-                    self.brillig_context.codegen_if_not(is_right_zero.address, |ctx| {
+                    let division_by_rhs_gives_lhs = |ctx| {
                         let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
                         let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
                         // Check that result / rhs == lhs
@@ -1706,9 +1696,27 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         ctx.codegen_constrain(condition, Some(msg.to_string()));
                         ctx.deallocate_single_addr(condition);
                         ctx.deallocate_single_addr(division);
-                    });
-                    self.brillig_context.deallocate_single_addr(is_right_zero);
-                    self.brillig_context.deallocate_single_addr(zero);
+                    };
+
+                    let rhs_may_be_zero = dfg.get_numeric_constant(binary.rhs).map_or(true, |rhs| rhs.is_zero()); 
+                    if rhs_may_be_zero {
+                        let is_right_zero =
+                            SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                        let zero = self
+                            .brillig_context
+                            .make_constant_instruction(0_usize.into(), bit_size);
+                        self.brillig_context.binary_instruction(
+                            zero,
+                            right,
+                            is_right_zero,
+                            BrilligBinaryOp::Equals,
+                        );
+                        self.brillig_context.codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
+                        self.brillig_context.deallocate_single_addr(is_right_zero);
+                        self.brillig_context.deallocate_single_addr(zero);
+                    } else {
+                        division_by_rhs_gives_lhs(self)
+                    }
                 }
                 _ => {}
             }
