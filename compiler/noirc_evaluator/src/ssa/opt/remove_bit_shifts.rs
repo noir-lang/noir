@@ -1,4 +1,3 @@
-use fxhash::FxHashMap as HashMap;
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
@@ -11,7 +10,7 @@ use crate::ssa::{
         function::Function,
         instruction::{Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic},
         types::{NumericType, Type},
-        value::ValueId,
+        value::{ValueId, ValueMapping},
     },
     ssa_gen::Ssa,
 };
@@ -59,7 +58,7 @@ struct Context<'f> {
 
 impl Context<'_> {
     fn remove_bit_shifts(&mut self) {
-        let mut values_to_replace = HashMap::<ValueId, ValueId>::default();
+        let mut values_to_replace = ValueMapping::default();
         let instructions = self.function.dfg[self.block].take_instructions();
 
         for instruction_id in instructions {

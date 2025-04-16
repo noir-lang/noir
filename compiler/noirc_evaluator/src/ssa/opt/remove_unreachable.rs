@@ -61,7 +61,7 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
     let mut used_function_ids = BTreeSet::default();
 
     let mut find_functions = |value| {
-        if let Value::Function(function) = func.dfg[func.dfg.resolve(value)] {
+        if let Value::Function(function) = func.dfg[value] {
             used_function_ids.insert(function);
         }
     };
