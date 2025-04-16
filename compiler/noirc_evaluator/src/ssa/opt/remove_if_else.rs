@@ -59,6 +59,10 @@ struct Context {
 impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
+
+        // Make sure this optimization runs when there's only one block
+        assert_eq!(function.dfg[block].successors().count(), 0);
+
         let instructions = function.dfg[block].take_instructions();
         let one = FieldElement::one();
         let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());

@@ -37,6 +37,10 @@ impl Function {
         }
 
         let block = self.entry_block();
+
+        // Make sure this optimization runs when there's only one block
+        assert_eq!(self.dfg[block].successors().count(), 0);
+
         let mut context = Context {
             function: self,
             new_instructions: Vec::new(),
