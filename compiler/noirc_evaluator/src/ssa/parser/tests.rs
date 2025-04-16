@@ -635,6 +635,7 @@ fn test_parses_keyword_in_function_name() {
 }
 
 #[test]
+#[should_panic = "Attempt to modulo fields"]
 fn regression_modulo_fields_brillig() {
     use crate::brillig::BrilligOptions;
     use std::panic::AssertUnwindSafe;
@@ -647,8 +648,5 @@ fn regression_modulo_fields_brillig() {
         }
         ";
     let ssa = Ssa::from_str(src).unwrap();
-    assert!(
-        std::panic::catch_unwind(AssertUnwindSafe(|| ssa.to_brillig(&BrilligOptions::default())))
-            .is_err()
-    );
+    ssa.to_brillig(&BrilligOptions::default());
 }
