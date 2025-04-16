@@ -110,8 +110,16 @@ fn regression_7297() {
             refcount_1 != 0,
             "borrow_mut_two should create a fresh array and not decrease its RC",
         );
-        assert_eq(refcount_1, 2, "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)");
+        assert_eq(
+            refcount_1,
+            2,
+            "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
+        );
 
-        assert_eq(refcount_2, refcount_1 + 3, "after refcount_1 we clone once in passing array to copy_mut, once to arra_refcount after, and once within copy_mut");
+        assert_eq(
+            refcount_2,
+            refcount_1 + 3,
+            "after refcount_1 we clone once in passing array to copy_mut, once to arra_refcount after, and once within copy_mut",
+        );
     }
 }
