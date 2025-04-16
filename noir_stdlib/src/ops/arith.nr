@@ -463,7 +463,7 @@ impl WrappingSub for i8 {
 
 impl WrappingSub for i16 {
     fn wrapping_sub(self: i16, y: i16) -> i16 {
-        wrapping_sub_hlp(self, y) as u16
+        wrapping_sub_hlp(self, y) as i16
     }
 }
 
