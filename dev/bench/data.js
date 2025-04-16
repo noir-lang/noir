@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744827864345,
+  "lastUpdate": 1744827879072,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17936,42 +17936,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "880266d3dd6cfd281b842154dad81db17263d062",
-          "message": "chore: add snapshot tests for the build artifacts as produced by test_programs (#7986)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
-          "timestamp": "2025-04-11T09:20:54Z",
-          "tree_id": "2284298d102b772999ed2215cfbcd78df4755942",
-          "url": "https://github.com/noir-lang/noir/commit/880266d3dd6cfd281b842154dad81db17263d062"
-        },
-        "date": 1744364403888,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 3249979,
-            "range": "± 12862",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 3221309,
-            "range": "± 29784",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -19729,6 +19693,42 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 233928,
             "range": "± 582",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e1c2ed004affaeff7ba92c646433646a2d5b58f7",
+          "message": "chore(optimization): Enable experimental ownership clone scheme by default (#8097)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
+          "timestamp": "2025-04-16T18:08:20Z",
+          "tree_id": "df64837af4796c6293cf3cca9e605c435a4d7f51",
+          "url": "https://github.com/noir-lang/noir/commit/e1c2ed004affaeff7ba92c646433646a2d5b58f7"
+        },
+        "date": 1744827872712,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267370,
+            "range": "± 569",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234945,
+            "range": "± 1286",
             "unit": "ns/iter"
           }
         ]
