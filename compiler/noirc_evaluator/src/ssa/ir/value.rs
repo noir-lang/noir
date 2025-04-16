@@ -73,13 +73,30 @@ impl Value {
     }
 }
 
-pub(crate) fn resolve_value(
-    values_to_replace: &HashMap<ValueId, ValueId>,
-    value_id: ValueId,
-) -> ValueId {
-    if let Some(replacement_id) = values_to_replace.get(&value_id) {
-        resolve_value(values_to_replace, *replacement_id)
-    } else {
-        value_id
+/// Like `HashMap<ValueId, ValueId>` but handles:
+/// 1. recursion (if v0 -> v1 and v1 -> v2, then v0 -> v2)
+/// 2. self-mapping values (a value mapped to itself won't be inserted into the HashMap)
+#[derive(Default, Debug)]
+pub(crate) struct ValueMapping {
+    map: HashMap<ValueId, ValueId>,
+}
+
+impl ValueMapping {
+    pub(crate) fn insert(&mut self, from: ValueId, to: ValueId) {
+        if from == to {
+            return;
+        }
+
+        // If `to` is mapped to something, directly map `from` to that value
+        let to = self.get(to);
+        self.map.insert(from, to);
+    }
+
+    pub(crate) fn get(&self, value: ValueId) -> ValueId {
+        if let Some(replacement) = self.map.get(&value) { self.get(*replacement) } else { value }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.map.is_empty()
     }
 }

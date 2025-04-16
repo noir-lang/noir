@@ -9,7 +9,6 @@
 //!    only 1 successor then (2) also will be applied.
 //!
 //! Currently, 1 and 4 are unimplemented.
-use fxhash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 use acvm::acir::AcirField;
@@ -20,7 +19,7 @@ use crate::ssa::{
         cfg::ControlFlowGraph,
         function::{Function, RuntimeType},
         instruction::{Instruction, TerminatorInstruction},
-        value::{Value, ValueId},
+        value::{Value, ValueMapping},
     },
     ssa_gen::Ssa,
 };
@@ -50,7 +49,7 @@ impl Function {
     /// be inlined into their predecessor.
     pub(crate) fn simplify_function(&mut self) {
         let mut cfg = ControlFlowGraph::with_function(self);
-        let mut values_to_replace = HashMap::default();
+        let mut values_to_replace = ValueMapping::default();
         let mut stack = vec![self.entry_block()];
         let mut visited = HashSet::new();
 
@@ -264,7 +263,7 @@ fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
-    values_to_replace: &mut HashMap<ValueId, ValueId>,
+    values_to_replace: &mut ValueMapping,
 ) {
     let block = &mut function.dfg[block];
 
