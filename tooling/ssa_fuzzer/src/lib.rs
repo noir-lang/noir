@@ -247,7 +247,6 @@ mod tests {
             Ok(_program) => panic!("Should fail on compilation"),
             Err(_e) => {
                 // compilation failed, its nice
-                return;
             }
         };
     }
