@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: The trait bound `SomeGreeter: Greeter` is not satisfied
+   ┌─ src/main.nr:8:16
+   │
+ 8 │             T: Greeter,
+   │                ------- required by this bound in `Foo`
+   ·
+22 │         impl Foo<SomeGreeter> for Bar {}
+   │                                   --- The trait `Greeter` is not implemented for `SomeGreeter`
+   │
+
+Aborting due to 1 previous error

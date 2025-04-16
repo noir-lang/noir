@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:7:16
+  │
+7 │         assert(entry_point_only_const_global(x) == 2);
+  │                -------------------------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1. src/main.nr:7:16
+
+bug: Input to Brillig function is in a separate subgraph to output
+   ┌─ src/main.nr:14:16
+   │
+14 │         assert(entry_point_no_globals(x, y) == 1);
+   │                ---------------------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+   │
+   = Call stack:
+     1. src/main.nr:14:16

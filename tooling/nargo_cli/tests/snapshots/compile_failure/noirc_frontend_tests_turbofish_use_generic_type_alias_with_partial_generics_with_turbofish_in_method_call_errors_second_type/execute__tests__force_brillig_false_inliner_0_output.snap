@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Expected type i32, found type bool
+   ┌─ src/main.nr:16:44
+   │
+16 │             let _ = Bar::<bool>::new(true, true);
+   │                                            ----
+   │
+
+Aborting due to 1 previous error

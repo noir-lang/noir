@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+  ┌─ src/main.nr:4:7
+  │
+4 │     x[z] = 4;
+  │       -
+  │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+  ┌─ src/main.nr:6:14
+  │
+6 │     assert(x[idx] != 0);
+  │              ---
+  │
+
+error: Assertion failed: Index out of bounds
+  ┌─ src/main.nr:4:5
+  │
+4 │     x[z] = 4;
+  │     ----
+  │
+  = Call stack:
+    1. src/main.nr:4:5
+
+Failed assertion

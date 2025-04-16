@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Failed constraint
+   ┌─ std/field/mod.nr:95:20
+   │
+95 │         let bits = self._to_be_bits();
+   │                    ----------------
+   │
+   = Call stack:
+     1. src/main.nr:4:5
+     2. std/field/mod.nr:95:20
+
+Failed to solve program: 'Cannot satisfy constraint'

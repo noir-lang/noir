@@ -1,0 +1,31 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+[brillig_uninitialized_arrays] Circuit output: Field(1)
+----- stderr -----
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:10:11
+   │
+10 │     notes[x] + notes[y]
+   │           -
+   │
+
+warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+   ┌─ src/main.nr:10:22
+   │
+10 │     notes[x] + notes[y]
+   │                      -
+   │
+
+bug: Brillig function call isn't properly covered by a manual constraint
+  ┌─ src/main.nr:4:21
+  │
+4 │         let notes = create_notes(x, y);
+  │                     ------------------ This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+  │
+  = Call stack:
+    1. src/main.nr:4:21

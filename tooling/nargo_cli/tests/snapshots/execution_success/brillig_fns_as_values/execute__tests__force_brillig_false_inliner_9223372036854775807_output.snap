@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: true
+exit_code: 0
+----- stdout -----
+
+----- stderr -----
+bug: Brillig function call isn't properly covered by a manual constraint
+  ┌─ src/main.nr:9:16
+  │
+9 │         assert(wrapper(increment_acir, x) == x + 1);
+  │                -------------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+  │
+  = Call stack:
+    1. src/main.nr:9:16
+
+bug: Brillig function call isn't properly covered by a manual constraint
+   ┌─ src/main.nr:11:16
+   │
+11 │         assert(wrapper_with_struct(MyStruct { operation: increment }, x) == x + 1);
+   │                --------------------------------------------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+   │
+   = Call stack:
+     1. src/main.nr:11:16
+
+bug: Brillig function call isn't properly covered by a manual constraint
+   ┌─ src/main.nr:12:16
+   │
+12 │         assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == x - 1);
+   │                --------------------------------------------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+   │
+   = Call stack:
+     1. src/main.nr:12:16
+
+bug: Brillig function call isn't properly covered by a manual constraint
+   ┌─ src/main.nr:14:16
+   │
+14 │         assert(increment(x) == x + 1);
+   │                ------------ This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+   │
+   = Call stack:
+     1. src/main.nr:14:16

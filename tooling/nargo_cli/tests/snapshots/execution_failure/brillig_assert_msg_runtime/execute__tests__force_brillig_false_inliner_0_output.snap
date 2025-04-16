@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:3:26
+  │
+3 │     assert(1 == unsafe { conditional(x) });
+  │                          -------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1. src/main.nr:3:26
+
+error: Assertion failed: Expected x to equal 10, but got 0x05
+  ┌─ src/main.nr:9:12
+  │
+9 │     assert(x == 10, f"Expected x to equal 10, but got {x}");
+  │            -------
+  │
+  = Call stack:
+    1. src/main.nr:3:26
+    2. src/main.nr:9:12
+
+Failed assertion

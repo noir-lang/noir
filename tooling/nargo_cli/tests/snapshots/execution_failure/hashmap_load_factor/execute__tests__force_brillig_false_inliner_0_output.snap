@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: "&format!(\"success: {:?}\\nexit_code: {}\\n----- stdout -----\\n{}\\n----- stderr -----\\n{}\",\noutput.status.success(), output.status.code().unwrap_or(!0), stdout, stderr)"
+---
+success: false
+exit_code: 1
+----- stdout -----
+
+----- stderr -----
+error: Non-ASCII character in comment
+   ┌─ src/main.nr:22:1
+   │
+22 │ // α_max = 0.75, thus for capacity of 8 and lenght of 6
+   │ ------------------------------------------------------ Invalid comment character: only ASCII is currently supported.
+   │
+
+Aborting due to 1 previous error
