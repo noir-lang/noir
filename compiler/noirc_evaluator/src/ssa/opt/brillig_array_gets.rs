@@ -39,29 +39,31 @@ impl Function {
     pub(super) fn brillig_array_gets(&mut self) {
         self.simple_optimization(|context| {
             let instruction = context.instruction();
-            if let Instruction::ArrayGet { array, index } = instruction {
-                let array = *array;
-                let index = *index;
-                if context.dfg.is_constant(index) {
-                    let index_constant = context
-                        .dfg
-                        .get_numeric_constant(index)
-                        .expect("ICE: Expected constant index");
-                    let offset = if matches!(context.dfg.type_of_value(array), Type::Array(..)) {
-                        // Brillig arrays are [RC, ...items]
-                        1u128
-                    } else {
-                        // Brillig vectors are [RC, Size, Capacity, ...items]
-                        3u128
-                    };
-                    let index = context.dfg.make_constant(
-                        index_constant + offset.into(),
-                        NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-                    );
-                    let new_instruction = Instruction::ArrayGet { array, index };
-                    context.replace_current_instruction_with(new_instruction);
-                }
+            let Instruction::ArrayGet { array, index } = instruction else {
+                return;
+            };
+
+            let array = *array;
+            let index = *index;
+            if !context.dfg.is_constant(index) {
+                return;
             }
+
+            let index_constant =
+                context.dfg.get_numeric_constant(index).expect("ICE: Expected constant index");
+            let offset = if matches!(context.dfg.type_of_value(array), Type::Array(..)) {
+                // Brillig arrays are [RC, ...items]
+                1u128
+            } else {
+                // Brillig vectors are [RC, Size, Capacity, ...items]
+                3u128
+            };
+            let index = context.dfg.make_constant(
+                index_constant + offset.into(),
+                NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            );
+            let new_instruction = Instruction::ArrayGet { array, index };
+            context.replace_current_instruction_with(new_instruction);
         });
     }
 }
