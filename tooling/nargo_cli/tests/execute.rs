@@ -37,6 +37,10 @@ mod tests {
         // Enable enums and ownership as unstable features
         nargo.arg("-Zenums");
 
+        // TODO: disable
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
         if force_brillig.0 {
             {
                 nargo.arg("--force-brillig");
