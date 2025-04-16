@@ -121,7 +121,7 @@ fn regression_7297() {
         assert_eq(
             refcount_2,
             refcount_1 + 3,
-            "after refcount_1 we clone once in passing array to copy_mut, once to arra_refcount after, and once within copy_mut",
+            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut",
         );
     }
 }
