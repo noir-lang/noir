@@ -240,6 +240,7 @@ impl std::fmt::Display for RuntimeType {
 /// This Id is how each function refers to other functions
 /// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
+
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
