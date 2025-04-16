@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744821235761,
+  "lastUpdate": 1744821241927,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8170,70 +8170,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "b54fd28b5f679de258ecc002487ee872fb86a807",
-          "message": "fix(LSP): implement missing members associated constants (#8016)",
-          "timestamp": "2025-04-10T19:44:14Z",
-          "tree_id": "d1b171deb0b41052f9e7d6e8db228f920b68e020",
-          "url": "https://github.com/noir-lang/noir/commit/b54fd28b5f679de258ecc002487ee872fb86a807"
-        },
-        "date": 1744316037309,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.075,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.3,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.819,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.558,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.008,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "f51ee9b813b003b758b8a9d61700c5e7b496ab13",
           "message": "feat: attribute locations (#8006)",
           "timestamp": "2025-04-10T19:44:21Z",
@@ -11353,6 +11289,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.014,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+jewelofchaos9@users.noreply.github.com",
+            "name": "defkit",
+            "username": "jewelofchaos9"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bee86cbca93df3b67a76c4292492747312dde5a7",
+          "message": "fix(ssa): fix possibility to `Field % Field` operaions in Brillig from SSA (#8105)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-16T16:03:15Z",
+          "tree_id": "e30f687fef7a7b12c6ce0b28d6ab6be4c6614706",
+          "url": "https://github.com/noir-lang/noir/commit/bee86cbca93df3b67a76c4292492747312dde5a7"
+        },
+        "date": 1744821234827,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.334,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
             "unit": "s"
           }
         ]
