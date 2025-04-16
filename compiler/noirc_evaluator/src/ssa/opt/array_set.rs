@@ -86,14 +86,14 @@ impl<'f> Context<'f> {
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
                 Instruction::ArrayGet { array, .. } => {
-                    let array = self.dfg.resolve(*array);
+                    let array = *array;
 
                     if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                 }
                 Instruction::ArraySet { array, .. } => {
-                    let array = self.dfg.resolve(*array);
+                    let array = *array;
 
                     if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
@@ -112,7 +112,7 @@ impl<'f> Context<'f> {
                     let mut is_array_in_terminator = false;
                     terminator.for_each_value(|value| {
                         // The terminator can contain original IDs, while the SSA has replaced the array value IDs; we need to resolve to compare.
-                        if !is_array_in_terminator && self.dfg.resolve(value) == array {
+                        if !is_array_in_terminator && value == array {
                             is_array_in_terminator = true;
                         }
                     });
@@ -134,7 +134,7 @@ impl<'f> Context<'f> {
                     for argument in arguments {
                         if matches!(self.dfg.type_of_value(*argument), Array { .. } | Slice { .. })
                         {
-                            let argument = self.dfg.resolve(*argument);
+                            let argument = *argument;
 
                             if let Some(existing) =
                                 self.array_to_last_use.insert(argument, *instruction_id)

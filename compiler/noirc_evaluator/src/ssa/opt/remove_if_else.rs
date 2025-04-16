@@ -6,7 +6,7 @@ use fxhash::FxHashMap as HashMap;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::types::NumericType;
-use crate::ssa::ir::value::ValueId;
+use crate::ssa::ir::value::{ValueId, ValueMapping};
 use crate::ssa::{
     Ssa,
     ir::{
@@ -62,7 +62,7 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
         let one = FieldElement::one();
         let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
-        let mut values_to_replace = HashMap::default();
+        let mut values_to_replace = ValueMapping::default();
 
         for instruction in instructions {
             // Before we process instructions, replace any values we previously determined we need to replace
