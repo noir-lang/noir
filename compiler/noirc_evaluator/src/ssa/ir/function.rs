@@ -13,8 +13,6 @@ use super::map::Id;
 use super::types::Type;
 use super::value::{ValueId, ValueMapping};
 
-use fxhash::FxHashSet as HashSet;
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
@@ -226,18 +224,17 @@ impl Function {
     /// The function's reachable blocks are traversed in turn, and instructions in those blocks
     /// are then traversed in turn. For each one, `f` will be called with a context. The context
     /// has access to the current instruction and has methods to perform some mutations such
-    /// as removing an instruction or replacing a value with another one. The context also
+    /// as removing the current instruction or replacing a value with another one. The context also
     /// has direct access to the DataFlowGraf so instructions can also be replaced.
     pub(crate) fn mutate<F>(&mut self, mut f: F)
     where
-        F: FnMut(FunctionMutationContext<'_, '_, '_>),
+        F: FnMut(&mut FunctionMutationContext<'_, '_>),
     {
         let mut values_to_replace = ValueMapping::default();
 
         for block_id in self.reachable_blocks() {
-            let mut instructions_to_remove = HashSet::default();
-
-            let mut instruction_ids = self.dfg[block_id].take_instructions();
+            let instruction_ids = self.dfg[block_id].take_instructions();
+            let mut new_instruction_ids = Vec::with_capacity(instruction_ids.len());
             for instruction_id in &instruction_ids {
                 let instruction_id = *instruction_id;
 
@@ -246,21 +243,21 @@ impl Function {
                     instruction.replace_values(&values_to_replace);
                 }
 
-                let context = FunctionMutationContext {
+                let mut context = FunctionMutationContext {
                     block_id,
                     instruction_id,
                     dfg: &mut self.dfg,
-                    instructions_to_remove: &mut instructions_to_remove,
                     values_to_replace: &mut values_to_replace,
+                    remove_current_instruction: false,
                 };
-                f(context);
+                f(&mut context);
+
+                if !context.remove_current_instruction {
+                    new_instruction_ids.push(instruction_id);
+                }
             }
 
-            if !instructions_to_remove.is_empty() {
-                instruction_ids.retain(|instruction| !instructions_to_remove.contains(instruction));
-            }
-
-            *self.dfg[block_id].instructions_mut() = instruction_ids;
+            *self.dfg[block_id].instructions_mut() = new_instruction_ids;
             self.dfg.replace_values_in_block_terminator(block_id, &values_to_replace);
         }
 
@@ -289,16 +286,16 @@ impl std::fmt::Display for RuntimeType {
 /// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
 
-pub(crate) struct FunctionMutationContext<'dfg, 'mapping, 'remove> {
+pub(crate) struct FunctionMutationContext<'dfg, 'mapping> {
     #[allow(unused)]
     pub(crate) block_id: BasicBlockId,
     pub(crate) instruction_id: InstructionId,
     pub(crate) dfg: &'dfg mut DataFlowGraph,
     values_to_replace: &'mapping mut ValueMapping,
-    instructions_to_remove: &'remove mut HashSet<InstructionId>,
+    remove_current_instruction: bool,
 }
 
-impl FunctionMutationContext<'_, '_, '_> {
+impl FunctionMutationContext<'_, '_> {
     /// Returns the current instruction being visited.
     pub(crate) fn instruction(&self) -> &Instruction {
         &self.dfg[self.instruction_id]
@@ -312,7 +309,7 @@ impl FunctionMutationContext<'_, '_, '_> {
 
     /// Instructs this context to remove the current instruction from its block.
     pub(crate) fn remove_current_instruction(&mut self) {
-        self.instructions_to_remove.insert(self.instruction_id);
+        self.remove_current_instruction = true;
     }
 }
 
