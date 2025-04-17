@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "input",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "enable",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUSw6CMBCdKn6qURPcqBs9QhEUlizkII2Ec3B0Ic6EYQQX2r6kKWXaN28eUxS8oXC0CHCewCdoT46z+Q+RQy7jU6fypLNnsoJxUOyCsxbn2/jUYcFa5HXJn5nkrgfqc6g/1ozTA/+V+AM//GaBPI+6zw8iL70r6s7Lgp1psYH+Bee8FON9SOeXzdhC97zDZy34fPQG1+Ta2/2Afsq1xlpPuJ6JeIjzvBnHL36AQ71DfjjkjxT0+4v39JBHM7H/IHzwdSdCUT/Pxb/HGrr/Y1C715JmxpCGad15Qn5wBCzO959xvRqpKf9RZ5XaqIptZW+2LJOnlZ614L3+Aqlbi3QBCAAA",
+  "debug_symbols": "tZJBCsMgEEXvMmsXaog0uUopwSSTIIgGo4Ui3r1aspBm7Ub8w5+3mRdhxTnskzKbPWF8RtB2kV5Zk1NMBGantFb7VI+Bloc9fv3zkKbE00vnYeyYIIBmzT8u8v6mNMLY00Ru1X7or6qgtK6+CLChIZzTlnDWEs5bwrtm8JTTWzolZ42XWFswS+WZ/xz4p9zh7IJrcFjkq7wr1+OCdCxjM/oL",
+  "file_map": {
+    "50": {
+      "source": "fn main(input: Field, enable: bool) {\n    if enable {\n        let hash = no_predicate_function(input);\n        // `EnableSideEffects` instruction from above instruction leaks out and removes the predicate from this call,\n        // resulting in execution failure.\n        // Safety: testing context\n        unsafe { fail(hash) };\n    }\n}\n\n#[no_predicates]\nfn no_predicate_function(enable: Field) -> Field {\n    // if-statement ensures that an `EnableSideEffects` instruction is emitted.\n    if enable == 0 {\n        1\n    } else {\n        0\n    }\n}\n\nunconstrained fn fail(_: Field) {\n    assert(false);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

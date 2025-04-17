@@ -1,0 +1,68 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "_empty",
+        "type": {
+          "kind": "array",
+          "length": 0,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "value_1",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "value_2",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71WQU7DMBB0iJ3iVhUIbkjcgBMHm6ZN4dRD+xCrpe/I08Gwq0xWLkhg11LkxDueGU/sKJX6bhVdsWnqa6ilGo9vqHf/az4jlyvpsyrkU10kTP8U/Bv1VsyP9Trjgq3Qzcm/du3KJtaX0f/CEqcuw//C/KYMv5sQz7Yf+HEtrFsLnJxTA2YHmJ3A8HoKve+2dF5zkZESa8Eec8MxPktTVXTveM65EX6kf/YzZ0w/+KlETUOtETUDNc7/8vO6A5x891rU8Du17ce1Gmq8ryL/I2g90X3hfbaywm/ufXab8I9asU36IQ/OpoYxA/l95YN4UbNQ0/1YZ0rPGnSQi30YgX+g5yvqG5jD868T+o3QH/lOjMlcbAJvE/i4f+/pfkZX3EOe56jznE+jxn7lu0Z9PHfNCTzzGYF/pj6usROcPF8Dp/yGIifj3XmycjfAK3OZqeE/Rff59bu1c6zL58ao8fdICX0j8Ct6np5Yx+aPPo9d8MdFOIZlOBzafZA5xXYBOeXWb5eh24fO+9fWv7d++Zv+B+fF1o4VDAAA",
+  "debug_symbols": "lZLBCoQgFEX/5a1d2Kg1+SvDEFYWgmiYDQzRv89zmEW0GHgb4cq5XOG4w2j7be5cmOIK+rGDj4PJLgZM+8GgT857N3fna+DlEO2XXxcTSlyzSRn0XTCwYQTdSmxPzlvQih9PBpIT+YrI34i8IPLyL19xcS0oaqGmFhpS4cD0MsmZ3tuf3mkLw8l2fi/2In5JcbDjlmz5Aif7uHyrmajxGVUxK1umZAlFm1JMNbiHmx8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(_empty: [u32; 0], value_1: u32, value_2: call_data(0) u32) {\n    assert_eq(value_1 + 1, value_2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

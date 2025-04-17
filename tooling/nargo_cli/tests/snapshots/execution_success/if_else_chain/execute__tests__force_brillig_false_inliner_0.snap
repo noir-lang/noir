@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9VZW26DMBBcIAl5NI8mJN89Ag4Q4C9XaVS4/xEat1515fovs5IZCTmyo2H24TGIhH5xeV4f7nfyvDI3kpuXc0lgLg3MZYG5mbgPI3Pj3Y3lazCSqypvdT2018FU5rO89o+uKevmcetMZ5qu+bp2VTV0ddf2j74te1NXgxmbvhodWQLkmuNiLGeiVj4ScD6RuqXehabghQJvDmwGrbhzkWAQr4rWRFErI2ZjSYFcS5qmsSB1S70rTcErBd41xW0sNu61SDCIN6j11fhzpzWNuEYbitucbe42SvVmxGzOGZDrjaZpzkjdUu9WU/BWgXdHcZuzjXsnEgziVdHK5uxvfoTpo7iQRr8nrMFp9Pae8IfwIfI+tP13IJ09w4j5gJsBud5pmgccUrfUe9QUfFTgPVHcB5yN+yQSDOJVeftgQ0W/feyBGguK25xtrQuF2pwjj9ua35mm0edcI3SfF0CNl8jrbfkuwNoM4w9aZNz8zcZiTn/gbz6ZWA+BY1t541msZ8CcMn+hw1/mgRjlni28OFOxdgdpYD5+wJzTf6TeGv936elL8PqMryUL3IvB53oh5jif37G4aaacHAAA",
+  "debug_symbols": "ldTRioQgFAbgd/G6C49paq+yLIOVDYJYWC0sMe++zpDL4Hhz7jr6f16cHzrJZIfjfnNhXjbSf53EL6PZ3RLSdBLxOtpWE57Ttpu4k56zhtgwkV7AoyGz8zZ90sd3QzpcXOLiChfXtXinr7hURRxoLa/FlQfKSwBYwLCgxQJeA8DyjqAtlwQCLaolA1dZCFkKiRYKLTRWMIoW1cJB/vehyj4YQ4tq5YzCJRjQUnC0EGjRoYVEi2rnrMu7YvJjVxor2mrnLc2iBVEKwIk0DNF57+639x9pOv4x0ZnB22ucjzC+3e6/a77Jfo3LaKcj2udLr7v0/B8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: u32, mut c: [u32; 4]) {\n    if a == c[0] {\n        assert(c[0] == 0);\n    } else if a == c[1] {\n        assert(c[1] == 0);\n    } else if a == c[2] {\n        assert(c[2] == 0);\n    } else if a == c[3] {\n        // expect to match this case\n        assert(c[3] == 0);\n    } else {\n        assert(c[0] == 10);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

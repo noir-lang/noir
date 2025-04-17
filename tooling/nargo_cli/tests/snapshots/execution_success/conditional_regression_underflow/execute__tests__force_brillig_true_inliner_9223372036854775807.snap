@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7WVvw7CIBDGQfEPNjpYBx10UBedaNqmdXPwRYhNn6OPrk2OcF4uLsAlzX2E4+N3kLZS+JCQFRkLpuYJ2YRFEdHLsKD/wtXcIWvIEzQ/jdisJvvG9G9NVWumv4j8pQbPlOfjPBP4mwX4vAbvT3sRKLs6umZ81kjTmiXMO70BrcmaFPef8H5MzvC7vTLo9Up6xSwyHouV4vfOFNqD45uR+hzy/PvsGJ2Y/xHKv0fMB0an5W9NKP8RMZ8Ynfj8m1D+M2K+MDoT/n+iBu8X631sWmMc53TwjI4Ph0LzuP4G4xXq12UVwNk3tuhL29vadl31tlviPwb+bnwAy1dx+4UIAAA=",
+  "debug_symbols": "ldHRCoMgFAbgdznXXnhyGfkqY4SVhSAaZoMRvft0tBGtG2+EX/wOHv4VetUuY6Pt4GYQ9xWM62TQzsa0bgRar43RY3O8BpoOLD/v50naFOcgfQBRMwLK9iCQ0sgHbRSIkm4PAsgzQUGvALKfYPVZYLa43AIr/IrqT/BcwS73KJDuokB+Fpgntpie0mvZGrUXNyy2O/QYXpM6VTp516l+8SqVe+g1/ZZxcsM4No5+Aw==",
+  "file_map": {
+    "50": {
+      "source": "// Regression test for https://github.com/noir-lang/noir/issues/3493\nfn main(x: u8) {\n    if x == 10 {\n        x + 255;\n    }\n    if x == 9 {\n        x << 7;\n    }\n    if x == 128 {\n        x * 3;\n    }\n    if x == 7 {\n        x - 8;\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

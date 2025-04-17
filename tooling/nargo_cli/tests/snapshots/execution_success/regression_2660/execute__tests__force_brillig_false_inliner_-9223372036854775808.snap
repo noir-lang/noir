@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWS26DMBAdbEhDokpVGxbdcQTMJ5hduuhBigr7nqp36Tl6kELqkUaDxYZx1I6EZoKtlzfPb4AIfiOdrkdXR9OlXZ4jn67Y1QqWgfsuLhfbwkhgjS48dLdiGyyURwPFBYzIIoYOKFhVnOt6aMvBVOatKLveNkXd9GdrrGls817aqhpsbduu79qiM3U1mLHpytFhRduxqpEIJHWQ/82A1mUP3SAGRE/FKIiGpRGxnjfljNRfNqUGOVPGgod7S1NKDNOtTZm4vENB0IAJLE05b8oZKWlTKpAzZQJyptwFOlxp/SQHUVK/O7ker0Pte2sDyA+1JG/Kdx+S8D4AbipohlB9p0RgIdwgXLXjynG36qqF+w7lUQWyQxUznr6gaw8uZ98vzx9fn694H9+MOJzopwPBENS4RPxjGPzrQ5fHgdRHtob9x7CuH/2tWF7bu/bAvvesIeaTy5Qv9pGynBFcQS0N4p/C4HvPKiP1ifVJ9b4IcUA8/ChJYBmKreFePjORPD/DuWjPf2GgZ07kHur5A2NuRUBUEQAA",
+  "debug_symbols": "lZNBCoMwFETv8tcu/LVq9SqlSNQogZBIjIUi3r1RGrDgZpYz8/I3j6zUy3YZG2UGO1P9XEnbTnhlTUgr8VHNkzB7mr1wnuo8S0ianuoi3RIalJahS7dXQjcMzzD8juE5hhcYXmL4A8MrDOcU5EGvDIpl0CyDahl0y6BcvrRbRr6s/vgQWqe0VmNz/jyhfgunRKvlLw6L6U6r/0xxie8nZzvZL07ul44tnP8C",
+  "file_map": {
+    "50": {
+      "source": "global foo: i32 = -1;\n\nfn main(x: i32) {\n    let y = x + foo;\n    assert(y == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

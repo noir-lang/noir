@@ -14,6 +14,10 @@
 // Temporary allows.
 #![allow(clippy::mutable_key_type, clippy::result_large_err)]
 
+#[cfg(test)]
+#[macro_use]
+extern crate function_name;
+
 pub mod ast;
 pub mod debug;
 pub mod elaborator;
@@ -22,6 +26,7 @@ pub mod lexer;
 pub mod locations;
 pub mod monomorphization;
 pub mod node_interner;
+pub(crate) mod ownership;
 pub mod parser;
 pub mod resolve_locations;
 pub mod shared;
@@ -42,3 +47,5 @@ pub use hir_def::types::*;
 
 // Unit tests that involve all modules
 pub mod tests;
+// Utility functions for easily compiling the frontend for tests in other crates
+pub mod test_utils;

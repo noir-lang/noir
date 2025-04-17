@@ -85,9 +85,9 @@ pub enum ResolverError {
     #[error(
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
-    LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    LowLevelFunctionOutsideOfStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
-    OracleMarkedAsConstrained { ident: Ident },
+    OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot be called directly from constrained functions")]
     UnconstrainedOracleReturnToConstrained { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -121,9 +121,9 @@ pub enum ResolverError {
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
-    NoPredicatesAttributeOnUnconstrained { ident: Ident },
+    NoPredicatesAttributeOnUnconstrained { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
-    FoldAttributeOnUnconstrained { ident: Ident },
+    FoldAttributeOnUnconstrained { ident: Ident, location: Location },
     #[error("expected type, found numeric generic parameter")]
     NumericGenericUsedForType { name: String, location: Location },
     #[error("Invalid array length construction")]
@@ -192,6 +192,14 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: &'static str },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
+    #[error(
+        "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error"
+    )]
+    NonU32Index { location: Location },
+    #[error(
+        "The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
+    )]
+    UnconstrainedTypeParameter { ident: Ident },
 }
 
 impl ResolverError {
@@ -255,19 +263,19 @@ impl ResolverError {
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
-            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
-                *location
-            }
+            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
+            | ResolverError::NonU32Index { location }
+            | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
+            | ResolverError::FoldAttributeOnUnconstrained { location, .. }
+            | ResolverError::OracleMarkedAsConstrained { location, .. }
+            | ResolverError::LowLevelFunctionOutsideOfStdlib { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
             | ResolverError::NoSuchField { field: ident, .. }
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
-            | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
-            | ResolverError::OracleMarkedAsConstrained { ident }
-            | ResolverError::NoPredicatesAttributeOnUnconstrained { ident }
-            | ResolverError::FoldAttributeOnUnconstrained { ident } => ident.location(),
+            | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
             ResolverError::ArrayLengthInterpreter { error } => error.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
@@ -492,16 +500,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::LowLevelFunctionOutsideOfStdlib { ident } => Diagnostic::simple_error(
+            ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
-                ident.location(),
+                *location,
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
-                error.to_string(),
-                "Oracle functions must have the `unconstrained` keyword applied".into(),
-                ident.location(),
-            ),
+            ResolverError::OracleMarkedAsConstrained { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
+                diagnostic
+            },
             ResolverError::UnconstrainedOracleReturnToConstrained { location } => Diagnostic::simple_error(
                 error.to_string(),
                 "This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime".into(),
@@ -602,21 +614,21 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::NoPredicatesAttributeOnUnconstrained { ident } => {
+            ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("misplaced #[no_predicates] attribute on unconstrained function {ident}. Only allowed on constrained functions"),
                     "misplaced #[no_predicates] attribute".to_string(),
-                    ident.location(),
+                    *location,
                 );
 
                 diag.add_note("The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions".to_owned());
                 diag
             }
-            ResolverError::FoldAttributeOnUnconstrained { ident } => {
+            ResolverError::FoldAttributeOnUnconstrained { ident, location } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("misplaced #[fold] attribute on unconstrained function {ident}. Only allowed on constrained functions"),
                     "misplaced #[fold] attribute".to_string(),
-                    ident.location(),
+                    *location,
                 );
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
@@ -801,6 +813,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::NonU32Index { location } => {
+                Diagnostic::simple_warning(
+                    "Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error".to_string(), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::UnconstrainedTypeParameter { ident} => {
+                Diagnostic::simple_error(
+                    format!("The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"),
+                    format!("Hint: remove the `{ident}` type parameter"),
+                    ident.location(),
+                )
+            }
         }
     }
 }

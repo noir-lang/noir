@@ -6,15 +6,15 @@ use noirc_errors::{
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
-use crate::shared::Visibility;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attributes, FunctionAttribute},
+    token::Attributes,
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
+use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -50,6 +50,8 @@ pub enum Expression {
     Constrain(Box<Expression>, Location, Option<Box<(Expression, HirType)>>),
     Assign(Assign),
     Semi(Box<Expression>),
+    Clone(Box<Expression>),
+    Drop(Box<Expression>),
     Break,
     Continue,
 }
@@ -75,7 +77,7 @@ pub enum Definition {
 
 /// ID of a local definition, e.g. from a let binding or
 /// function parameter that should be compiled before it is referenced.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LocalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::globals`
@@ -85,6 +87,12 @@ pub struct GlobalId(pub u32);
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
+
+/// Each identifier is given a unique ID to distinguish different uses of identifiers.
+/// This is used, for example, in last use analysis to determine which identifiers represent
+/// the last use of their definition and can thus be moved instead of cloned.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IdentId(pub u32);
 
 impl Display for FuncId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -99,6 +107,7 @@ pub struct Ident {
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
+    pub id: IdentId,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -148,12 +157,6 @@ pub struct Binary {
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
     pub location: Location,
-}
-
-#[derive(Debug, Clone)]
-pub struct Lambda {
-    pub function: Ident,
-    pub env: Ident,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -277,10 +280,12 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
-            FunctionAttribute::Fold => InlineType::Fold,
-            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+        attributes.function().map_or(InlineType::default(), |func_attribute| match &func_attribute
+            .kind
+        {
+            FunctionAttributeKind::Fold => InlineType::Fold,
+            FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
+            FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
             _ => InlineType::default(),
         })
     }
@@ -327,7 +332,7 @@ pub struct Function {
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
 /// - All structs replaced with tuples
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
@@ -338,7 +343,7 @@ pub enum Type {
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
-    MutableReference(Box<Type>),
+    Reference(Box<Type>, /*mutable:*/ bool),
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -354,6 +359,14 @@ impl Type {
             _ => vec![self.clone()],
         }
     }
+
+    /// Returns the element type of this array or slice
+    pub fn array_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Default)]
@@ -363,7 +376,7 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    pub globals: BTreeMap<GlobalId, Expression>,
+    pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -377,7 +390,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        globals: BTreeMap<GlobalId, Expression>,
+        globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -439,16 +452,13 @@ impl std::ops::IndexMut<FuncId> for Program {
 
 impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for function in &self.functions {
-            super::printer::AstPrinter::default().print_function(function, f)?;
-        }
-        Ok(())
+        super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::AstPrinter::default().print_function(self, f)
+        super::printer::AstPrinter::default().print_function(self, None, f)
     }
 }
 
@@ -490,7 +500,8 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
             Type::Slice(element) => write!(f, "[{element}]"),
-            Type::MutableReference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element, mutable) if *mutable => write!(f, "&mut {element}"),
+            Type::Reference(element, _mutable) => write!(f, "&{element}"),
         }
     }
 }

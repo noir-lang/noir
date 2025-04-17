@@ -76,7 +76,19 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                self.write_token(Token::Ampersand);
+                // `&` can be represented with Ampersando or SliceStart in the lexer depending
+                // on whether it's right next to a `[` or not.
+                match &self.token {
+                    Token::Ampersand => {
+                        self.write_token(Token::Ampersand);
+                    }
+                    Token::SliceStart => {
+                        self.write_token(Token::SliceStart);
+                    }
+                    _ => {
+                        panic!("Expected Ampersand or SliceStart, found {:?}", self.token);
+                    }
+                }
                 if mutable {
                     self.write_keyword(Keyword::Mut);
                     self.write_space();
@@ -273,6 +285,13 @@ mod tests {
     fn format_mutable_reference_type() {
         let src = " &  mut  Field ";
         let expected = "&mut Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_array_reference_type() {
+        let src = " &[ Field ; 3 ]";
+        let expected = "&[Field; 3]";
         assert_format_type(src, expected);
     }
 

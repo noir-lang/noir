@@ -106,6 +106,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
+        // Using the end of the global memory space adds more complexity as we
+        // have to account for possible register de-allocations as part of regular global compilation.
+        // Thus, we want to allocate any reserved global slots first.
+        //
+        // If this flag is set, compile the array copy counter as a global
+        if self.brillig_context.count_array_copies() {
+            let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
+            self.brillig_context
+                .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
+        }
+
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
                 continue;
@@ -133,6 +144,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
             }
         }
+
         new_hoisted_constants
     }
 
@@ -153,6 +165,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Process the block's terminator instruction
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
+
+        if self.brillig_context.count_array_copies()
+            && matches!(terminator_instruction, TerminatorInstruction::Return { .. })
+            && self.function_context.is_entry_point
+        {
+            self.brillig_context.emit_println_of_array_copy_counter();
+        }
 
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
@@ -215,8 +234,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let target_block = &dfg[*destination_block];
                 for (src, dest) in arguments.iter().zip(target_block.parameters()) {
                     // Destinations are block parameters so they should have been allocated previously.
-                    let destination =
-                        self.variables.get_allocation(self.function_context, *dest, dfg);
+                    let destination = self.variables.get_allocation(self.function_context, *dest);
                     let source = self.convert_ssa_value(*src, dfg);
                     self.brillig_context
                         .mov_instruction(destination.extract_register(), source.extract_register());
@@ -567,7 +585,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         | Intrinsic::SliceRemove => {
                             self.convert_ssa_slice_intrinsic_call(
                                 dfg,
-                                &dfg[dfg.resolve(*func)],
+                                &dfg[*func],
                                 instruction_id,
                                 arguments,
                             );
@@ -768,13 +786,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
-                // Slice access checks are generated separately against the slice's dynamic length field.
-                if matches!(dfg.type_of_value(*array), Type::Array(..))
-                    && !dfg.is_safe_brillig_index(*index, *array)
-                {
-                    self.validate_array_index(array_variable, index_variable);
-                }
-
                 if dfg.is_constant(*index) {
                     self.brillig_context.codegen_load_with_offset(
                         array_variable.extract_register(),
@@ -805,13 +816,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     result_ids[0],
                     dfg,
                 );
-
-                // Slice access checks are generated separately against the slice's dynamic length field.
-                if matches!(dfg.type_of_value(*array), Type::Array(..))
-                    && !dfg.is_safe_index(*index, *array)
-                {
-                    self.validate_array_index(source_variable, index_register);
-                }
 
                 self.convert_ssa_array_set(
                     source_variable,
@@ -862,6 +866,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // RC is always directly pointed by the array/vector pointer
                 self.brillig_context
                     .load_instruction(rc_register, array_or_vector.extract_register());
+
+                // Ensure we're not incrementing from 0 back to 1
+                if self.brillig_context.enable_debug_assertions() {
+                    self.assert_rc_neq_zero(rc_register);
+                }
+
                 self.brillig_context.codegen_usize_op_in_place(
                     rc_register,
                     BrilligBinaryOp::Add,
@@ -882,20 +892,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // and become usize::MAX, and then return to 1, then it will indicate
                 // an array as mutable when it probably shouldn't be.
                 if self.brillig_context.enable_debug_assertions() {
-                    let min_addr = ReservedRegisters::usize_one();
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    self.brillig_context.memory_op_instruction(
-                        min_addr,
-                        rc_register,
-                        condition.address,
-                        BrilligBinaryOp::LessThan,
-                    );
-                    self.brillig_context.codegen_constrain(
-                        condition,
-                        Some("array ref-count underflow detected".to_owned()),
-                    );
-                    self.brillig_context.deallocate_single_addr(condition);
+                    self.assert_rc_neq_zero(rc_register);
                 }
 
                 self.brillig_context.codegen_usize_op_in_place(
@@ -1030,6 +1027,25 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.brillig_context.set_call_stack(CallStack::new());
     }
 
+    fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
+        let zero = SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
+
+        self.brillig_context.const_instruction(zero, FieldElement::zero());
+
+        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+
+        self.brillig_context.memory_op_instruction(
+            zero.address,
+            rc_register,
+            condition.address,
+            BrilligBinaryOp::Equals,
+        );
+        self.brillig_context.not_instruction(condition, condition);
+        self.brillig_context
+            .codegen_constrain(condition, Some("array ref-count underflow detected".to_owned()));
+        self.brillig_context.deallocate_single_addr(condition);
+    }
+
     fn convert_ssa_function_call(
         &mut self,
         func_id: FunctionId,
@@ -1072,29 +1088,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         for (src, dst) in argument_variables.into_iter().zip(return_variables) {
             self.brillig_context.mov_instruction(dst.extract_register(), src.extract_register());
         }
-    }
-
-    fn validate_array_index(
-        &mut self,
-        array_variable: BrilligVariable,
-        index_register: SingleAddrVariable,
-    ) {
-        let size = self.brillig_context.codegen_make_array_or_vector_length(array_variable);
-
-        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-
-        self.brillig_context.memory_op_instruction(
-            index_register.address,
-            size.address,
-            condition.address,
-            BrilligBinaryOp::LessThan,
-        );
-
-        self.brillig_context
-            .codegen_constrain(condition, Some("Array index out of bounds".to_owned()));
-
-        self.brillig_context.deallocate_single_addr(size);
-        self.brillig_context.deallocate_single_addr(condition);
     }
 
     /// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice
@@ -1457,8 +1450,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[dfg.resolve(binary.lhs)].get_type().as_ref(),
-            dfg[dfg.resolve(binary.rhs)].get_type().as_ref(),
+            dfg[binary.lhs].get_type().as_ref(),
+            dfg[binary.rhs].get_type().as_ref(),
             binary.operator,
         );
 
@@ -1689,17 +1682,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.brillig_context.deallocate_single_addr(condition);
                 }
                 BrilligBinaryOp::Mul => {
-                    let is_right_zero =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    let zero =
-                        self.brillig_context.make_constant_instruction(0_usize.into(), bit_size);
-                    self.brillig_context.binary_instruction(
-                        zero,
-                        right,
-                        is_right_zero,
-                        BrilligBinaryOp::Equals,
-                    );
-                    self.brillig_context.codegen_if_not(is_right_zero.address, |ctx| {
+                    let division_by_rhs_gives_lhs = |ctx: &mut BrilligContext<
+                        FieldElement,
+                        Registers,
+                    >| {
                         let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
                         let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
                         // Check that result / rhs == lhs
@@ -1713,9 +1699,29 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         ctx.codegen_constrain(condition, Some(msg.to_string()));
                         ctx.deallocate_single_addr(condition);
                         ctx.deallocate_single_addr(division);
-                    });
-                    self.brillig_context.deallocate_single_addr(is_right_zero);
-                    self.brillig_context.deallocate_single_addr(zero);
+                    };
+
+                    let rhs_may_be_zero =
+                        dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
+                    if rhs_may_be_zero {
+                        let is_right_zero =
+                            SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                        let zero = self
+                            .brillig_context
+                            .make_constant_instruction(0_usize.into(), bit_size);
+                        self.brillig_context.binary_instruction(
+                            zero,
+                            right,
+                            is_right_zero,
+                            BrilligBinaryOp::Equals,
+                        );
+                        self.brillig_context
+                            .codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
+                        self.brillig_context.deallocate_single_addr(is_right_zero);
+                        self.brillig_context.deallocate_single_addr(zero);
+                    } else {
+                        division_by_rhs_gives_lhs(self.brillig_context);
+                    }
                 }
                 _ => {}
             }
@@ -1734,7 +1740,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
         if let Some(variable) = self.get_hoisted_global(dfg, value_id) {
@@ -1753,14 +1758,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         panic!("ICE: Global value not found in cache {value_id}")
                     })
                 } else {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                    self.variables.get_allocation(self.function_context, value_id)
                 }
             }
             Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
                 if self.variables.is_allocated(&value_id) {
-                    self.variables.get_allocation(self.function_context, value_id, dfg)
+                    self.variables.get_allocation(self.function_context, value_id)
                 } else if dfg.is_global(value_id) {
                     *self.globals.get(&value_id).unwrap_or_else(|| {
                         panic!("ICE: Global value not found in cache {value_id}")

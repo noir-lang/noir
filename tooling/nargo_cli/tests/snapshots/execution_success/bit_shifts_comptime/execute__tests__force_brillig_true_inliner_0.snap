@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 64
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91WwQ6CMAzddEYn0YMm3rzpRS9DJHDk4I8sEr6DTzfEVmodmsCmib10S7vX174tIEVrErxie+HIKcCbYRZ7xDJOou8Mc47gNfgRiY89NqtZXZ/4uTmn2tGfR/6JBsyQ80HMAPhmCjiXusXnvQjiMY+faR7IAtb0nmHODOK4XsJaszMh9A+oj1k7+GOtCHrds14pF+mPSyzFs2Zz0KWLn4uP8sYnN5JgCvBKvN5nrD9h+RvGcxJIwxXBFaxWYM1OXLPop5rFgzXb/r1mSdX3nckgmpmHZqMPmkmmGebvGE/1Rc2wViTafw1V+6+f5fc5NTau2zngfKgpEqf5B9jPO/ooevKsMhtXia1sasvyfLV8To3Rb8oNoT6db6EKAAA=",
+  "debug_symbols": "ldTRCoMgFAbgdznXXZjHbOtVxhhWNgSxsBqM6N2no0G4IM6NeMTvCCr/Aq2u5+fDuK4fobotYPtGTaZ3oVrWDGpvrDXPx34ZWBzy4rt/HJSL5TgpP0HFETPQro2za/CdsRqqgq33DHJJFuWJEDIVF7K4UgVnZJGTBT8Ukv2E/BNIFuJElDwVBVlIsijJ4kIWh2+OWG4ChUgEMrLIz0T625GTBZKFIIuCJtZQvZQ3qrZ6C5Fuds0uU6b3oJN4GXzf6Hb2OgbNLmPirYeTBA9tQ+sP",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u64) {\n    let two: u64 = 2;\n    let three: u64 = 3;\n    // shifts on constant values\n    assert(two << 2 == 8);\n    assert((two << 3) / 8 == two);\n    assert((three >> 1) == 1);\n    // shifts on runtime values\n    assert(x << 1 == 128);\n    assert(x >> 2 == 16);\n\n    regression_2250();\n\n    //regression for 3481\n    assert(x << 63 == 0);\n\n    assert_eq((1 as u64) << 32, 0x0100000000);\n\n    //regression for 6201\n    let a: i16 = -769;\n    assert_eq(a >> 3, -97);\n}\n\nfn regression_2250() {\n    let a: u1 = 1 >> 1;\n    assert(a == 0);\n\n    let b: u32 = 1 >> 32;\n    assert(b == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -57,6 +57,8 @@ pub(crate) enum Token {
     Arrow,
     /// ==
     Equal,
+    /// !=
+    NotEqual,
     /// &
     Ampersand,
     /// -
@@ -95,6 +97,7 @@ impl Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Arrow => write!(f, "->"),
             Token::Equal => write!(f, "=="),
+            Token::NotEqual => write!(f, "!="),
             Token::Ampersand => write!(f, "&"),
             Token::Dash => write!(f, "-"),
             Token::Eof => write!(f, "(end of stream)"),
@@ -136,6 +139,7 @@ pub(crate) enum Keyword {
     Fold,
     Fn,
     Function,
+    If,
     Impure,
     IncRc,
     Index,
@@ -193,6 +197,7 @@ impl Keyword {
             "else" => Keyword::Else,
             "enable_side_effects" => Keyword::EnableSideEffects,
             "eq" => Keyword::Eq,
+            "if" => Keyword::If,
             "impure" => Keyword::Impure,
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,
@@ -264,6 +269,7 @@ impl Display for Keyword {
             Keyword::Fold => write!(f, "fold"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::Function => write!(f, "function"),
+            Keyword::If => write!(f, "if"),
             Keyword::Impure => write!(f, "impure"),
             Keyword::IncRc => write!(f, "inc_rc"),
             Keyword::Index => write!(f, "index"),

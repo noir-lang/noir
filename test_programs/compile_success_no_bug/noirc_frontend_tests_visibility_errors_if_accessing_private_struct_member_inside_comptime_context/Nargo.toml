@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_visibility_errors_if_accessing_private_struct_member_inside_comptime_context"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

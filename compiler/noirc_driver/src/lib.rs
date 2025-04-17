@@ -23,7 +23,7 @@ use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
-use noirc_frontend::token::SecondaryAttribute;
+use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::info;
@@ -144,6 +144,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub enable_brillig_debug_assertions: bool,
 
+    /// Count the number of arrays that are copied in an unconstrained context for performance debugging
+    #[arg(long)]
+    pub count_array_copies: bool,
+
     /// Flag to turn on the lookback feature of the Brillig call constraints
     /// check, allowing tracking argument values before the call happens preventing
     /// certain rare false positives (leads to a slowdown on large rollout functions)
@@ -169,10 +173,6 @@ pub struct CompileOptions {
     /// This is disabled by default.
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
-
-    /// Used internally to test for non-determinism in the compiler.
-    #[clap(long, hide = true)]
-    pub check_non_determinism: bool,
 
     /// Unstable features to enable for this current build
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
@@ -503,7 +503,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
 
     context.def_interner.get_all_globals().iter().for_each(|global_info| {
         context.def_interner.global_attributes(&global_info.id).iter().for_each(|attr| {
-            if let SecondaryAttribute::Abi(tag) = attr {
+            if let SecondaryAttributeKind::Abi(tag) = &attr.kind {
                 if let Some(tagged) = outputs.globals.get_mut(tag) {
                     tagged.push(global_info.id);
                 } else {
@@ -516,7 +516,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
     module.type_definitions().for_each(|id| {
         if let ModuleDefId::TypeId(struct_id) = id {
             context.def_interner.type_attributes(&struct_id).iter().for_each(|attr| {
-                if let SecondaryAttribute::Abi(tag) = attr {
+                if let SecondaryAttributeKind::Abi(tag) = &attr.kind {
                     if let Some(tagged) = outputs.structs.get_mut(tag) {
                         tagged.push(struct_id);
                     } else {
@@ -580,9 +580,9 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(|attr| match attr {
-                SecondaryAttribute::Tag(attribute) => Some(attribute.contents.clone()),
-                SecondaryAttribute::Meta(attribute) => Some(attribute.to_string()),
+            .filter_map(|attr| match &attr.kind {
+                SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
+                SecondaryAttributeKind::Meta(attribute) => Some(attribute.to_string()),
                 _ => None,
             })
             .collect();
@@ -710,6 +710,7 @@ pub fn compile_no_check(
         || options.show_brillig
         || options.force_brillig
         || options.show_ssa
+        || options.show_ssa_pass.is_some()
         || options.emit_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
@@ -737,6 +738,7 @@ pub fn compile_no_check(
         brillig_options: BrilligOptions {
             enable_debug_trace: options.show_brillig,
             enable_debug_assertions: options.enable_brillig_debug_assertions,
+            enable_array_copy_counter: options.count_array_copies,
         },
         print_codegen_timings: options.benchmark_codegen,
         expression_width: if options.bounded_codegen {

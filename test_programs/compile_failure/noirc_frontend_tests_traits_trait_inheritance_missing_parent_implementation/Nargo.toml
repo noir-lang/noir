@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_trait_inheritance_missing_parent_implementation"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

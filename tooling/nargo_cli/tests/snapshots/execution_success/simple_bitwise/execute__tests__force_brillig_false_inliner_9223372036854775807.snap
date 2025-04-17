@@ -1,0 +1,70 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "d",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 8
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81WXW7CMAxO2gKlP9M0aQ+7hdMkNHnbHnaQVUveORV34RwchEJTYSqKkOoiPslyaluf4i9uG846lK19hDVvLQ6+f8YxfiMWtZYOYjGK8ZG603qBcmM1S3aNKPjv4CVslHJ15YQUf1DZxmhQutkYYYQ2+r8yUjqjTG0bW4MVSjrhtZUeOkSEXCvEBZPg/Zw9x4RcKWHPeF5WaBbSYGt2mUsKPZzvwNDMMbJ+oKLk4oRnltHtC/B7n4VzwiDWVCwIuTJCTfOZNM2foOmSkCsn1LSYSdPiAU2n7n1NqGlBuK+S0X6ve03LG5oO/1swDSJ5SR262UoCV4L67+808SDW1+HaLPjPw8/Xdr/7RanzvI7l3u7k3u/kTjgCP8b3ZAQKAAA=",
+  "debug_symbols": "ldJRCoQgFAXQvbzvPrTUprYyDGFlIYiG2cAQ7X0sEkKC8M/7LueB6Aq9aJexkXowM9TvFZTpuJNG+7QCOUbzxPWeZsetgxrnOAOh+/3EtgwGqQTUFG2fDOgtICgAQiPAbgGtAmAkAmUqeKWC6haU4Q45KiKAUbLAT6KMRZ4sigeBcSxIsqBPIn5vzNKED62VSsmxuf5MP/5yK3mrxBmHRXeX1v2m0AQ/WdOJfrFi33R0fv0f",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: bool, b: bool, c: u8, d: u8) -> pub u8 {\n    let i = a & b;\n    let j = a ^ b;\n    let k = a | b;\n    let x = c & d;\n    let y = c ^ d;\n    let z = c | d;\n    (i as u8) + (j as u8) + (k as u8) + x + y + z\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

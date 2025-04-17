@@ -1,17 +1,17 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
+use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         function::Function,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
-        types::{NumericType, Type},
+        types::Type,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -25,7 +25,7 @@ impl Ssa {
     ///
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination(self) -> Ssa {
+    pub fn dead_instruction_elimination(self) -> Ssa {
         self.dead_instruction_elimination_inner(true, false)
     }
 
@@ -40,7 +40,7 @@ impl Ssa {
             .functions
             .par_iter_mut()
             .filter_map(|(id, func)| {
-                let set = func.dead_instruction_elimination(true, flattened, skip_brillig);
+                let set = func.dead_instruction_elimination(flattened, skip_brillig);
                 if func.runtime().is_brillig() { Some((*id, set)) } else { None }
             })
             .collect();
@@ -79,7 +79,6 @@ impl Function {
     /// After processing all functions, the union of these sets enables determining the unused globals.
     pub(crate) fn dead_instruction_elimination(
         &mut self,
-        insert_out_of_bounds_checks: bool,
         flattened: bool,
         skip_brillig: bool,
     ) -> HashSet<ValueId> {
@@ -95,22 +94,9 @@ impl Function {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
         }
 
-        let mut inserted_out_of_bounds_checks = false;
-
         let blocks = PostOrder::with_function(self);
         for block in blocks.as_slice() {
-            inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
-                self,
-                *block,
-                insert_out_of_bounds_checks,
-            );
-        }
-
-        // If we inserted out of bounds check, let's run the pass again with those new
-        // instructions (we don't want to remove those checks, or instructions that are
-        // dependencies of those checks)
-        if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened, skip_brillig);
+            context.remove_unused_instructions_in_block(self, *block);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -151,43 +137,23 @@ impl Context {
     /// values set. This allows DIE to identify whole chains of unused instructions. (If the
     /// values referenced by an unused instruction were considered to be used, only the head of
     /// such chains would be removed.)
-    ///
-    /// If `insert_out_of_bounds_checks` is true and there are unused ArrayGet/ArraySet that
-    /// might be out of bounds, this method will insert out of bounds checks instead of
-    /// removing unused instructions and return `true`. The idea then is to later call this
-    /// function again with `insert_out_of_bounds_checks` set to false to effectively remove
-    /// unused instructions but leave the out of bounds checks.
     fn remove_unused_instructions_in_block(
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
-        insert_out_of_bounds_checks: bool,
-    ) -> bool {
+    ) {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
         self.rc_tracker.new_block();
         self.rc_tracker.mark_terminator_arrays_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
-
-        // Indexes of instructions that might be out of bounds.
-        // We'll remove those, but before that we'll insert bounds checks for them.
-        let mut possible_index_out_of_bounds_indexes = Vec::new();
-
         // Going in reverse so we know if a result of an instruction was used.
-        for (instruction_index, instruction_id) in block.instructions().iter().rev().enumerate() {
+        for instruction_id in block.instructions().iter().rev() {
             let instruction = &function.dfg[*instruction_id];
 
             if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
-
-                if insert_out_of_bounds_checks
-                    && instruction_might_result_in_out_of_bounds(function, instruction)
-                {
-                    possible_index_out_of_bounds_indexes
-                        .push(instructions_len - instruction_index - 1);
-                }
             } else {
                 // We can't remove rc instructions if they're loaded from a reference
                 // since we'd have no way of knowing whether the reference is still used.
@@ -205,26 +171,10 @@ impl Context {
 
         self.instructions_to_remove.extend(self.rc_tracker.get_non_mutated_arrays(&function.dfg));
         self.instructions_to_remove.extend(self.rc_tracker.rc_pairs_to_remove.drain());
-        // If there are some instructions that might trigger an out of bounds error,
-        // first add constrain checks. Then run the DIE pass again, which will remove those
-        // but leave the constrains (any any value needed by those constrains)
-        if !possible_index_out_of_bounds_indexes.is_empty() {
-            let inserted_check = self.replace_array_instructions_with_out_of_bounds_checks(
-                function,
-                block_id,
-                &mut possible_index_out_of_bounds_indexes,
-            );
-            // There's a slight chance we didn't insert any checks, so we could proceed with DIE.
-            if inserted_check {
-                return true;
-            }
-        }
 
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-
-        false
     }
 
     /// Returns true if an instruction can be removed.
@@ -234,7 +184,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.can_eliminate_if_unused(function, self.flattened) {
+        if can_be_eliminated_if_unused(instruction, function, self.flattened) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -256,7 +206,6 @@ impl Context {
 
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
         if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. })
             || dfg.is_global(value_id)
         {
@@ -309,127 +258,6 @@ impl Context {
         }
     }
 
-    /// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
-    /// Returns `true` if at least one check was inserted.
-    /// Because some ArrayGet might happen in groups (for composite types), if just
-    /// some of the instructions in a group are used but not all of them, no check
-    /// is inserted, so this method might return `false`.
-    fn replace_array_instructions_with_out_of_bounds_checks(
-        &mut self,
-        function: &mut Function,
-        block_id: BasicBlockId,
-        possible_index_out_of_bounds_indexes: &mut Vec<usize>,
-    ) -> bool {
-        let mut inserted_check = false;
-
-        // Keep track of the current side effects condition
-        let mut side_effects_condition = None;
-
-        // Keep track of the next index we need to handle
-        let mut next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
-
-        let instructions = function.dfg[block_id].take_instructions();
-        for (index, instruction_id) in instructions.iter().enumerate() {
-            let instruction_id = *instruction_id;
-            let instruction = &function.dfg[instruction_id];
-
-            if let Instruction::EnableSideEffectsIf { condition } = instruction {
-                side_effects_condition = Some(*condition);
-
-                // We still need to keep the EnableSideEffects instruction
-                function.dfg[block_id].instructions_mut().push(instruction_id);
-                continue;
-            };
-
-            // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
-            // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
-            if let Instruction::ArrayGet { array, .. } = instruction {
-                handle_array_get_group(
-                    function,
-                    array,
-                    index,
-                    &mut next_out_of_bounds_index,
-                    possible_index_out_of_bounds_indexes,
-                );
-            }
-
-            let Some(out_of_bounds_index) = next_out_of_bounds_index else {
-                // No more out of bounds instructions to insert, just push the current instruction
-                function.dfg[block_id].instructions_mut().push(instruction_id);
-                continue;
-            };
-
-            if index != out_of_bounds_index {
-                // This instruction is not out of bounds: let's just push it
-                function.dfg[block_id].instructions_mut().push(instruction_id);
-                continue;
-            }
-
-            // This is an instruction that might be out of bounds: let's add a constrain.
-            let (array, index) = match instruction {
-                Instruction::ArrayGet { array, index }
-                | Instruction::ArraySet { array, index, .. } => (array, index),
-                _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
-            };
-
-            let call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);
-
-            let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
-                // If we are here it means the index is known but out of bounds. That's always an error!
-                let false_const = function.dfg.make_constant(false.into(), NumericType::bool());
-                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
-                (false_const, true_const)
-            } else {
-                // `index` will be relative to the flattened array length, so we need to take that into account
-                let array_length = function.dfg.type_of_value(*array).flattened_size();
-
-                // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                let length_type = NumericType::length_type();
-                let index = function.dfg.insert_instruction_and_results(
-                    Instruction::Cast(*index, length_type),
-                    block_id,
-                    None,
-                    call_stack,
-                );
-                let index = index.first();
-
-                let array_length =
-                    function.dfg.make_constant((array_length as u128).into(), length_type);
-                let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
-                    Instruction::binary(BinaryOp::Lt, index, array_length),
-                    block_id,
-                    None,
-                    call_stack,
-                );
-                let is_index_out_of_bounds = is_index_out_of_bounds.first();
-                let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
-                (is_index_out_of_bounds, true_const)
-            };
-
-            let (lhs, rhs) = apply_side_effects(
-                side_effects_condition,
-                lhs,
-                rhs,
-                function,
-                block_id,
-                call_stack,
-            );
-
-            let message = Some("Index out of bounds".to_owned().into());
-            function.dfg.insert_instruction_and_results(
-                Instruction::Constrain(lhs, rhs, message),
-                block_id,
-                None,
-                call_stack,
-            );
-            inserted_check = true;
-
-            next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
-        }
-
-        inserted_check
-    }
-
     /// True if this is a `Instruction::IncrementRc` or `Instruction::DecrementRc`
     /// operating on an array directly from a `Instruction::MakeArray` or an
     /// intrinsic known to return a fresh array.
@@ -454,162 +282,73 @@ impl Context {
     }
 }
 
-fn instruction_might_result_in_out_of_bounds(
-    function: &Function,
+fn can_be_eliminated_if_unused(
     instruction: &Instruction,
+    function: &Function,
+    flattened: bool,
 ) -> bool {
     use Instruction::*;
     match instruction {
-        ArrayGet { array, index } | ArraySet { array, index, .. } => {
-            if function.dfg.try_get_array_length(*array).is_some() {
-                if let Some(known_index) = function.dfg.get_numeric_constant(*index) {
-                    // `index` will be relative to the flattened array length, so we need to take that into account
-                    let typ = function.dfg.type_of_value(*array);
-                    let array_length = typ.flattened_size();
-                    known_index >= array_length.into()
+        Binary(binary) => {
+            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
+                    rhs != FieldElement::zero()
                 } else {
-                    // A dynamic index might always be out of bounds
-                    true
+                    false
                 }
             } else {
-                // Slice operations might be out of bounds, but there's no way we
-                // can insert a check because we don't know a slice's length
-                false
-            }
-        }
-        _ => false,
-    }
-}
-
-fn handle_array_get_group(
-    function: &Function,
-    array: &ValueId,
-    index: usize,
-    next_out_of_bounds_index: &mut Option<usize>,
-    possible_index_out_of_bounds_indexes: &mut Vec<usize>,
-) {
-    if function.dfg.try_get_array_length(*array).is_none() {
-        // Nothing to do for slices
-        return;
-    };
-
-    let element_size = function.dfg.type_of_value(*array).element_size();
-    if element_size <= 1 {
-        // Not a composite type
-        return;
-    };
-
-    // It's a composite type.
-    // When doing ArrayGet on a composite type, this **always** results in instructions like these
-    // (assuming element_size == 3):
-    //
-    // 1.    v27 = array_get v1, index v26
-    // 2.    v28 = add v26, u32 1
-    // 3.    v29 = array_get v1, index v28
-    // 4.    v30 = add v26, u32 2
-    // 5.    v31 = array_get v1, index v30
-    //
-    // That means that after this instructions, (element_size - 1) instructions will be
-    // part of this composite array get, and they'll be two instructions apart.
-    //
-    // Now three things can happen:
-    // a) none of the array_get instructions are unused: in this case they won't be in
-    //    `possible_index_out_of_bounds_indexes` and they won't be removed, nothing to do here
-    // b) all of the array_get instructions are unused: in this case we can replace **all**
-    //    of them with just one constrain: no need to do one per array_get
-    // c) some of the array_get instructions are unused, but not all: in this case
-    //    we don't need to insert any constrain, because on a later stage array bound checks
-    //    will be performed anyway. We'll let DIE remove the unused ones, without replacing
-    //    them with bounds checks, and leave the used ones.
-    //
-    // To check in which scenario we are we can get from `possible_index_out_of_bounds_indexes`
-    // (starting from `next_out_of_bounds_index`) while we are in the group ranges
-    // (1..=5 in the example above)
-
-    let Some(out_of_bounds_index) = *next_out_of_bounds_index else {
-        // No next unused instruction, so this is case a) and nothing needs to be done here
-        return;
-    };
-
-    if index != out_of_bounds_index {
-        // The next index is not the one for the current instructions,
-        // so we are in case a), and nothing needs to be done here
-        return;
-    }
-
-    // What's the last instruction that's part of the group? (5 in the example above)
-    let last_instruction_index = index + 2 * (element_size - 1);
-    // How many unused instructions are in this group?
-    let mut unused_count = 1;
-    loop {
-        *next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
-        if let Some(out_of_bounds_index) = *next_out_of_bounds_index {
-            if out_of_bounds_index <= last_instruction_index {
-                unused_count += 1;
-                if unused_count == element_size {
-                    // We are in case b): we need to insert just one constrain.
-                    // Since we popped all of the group indexes, and given that we
-                    // are analyzing the first instruction in the group, we can
-                    // set `next_out_of_bounds_index` to the current index:
-                    // then a check will be inserted, and no other check will be
-                    // inserted for the rest of the group.
-                    *next_out_of_bounds_index = Some(index);
-                    break;
-                } else {
-                    continue;
-                }
+                true
             }
         }
 
-        // We are in case c): some of the instructions are unused.
-        // We don't need to insert any checks, and given that we already popped
-        // all of the indexes in the group, there's nothing else to do here.
-        break;
+        Cast(_, _)
+        | Not(_)
+        | Truncate { .. }
+        | Allocate
+        | Load { .. }
+        | ArrayGet { .. }
+        | IfElse { .. }
+        | ArraySet { .. }
+        | Noop
+        | MakeArray { .. } => true,
+
+        // Store instructions must be removed by DIE in acir code, any load
+        // instructions should already be unused by that point.
+        //
+        // Note that this check assumes that it is being performed after the flattening
+        // pass and after the last mem2reg pass. This is currently the case for the DIE
+        // pass where this check is done, but does mean that we cannot perform mem2reg
+        // after the DIE pass.
+        Store { .. } => {
+            flattened && function.runtime().is_acir() && function.reachable_blocks().len() == 1
+        }
+
+        Constrain(..)
+        | ConstrainNotEqual(..)
+        | EnableSideEffectsIf { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. }
+        | RangeCheck { .. } => false,
+
+        // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+        Call { func, .. } => match function.dfg[*func] {
+            // Explicitly allows removal of unused ec operations, even if they can fail
+            Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+            | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+
+            Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
+
+            // All foreign functions are treated as having side effects.
+            // This is because they can be used to pass information
+            // from the ACVM to the external world during execution.
+            Value::ForeignFunction(_) => false,
+
+            // We must assume that functions contain a side effect as we cannot inspect more deeply.
+            Value::Function(_) => false,
+
+            _ => false,
+        },
     }
-}
-
-// Given `lhs` and `rhs` values, if there's a side effects condition this will
-// return (`lhs * condition`, `rhs * condition`), otherwise just (`lhs`, `rhs`)
-fn apply_side_effects(
-    side_effects_condition: Option<ValueId>,
-    lhs: ValueId,
-    rhs: ValueId,
-    function: &mut Function,
-    block_id: BasicBlockId,
-    call_stack: CallStackId,
-) -> (ValueId, ValueId) {
-    // See if there's an active "enable side effects" condition
-    let Some(condition) = side_effects_condition else {
-        return (lhs, rhs);
-    };
-
-    let dfg = &mut function.dfg;
-
-    // Condition needs to be cast to argument type in order to multiply them together.
-    // In our case, lhs is always a boolean.
-    let cast = Instruction::Cast(condition, NumericType::bool());
-    let casted_condition = dfg.insert_instruction_and_results(cast, block_id, None, call_stack);
-    let casted_condition = casted_condition.first();
-
-    // Unchecked mul because the side effects var is always 0 or 1
-    let lhs = dfg.insert_instruction_and_results(
-        Instruction::binary(BinaryOp::Mul { unchecked: true }, lhs, casted_condition),
-        block_id,
-        None,
-        call_stack,
-    );
-    let lhs = lhs.first();
-
-    // Unchecked mul because the side effects var is always 0 or 1
-    let rhs = dfg.insert_instruction_and_results(
-        Instruction::binary(BinaryOp::Mul { unchecked: true }, rhs, casted_condition),
-        block_id,
-        None,
-        call_stack,
-    );
-    let rhs = rhs.first();
-
-    (lhs, rhs)
 }
 
 #[derive(Default)]
@@ -753,15 +492,18 @@ mod test {
     use im::vector;
     use noirc_frontend::monomorphization::ast::InlineType;
 
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            function::RuntimeType,
-            map::Id,
-            types::{NumericType, Type},
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                function::RuntimeType,
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::assert_normalized_ssa_equals,
         },
-        opt::assert_normalized_ssa_equals,
     };
 
     #[test]
@@ -787,24 +529,24 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.dead_instruction_elimination();
+        ssa.normalize_ids();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: Field):
-                v3 = add v0, Field 2
-                jmp b1(v3)
-              b1(v1: Field):
-                v4 = allocate -> &mut Field
-                store Field 1 at v4
-                v6 = load v4 -> Field
-                v7 = add v6, Field 1
-                v8 = add v6, Field 2
-                call assert_constant(v7)
-                return v8
-            }
-            ";
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = add v0, Field 2
+            jmp b1(v3)
+          b1(v1: Field):
+            v4 = allocate -> &mut Field
+            store Field 1 at v4
+            v6 = load v4 -> Field
+            v7 = add v6, Field 1
+            v8 = add v6, Field 2
+            call assert_constant(v7)
+            return v8
+        }
+        ");
     }
 
     #[test]
@@ -819,16 +561,15 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: Field):
-                v2 = add v0, Field 1
-                return v2
-            }
-            ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ");
     }
 
     #[test]
@@ -843,16 +584,14 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 2]):
-                v2 = array_get v0, index u32 0 -> Field
-                return v2
-            }
-            ";
         let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        ");
     }
 
     #[test]
@@ -940,10 +679,11 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
 
         // We expect the output to be unchanged
         // Except for the repeated inc_rc instructions
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [u32; 2]):
             inc_rc v0
@@ -952,10 +692,7 @@ mod test {
             v4 = array_get v3, index u32 1 -> u32
             return v4
         }
-        ";
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -999,7 +736,8 @@ mod test {
         // The instruction count never includes the terminator instruction
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
 
-        let expected = "
+        let ssa = ssa.dead_instruction_elimination();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
@@ -1007,10 +745,7 @@ mod test {
             inc_rc v0
             return v2
         }
-        ";
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1029,7 +764,8 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let ssa = ssa.dead_instruction_elimination();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
@@ -1037,10 +773,7 @@ mod test {
             inc_rc v0
             return v0, v2
         }
-        ";
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1104,25 +837,24 @@ mod test {
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
         let ssa = ssa.dead_instruction_elimination_inner(false, false);
 
-        let expected = "
-          acir(inline) fn main f0 {
-            b0(v0: Field, v1: Field):
-              v2 = allocate -> &mut Field
-              store v0 at v2
-              call f1(v2)
-              v4 = load v2 -> Field
-              constrain v4 == v1
-              return
-          }
-          acir(inline) fn Add10 f1 {
-            b0(v0: &mut Field):
-              v1 = load v0 -> Field
-              v3 = add v1, Field 10
-              store v3 at v0
-              return
-          }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = allocate -> &mut Field
+            store v0 at v2
+            call f1(v2)
+            v4 = load v2 -> Field
+            constrain v4 == v1
+            return
+        }
+        acir(inline) fn Add10 f1 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v3 = add v1, Field 10
+            store v3 at v0
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1141,8 +873,8 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
+        let ssa = ssa.dead_instruction_elimination();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: &mut [Field; 3]):
             v1 = load v0 -> [Field; 3]
@@ -1154,8 +886,6 @@ mod test {
             store v4 at v0
             return
         }
-        ";
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

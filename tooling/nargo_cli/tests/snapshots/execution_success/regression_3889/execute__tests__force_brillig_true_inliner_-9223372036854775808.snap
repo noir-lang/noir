@@ -1,0 +1,86 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "works",
+        "type": {
+          "kind": "struct",
+          "path": "Baz::Works",
+          "fields": [
+            {
+              "name": "a",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "fails",
+        "type": {
+          "kind": "struct",
+          "path": "Foo::NewType",
+          "fields": [
+            {
+              "name": "a",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "also_fails",
+        "type": {
+          "kind": "struct",
+          "path": "Foo::NewType",
+          "fields": [
+            {
+              "name": "a",
+              "type": {
+                "kind": "field"
+              }
+            }
+          ]
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VVSQ7CMAzMhiAgBAIu8IpULWqPPbC8I6LqO/p0WuEoxqQXcA+MFGVxMh67TiPFC7pvEsYGrVGEPTX07jdkjFxuSp3yT3QqRp0S6dQfAxCvEsHoxNoJegu9QnbNmABL/HLyV66orHgHs/7cAqeZmH82Db+bA8+li/w4luB3DXNcZOFMsOHauhIbrrEb2BZ924g43iJfA+5d1BH8WuKLuV5KS/Ry1/t+RP+AFeThICLw96C5SN1nOXKW+gn3wnT8cZZV/Blp4J+J9ANlkB3vP8J8ifTjmOovdbalz9rct/7sm6Z4+B3hH6BQnp6hHBiwcQcAAA==",
+  "debug_symbols": "hY7NCoMwEITfZc85RCUovooUibpKICQhP4US8u7dlB7SXrwMO8vM8GU4cEvXqsxpA8xLBm13GZU15HJhsHmltbrW9g28Sjd+8sFJU22I0keYBzEwQHPQNXLqn0ojzIKXB4NuumlM4qdRyD2lV3LT+MU5k9kbuvhy+AfqvN3xSB4rckNLuvSc9YJmafoN",
+  "file_map": {
+    "50": {
+      "source": "mod Foo {\n    struct NewType {\n        a: Field,\n    }\n}\n\nmod Bar {\n    use crate::Foo::NewType;\n    use crate::Foo::NewType as BarStruct;\n}\n\nmod Baz {\n    struct Works {\n        a: Field,\n    }\n    use crate::Bar::BarStruct;\n    use crate::Bar::NewType;\n}\n\nfn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub Field {\n    works.a + fails.a + also_fails.a\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -2,6 +2,7 @@ use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{BinaryOpKind, Expression, ExpressionKind, InfixExpression},
+    parser::ParserErrorReason,
     token::Token,
 };
 
@@ -48,6 +49,9 @@ impl<'a> Parser<'a> {
             if parser.next_is(Token::Assign) {
                 None
             } else if parser.eat(Token::Ampersand) {
+                Some(BinaryOpKind::And)
+            } else if parser.eat(Token::LogicalAnd) {
+                parser.push_error(ParserErrorReason::LogicalAnd, parser.previous_token_location);
                 Some(BinaryOpKind::And)
             } else {
                 None

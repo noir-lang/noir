@@ -1,0 +1,85 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "hashed_message",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_x",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "pub_key_y",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "signature",
+        "type": {
+          "kind": "array",
+          "length": 64,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldJBCsMgEAXQu8zahY6mTbxKKcEkJgiiwZhCCbl7tRQS2m7cCCO8+bP4Gwy6W6fWuNEvIG8bWN+raLxL07YT6IKx1kzt+RtofpDjGyyzcnleogoRJOOcgHYDSESaFozGapAV3e8kEV5ORDmpysmlnFzLSf2P4EFE/UOaYiJoOWFlZE/TQwWjOqs/RRlX1596E5+z/qrQHHyvhzXoXKajR7kSyBqC2KRTWD4eBScpMsWkqBc=",
+  "file_map": {
+    "50": {
+      "source": "fn main(hashed_message: [u8; 32], pub_key_x: [u8; 32], pub_key_y: [u8; 32], signature: [u8; 64]) {\n    let valid_signature =\n        std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);\n    assert(valid_signature);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -5,10 +5,12 @@ use std::{
 
 use crate::{
     DataType, StructField, TypeBindings,
-    ast::{ItemVisibility, UnresolvedType},
+    ast::{IntegerBitSize, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
+    shared::Signedness,
+    token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
 use crate::{
@@ -16,7 +18,7 @@ use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
+        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType, Visitor,
     },
     graph::CrateId,
     hir::{
@@ -46,7 +48,6 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
-    token::SecondaryAttribute,
 };
 
 mod comptime;
@@ -63,12 +64,13 @@ mod traits;
 pub mod types;
 mod unquote;
 
+use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{PathResolution, PathResolutionItem};
+use path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -240,6 +242,21 @@ struct FunctionContext {
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
     trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
+
+    /// List of expressions that are at an index position:
+    ///
+    /// ```noir
+    /// foo[index]
+    ///     ^^^^^
+    /// ```
+    ///
+    /// After each function we'll check that the type of those indexes
+    /// is u32 and, if not, produce a deprecation warning.
+    ///
+    /// NOTE: this list should be removed once the deprecation warning is turned
+    /// into an error, because doing that involves a completely different approach
+    /// (just unifying indexes with u32).
+    indexes_to_check: Vec<ExprId>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -352,8 +369,8 @@ impl<'context> Elaborator<'context> {
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
         // the impl since that determines the module we should collect into.
-        for ((_self_type, module), impls) in &mut items.impls {
-            self.collect_impls(*module, impls);
+        for ((self_type, module), impls) in &mut items.impls {
+            self.collect_impls(*module, impls, self_type);
         }
 
         // Bind trait impls to their trait. Collect trait functions, that have a
@@ -579,6 +596,22 @@ impl<'context> Elaborator<'context> {
     fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
 
+        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        for expr_id in context.indexes_to_check {
+            let typ = self.interner.id_type(expr_id).follow_bindings();
+
+            // If the type is still a type variable after follow_bindings it means it'll
+            // be turned into Field or, eventually, into u32, so this is fine.
+            if let Type::TypeVariable(..) = typ {
+                continue;
+            };
+
+            if typ != u32 {
+                let location = self.interner.expr_location(&expr_id);
+                self.push_err(ResolverError::NonU32Index { location });
+            }
+        }
+
         for typ in context.type_variables {
             if let Type::TypeVariable(variable) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
@@ -683,7 +716,7 @@ impl<'context> Elaborator<'context> {
     ) -> Result<(TypeVariable, Rc<String>), ResolverError> {
         // Map the generic to a fresh type variable
         match generic {
-            UnresolvedGeneric::Variable(_) | UnresolvedGeneric::Numeric { .. } => {
+            UnresolvedGeneric::Variable(..) | UnresolvedGeneric::Numeric { .. } => {
                 let id = self.interner.next_type_variable_id();
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
@@ -712,7 +745,7 @@ impl<'context> Elaborator<'context> {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
             let typ = if unresolved_typ.is_type_expression() {
-                self.resolve_type_inner(
+                self.resolve_type_with_kind(
                     unresolved_typ.clone(),
                     &Kind::numeric(Type::default_int_type()),
                 )
@@ -889,12 +922,24 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
+        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
+    }
+
+    pub fn use_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
+        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
+    }
+
+    fn resolve_trait_bound_inner(
+        &mut self,
+        bound: &TraitBound,
+        mode: PathResolutionMode,
+    ) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
 
         let (ordered, named) =
-            self.resolve_type_args(bound.trait_generics.clone(), trait_id, location);
+            self.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, mode);
 
         let trait_generics = TraitGenerics { ordered, named };
         Some(ResolvedTraitBound { trait_id, trait_generics, location })
@@ -935,10 +980,15 @@ impl<'context> Elaborator<'context> {
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
         let is_pub_allowed = self.pub_allowed(func, in_contract);
         self.add_generics(&func.def.generics);
-        let mut generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-        let new_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
-        generics.extend(new_generics.into_iter().map(|generic| generic.type_var));
+        let func_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+
+        let associated_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
+        let mut generics = vecmap(associated_generics, |generic| generic.type_var);
+
+        // We put associated generics first, as they are implicit and implicit generics
+        // come before explicit generics (see `Type::instantiate_with`).
+        generics.extend(func_generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
 
@@ -957,7 +1007,7 @@ impl<'context> Elaborator<'context> {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
                 // Function parameters have Kind::Normal
-                _ => self.resolve_type_inner(typ, &Kind::Normal),
+                _ => self.resolve_type_with_kind(typ, &Kind::Normal),
             };
 
             self.check_if_type_is_valid_for_program_input(
@@ -983,7 +1033,7 @@ impl<'context> Elaborator<'context> {
             parameter_types.push(typ);
         }
 
-        let return_type = Box::new(self.resolve_type(func.return_type()));
+        let return_type = Box::new(self.use_type(func.return_type()));
 
         let mut typ = Type::Function(
             parameter_types,
@@ -1112,8 +1162,7 @@ impl<'context> Elaborator<'context> {
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
-            lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
-                .map(Into::into)
+            lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
     }
 
@@ -1440,10 +1489,13 @@ impl<'context> Elaborator<'context> {
         &mut self,
         module: LocalModuleId,
         impls: &mut [(UnresolvedGenerics, Location, UnresolvedFunctions)],
+        self_type: &UnresolvedType,
     ) {
         self.local_module = module;
 
         for (generics, location, unresolved) in impls {
+            self.check_generics_appear_in_type(generics, self_type);
+
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
             self.declare_methods_on_struct(None, unresolved, *location);
@@ -1649,7 +1701,7 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let typ = self.resolve_type(alias.type_alias_def.typ);
+        let typ = self.use_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
@@ -1942,10 +1994,14 @@ impl<'context> Elaborator<'context> {
 
         let location = let_stmt.pattern.location();
 
-        if !self.in_contract()
-            && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
-        {
-            self.push_err(ResolverError::AbiAttributeOutsideContract { location });
+        if !self.in_contract() {
+            for attr in &let_stmt.attributes {
+                if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
+                        location: attr.location,
+                    });
+                }
+            }
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
@@ -2025,6 +2081,7 @@ impl<'context> Elaborator<'context> {
             for (generics, _, function_set) in function_sets {
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
+
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
                 self.define_function_metas_for_functions(function_set);
@@ -2164,6 +2221,46 @@ impl<'context> Elaborator<'context> {
             })
     }
 
+    /// Check that all the generics show up in `self_type` (if they don't, we produce an error)
+    fn check_generics_appear_in_type(
+        &mut self,
+        generics: &[UnresolvedGeneric],
+        self_type: &UnresolvedType,
+    ) {
+        if generics.is_empty() {
+            return;
+        }
+
+        // Turn each generic into an Ident
+        let mut idents = HashSet::new();
+        for generic in generics {
+            match generic {
+                UnresolvedGeneric::Variable(ident, _) => {
+                    idents.insert(ident.clone());
+                }
+                UnresolvedGeneric::Numeric { ident, typ: _ } => {
+                    idents.insert(ident.clone());
+                }
+                UnresolvedGeneric::Resolved(quoted_type_id, span) => {
+                    if let Type::NamedGeneric(_type_variable, name) =
+                        self.interner.get_quoted_type(*quoted_type_id).follow_bindings()
+                    {
+                        idents.insert(Ident::new(name.to_string(), *span));
+                    }
+                }
+            }
+        }
+
+        // Remove the ones that show up in `self_type`
+        let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
+        self_type.accept(&mut visitor);
+
+        // The ones that remain are not mentioned in the impl: it's an error.
+        for ident in idents {
+            self.push_err(ResolverError::UnconstrainedTypeParameter { ident });
+        }
+    }
+
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
@@ -2180,5 +2277,17 @@ impl<'context> Elaborator<'context> {
         let ret = f(self);
         let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());
         (errored, ret)
+    }
+}
+
+struct RemoveGenericsAppearingInTypeVisitor<'a> {
+    idents: &'a mut HashSet<Ident>,
+}
+
+impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
+    fn visit_path(&mut self, path: &Path) {
+        if let Some(ident) = path.as_ident() {
+            self.idents.remove(ident);
+        }
     }
 }
