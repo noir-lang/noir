@@ -252,7 +252,7 @@ fn build_calls_to_update(
 ///
 /// This structure should be built by analyzing the unchanged SSA
 /// and later used to perform updates.
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash)]
 struct CallToUpdate {
     entry_point: FunctionId,
     function_to_update: FunctionId,
