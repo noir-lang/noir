@@ -2860,9 +2860,9 @@ mod test {
     #[test]
     fn do_not_overflow_with_constant_constrain_neq() {
         // Test that we appropriately fetch the assertion payload opcode location.
-        // We expect this constrain neq to be simplified and not lay down any opcodes. 
+        // We expect this constrain neq to be simplified and not lay down any opcodes.
         // As the constrain neq is the first opcode, if we do not fetch the last opcode
-        // location correctly we can potentially trigger an overflow. 
+        // location correctly we can potentially trigger an overflow.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():

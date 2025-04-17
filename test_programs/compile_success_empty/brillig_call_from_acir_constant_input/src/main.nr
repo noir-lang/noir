@@ -12,8 +12,8 @@ pub fn bar(input: Field) {
     let output = unsafe { foo(input) };
 
     // This test requires an assert message.
-    // Non-equality can potentially be a no-op during ACIR gen. 
-    // We want to make sure that we are appropriately indexing our 
+    // Non-equality can potentially be a no-op during ACIR gen.
+    // We want to make sure that we are appropriately indexing our
     // assertion payload opcode location in the case our first opcode
     // is constraining non-equality and resulted in a no-op.
     assert(output != 0, "");
