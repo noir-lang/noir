@@ -1,12 +1,8 @@
 use crate::ast::PathSegment;
 use crate::parse_program;
-use crate::parser::ParsedModule;
+use crate::parser::{ParsedModule, ParsedSubModule};
 use crate::signed_field::SignedField;
-use crate::{
-    ast,
-    ast::Path,
-    parser::{Item, ItemKind},
-};
+use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
 use noirc_errors::{Location, Span};
@@ -60,13 +56,24 @@ impl Default for DebugInstrumenter {
 impl DebugInstrumenter {
     pub fn instrument_module(&mut self, module: &mut ParsedModule, file: FileId) {
         module.items.iter_mut().for_each(|item| {
-            if let Item { kind: ItemKind::Function(f), .. } = item {
-                self.walk_fn(&mut f.def);
+            match &mut item.kind {
+                // Instrument top-level functions of a module
+                ItemKind::Function(f) => self.walk_fn(&mut f.def),
+                // Instrument contract module
+                ItemKind::Submodules(ParsedSubModule {
+                    is_contract: true,
+                    contents: contract_module,
+                    ..
+                }) => {
+                    self.instrument_module(contract_module, file);
+                }
+                _ => (),
             }
         });
+
         // this part absolutely must happen after ast traversal above
         // so that oracle functions don't get wrapped, resulting in infinite recursion:
-        self.insert_state_set_oracle(module, 8, file);
+        self.insert_state_set_oracle(module, file);
     }
 
     fn insert_var(&mut self, var_name: &str) -> Option<SourceVarId> {
@@ -499,8 +506,8 @@ impl DebugInstrumenter {
         }
     }
 
-    fn insert_state_set_oracle(&self, module: &mut ParsedModule, n: u32, file: FileId) {
-        let member_assigns = (1..=n)
+    fn insert_state_set_oracle(&self, module: &mut ParsedModule, file: FileId) {
+        let member_assigns = (1..=MAX_MEMBER_ASSIGN_DEPTH)
             .map(|i| format!["__debug_member_assign_{i}"])
             .collect::<Vec<String>>()
             .join(",\n");
