@@ -199,9 +199,7 @@ impl BrilligGlobals {
                 "ICE: Expected global allocation to be set for function {brillig_function_id}"
             );
         };
-        if entry_points.len() > 1 {
-            dbg!(entry_points.clone());
-        }
+
         // Sanity check: We should have guaranteed earlier that an inner call has only a single entry point
         assert_eq!(entry_points.len(), 1, "{brillig_function_id} has multiple entry points");
         let entry_point = entry_points.first().expect("ICE: Inner call should have an entry point");

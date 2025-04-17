@@ -80,44 +80,22 @@ impl Ssa {
             return self;
         }
 
+        // Build a call graph based upon the Brillig entry points and set up
+        // the functions needing specialization before performing the actual call site rewrites.
         let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
-        let calls_to_update = build_calls_to_update(&mut self, functions_to_clone_map);
+        let (calls_to_update, mut new_functions_map) =
+            build_calls_to_update(&mut self, functions_to_clone_map, &brillig_entry_points);
 
-        // Maps a function to its new specialized function per entry point context
-        // (entry_point -> map(old_id, new_id))
-        let mut new_functions_map: HashMap<FunctionId, HashMap<FunctionId, FunctionId>> =
-            HashMap::default();
-
-        // Collect extra information about the call sites we want to rewrite.
-        // We need to do this as to original calls to update were set-up based upon
-        // the original call sites, not the updates call sites.
-        let mut new_calls_to_update = HashSet::default();
-        for (entry_point, inner_calls) in brillig_entry_points {
-            let function = self.functions.get(&entry_point).expect("ICE: Function does not exist");
-
-            new_calls_to_update.extend(collect_callsites_to_rewrite(
-                function,
-                entry_point,
-                &mut new_functions_map,
-                &calls_to_update,
-            ));
-
-            for inner_call in inner_calls {
-                let function =
-                    self.functions.get(&inner_call).expect("ICE: Function does not exist");
-                new_calls_to_update.extend(collect_callsites_to_rewrite(
-                    function,
-                    entry_point,
-                    &mut new_functions_map,
-                    &calls_to_update,
-                ));
-            }
-        }
-
+        // Now we want to actually rewrite the appropriate call sites
         // First pass to rewrite the originally supplied call graph
-        for (entry_point, function_to_update, instruction_id, new_id, arguments) in
-            new_calls_to_update
+        for CallToUpdate {
+            entry_point,
+            function_to_update,
+            instruction,
+            new_func_to_call: new_id,
+            call_args: arguments,
+        } in calls_to_update
         {
             let new_function_to_update = if entry_point == function_to_update {
                 entry_point
@@ -135,13 +113,14 @@ impl Ssa {
                 .get_mut(&new_function_to_update)
                 .expect("ICE: Function does not exist");
             let new_function_value_id = function.dfg.import_function(new_id);
-            function.dfg[instruction_id] =
+            function.dfg[instruction] =
                 Instruction::Call { func: new_function_value_id, arguments };
         }
 
         // Second pass to rewrite the calls sites in the cloned functions
-        // The list mapping returned from `calls_to_update` only includes the original function IDs
+        // The list of structs mapping call site updates in `calls_to_update` only includes the original function IDs
         // so we risk potentially not rewriting the call sites within the cloned functions themselves.
+        // The cloned functions we are using are stored within the `new_functions_map`.
         for (_, new_functions_per_entry) in new_functions_map {
             for new_function in new_functions_per_entry.values() {
                 let function =
@@ -204,15 +183,23 @@ fn build_functions_to_clone(
     functions_to_clone_map
 }
 
+// Per entry point context, maps the original function to its new specialized function
+// (entry_point -> map(old_id, new_id))
+type NewCallSitesMap = HashMap<FunctionId, HashMap<FunctionId, FunctionId>>;
+
 /// Clones new functions and returns a mapping representing the calls to update.
 ///
-///  Returns a map of (entry point, callee function) -> new callee function id.
+/// Returns a set of [CallToUpdate] containing all information needed to rewrite
+/// a call site and a [NewCallSitesMap]
 fn build_calls_to_update(
     ssa: &mut Ssa,
     functions_to_clone_map: HashMap<FunctionId, Vec<FunctionId>>,
-) -> HashMap<(FunctionId, FunctionId), FunctionId> {
+    brillig_entry_points: &BTreeMap<FunctionId, BTreeSet<FunctionId>>,
+) -> (HashSet<CallToUpdate>, NewCallSitesMap) {
+    // Clone new functions
+    // Map of (entry point, callee function) -> new callee function id.
+    // This will be used internally for determining whether
     let mut calls_to_update: HashMap<(FunctionId, FunctionId), FunctionId> = HashMap::default();
-
     for (entry_point, functions_to_clone) in functions_to_clone_map {
         for old_id in functions_to_clone {
             let function = ssa.functions[&old_id].clone();
@@ -223,7 +210,42 @@ fn build_calls_to_update(
         }
     }
 
-    calls_to_update
+    // Maps a function to its new specialized function per entry point context
+    // (entry_point -> map(old_id, new_id))
+    let mut new_functions_map: NewCallSitesMap = HashMap::default();
+    // Collect extra information about the call sites we want to rewrite.
+    // We need to do this as the original calls to update were set up based upon
+    // the original call sites, not the soon-to-be rewritten call sites.
+    let mut new_calls_to_update = HashSet::default();
+    for (entry_point, inner_calls) in brillig_entry_points {
+        let function = ssa.functions.get(&entry_point).expect("ICE: Function does not exist");
+        new_calls_to_update.extend(collect_callsites_to_rewrite(
+            function,
+            *entry_point,
+            &mut new_functions_map,
+            &calls_to_update,
+        ));
+        for inner_call in inner_calls {
+            let function = ssa.functions.get(&inner_call).expect("ICE: Function does not exist");
+            new_calls_to_update.extend(collect_callsites_to_rewrite(
+                function,
+                *entry_point,
+                &mut new_functions_map,
+                &calls_to_update,
+            ));
+        }
+    }
+
+    (new_calls_to_update, new_functions_map)
+}
+
+#[derive(PartialEq, Eq, Hash)]
+struct CallToUpdate {
+    entry_point: FunctionId,
+    function_to_update: FunctionId,
+    instruction: InstructionId,
+    new_func_to_call: FunctionId,
+    call_args: Vec<ValueId>,
 }
 
 fn collect_callsites_to_rewrite(
@@ -233,7 +255,7 @@ fn collect_callsites_to_rewrite(
     function_per_entry: &mut HashMap<FunctionId, HashMap<FunctionId, FunctionId>>,
     // Maps (entry_point, callee function) -> new callee function id
     calls_to_update: &HashMap<(FunctionId, FunctionId), FunctionId>,
-) -> HashSet<(FunctionId, FunctionId, InstructionId, FunctionId, Vec<ValueId>)> {
+) -> HashSet<CallToUpdate> {
     let mut new_calls_to_update = HashSet::default();
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
@@ -250,13 +272,14 @@ fn collect_callsites_to_rewrite(
             };
 
             function_per_entry.entry(entry_point).or_default().insert(*func_id, *new_id);
-            new_calls_to_update.insert((
+            let new_call = CallToUpdate {
                 entry_point,
-                function.id(),
-                instruction_id,
-                *new_id,
-                arguments,
-            ));
+                function_to_update: function.id(),
+                instruction: instruction_id,
+                new_func_to_call: *new_id,
+                call_args: arguments,
+            };
+            new_calls_to_update.insert(new_call);
         }
     }
     new_calls_to_update
