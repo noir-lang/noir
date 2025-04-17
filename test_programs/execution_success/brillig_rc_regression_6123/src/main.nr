@@ -19,9 +19,9 @@ impl Builder {
 }
 
 fn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to_index: u32) {
-    let tmp = vec.storage[from_index];
-    vec.storage[from_index] = vec.storage[to_index];
-    vec.storage[to_index] = tmp;
+    let tmp = vec.get_unchecked(from_index);
+    vec.set_unchecked(from_index, vec.get_unchecked(to_index));
+    vec.set_unchecked(to_index, tmp);
 }
 
 unconstrained fn main() {

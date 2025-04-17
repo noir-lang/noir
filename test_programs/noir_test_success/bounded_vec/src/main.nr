@@ -55,7 +55,7 @@ fn test_vec_get_unchecked<N>() {
 fn sum_of_first_three<let N: u32>(v: BoundedVec<u32, N>) -> u32 {
     // Always ensure the length is larger than the largest
     // index passed to get_unchecked
-    assert(v.len()() > 2);
+    assert(v.len() > 2);
     let first = v.get_unchecked(0);
     let second = v.get_unchecked(1);
     let third = v.get_unchecked(2);
@@ -124,19 +124,19 @@ fn pop_docs_example() {
 fn len_docs_example() {
     // docs:start:bounded-vec-len-example
     let mut v: BoundedVec<Field, 4> = BoundedVec::new();
-    assert(v.len()() == 0);
+    assert(v.len() == 0);
 
     v.push(100);
-    assert(v.len()() == 1);
+    assert(v.len() == 1);
 
     v.push(200);
     v.push(300);
     v.push(400);
-    assert(v.len()() == 4);
+    assert(v.len() == 4);
 
     let _ = v.pop();
     let _ = v.pop();
-    assert(v.len()() == 2);
+    assert(v.len() == 2);
     // docs:end:bounded-vec-len-example
 }
 

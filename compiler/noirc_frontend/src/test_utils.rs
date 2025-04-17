@@ -187,14 +187,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         "unused_items_warns_on_unused_global",
         "warns_on_nested_unsafe",
         "warns_on_unneeded_unsafe",
-        // TODO(https://github.com/noir-lang/noir/issues/6932): these will be hard errors
-        "visibility_error_when_accessing_private_struct_field",
-        "visibility_error_when_using_private_struct_field_in_constructor",
-        "visibility_error_when_using_private_struct_field_in_struct_pattern",
-        "visibility_errors_if_accessing_private_struct_member_inside_comptime_context",
-        "visibility_errors_if_accessing_private_struct_member_inside_function_generated_at_comptime",
-        "visibility_errors_if_trying_to_access_public_function_inside_private_module",
-        "visibility_errors_once_on_unused_import_that_is_not_accessible",
         // TODO(https://github.com/noir-lang/noir/issues/7795): these will be hard errors
         "indexing_array_with_non_u32_on_lvalue_produces_a_warning",
         "indexing_array_with_non_u32_produces_a_warning",
