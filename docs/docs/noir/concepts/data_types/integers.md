@@ -115,9 +115,9 @@ fn main() {
 Although integer overflow is expected to error, some use-cases rely on wrapping. For these use-cases, the standard library provides `wrapping` variants of certain common operations via Wrapping traits in `std::ops`
 
 ```rust
- fn wrapping_add(self, y: Self) -> Self;
- fn wrapping_sub(self, y: Self) -> Self;
- fn wrapping_mul(self, y: Self) -> Self;
+fn wrapping_add(self, y: Self) -> Self;
+fn wrapping_sub(self, y: Self) -> Self;
+fn wrapping_mul(self, y: Self) -> Self;
 ```
 
 Example of how it is used:
