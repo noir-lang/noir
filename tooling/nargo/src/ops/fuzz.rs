@@ -261,24 +261,22 @@ where
                         &mut foreign_call_executor,
                     );
                     match execution_failure {
-                        Err(err) => {
-                            return FuzzingRunStatus::ExecutionFailure {
-                                message: if fuzzing_harness.should_fail_enabled() {
-                                    format!(
+                        Err(err) => FuzzingRunStatus::ExecutionFailure {
+                            message: if fuzzing_harness.should_fail_enabled() {
+                                format!(
                                                 "Expected failure message \"{}\", but got a different failing assertion",
                                                 fuzzing_harness.failure_reason().expect("There should be a failure reason if we detected a different failure reason during fuzzing")
                                             )
-                                } else {
-                                    program_failure_result.failure_reason
-                                },
-                                counterexample: Some((program_failure_result.counterexample, abi)),
-                                error_diagnostic: try_to_diagnose_runtime_error(
-                                    &err,
-                                    &unwrapped_acir_program.abi,
-                                    &unwrapped_acir_program.debug,
-                                ),
-                            };
-                        }
+                            } else {
+                                program_failure_result.failure_reason
+                            },
+                            counterexample: Some((program_failure_result.counterexample, abi)),
+                            error_diagnostic: try_to_diagnose_runtime_error(
+                                &err,
+                                &unwrapped_acir_program.abi,
+                                &unwrapped_acir_program.debug,
+                            ),
+                        },
                         // Maybe it was the brillig version that failed and we hade a discrepancy?
                         Ok(..) => {
                             // Collect failing callstack from brillig
@@ -296,27 +294,25 @@ where
                                 &mut foreign_call_executor,
                             );
                             match execution_failure {
-                                Err(err) => {
-                                    return FuzzingRunStatus::ExecutionFailure {
-                                        message: if fuzzing_harness.should_fail_enabled() {
-                                            format!(
+                                Err(err) => FuzzingRunStatus::ExecutionFailure {
+                                    message: if fuzzing_harness.should_fail_enabled() {
+                                        format!(
                                                 "Expected failure message \"{}\", but got a different failing assertion",
                                                 fuzzing_harness.failure_reason().expect("There should be a failure reason if we detected a different failure reason during fuzzing")
                                             )
-                                        } else {
-                                            program_failure_result.failure_reason
-                                        },
-                                        counterexample: Some((
-                                            program_failure_result.counterexample,
-                                            abi,
-                                        )),
-                                        error_diagnostic: try_to_diagnose_runtime_error(
-                                            &err,
-                                            &unwrapped_brillig_program.abi,
-                                            &unwrapped_brillig_program.debug,
-                                        ),
-                                    };
-                                }
+                                    } else {
+                                        program_failure_result.failure_reason
+                                    },
+                                    counterexample: Some((
+                                        program_failure_result.counterexample,
+                                        abi,
+                                    )),
+                                    error_diagnostic: try_to_diagnose_runtime_error(
+                                        &err,
+                                        &unwrapped_brillig_program.abi,
+                                        &unwrapped_brillig_program.debug,
+                                    ),
+                                },
                                 Ok(..) => {
                                     if fuzzing_harness.should_fail_enabled() {
                                         return FuzzingRunStatus::ExecutionFailure {
@@ -336,7 +332,7 @@ where
                                 }
                             }
                         }
-                    };
+                    }
                 }
                 FuzzTestResult::CorpusFailure(error) => {
                     FuzzingRunStatus::CorpusFailure { message: error }

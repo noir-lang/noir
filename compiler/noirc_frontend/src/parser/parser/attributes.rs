@@ -60,7 +60,6 @@ impl Parser<'_> {
     ///     | 'fuzz' '(' 'only_fail_with' '=' string ')'
     ///     | 'fuzz' '(' 'should_fail' ')'
     ///     | 'fuzz' '(' 'should_fail_with' '=' string ')'
-
     ///
     /// SecondaryAttribute
     ///     = 'abi' '(' AttributeValue ')'

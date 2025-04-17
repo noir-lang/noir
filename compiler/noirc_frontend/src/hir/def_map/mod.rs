@@ -444,7 +444,6 @@ impl FuzzingHarness {
     /// Returns true if the fuzzing harness has been specified to fail
     /// This is done by annotating the function with `#[fuzz(should_fail)]`
     /// or `#[fuzz(should_fail_with = "reason")]`
-
     pub fn should_fail_enabled(&self) -> bool {
         match self.scope {
             FuzzingScope::OnlyFailWith { .. } => false,
