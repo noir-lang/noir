@@ -139,6 +139,9 @@ where
 
     let acir_program =
         compile_no_check(context, &acir_config, fuzzing_harness.get_id(), None, false);
+
+    // We need to clone the acir program because it will be moved into the fuzzer
+    // and we need to keep the original program for the error message and callstack
     let acir_program_copy = if let Ok(acir_program_internal) = &acir_program {
         Some(acir_program_internal.clone())
     } else {
@@ -225,6 +228,7 @@ where
                 FuzzedExecutorFailureConfiguration {
                     fail_on_specific_asserts: fuzzing_harness.only_fail_enabled(),
                     failure_reason: fuzzing_harness.failure_reason(),
+                    should_always_fail: fuzzing_harness.should_fail_enabled(),
                 },
                 FuzzedExecutorFolderConfiguration {
                     corpus_dir: fuzz_folder_config.corpus_dir.clone(),
@@ -256,12 +260,25 @@ where
                         &B::default(),
                         &mut foreign_call_executor,
                     );
-                    let error_diagnostic = match execution_failure {
-                        Err(err) => try_to_diagnose_runtime_error(
-                            &err,
-                            &unwrapped_acir_program.abi,
-                            &unwrapped_acir_program.debug,
-                        ),
+                    match execution_failure {
+                        Err(err) => {
+                            return FuzzingRunStatus::ExecutionFailure {
+                                message: if fuzzing_harness.should_fail_enabled() {
+                                    format!(
+                                                "Expected failure message \"{}\", but got a different failing assertion",
+                                                fuzzing_harness.failure_reason().expect("There should be a failure reason if we detected a different failure reason during fuzzing")
+                                            )
+                                } else {
+                                    program_failure_result.failure_reason
+                                },
+                                counterexample: Some((program_failure_result.counterexample, abi)),
+                                error_diagnostic: try_to_diagnose_runtime_error(
+                                    &err,
+                                    &unwrapped_acir_program.abi,
+                                    &unwrapped_acir_program.debug,
+                                ),
+                            };
+                        }
                         // Maybe it was the brillig version that failed and we hade a discrepancy?
                         Ok(..) => {
                             // Collect failing callstack from brillig
@@ -279,22 +296,47 @@ where
                                 &mut foreign_call_executor,
                             );
                             match execution_failure {
-                                Err(err) => try_to_diagnose_runtime_error(
-                                    &err,
-                                    &unwrapped_brillig_program.abi,
-                                    &unwrapped_brillig_program.debug,
-                                ),
-                                Ok(..) => panic!(
-                                    "The program being executed or the system is flakey. Found a failing testcase that didn't fail on reexecution"
-                                ),
+                                Err(err) => {
+                                    return FuzzingRunStatus::ExecutionFailure {
+                                        message: if fuzzing_harness.should_fail_enabled() {
+                                            format!(
+                                                "Expected failure message \"{}\", but got a different failing assertion",
+                                                fuzzing_harness.failure_reason().expect("There should be a failure reason if we detected a different failure reason during fuzzing")
+                                            )
+                                        } else {
+                                            program_failure_result.failure_reason
+                                        },
+                                        counterexample: Some((
+                                            program_failure_result.counterexample,
+                                            abi,
+                                        )),
+                                        error_diagnostic: try_to_diagnose_runtime_error(
+                                            &err,
+                                            &unwrapped_brillig_program.abi,
+                                            &unwrapped_brillig_program.debug,
+                                        ),
+                                    };
+                                }
+                                Ok(..) => {
+                                    if fuzzing_harness.should_fail_enabled() {
+                                        return FuzzingRunStatus::ExecutionFailure {
+                                            message:
+                                                "Discovered a testcase that should fail but didn't"
+                                                    .to_owned(),
+                                            counterexample: Some((
+                                                program_failure_result.counterexample,
+                                                abi,
+                                            )),
+                                            error_diagnostic: None,
+                                        };
+                                    }
+                                    panic!(
+                                        "The program being executed or the system is flakey. Found a failing testcase that didn't fail on reexecution"
+                                    )
+                                }
                             }
                         }
                     };
-                    FuzzingRunStatus::ExecutionFailure {
-                        message: program_failure_result.failure_reason,
-                        counterexample: Some((program_failure_result.counterexample, abi)),
-                        error_diagnostic,
-                    }
                 }
                 FuzzTestResult::CorpusFailure(error) => {
                     FuzzingRunStatus::CorpusFailure { message: error }

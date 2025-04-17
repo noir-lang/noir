@@ -271,10 +271,13 @@ pub struct FuzzedExecutorExecutionConfiguration {
 }
 
 pub struct FuzzedExecutorFailureConfiguration {
-    /// Fail on specific asserts
+    /// Fail on specific asserts (when you use `fuzz(only_fail_with = "...")`)
     pub fail_on_specific_asserts: bool,
 
-    /// Failure reason
+    /// We expect the fuzzed program to always fail (when you use `fuzz(should_fail)` or `fuzz(should_fail_with = "...")` )
+    pub should_always_fail: bool,
+
+    /// Failure reason (when you use `fuzz(should_fail_with = "...")` or `fuzz(only_fail_with = "...")`)
     pub failure_reason: Option<String>,
 }
 
@@ -1023,6 +1026,14 @@ impl<
         // Parse results
         match (result_acir, result_brillig) {
             (Ok(witnesses), Ok((_map, brillig_coverage))) => {
+                // If we expect the program to always fail, we need to return a counter example
+                if self.failure_configuration.should_always_fail {
+                    return HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                        case_id: testcase.id(),
+                        exit_reason: "".to_string(),
+                        counterexample: testcase.value().clone(),
+                    });
+                }
                 // If both were OK, collect coverage and ACIR witnesses along with timings and return
                 HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                     case_id: testcase.id(),
@@ -1054,15 +1065,63 @@ impl<
                         types::ForeignCallErrorInFuzzing { exit_reason: err },
                     );
                 }
-                // If failures are expected and this is not the failure that we are looking for, then don't treat as failure
-                if self.failure_configuration.fail_on_specific_asserts
-                    && !err.contains(
-                        self.failure_configuration
-                            .failure_reason
-                            .as_ref()
-                            .expect("Failure reason should be provided"),
-                    )
-                {
+                // This failure is not really a failure, if:
+                // 1. We expect the program to always fail (should_fail)
+                // 2. We expect the program to fail with a specific reason and this is the failure we expect (should_fail_with = "...")
+                // 3. Only a particular failure reason is considered a failure (only_fail_with = "...") and this is NOT that failure reason
+                if let Some(failure_reason) = &self.failure_configuration.failure_reason {
+                    // If the failure reason is in the error message
+                    if err.contains(failure_reason) {
+                        // And the program is expected to always fail with that reason, then it's not a failure
+                        if self.failure_configuration.should_always_fail {
+                            return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                                case_id: testcase.id(),
+                                case: testcase.value().clone(),
+                                witness: None,
+                                brillig_coverage: coverage,
+                                acir_duration_micros: acir_elapsed.as_micros(),
+                                brillig_duration_micros: brillig_elapsed.as_micros(),
+                            });
+                        }
+                        // However, if we are searching for this specific failure with `only_fail_with = "..."`, then it's a failure
+                        if self.failure_configuration.fail_on_specific_asserts {
+                            return HarnessExecutionOutcome::CounterExample(
+                                CounterExampleOutcome {
+                                    case_id: testcase.id(),
+                                    exit_reason: err,
+                                    counterexample: testcase.value().clone(),
+                                },
+                            );
+                        }
+                        unreachable!(
+                            "Failure reason should be provided only if we specify `only_fail_with = \"...\"` or `should_fail_with = \"...\"`"
+                        );
+                    }
+                    // The error didn't match the one specified, which is unexpected and so an actual failure
+                    if self.failure_configuration.should_always_fail {
+                        return HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                            case_id: testcase.id(),
+                            exit_reason: err,
+                            counterexample: testcase.value().clone(),
+                        });
+                    }
+                    // This is not the failure we are looking for, so it's a success
+                    if self.failure_configuration.fail_on_specific_asserts {
+                        return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: None,
+                            brillig_coverage: coverage,
+                            acir_duration_micros: acir_elapsed.as_micros(),
+                            brillig_duration_micros: brillig_elapsed.as_micros(),
+                        });
+                    }
+                    unreachable!(
+                        "Failure reason should be provided only if we specify `only_fail_with = \"...\"` or `should_fail_with = \"...\"`"
+                    );
+                }
+                // If we are not tracking failure messages, then it all depends on whether the program is expected to fail
+                if self.failure_configuration.should_always_fail {
                     return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                         case_id: testcase.id(),
                         case: testcase.value().clone(),
@@ -1092,29 +1151,88 @@ impl<
         let acir_elapsed = acir_start.elapsed();
 
         match result_acir {
-            Ok(witnesses) => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                case_id: testcase.id(),
-                case: testcase.value().clone(),
-                witness: Some(witnesses),
-                brillig_coverage: None,
-                acir_duration_micros: acir_elapsed.as_micros(),
-                brillig_duration_micros: 0,
-            }),
+            Ok(witnesses) => {
+                // If we expect the program to always fail, we need to return a counter example
+                if self.failure_configuration.should_always_fail {
+                    return HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                        case_id: testcase.id(),
+                        exit_reason: "".to_string(),
+                        counterexample: testcase.value().clone(),
+                    });
+                }
+                HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                    case_id: testcase.id(),
+                    case: testcase.value().clone(),
+                    witness: Some(witnesses),
+                    brillig_coverage: None,
+                    acir_duration_micros: acir_elapsed.as_micros(),
+                    brillig_duration_micros: 0,
+                })
+            }
             Err(err) => {
                 if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
                     return HarnessExecutionOutcome::ForeignCallFailure(
                         types::ForeignCallErrorInFuzzing { exit_reason: err },
                     );
                 }
-                if self.failure_configuration.fail_on_specific_asserts
-                    && !err.contains(
-                        self.failure_configuration
-                            .failure_reason
-                            .as_ref()
-                            .expect("Failure reason should be provided"),
-                    )
-                {
-                    // TODO: in the future we can add partial witness propagation from ACIR
+
+                // This failure is not really a failure, if:
+                // 1. We expect the program to always fail (should_fail)
+                // 2. We expect the program to fail with a specific reason and this is the failure we expect (should_fail_with = "...")
+                // 3. Only a particular failure reason is considered a failure (only_fail_with = "...") and this is NOT that failure reason
+                if let Some(failure_reason) = &self.failure_configuration.failure_reason {
+                    // If the failure reason is in the error message
+                    if err.contains(failure_reason) {
+                        // And the program is expected to always fail with that reason, then it's not a failure
+                        if self.failure_configuration.should_always_fail {
+                            return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                                case_id: testcase.id(),
+                                case: testcase.value().clone(),
+                                witness: None,
+                                brillig_coverage: None,
+                                acir_duration_micros: acir_elapsed.as_micros(),
+                                brillig_duration_micros: 0,
+                            });
+                        }
+                        // However, if we are searching for this specific failure with `only_fail_with = "..."`, then it's a failure
+                        if self.failure_configuration.fail_on_specific_asserts {
+                            return HarnessExecutionOutcome::CounterExample(
+                                CounterExampleOutcome {
+                                    case_id: testcase.id(),
+                                    exit_reason: err,
+                                    counterexample: testcase.value().clone(),
+                                },
+                            );
+                        }
+                        unreachable!(
+                            "Failure reason should be provided only if we specify `only_fail_with = \"...\"` or `should_fail_with = \"...\"`"
+                        );
+                    }
+                    // The error didn't match the one specified, which is unexpected and so an actual failure
+                    if self.failure_configuration.should_always_fail {
+                        return HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                            case_id: testcase.id(),
+                            exit_reason: err,
+                            counterexample: testcase.value().clone(),
+                        });
+                    }
+                    // This is not the failure we are looking for, so it's a success
+                    if self.failure_configuration.fail_on_specific_asserts {
+                        return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: None,
+                            brillig_coverage: None,
+                            acir_duration_micros: acir_elapsed.as_micros(),
+                            brillig_duration_micros: 0,
+                        });
+                    }
+                    unreachable!(
+                        "Failure reason should be provided only if we specify `only_fail_with = \"...\"` or `should_fail_with = \"...\"`"
+                    );
+                }
+                // If we are not tracking failure messages, then it all depends on whether the program is expected to fail
+                if self.failure_configuration.should_always_fail {
                     return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                         case_id: testcase.id(),
                         case: testcase.value().clone(),
@@ -1124,6 +1242,8 @@ impl<
                         brillig_duration_micros: 0,
                     });
                 }
+
+                // This is a bug, inform the user
                 HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
@@ -1146,37 +1266,99 @@ impl<
         let brillig_elapsed = brillig_start.elapsed();
 
         match result_brillig {
-            Ok((_, brillig_coverage)) => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                case_id: testcase.id(),
-                case: testcase.value().clone(),
-                witness: None,
-                brillig_coverage: Some(brillig_coverage.unwrap()),
-                acir_duration_micros: 0,
-                brillig_duration_micros: brillig_elapsed.as_micros(),
-            }),
+            Ok((_, brillig_coverage)) => {
+                // If we expect the program to always fail, we need to return a counter example
+                if self.failure_configuration.should_always_fail {
+                    return HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                        case_id: testcase.id(),
+                        exit_reason: "".to_string(),
+                        counterexample: testcase.value().clone(),
+                    });
+                }
+                HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                    case_id: testcase.id(),
+                    case: testcase.value().clone(),
+                    witness: None,
+                    brillig_coverage: Some(brillig_coverage.unwrap()),
+                    acir_duration_micros: 0,
+                    brillig_duration_micros: brillig_elapsed.as_micros(),
+                })
+            }
             Err((err, coverage)) => {
                 if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
                     return HarnessExecutionOutcome::ForeignCallFailure(
                         types::ForeignCallErrorInFuzzing { exit_reason: err },
                     );
                 }
-                if self.failure_configuration.fail_on_specific_asserts
-                    && !err.contains(
-                        self.failure_configuration
-                            .failure_reason
-                            .as_ref()
-                            .expect("Failure reason should be provided"),
-                    )
-                {
+
+                // This failure is not really a failure, if:
+                // 1. We expect the program to always fail (should_fail)
+                // 2. We expect the program to fail with a specific reason and this is the failure we expect (should_fail_with = "...")
+                // 3. Only a particular failure reason is considered a failure (only_fail_with = "...") and this is NOT that failure reason
+                if let Some(failure_reason) = &self.failure_configuration.failure_reason {
+                    // If the failure reason is in the error message
+                    if err.contains(failure_reason) {
+                        // And the program is expected to always fail with that reason, then it's not a failure
+                        if self.failure_configuration.should_always_fail {
+                            return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                                case_id: testcase.id(),
+                                case: testcase.value().clone(),
+                                witness: None,
+                                brillig_coverage: coverage,
+                                acir_duration_micros: 0,
+                                brillig_duration_micros: brillig_elapsed.as_micros(),
+                            });
+                        }
+                        // However, if we are searching for this specific failure with `only_fail_with = "..."`, then it's a failure
+                        if self.failure_configuration.fail_on_specific_asserts {
+                            return HarnessExecutionOutcome::CounterExample(
+                                CounterExampleOutcome {
+                                    case_id: testcase.id(),
+                                    exit_reason: err,
+                                    counterexample: testcase.value().clone(),
+                                },
+                            );
+                        }
+                        unreachable!(
+                            "Failure reason should be provided only if we specify `only_fail_with = \"...\"` or `should_fail_with = \"...\"`"
+                        );
+                    }
+                    // The error didn't match the one specified, which is unexpected and so an actual failure
+                    if self.failure_configuration.should_always_fail {
+                        return HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                            case_id: testcase.id(),
+                            exit_reason: err,
+                            counterexample: testcase.value().clone(),
+                        });
+                    }
+                    // This is not the failure we are looking for, so it's a success
+                    if self.failure_configuration.fail_on_specific_asserts {
+                        return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: None,
+                            brillig_coverage: coverage,
+                            acir_duration_micros: 0,
+                            brillig_duration_micros: brillig_elapsed.as_micros(),
+                        });
+                    }
+                    unreachable!(
+                        "Failure reason should be provided only if we specify `only_fail_with = \"...\"` or `should_fail_with = \"...\"`"
+                    );
+                }
+                // If we are not tracking failure messages, then it all depends on whether the program is expected to fail
+                if self.failure_configuration.should_always_fail {
                     return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                         case_id: testcase.id(),
                         case: testcase.value().clone(),
                         witness: None,
-                        brillig_coverage: Some(coverage.unwrap()),
+                        brillig_coverage: coverage,
                         acir_duration_micros: 0,
                         brillig_duration_micros: brillig_elapsed.as_micros(),
                     });
                 }
+
+                // This is a bug, inform the user
                 HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
