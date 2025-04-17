@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744900326534,
+  "lastUpdate": 1744900550200,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3d1f8b2639d0b1faf31c26610d5a0d3b1e386b21",
-          "message": "chore: use insta snapshots for ssa tests (#7989)",
-          "timestamp": "2025-04-11T10:21:52Z",
-          "tree_id": "5c12ebc7bb49e819dd975b2147d56a4b7a8e4e8f",
-          "url": "https://github.com/noir-lang/noir/commit/3d1f8b2639d0b1faf31c26610d5a0d3b1e386b21"
-        },
-        "date": 1744368196888,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.075,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.296,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.818,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.555,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.027,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "859fd0f97887c5c1a5a95f679c9ee517f7c33509",
+          "message": "feat: avoid unnecessary zero check in brillig overflow check (#8109)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-17T14:12:51Z",
+          "tree_id": "b8b0f17df2c623ff06d699adc862f76af789cef1",
+          "url": "https://github.com/noir-lang/noir/commit/859fd0f97887c5c1a5a95f679c9ee517f7c33509"
+        },
+        "date": 1744900544440,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.164,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.335,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.213,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.5,
             "unit": "s"
           },
           {
