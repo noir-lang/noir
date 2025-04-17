@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744900550200,
+  "lastUpdate": 1744900552175,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3d1f8b2639d0b1faf31c26610d5a0d3b1e386b21",
-          "message": "chore: use insta snapshots for ssa tests (#7989)",
-          "timestamp": "2025-04-11T10:21:52Z",
-          "tree_id": "5c12ebc7bb49e819dd975b2147d56a4b7a8e4e8f",
-          "url": "https://github.com/noir-lang/noir/commit/3d1f8b2639d0b1faf31c26610d5a0d3b1e386b21"
-        },
-        "date": 1744368197483,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.684,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.6,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.455,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.268,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.094,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.91,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 130,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.871,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.416,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.428,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "859fd0f97887c5c1a5a95f679c9ee517f7c33509",
+          "message": "feat: avoid unnecessary zero check in brillig overflow check (#8109)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-17T14:12:51Z",
+          "tree_id": "b8b0f17df2c623ff06d699adc862f76af789cef1",
+          "url": "https://github.com/noir-lang/noir/commit/859fd0f97887c5c1a5a95f679c9ee517f7c33509"
+        },
+        "date": 1744900545892,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.666,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.3,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.46,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.32,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.246,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.088,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.874,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 115,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.871,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.464,
             "unit": "s"
           }
         ]
