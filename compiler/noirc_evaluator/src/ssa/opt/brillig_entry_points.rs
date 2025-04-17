@@ -133,8 +133,16 @@ impl Ssa {
     }
 }
 
+/// Given that we have already rewritten all the call sites among the original SSA,
+/// this function provides a helper for resolving the call sites within cloned functions.
+/// This function will update  a cloned function according to the supplied function mapping.
+/// The function assumes that the supplied mapping is per entry point and handled
+/// by the caller of this method.
 fn resolve_cloned_function_call_sites(
+    // Function that was cloned earlier in the pass to specialize functions
+    // in the original SSA
     function: &mut Function,
+    // Per entry point, maps (old function -> new function)
     new_functions_map: &HashMap<FunctionId, FunctionId>,
 ) {
     for block_id in function.reachable_blocks() {
@@ -239,7 +247,12 @@ fn build_calls_to_update(
     (new_calls_to_update, new_functions_map)
 }
 
-#[derive(PartialEq, Eq, Hash)]
+/// Stores the information necessary to appropriately update
+/// the call sites across the Brillig entry point graph
+///
+/// This structure should be built by analyzing the unchanged SSA
+/// and later used to perform updates.
+#[derive(PartialEq, Eq, Hash, Debug)]
 struct CallToUpdate {
     entry_point: FunctionId,
     function_to_update: FunctionId,
@@ -248,11 +261,16 @@ struct CallToUpdate {
     call_args: Vec<ValueId>,
 }
 
+/// Go through the supplied function and based upon the call sites
+/// set in the `calls_to_update` map build the set of call sites
+/// that should be rewritten.
+/// Upon finding call sites that should be rewritten this method will also
+/// update the mapping of old functions to new functions in the supplied [NewCallSitesMap].
 fn collect_callsites_to_rewrite(
     function: &Function,
     entry_point: FunctionId,
     // Maps (entry_point -> map(old_id, new_id))
-    function_per_entry: &mut HashMap<FunctionId, HashMap<FunctionId, FunctionId>>,
+    function_per_entry: &mut NewCallSitesMap,
     // Maps (entry_point, callee function) -> new callee function id
     calls_to_update: &HashMap<(FunctionId, FunctionId), FunctionId>,
 ) -> HashSet<CallToUpdate> {
