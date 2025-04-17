@@ -6,7 +6,7 @@ mod Foo {
 
 mod Bar {
     pub(crate) use crate::Foo::NewType;
-    use crate::Foo::NewType as BarStruct;
+    pub(crate) use crate::Foo::NewType as BarStruct;
 }
 
 mod Baz {
@@ -14,7 +14,7 @@ mod Baz {
         pub(crate) a: Field,
     }
     pub(crate) use crate::Bar::BarStruct;
-    use crate::Bar::NewType;
+    pub(crate) use crate::Bar::NewType;
 }
 
 fn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub Field {

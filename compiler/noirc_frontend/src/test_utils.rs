@@ -175,7 +175,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
     let error_to_warn_cases = [
         "cast_256_to_u8_size_checks",
         "enums_errors_on_unspecified_unstable_enum",
-        "imports_warns_on_use_of_private_exported_item",
         "metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
         "resolve_unused_var",
         "struct_array_len",

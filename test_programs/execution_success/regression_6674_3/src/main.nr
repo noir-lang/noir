@@ -124,11 +124,12 @@ pub struct PrivateKernelCircuitPublicInputsComposer {
 impl PrivateKernelCircuitPublicInputsComposer {
     pub unconstrained fn sort_ordered_values(&mut self) {
         // Note hashes, nullifiers, and private logs are sorted in the reset circuit.
-        self.public_inputs.end.l2_to_l1_msgs.storage =
-            sort_by_counter_desc(self.public_inputs.end.l2_to_l1_msgs.storage());
-        self.public_inputs.end.public_call_requests.storage =
-            sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage());
-    }
+        self.public_inputs.end.l2_to_l1_msgs = BoundedVec::from_parts_unchecked(
+            sort_by_counter_desc(self.public_inputs.end.l2_to_l1_msgs.storage()), self.public_inputs.end.l2_to_l1_msgs.len());
+        
+        self.public_inputs.end.public_call_requests = BoundedVec::from_parts_unchecked(
+            sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage()), self.public_inputs.end.public_call_requests.len());
+        }
 }
 
 impl PrivateKernelCircuitPublicInputsComposer {

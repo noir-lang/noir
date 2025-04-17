@@ -561,3 +561,28 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn errors_on_use_of_private_exported_item() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+
+        use bar::baz;
+
+        pub fn qux() {
+            baz();
+        }
+    }
+
+    fn main() {
+        foo::baz();
+             ^^^ baz is private and not visible from the current module
+             ~~~ baz is private
+    }
+    "#;
+    check_errors!(src);
+}
