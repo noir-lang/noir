@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744902757694,
+  "lastUpdate": 1744903657866,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17956,42 +17956,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e962a6a657b94dc5aa1442c3fda5e6fec8997f52",
-          "message": "chore: clippy fixes (#8020)",
-          "timestamp": "2025-04-11T12:39:29Z",
-          "tree_id": "e768e076f7b0405da9ec3115a51f0f7dab1e2e47",
-          "url": "https://github.com/noir-lang/noir/commit/e962a6a657b94dc5aa1442c3fda5e6fec8997f52"
-        },
-        "date": 1744376217660,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 3609079,
-            "range": "± 25480",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 3576079,
-            "range": "± 21630",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -19749,6 +19713,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_opcodes",
             "value": 235749,
             "range": "± 3047",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3f80cf2afddbab3a0d060fb93a4e5bd0da9225b4",
+          "message": "chore: add a benchmark for opcodes which need a batchable inversion (#8110)\n\nCo-authored-by: Khashayar Barooti <kashbrti@gmail.com>",
+          "timestamp": "2025-04-17T15:10:45Z",
+          "tree_id": "ea295abd9a9898c477c010485ae0979a366e9863",
+          "url": "https://github.com/noir-lang/noir/commit/3f80cf2afddbab3a0d060fb93a4e5bd0da9225b4"
+        },
+        "date": 1744903651321,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264696,
+            "range": "± 714",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235353,
+            "range": "± 2223",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3576346,
+            "range": "± 20468",
             "unit": "ns/iter"
           }
         ]
