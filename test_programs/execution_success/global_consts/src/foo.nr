@@ -1,6 +1,5 @@
-mod bar;
+pub(crate) mod bar;
 
-pub(crate) global N: u32 = 5;
 pub(crate) global MAGIC_NUMBER: u32 = 3;
 pub(crate) global TYPE_INFERRED: u32 = 42;
 
