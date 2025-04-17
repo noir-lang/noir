@@ -260,7 +260,7 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
 
 #[named]
 #[test]
-fn warns_if_calling_private_struct_method() {
+fn errors_if_calling_private_struct_method() {
     let src = r#"
     mod moo {
         pub struct Foo {}
