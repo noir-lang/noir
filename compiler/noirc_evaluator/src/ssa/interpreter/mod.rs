@@ -8,7 +8,7 @@ use super::{
         value::ValueId,
     },
 };
-use crate::errors::RuntimeError;
+use crate::{errors::RuntimeError, ssa::ir::instruction::binary::truncate_field};
 use acvm::{AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
@@ -267,21 +267,119 @@ impl<'ssa> Interpreter<'ssa> {
 
     fn interpret_truncate(
         &mut self,
-        _value: ValueId,
-        _bit_size: u32,
+        value: ValueId,
+        bit_size: u32,
         _max_bit_size: u32,
-        _results: ValueId,
+        result: ValueId,
     ) {
-        todo!()
+        let value = self.lookup(value).as_numeric().unwrap();
+        let bit_mask = (1u128 << bit_size) - 1;
+        assert_ne!(bit_mask, 0);
+
+        let truncated = match value {
+            NumericValue::Field(value) => NumericValue::Field(truncate_field(value, bit_size)),
+            NumericValue::U1(value) => NumericValue::U1(value),
+            NumericValue::U8(value) => NumericValue::U8(truncate_unsigned(value, bit_size)),
+            NumericValue::U16(value) => NumericValue::U16(truncate_unsigned(value, bit_size)),
+            NumericValue::U32(value) => NumericValue::U32(truncate_unsigned(value, bit_size)),
+            NumericValue::U64(value) => NumericValue::U64(truncate_unsigned(value, bit_size)),
+            NumericValue::U128(value) => NumericValue::U128(truncate_unsigned(value, bit_size)),
+            NumericValue::I8(value) => NumericValue::I8(truncate_signed(value, bit_size)),
+            NumericValue::I16(value) => NumericValue::I16(truncate_signed(value, bit_size)),
+            NumericValue::I32(value) => NumericValue::I32(truncate_signed(value, bit_size)),
+            NumericValue::I64(value) => NumericValue::I64(truncate_signed(value, bit_size)),
+        };
+
+        self.define(result, Value::Numeric(truncated));
     }
 
     fn interpret_range_check(
         &mut self,
-        _value: ValueId,
-        _max_bit_size: u32,
-        _as_ref: Option<&String>,
+        value: ValueId,
+        max_bit_size: u32,
+        error_message: Option<&String>,
     ) {
-        todo!()
+        let value = self.lookup(value).as_numeric().unwrap();
+        assert_ne!(max_bit_size, 0);
+
+        let bit_count = match value {
+            NumericValue::Field(value) => value.num_bits(),
+            // u1 should always pass these checks
+            NumericValue::U1(_) => return,
+            NumericValue::U8(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::U16(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::U32(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::U64(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::U128(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::I8(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::I16(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::I32(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+            NumericValue::I64(value) => {
+                if value == 0 {
+                    0
+                } else {
+                    value.ilog2()
+                }
+            }
+        };
+
+        if bit_count > max_bit_size {
+            if let Some(message) = error_message {
+                panic!(
+                    "bit count of {bit_count} exceeded max bit count of {max_bit_size}\n{message}"
+                );
+            } else {
+                panic!("bit count of {bit_count} exceeded max bit count of {max_bit_size}");
+            }
+        }
     }
 
     fn interpret_call(
@@ -664,5 +762,74 @@ impl Interpreter<'_> {
             BinaryOp::Shr => panic!("Unsupported operator `>>` for u1"),
         };
         Ok(Value::Numeric(NumericValue::U1(result)))
+    }
+}
+
+fn truncate_unsigned<T>(value: T, bit_size: u32) -> T
+where
+    u128: From<T>,
+    T: TryFrom<u128>,
+    <T as TryFrom<u128>>::Error: std::fmt::Debug,
+{
+    let value_u128 = u128::from(value);
+    let bit_mask = if bit_size < 128 {
+        (1u128 << bit_size) - 1
+    } else if bit_size == 128 {
+        u128::max_value()
+    } else {
+        panic!("truncate: Invalid bit size: {bit_size}");
+    };
+
+    let result = value_u128 & bit_mask;
+    T::try_from(result).expect(
+        "The truncated result should always be smaller than or equal to the original `value`",
+    )
+}
+
+fn truncate_signed<T>(value: T, bit_size: u32) -> T
+where
+    i128: From<T>,
+    T: TryFrom<i128> + num_traits::Bounded,
+    <T as TryFrom<i128>>::Error: std::fmt::Debug,
+{
+    let value_i128 = i128::from(value);
+    if value_i128 < 0 {
+        let value_i128 = -value_i128;
+        assert!(bit_size <= 64, "The maximum bit size for signed integers is 64");
+        let bit_mask = (1i128 << bit_size) - 1;
+        let result = value_i128 & bit_mask;
+        T::try_from(-result).expect(
+            "The truncated result should always be smaller than or equal to the original `value`",
+        )
+    } else {
+        let result = truncate_unsigned::<u128>(value_i128 as u128, bit_size) as i128;
+        T::try_from(result).expect(
+            "The truncated result should always be smaller than or equal to the original `value`",
+        )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_truncate_unsigned() {
+        assert_eq!(super::truncate_unsigned(57u32, 8), 57);
+        assert_eq!(super::truncate_unsigned(257u16, 8), 1);
+        assert_eq!(super::truncate_unsigned(130u8, 7), 2);
+        assert_eq!(super::truncate_unsigned(u8::max_value(), 8), u8::max_value());
+        assert_eq!(super::truncate_unsigned(u128::max_value(), 128), u128::max_value());
+    }
+
+    #[test]
+    fn test_truncate_signed() {
+        assert_eq!(super::truncate_signed(57i32, 8), 57);
+        assert_eq!(super::truncate_signed(257i16, 8), 1);
+        assert_eq!(super::truncate_signed(130i64, 7), 2);
+        assert_eq!(super::truncate_signed(i16::min_value(), 16), i16::min_value());
+
+        assert_eq!(super::truncate_signed(-57i32, 8), -57);
+        assert_eq!(super::truncate_signed(-258i16, 8), -2);
+        assert_eq!(super::truncate_signed(-130i16, 7), -2);
+        assert_eq!(super::truncate_signed(i8::min_value(), 8), i8::min_value());
     }
 }
