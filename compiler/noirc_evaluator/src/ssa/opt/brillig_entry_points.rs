@@ -218,7 +218,7 @@ fn build_calls_to_update(
     // the original call sites, not the soon-to-be rewritten call sites.
     let mut new_calls_to_update = HashSet::default();
     for (entry_point, inner_calls) in brillig_entry_points {
-        let function = ssa.functions.get(&entry_point).expect("ICE: Function does not exist");
+        let function = ssa.functions.get(entry_point).expect("ICE: Function does not exist");
         new_calls_to_update.extend(collect_callsites_to_rewrite(
             function,
             *entry_point,
@@ -226,7 +226,7 @@ fn build_calls_to_update(
             &calls_to_update,
         ));
         for inner_call in inner_calls {
-            let function = ssa.functions.get(&inner_call).expect("ICE: Function does not exist");
+            let function = ssa.functions.get(inner_call).expect("ICE: Function does not exist");
             new_calls_to_update.extend(collect_callsites_to_rewrite(
                 function,
                 *entry_point,
