@@ -2,7 +2,7 @@ mod utils;
 
 use std::collections::map::HashMap;
 use std::hash::BuildHasherDefault;
-use std::hash::poseidon2::Poseidon2Hasher;
+use poseidon::poseidon2::Poseidon2Hasher;
 
 use utils::cut;
 
