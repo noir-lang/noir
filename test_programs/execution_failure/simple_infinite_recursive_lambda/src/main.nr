@@ -5,12 +5,12 @@ fn main() {
     }
 }
 
-unconstrained fn foo<Env>(f: fn[Env]()) {
+unconstrained fn foo<Env>(f: unconstrained fn[Env]()) {
     f();
     f();
 }
 
-fn bar() {
+unconstrained fn bar() {
     bar();
     bar();
 }
