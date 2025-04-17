@@ -198,7 +198,7 @@ fn build_calls_to_update(
 ) -> (HashSet<CallToUpdate>, NewCallSitesMap) {
     // Clone new functions
     // Map of (entry point, callee function) -> new callee function id.
-    // This will be used internally for determining whether
+    // This will be used internally for determining whether a call site needs to be rewritten.
     let mut calls_to_update: HashMap<(FunctionId, FunctionId), FunctionId> = HashMap::default();
     for (entry_point, functions_to_clone) in functions_to_clone_map {
         for old_id in functions_to_clone {
