@@ -1,4 +1,5 @@
 fn main() {
+    // Safety: testing context
     unsafe {
         foo(bar);
     }
