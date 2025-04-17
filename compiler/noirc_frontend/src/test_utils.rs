@@ -185,7 +185,6 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         "unused_items_errors_on_unused_trait",
         "unused_items_errors_on_unused_type_alias",
         "unused_items_warns_on_unused_global",
-        "visibility_warns_if_calling_private_struct_method",
         "warns_on_nested_unsafe",
         "warns_on_unneeded_unsafe",
         // TODO(https://github.com/noir-lang/noir/issues/6932): these will be hard errors

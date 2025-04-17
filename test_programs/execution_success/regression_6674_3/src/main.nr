@@ -125,9 +125,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
     pub unconstrained fn sort_ordered_values(&mut self) {
         // Note hashes, nullifiers, and private logs are sorted in the reset circuit.
         self.public_inputs.end.l2_to_l1_msgs.storage =
-            sort_by_counter_desc(self.public_inputs.end.l2_to_l1_msgs.storage);
+            sort_by_counter_desc(self.public_inputs.end.l2_to_l1_msgs.storage());
         self.public_inputs.end.public_call_requests.storage =
-            sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage);
+            sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage());
     }
 }
 
@@ -184,8 +184,8 @@ unconstrained fn main() {
     let mut previous_kernel = FixtureBuilder2::new();
     let mut builder = PrivateKernelTailToPublicInputsBuilder { previous_kernel };
     builder.previous_kernel.append_public_call_requests(4);
-    assert_eq(builder.previous_kernel.public_call_requests.storage[3].counter, 4);
+    assert_eq(builder.previous_kernel.public_call_requests.storage()[3].counter, 4);
     builder.previous_kernel.set_public_teardown_call_request();
     builder.execute();
-    assert_eq(builder.previous_kernel.public_call_requests.storage[3].counter, 4);
+    assert_eq(builder.previous_kernel.public_call_requests.storage()[3].counter, 4);
 }

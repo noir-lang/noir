@@ -1,19 +1,19 @@
 mod Foo {
-    struct NewType {
-        a: Field,
+    pub(crate) struct NewType {
+        pub(crate) a: Field,
     }
 }
 
 mod Bar {
-    use crate::Foo::NewType;
+    pub(crate) use crate::Foo::NewType;
     use crate::Foo::NewType as BarStruct;
 }
 
 mod Baz {
-    struct Works {
-        a: Field,
+    pub(crate) struct Works {
+        pub(crate) a: Field,
     }
-    use crate::Bar::BarStruct;
+    pub(crate) use crate::Bar::BarStruct;
     use crate::Bar::NewType;
 }
 
