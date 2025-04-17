@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81WwU7DMAx1ugYoEwfgxokTN6R0LaxwqkSB74iY+h35dBQtpo6XgAQOYKlKKifPz89xWgV7U+HxVoexgkPDNWMYzc+sFcQyJXmqQjw/iNK5grzwj2FsIC6S968EE24SnKTwB9MPTSI/Qf5dQzAL4G8Qvy6Db44DzouL8YHFPYO4eeke9NFGfg2+k+DH+XmYNwyvRN0pJ2ndLhP8K5Kbtye36CEUd4PYkzx2h9jP8tjtOtS/X6CjswZf6EnPohyv+x5j6YCnId8DqV6X42KMYvFoz+uEZpqtv2I8j9ieUYjnBcufxuIc0fBM8TuE15XrW2V8OrEX+43X8BpiXfQv6qIz/DnnkrpMDpK63MD/1QU5p3L9TBfFcqK4o0w+2TujTnDSbO0t4/eXPUp19Da5Qx1z7zRXXp+K5c6/8dSHazuIdSn1v5PSBWOtYfl2104+/nbY3/HeVm7RgZ99Gl+z9Q/h/TSTx/hNnvPWtnNnZ3tnd7v+zXKdvFVEp3eLMLxZ0Q0AAA==",
+  "debug_symbols": "1ZjBioMwEIbfJWcPM0nGSfoqy1JsmxZBtFi7sJS+++qiRWJxD21ccxFH/nx8eJgkcxMHt7uetnl5rC5i83ETRbXPmrwq2+p2T8SuzosiP23HnwV0DzS/+cs5K7vy0mR1IzZIJhGuPLRvhtr1x7xwYkNwTyZRZamPaoBx9DMRaN8IZw8uISQcQ8JlSLgKCdch4RQSnj6FP1ZIhfNwstxHU4T5KLPso8zW9+B/8TDK9zALeti0jxqQvoddh4eClXjgSjzkch4G7OCheD6qzUDVVvvKavXKxlfWq1QmxD5K6DdSRfEpp/Epc3zKC+4oCDSIIBj9RxjTxxECeaJtY9A26GlrWK221UNYTm4EGuPUlnFqqzi1dZzaT3dGyUN3VShfaVQ6fSd+2lD4ZfzszzFh8TYoniAg/t5WX1mdZ7vC9fOa47Xcj8Y3zffZeZOcc13t3eFau26mMxrndKIkE+IW26J/AA==",
+  "file_map": {
+    "50": {
+      "source": "global ONE: Field = 1;\nglobal TWO: Field = 2;\nglobal THREE: Field = 3;\n\nfn main(x: Field, y: pub Field) {\n    // Safety: testing context\n    unsafe {\n        entry_point_no_global(x, y);\n        entry_point_inner_func_globals(x, y);\n        entry_point_one_global(x, y);\n        entry_point_one_diff_global(x, y);\n    }\n}\n\nunconstrained fn entry_point_no_global(x: Field, y: Field) {\n    assert(x + y != 100);\n}\n\nunconstrained fn entry_point_one_global(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n}\n\nunconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {\n    wrapper(x, y);\n}\n\n// Test that we duplicate Brillig entry points called within\n// another entry point's inner calls\nunconstrained fn wrapper(x: Field, y: Field) {\n    let z = ONE + x + y;\n    assert(z == 2);\n    entry_point_one_global(x, y);\n    // Test that we handle repeated entry point calls\n    // `entry_point_one_diff_global` should be duplicated and the duplicated function\n    // should use the globals from `entry_point_inner_func_globals`\n    entry_point_one_diff_global(y, x);\n}\n\nunconstrained fn entry_point_one_diff_global(x: Field, y: Field) {\n    let z = THREE + x + y;\n    assert(z == 4);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

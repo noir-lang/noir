@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/81T0QrDIAzUurHtee1/JFXb+NZfmcz+/yeMMYWgvi2FHsiJkfMSTq1+MHl9ccmsVYsh85YZ/gNyLQuLc2mdE1p8wRwieXA+LoSEnvx7JmsTOVpDDCsEdDbh7oPds5iW8wW8d3Nk80Z4AIYZl9JVnWFIap8wADgo2TD1PpVmrKuM8fqj4onVjWDPRX88Rh9uqsXE9mPVJ5/FJuSh6JUcX1WLoaqVu/fKn5b3h7UX03mr4Jl5ZGdlnh/yukJs2QUAAA==",
+  "debug_symbols": "lY3LCsMgEEX/ZdYu0pZC8FdKCT7GMCAqoxaK5N+roYFss5tzD/dOA4u6rgsFFzPIVwMfjSoUQ6cG0x7lpMKgXBQXkI/5LgCDHde8CXDkEeRz2t4CbtcKHTST97Qu5789/igmpT3+0dVgTrZ802GOfuJo0FbGsbS7Pv8D",
+  "file_map": {
+    "50": {
+      "source": "// This test should be used to regenerate the serialized witness used in the `acvm_js` integration tests.\n// The `acvm_js` test file containing the serialized witness should be also called `witness_compression`.\n// After recompiling Noir, you can manually print the witness byte array to be written to file after execution.\nfn main(x: Field, y: pub Field) -> pub Field {\n    assert(x != y);\n    x + y\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

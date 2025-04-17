@@ -12,7 +12,7 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir_def::expr::HirExpression;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::token::{LocatedToken, MetaAttributeName};
+use crate::token::{LocatedToken, MetaAttributeName, SecondaryAttributeKind};
 use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
@@ -596,13 +596,19 @@ fn secondary_attribute_name(
     attribute: &SecondaryAttribute,
     interner: &NodeInterner,
 ) -> Option<String> {
-    match attribute {
-        SecondaryAttribute::Deprecated(_) => Some("deprecated".to_string()),
-        SecondaryAttribute::ContractLibraryMethod => Some("contract_library_method".to_string()),
-        SecondaryAttribute::Export => Some("export".to_string()),
-        SecondaryAttribute::Field(_) => Some("field".to_string()),
-        SecondaryAttribute::Tag(custom) => custom.name(),
-        SecondaryAttribute::Meta(meta) => match &meta.name {
+    match &attribute.kind {
+        SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
+        SecondaryAttributeKind::ContractLibraryMethod => {
+            Some("contract_library_method".to_string())
+        }
+        SecondaryAttributeKind::Export => Some("export".to_string()),
+        SecondaryAttributeKind::Field(_) => Some("field".to_string()),
+        SecondaryAttributeKind::Tag(contents) => {
+            let mut lexer = Lexer::new_with_dummy_file(contents);
+            let token = lexer.next()?.ok()?;
+            if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
+        }
+        SecondaryAttributeKind::Meta(meta) => match &meta.name {
             MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
             MetaAttributeName::Resolved(expr_id) => {
                 let HirExpression::Ident(ident, _) = interner.expression(expr_id) else {
@@ -611,10 +617,10 @@ fn secondary_attribute_name(
                 interner.try_definition(ident.id).map(|def| def.name.clone())
             }
         },
-        SecondaryAttribute::Abi(_) => Some("abi".to_string()),
-        SecondaryAttribute::Varargs => Some("varargs".to_string()),
-        SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
-        SecondaryAttribute::Allow(_) => Some("allow".to_string()),
+        SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
+        SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
+        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
+        SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
     }
 }
 

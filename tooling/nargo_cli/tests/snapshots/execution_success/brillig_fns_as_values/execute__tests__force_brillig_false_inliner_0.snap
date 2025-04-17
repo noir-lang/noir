@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1aXY7TMBCe/PUHWECgZQUCUQkhgXggTpzGkZAogsI50p+8c4M+cQAuwSvn4Aw8cg0kGuFRpkOyu2ycqF5lpMhuMpn5/Hlsf63qwF+b7K8z3Xf2l6fb0mb7y9d9F5ptoduwnUU0pmM2tjAYK3Q4Tkqco4mj5nY4mDicS7lNo62IRR5G2UoloUxWcyWUSFSyiVQcb5VUabbK0jATMt6KIsniQgdzDeKiPLg98OAcJw9hj4smpjFtWTQegvVIO4Pzi6XtBDsGifHAymKRYGGx+LxYfLBrhw3AbBEjD0EPPPgd8RC2NB+qU6bJDOWyUpaMECwWywjs2mFHdhaLlTvsmBfLuIdi8Q0SMzZcLC6ZPBsndMIndAJ2rf6JYWJ8NoF1RncH9D/99e7h5x/fltTvlm7f//756fvXLy/wvqfbt7qdsrg4HwtDHE1JXNPxVSjTKRyaYfzxlMTsIH6E8f1u4odjHefD7jA+sLx4b7mruFyyd06g+vEAWFx8RusT3y/XyR2o+neheqe0jyQPxp6yeIbrZt7xvIr7DfhLu6l5iNlYcS7AHI4Icwc6XsB4pnk7rkURMCyvdFuqqAcMQ2CeixjHNDqHC84T+j4nWB91j1W2wfqU4RuTd0zuLfdIXKjJxfHSH93wns/8A8KzV+PjsjGj/zPdlusq0/0T+HeNOyS+aMAKLbC6Nbk41pcE65sjx/q6BVZ+XvA9EM9uf3f4fKHvhy0sVZXY9HbV2DA/NZ88p/5Kf75B8GPb5otBkeaiiPMiT/LNRq5zvo5KcwlPpvNHSs2zaLVXT5t1sZFx3/llkqfrPBUik2IrRXJR/kGrXsoGrQqDVr2CDVq1hpNBq17aBq0Kg1YdtOrVbdCqzWabVp3pvuVadd6XVu2Snw41U61WrdNPHvPj71ykVcu97DZUfdSmqEep7u1JjybHoEfPehhrqP+8RfMDHP6JDqD+fMIzbdTgj/EC5n+q23KMT3Tf9rPpsf583c6m/z0b/gA1Yg+3zioAAA==",
+  "debug_symbols": "tZjdjrIwEIbvpccc0Jl22vFWvmw2qOyGhKBB/ZKN8d4XDN2fWmEn2jPH8rzMtKUvw1lt6/Xp/bXp3nYHtfp3Vu1uUx2bXTdEZ6Wvfx32VTdGh2PVH9VKGyxU3W2HX2QuhXpr2lqtbHl5KRRIAUwC5APgMAKMFLALKd0AlARYTwBoFwFOCvgFACgCOAWAMQEgGwG6FBPJtQbiQLh46TSICVzI6pZILjcwTAQajgkrJmiBsD4mkiuOjibCYLyntBcTvEAYiJ+95Jpb7SbCQlw5aDEBCwT+nqshWPdN2zbvr78OlvJ6uiSnkTCUSMb9aRrniHTCswSKCRIT4spBXjlLCSzFhBYRxc2lzoZLHelYHHKKY05xk1PcPSjOGMySTXzqoM8pzhnFTZlT/NHdQhxc0ZWxxxmTU9zmFKds4kOg73uE9+GVwbP9k0fMEWmPmCVQTJCYEFcO8spZSqQ9YpbQIuIZHvEsccwpbnKKuwfF5R7xLHHOKG7KnOKP7ha5RzxL3OYUp2zil+v3hvOdBm4uqTudxxzhxQRLiXQDN1P/EP2v+qZat/XYVY2Dp24TmqwhPH7sw0how/b9blNvT309NmQ/erHx3lYXll6mbwHWFZa/ffj+OHyNAxbgwzhwgXrIccjzEw==",
+  "file_map": {
+    "50": {
+      "source": "struct MyStruct {\n    operation: unconstrained fn(u32) -> u32,\n}\n\nfn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(wrapper(increment, x) == x + 1);\n        assert(wrapper(increment_acir, x) == x + 1);\n        assert(wrapper(decrement, x) == x - 1);\n        assert(wrapper_with_struct(MyStruct { operation: increment }, x) == x + 1);\n        assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == x - 1);\n        // https://github.com/noir-lang/noir/issues/1975\n        assert(increment(x) == x + 1);\n    }\n}\n\nunconstrained fn wrapper(func: unconstrained fn(u32) -> u32, param: u32) -> u32 {\n    func(param)\n}\n\nunconstrained fn increment(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn decrement(x: u32) -> u32 {\n    x - 1\n}\n\nunconstrained fn wrapper_with_struct(my_struct: MyStruct, param: u32) -> u32 {\n    let func = my_struct.operation;\n    func(param)\n}\n\nfn increment_acir(x: u32) -> u32 {\n    x + 1\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "wrapper",
+    "wrapper_with_struct",
+    "increment"
+  ]
+}

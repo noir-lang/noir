@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 16
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71WPU/EMAxN2xTonWCAhYWFDRZS5T7arQN/JFzJ7+hPRxW2aj2lPenOPS9OE+f5+TmWmpnJMvIWvk0ipiPvrrNaEcsliS4Zx3jyFflcnBeKxVaQVxO/cbt9lahPkb+vCHNNfRhzBXx3Tzjfw4SPtRjhOS5155HW8p1xzAOd8/qJ1hXcWaP/K/bHvST4c64t1fopNMReZrAuzHwPeL+Y2Zc4GexvaJ3SWvbBAk6nolPtGK8kvBJqNpA/xccYvbkqgc8r+bFfboFDrsehQU2s6FGe0AQ5vwHPO3FH840/C1yTyIVvPk/ohm++OFNzBjVz/DvUXN6w5hJy4+wq5Y5Ls4vzOcdH8Z26a3v2ATztDXvGubZm+pexg37+Y/Ov02jFMOnAGkiz4lzGf9H3ZqaO7kKe8Rjq6EMM+9D3u1NAnUaT86ud/9QeYuv9T+3b/retD+fy/wH/eLrcgQsAAA==",
+  "debug_symbols": "tdbfioQgFAbwd/HaC/+m9SrLMljZIIiF1cISvfvqMg1hl825CU58/YzowLeh3rbr8+HCMM6o+dqQHzuzuDGkadsxaqPz3j0f59uI5AuV//l5MiGP82LighrGMLKhRw3n6enBeYsaSXZ8CfL6nazrc/QbI1rB0QqO1vdopV9JQUhJ12A0I3A0haMZHM3haHGLFpQfNOMlLeHoCo5WcLSGo+9to+DqoKUsaE4+RVe6pCkczeBoDkff20ZJj6S8/CFcwtHVx+jLB1FwtIajazBaECB6T9OPic603r6K1rCG7tS7lt/JFhVsimNn+zXaXMZOPSy/pGBYqFwU8pILjSVJZ6Rz/gA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u16) {\n    test_u16(x);\n    // Safety: testing context\n    unsafe {\n        test_u16_unconstrained(x);\n    }\n}\n\nunconstrained fn test_u16_unconstrained(x: u16) {\n    test_u16(x)\n}\n\nfn test_u16(x: u16) {\n    let t1: u16 = 1234;\n    let t2: u16 = 4321;\n    let t = t1 + t2;\n\n    let t4 = t - t2;\n    assert(t4 == t1);\n\n    let mut small_int = x as u16;\n    let shift = small_int << (x as u8);\n    assert(shift == 8);\n    assert(shift >> (x as u8) == small_int);\n    assert(shift >> 15 == 0);\n    assert(shift << 15 == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

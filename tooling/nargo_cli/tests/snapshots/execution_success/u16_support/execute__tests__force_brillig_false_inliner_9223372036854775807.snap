@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 16
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9Vc21bbVhAdXYyRDQmJIaFN0qRJ2pRLQMeysbzywkPX6ncYbL32F/iHPveD+il96TfUh2rwMD4mbb2HJc9aQvLoeJ/ZM/uMbJCI6B8bzLdf6uNoviX13tvefEvr1zEtG4+7rPf5euaAWHkgXAy2y/M4kINYJ9Bv28oX1z5piWESi/xiMJiN+jNXuEneH1+Vw3wwvLooXemG5XDaL4tiVg7K0fhqPMrHblDMXDUcF7PKW+4iAFZVBxbjOOaPKUpc3NWjiZI1lXJCEloWJx/7QdaijAknyoRwokyBxfVYscidtOaK0rBT5nlpiN2PRG5Zv635tjXf2rUvm2+d+dadbzs8mIXfouXFsBXwtQO+7YAvC/g6AV834NuhhUjYMmzCIIuQF06LUAu6qrZwWNM2Dmu8jcNyGQxr5jowrGvXhWGVboewTQncNPs79TqLsbiDHeC62gXyNcihM8phH5nDJ0C+JExzXjfOLhDrKZgzuL63fQaobedr/DSg73XzuEfN7mE+vj0D3s+azdtZ8X4O5s2G7hUdIFaPmt0rPFegHp2vcc9AO/vU7F7h49s34H3QbN7OivcL2oxekQGxXlKze4XnCtSj8zV+aaCdQ2p2r/DxHRrw/qbZvJ0V729pM3rFNhDrFTW7V3iuQD06X+NXBtp5Tc3uFT6+1wa83zSbt7Pi/R1tRq9oA7HeUrN7hecK1KPzNX5roJ131Oxe4eN7Z8D7+2bzdla839Nm9IotINYHanav8FyBenS+xh8MtPORmt0rfHwfDXj/0Gzezor3j7QZvaIFxPpE2F5hxRl5E8tP1Oz+6OsLXIPO6/qTwXo5omb3CV/nIwPex0DeoTvzLG4TPRb4qNgpYABs53/IfJzU+1NODt8E5E/8ZZw0VCPzN3143BOgEE9pMy5YSM6fFed18KSWPtdaSun+Pd3S0I3kBMyF7cwy4DMKX/HWwT4j3MI9B/K1yuE5hRvWOtjnZHs1RjSrcwPcHMhbNgSP+4zum8UnFKRWreI8JcwF0N8l+l8abL6eOeQnVBmvswxYfo9aN+nyvv1VD4AQlkO5KQWVuehznjloVqg/sad8Re2Thn4A5AhY/AKINQBiyZwORE4tvqf2DXALslk06I/fSF32cVi3TUnWW5rF1zlU3PeCfIgEBc59qfcv/vy99+W3X/9gP+MU9Z4fZokFRgJMSKZiQ+KXc3lmtJwDYPwFPzxkmR/GNMC//eOwt59vFviaC4k9jwu9Z5cWD0jpMdv1eT5+Uh9n6j0W9TesT94LxM9zdWuuxyKHupaROk5odQ3Yn6zwS5xI+Tv1cSjXsg6pwrmE5MnljNeq8fRDfKTmD8VDhFtXLRXPYb339cofiCHGxVDqnKSiRnEgJzrmNyrOLfEepMafC1wKzKU1HwfypjWffIVzpDjz+PeKc+sRObfU3HrtguauHlq7en2uigeo03zdmh2pONNHrBnP1aXFZ5n0Bj//qFx8NU9uFnkIPVWeivNy/Hn9urOCx+X/jLMaTVxVTKrJcDKdDq4nOk/e5PpFz389vqjGRXHlivF0NnYXX5ufnwrPAvkA6qWfiTkN8O8+W0nriOOuOsc5SAPvi1a8jtX+obHaL327gXOM2av3Ml7mwb+a5Fxa9WPGN7rG3X0PadvgFyEtSN9dLxDzkzrmmDKVc3CskygQX6Lm1DHKMSH96t/4pcqf/IuxIf3yub1AfPp9WSBW6WNthdaCrov8zxUhrLY4L8e31VirGvYCMUUr5j6wieFuTe3b4Af764E43lc8pa4uQTEwHmugRcsWq3M8Vl/nInx8TscS6i9srJl94eN8/g2EcKTEeEwAAA==",
+  "debug_symbols": "tdndaqNAGIDhe/HYA+f7ccbcylJKfmwRxASTLCwh97661NImIUvR9yQwUR9DyJsZxku2qzfn99eme9sfs9WvS9but+tTs++G0SUL/946HtbdODqe1v0pW4nkWd3tspXqNc/emrbOVl5c87sTtfo8s6q+nvqSZ4LJismGyT5PjunjTCuKG7nE5IjJCZMrTA4FRweOFo5WjjaO5koMXIqBazFwMQauRuFqFK5G4WoUrkbhahSuRuFqFK5G4WoUrkblalSuRuVqVK5G5WpUrkblalSuRuVqVK5G42o0rkbjajSuRuNqNK5G42o0rkbjajSuRudqdK5G52p0rkbnanSuRudqdK5G52p0rsZyXo0WdKJFb+l5NZrGiXa/pYWjlaONo52jS46OHJ04ulqKLtMNHR/WmKYLQpBvFwyDTd+0bfP++u0hRjG+PN7YC/ETS+k/fxtPtu8fb+0thUcST3PxH2/wLYQ/3uJbCg8kLiSuJG4z8WcTpDiJlyQeSTyR+NxCn80MWiyH380NGkhcSFxJfG6hHqbJwu9+LeokXi6I330tkcQTiVcgbgWGX4fR73XfrDdtPa7CxoPnbjstyobh6c9hOjIt2w79flvvzn09LuC+rN3Gj2mSW3z5eBpuKfdiuMdwn78=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u16) {\n    test_u16(x);\n    // Safety: testing context\n    unsafe {\n        test_u16_unconstrained(x);\n    }\n}\n\nunconstrained fn test_u16_unconstrained(x: u16) {\n    test_u16(x)\n}\n\nfn test_u16(x: u16) {\n    let t1: u16 = 1234;\n    let t2: u16 = 4321;\n    let t = t1 + t2;\n\n    let t4 = t - t2;\n    assert(t4 == t1);\n\n    let mut small_int = x as u16;\n    let shift = small_int << (x as u8);\n    assert(shift == 8);\n    assert(shift >> (x as u8) == small_int);\n    assert(shift >> 15 == 0);\n    assert(shift << 15 == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "test_u16_unconstrained",
+    "directive_integer_quotient",
+    "directive_to_radix",
+    "directive_invert"
+  ]
+}

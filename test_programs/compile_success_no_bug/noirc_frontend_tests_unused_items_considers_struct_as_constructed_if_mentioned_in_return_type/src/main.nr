@@ -1,12 +1,11 @@
 
     struct Bar {}
 
-    fn main() {
-        let _ = foo();
+    fn foo(array: [Bar; 1]) -> Bar {
+        array[0]
     }
 
-    fn foo() -> Bar {
-        let array = [];
-        array[0]
+    fn main() {
+        let _ = foo;
     }
     

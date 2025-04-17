@@ -171,7 +171,7 @@ impl ConstantAllocation {
 }
 
 pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
-    matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. })
+    matches!(&dfg[id], Value::NumericConstant { .. })
 }
 
 /// For a given function, finds all the blocks that are within loops

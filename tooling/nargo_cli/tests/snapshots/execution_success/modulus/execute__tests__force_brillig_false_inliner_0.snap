@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "bn254_modulus_be_bytes",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "bn254_modulus_be_bits",
+        "type": {
+          "kind": "array",
+          "length": 254,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 1
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "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",
+  "debug_symbols": "ldtNahtZAIXRvdTYA92r+vVWmibIthwEQjay3dCY7L2VkEBoMjkzvXrcmnxocqA+h6fjw8fXL6fL88vbcP/X53B+eTy8n14ut9PnsPvx6O31cPl+ens/XN+H+3Fd74bj5Wm4n8Z8uxueT+fj7ffu2993Q3RQHex1MOpg0sGsg0UHqw42DuepuXU4drh2OHe4dzh4uHg4ebh5uXn9/83Ny83LzcvNy83LzcvNy8333HzPzfd/bL6mPxfrtP5/sefFyIuJFzMvFl6svNh0Me54EV5w85Gbj9x85OYjNx+5+cjNR24+cfOJm0/cfOLmEzefuPnEzSduPnHziZvP3Hzm5jM3n7n5zM1nbj5z85mbz9x85uYLN1+4+cLNF26+cPOFmy/cfOHmCzdfuPnKzVduvnLzlZuv3Hzl5is3X7n5ys1Xbr5x842bb9x84+YbN9+4+cbNN26+cfONm2e380l8Up/sfTL6ZPLJ7JPFJ6tPvH68frx+vH68frx+vH68frx+vH68fr1+vX69fr1+vX69fr1+vX69fr3+3uvvvb5DXVzq4lQXt7o41sW1Ls51ca+Lg11c7OJkFze7ONrF1S7OdnG3i8NdXO7idBe3uzjexfUuzndxv4sDXlzw4oQXN7w44sUVL854cceLQ15c8uKUF7e8OObFNS/OeXHPi4NeXPTipBc3vTjqxVUvznpx14vDXlz24rQXt7047sV1L857cd+LA19c+OLEFze+OPLFlS/OfHHni0NfXPri1Be3vrr11a2vbn1166tbX9366tZXt7669dWtr259deurW1/d+urWV7e+uvXVra9ufXXrq1tf3frq1le3vrr11a2vbn1166tbX9366tZXt7669dWtr259deurW1/d+urWV7e+uvXVra9ufXXrq1tf3frq1le3vrr11a2vbn1166tbX9366tZXt7669dWtr259deurW1/d+urWV7e+uvXVra9ufXXrq1tf3frq1le3vrr11a2vbn1166tbX9366tZXt7669dWtr259deurW1/V+m6Hh+vpfD59/fL7F4q3x/8crqfDw/n48/j8cXn87fb939dfN7/2r9eXx+PTx/X4/U0/7m6v/w8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(bn254_modulus_be_bytes: [u8; 32], bn254_modulus_be_bits: [u1; 254]) {\n    let modulus_size = std::field::modulus_num_bits();\n    // NOTE: The constraints used in this circuit will only work when testing nargo with the plonk bn254 backend\n    assert(modulus_size == 254);\n\n    assert_reverse(\n        std::field::modulus_be_bytes(),\n        std::field::modulus_le_bytes(),\n    );\n\n    let modulus_be_byte_array = std::field::modulus_be_bytes();\n    for i in 0..32 {\n        assert(modulus_be_byte_array[i] == bn254_modulus_be_bytes[i]);\n    }\n    let modulus_le_byte_array = std::field::modulus_le_bytes();\n    for i in 0..32 {\n        assert(modulus_le_byte_array[i] == bn254_modulus_be_bytes[31 - i]);\n    }\n\n    let modulus_be_bits = std::field::modulus_be_bits();\n    for i in 0..254 {\n        assert(modulus_be_bits[i] == bn254_modulus_be_bits[i]);\n    }\n    let modulus_le_bits = std::field::modulus_le_bits();\n    for i in 0..254 {\n        assert(modulus_le_bits[i] == bn254_modulus_be_bits[253 - i]);\n    }\n}\n\nfn assert_reverse(forwards: [u8], backwards: [u8]) {\n    for i in 0..32 {\n        assert_eq(forwards[i], backwards[31 - i]);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

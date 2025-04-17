@@ -4,7 +4,7 @@
 //! # Usage
 //!
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
-//! The compiled program will be returned as an [`Artifacts`][ssa::Artifacts] type.
+//! The compiled program will be returned as an [`Artifacts`] type.
 
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
@@ -54,9 +54,10 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-pub(crate) use acir_context::GeneratedAcir;
+
 use acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
 use types::{AcirType, AcirVar};
+pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
 #[derive(Default)]
 struct SharedContext<F: AcirField> {
@@ -877,7 +878,7 @@ impl<'a> Context<'a> {
     ) -> Result<(), RuntimeError> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
-                let array_id = dfg.resolve(*result_id);
+                let array_id = *result_id;
                 let block_id = self.block_id(&array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
@@ -955,8 +956,6 @@ impl<'a> Context<'a> {
                 .into());
             }
         };
-        // Ensure that array id is fully resolved.
-        let array = dfg.resolve(array);
 
         let array_typ = dfg.type_of_value(array);
         // Compiler sanity checks
@@ -1793,7 +1792,6 @@ impl<'a> Context<'a> {
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
-        let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();
@@ -1965,7 +1963,7 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
+        mut max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
@@ -1986,6 +1984,7 @@ impl<'a> Context<'a> {
                     let integer_modulus = power_of_two::<FieldElement>(bit_size);
                     let integer_modulus = self.acir_context.add_constant(integer_modulus);
                     var = self.acir_context.add_var(var, integer_modulus)?;
+                    max_bit_size += 1;
                 }
             }
             Value::Param { .. } => {

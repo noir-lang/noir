@@ -1,0 +1,59 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "enable",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 2,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VU2w6DIAzlMrPtefofVEDhzV+Zmf7/J8xlNGkq24v1JKTF1tpzLBj1RbOtS/H1tmyxptiG7BXJ0+R9TQMfTMW6YwAjV8vV+vNuCGEZ+wU8PF2f5xRdiPOQIEFM8dUn75cU0pjnPLoMwS+wxuzXUtMwAaR4W2HeCCPMX7BPuAhy1mSoDeOvyaxizJJ83Nvi08PBwfV0xwCS/0YrWT2pNqeRt8ICWNK4VF31ZwAkakvpKXl5/jpQuuLX4ndmOxKXvESwfntOfXdVe3TEbxlPqsUk1APWw9lu1B6GxTD3xvrT8v0B78VWvoV4FNuSZ6jnG3XLAdqiCAAA",
+  "debug_symbols": "tY/LCsMgFET/5a5dJDUtxV8pIfgMgqj4KBTx32tCAmlJl93ducMMZwoIyfI8aatcBPIoYBynSTvbVIF+fUVP7aJioiEBufR3BNKKduFbRaC0kUCuXR2bYEEbo+fpWNPeTxo0ZUZuUmXLD256+d3Z8z44LkUOcmlavYq+4LozOIyHDQ4P3QccOl/zO/DfNWN9Aw==",
+  "file_map": {
+    "50": {
+      "source": "global NUM_RESULTS: u32 = 2;\nfn main(x: Field, y: pub Field, enable: bool) -> pub [Field; NUM_RESULTS] {\n    let mut result = [0; NUM_RESULTS];\n    for i in 0..NUM_RESULTS {\n        if enable {\n            result[i] = return_value(x, y);\n        }\n    }\n    result\n}\n\n#[fold]\nfn return_value(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main",
+    "return_value"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}
