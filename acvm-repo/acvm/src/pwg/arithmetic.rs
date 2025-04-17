@@ -63,10 +63,11 @@ impl ExpressionSolver {
                         insert_value(&w1, assignment, initial_witness)
                     }
                 } else {
-                    // TODO: can we be more specific with this error?
-                    Err(OpcodeResolutionError::OpcodeNotSolvable(
-                        OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
-                    ))
+                    Err(OpcodeNotSolvable::MultipleUnknownsInSeparateTerms {
+                        expression: opcode.clone(),
+                        mul_unknown: w1,
+                        fan_in_unknown: w2,
+                    }.into())
                 }
             }
             (
