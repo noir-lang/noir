@@ -6,6 +6,7 @@ mod program;
 pub use abi::program_abi;
 pub use input::arb_inputs;
 use program::freq::Freqs;
+pub use program::visitor::{visit_expr, visit_expr_mut};
 pub use program::{DisplayAstAsNoir, arb_program};
 
 /// AST generation configuration.
@@ -29,29 +30,46 @@ pub struct Config {
     pub max_array_size: usize,
     /// Maximum size of for loop ranges, which affects unrolling in ACIR.
     pub max_loop_size: usize,
-    /// Frequency of expressions that produce a value.
+    /// Maximum call depth for recursive calls.
+    pub max_call_depth: usize,
+    /// Frequency of expressions, which produce a value.
     pub expr_freqs: Freqs,
-    /// Frequency of statements that don't produce a value.
-    pub stmt_freqs: Freqs,
+    /// Frequency of statements in ACIR functions.
+    pub stmt_freqs_acir: Freqs,
+    /// Frequency of statements in Brillig functions.
+    pub stmt_freqs_brillig: Freqs,
 }
 
 impl Default for Config {
     fn default() -> Self {
         let expr_freqs = Freqs::new(&[
-            ("unary", 5),
+            ("unary", 10),
             ("binary", 20),
             ("if", 15),
             ("block", 30),
-            ("vars", 20),
+            ("vars", 25),
             ("literal", 5),
+            ("call", 15),
         ]);
-        let stmt_freqs = Freqs::new(&[
-            ("drop", 5),
+        let stmt_freqs_acir = Freqs::new(&[
+            ("drop", 3),
             ("assign", 30),
             ("if", 10),
-            ("for", 10),
-            ("loop", 10),
+            ("for", 18),
+            ("let", 25),
+            ("call", 5),
+        ]);
+        let stmt_freqs_brillig = Freqs::new(&[
+            ("drop", 5),
+            ("break", 20),
+            ("continue", 20),
+            ("assign", 30),
+            ("if", 10),
+            ("for", 15),
+            ("loop", 15),
+            ("while", 15),
             ("let", 20),
+            ("call", 5),
         ]);
         Self {
             max_globals: 3,
@@ -63,8 +81,10 @@ impl Default for Config {
             max_tuple_size: 5,
             max_array_size: 4,
             max_loop_size: 10,
+            max_call_depth: 5,
             expr_freqs,
-            stmt_freqs,
+            stmt_freqs_acir,
+            stmt_freqs_brillig,
         }
     }
 }

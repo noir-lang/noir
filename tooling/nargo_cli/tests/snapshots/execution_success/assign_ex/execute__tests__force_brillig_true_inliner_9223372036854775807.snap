@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUSw6CMBCdCqiV6ELjSjd6gvJRWLLQgzQSzsHRDXEmDCMYo+0kpCUzfe/N60fBKxR+XYQ4zuA9qKbC0fwXiUMs41On8qRzYLKC6aDcGUct1nf5wGHDWvC6xC9NftUj/TnUn2mG6QE/JfzQD75ZIM6tHeKD4F3D8PLyNZTjZ+yOuSXmab7BuRZ4Pvada3Lt225EP3HF2OuR+cF9hQ9r5X6DO80ZcUWIF8H0fkeidi/0zT35umW4ILhA6J194aNy72MqucZ8VCJHtQehz9e9HvORuGLo3/Wwdc9flMYQb9D2PvDzD4I/EvUn/F9N9FH9qLMpbNJktrEXW9f5w0qfuuD3+AlBW0mwuQgAAA==",
+  "debug_symbols": "ldLBCoQgFAXQf3lrF1pp1q8MQ1hZCKJhNjBE/z46uAhp40Z8cu7beE+Y5XisgzKL3aF/naDtJLyyJkznhWB0Smu1DvdnwPEg9O/3TZg47l44D33DEEgzQ09JSC9Ky3DF1xsBYU+eNcm3OPdtoeeFvivzFS705Mlzkjxnua+efNclTzDNA3VpoCkN0NIAKwpcYfoIp8SoZerbcpjpVj//3WTWxM3ZSc6Hk7GTtzrG76k4quuwNqz+AQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) {\n    let mut z = x + y;\n    assert(z == 3);\n    z = x * y;\n    assert(z == 2);\n\n    regression_3057();\n}\n// Ensure parsing parenthesized lvalues works\nfn regression_3057() {\n    let mut array = [[0, 1], [2, 3]];\n    (array[0])[1] = 2;\n    assert(array[0][1] == 2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

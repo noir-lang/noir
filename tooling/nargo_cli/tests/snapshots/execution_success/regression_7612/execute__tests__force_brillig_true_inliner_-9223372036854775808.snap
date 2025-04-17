@@ -1,0 +1,76 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "array",
+        "type": {
+          "kind": "array",
+          "length": 1,
+          "type": {
+            "kind": "struct",
+            "path": "Data",
+            "fields": [
+              {
+                "name": "fields",
+                "type": {
+                  "kind": "array",
+                  "length": 1,
+                  "type": {
+                    "kind": "field"
+                  }
+                }
+              },
+              {
+                "name": "counter",
+                "type": {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 32
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VX204CMRCdXbtguQSin2Fidrktj5gI8Ul90cTHFeQ79tO10glnh4ISOk1Ib9M5Z6an25LQrqQ/v8S3DYyRH+c2wZgrC1/nl5Uioq9ci2OiwFGDZ6rEk64EaSmKUFAfvra+RlFdRQzaCtyY/uf5pLSB+CLyH1vwqenf6PjP297PY930TwKXx5b1PpdLsYZtVmCzAhtXOB6l/Z4o52vUp2aOQrFlOtjjRODhvuAc43dIVZtFIvCYj8xPKvLT1uGTs/9rJf8crw3Ei/lvi3i7SvlnLXaAj9RiTwd79F8tMn5HcNXSYo8O9wbzw1rss02952PFnKkP4+C5DOZ4f53u7iA+nEM++H1grQ7pUCvMW/ncFMrnpjj33Ax8vwVzVuTVnplXXM9++xS+i3AO30p8lznfM9q3S99WvttKKzjF/r7dBvgjlivtmhp5/61hjM8Fn5NrtBdzFuZM3cTp+L4BHPTFPDJhP/X9ga9bsIbXDwP4LYHf4B0Yk3mxAXsbsHfau/ftrv85Db3yGlK9s0en7uzQOeCziO+pDGI6phf0i7nC+8IGxhZx4sxlHNkJLpmwffG126sHfa6F5Jqc4Hpqr7it/Z1IBK45wis9kt8nXzvdvx/Jr8bbWXJiziaQ5xAfisenkHp8FrhK5z+/EfEgltM7a79L+zvT1PG5lPOdjlzheyGj5v8GEviZsH/zfXxTcm0u4Lktq2I7rrbVtNpsJutK5syVFPIUG389nX2uJ9Mq/ypcd/QX/jdI4cNjDRQAAA==",
+  "debug_symbols": "ldPBCoQgEAbgd5mzB60061WWJawsBLEwW1iid19dWjaiy1zEET9GHP4Net2uY2PcMC1QPzawU6eCmVystp1A6421ZmzOx0DTItj3/jIrl8olKB+gZrwioF0fd6KKfjBWQ83p/iQgMrTgt6LKD5HR7CoEWpRoIdGiwoqSogVDi/t5yPInGL+KHC0KtOBoIdCixIk9Vi/ljWqtPoIxrK475SS8Z32JzOynTver1yk8/9ykLyxywvP4DpamLCmRPBVpgFIQKWO/2PMD",
+  "file_map": {
+    "50": {
+      "source": "pub struct Data {\n    fields: [Field; 1],\n    counter: u32,\n}\n\nfn main(array: call_data(0) [Data; 1], x: bool) {\n    let index = if x { 0 } else { 1 };\n    if index != 0 {\n        assert(array[index - 1].counter < 3);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

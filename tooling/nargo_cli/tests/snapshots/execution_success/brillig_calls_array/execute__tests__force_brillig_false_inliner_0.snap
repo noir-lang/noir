@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZS2/TQBBex482QVUregOBOFAkOHljO7YRhwgSWk6c4AIXp01A4sCJExcfkfjTxLCTTCazm4R62xg8UuT17uSbh2dnd2cd8Yfc+S9QbUe9O+r9EelzmL6O6vMQBsbCBGND9QyvR7JGrNCWjk4DdOzUqKODvjf9/rUr7iKsKBzE8TTtT2Uki7CfT7IkjJPJIJOZTLLkqp9F0TSLszSf5GmYyziaylmSR9PZb8o8sQxy0LUN4P8vgAVWErKaS4KgI/QEY1/Us0v6IbCGNRnfRbh142dhXHSJfTXrH3WJT23hu3bwwwOF87pc4lNbBHoCH/2Pi3jOEc+5hucC8VwQHrDZUkwMLPs0OhLr8wxsAdmeHdmxQ+QJYqcg8nvCavxKh8gDfah/oH0EPOVSH4eMeeW6HTDml6t2VHQ4/91HfDS2OojvCWo/I9hvynWdbM7/eazmlmNVngr9nAcbD0qxoEU+QH3gc/DTIeYnY1005pWrcnrq3UNyMBbo4RP+M/V+rJ4B+g/8/4SRHxD5K3ozfdhHFMtl+oC/OqE8VO07YrmmviqXeDbW1JEd/D7gj+3gR5WPqvn3EnwqrM6BGHICzlFAMOYj2VyOBeI23TgPXSBcykdl4nij8l0ik+ZTiK1joT8YbJubRwQL/9/bAsskG+wKNPyA5xP+5+pZ+fQzwdzkmzGxx6Rfh8GiNnOyAw1/h9gD/EPGHtNahfOIV67qD1jhNSjNlqdhyOG+YE7FSL5P+M/Vew/pL5BPhn+p5ywt5CwqZkVSXF3Fl8Vdgi+In3AuMcUI/j+dP7r1cZe5SOdIwPBjPJ/wv1VPLuZN866iUam3Z5s5bLLH32CPbg6/M9jjC7M9Y4M9NFc6NdvjaOz5wNizzVkA63sbZ4HFfkoIa3vZEJ0FuG+rOwtUYwGj6wkzRudlwMgJGDkcllcjlkPs0eXzuvNknBTpZZFKmcdyGstkU578qdoNr/nkbc3HTG3Np/5v1tZ8FrQ3NZ97iE+Xdyu+M9R+qtqW4zG3nEPCU4PN0LfvdZ3H6n2f6zoPVLut62ykRV1ngvyN5yz4G8ct9ucuZzFPmPf69PwNN2eWc3VI92DcXnOTP0Zlff4YafwxaJA/xjv4w9ngjzHxB/C/IP6wtTfj/AGy6DqG+SyvJ1vvMUB+T9hbP0O0x+Dqc9z55kisfzd6ZsNxRmsCXAy6jJybwvqXauK4VkL5qMy2Jq6vp71Xz8qnPwhmE2viHxl7bO7L5zTYZt3E8qnOBdHzNtbNJtwNfFLv+3A3cBP7UYxl427gq3pyc7+JdwPfDPY08W7gO2NPezewoPZuQKyva/t0N/ALwpbsw3IvAAA=",
+  "debug_symbols": "tdnbbuMgEAbgd/G1LxgGBuirrFZVTq0iRUmUw0qrKO9eHJWkNcj2r4SbqjT+/uKOsen40ixX8/Pn+3r7sTs2b38uzWa3mJ3Wu20cXRq+/ei4n2270fE0O5yaN/K2bVbbZfwuhGvbfKw3q+bNquvftjHDQCvTA7YENN0Bu18gDuaH9Waz/nz/NVHVfTHF6XII32FGuf50DSwsLAQWDhYeFgEVVpWEIU6CMkGw0EWhVRI6u34YFmZkVrmwsBBYOFj48pm7JJj6IqBCxmqeC4KFhgWjwpXvDCoJzq52Z2BhRwRlsxJYOFh4WJTvDPQQ/TP3ChY0InR/Vl7DgmFhYFGuuX6I7MwFFm5EZFe797AIqAgKFgQLDQuGhYGFhYXAAq55gGse4JqTUjgBqx4HdNvLFWsvxnw7Mb6/o2FYmBFhedLub1AILBwsirUXSc91cTRp9zckyru/n0Im7f4GhYYFw6Jc85D2ixKm7f4GhYyJMGn3Nyg8LAIqyrs/d38eOqN+ijY71HO6aL3hSRvFV4XrmuFcM9zUDLc1w6VmuKsZ7muGh4rhruYKdc+uUGtSG8dmzyyna4ZzzXBTM9zWDJea4a5m+LMr1NrU2LKShYeK4f7ZFWpFUrhT1yn/Rr8qXL/uz5KHc81wUzPc1gx/eoU6vodPayS8KvyFKzQPDxXDg6oZTjXDR1eovU7pjwwKAwsLC0EFqbFma9aeJSU4gdutpDxOAkxI4WSs5Zo1aYk0TuCmK5HBicWJ4GSsCafz0/c4wdtwGm/DacKJxgnjxODE4kRw4nDicYJXn/HqM159xqvPYPWvcfRvdljP5ptV9xK/+/C8XaR3+nF4+r9Pn6S3/vvDbrFang+r7v3/49V/96vje0x2txtqHMSNraPb+ooDUqaN9/97c/l2tLQs6ejg4+d8P5ylJfZxgnGSXw==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls passing arrays around\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 9);\n        another_entry_point(x);\n    }\n}\n\nunconstrained fn inner(x: [u32; 3]) -> [u32; 3] {\n    [x[0] + 1, x[1] + 1, x[2] + 1]\n}\n\nunconstrained fn entry_point(x: [u32; 3]) -> u32 {\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn nested_fn_that_allocates(value: u32) -> u32 {\n    let x = [value, value, value];\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn another_entry_point(x: [u32; 3]) {\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n    assert(nested_fn_that_allocates(1) == 6);\n    // x should be unchanged\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "entry_point",
+    "another_entry_point"
+  ]
+}

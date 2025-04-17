@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VSWw4CIQzkoVG/Ze/R8ljKn1eRyN7/CMYICWH7t+wkZAhthpmCFH+oun64VJZij9bzqgzHgL2Wg9X7Em1Bh2+wKVMAH/JKSBgofCw5V8hTTDlFSOhdwS0kt1UxOc8XSCbzKeHV5AGozvhMXe5TSOZsrD0GXrq6njjLpm/O0Ycbk3Hp9mbIyb0DHETT05WvYg811FrvffAn5/vD0Ytm7mp4VjbdWZvnF3hgTpCVBAAA",
+  "debug_symbols": "lY1LCsMwDETvorUXTdNsfJVSgj9yEBjb+FMoJnevEhLINju9ecyog0XdlpmCiwXku4OPRlWKganDY49KUmGjUlWuIMfnJACD5es1rgIceQQ5DetHwHCvwKAzeU/LfP3L8VdlUtrjga4Fc7H1l05z9lOOBm3LuC3tjuf/",
+  "file_map": {
+    "51": {
+      "source": "mod foo;\n// This is a comment.\n//\n// `main` is the entry point to a binary\n//\n// You can have a `Binary` or a `Library`\n// Release : 0.2\n//\n// To run a proof on the command line, type `cargo run prove {proof_name}`\n//\n// To verify that proof, type `cargo run verify {proof_name}`\nfn main(x: Field, y: pub Field) {\n    assert(x != foo::hello(y));\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

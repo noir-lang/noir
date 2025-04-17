@@ -124,9 +124,8 @@ fn create_input_toml_template(
     fn default_value(typ: AbiType) -> toml::Value {
         match typ {
             AbiType::Array { length, typ } => {
-                let default_value_vec = std::iter::repeat(default_value(*typ))
-                    .take(length.try_into().unwrap())
-                    .collect();
+                let default_value_vec =
+                    std::iter::repeat_n(default_value(*typ), length.try_into().unwrap()).collect();
                 toml::Value::Array(default_value_vec)
             }
             AbiType::Struct { fields, .. } => {

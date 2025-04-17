@@ -78,7 +78,7 @@ pub(crate) fn simplify(
         Instruction::Binary(binary) => simplify_binary(binary, dfg),
         Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
         Instruction::Not(value) => {
-            match &dfg[dfg.resolve(*value)] {
+            match &dfg[*value] {
                 // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                 // there is no Not on FieldElement, so we'd need to convert between u128. This
                 // would be incorrect however since the extra bits on the field would not be flipped.
@@ -146,7 +146,7 @@ pub(crate) fn simplify(
             if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                 let truncated_field = truncate_field(numeric_constant, *bit_size);
                 SimplifiedTo(dfg.make_constant(truncated_field, typ))
-            } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
+            } else if let Value::Instruction { instruction, .. } = &dfg[*value] {
                 match &dfg[*instruction] {
                     Instruction::Truncate { bit_size: src_bit_size, .. } => {
                         // If we're truncating the value to fit into the same or larger bit size then this is a noop.
@@ -207,8 +207,8 @@ pub(crate) fn simplify(
             if max_potential_bits <= *max_bit_size { Remove } else { None }
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
-            let then_condition = dfg.resolve(*then_condition);
-            let else_condition = dfg.resolve(*else_condition);
+            let then_condition = *then_condition;
+            let else_condition = *else_condition;
             let typ = dfg.type_of_value(*then_value);
 
             if let Some(constant) = dfg.get_numeric_constant(then_condition) {
@@ -219,8 +219,8 @@ pub(crate) fn simplify(
                 }
             }
 
-            let then_value = dfg.resolve(*then_value);
-            let else_value = dfg.resolve(*else_value);
+            let then_value = *then_value;
+            let else_value = *else_value;
             if then_value == else_value {
                 return SimplifiedTo(then_value);
             }
@@ -229,7 +229,6 @@ pub(crate) fn simplify(
                 if let Instruction::IfElse {
                     then_condition: inner_then_condition,
                     then_value: inner_then_value,
-                    else_condition: inner_else_condition,
                     ..
                 } = dfg[*instruction]
                 {
@@ -237,7 +236,7 @@ pub(crate) fn simplify(
                         let instruction = Instruction::IfElse {
                             then_condition,
                             then_value: inner_then_value,
-                            else_condition: inner_else_condition,
+                            else_condition,
                             else_value,
                         };
                         return SimplifiedToInstruction(instruction);
@@ -250,7 +249,6 @@ pub(crate) fn simplify(
             if let Value::Instruction { instruction, .. } = &dfg[else_value] {
                 if let Instruction::IfElse {
                     then_condition: inner_then_condition,
-                    else_condition: inner_else_condition,
                     else_value: inner_else_value,
                     ..
                 } = dfg[*instruction]
@@ -259,7 +257,7 @@ pub(crate) fn simplify(
                         let instruction = Instruction::IfElse {
                             then_condition,
                             then_value,
-                            else_condition: inner_else_condition,
+                            else_condition,
                             else_value: inner_else_value,
                         };
                         return SimplifiedToInstruction(instruction);
@@ -440,7 +438,10 @@ fn try_optimize_array_set_from_previous_get(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn removes_range_constraints_on_constants() {
@@ -456,14 +457,13 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             range_check Field 256 to 8 bits
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]

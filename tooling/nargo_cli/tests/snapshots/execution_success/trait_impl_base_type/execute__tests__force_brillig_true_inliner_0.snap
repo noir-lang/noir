@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1WS2rDMBCVLYtWDYHSbnqAHkDGbpxdA3EPYpr6HDp6Eczg8cukUCKRTWYjy/P85vcipTKLVbQ2sDcK5kBruM7ajFxBTfQvY8wnrZ7WWvhtxmI9xM3Jvw/9ziv1Zcy/88RZsj/MWYA/PBDPV1z4sRYjVsbhN8m/pWepM8Y8kp+fn+nZwzcl5l9wPuFVyb8WtSU7xqUfmeJ2zD3m5/7Z0Ixa4rNKD/Eske9qwMseeMV3yJP3zHmwVp25PBsH2Dezzk8e+Dn18iJ4DcTSfgsZ+1P6LOm3UI809jkRG+uUZmEv807aHAQv4jCm1K0DLOOdOdflGNc+xr7TWvps1rRiIXYhrYS7Vv6nFT7fUCv8D+yWWtmY5S5qYv74wz4EjmtFH3AuMr4D/I72T0odzRV5zsPUzt00Tx/T6dR/T9inZLXok7z38B7De8+a85lqfu3+Mcq7GviSjXGNtYCV8Y6ArS7EQW38Anny2UXxDAAA",
+  "debug_symbols": "pdXLaoQwFAbgd8naRa5qfJVSBi9xCIQoUQtF5t0bSzuVdAbxn43kyPn+hSY5K+lMs1wv1vfDRKq3lbihrWc7+Fitt4w0wTpnr5f9a0K3Byu++6ex9ls5zXWYScWEphkxvotLSWlM6K0zpFJx+b+Z63sv37e+Z4SVr8cr/turdBqvj+PLxHAKGAYYDhgBGPnQKJbfP5tgqVGAyQFTAKYEjD5vBAUMAww/Num+FgIwEjAKME/2QaH/jqlKTQGYEjD6vJEUMAwwHDACMPLI5DS9pqUCTA6Y4qy5xeqjDrZunPkZZv3i291smz9Hk4y5MQyt6ZZgtoG3m3Xbn5Y6UzLGxugv",
+  "file_map": {
+    "50": {
+      "source": "trait Fieldable {\n    fn to_field(self) -> Field;\n}\n\nimpl Fieldable for u32 {\n    fn to_field(self) -> Field {\n        let res = self as Field;\n        res * 3\n    }\n}\n\nimpl Fieldable for [u32; 3] {\n    fn to_field(self) -> Field {\n        let res = self[0] + self[1] + self[2];\n        res as Field\n    }\n}\n\nimpl Fieldable for bool {\n    fn to_field(self) -> Field {\n        if self {\n            14\n        } else {\n            3\n        }\n    }\n}\n\nimpl Fieldable for (u32, bool) {\n    fn to_field(self) -> Field {\n        if self.1 {\n            self.0 as Field\n        } else {\n            32\n        }\n    }\n}\n\nimpl Fieldable for Field {\n    fn to_field(self) -> Field {\n        self\n    }\n}\n\nimpl Fieldable for str<6> {\n    fn to_field(self) -> Field {\n        6\n    }\n}\n\nimpl Fieldable for () {\n    fn to_field(self) -> Field {\n        0\n    }\n}\n\ntype Point2D = [Field; 2];\ntype Point2DAlias = Point2D;\n\nimpl Fieldable for Point2DAlias {\n    fn to_field(self) -> Field {\n        self[0] + self[1]\n    }\n}\n\nimpl Fieldable for fmtstr<14, (Field, Field)> {\n    fn to_field(self) -> Field {\n        52\n    }\n}\n\nimpl Fieldable for fn(u32) -> u32 {\n    fn to_field(self) -> Field {\n        self(10) as Field\n    }\n}\n\nfn some_func(x: u32) -> u32 {\n    x * 2 - 3\n}\n\nimpl Fieldable for u64 {\n    fn to_field(self) -> Field {\n        66 as Field\n    }\n}\n// x = 15\nfn main(x: u32) {\n    assert(x.to_field() == 15);\n    let arr: [u32; 3] = [3, 5, 8];\n    assert(arr.to_field() == 16);\n    let b_true = 2 == 2;\n    assert(b_true.to_field() == 14);\n    let b_false = 2 == 3;\n    assert(b_false.to_field() == 3);\n    let f = 13 as Field;\n    assert(f.to_field() == 13);\n    let k_true = (12 as u32, true);\n    assert(k_true.to_field() == 12);\n    let k_false = (11 as u32, false);\n    assert(k_false.to_field() == 32);\n    let m = \"String\";\n    assert(m.to_field() == 6);\n    let unit = ();\n    assert(unit.to_field() == 0);\n    let point: Point2DAlias = [2, 3];\n    assert(point.to_field() == 5);\n    let i: Field = 2;\n    let j: Field = 6;\n    assert(f\"i: {i}, j: {j}\".to_field() == 52);\n    assert(some_func.to_field() == 17);\n\n    let mut y = 0 as u64;\n    assert(y.to_field() == 66);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "nest",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VU2w6CMAztZF6mMRp5U1/0C0BQeORBPmSR8B18uix0oRR40e0ky7a0PT3tLgI6CBwGEucFjGF9Cpyj/xA75Ip86hSedA6aLGAe1nbHWbF4Yw8cFqxYXpf8eZS+1ER9DvUninB64H9YfumHP1ojz7sZ8gPLGzA/HkPjSuJTEh+DPQw/AcpjbfSu2vhNOw7Qr4+4VozPx/2hmlz3P5zQb3PtsNYr7pfMHuK8aseF9YPqdfmp8LOWJMdUDVPnAx70LIgegPE9FjM9PDOdvt7ZidVPc9Hz20H/58rGvZYs73pmEDR9T2yvKCSxU/8b7rczNRU/6qwzHdeJrvVTV1X60bxnBvRtfAEaV1rmVQgAAA==",
+  "debug_symbols": "lZHLCsMgEEX/ZdYuzKs0/kopwSRjEETFR6GI/14tXUh3bgbuMOcu5iQ4cY/XJrUwHtgjgTIHD9LoklImsDuplLy2dg20jmH93nvLdY0+cBeArTcCqE9gA50LLqRCYAvNTwIj7QWGXmDsBaZeYO4Fli4gl/TiTvJd4c+AiPpohIS3xT831pkDz+iwWmoE1X+PdzJNpbZUfwA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u8, nest: bool) {\n    if nest {\n        let foo = unsafe_assert([x]);\n        assert(foo != 0);\n    }\n}\n\n#[no_predicates]\npub fn unsafe_assert<let N: u32>(msg: [u8; N]) -> u8 {\n    // Safety: testing context\n    let block = unsafe { get_block(msg) };\n    verify_block(msg, block);\n    block[0]\n}\n\nunconstrained fn get_block<let N: u32>(msg: [u8; N]) -> [u8; 2] {\n    let mut block: [u8; 2] = [0; 2];\n    block[0] = msg[0];\n    block\n}\n\nfn verify_block<let N: u32>(msg: [u8; N], block: [u8; 2]) {\n    assert_eq(block[0], msg[0]);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

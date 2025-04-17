@@ -11,3 +11,4 @@ regression_7323
 reference_only_used_as_alias
 brillig_rc_regression_6123
 array_rc_regression_7842
+mutate_array_copy

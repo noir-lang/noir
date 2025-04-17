@@ -89,8 +89,9 @@ impl Visitor for AttributeReferenceFinder<'_> {
         &mut self,
         attribute: &MetaAttribute,
         _target: AttributeTarget,
+        span: Span,
     ) -> bool {
-        if !self.includes_span(attribute.location.span) {
+        if !self.includes_span(span) {
             return false;
         }
 
