@@ -2124,7 +2124,20 @@
 <a href="#2123" id="2123">2123</a>
 <a href="#2124" id="2124">2124</a>
 <a href="#2125" id="2125">2125</a>
-<a href="#2126" id="2126">2126</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2126" id="2126">2126</a>
+<a href="#2127" id="2127">2127</a>
+<a href="#2128" id="2128">2128</a>
+<a href="#2129" id="2129">2129</a>
+<a href="#2130" id="2130">2130</a>
+<a href="#2131" id="2131">2131</a>
+<a href="#2132" id="2132">2132</a>
+<a href="#2133" id="2133">2133</a>
+<a href="#2134" id="2134">2134</a>
+<a href="#2135" id="2135">2135</a>
+<a href="#2136" id="2136">2136</a>
+<a href="#2137" id="2137">2137</a>
+<a href="#2138" id="2138">2138</a>
+<a href="#2139" id="2139">2139</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -3808,17 +3821,10 @@
                     <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
                 }
                 BrilligBinaryOp::Mul =&gt; {
-                    <span class="kw">let </span>is_right_zero =
-                        SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
-                    <span class="kw">let </span>zero =
-                        <span class="self">self</span>.brillig_context.make_constant_instruction(<span class="number">0_usize</span>.into(), bit_size);
-                    <span class="self">self</span>.brillig_context.binary_instruction(
-                        zero,
-                        right,
-                        is_right_zero,
-                        BrilligBinaryOp::Equals,
-                    );
-                    <span class="self">self</span>.brillig_context.codegen_if_not(is_right_zero.address, |ctx| {
+                    <span class="kw">let </span>division_by_rhs_gives_lhs = |ctx: <span class="kw-2">&amp;mut </span>BrilligContext&lt;
+                        FieldElement,
+                        Registers,
+                    &gt;| {
                         <span class="kw">let </span>condition = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
                         <span class="kw">let </span>division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
                         <span class="comment">// Check that result / rhs == lhs
@@ -3832,9 +3838,29 @@
                         ctx.codegen_constrain(condition, <span class="prelude-val">Some</span>(msg.to_string()));
                         ctx.deallocate_single_addr(condition);
                         ctx.deallocate_single_addr(division);
-                    });
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(is_right_zero);
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(zero);
+                    };
+
+                    <span class="kw">let </span>rhs_may_be_zero =
+                        dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
+                    <span class="kw">if </span>rhs_may_be_zero {
+                        <span class="kw">let </span>is_right_zero =
+                            SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
+                        <span class="kw">let </span>zero = <span class="self">self
+                            </span>.brillig_context
+                            .make_constant_instruction(<span class="number">0_usize</span>.into(), bit_size);
+                        <span class="self">self</span>.brillig_context.binary_instruction(
+                            zero,
+                            right,
+                            is_right_zero,
+                            BrilligBinaryOp::Equals,
+                        );
+                        <span class="self">self</span>.brillig_context
+                            .codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
+                        <span class="self">self</span>.brillig_context.deallocate_single_addr(is_right_zero);
+                        <span class="self">self</span>.brillig_context.deallocate_single_addr(zero);
+                    } <span class="kw">else </span>{
+                        division_by_rhs_gives_lhs(<span class="self">self</span>.brillig_context);
+                    }
                 }
                 <span class="kw">_ </span>=&gt; {}
             }
