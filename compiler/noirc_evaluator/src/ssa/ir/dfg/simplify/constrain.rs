@@ -15,9 +15,6 @@ pub(super) fn decompose_constrain(
     msg: &Option<ConstrainError>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {
-    let lhs = dfg.resolve(lhs);
-    let rhs = dfg.resolve(rhs);
-
     if lhs == rhs {
         // Remove trivial case `assert_eq(x, x)`
         Vec::new()

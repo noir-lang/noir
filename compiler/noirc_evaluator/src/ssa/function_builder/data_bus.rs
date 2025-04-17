@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::ssa::ir::{
     function::RuntimeType,
     types::{NumericType, Type},
-    value::{ValueId, resolve_value},
+    value::{ValueId, ValueMapping},
 };
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
@@ -94,9 +94,9 @@ impl DataBus {
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
     }
 
-    pub(crate) fn replace_values(&mut self, values_to_replace: &HashMap<ValueId, ValueId>) {
-        if !values_to_replace.is_empty() {
-            self.map_values_mut(|value_id| resolve_value(values_to_replace, value_id));
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
+        if !mapping.is_empty() {
+            self.map_values_mut(|value_id| mapping.get(value_id));
         }
     }
 
