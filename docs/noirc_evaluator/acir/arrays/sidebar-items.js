@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["can_omit_element_sizes_array"]};
