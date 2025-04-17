@@ -1,4 +1,3 @@
-
 #[test(should_fail_with = "attempt to add with overflow")]
 unconstrained fn test_overflow_add() {
     let a: u8 = 255;
