@@ -32,4 +32,5 @@ noir_fuzzer.workspace = true
 
 [dev-dependencies]
 arbtest.workspace = true
+insta.workspace = true
 rand.workspace = true

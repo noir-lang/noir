@@ -222,13 +222,13 @@ pub(crate) fn ident_inner(
     }
 }
 
-/// 32-bit unsigned int literal, used in indexing arrays.
-fn positive_int_literal<V>(value: V, typ: Type) -> Expression
+/// Integer literal, can be positive or negative depending on type.
+pub(crate) fn int_literal<V>(value: V, is_negative: bool, typ: Type) -> Expression
 where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField { field: FieldElement::from(value), is_negative: false },
+        SignedField { field: FieldElement::from(value), is_negative },
         typ,
         Location::dummy(),
     ))
@@ -236,7 +236,7 @@ where
 
 /// 32-bit unsigned int literal, used in indexing arrays.
 pub(crate) fn u32_literal(value: u32) -> Expression {
-    positive_int_literal(value, types::U32)
+    int_literal(value, false, types::U32)
 }
 
 /// Create a variable.
@@ -287,7 +287,7 @@ pub(crate) fn index_modulo(idx: Expression, len: u32) -> Expression {
 
 /// Take an integer expression and make sure it's no larger than `max_size`.
 pub(crate) fn range_modulo(lhs: Expression, typ: Type, max_size: usize) -> Expression {
-    modulo(lhs, positive_int_literal(max_size as u64, typ))
+    modulo(lhs, int_literal(max_size as u64, false, typ))
 }
 
 /// Make a modulo expression.

@@ -20,7 +20,7 @@
 //! only used by Brillig bytecode.
 use std::collections::BTreeSet;
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::acir::AcirField;
 use im::HashSet;
 
 use crate::{
@@ -34,8 +34,12 @@ use crate::{
             dom::DominatorTree,
             function::Function,
             function_inserter::{ArrayCache, FunctionInserter},
-            instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+            instruction::{
+                Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction,
+                binary::try_convert_field_element_to_signed_integer,
+            },
             post_order::PostOrder,
+            types::NumericType,
             value::ValueId,
         },
         ssa_gen::Ssa,
@@ -282,6 +286,17 @@ impl Loop {
         Self { header, back_edge_start, blocks }
     }
 
+    /// Handle negative values represented as fields.
+    fn get_const_as_i128(function: &Function, id: ValueId) -> Option<i128> {
+        let (value, typ) = function.dfg.get_numeric_constant_with_type(id)?;
+        if matches!(typ, NumericType::NativeField) {
+            // Shouldn't happen, as fields don't have meaningful ordering.
+            value.try_into_i128()
+        } else {
+            try_convert_field_element_to_signed_integer(value, typ.bit_size())
+        }
+    }
+
     /// Find the lower bound of the loop in the pre-header and return it
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
@@ -296,13 +311,9 @@ impl Loop {
     ///     v5 = lt v1, u32 4
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_lower_bound(
-        &self,
-        function: &Function,
-        pre_header: BasicBlockId,
-    ) -> Option<FieldElement> {
+    fn get_const_lower_bound(&self, function: &Function, pre_header: BasicBlockId) -> Option<i128> {
         let jump_value = get_induction_variable(function, pre_header).ok()?;
-        function.dfg.get_numeric_constant(jump_value)
+        Self::get_const_as_i128(function, jump_value)
     }
 
     /// Find the upper bound of the loop in the loop header and return it
@@ -319,7 +330,7 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
+    fn get_const_upper_bound(&self, function: &Function) -> Option<i128> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
@@ -336,14 +347,14 @@ impl Loop {
 
         match &function.dfg[instructions[0]] {
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                function.dfg.get_numeric_constant(*rhs)
+                Self::get_const_as_i128(function, *rhs)
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b3, else: b2
-                function.dfg.get_numeric_constant(*rhs).map(|c| c + FieldElement::one())
+                Self::get_const_as_i128(function, *rhs).map(|c| c + 1)
             }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
@@ -354,7 +365,7 @@ impl Loop {
         &self,
         function: &Function,
         pre_header: BasicBlockId,
-    ) -> Option<(FieldElement, FieldElement)> {
+    ) -> Option<(i128, i128)> {
         let lower = self.get_const_lower_bound(function, pre_header)?;
         let upper = self.get_const_upper_bound(function)?;
         Some((lower, upper))
@@ -680,8 +691,6 @@ impl Loop {
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let (lower, upper) = self.get_const_bounds(function, pre_header)?;
-        let lower = lower.try_to_u64()?;
-        let upper = upper.try_to_u64()?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
@@ -689,7 +698,7 @@ impl Loop {
         let all_instructions = self.count_all_instructions(function);
 
         Some(BoilerplateStats {
-            iterations: (upper - lower) as usize,
+            iterations: (upper - lower).max(0) as usize,
             loads,
             stores,
             increments,
@@ -1031,7 +1040,6 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use acvm::FieldElement;
     use test_case::test_case;
 
     use crate::assert_ssa_snapshot;
@@ -1162,8 +1170,8 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
 
-        assert_eq!(lower, FieldElement::from(0u32));
-        assert_eq!(upper, FieldElement::from(4u32));
+        assert_eq!(lower, 0);
+        assert_eq!(upper, 4);
     }
 
     #[test]
@@ -1197,6 +1205,27 @@ mod tests {
         assert_eq!(stats.useful_instructions(), 1); // Adding to sum
         assert_eq!(stats.baseline_instructions(), 8);
         assert!(stats.is_small());
+    }
+
+    #[test]
+    fn test_boilerplate_stats_i64_empty() {
+        // Looping 0..-1, which should be 0 iterations.
+        let ssa = brillig_unroll_test_case_6470_with_params("i64", "0", "18446744073709551615");
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 0);
+        assert_eq!(stats.unrolled_instructions(), 0);
+    }
+
+    #[test]
+    fn test_boilerplate_stats_i64_non_empty() {
+        // Looping -4..-1, which should be 3 iterations.
+        let ssa = brillig_unroll_test_case_6470_with_params(
+            "i64",
+            "18446744073709551612",
+            "18446744073709551615",
+        );
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 3);
     }
 
     #[test]
@@ -1395,30 +1424,36 @@ mod tests {
     /// removing the `unconstrained` from the `main` function and
     /// compiling the program with `nargo --test-program . compile --show-ssa`.
     fn brillig_unroll_test_case() -> Ssa {
-        let src = "
+        brillig_unroll_test_case_with_params("u32", "0", "4")
+    }
+
+    fn brillig_unroll_test_case_with_params(idx_type: &str, lower: &str, upper: &str) -> Ssa {
+        let src = format!(
+            "
         // After `static_assert` and `assert_constant`:
-        brillig(inline) fn main f0 {
+        brillig(inline) fn main f0 {{
           b0(v0: u32):
             v2 = allocate -> &mut u32
             store u32 0 at v2
-            jmp b1(u32 0)
-          b1(v1: u32):
-            v5 = lt v1, u32 4
+            jmp b1({idx_type} {lower})
+          b1(v1: {idx_type}):
+            v5 = lt v1, {idx_type} {upper}
             jmpif v5 then: b3, else: b2
           b3():
             v8 = load v2 -> u32
             v9 = add v8, v1
             store v9 at v2
-            v11 = add v1, u32 1
+            v11 = add v1, {idx_type} 1
             jmp b1(v11)
           b2():
             v6 = load v2 -> u32
             v7 = eq v6, v0
             constrain v6 == v0
             return
-        }
-        ";
-        Ssa::from_str(src).unwrap()
+        }}
+        "
+        );
+        Ssa::from_str(&src).unwrap()
     }
 
     /// Test case from #6470:
@@ -1435,6 +1470,10 @@ mod tests {
     /// ```
     /// The `num_iterations` parameter can be used to make it more costly to inline.
     fn brillig_unroll_test_case_6470(num_iterations: usize) -> Ssa {
+        brillig_unroll_test_case_6470_with_params("u32", "0", &format!("{num_iterations}"))
+    }
+
+    fn brillig_unroll_test_case_6470_with_params(idx_type: &str, lower: &str, upper: &str) -> Ssa {
         let src = format!(
             "
         // After `static_assert` and `assert_constant`:
@@ -1445,18 +1484,18 @@ mod tests {
             inc_rc v3
             v4 = allocate -> &mut [u64; 6]
             store v3 at v4
-            jmp b1(u32 0)
-          b1(v1: u32):
-            v7 = lt v1, u32 {num_iterations}
+            jmp b1({idx_type} {lower})
+          b1(v1: {idx_type}):
+            v7 = lt v1, {idx_type} {upper}
             jmpif v7 then: b3, else: b2
           b3():
             v9 = load v4 -> [u64; 6]
             v10 = array_get v0, index v1 -> u64
             v12 = add v10, u64 1
             v13 = array_set v9, index v1, value v12
-            v15 = add v1, u32 1
+            v15 = add v1, {idx_type} 1
             store v13 at v4
-            v16 = add v1, u32 1 // duplicate
+            v16 = add v1, {idx_type} 1 // duplicate
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
