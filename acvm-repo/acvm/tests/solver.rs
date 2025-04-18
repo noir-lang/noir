@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
-use acir::circuit::opcodes::ConstantOrWitnessEnum;
 use acir::{
     AcirField, FieldElement,
     acir_field::GenericFieldElement,
