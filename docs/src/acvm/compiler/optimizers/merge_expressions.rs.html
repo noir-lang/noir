@@ -470,7 +470,28 @@
 <a href="#469" id="469">469</a>
 <a href="#470" id="470">470</a>
 <a href="#471" id="471">471</a>
-<a href="#472" id="472">472</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -499,9 +520,26 @@
         }
     }
     <span class="doccomment">/// This pass analyzes the circuit and identifies intermediate variables that are
-    /// only used in two gates. It then merges the gate that produces the
+    /// only used in two arithmetic opcodes. It then merges the opcode which produces the
     /// intermediate variable into the second one that uses it
     /// Note: This pass is only relevant for backends that can handle unlimited width
+    ///
+    /// The first pass maps witnesses to the index of the opcodes using them.
+    /// Public inputs are not considered because they cannot be simplified.
+    /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
+    /// if the memory block is an input to the call.
+    ///
+    /// The second pass looks for arithmetic opcodes having a witness which is only used by another arithmetic opcode.
+    /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
+    /// For instance, if we have '_1' used only by these two opcodes,
+    /// where `_{value}` refers to a witness and `{value}` refers to a constant:
+    /// [(1, _2,_3), (2, _2), (2, _1), (1, _3)]
+    /// [(2, _3, _4), (2,_1), (1, _4)]
+    /// We will remove the first one and modify the second one like this:
+    /// [(2, _3, _4), (1, _4), (-1, _2), (-1/2, _3), (-1/2, _2, _3)]
+    ///
+    /// This transformation is relevant for Plonk-ish backends although they have a limited width because
+    /// they can potentially handle expressions with large linear combinations using 'big-add' gates.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>eliminate_intermediate_variable(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;,
@@ -655,7 +693,7 @@
                 witnesses
             }
             Opcode::MemoryOp { block_id: <span class="kw">_</span>, op, predicate } =&gt; {
-                <span class="comment">//index et value, et predicate
+                <span class="comment">//index, value, and predicate
                 </span><span class="kw">let </span><span class="kw-2">mut </span>witnesses = CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.index);
                 witnesses.extend(CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.value));
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = predicate {
@@ -720,7 +758,11 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="kw">fn </span>get_opcode(<span class="kw-2">&amp;</span><span class="self">self</span>, g: usize, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Opcode&lt;F&gt;&gt; {
+    <span class="doccomment">/// Returns the 'updated' opcode at index 'g' in the circuit
+    /// The modifications to the circuits are stored with 'deleted_gates' and 'modified_gates'
+    /// These structures are used to give the 'updated' opcode.
+    /// For instance, if the opcode has been deleted inside 'deleted_gates', then it returns None.
+    </span><span class="kw">fn </span>get_opcode(<span class="kw-2">&amp;</span><span class="self">self</span>, g: usize, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Opcode&lt;F&gt;&gt; {
         <span class="kw">if </span><span class="self">self</span>.deleted_gates.contains(<span class="kw-2">&amp;</span>g) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }

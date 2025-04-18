@@ -158,7 +158,20 @@
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
     native_types::{Witness, WitnessMap},
@@ -213,7 +226,20 @@
     first_missing_assignment(witness_assignments, inputs).is_none()
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>solve&lt;F: AcirField&gt;(
+<span class="doccomment">/// Solve a black box function call
+/// 1. Returns an error if not all the inputs are already resolved to a value
+/// 2. Compute the output from the inputs, using the dedicated solvers
+///
+/// A blackbox is a fully specified function (e.g sha256, ecdsa signature,...)
+/// which the backend can prove execution in a more efficient way than using a generic
+/// arithmetic circuit.
+/// Solving a black box function simply means to compute the output from the inputs for
+/// the specific function.
+/// Our black box solver uses the standard rust implementation for the function if it is available.
+/// However, some functions depend on the backend, such as embedded curve operations, which depend on the
+/// elliptic curve used by the proving system. This is why the 'solve' functions takes a blackbox solver trait.
+/// The 'AcvmBigIntSolver' is also a blackbox solver, but dedicated to the BigInteger blackbox functions.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>solve&lt;F: AcirField&gt;(
     backend: <span class="kw-2">&amp;</span><span class="kw">impl </span>BlackBoxFunctionSolver&lt;F&gt;,
     initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
     bb_func: <span class="kw-2">&amp;</span>BlackBoxFuncCall&lt;F&gt;,

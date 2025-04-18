@@ -90,7 +90,9 @@
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -118,7 +120,7 @@
 
 <span class="kw">impl </span>AcirTransformationMap {
     <span class="doccomment">/// Builds a map from a vector of pointers to the old acir opcodes.
-    /// The index of the vector is the new opcode index.
+    /// The index in the vector is the new opcode index.
     /// The value of the vector is the old opcode index pointed.
     </span><span class="kw">fn </span>new(acir_opcode_positions: <span class="kw-2">&amp;</span>[usize]) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
@@ -128,7 +130,8 @@
         AcirTransformationMap { old_indices_to_new_indices }
     }
 
-    <span class="kw">pub fn </span>new_locations(
+    <span class="doccomment">/// Returns the new opcode location(s) corresponding to the old opcode.
+    </span><span class="kw">pub fn </span>new_locations(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         old_location: OpcodeLocation,
     ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = OpcodeLocation&gt; + <span class="lifetime">'_ </span>{
@@ -150,7 +153,8 @@
     }
 }
 
-<span class="kw">fn </span>transform_assert_messages&lt;F: Clone&gt;(
+<span class="doccomment">/// Update the assert messages to point to the new opcode locations.
+</span><span class="kw">fn </span>transform_assert_messages&lt;F: Clone&gt;(
     assert_messages: Vec&lt;(OpcodeLocation, AssertionPayload&lt;F&gt;)&gt;,
     map: <span class="kw-2">&amp;</span>AcirTransformationMap,
 ) -&gt; Vec&lt;(OpcodeLocation, AssertionPayload&lt;F&gt;)&gt; {

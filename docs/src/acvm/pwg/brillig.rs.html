@@ -342,7 +342,14 @@
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -374,7 +381,9 @@
     ForeignCallWait(ForeignCallWaitInfo&lt;F&gt;),
 }
 
-<span class="kw">pub struct </span>BrilligSolver&lt;<span class="lifetime">'b</span>, F, B: BlackBoxFunctionSolver&lt;F&gt;&gt; {
+<span class="doccomment">/// Specific solver for Brillig opcodes
+/// It maintains a Brillig VM that can execute the bytecode of the called brillig function
+</span><span class="kw">pub struct </span>BrilligSolver&lt;<span class="lifetime">'b</span>, F, B: BlackBoxFunctionSolver&lt;F&gt;&gt; {
     vm: VM&lt;<span class="lifetime">'b</span>, F, B&gt;,
     acir_index: usize,
     <span class="doccomment">/// This id references which Brillig function within the main ACIR program we are solving.
@@ -430,7 +439,10 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ vm, acir_index, function_id: brillig_function_id })
     }
 
-    <span class="kw">fn </span>setup_brillig_vm(
+    <span class="doccomment">/// Get a BrilligVM for executing the provided bytecode
+    /// 1. Reduce the input expressions into a known value, or error if they do not reduce to a value.
+    /// 2. Instantiate the Brillig VM with the bytecode and the reduced inputs.
+    </span><span class="kw">fn </span>setup_brillig_vm(
         initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
         memory: <span class="kw-2">&amp;</span>HashMap&lt;BlockId, MemoryOpSolver&lt;F&gt;&gt;,
         inputs: <span class="kw-2">&amp;</span>[BrilligInputs&lt;F&gt;],
@@ -525,15 +537,15 @@
         <span class="self">self</span>.vm.program_counter()
     }
 
-    <span class="kw">fn </span>handle_vm_status(
+    <span class="doccomment">/// Returns the status of the Brillig VM as a 'BrilligSolverStatus' resolution.
+    /// It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
+    /// Return the "resolution" to the caller who may choose to make subsequent calls
+    /// (when it gets foreign call results for example).
+    </span><span class="kw">fn </span>handle_vm_status(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         vm_status: VMStatus&lt;F&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BrilligSolverStatus&lt;F&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
-        <span class="comment">// Check the status of the Brillig VM and return a resolution.
-        // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
-        // Return the "resolution" to the caller who may choose to make subsequent calls
-        // (when it gets foreign call results for example).
-        </span><span class="kw">match </span>vm_status {
+        <span class="kw">match </span>vm_status {
             VMStatus::Finished { .. } =&gt; <span class="prelude-val">Ok</span>(BrilligSolverStatus::Finished),
             VMStatus::InProgress =&gt; <span class="prelude-val">Ok</span>(BrilligSolverStatus::InProgress),
             VMStatus::Failure { reason, call_stack } =&gt; {
@@ -578,7 +590,8 @@
         <span class="self">self</span>.finalize_inner(witness, outputs)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>finalize_with_profiling(
+    <span class="doccomment">/// Finalize the VM and return the profiling samples.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>finalize_with_profiling(
         <span class="kw-2">mut </span><span class="self">self</span>,
         witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
         outputs: <span class="kw-2">&amp;</span>[BrilligOutputs],
@@ -588,7 +601,8 @@
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.vm.take_profiling_samples())
     }
 
-    <span class="kw">fn </span>finalize_inner(
+    <span class="doccomment">/// Finalize the VM execution and write the outputs to the provided witness map.
+    </span><span class="kw">fn </span>finalize_inner(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
         outputs: <span class="kw-2">&amp;</span>[BrilligOutputs],
@@ -604,15 +618,15 @@
         }
     }
 
-    <span class="kw">fn </span>write_brillig_outputs(
+    <span class="doccomment">/// Write VM execution results into the witness map
+    </span><span class="kw">fn </span>write_brillig_outputs(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         witness_map: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
         return_data_offset: usize,
         return_data_size: usize,
         outputs: <span class="kw-2">&amp;</span>[BrilligOutputs],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-        <span class="comment">// Write VM execution results into the witness map
-        </span><span class="kw">let </span>memory = <span class="self">self</span>.vm.get_memory();
+        <span class="kw">let </span>memory = <span class="self">self</span>.vm.get_memory();
         <span class="kw">let </span><span class="kw-2">mut </span>current_ret_data_idx = return_data_offset;
         <span class="kw">for </span>output <span class="kw">in </span>outputs.iter() {
             <span class="kw">match </span>output {

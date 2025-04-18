@@ -845,7 +845,27 @@
 <a href="#844" id="844">844</a>
 <a href="#845" id="845">845</a>
 <a href="#846" id="846">846</a>
-<a href="#847" id="847">847</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -1061,7 +1081,9 @@
     <span class="doccomment">/// Index of the next opcode to be executed.
     </span>instruction_pointer: usize,
 
-    witness_map: WitnessMap&lt;F&gt;,
+    <span class="doccomment">/// A mapping of witnesses to their solved values
+    /// The map is updated as the ACVM executes.
+    </span>witness_map: WitnessMap&lt;F&gt;,
 
     brillig_solver: <span class="prelude-ty">Option</span>&lt;BrilligSolver&lt;<span class="lifetime">'a</span>, F, B&gt;&gt;,
 
@@ -1255,7 +1277,13 @@
         <span class="self">self</span>.status.clone()
     }
 
-    <span class="kw">pub fn </span>solve_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ACVMStatus&lt;F&gt; {
+    <span class="doccomment">/// Executes a single opcode using the dedicated solver.
+    ///
+    /// Foreign or ACIR Calls are deferred to the caller, which will
+    /// either instantiate a new ACVM to execute the called ACIR function
+    /// or a custom implementation to execute the foreign call.
+    /// Then it will resume execution of the current ACVM with the results of the call.
+    </span><span class="kw">pub fn </span>solve_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ACVMStatus&lt;F&gt; {
         <span class="kw">let </span>opcode = <span class="kw-2">&amp;</span><span class="self">self</span>.opcodes[<span class="self">self</span>.instruction_pointer];
         <span class="kw">let </span>resolution = <span class="kw">match </span>opcode {
             Opcode::AssertZero(expr) =&gt; ExpressionSolver::solve(<span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map, expr),
@@ -1290,7 +1318,9 @@
         <span class="self">self</span>.handle_opcode_resolution(resolution)
     }
 
-    <span class="kw">fn </span>handle_opcode_resolution(
+    <span class="doccomment">/// Returns the status of the ACVM
+    /// If the status is an error, it converts the error into [OpcodeResolutionError]
+    </span><span class="kw">fn </span>handle_opcode_resolution(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         resolution: <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt;,
     ) -&gt; ACVMStatus&lt;F&gt; {
@@ -1371,7 +1401,10 @@
         }))
     }
 
-    <span class="kw">fn </span>solve_brillig_call_opcode(
+    <span class="doccomment">/// Solves a Brillig Call opcode, which represents a call to an unconstrained function.
+    /// It first handles the predicate and returns zero values if the predicate is false.
+    /// Then it executes (or resumes execution) the Brillig function using a Brillig VM.
+    </span><span class="kw">fn </span>solve_brillig_call_opcode(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ForeignCallWaitInfo&lt;F&gt;&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
         <span class="kw">let </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =
@@ -1457,7 +1490,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>step_into_brillig(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; StepResult&lt;<span class="lifetime">'a</span>, F, B&gt; {
+    <span class="comment">// This function is used by the debugger
+    </span><span class="kw">pub fn </span>step_into_brillig(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; StepResult&lt;<span class="lifetime">'a</span>, F, B&gt; {
         <span class="kw">let </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =
             <span class="kw-2">&amp;</span><span class="self">self</span>.opcodes[<span class="self">self</span>.instruction_pointer]
         <span class="kw">else </span>{
@@ -1498,7 +1532,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>finish_brillig_with_solver(<span class="kw-2">&amp;mut </span><span class="self">self</span>, solver: BrilligSolver&lt;<span class="lifetime">'a</span>, F, B&gt;) -&gt; ACVMStatus&lt;F&gt; {
+    <span class="comment">// This function is used by the debugger
+    </span><span class="kw">pub fn </span>finish_brillig_with_solver(<span class="kw-2">&amp;mut </span><span class="self">self</span>, solver: BrilligSolver&lt;<span class="lifetime">'a</span>, F, B&gt;) -&gt; ACVMStatus&lt;F&gt; {
         <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>.opcodes[<span class="self">self</span>.instruction_pointer], Opcode::BrilligCall { .. }) {
             <span class="macro">unreachable!</span>(<span class="string">"Not executing a Brillig/BrilligCall opcode"</span>);
         }
@@ -1506,7 +1541,12 @@
         <span class="self">self</span>.solve_opcode()
     }
 
-    <span class="kw">pub fn </span>solve_call_opcode(
+    <span class="doccomment">/// Defer execution of the ACIR call opcode to the caller, or finalize the execution.
+    /// 1. It first handles the predicate and return zero values if the predicate is false.
+    /// 2. If the results of the execution are not available, it issues a 'AcirCallWaitInfo'
+    ///     to notify the caller that it (the caller) needs to execute the ACIR function.
+    /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.
+    </span><span class="kw">pub fn </span>solve_call_opcode(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AcirCallWaitInfo&lt;F&gt;&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
         <span class="kw">let </span>Opcode::Call { id, inputs, outputs, predicate } =
@@ -1603,8 +1643,8 @@
     }
 }
 
-<span class="comment">// TODO: There is an issue open to decide on whether we need to get values from Expressions
-// TODO versus just getting values from Witness
+<span class="doccomment">/// Returns the concrete value for a particular expression
+/// If the value cannot be computed, it returns an 'OpcodeNotSolvable' error.
 </span><span class="kw">pub fn </span>get_value&lt;F: AcirField&gt;(
     expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
     initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,

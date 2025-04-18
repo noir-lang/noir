@@ -362,7 +362,31 @@
 <a href="#361" id="361">361</a>
 <a href="#362" id="362">362</a>
 <a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     native_types::{Expression, Witness, WitnessMap},
 };
@@ -387,7 +411,17 @@
 }
 
 <span class="kw">impl </span>ExpressionSolver {
-    <span class="doccomment">/// Derives the rest of the witness based on the initial low level variables
+    <span class="doccomment">/// Derives the rest of the witness in the provided expression based on the known witness values
+    /// 1. Fist we simplify the expression based on the known values and try to reduce the multiplication and linear terms
+    /// 2. If we end up with only the constant term;
+    /// - if it is 0 then the opcode is solved, if not,
+    /// - the assert_zero opcode is not satisfied and we return an error
+    /// 3. If we end up with only linear terms on the same witness 'w',
+    ///     we can regroup them and solve 'a*w+c = 0':
+    ///     If 'a' is zero in the above expression;
+    ///         - if c is also 0 then the opcode is solved
+    ///         - if not that means the assert_zero opcode is not satisfied and we return an error
+    ///     If 'a' is not zero, we can solve it by setting the value of w: 'w = -c/a'
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>solve&lt;F: AcirField&gt;(
         initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
         opcode: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
@@ -493,10 +527,11 @@
         }
     }
 
-    <span class="doccomment">/// Returns the evaluation of the multiplication term in the expression
-    /// If the witness values are not known, then the function returns a None
-    /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another opcode
-    /// XXX: What about making a mul opcode = a constant 5xy + 7 = 0 ? This is the same as the above.
+    <span class="doccomment">/// Try to reduce the multiplication terms of the given expression to a known value or to a linear term,
+    /// using the provided witness mapping.
+    /// If there are 2 or more multiplication terms it returns the OpcodeUnsolvable error.
+    /// If no witnesses value is in the provided 'witness_assignments' map,
+    /// it returns MulTerm::TooManyUnknowns
     </span><span class="kw">fn </span>solve_mul_term&lt;F: AcirField&gt;(
         arith_opcode: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
         witness_assignments: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
@@ -513,7 +548,12 @@
         }
     }
 
-    <span class="kw">fn </span>solve_mul_term_helper&lt;F: AcirField&gt;(
+    <span class="doccomment">/// Try to solve a multiplication term of the form q*a*b, where
+    /// q is a constant and a,b are witnesses
+    /// If both a and b have known values (in the provided map), it returns the value q*a*b
+    /// If only one of a or b has a known value, it returns the linear term c*w where c is a constant and w is the unknown witness
+    /// If both a and b are unknown, it returns MulTerm::TooManyUnknowns
+    </span><span class="kw">fn </span>solve_mul_term_helper&lt;F: AcirField&gt;(
         term: <span class="kw-2">&amp;</span>(F, Witness, Witness),
         witness_assignments: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
     ) -&gt; MulTerm&lt;F&gt; {
@@ -530,7 +570,9 @@
         }
     }
 
-    <span class="kw">fn </span>solve_fan_in_term_helper&lt;F: AcirField&gt;(
+    <span class="doccomment">/// Reduce a linear term to its value if the witness assignment is known
+    /// If the witness value is not known in the provided map, it returns None.
+    </span><span class="kw">fn </span>solve_fan_in_term_helper&lt;F: AcirField&gt;(
         term: <span class="kw-2">&amp;</span>(F, Witness),
         witness_assignments: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;F&gt; {
@@ -579,6 +621,12 @@
     }
 
     <span class="comment">// Partially evaluate the opcode using the known witnesses
+    // For instance if values of witness 'a' and 'b' are known, then
+    // the multiplication 'a*b' is removed and their multiplied values are added to the constant term
+    // If only witness 'a' is known, then the multiplication 'a*b' is replaced by the linear term '(value of b)*a'
+    // etc ...
+    // If all values are known, the partial evaluation gives a constant expression
+    // If no value is known, the partial evaluation returns the original expression
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate&lt;F: AcirField&gt;(
         expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
         initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,

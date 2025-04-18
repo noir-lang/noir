@@ -2589,7 +2589,29 @@
 <a href="#2588" id="2588">2588</a>
 <a href="#2589" id="2589">2589</a>
 <a href="#2590" id="2590">2590</a>
-<a href="#2591" id="2591">2591</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#2591" id="2591">2591</a>
+<a href="#2592" id="2592">2592</a>
+<a href="#2593" id="2593">2593</a>
+<a href="#2594" id="2594">2594</a>
+<a href="#2595" id="2595">2595</a>
+<a href="#2596" id="2596">2596</a>
+<a href="#2597" id="2597">2597</a>
+<a href="#2598" id="2598">2598</a>
+<a href="#2599" id="2599">2599</a>
+<a href="#2600" id="2600">2600</a>
+<a href="#2601" id="2601">2601</a>
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a>
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -2713,7 +2735,7 @@
     </span>call_stack: Vec&lt;usize&gt;,
     <span class="doccomment">/// The solver for blackbox functions
     </span>black_box_solver: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>B,
-    <span class="comment">// The solver for big integers
+    <span class="comment">// The solver for big integers, it is used by the blackbox solver
     </span>bigint_solver: BrilligBigIntSolver,
     <span class="comment">// Flag that determines whether we want to profile VM.
     </span>profiling_active: bool,
@@ -2804,7 +2826,9 @@
         <span class="self">self</span>.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
-    <span class="kw">pub fn </span>resolve_foreign_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, foreign_call_result: ForeignCallResult&lt;F&gt;) {
+    <span class="doccomment">/// Provide the results of a Foreign Call to the VM
+    /// and resume execution of the VM.
+    </span><span class="kw">pub fn </span>resolve_foreign_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, foreign_call_result: ForeignCallResult&lt;F&gt;) {
         <span class="kw">if </span><span class="self">self</span>.foreign_call_counter &lt; <span class="self">self</span>.foreign_call_results.len() {
             <span class="macro">panic!</span>(<span class="string">"No unresolved foreign calls"</span>);
         }
@@ -2993,7 +3017,19 @@
     <span class="kw">pub fn </span>get_fuzzing_trace(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;u32&gt; {
         <span class="self">self</span>.fuzzer_trace.clone()
     }
-    <span class="kw">fn </span>process_opcode_internal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VMStatus&lt;F&gt; {
+
+    <span class="doccomment">/// Execute a single opcode:
+    /// 1. Retrieve the current opcode using the program counter
+    /// 2. Execute the opcode.
+    ///     For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the lhs and rhs addresses,
+    ///     compute the sum and write it to the 'result' memory address.
+    /// 3. Update the program counter, usually by incrementing it.
+    ///
+    /// - Control flow opcodes jump around the bytecode by setting the program counter.
+    /// - Foreign call opcodes pause the VM until the foreign call results are available
+    /// - Function call opcodes backup the current program counter into the call stack and jump to the function entry point.
+    ///   The stack frame for function calls is handled during codegen.
+    </span><span class="kw">fn </span>process_opcode_internal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VMStatus&lt;F&gt; {
         <span class="kw">let </span>opcode = <span class="kw-2">&amp;</span><span class="self">self</span>.bytecode[<span class="self">self</span>.program_counter];
         <span class="kw">match </span>opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } =&gt; {
@@ -3300,7 +3336,15 @@
         }
     }
 
-    <span class="kw">fn </span>write_foreign_call_result(
+    <span class="doccomment">/// Write a foreign call's results to the VM memory.
+    ///
+    /// We match the expected types with the actual results.
+    /// However foreign call results do not support nested structures:
+    /// They are either a single integer value or a vector of integer values (field elements).
+    /// Therefore, nested arrays returned from foreign call results are flattened.
+    /// If the expected array sizes do not match the actual size, we reconstruct the nested
+    /// structure from the flat output array.
+    </span><span class="kw">fn </span>write_foreign_call_result(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         destinations: <span class="kw-2">&amp;</span>[ValueOrArray],
         destination_value_types: <span class="kw-2">&amp;</span>[HeapValueType],

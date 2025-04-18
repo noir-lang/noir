@@ -486,7 +486,19 @@
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
 <a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         <span class="self">self</span>, Circuit, ExpressionWidth, Opcode,
@@ -579,7 +591,15 @@
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
-/// Does a single optimization pass.
+/// If the width is unbounded, it does nothing.
+/// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
+/// This results in arithmetic opcodes having the required width.
+/// Then the 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
+/// that are used in exactly two arithmetic opcodes.
+/// This results in arithmetic opcodes having linear combinations of potentially large width.
+/// Finally, the 'range optimization' pass will remove any redundant range opcodes.
+/// The backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
+/// than the 'CSAT transformation'.
 </span><span class="attr">#[tracing::instrument(
     level = <span class="string">"trace"</span>,
     name = <span class="string">"transform_acir_once"</span>,
@@ -590,7 +610,8 @@
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec&lt;usize&gt;,
 ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
-    <span class="kw">let </span><span class="kw-2">mut </span>transformer = <span class="kw">match </span><span class="kw-2">&amp;</span>expression_width {
+    <span class="comment">// If the expression width is unbounded, we don't need to do anything.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>transformer = <span class="kw">match </span><span class="kw-2">&amp;</span>expression_width {
         ExpressionWidth::Unbounded =&gt; {
             <span class="kw">return </span>(acir, acir_opcode_positions);
         }
@@ -603,9 +624,10 @@
         }
     };
 
-    <span class="comment">// TODO: the code below is only for CSAT transformer
-    // TODO it may be possible to refactor it in a way that we do not need to return early from the r1cs
-    // TODO or at the very least, we could put all of it inside of CSatOptimizer pass
+    <span class="comment">// 1. CSAT transformation
+    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
+    // to the required width by creating intermediate variables.
+    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
 
     </span><span class="kw">let </span><span class="kw-2">mut </span>new_acir_opcode_positions: Vec&lt;usize&gt; = Vec::with_capacity(acir_opcode_positions.len());
     <span class="comment">// Optimize the assert-zero gates by reducing them into the correct width and
@@ -704,7 +726,8 @@
         </span>..acir
     };
 
-    <span class="kw">let </span><span class="kw-2">mut </span>merge_optimizer = MergeExpressionsOptimizer::new();
+    <span class="comment">// 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>merge_optimizer = MergeExpressionsOptimizer::new();
 
     <span class="kw">let </span>(opcodes, new_acir_opcode_positions) =
         merge_optimizer.eliminate_intermediate_variable(<span class="kw-2">&amp;</span>acir, new_acir_opcode_positions);
@@ -716,7 +739,8 @@
         </span>..acir
     };
 
-    <span class="comment">// The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
+    <span class="comment">// 3. Remove redundant range constraints.
+    // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
     // so we run the `RangeOptimizer` afterwards to clear these up.
     </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir);
     <span class="kw">let </span>(acir, new_acir_opcode_positions) =
