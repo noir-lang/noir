@@ -539,7 +539,7 @@ impl WrappingMul for i64 {
 
 impl WrappingMul for u128 {
     fn wrapping_mul(self: u128, y: u128) -> u128 {
-        wrapping_mul128_hlp(self , y )
+        wrapping_mul128_hlp(self, y)
     }
 }
 
