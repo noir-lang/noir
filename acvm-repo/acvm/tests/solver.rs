@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
+use acir::circuit::opcodes::ConstantOrWitnessEnum;
 use acir::{
     AcirField, FieldElement,
     acir_field::GenericFieldElement,
@@ -992,8 +993,12 @@ fn bigint_solve_binary_op_opt(
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
-    let lhs = constant_or_witness_to_function_inputs(lhs, 0, None)?;
-    let rhs = constant_or_witness_to_function_inputs(rhs, lhs.len(), None)?;
+    let lhs: Vec<_> =
+        constant_or_witness_to_function_inputs(lhs, 0, None)?.iter().map(|i| i.input()).collect();
+    let rhs: Vec<_> = constant_or_witness_to_function_inputs(rhs, lhs.len(), None)?
+        .iter()
+        .map(|i| i.input())
+        .collect();
 
     let to_op_input = if middle_op.is_some() { 2 } else { 0 };
 
@@ -1100,8 +1105,9 @@ fn keccakf1600_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
+    let inputs = function_inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
     Ok(BlackBoxFuncCall::Keccakf1600 {
-        inputs: function_inputs.try_into().expect("Keccakf1600 expects 25 inputs"),
+        inputs: inputs.try_into().expect("Keccakf1600 expects 25 inputs"),
         outputs: outputs.try_into().expect("Keccakf1600 returns 25 outputs"),
     })
 }
@@ -1112,6 +1118,7 @@ fn poseidon2_permutation_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (inputs, outputs) = function_inputs_and_outputs;
+    let inputs = inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
     let len = inputs.len() as u32;
     Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
 }
@@ -1122,6 +1129,7 @@ fn poseidon2_permutation_invalid_len_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (inputs, outputs) = function_inputs_and_outputs;
+    let inputs = inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
     let len = (inputs.len() as u32) + 1;
     Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
 }
@@ -1132,7 +1140,8 @@ fn sha256_compression_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
-    let mut function_inputs = function_inputs.into_iter();
+    let function_inputs = function_inputs.into_iter();
+    let mut function_inputs = function_inputs.map(|input| input.input());
     let inputs = core::array::from_fn(|_| function_inputs.next().unwrap());
     let hash_values = core::array::from_fn(|_| function_inputs.next().unwrap());
     Ok(BlackBoxFuncCall::Sha256Compression {
