@@ -3721,11 +3721,11 @@ mod test {
         }
     }
 
-    fn get_constant_main_src(v0: FieldElement, v1: FieldElement, typ: &str) -> String {
+    fn get_constant_main_src(lhs: FieldElement, rhs: FieldElement, typ: &str) -> String {
         format!(
             "acir(inline) fn main f0 {{
-            b0(v0: [{typ}; 2]):
-             v6 = make_array [{typ} {v0}, {typ} {v1}] : [{typ}; 2]
+            b0(inputs: [{typ}; 2]):
+             v6 = make_array [{typ} {lhs}, {typ} {rhs}] : [{typ}; 2]
              lhs = array_get v6, index u32 0 -> {typ}
              rhs = array_get v6, index u32 1 -> {typ}
             "
@@ -3735,9 +3735,9 @@ mod test {
     fn get_main_src(typ: &str) -> String {
         format!(
             "acir(inline) fn main f0 {{
-            b0(v0: [{typ}; 2]):
-              lhs = array_get v0, index u32 0 -> {typ}
-              rhs = array_get v0, index u32 1 -> {typ}
+            b0(inputs: [{typ}; 2]):
+              lhs = array_get inputs, index u32 0 -> {typ}
+              rhs = array_get inputs, index u32 1 -> {typ}
               "
         )
     }
