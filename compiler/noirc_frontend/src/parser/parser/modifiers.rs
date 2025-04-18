@@ -13,6 +13,15 @@ pub(crate) struct Modifiers {
     pub(crate) mutable: Option<Location>,
 }
 
+impl Modifiers {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.visibility == ItemVisibility::Private
+            && self.unconstrained.is_none()
+            && self.comptime.is_none()
+            && self.mutable.is_none()
+    }
+}
+
 impl Parser<'_> {
     /// Modifiers = ItemVisibility 'unconstrained'? 'comptime'? 'mut'?
     ///

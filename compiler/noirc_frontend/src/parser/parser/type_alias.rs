@@ -25,7 +25,7 @@ impl Parser<'_> {
             };
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
 
         if !self.eat_assign() {
             self.expected_token(Token::Assign);
@@ -44,9 +44,7 @@ impl Parser<'_> {
 
         let typ = self.parse_type_or_error();
         let location = self.location_since(start_location);
-        if !self.eat_semicolons() {
-            self.expected_token(Token::Semicolon);
-        }
+        self.eat_semicolon_or_error();
 
         NoirTypeAlias { visibility, name, generics, typ, location }
     }

@@ -1,0 +1,1 @@
+[nested_if_then_block_same_cond] Circuit output: Vec([Field(1), Field(0)])

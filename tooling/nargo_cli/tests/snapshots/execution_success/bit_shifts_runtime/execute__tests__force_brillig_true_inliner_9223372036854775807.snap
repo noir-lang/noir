@@ -1,0 +1,68 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 64
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 16
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1bPW8jVRR98+F47MHxJllgRUNFQ8P4Y2O7MxJJQ0WHEI0T7xQIIRoKGpSCDiEqhCgQQjT8ADoaKjoaGio6hKgQokAIbbE7yruek+P7Jt7Ne1nvakeKZjw+797zzr33zfXMJDLnW3z/L7LHqd0nZn0TzNzui6ttA4+2ipA8o8eEZxyI54VkiGzCuDaZ1K496NjPMXyfeJx0h/z6tD8txpOOMj+P/EcdazMNbL8Vxn7RtnZeO6vt41zEb0I4bYxgjgBzBJgIMMeAOQZMlWc9wLOvnlnP4SP6DvNdbGf3//ZMfbxvjzvkK0T+IV/f8TtQ+Iuv3M41ji7ONUyujgvhITnTtfbZZ0za78B3/hbr4YqP5HgLfGA8dhr4GONvrWsRnxfsvopRRjFqB4nRdKVJZu2lECNcY1gzwb9IWnWC8CyKfbBrFF/INzeb5VmYvF/PM5emKWkq+JeIZxaEp65pRpoKx649dq0t2nXJX+2ON67dlkPTl+1eqy2OydwL56maB6lxX1OZ8yuk7TbkQW4ePA/8aTq8sqa3t0DTprUJ+yJe9yMHRlunsQfj81yjmhb+avf8B5f4qbYu+Ggr+vQUPjJWu87441rXbNfaw1zX+LQI/yrxzGFM6PzKyXegeA7F/jNB7E/KiOaDaz365GuB4I/tvurb3iNNemE0GYj93cCa9wPxl3XiBtjntVE47NF5TxxWtbcPcU0Un8IxJjwey3g89wZp1yc7rC/Hcg9sJ8o5WcOrvHudxnYBp619kpei8XOEndvPxZW2urb2SCP22SU+zwfhU8f8Ftlnn13iK/zfBM3fssdy/cC8uAW4txtwXQV3XTE5MM0x6W9ZTPrEV/ifgIZL0vqm0WNSNuD6Co7rKoFzGM+bhH8WNJTzuLZwDAT/DnB4F2yEy4tirRfBOGi12oTHcz2Yy/uOsblp7tFwbNh+Y1BwP5A65iX+uR/4gHhiDxC6J+N1PQ+iUb2G8DrJPrlnEvyHdl/F9ZsGvTzm9xPZM/F93ce9Z/qYtAvZM31EYzPAaWvRtvVMGfF51NdnXg+F/yeg+af2+LKe6bMGXKbgnvZMD9YzfQ4afkFau3qmLxtwfQXHdRW6Z/oKOHwNNsLlRbH2PAPjoNVqEx7PYc/0rWOsq2eKlbHacx1/Ogw3vo/l6ge+I56PsmcKo1FzrvB9VGPqOsP7tlxL2jixGbZPXr936XpGIv5jsx5b7T6FZk/7TcDfxYpd9ofjUS/tOs/PHr+3++pzbhMocM5MmDPey9b49zbQC+ev6dtxzP8Hc3HOqHHoGuXfmO1L9Gh69uoxPlPW1FUDqUPTH+0enxP2lPHta5lPeUfsyTsI6YbzEfxPxDPMewR6joivROHLz6A4ZzZ9zhiRBnNP82GNXc8ZI9Jd8D8Tz1Dva2m6txo08lhr6rtovl5anJRlyTnRMvU1i/XEGAj+F7uvauF/0mQnAOcC7mm0w9gfaj2ET/5Sq/x8FbUOfb0Rn3jdTxSf+C4q4vFYxuO532hu2A/Fir7cS2CPlCjnsN//lcbGhMP8xbzU7huFqC3s7WKHT+SzH4APxvyA7Gs+hS/y/x00/8Mey3Ub8+IAcH824GIFd10x2YU5ajHJtiwm3GsJ/79Aw79J674jJv804DIFx3WVGH094HvAN0BDOY9ryy7NSfD/Aof/wEaovMA4xGTfVatNeO0912p/1zE2N/o6FSljtX7Dlw5lOVvVh/BIHfPinmzFO7rIM9A7+mpPhn2t5Fx65t//ZHqeL9WWnNU6aP8AlML3iG9bA1gPOI/5Q/IsJ4tBOVqUi9uL5XJ8umCdqg3zzrf/09lhORuNTgaj2fLObHB43f6H0+nhbHhSjCfL03I5Hl3m/x4dmLZk0TUAAA==",
+  "debug_symbols": "ldrfauJAFIDxd8m1FzPnz8wcX2VZim1tEUSLtQtL6buvLk2RZDB8N8JIfuTiIwROzufwvH38eH3YHV6O78P61+ewPz5tzrvj4XL6/FoNj6fdfr97fbj9e0jXnxz/r39/2xyux/fz5nQe1uGrYXt4HtY5yYW/7PbbYe3p6/dqkERBpkAoUAqMAqegLICYgkpBoyAg0ERBt3QWHYWmqZAlUaZCsTAsHIuCRbd3jjSKmImGRVBhCYuMhdwXknQqFAvDwrEoWHSbS66jkJloS2L6DFpQ4QmLjIVg0W0ukUcRbSq6zVXGHip1KhyLgkW3udqPsOnz4Q2LoKKkBeE2FRkLwUKxMCz6zUsbRZ2JgkXFomERVNSERcZCsFAsDAvcvOLmFTevuHnFzRtu3nDzhps33Lzh5g03b7h5w80bbt5w88DNAzcP3Dxw88DNAzcP3Dxw88DNAzfPKXGSORFOlBPjxDkpnFROGie8fub1M6+fl+q3NCPKiXHinBRO+vXDvomlOWmcBCb9idx9kjkRTpQT48Q5KZzw+sLrC6+vvL7y+srrK6+vvL7y+srrK6+vvL7y+sbrG69vvL7x+sbrG69vvL7x+sbrG6/vvL7z+s7rO6/vvL7z+s7rO6/vvL7z+oXXL7x+4fXLYv0yI8aJc1I4qZx069vPsNtyzEhg0h/n3SeZE+FEOTFOnJPCSeWE16+8fn+wZyoj0TYjmRPhRBfI7FtE7g/37hPnpHDSr1/GrwtW5qRxEpj0R3z3SeZEONEFUmVGjBPnpHBSOenXj3ENwOfvyv6sz1r9IXlCpD/ruyVlRjInwolyYpx067uMb2SfbZlIf9Z3n1ROGieBSX/Wd59kToQT5cQ44fUzr595/czrZ15feH3h9YXXF15feH3h9YXXF15feH3h9ZXXV15feX3l9ZXXV15feX3l9ZXXV17feH3j9Y3XN17feH3j9Y3XN17feH3j9Z3Xd17fF+v7jCgnxolzUhj5upz+bE67zeN++703//JxeLpZoz//fdtONurfTsen7fPHaXvdrb9Zq7/WEm8rKfr7+lnveiz1cozLfS73+gc=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u64, y: u8, z: i16) {\n    // runtime shifts on compile-time known values\n    assert(64 << y == 128);\n    assert(64 >> y == 32);\n    // runtime shifts on runtime values\n    assert(x << y == 128);\n    assert(x >> y == 32);\n\n    // Bit-shift with signed integers\n    let mut a: i8 = y as i8;\n    let mut b: i8 = x as i8;\n    assert(b << 1 == -128);\n    assert(b >> 2 == 16);\n    assert(b >> y == 32);\n    a = -a;\n    assert(a << 7 == -128);\n    assert(a << y == -2);\n\n    assert(x >> (x as u8) == 0);\n\n    assert_eq(z >> 3, -97);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

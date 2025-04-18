@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "in0",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "tuple",
+        "fields": [
+          {
+            "kind": "field"
+          },
+          {
+            "kind": "field"
+          }
+        ]
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VSUQ7CIAxlDKNo1MT96C2Y28I+/VDvQVw4x44uxjarlexn8BJSSulr+9JCfCHDKeCuwKJPgW83sGYZ6oRcRkb6lGJmGEliseQLWB35XyYUQbO6Kfl701otfpG4/0YzDXPog5wZ+M0aeO7j/z7Qunvw6S5hziacg5juR5LzwYNwFyz2jNTNOXPYiQ75VQb+gGsV6R9r7UCjSkygs0umE9eMxyThxV1XY/q5bG8M1i2Bf0VmpFAkTv+fwd+S/tGqBX1662rfOO86Nwzty50Yv2A6vQE0O1wD+QUAAA==",
+  "debug_symbols": "XY3LCsMgEEX/ZdZZJG2aUn8llOBjDIKo+CgU8d87li6kmwt3mHtOBYWinIdx2idgewXrJc/GO2q1TSCisdacx3iGuceyff9T4K7XlHnMwLZ1AnQK2P1Ka20sArvN7dmovXg0XFj8oXVxcjDld8A/aYheoioRu34wU+7LY7qshCX0Bw==",
+  "file_map": {
+    "50": {
+      "source": "pub fn main(in0: Field) -> pub (Field, Field) {\n    let out0 = (in0 * in0);\n    let out1 = (in0 * in0);\n    (out0, out1)\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

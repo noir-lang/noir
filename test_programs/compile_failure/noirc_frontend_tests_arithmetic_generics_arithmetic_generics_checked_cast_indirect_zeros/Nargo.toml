@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_arithmetic_generics_arithmetic_generics_checked_cast_indirect_zeros"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "input",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7XSMQ6AIAxAURAP1NJW2s2rSMT7H0GNDkQHB+EnpBt5aerdVTje6N75e873JJiYS4oFCReIllWAJU+KiqKyRiUqyposWwJDpoKbGG1wVf8F/8KeTt/OGXs6h3ZO6ukM7Zzsq1sdH+ZzH8F9twOdbJ9r+AIAAA==",
+  "debug_symbols": "lY/LCsMgEEX/ZdYukthu/JVSgo8xDIiKj0KR/HtNaCBbd3Pu5VyYBgZV3VbyNmQQrwYuaFko+E4NpjPKUfqDcpGpgFhmzgC96Rd/7AwsOQTxnPY3g3lUWEYFPiZ0UImco229f9bjj0wklcM/2ur1rS3feDWXH1PQaGrCY+ns+vwP",
+  "file_map": {
+    "50": {
+      "source": "fn main(input: [u32; 4]) {\n    let mut slice1: [u32] = &[1, 2, 3, 4];\n    if slice1[0] == 3 {\n        slice1[1] = 4;\n    }\n\n    if slice1[1] == 5 {\n        slice1[3] = 6;\n    }\n\n    for i in 0..4 {\n        assert(slice1[i] == input[i]);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

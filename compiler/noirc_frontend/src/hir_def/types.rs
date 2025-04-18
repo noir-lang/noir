@@ -121,7 +121,7 @@ pub enum Type {
 
     /// A type-level integer. Included to let
     /// 1. an Array's size type variable
-    ///     bind to an integer without special checks to bind it to a non-type.
+    ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
     Constant(FieldElement, Kind),
 

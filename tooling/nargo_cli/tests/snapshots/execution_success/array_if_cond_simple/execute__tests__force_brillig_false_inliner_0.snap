@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 30,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2c6VITURCFOwF3RERERJQQERERZ01mEBH3fd9FESLJ+z+CabipDFT7a86t8hTcqhTk/Bi+2/0xgaRnKrK7NruPjvu+0n0MuK+958VMH7V9WdXIBoxs0MiOGNlRIztmZMeN7ISRnTSyU0Y2ZGSnjWzYyM4Y2YiRnTWyUSM7Z2RjRnbeyMaN7IKRTRjZRSObNLJLRjZlZJeN7IrL9Lm45yJ9lzRXV9QNdUF7r73W3movtXdDrjfDrvYjrrajrnZjrjbjbu8Tbm+Tjn3KsfV+dnH13F9zX+OgkSTtZtQO43AriPJWlgZJ2mpkYRamWbodZXHczpKsmbfyZpCHSdwOO2ked4LdNV04VlByVcVeqOP/qwZBuRUia+CLsYZkPGyUP8YZD4wmaNnf/Dpw06xC1QkYrwqJULM40IhVqFkCxmtCItQcDjRmFWqOgPG6kAg1jwNNWIWaJ2C8ISRCLeBAU1ahFggYbwqJUIs40AarUIsEjLeERKglHGiTVaglAsbbQiJUgAPNWIUKCBhDIREqwoHmrEJFBIyxkAiV4EC3WIVKCBhTIRGqgQNtsQrVIGBsColQGQ70D6tQGQFjLiRCLeNAt1mFWiZgvCMkQq3gQNusQq0QMN4VEqFWcaAdVqFWCRjvCYlQazDQkHZwDVcDf4z3hUSoBzihaOehcDXwx/hQSIR6hBOKdh4KVwN/jI+FRKgnOKFo56FwNfDH+FRIhHqGE4p2HgpXA3+Mz4VEqBc4oWjnoXA18Mf4UkiEeoUTinYeClcDf4yvhUSoNzihaOehcDXwx/hWSIR6hxOKdh4KVwN/jO+FRKgPOKFo56FwNfDH+FFIhPqEE4p2HgpXA3+Mn4VEqC84oWjnoXA18Mf4VUiE+oYTinYeClcDf4zfhUSoHzihaOehcDXwx7iOZCzewkfXTPehN0/Q6931EmW9qlQvBNRrt/RyG71CQofadQ5ZR0d12k8HtHSmRscg9JNr/bBRPx/St/T1XVh940zf69B/T/U/Cv0jUF+39VSrvx3r0l9oqfUYNenfmgjVBOSxasD9/gTKUS30o7iQNbR6HpRbFHe8QfZJPDfqQN+a6Bea0ccZrnczNuTGkceqAPe7AW5I1UM/gNLs9GHD4AzKrT1il93zbzl81WE4mSH7RPuqUydg3PTAuLPQZxHg2XjPpsuekbQhg+5Y04X9/y+3JN2//gK+371/u1cAAA==",
+  "debug_symbols": "ldfLisJAEIXhd+m1i0S7qrt8lWGQXCUQkpDLwBB894kSwUE3/7KqzunNt+rVlVW+XC9NV/eTO3+tru2LbG76bptWdzo+dtOQdfdxmrNxdmfRg6u60p01uR1c3bTVtktu3wd3OsG8h3mBeYX5APMR5o3lfQLzKcxDXw99PfT10NdDXw99PfT10Fegr0Bfgb4CfQX6CvQV6CvQV6CvQF+Fvgp9Ffoq9FXoq9BXoa9CX4W+Cn0D9A3QN0DfAH0D9A3QN0DfAH0D9A3QN0LfCH0j9I3QN0LfCH0j9I3QN0LfCH0N+hr0Nehr0Negr0Ffg74GfQ36GvRNk4/AdtwLpm+Fj8JpYnsjTeVfZRvysWnb5np5/Tlt659sbLK8rfaxXrri5Tr/Ds/Lsz+MfVGVy1jdX3rctuf/AA==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

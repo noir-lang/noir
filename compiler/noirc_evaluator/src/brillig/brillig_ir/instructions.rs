@@ -156,6 +156,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             right.bit_size
         );
         let bit_size = left.bit_size;
+        assert!(bit_size != BitSize::Field.to_u32::<F>(), "Attempt to modulo fields");
 
         let scratch_var_i = SingleAddrVariable::new(self.allocate_register(), bit_size);
         let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
@@ -459,7 +460,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
 /// Type to encapsulate the binary operation types in Brillig
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum BrilligBinaryOp {
+pub enum BrilligBinaryOp {
     Add,
     Sub,
     Mul,

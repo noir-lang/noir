@@ -1,0 +1,3684 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "conditions",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "struct",
+        "path": "Outer",
+        "fields": [
+          {
+            "name": "middle_a",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "middle_b",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "middle_c",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "middle_d",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "middle_e",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "middle_f",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "middle_g",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "middle_h",
+            "type": {
+              "kind": "struct",
+              "path": "Middle",
+              "fields": [
+                {
+                  "name": "inner_a",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_b",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_c",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_d",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "inner_e",
+                  "type": {
+                    "kind": "struct",
+                    "path": "Inner",
+                    "fields": [
+                      {
+                        "name": "a",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "b",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "c",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "d",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "e",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "f",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "g",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "h",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "i",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      },
+                      {
+                        "name": "j",
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 64
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9XbA5Scad4F8Oqkgw4mtm3btm3btjo2JpOxbdu2bdu2vnO/3Epu7nb+Z/ZssrPT5+ze2f7V/33eqq7sc59MdUpi/9e+lEQihf+cykyRzJI49CtpbZl1/7OvekfwWnWP1j2m/APuMdM/4B4z/wPuMfUI3uOe5M0lDv45ysrMxszOTGPmYOZk5mLmZh7DzMPMy8zHzM8swCzILMQszCzCLMosxizOLMEsySzFLM0swyzLLMcsz6zArMisxKzMrMKsyqzGrM6swazJrMWszazDTL4R6jHrMxswGzIbMRszmzCbMpsxmzNbMFsyWzFbM9sw2zLbMdszOzA7MjsxOzO7MLsyuzG7M3swezJ7MXsz+zD7Mvsx+zMHMAcyBzEHM4cwhzKHMYczRzBHMkcxRzPHMMcyxzHHMycwJzInMSczpzCnMqcxpzNnMGcyZzFnM+cw5zLnMeczFzAXMhcxFzOXMJcylzGXM1cwVzJXMVcz1zDTmWuZ65jrmRuYG5mbmJuZW5hbmduY25k7mDuZu5i7mXuYxzL3Mo9j7mMezzyBeSLzJObJzFOYpzJPY57OPIN5JvMs5tnMc5jnMs9jns+8gHkh8yLmxcxLmJcyL2NezryCeSXzKubVzGuY1zKvY17PvIF5I/Mm5s3MW5i3Mm9j3s68g3kn8y7m3cx7mPcy72Pez3yA+SDzIebDzEeYjzIfYz7OfIL5JPMp5tPMZ5jPMp9jPs98gfki8yXmy8xXmK8yX2O+znyD+SbzLebbzHeY7zLfY77P/ID5IfMj5sfMT5ifMj9jfs78gvkl8yvm18xvmN8yv2N+z/yB+SPzJ+bPzF+YvzJ/Y/7O/IP5JzNZQFKYmZiZmanMLMyszGzM7Mw0Zg5mTmYuZm7mMcw8zLzMfMz8zALMgsxCzMLMIsyizGLM4swSzJLMUszSzDLMssxyzPLMCsyKzErMyswqzKrMaszqzBrMmsxazNrMOsy6zHrM+swGzIbMRszGzCbMpsxmzObMFsyWzFbM1sw2zLbMdsz2zA7MjsxOzM7MLsyuzG7M7swezJ7MXszezD7Mvsx+zP7MAcyBzEHMwcwhzKHMYczhzBHMkcxRzNHMMcyxzHHM8cwJzInMSczJzCnMqcxpzOnMGcyZzFnM2cw5zLnMecz5zAXMhcxFzMXMJcylzGXM5cwVzJXMVczVzDXMdOZa5jrmeuYG5kbmJuZm5hbmVuY25nbmDuZO5i7mbmbyjHEscy/zOOY+5iEHeXwPB0YcyFLl+8mL4bE4qOCQggMKDic4mOBQggMJDiM4iOAQggMIDh84eODQgQMHDhs4aOCQgQMGDhc4WOBQgQMFDhM4SOAQUTax//CAgwMODTgw4LCAgwIOCTgg4HCAgwEOBTgQ4DCAgwAOATgAoPyj+KP0o/Cj7KPoo+Sj4KPco9ij1KPQo8yjyKPEt03sL+8o7ijtKOwo6yjqKOko6CjnKOYo5SjkKOMo4ijhKOAo3yjeKN0o3CjbKNoo2SjYKNco1ijVKNQo0yjSKNFjE/vLM4ozSjMKM8oyijJKMgoyyjGKMUoxCjHKMIowSjAKMMovii9KLwovyi6KLkouCi7KLYotSi0KLcosiixKbHpif3lFcUVpRWFFWUVRRUlFQUU5RTFFKUUhRRlFEUUJRQFF+UTxROlE4UTZRNFEyUTBRLlEsUSpRKFEmUSRRIk8K7G/PKI4ojSiMKIsoiiiJKIgohyiGKIUohCiDKIIogSiAKL8ofih9KHwoeyh6KHkoeCh3KHYodSh0KHMocihxN2V2F/eUNxQ2lDYUNZQ1FDSUNBQzlDMUMpQyFDGUMRQwlDAUL5QvFC6ULhQtlC0ULJQsFCuUKxQqlCoUKZQpFCi3krsL08oTihNKEwoSyhKKEkoSChHKEYoRShEKEMoQihBKEAoPyg+KD0oPCg7KDooOSg4KDcoNig1KDQoMygy/19iUvaXFxQXlBYUFpQVFBWUFBQUlBMUE5QSFBKUERQRlBAUEJQPFA+UDhQOlA0UDZQMFAyUCxQLlAoUCpQJFAmUCBQIlAcUB5QGFAaUBRQFlAQUBJQDFAOUAhQClAEUAZQAFABs/tj4seljw8dmj40emzw2eGzu2NixqWNDx2aOjRybODZwbN7YuLFpY8PGZo2NGps0NmhsztiYsSljQ8ZmjI0YmzA2YGy+2Hix6WLDxWaLjRabLDZYbK7YWLGpYkPFZoqNFJsoNlBsntg4sWliw8RmiY0SmyQ2SGyO2BixKWJDxGaIjRCbIDZAbH7Y+LDpYcPDZoeNDpscNjhsbtjYsKlhQ8Nmho0Mmxg2MGxe2LiwaWHDwmaFjQqbFDYobE7YmLApYUPCZoSNCJsQ9gxsPth4sOkc2HASB/9ybl3m/Zn8S65M4kfwLwXrpdm6R/L6TetNbJaWOPTrCN9/g7TEwb35KFy/UZpc8yhcv27yLzU7ph+8vj+XhGTycT6jj+kkj+l0mMd0lsd0PsxjushjuhzmMV3lMV3tMcnX7qi8t+o2bHiUfzaNcicO/Xlk9NxSj87ajVNsvYQ9z4StnyNxVP8c1Eux9ZL3469P8p+Tf/meOf3g/aSYpab/6/NIWpb0Q58HvtCrL0s5+Dh/b2WSx92YcvCfb0o59Nrd0g9/T93T//V6SeuRwT0lrWf64Z9LL7EsZr3Fspr1Ectm1lcsu1k/sTSz/mI5zAaI5TQbKOb/gmWQWG6zwWLHmA0Ry2M2VCyv2TCxfGbDxfKbjRArYDZSrKDZKLFCZqPFCpuNEStiNlasqNk4sWJm48WKm00QK2E2Uayk2SSxUmaTxUqbTRErYzZVrKzZNLFyZtPFypvNEKtgNlOsotkssUpms8Uqm80Rq2I2V6yq2TyxambzxaqbLRCrYbZQrKbZIrFaZovFapstEatjtlSsrtkysXpmy8Xqm60Qa2C2Uqyh2SqxRmarxRqbrRFrYpYu1tRsrVgzs3Vizc3Wi7Uw2yDW0myjWCuzTWKtzTaLtTHbItbWbKtYO7NtYu3Ntot1MNsh1tFsp1gns11inc12i3Ux2yPW1exYsW5me8W6mx0n1sNsn1hPs+PFepmdINbb7ESxPmYnifU1O1msn9kpYv3NThUbYHaa2ECz08UGmZ0hNtjsTLEhZmeJDTU7W2yY2Tliw83OFRthdp7YSLPzxUaZXSA22uxCsTFmF4mNNbtYbJzZJWLjzS4Vm2B2mdhEs8vFJpldITbZ7EqxKWZXiU01u1psmtk1YtPNrhWbYXad2Eyz68Vmmd0gNtvsRrE5ZjeJzTW7WWye2S1i881uFVtgdpvYQrPbxRaZ3SG22OxOsSVmd4ktNbtbbJnZPWLLze4VW2F2n9hKs/vFVpk9ILba7EGxNWYPiaWbPSy21uwRsXVmj4qtN3tMbIPZ42IbzZ4Q22T2pNhms6fEtpg9LbbV7BmxbWbPim03e05sh9nzYjvNXhDbZfai2G6zl8T2mL0sdqzZK2J7zV4VO87sNbF9Zq+LHW/2htgJZm+KnWj2lthJZm+LnWz2jtgpZu+KnWr2nthpZu+LnW72gdgZZh+KnWn2kdhZZh+LnW32idg5Zp+KnWv2mdh5Zp+LnW/2hdgFZl+KXWj2ldhFZl+LXWz2jdglZt+KXWr2ndhlZt+LXW72g9gVZj+KXWn2k9hVZj+LXW32i9g1Zr+KXWv2m9h1Zr+LXW/2h9gNZn+K3WiW/D9+2E1mKWI3m2USu8Uss9itZqlit5llEbvdLKvYHWbZxO40yy52l1ma2N1mOcTuMcspdq9ZLrH7zHKL3W92jNgDZnnEHjTLK/aQWT6xh83yiz1iVkDsUbOCYo+ZFRJ73Kyw2BNmRcSeNCsq9pRZMbGnzYqLPWNWQuxZs5Jiz5mVEnverLTYC2ZlxF40Kyv2klk5sZfNyou9YlZB7FWzimKvmVUSe92sstgbZlXE3jSrKvaWWTWxt82qi71jVkPsXbOaYu+Z1RJ736y22AdmdcQ+NKsr9pFZPbGPzeqLfWLWQOxTs4Zin5k1EvvcrLHYF2ZNxL40ayr2lVkzsa/Nmot9Y9ZC7FuzlmLfmbUS+96stdgPZm3EfjRrK/aTWTuxn83ai/1i1kHsV7OOYr+ZdRL73ayz2B9mXcT+NOsqtv+/Dlo3sRSz7mKZzHqIZTbrKZZq1kssi1lvsaxmfcSymfUVy27WTyzNrL9YDrMBYjnNBorlMhsklttssNgxZkPE8pgNFctrNkwsn9lwsfxmI8QKmI0UK2g2SqyQ2WixwmZjxIqYjRUrajZOrJjZeLHiZhPESphNFCtpNkmslNlksdJmU8TKmE0VK2s2Tayc2XSx8mYzxCqYzRSraDZLrJLZbLHKZnPEqpjNFatqNk+smtl8sepmC8RqmC0Uq2m2SKyW2WKx2mZLxOqYLRWra7ZMrJ7ZcrH6ZivEGpitFGtotkqskdlqscZma8SamKWLNTVbK9bMbJ1Yc7P1Yi3MNoi1NNso1spsk1hrs81ibcy2iLU12yrWzmybWHuz7WIdzHaIdTTbKdbJbJdYZ7PdYl3M9oh1NTtWrJvZXrHuZseJ9TDbJ9bT7HixXmYniPU2O1Gsj9lJYn3NThbrZ3aKWH+zU8UGmJ0mNtDsdLFBZmeIDTY7U2yI2VliQ83OFhtmdo7YcLNzxUaYnSc20ux8sVFmF4iNNrtQbIzZRWJjzS4WG2d2idh4s0vFJphdJjbR7HKxSWZXiE02u1JsitlVYlPNrhabZnaN2HSza8VmmF0nNtPserFZZjeIzTa7UWyO2U1ic81uFptndovYfLNbxRaY3Sa20Ox2sUVmd4gtNrtTbInZXWJLze4WW2Z2j9hys3vFVpjdJ7bS7H6xVWYPiK02e1BsjdlDYulmD4utNXtEbJ3Zo2LrzR4T22D2uNhGsyfENpk9KbbZ7CmxLWZPi201e0Zsm9mzYtvNnhPbYfa82E6zF8R2mb0ottvsJbHk79glP3Od/MU9xBH8PHmz5PX3HoXr163XrG6BDO5f18JXtvTEga8Dn/2X72VJP/R1yq6PN0sTS00/dJ0c/N+pso5eK3kfWezxN/ACyc/rZpWZ5HzeDNbPausfct8ZfE8/x+7XypzB95KPx2eor+RQTv4Hn49eKb9Pk5L4ez4nnyJrJtfPI/eQsNlMh7lXv25qBp78fuYMvp/JHpN2mO+3PTKvSf3kc88izys1uK+j/DM6cD/Jz9vra/lXf0ZZ5bn8lZ9R1gz8f+hn1CD53LPJ80rN4N6jn9ERvJ+GKRm8zn/je+bA65P8XYtE4t9/z2SX5/JX3jPZM/D/ofdMo+Rz199RTM3g3v9L75nGKRm8zn/je+bAezj5ezaJxL//nskhz+WvvGdyZOD/Q++ZJsnnnlOeV2oG9/5fes80Tcngdf4b3zMH/kwlf8cqkfj33zO55Ln4XEbvmYzeU9F7JsUek3aY77c9Mq9Js5QMnldqBveeXP8o38+4FFv7cO+Z/9L91M3Na+q5IrlW0vKKZTfLJ5bVTPf+XGYFZS6Tmf5cspnpa5RmlkeumcPMXz817cA5zfLLNbOYXSJzydcvaUUCOz2w0YGVSDm83RfMrQ3m2geWJ7jm9YEtDqxBsN5vwdzyYK5KMHd5YLMDqxGsty+Y6xfYm4F1CtbbEcx1CyxHcM0fg7lVwVzrYO68wMYFVj5Y78tgrlAw90IwNzKYKxbMbQ6sbWC5g/WeCOa2B3MLA6sXXPPOwJYGVilY74NgbmYwVy2YGxLM5Q3mzghsRGCpwXp3B3Prgrk+gWUPrnlDYAsCaxms93MwNyWYKxvMXRHYjMCODax/YGWC+3wpmNsYzHUObGtwze6BNQmu+VUwtzqYaxHMnR3Y+MDqBOt9FMwNCqxwcM1ng7lhwVzxYC49sF6BHROs92gwNy+Yqx/M3RTYpMAqB+u9G8xNC+aqB3N9g7lSwdypgXUMLCVY755gbncw1zWwRsE1rw1sZWDNgvV+CebGBnO1grlLAysY2N7AxgRWNLjP+4O5TcFch8ByBdfcFtiSwOoG6/0ezK0I5ioGc+cENiewqsF6xwdzgwMrEFzztWBueDCXLZjbGVjvwHIG630XzM0P5toEc+cHNjmwCsF6nwVz04O5F4O5PcHcqMBKB9fcEFi7wDIF6z0ZzG0J5hYF1ji45m2BLQusebDeh8HcrGCudjA3MJjLF8ydGdjQwLIE6z0QzK0P5noGlhZc88bA5gbWKljvj2BuYjBXLpi7MrCpgZ0Q2IDASgb3+XIw1yWY2xXM9QisYXDNr4O5NcFc02DugsAmBFYzWO/jYK5IMPdUMDc6mCsRzK0NrH1gDwW2OLiXBsHczYEtD6xKsN5bwdzsYK5GMNcvmMsfzJ0UWKfAsgbr3RvM7QjmugWWI7jmVYGtCqx1sN6vwdy4YK58MHdRYIUCOy6wkYEVC+7zlWBuczDXNrDcwTW3B7YwsHrBet8Ec0uDuUrB3LmBzQysWrDeJ8HckMBeD2xEsN66YK5PYNmDa34fzC0I5loGc7cENiWwssF6nwdzM4K554K5/sFcmWBuY2CdA8scrPdYMLc1mOseWJPgmrcHtjqwFsF67wVz44O5OsHcoGCucDB3WmDDAiserPdgMJcezPUK7JjgmtcFNi+w+sF6fwZzk4K5ysHcZYFNC6x6sN6JwVzfwEoF13wjmOsYzO0O5roG1ii45g/B3Mpgrlkwd2FgYwOrFaz3RTD3dGBjgmsWDeY2BdYhsFzBeg8Hc9uCuSWB1Q2ueUdgKwKrGKz3djA3J5irGswNDuYKBHMnBzY8sGzBencFczuDud6B5QyueXVg8wNrE6z3UzA3OZirEMxdHNj0wPYENiqw0sF9vhrMbQjm2gW2JbjmosAaB9f8NphbFsw1D+bOCmxWYLWD9T4N5gYG9kxgQ4P1sgRz6wPrGVhasN4jwdzcYK5VMHdrYBMDKxes904wNzWYez6YGxDMlQzmTgmsS2CJYL3Hg7ldwVyPwBoG17wmsDWBNQ3Wez+YmxDM1cxgDvtC8u/mU9MP+pH6zHmTpnWT/1r1wO8PZkkc+jnxhK2fxR6/lg/Wvx9L5n/yOefJTcbVm9xg3ORxjcZNnNhwwrj8dn18JT9njNfp/wBokUf1oYEAAA==",
+  "debug_symbols": "ndTRioQgFAbgd/HaC4/aqr3KsgxWNghiYbWwRO++OkzM0HTTuRGP8KkH9F9J55rlfvOxHyZSf68kDK2d/RBztW6UNMmH4O+392XCyiAlPMA02ljqabZpJrUWjBIXuzyTIm/Q++BIXbHth2bCrxNxncjrxJwRYAaeBoDJI6oYBgEGcQw670kIuSMh1RF9MQwCDOIYdN5TpdSOKsOOSDEMAgziGHTek+b7ewUtPh6sZhgEGMSvoi1XvzZ52wT3jJF+ie1bqsx/ozsEzJiG1nVLciVqXilTfr/kmkqh82WgdK0Np9qofEw+6h8=",
+  "file_map": {
+    "50": {
+      "source": "// Tests that we run liveness in block parameters by trying to create too many block parameters to fit in the stack\n// Uses up 10 stack items\nstruct Inner {\n    a: u64,\n    b: u64,\n    c: u64,\n    d: u64,\n    e: u64,\n    f: u64,\n    g: u64,\n    h: u64,\n    i: u64,\n    j: u64,\n}\n\n// Uses up 50 stack items\nstruct Middle {\n    inner_a: Inner,\n    inner_b: Inner,\n    inner_c: Inner,\n    inner_d: Inner,\n    inner_e: Inner,\n}\n\n// Uses up 500 stack items\nstruct Outer {\n    middle_a: Middle,\n    middle_b: Middle,\n    middle_c: Middle,\n    middle_d: Middle,\n    middle_e: Middle,\n    middle_f: Middle,\n    middle_g: Middle,\n    middle_h: Middle,\n}\n\n// If we don't take into account block parameter liveness, this function will need 5*500=2500 stack items\nunconstrained fn main(conditions: [bool; 5]) -> pub Outer {\n    let out0 = if conditions[0] {\n        let mut outer: Outer = std::mem::zeroed();\n        outer.middle_a.inner_a.a = 1;\n        outer\n    } else {\n        let mut outer: Outer = std::mem::zeroed();\n        outer.middle_f.inner_c.d = 2;\n        outer\n    };\n\n    let out1 = if conditions[1] {\n        let mut new_outer = out0;\n        new_outer.middle_a.inner_a.b = 3;\n        new_outer\n    } else {\n        let mut new_outer = out0;\n        new_outer.middle_f.inner_c.c = 4;\n        new_outer\n    };\n\n    let out2 = if conditions[2] {\n        let mut new_outer = out1;\n        new_outer.middle_a.inner_a.c = 5;\n        new_outer\n    } else {\n        let mut new_outer = out1;\n        new_outer.middle_f.inner_c.b = 6;\n        new_outer\n    };\n\n    let out3 = if conditions[3] {\n        let mut new_outer = out2;\n        new_outer.middle_a.inner_a.d = 7;\n        new_outer\n    } else {\n        let mut new_outer = out2;\n        new_outer.middle_f.inner_c.a = 8;\n        new_outer\n    };\n\n    let out4 = if conditions[4] {\n        let mut new_outer = out3;\n        new_outer.middle_a.inner_a.f = 9;\n        new_outer\n    } else {\n        let mut new_outer = out3;\n        new_outer.middle_f.inner_c.f = 10;\n        new_outer\n    };\n\n    out4\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

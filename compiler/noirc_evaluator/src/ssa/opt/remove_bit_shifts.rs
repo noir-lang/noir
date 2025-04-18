@@ -5,15 +5,16 @@ use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic},
+        instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
     ssa_gen::Ssa,
 };
+
+use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -37,62 +38,56 @@ impl Function {
         }
 
         let block = self.entry_block();
-        let mut context = Context {
-            function: self,
-            new_instructions: Vec::new(),
-            block,
-            call_stack: CallStackId::root(),
-        };
 
-        context.remove_bit_shifts();
+        // Make sure this optimization runs when there's only one block
+        assert_eq!(self.dfg[block].successors().count(), 0);
+
+        self.simple_reachable_blocks_optimization(|context| {
+            let instruction_id = context.instruction_id;
+            let instruction = context.instruction();
+
+            let Instruction::Binary(Binary { lhs, rhs, operator }) = instruction else {
+                return;
+            };
+
+            if !matches!(operator, BinaryOp::Shl | BinaryOp::Shr) {
+                return;
+            }
+
+            let lhs = *lhs;
+            let rhs = *rhs;
+            let operator = *operator;
+
+            context.remove_current_instruction();
+
+            let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
+            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+
+            let bit_size = match context.dfg.type_of_value(lhs) {
+                Type::Numeric(NumericType::Signed { bit_size })
+                | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                _ => unreachable!("ICE: right-shift attempted on non-integer"),
+            };
+
+            let new_result = if operator == BinaryOp::Shl {
+                let mut context = Context { context, call_stack };
+                context.insert_wrapping_shift_left(lhs, rhs, bit_size)
+            } else {
+                let mut context = Context { context, call_stack };
+                context.insert_shift_right(lhs, rhs, bit_size)
+            };
+
+            context.replace_value(old_result, new_result);
+        });
     }
 }
 
-struct Context<'f> {
-    function: &'f mut Function,
-    new_instructions: Vec<InstructionId>,
-
-    block: BasicBlockId,
+struct Context<'m, 'dfg, 'mapping> {
+    context: &'m mut SimpleOptimizationContext<'dfg, 'mapping>,
     call_stack: CallStackId,
 }
 
-impl Context<'_> {
-    fn remove_bit_shifts(&mut self) {
-        let instructions = self.function.dfg[self.block].take_instructions();
-
-        for instruction_id in instructions {
-            match self.function.dfg[instruction_id] {
-                Instruction::Binary(Binary { lhs, rhs, operator })
-                    if matches!(operator, BinaryOp::Shl | BinaryOp::Shr) =>
-                {
-                    self.call_stack =
-                        self.function.dfg.get_instruction_call_stack_id(instruction_id);
-                    let old_result =
-                        *self.function.dfg.instruction_results(instruction_id).first().unwrap();
-
-                    let bit_size = match self.function.dfg.type_of_value(lhs) {
-                        Type::Numeric(NumericType::Signed { bit_size })
-                        | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                        _ => unreachable!("ICE: right-shift attempted on non-integer"),
-                    };
-                    let new_result = if operator == BinaryOp::Shl {
-                        self.insert_wrapping_shift_left(lhs, rhs, bit_size)
-                    } else {
-                        self.insert_shift_right(lhs, rhs, bit_size)
-                    };
-
-                    self.function.dfg.set_value_from_id(old_result, new_result);
-                }
-                _ => {
-                    self.new_instructions.push(instruction_id);
-                }
-            };
-        }
-
-        *self.function.dfg[self.block].instructions_mut() =
-            std::mem::take(&mut self.new_instructions);
-    }
-
+impl Context<'_, '_, '_> {
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
     /// and truncate the result to bit_size
     pub(crate) fn insert_wrapping_shift_left(
@@ -102,8 +97,8 @@ impl Context<'_> {
         bit_size: u32,
     ) -> ValueId {
         let base = self.field_constant(FieldElement::from(2_u128));
-        let typ = self.function.dfg.type_of_value(lhs).unwrap_numeric();
-        let (max_bit, pow) = if let Some(rhs_constant) = self.function.dfg.get_numeric_constant(rhs)
+        let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
+        let (max_bit, pow) = if let Some(rhs_constant) = self.context.dfg.get_numeric_constant(rhs)
         {
             // Happy case is that we know precisely by how many bits the integer will
             // increase: lhs_bit_size + rhs
@@ -119,7 +114,7 @@ impl Context<'_> {
             }
             let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
 
-            let max_lhs_bits = self.function.dfg.get_value_max_num_bits(lhs);
+            let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
             let max_bit_size = max_lhs_bits + bit_shift_size;
             // There is no point trying to truncate to more than the Field size.
             // A higher `max_lhs_bits` input can come from trying to left-shift a Field.
@@ -164,7 +159,7 @@ impl Context<'_> {
         rhs: ValueId,
         bit_size: u32,
     ) -> ValueId {
-        let lhs_typ = self.function.dfg.type_of_value(lhs).unwrap_numeric();
+        let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let base = self.field_constant(FieldElement::from(2_u128));
         let pow = self.pow(base, rhs);
         let pow = self.pow_or_max_for_bit_size(pow, rhs, bit_size, lhs_typ);
@@ -231,7 +226,7 @@ impl Context<'_> {
         // pow = add pow_when_is_less_than_bit_size, pow_when_is_not_less_than_bit_size
         //
         // All operations here are unchecked because they work on field types.
-        let rhs_typ = self.function.dfg.type_of_value(rhs).unwrap_numeric();
+        let rhs_typ = self.context.dfg.type_of_value(rhs).unwrap_numeric();
         let bit_size = self.numeric_constant(bit_size as u128, rhs_typ);
         let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size);
         let rhs_is_not_less_than_bit_size = self.insert_not(rhs_is_less_than_bit_size);
@@ -263,9 +258,9 @@ impl Context<'_> {
     ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
     /// }
     fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
-        let typ = self.function.dfg.type_of_value(rhs);
+        let typ = self.context.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.function.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
+            let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
             let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
             let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types);
 
@@ -292,7 +287,7 @@ impl Context<'_> {
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
-        self.function.dfg.make_constant(constant, NumericType::NativeField)
+        self.context.dfg.make_constant(constant, NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function
@@ -301,7 +296,7 @@ impl Context<'_> {
         value: impl Into<FieldElement>,
         typ: NumericType,
     ) -> ValueId {
-        self.function.dfg.make_constant(value.into(), typ)
+        self.context.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -367,17 +362,41 @@ impl Context<'_> {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
-        let result = self.function.dfg.insert_instruction_and_results(
+        self.context.dfg.insert_instruction_and_results(
             instruction,
-            self.block,
+            self.context.block_id,
             ctrl_typevars,
             self.call_stack,
-        );
+        )
+    }
+}
 
-        if let InsertInstructionResult::Results(instruction_id, _) = result {
-            self.new_instructions.push(instruction_id);
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn removes_shl() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = shl v0, u8 2
+            v3 = truncate v2 to 32 bits, max_bit_size: 33
+            return v2
         }
-
-        result
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = cast v0 as Field
+            v3 = mul v1, Field 4
+            v4 = truncate v3 to 32 bits, max_bit_size: 34
+            v5 = cast v4 as u32
+            v6 = truncate v5 to 32 bits, max_bit_size: 33
+            return v5
+        }
+        ");
     }
 }

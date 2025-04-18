@@ -3,10 +3,10 @@
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
 //! 2. For each loop:
-//!    a. If the loop is in our list of loops that previously failed to unroll, skip it.
-//!    b. If we have previously modified any of the blocks in the loop,
+//!    1. If the loop is in our list of loops that previously failed to unroll, skip it.
+//!    2. If we have previously modified any of the blocks in the loop,
 //!       restart from step 1 to refresh the context.
-//!    c. If not, try to unroll the loop. If successful, remember the modified
+//!    3. If not, try to unroll the loop. If successful, remember the modified
 //!       blocks. If unsuccessful either error if the abort_on_error flag is set,
 //!       or otherwise remember that the loop failed to unroll and leave it unmodified.
 //!
@@ -666,7 +666,9 @@ impl Loop {
     /// of unrolled instructions times the number of iterations would result in smaller bytecode
     /// than if we keep the loops with their overheads.
     fn is_small_loop(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
-        self.boilerplate_stats(function, cfg).map(|s| s.is_small()).unwrap_or_default()
+        self.boilerplate_stats(function, cfg)
+            .map(|s| s.is_small() && self.is_fully_executed(cfg))
+            .unwrap_or_default()
     }
 
     /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,
@@ -1032,6 +1034,7 @@ mod tests {
     use acvm::FieldElement;
     use test_case::test_case;
 
+    use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
@@ -1085,7 +1088,13 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        // The final block count is not 1 because unrolling creates some unnecessary jmps.
+        // If a simplify cfg pass is ran afterward, the expected block count will be 1.
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "All loops should be unrolled");
+        assert_eq!(ssa.main().reachable_blocks().len(), 5);
+
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             constrain u1 0 == Field 1
@@ -1110,15 +1119,7 @@ mod tests {
           b4():
             jmp b1()
         }
-        ";
-
-        // The final block count is not 1 because unrolling creates some unnecessary jmps.
-        // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        let (ssa, errors) = try_unroll_loops(ssa);
-        assert_eq!(errors.len(), 0, "All loops should be unrolled");
-        assert_eq!(ssa.main().reachable_blocks().len(), 5);
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     // Test that the pass can still be run on loops which fail to unroll properly
@@ -1217,9 +1218,13 @@ mod tests {
     fn test_brillig_unroll_small_loop() {
         let ssa = brillig_unroll_test_case();
 
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
+
         // Expectation taken by compiling the Noir program as ACIR,
         // ie. by removing the `unconstrained` from `main`.
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v1 = allocate -> &mut u32
@@ -1242,13 +1247,7 @@ mod tests {
             constrain v13 == v0
             return
         }
-        ";
-
-        let (ssa, errors) = try_unroll_loops(ssa);
-        assert_eq!(errors.len(), 0, "Unroll should have no errors");
-        assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     /// Test that we can unroll the loop in the ticket if we don't have too many iterations.
@@ -1260,8 +1259,7 @@ mod tests {
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
 
-        // The IDs are shifted by one compared to what the ACIR version printed.
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [u64; 6]):
             inc_rc v0
@@ -1290,8 +1288,7 @@ mod tests {
             dec_rc v0
             return v20
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     /// Test that with more iterations it's not unrolled.
@@ -1487,5 +1484,53 @@ mod tests {
     #[test_case(1000, 250, -1250, false; "demanding more than minus 100 is handled")]
     fn test_is_new_size_ok(old: usize, new: usize, max: i32, ok: bool) {
         assert_eq!(is_new_size_ok(old, new, max), ok);
+    }
+
+    #[test]
+    fn do_not_unroll_loop_with_break() {
+        // One of the loop header's (b1) successors (b3) has multiple predecessors (b1 and b4).
+        // This logic is how we identify a loop with a break expression.
+        // We do not support unrolling these types of loops.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 5
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            return u1 1
+          b4():
+            jmp b3()
+          b5():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "All loops should be unrolled");
+
+        // The SSA is expected to be unchanged
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 5
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            return u1 1
+          b4():
+            jmp b3()
+          b5():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+        }
+        "#);
     }
 }

@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_deny_cyclic_type_aliases"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

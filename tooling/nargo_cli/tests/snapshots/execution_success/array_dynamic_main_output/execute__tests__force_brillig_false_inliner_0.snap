@@ -1,0 +1,62 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 10,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 10,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9Va21LCMBBdiooUQZSLIiIgIMJTem/f/A7fZCwv/qb+l82QDpkCjjM9edid2dnSdJZzNidtkkmFdrbOfK6uqyratLdK5pZqO8v8PPOLzGuZX2ZeV8+dqWjRoVVUfFNRlDPHBuTa7iw8Ardsbie/0GvRU7GfF6SqorwxKQCoGiyYJ0LfTyM3dTznQ7jJJg6EH2zC2ImdIA4+3djz0tiPo2STRCJxfC91tkHiblWuXvlcnsol+oY6sii4sjh7uL4QJnHeAXEeG8hITZ6qgShnkJdDbqYwIvuJDHcUjyIYwnhPZgY+fOQPgKS5CmrAAOMDMRHUEAfU5SqoIQOMj8REUCMcUI+roEYMMD4RE0GNcUB9roIaM8A4ISaCmuKABlwFNWWA8ZmYCGqGAxpyFdSMAcY5MRHUAgc04iqoBQOML8REUEsc0JiroJYMML4SE0GtcEATroJaMcC4JkOCssBAG0BxmtrNRXO+AnI2teGI5twEcja1J4bm3AJyNrVtg+Z8DeQ8YcK5DeRsavGL5nwD5GxqfYbmfAvkbGoJgebcAXI2NctFc+4COSMnYnKSmJ/Damj8/3OGSz/zZWs55FxEfpvlt0q+u+W7TI5tqXXZ913aT06J9HNg7db799ePjoHU/xHtz43ZWnsVVwu3XqgDOL+o0aHpNWwU2qxCfXSrnPhtFeJfzxbv6/eaR9rynB0Vdbw5j19EN08tJCgAAA==",
+  "debug_symbols": "lZDLCsMgEEX/ZdYu2jRa8FdKCT6DICo+CkXy7zWhQijduJsz98xdTAWpeFkX47RPQB8VrBcsG+8aVbgeqxSY2yllFjPQO0agnGwD2RBoYxVQfNmeCKYx/Tamz2M6/qeTuevTj05G9AY8GmvNupz/1dYvFg3jVn1RFydOaX6HnvT7EL1QskS1Nx1Zq/8A",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

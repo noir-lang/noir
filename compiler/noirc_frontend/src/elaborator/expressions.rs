@@ -414,6 +414,8 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
+        self.push_index_to_check(index);
+
         let expected = self.polymorphic_integer_or_field();
         self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
             expected_typ: "an integer".to_owned(),
@@ -521,7 +523,13 @@ impl Elaborator<'_> {
         let method_name_location = method_call.method_name.location();
         let method_name = method_call.method_name.as_str();
         let check_self_param = true;
-        match self.lookup_method(&object_type, method_name, location, check_self_param) {
+        match self.lookup_method(
+            &object_type,
+            method_name,
+            location,
+            object_location,
+            check_self_param,
+        ) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
@@ -1369,8 +1377,8 @@ impl Elaborator<'_> {
             },
         };
 
-        let typ = self.resolve_type(constraint.typ.clone());
-        let Some(trait_bound) = self.resolve_trait_bound(&constraint.trait_bound) else {
+        let typ = self.use_type(constraint.typ.clone());
+        let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);

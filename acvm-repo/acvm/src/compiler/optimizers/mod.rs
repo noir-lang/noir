@@ -3,7 +3,6 @@ use acir::{
     circuit::{Circuit, Opcode},
 };
 
-// mod constant_backpropagation;
 mod general;
 mod merge_expressions;
 mod redundant_range;
@@ -14,7 +13,6 @@ pub(crate) use merge_expressions::MergeExpressionsOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 
-// use self::constant_backpropagation::ConstantBackpropagationOptimizer;
 use self::unused_memory::UnusedMemoryOptimizer;
 
 use super::{AcirTransformationMap, transform_assert_messages};
