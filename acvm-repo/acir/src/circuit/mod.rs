@@ -391,7 +391,7 @@ mod tests {
 
     use super::{
         Circuit, Compression, Opcode, PublicInputs,
-        opcodes::{BlackBoxFuncCall, FunctionInput},
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
     };
     use crate::{
         circuit::{ExpressionWidth, Program},
@@ -415,8 +415,9 @@ mod tests {
     }
 
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
-        let inputs: Box<[FunctionInput<F>; 25]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
+        let inputs: Box<[ConstantOrWitnessEnum<F>; 25]> = Box::new(std::array::from_fn(|i| {
+            ConstantOrWitnessEnum::Witness(Witness(i as u32 + 1))
+        }));
         let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })

@@ -545,11 +545,12 @@ mod tests {
     use crate::{circuit::Opcode, native_types::Witness};
     use acir_field::{AcirField, FieldElement};
 
-    use super::{BlackBoxFuncCall, FunctionInput};
+    use super::{BlackBoxFuncCall, ConstantOrWitnessEnum};
 
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
-        let inputs: Box<[FunctionInput<F>; 25]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
+        let inputs: Box<[ConstantOrWitnessEnum<F>; 25]> = Box::new(std::array::from_fn(|i| {
+            ConstantOrWitnessEnum::Witness(Witness(i as u32 + 1))
+        }));
         let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
@@ -571,7 +572,7 @@ mod arb {
 
     use crate::native_types::Witness;
 
-    use super::{BlackBoxFuncCall, FunctionInput};
+    use super::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput};
 
     // Implementing this separately because trying to derive leads to stack overflow.
     impl<F> Arbitrary for BlackBoxFuncCall<F>
@@ -582,14 +583,16 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let input = any::<FunctionInput<F>>();
-            let input_vec = any::<Vec<FunctionInput<F>>>();
-            let input_arr_3 = any::<Box<[FunctionInput<F>; 3]>>();
-            let input_arr_8 = any::<Box<[FunctionInput<F>; 8]>>();
-            let input_arr_16 = any::<Box<[FunctionInput<F>; 16]>>();
-            let input_arr_25 = any::<Box<[FunctionInput<F>; 25]>>();
-            let input_arr_32 = any::<Box<[FunctionInput<F>; 32]>>();
-            let input_arr_64 = any::<Box<[FunctionInput<F>; 64]>>();
+            let input = any::<ConstantOrWitnessEnum<F>>();
+            let function_input = any::<FunctionInput<F>>();
+            let input_vec = any::<Vec<ConstantOrWitnessEnum<F>>>();
+            let function_inputs = any::<Vec<FunctionInput<F>>>();
+            let input_arr_3 = any::<Box<[ConstantOrWitnessEnum<F>; 3]>>();
+            let input_arr_8 = any::<Box<[ConstantOrWitnessEnum<F>; 8]>>();
+            let input_arr_16 = any::<Box<[ConstantOrWitnessEnum<F>; 16]>>();
+            let input_arr_25 = any::<Box<[ConstantOrWitnessEnum<F>; 25]>>();
+            let input_arr_32 = any::<Box<[ConstantOrWitnessEnum<F>; 32]>>();
+            let input_arr_64 = any::<Box<[ConstantOrWitnessEnum<F>; 64]>>();
             let witness = any::<Witness>();
             let witness_vec = any::<Vec<Witness>>();
             let witness_arr_8 = any::<Box<[Witness; 8]>>();
@@ -606,18 +609,19 @@ mod arb {
                     BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
                 });
 
-            let case_and = (input.clone(), input.clone(), witness.clone())
+            let case_and = (function_input.clone(), function_input.clone(), witness.clone())
                 .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::AND { lhs, rhs, output });
 
-            let case_xor = (input.clone(), input.clone(), witness.clone())
+            let case_xor = (function_input.clone(), function_input.clone(), witness.clone())
                 .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::XOR { lhs, rhs, output });
 
-            let case_range = input.clone().prop_map(|input| BlackBoxFuncCall::RANGE { input });
+            let case_range =
+                function_input.clone().prop_map(|input| BlackBoxFuncCall::RANGE { input });
 
-            let case_blake2s = (input_vec.clone(), witness_arr_32.clone())
+            let case_blake2s = (function_inputs.clone(), witness_arr_32.clone())
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake2s { inputs, outputs });
 
-            let case_blake3 = (input_vec.clone(), witness_arr_32.clone())
+            let case_blake3 = (function_inputs.clone(), witness_arr_32.clone())
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake3 { inputs, outputs });
 
             let case_ecdsa_secp256k1 = (
