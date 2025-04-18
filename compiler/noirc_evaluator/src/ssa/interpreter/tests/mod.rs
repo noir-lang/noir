@@ -4,7 +4,10 @@ use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
 
-use crate::{errors::RuntimeError, ssa::{interpreter::value::NumericValue, ir::types::Type}};
+use crate::{
+    errors::RuntimeError,
+    ssa::{interpreter::value::NumericValue, ir::types::Type},
+};
 
 use super::{Ssa, Value};
 

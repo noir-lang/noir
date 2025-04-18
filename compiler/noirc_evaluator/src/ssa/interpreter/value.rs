@@ -90,6 +90,13 @@ impl Value {
         }
     }
 
+    pub(crate) fn as_u8(&self) -> Option<u8> {
+        match self {
+            Value::Numeric(NumericValue::U8(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn as_u32(&self) -> Option<u32> {
         match self {
             Value::Numeric(NumericValue::U32(value)) => Some(*value),
@@ -135,11 +142,11 @@ impl Value {
         })
     }
 
-    pub(crate) fn slice(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+    pub(crate) fn slice(elements: Vec<Value>, element_types: Arc<Vec<Type>>) -> Self {
         Self::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: Arc::new(element_types),
+            element_types,
             is_slice: true,
         })
     }
@@ -153,14 +160,22 @@ impl Value {
             Type::Numeric(typ) => Self::from_constant(FieldElement::zero(), *typ),
             Type::Reference(element_type) => Self::reference(id, element_type.clone()),
             Type::Array(element_types, length) => {
-                let first_elements = vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
+                let first_elements =
+                    vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
                 let elements = std::iter::repeat_n(first_elements, *length as usize);
                 let elements = elements.flatten().collect();
                 Self::array(elements, element_types.to_vec())
-            },
-            Type::Slice(element_types) => Self::slice(Vec::new(), element_types.as_ref().clone()),
+            }
+            Type::Slice(element_types) => Self::slice(Vec::new(), element_types.clone()),
             Type::Function => todo!(),
         }
+    }
+
+    pub(crate) fn as_string(&self) -> Option<String> {
+        let array = self.as_array_or_slice()?;
+        let elements = array.elements.borrow();
+        let bytes = elements.iter().map(|element| element.as_u8()).collect::<Option<Vec<_>>>()?;
+        Some(String::from_utf8_lossy(&bytes).into_owned())
     }
 }
 

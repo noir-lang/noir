@@ -15,6 +15,7 @@ use iter_extended::vecmap;
 use noirc_frontend::Shared;
 use value::{ArrayValue, NumericValue};
 
+mod intrinsics;
 mod tests;
 pub mod value;
 
@@ -383,11 +384,11 @@ impl<'ssa> Interpreter<'ssa> {
     fn interpret_call(
         &mut self,
         function: ValueId,
-        arguments: &[ValueId],
+        argument_ids: &[ValueId],
         results: &[ValueId],
     ) -> IResult<()> {
         let function = self.lookup(function);
-        let mut arguments = vecmap(arguments, |argument| self.lookup(*argument));
+        let mut arguments = vecmap(argument_ids, |argument| self.lookup(*argument));
 
         let new_results = if self.side_effects_enabled() {
             match function {
@@ -403,7 +404,7 @@ impl<'ssa> Interpreter<'ssa> {
                     self.call_function(id, arguments)?
                 }
                 Value::Intrinsic(intrinsic) => {
-                    todo!("call: Intrinsic({intrinsic}) is not yet implemented")
+                    self.call_intrinsic(intrinsic, arguments, argument_ids)?
                 }
                 Value::ForeignFunction(name) => {
                     todo!("call: ForeignFunction({name}) is not yet implemented")
