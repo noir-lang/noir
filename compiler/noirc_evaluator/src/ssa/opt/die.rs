@@ -2,7 +2,6 @@
 //! which the results are unused.
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use noirc_errors::call_stack::CallStackId;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
