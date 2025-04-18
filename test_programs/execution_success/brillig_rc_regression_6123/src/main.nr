@@ -19,18 +19,18 @@ impl Builder {
 }
 
 fn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to_index: u32) {
-    let tmp = vec.storage[from_index];
-    vec.storage[from_index] = vec.storage[to_index];
-    vec.storage[to_index] = tmp;
+    let tmp = vec.get_unchecked(from_index);
+    vec.set_unchecked(from_index, vec.get_unchecked(to_index));
+    vec.set_unchecked(to_index, tmp);
 }
 
 unconstrained fn main() {
     let mut builder = Builder { note_hashes: BoundedVec::new(), nullifiers: BoundedVec::new() };
 
     builder.append_note_hashes_with_logs(2);
-    builder.nullifiers.storage[1] = 27;
+    builder.nullifiers.set_unchecked(1, 27);
     // Get ordered items before shuffling.
-    let note_hashes = builder.note_hashes.storage;
+    let note_hashes = builder.note_hashes.storage();
     let original_first_note_hash = note_hashes[0];
     // Shuffle.
     swap_items(&mut builder.note_hashes, 1, 0);

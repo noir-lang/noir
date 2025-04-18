@@ -36,7 +36,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUWw6CMBDc8ohWgjGa+KOHKILCJ4mPezQSzsHRhbiV7QaNCe0kTRe2nZndNhXwRtAPgXFE/nGYNTXOah4yh1zKp0/h0KcgPgNumMaCxMFE/oizZGuGfOiweDnhyxV/pYpSgg3H/nNJOD3wnwx/5IdfLZDn1tn8wHRTsO8M3WNy9B7dMbfsxxrGeEP4BjyIruGWjM/xnbh4PrNs98W/qW3AtYMPHOnmCfZ4P1Jb2rzP/Mz4+U71CP7ca+pLf2gmpB9RZ+vUML8nZTU+iCHyx2DXAUw/ZusP+L0i/s0czfDZljprc93qs26a4qm3jB9Yn14U8oiGTQcAAA==",
-  "debug_symbols": "hZDRCoMgFIbf5Vx7kW4t61VihJWFIBpmgxG++46jkduCbg7+8v2Hw7dCL9tlbJQZ7AxVvYK2nfDKGkxrINA6pbUam/Qbsjho8ebnSZgYZy+ch4oyTkCaHl/5BfuD0hKqPAvkD+XXjSzLHaRHYP4Bsx1k4U6A8pMbCpreEBvlSYPfvhoB00M4JVotNyXDYrrEkH9O8kfW5Gwn+8XJqC0xhrNmjLAC1+LqFw==",
+  "debug_symbols": "hZDdCoQgEIXfZa69SLc27VViCSsLQTTMFhbx3VeXltwf6GbwyHeG4fMwin6bO6kns0LTelBm4E4aHZMPCHorlZJzl39DkQauX/y6cJ3i6rh10GBCEQg9xld1if1JKgFNVQT0g9JyJxk7QPwPZG+wPEASbggwPbmhxvkNqcFOGvT60Qgx3bmVvFdiVzJtesgMuccivmQt1gxi3KxI2jJjcbaEIFLHtXH1Ew==",
   "file_map": {
     "50": {
       "source": "use dep1::call_dep1_then_dep2;\nuse dep2::call_dep2;\nuse dep2::RESOLVE_THIS;\n\nfn main(x: Field, y: pub Field) -> pub Field {\n    call_dep1_then_dep2(x, y) + call_dep2(x, y) + RESOLVE_THIS\n}\n",
@@ -47,7 +47,7 @@ expression: artifact
       "path": ""
     },
     "52": {
-      "source": "global RESOLVE_THIS: Field = 3;\n\npub fn call_dep2(x: Field, y: Field) -> Field {\n    x + y\n}\n",
+      "source": "pub global RESOLVE_THIS: Field = 3;\n\npub fn call_dep2(x: Field, y: Field) -> Field {\n    x + y\n}\n",
       "path": ""
     }
   },

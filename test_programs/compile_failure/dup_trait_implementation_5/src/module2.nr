@@ -1,2 +1,2 @@
-struct MyStruct {
+pub(crate) struct MyStruct {
 }
