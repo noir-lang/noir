@@ -70,7 +70,7 @@ impl CSatTransformer {
     /// by creating intermediate variables as needed.
     /// Having the correct width means:
     /// - it has at most one multiplicative term
-    /// - it uses at most 'width-1' witness, to account for the new intermediate variable
+    /// - it uses at most 'width-1' witness linear combination terms, to account for the new intermediate variable
     pub(crate) fn transform<F: AcirField>(
         &mut self,
         opcode: Expression<F>,

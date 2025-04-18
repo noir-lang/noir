@@ -63,7 +63,7 @@ fn contains_all_inputs<F>(
 /// Solving a black box function simply means to compute the output from the inputs for
 /// the specific function.
 /// Our black box solver uses the standard rust implementation for the function if it is available.
-/// However, some functions depends on the backend, such as embedded curve operations, which depend on the
+/// However, some functions depend on the backend, such as embedded curve operations, which depend on the
 /// elliptic curve used by the proving system. This is why the 'solve' functions takes a blackbox solver trait.
 /// The 'AcvmBigIntSolver' is also a blackbox solver, but dedicated to the BigInteger blackbox functions.
 pub(crate) fn solve<F: AcirField>(

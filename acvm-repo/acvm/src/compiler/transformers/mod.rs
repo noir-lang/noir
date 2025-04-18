@@ -98,9 +98,8 @@ pub(super) fn transform_internal<F: AcirField>(
 /// that are used in exactly two arithmetic opcodes.
 /// This results in arithmetic opcodes having linear combinations of potentially large width.
 /// Finally, the 'range optimization' pass will remove any redundant range opcodes.
-/// It is expected that the backend will be able to handle linear combinations of 'unbounded width' in a more efficient way
+/// The backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
 /// than the 'CSAT transformation'.
-/// If it is not the case, the 'eliminate intermediate variables' pass should not be applied.
 #[tracing::instrument(
     level = "trace",
     name = "transform_acir_once",

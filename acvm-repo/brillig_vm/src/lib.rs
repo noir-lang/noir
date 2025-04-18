@@ -415,7 +415,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// - Control flow opcodes jump around the bytecode by setting the program counter.
     /// - Foreign call opcodes pause the VM until the foreign call results are available
     /// - Function call opcodes backup the current program counter into the call stack and jump to the function entry point.
-    ///     The stack frame for function calls is handled during codegen.
+    ///   The stack frame for function calls is handled during codegen.
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
