@@ -44,14 +44,10 @@
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
-use acvm::{FieldElement, acir::AcirField};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-
 use crate::ssa::{
     Ssa,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         cfg::ControlFlowGraph,
         dfg::simplify::SimplifyResult,
         dom::DominatorTree,
@@ -67,6 +63,9 @@ use crate::ssa::{
     },
     opt::pure::Purity,
 };
+use acvm::{FieldElement, acir::AcirField};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use noirc_errors::call_stack::CallStackId;
 
 use super::unrolling::{Loop, Loops};
 

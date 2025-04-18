@@ -21,11 +21,12 @@ use acvm::{
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use std::{borrow::Cow, cmp::Ordering};
 
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
-use crate::ssa::ir::{call_stack::CallStack, instruction::Endian, types::NumericType};
+use crate::ssa::ir::{instruction::Endian, types::NumericType};
 
 mod big_int;
 mod black_box;
@@ -190,11 +191,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
-        self.acir_ir.call_stack.clone()
+        self.acir_ir.call_stacks.get_call_stack(self.acir_ir.call_stack_id)
     }
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
-        self.acir_ir.call_stack = call_stack;
+        self.acir_ir.call_stack_id = self.acir_ir.call_stacks.get_or_insert_locations(&call_stack);
+    }
+
+    pub(crate) fn set_call_stack_helper(&mut self, call_stack: CallStackHelper) {
+        self.acir_ir.call_stacks = call_stack;
     }
 
     pub(crate) fn get_or_create_witness_var(

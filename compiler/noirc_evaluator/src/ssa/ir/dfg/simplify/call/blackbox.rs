@@ -3,8 +3,8 @@ use std::sync::Arc;
 use acvm::acir::BlackBoxFunc;
 use acvm::blackbox_solver::sha256_compression;
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
+use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::ir::call_stack::CallStackId;
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,

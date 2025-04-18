@@ -1,9 +1,9 @@
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    call_stack::CallStackId,
     dfg::{DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
     types::{NumericType, Type},

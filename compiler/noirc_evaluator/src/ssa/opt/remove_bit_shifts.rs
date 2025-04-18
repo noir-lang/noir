@@ -1,10 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        call_stack::CallStackId,
         dfg::InsertInstructionResult,
         function::Function,
         instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},

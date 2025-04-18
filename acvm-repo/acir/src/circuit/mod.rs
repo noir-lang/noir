@@ -154,6 +154,24 @@ pub enum OpcodeLocation {
     Brillig { acir_index: usize, brillig_index: usize },
 }
 
+/// Opcodes are locatable so that callers can
+/// map opcodes to debug information related to their context.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct AcirOpcodeLocation(usize);
+impl std::fmt::Display for AcirOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AcirOpcodeLocation {
+    pub fn new(index: usize) -> Self {
+        AcirOpcodeLocation(index)
+    }
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
 /// Index of Brillig opcode within a list of Brillig opcodes.
 /// To be used by callers for resolving debug information.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

@@ -1,15 +1,15 @@
+use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStackId;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
 use bn254_blackbox_solver::derive_generators;
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},

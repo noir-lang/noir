@@ -1,13 +1,6 @@
-use acvm::{AcirField as _, FieldElement};
-use binary::simplify_binary;
-use call::simplify_call;
-use cast::simplify_cast;
-use constrain::decompose_constrain;
-
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         instruction::{
             Binary, BinaryOp, Instruction,
             binary::{truncate, truncate_field},
@@ -17,6 +10,12 @@ use crate::ssa::{
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
+use acvm::{AcirField as _, FieldElement};
+use binary::simplify_binary;
+use call::simplify_call;
+use cast::simplify_cast;
+use constrain::decompose_constrain;
+use noirc_errors::call_stack::CallStackId;
 
 use super::DataFlowGraph;
 
