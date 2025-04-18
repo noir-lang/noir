@@ -262,7 +262,7 @@ impl<'brillig> Context<'brillig> {
         // Map a terminator in place, replacing any ValueId in the terminator with the
         // resolved version of that value id from the simplification cache's internal value mapping.
         // We need this in addition to the value replacement above in order to take advantage
-        // of constraints that may have advised simplifications..
+        // of constraints that may have advised simplifications.
         // The value mapping (`self.values_to_replace`) only maps old instruction results to new instruction results.
         // However, constraints do not have "results" like other instructions, thus are not included in `self.values_to_replace`.
         // To take advantage of constraint simplification we need to still resolve its cache.
