@@ -52,12 +52,12 @@ type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 pub(crate) fn interpret(ssa: &Ssa) -> IResults {
-    interpret_function(ssa, ssa.main_id)
+    interpret_function(ssa, ssa.main_id, Vec::new())
 }
 
-pub(crate) fn interpret_function(ssa: &Ssa, function: FunctionId) -> IResults {
+pub(crate) fn interpret_function(ssa: &Ssa, function: FunctionId, args: Vec<Value>) -> IResults {
     let mut interpreter = Interpreter::new(ssa);
-    interpreter.call_function(function, Vec::new())
+    interpreter.call_function(function, args)
 }
 
 impl<'ssa> Interpreter<'ssa> {
@@ -389,8 +389,8 @@ impl<'ssa> Interpreter<'ssa> {
         let function = self.lookup(function);
         let mut arguments = vecmap(arguments, |argument| self.lookup(*argument));
 
-        if self.side_effects_enabled() {
-            let new_results: Vec<Value> = match function {
+        let new_results = if self.side_effects_enabled() {
+            match function {
                 Value::Function(id) => {
                     // If we're crossing a constrained -> unconstrained boundary we have to wipe
                     // any shared mutable fields in our arguments since brillig should conceptually
@@ -409,16 +409,19 @@ impl<'ssa> Interpreter<'ssa> {
                     todo!("call: ForeignFunction({name}) is not yet implemented")
                 }
                 other => panic!("call: Expected function, found {other:?}"),
-            };
-            assert_eq!(new_results.len(), results.len());
-
-            for (result, new_result) in results.iter().zip(new_results) {
-                self.define(*result, new_result);
             }
-            Ok(())
         } else {
-            todo!()
+            vecmap(results, |result| {
+                let typ = self.dfg().type_of_value(*result);
+                Value::uninitialized(&typ, *result)
+            })
+        };
+
+        assert_eq!(new_results.len(), results.len());
+        for (result, new_result) in results.iter().zip(new_results) {
+            self.define(*result, new_result);
         }
+        Ok(())
     }
 
     /// Reset the value's `Shared` states in each array within. This is used to mimic each
@@ -485,7 +488,8 @@ impl<'ssa> Interpreter<'ssa> {
             let index = self.lookup(index).as_u32().unwrap();
             array.elements.borrow()[index as usize].clone()
         } else {
-            todo!()
+            let typ = self.dfg().type_of_value(result);
+            Value::uninitialized(&typ, result)
         };
         self.define(result, element);
     }
@@ -561,12 +565,15 @@ impl<'ssa> Interpreter<'ssa> {
         let then_value = self.lookup(then_value);
         let else_value = self.lookup(else_value);
 
-        assert_eq!(
-            then_condition, !else_condition,
-            "else_condition should always equal !then_condition"
-        );
+        // Note that `then_condition = !else_condition` doesn't always hold!
+        // Notably if this is a nested if expression we could have something like:
+        //   then_condition = outer_condition & a
+        //   else_condition = outer_condition & !a
+        // If `outer_condition` is false, both will be false.
+        assert!(!then_condition || !else_condition);
 
         let new_result = if then_condition { then_value } else { else_value };
+
         self.define(result, new_result);
     }
 

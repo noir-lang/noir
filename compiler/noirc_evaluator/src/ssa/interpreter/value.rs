@@ -121,6 +121,47 @@ impl Value {
     pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Self {
         Self::Numeric(NumericValue::from_constant(constant, typ))
     }
+
+    pub(crate) fn bool(value: bool) -> Self {
+        Self::Numeric(NumericValue::U1(value))
+    }
+
+    pub(crate) fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+        Self::ArrayOrSlice(ArrayValue {
+            elements: Shared::new(elements),
+            rc: Shared::new(1),
+            element_types: Arc::new(element_types),
+            is_slice: false,
+        })
+    }
+
+    pub(crate) fn slice(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+        Self::ArrayOrSlice(ArrayValue {
+            elements: Shared::new(elements),
+            rc: Shared::new(1),
+            element_types: Arc::new(element_types),
+            is_slice: true,
+        })
+    }
+
+    /// Return an uninitialized value of the given type. This is usually a zeroed
+    /// value but we make no guarantee that it is. This is often used as the default
+    /// value to return for side-effectful functions like `call` or `array_get` when
+    /// side-effects are disabled.
+    pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
+        match typ {
+            Type::Numeric(typ) => Self::from_constant(FieldElement::zero(), *typ),
+            Type::Reference(element_type) => Self::reference(id, element_type.clone()),
+            Type::Array(element_types, length) => {
+                let first_elements = vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
+                let elements = std::iter::repeat_n(first_elements, *length as usize);
+                let elements = elements.flatten().collect();
+                Self::array(elements, element_types.to_vec())
+            },
+            Type::Slice(element_types) => Self::slice(Vec::new(), element_types.as_ref().clone()),
+            Type::Function => todo!(),
+        }
+    }
 }
 
 impl NumericValue {

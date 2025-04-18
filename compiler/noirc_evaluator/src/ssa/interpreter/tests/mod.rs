@@ -1,8 +1,10 @@
 #![cfg(test)]
 
+use std::sync::Arc;
+
 use acvm::{AcirField, FieldElement};
 
-use crate::{errors::RuntimeError, ssa::interpreter::value::NumericValue};
+use crate::{errors::RuntimeError, ssa::{interpreter::value::NumericValue, ir::types::Type}};
 
 use super::{Ssa, Value};
 
@@ -14,19 +16,27 @@ fn executes_with_no_errors(src: &str) {
 }
 
 fn expect_values(src: &str) -> Vec<Value> {
-    let ssa = Ssa::from_str(src).unwrap();
-    super::interpret(&ssa).unwrap()
+    expect_values_with_args(src, Vec::new())
 }
 
 fn expect_value(src: &str) -> Value {
-    let mut results = expect_values(src);
-    assert_eq!(results.len(), 1);
-    results.pop().unwrap()
+    expect_value_with_args(src, Vec::new())
 }
 
 fn expect_error(src: &str) -> RuntimeError {
     let ssa = Ssa::from_str(src).unwrap();
     super::interpret(&ssa).unwrap_err()
+}
+
+fn expect_values_with_args(src: &str, args: Vec<Value>) -> Vec<Value> {
+    let ssa = Ssa::from_str(src).unwrap();
+    super::interpret_function(&ssa, ssa.main_id, args).unwrap()
+}
+
+fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
+    let mut results = expect_values_with_args(src, args);
+    assert_eq!(results.len(), 1);
+    results.pop().unwrap()
 }
 
 #[test]
@@ -81,4 +91,43 @@ fn call_function() {
     ";
     let actual = expect_value(src);
     assert_eq!(Value::Numeric(NumericValue::U32(6)), actual);
+}
+
+#[test]
+fn run_flattened_function() {
+    let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: [[u1; 2]; 3]):
+            v2 = not v0
+            enable_side_effects v0
+            v3 = not v0
+            enable_side_effects v0
+            v5 = array_get v1, index u32 0 -> [u1; 2]
+            v6 = not v0
+            v7 = unchecked_mul v0, v6
+            enable_side_effects v7
+            v8 = array_get v1, index u32 1 -> [u1; 2]
+            enable_side_effects v0
+            v9 = if v0 then v5 else (if v7) v8
+            enable_side_effects v6
+            v10 = array_get v1, index u32 2 -> [u1; 2]
+            enable_side_effects u1 1
+            v12 = if v0 then v5 else (if v6) v10
+            return v12
+        }";
+
+    let v1_elements = vec![
+        Value::array(vec![Value::bool(false), Value::bool(false)], vec![Type::unsigned(1)]),
+        Value::array(vec![Value::bool(true), Value::bool(true)], vec![Type::unsigned(1)]),
+        Value::array(vec![Value::bool(false), Value::bool(true)], vec![Type::unsigned(1)]),
+    ];
+
+    let v1_element_types = vec![Type::Array(Arc::new(vec![Type::unsigned(1)]), 2)];
+    let v1 = Value::array(v1_elements, v1_element_types);
+
+    let result = expect_value_with_args(src, vec![Value::bool(true), v1.clone()]);
+    assert_eq!(result.to_string(), "rc1 [u1 false, u1 false]");
+
+    let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
+    assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
 }
