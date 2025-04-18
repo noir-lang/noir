@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744995281897,
+  "lastUpdate": 1744995477716,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "68a0b7b447668ca1085647fbeb60ecc81af71c2e",
-          "message": "chore: add workflow to run nightly tests on ARM64 (#8027)",
-          "timestamp": "2025-04-11T15:34:09Z",
-          "tree_id": "5803a79dd22f318a8dd5816b8ff81db79d62685f",
-          "url": "https://github.com/noir-lang/noir/commit/68a0b7b447668ca1085647fbeb60ecc81af71c2e"
-        },
-        "date": 1744387519878,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.667,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.452,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.364,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.95,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.112,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.894,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 132,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.871,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.41,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.474,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d4f81935f8ae557cfe80b0a6cb8bdc83f2605ef",
+          "message": "fix: wrapping mul support for u128 (#7941)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-18T16:38:54Z",
+          "tree_id": "b470f1a83b4ee9b18fc646478d51695ef3aaeecd",
+          "url": "https://github.com/noir-lang/noir/commit/7d4f81935f8ae557cfe80b0a6cb8bdc83f2605ef"
+        },
+        "date": 1744995471768,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.671,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.466,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.214,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.742,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.11,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.862,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 117,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.904,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.378,
             "unit": "s"
           }
         ]
