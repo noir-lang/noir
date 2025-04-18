@@ -414,6 +414,11 @@ impl WrappingAdd for i64 {
         wrapping_add_hlp(self, y)
     }
 }
+impl WrappingAdd for Field {
+    fn wrapping_add(self: Field, y: Field) -> Field {
+        self + y
+    }
+}
 
 // docs:start:wrapping-sub-trait
 pub trait WrappingSub {
@@ -475,6 +480,11 @@ impl WrappingSub for i32 {
 impl WrappingSub for i64 {
     fn wrapping_sub(self: i64, y: i64) -> i64 {
         wrapping_sub_hlp(self, y) as i64
+    }
+}
+impl WrappingSub for Field {
+    fn wrapping_sub(self: Field, y: Field) -> Field {
+        self - y
     }
 }
 
@@ -540,6 +550,11 @@ impl WrappingMul for i64 {
 impl WrappingMul for u128 {
     fn wrapping_mul(self: u128, y: u128) -> u128 {
         wrapping_mul128_hlp(self, y)
+    }
+}
+impl WrappingMul for Field {
+    fn wrapping_mul(self: Field, y: Field) -> Field {
+        self * y
     }
 }
 
