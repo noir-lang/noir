@@ -504,8 +504,20 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     ) -> Result<(), RuntimeError> {
         let diff_var = self.sub_var(lhs, rhs)?;
 
+        let old_opcodes_len = self.acir_ir.opcodes().len();
         let _ = self.inv_var(diff_var, predicate)?;
         if let Some(payload) = assert_message {
+            // Non-equality can potentially be a no-op if we have all constant
+            // inputs that we know satisfy the non-equality check.
+            // If a no-op non-equality check were to then add an assertion payload
+            // opcode location based upon `GeneratedAcir::last_acir_opcode_location`,
+            // it would be pointing at the previous opcode location.
+            // This at best leads to a mismatch in assertion payload opcode locations
+            // and at worst an attempt to subtract with overflow if the non-equality
+            // check is the first opcode.
+            if self.acir_ir.opcodes().len() - old_opcodes_len == 0 {
+                return Ok(());
+            }
             self.acir_ir
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
