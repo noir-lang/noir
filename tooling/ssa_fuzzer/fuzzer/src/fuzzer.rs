@@ -115,15 +115,14 @@ impl Fuzzer {
                 return None;
             }
             (Ok(acir), Err(brillig_error)) => {
-                let acir_result =
-                    execute_single(&acir.program, initial_witness, acir_return_witness);
+                let acir_result = execute_single(&acir.program, initial_witness);
                 match acir_result {
                     Ok(acir_result) => {
                         panic!(
                             "ACIR compiled and successfully executed, 
                             but brillig compilation failed. Execution result of 
                             acir only {:?}. Brillig compilation failed with: {:?}",
-                            acir_result, brillig_error
+                            acir_result[&acir_return_witness], brillig_error
                         );
                     }
                     Err(acir_error) => {
@@ -134,13 +133,12 @@ impl Fuzzer {
                 }
             }
             (Err(acir_error), Ok(brillig)) => {
-                let brillig_result =
-                    execute_single(&brillig.program, initial_witness, brillig_return_witness);
+                let brillig_result = execute_single(&brillig.program, initial_witness);
                 match brillig_result {
                     Ok(brillig_result) => {
                         panic!(
                             "Brillig compiled and successfully executed, but ACIR compilation failed. Execution result of brillig only {:?}. ACIR compilation failed with: {:?}",
-                            brillig_result, acir_error
+                            brillig_result[&brillig_return_witness], acir_error
                         );
                     }
                     Err(brillig_error) => {
