@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744975442661,
+  "lastUpdate": 1744975749115,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ac6b29b05293b2645f3a22d474e796d087212e8a",
-          "message": "feat: add `while` generator to AST fuzzer (#8021)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-04-11T13:25:22Z",
-          "tree_id": "44888a95844b02ba13ce1b8b263b7b32cba57c2d",
-          "url": "https://github.com/noir-lang/noir/commit/ac6b29b05293b2645f3a22d474e796d087212e8a"
-        },
-        "date": 1744379378002,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.724,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 15.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.494,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.388,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.886,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.132,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.922,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.864,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.438,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.412,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "af34226798f4f7362ceaefe4e9ca35867f252dfa",
+          "message": "fix(acir): Check whether opcodes were laid down for non-equality check before fetching payload locations (#8133)",
+          "timestamp": "2025-04-18T11:02:40Z",
+          "tree_id": "a6bde90cefcd0b308af617cafeef4f76ce7f6704",
+          "url": "https://github.com/noir-lang/noir/commit/af34226798f4f7362ceaefe4e9ca35867f252dfa"
+        },
+        "date": 1744975743100,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.659,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.2,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.478,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.226,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.732,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.869,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 114,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 116,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.891,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.44,
             "unit": "s"
           }
         ]
