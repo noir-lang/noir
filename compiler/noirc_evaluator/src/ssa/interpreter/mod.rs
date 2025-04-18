@@ -149,8 +149,6 @@ impl<'ssa> Interpreter<'ssa> {
     }
 
     fn lookup(&self, id: ValueId) -> Value {
-        let id = self.dfg().resolve(id);
-
         match &self.dfg()[id] {
             super::ir::value::Value::Instruction { .. } => self.call_context().scope[&id].clone(),
             super::ir::value::Value::Param { .. } => self.call_context().scope[&id].clone(),
@@ -792,13 +790,16 @@ where
     T: TryFrom<i128> + num_traits::Bounded,
     <T as TryFrom<i128>>::Error: std::fmt::Debug,
 {
-    let value_i128 = i128::from(value);
+    let mut value_i128 = i128::from(value);
     if value_i128 < 0 {
-        let value_i128 = -value_i128;
+        let max = 1i128 << (bit_size - 1);
+        value_i128 += max;
         assert!(bit_size <= 64, "The maximum bit size for signed integers is 64");
-        let bit_mask = (1i128 << bit_size) - 1;
-        let result = value_i128 & bit_mask;
-        T::try_from(-result).expect(
+
+        let mask = (1i128 << bit_size) - 1;
+        let result = (value_i128 & mask) - max;
+
+        T::try_from(result).expect(
             "The truncated result should always be smaller than or equal to the original `value`",
         )
     } else {
@@ -813,23 +814,27 @@ where
 mod test {
     #[test]
     fn test_truncate_unsigned() {
-        assert_eq!(super::truncate_unsigned(57u32, 8), 57);
-        assert_eq!(super::truncate_unsigned(257u16, 8), 1);
-        assert_eq!(super::truncate_unsigned(130u8, 7), 2);
-        assert_eq!(super::truncate_unsigned(u8::max_value(), 8), u8::max_value());
-        assert_eq!(super::truncate_unsigned(u128::max_value(), 128), u128::max_value());
+        assert_eq!(super::truncate_unsigned(57_u32, 8), 57);
+        assert_eq!(super::truncate_unsigned(257_u16, 8), 1);
+        assert_eq!(super::truncate_unsigned(130_u8, 7), 2);
+        assert_eq!(super::truncate_unsigned(u8::MAX, 8), u8::MAX);
+        assert_eq!(super::truncate_unsigned(u128::MAX, 128), u128::MAX);
     }
 
     #[test]
     fn test_truncate_signed() {
-        assert_eq!(super::truncate_signed(57i32, 8), 57);
-        assert_eq!(super::truncate_signed(257i16, 8), 1);
-        assert_eq!(super::truncate_signed(130i64, 7), 2);
-        assert_eq!(super::truncate_signed(i16::min_value(), 16), i16::min_value());
+        assert_eq!(super::truncate_signed(57_i32, 8), 57);
+        assert_eq!(super::truncate_signed(257_i16, 8), 1);
+        assert_eq!(super::truncate_signed(130_i64, 7), 2);
+        assert_eq!(super::truncate_signed(i16::MAX, 16), i16::MAX);
 
-        assert_eq!(super::truncate_signed(-57i32, 8), -57);
-        assert_eq!(super::truncate_signed(-258i16, 8), -2);
-        assert_eq!(super::truncate_signed(-130i16, 7), -2);
-        assert_eq!(super::truncate_signed(i8::min_value(), 8), i8::min_value());
+        assert_eq!(super::truncate_signed(-57_i32, 8), -57);
+        assert_eq!(super::truncate_signed(-1_i64, 3), -1_i64);
+        assert_eq!(super::truncate_signed(-258_i16, 8), -2);
+        assert_eq!(super::truncate_signed(-130_i16, 7), -2);
+        assert_eq!(super::truncate_signed(i8::MIN, 8), i8::MIN);
+        assert_eq!(super::truncate_signed(-8_i8, 4), -8);
+        assert_eq!(super::truncate_signed(-8_i8, 3), 0);
+        assert_eq!(super::truncate_signed(-129_i32, 8), 127);
     }
 }
