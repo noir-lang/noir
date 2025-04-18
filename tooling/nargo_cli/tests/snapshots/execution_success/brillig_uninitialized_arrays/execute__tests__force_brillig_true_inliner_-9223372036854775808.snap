@@ -29,10 +29,6 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "12049594436772143978": {
-        "error_kind": "string",
-        "string": "array ref-count underflow detected"
-      },
       "14225679739041873922": {
         "error_kind": "string",
         "string": "Index out of bounds"
@@ -43,8 +39,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VWW27CMBC0kxhiUEvVHqAX6EeehI9+IPWhSj2FCeUcHL24tcUyWYha7JWiONn1zOzaG0eKX0sOl3TjjLxD8zFrdy+uszIgVhFTpwyoUxKdyWBAxNMx5/90dw0x1p8GTF4Db0j8VdF0WpxaYP21JpgR8CuPn8XBL6YO53V/ii+A98Y90/3j53gf3UdvzpcfrltxHC8InrV3wuuxNeAF3hPLyGtWPpzRb23u6vAEdfV+wdQh0trXEvgE1EQA/yxy3STweT1YnwRqpxitd4xPwlgxPIrh4bC8byH4NbKmmXkhe9fnMXF4GZMH1ZZAPB0LN4e+e3R3u18rMufcGmUXasd9UzSjJ2B9Or8/pmJo3pcDN/VpyJn6ZsRH+xwthWear+VuCS7GoVa6x3Lwcf06Jzlk+6M/VI271fGHI3X4SgxzpvwK4kv3TOtJ81j/U+euM+WuNjvTmu226c094FtLSJ1C85uuXvVV03ebtjb1cpSfngnYT9xZEvOMPFiF30g1oovrZRFOT6lAz7O727p9EE7s91QM/1sSiM+Z+CmJ8fkuxPDbmsM87hyQoMO/H6upgviXCzmnf8x5wsSnF3Km8+lc5Dl3Tsbosb5dbvqmNcVX+bNnx3rsG3UoSZORDgAA",
-  "debug_symbols": "tdbLaoQwGAXgd8naRW5/ovMqpQxe4hAQFS+FIr57kzIFay3DWWQjRvKdLI7ov7HGVevj7vt2mNntbWPdUJeLH/qw2vaMVZPvOv+4Hx8zHi/CfO+fx7KPy3kpp4XdBLcZc30T7iQF3/rOsRvxPfuzVUrz3Cr1r63vGRM2ZXieMrxIGC55ynCRMlymDFcpw3XKcILCozCwsLDIYVGgQnFYCFhIWFy/SYp+BKmz0LAgWBhYWFjksChQoTksBCoI7oPgPgjug+A+CO6D4D7MZR+H75XSZyFgIWGhYKFhQbAwsLjsXCr779/A5LAoUGFfdX4Se1h9lJMvq849Z8J27evDiLh8ju40LY7TULtmnVycGw8jYzxb60wXcVCKrxLxjGQ4I5zzBQ==",
+  "bytecode": "H4sIAAAAAAAA/7VVW07DMBC0k7qNW0ERXIEf+Er6/kHqB3CP0NJz9OjU4FWnk20rwF4piu1dz85O1o41P1YcHhvHPVhjk5h1fNf/syYhVp2Tp03I0wLPojMA8jguLhTnKSb4y4TFe8qbEn9Vz5benFpi/lMPmBnwJ4Lfy4NfDyLO6/4U31DemzjH/pE94sM+eou+6vDcmuN4DHjB3iGvYHvCS9wTi8zfrHk4wz/YKOrwSLqK3yg6ZPr2U0v5DGliKP8ws26W8gkf1qcg7ZzC9U7xWRo7JY9T8mhY4vOKL6EmC6mxb7omvgHlRl+l1C8+r9RjlTwlzbHegP8MuBzHXLGXB+TTem4EPHv7oz+VxsvV8adZRnxnujVjfkfxT3E+BP5Yx/qPPHfLttlN2107b7fb2aa9J/xgBeiE90ppunrzfZTznj3YhM+Zu8JL+PTBZ9LxaRzxaeI76PYCObE3UUtNd1mvlHg8l1Lv2HTvi4r28X2PY0vr1zR1FL+6UHP5y5r7Snx5oWbcj3s5z7m7NvR46jO2mS8+NrN5W3823z177Yx9AYmmGffVDAAA",
+  "debug_symbols": "tZbLaoQwFIbfJesscjmJjq9SyuAlDgFR8VIo4rs3KVOw1jL8i2zEI+f7sshvcjbWuGp93H3fDjMr3jbWDXW5+KEP1bZzVk2+6/zjfvzMRHxI+90/j2Ufy3kpp4UVUmScub4Jb8oEvvWdY4URO//TqpR9tir61frOmcxSyvOU8ltCuRIp5TKlXKWU65RySik3l3JtfuRGnwkLExlM5DBxQwktYELChIIJjRKEEwQTcEoITgnBKSE4JXSZksP/oelEGAETEiYUTGiYIJgwMHG550pn/54+JoOJHCZe7fmJ2EP1UU6+rDr3nEHata8PI8nyObrTdDJOQ+2adXJxTjmMKDE92nKS8WKOwbCSWx3WCOt8AQ==",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
