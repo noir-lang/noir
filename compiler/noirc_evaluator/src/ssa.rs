@@ -41,6 +41,7 @@ use crate::acir::GeneratedAcir;
 
 mod checks;
 pub mod function_builder;
+pub mod interpreter;
 pub mod ir;
 pub(crate) mod opt;
 #[cfg(test)]
