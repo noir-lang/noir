@@ -43,6 +43,7 @@ impl FromStr for Ssa {
 
 impl Ssa {
     /// Creates an Ssa object from the given string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
         FromStr::from_str(src)
     }
