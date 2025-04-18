@@ -2857,7 +2857,32 @@
 <a href="#2856" id="2856">2856</a>
 <a href="#2857" id="2857">2857</a>
 <a href="#2858" id="2858">2858</a>
-<a href="#2859" id="2859">2859</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#2859" id="2859">2859</a>
+<a href="#2860" id="2860">2860</a>
+<a href="#2861" id="2861">2861</a>
+<a href="#2862" id="2862">2862</a>
+<a href="#2863" id="2863">2863</a>
+<a href="#2864" id="2864">2864</a>
+<a href="#2865" id="2865">2865</a>
+<a href="#2866" id="2866">2866</a>
+<a href="#2867" id="2867">2867</a>
+<a href="#2868" id="2868">2868</a>
+<a href="#2869" id="2869">2869</a>
+<a href="#2870" id="2870">2870</a>
+<a href="#2871" id="2871">2871</a>
+<a href="#2872" id="2872">2872</a>
+<a href="#2873" id="2873">2873</a>
+<a href="#2874" id="2874">2874</a>
+<a href="#2875" id="2875">2875</a>
+<a href="#2876" id="2876">2876</a>
+<a href="#2877" id="2877">2877</a>
+<a href="#2878" id="2878">2878</a>
+<a href="#2879" id="2879">2879</a>
+<a href="#2880" id="2880">2880</a>
+<a href="#2881" id="2881">2881</a>
+<a href="#2882" id="2882">2882</a>
+<a href="#2883" id="2883">2883</a>
+<a href="#2884" id="2884">2884</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -5714,6 +5739,31 @@
         );
 
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Failure::&lt;FieldElement&gt;(<span class="kw">_</span>)));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>do_not_overflow_with_constant_constrain_neq() {
+        <span class="comment">// Test that we appropriately fetch the assertion payload opcode location.
+        // We expect this constrain neq to be simplified and not lay down any opcodes.
+        // As the constrain neq is the first opcode, if we do not fetch the last opcode
+        // location correctly we can potentially trigger an overflow.
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain Field 1 != Field 0, ""
+            return
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
+
+        <span class="kw">let </span>(acir_functions, _brillig_functions, <span class="kw">_</span>, <span class="kw">_</span>) = ssa
+            .into_acir(<span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>BrilligOptions::default(), ExpressionWidth::default())
+            .expect(<span class="string">"Should compile manually written SSA into ACIR"</span>);
+
+        <span class="macro">assert_eq!</span>(acir_functions.len(), <span class="number">1</span>);
+        <span class="macro">assert!</span>(acir_functions[<span class="number">0</span>].opcodes().is_empty());
     }
 }
 </code></pre></div></section></main></body></html>

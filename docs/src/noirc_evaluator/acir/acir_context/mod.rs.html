@@ -1645,7 +1645,19 @@
 <a href="#1644" id="1644">1644</a>
 <a href="#1645" id="1645">1645</a>
 <a href="#1646" id="1646">1646</a>
-<a href="#1647" id="1647">1647</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2146,8 +2158,20 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="kw">let </span>diff_var = <span class="self">self</span>.sub_var(lhs, rhs)<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>old_opcodes_len = <span class="self">self</span>.acir_ir.opcodes().len();
         <span class="kw">let _ </span>= <span class="self">self</span>.inv_var(diff_var, predicate)<span class="question-mark">?</span>;
         <span class="kw">if let </span><span class="prelude-val">Some</span>(payload) = assert_message {
+            <span class="comment">// Non-equality can potentially be a no-op if we have all constant
+            // inputs that we know satisfy the non-equality check.
+            // If a no-op non-equality check were to then add an assertion payload
+            // opcode location based upon `GeneratedAcir::last_acir_opcode_location`,
+            // it would be pointing at the previous opcode location.
+            // This at best leads to a mismatch in assertion payload opcode locations
+            // and at worst an attempt to subtract with overflow if the non-equality
+            // check is the first opcode.
+            </span><span class="kw">if </span><span class="self">self</span>.acir_ir.opcodes().len() - old_opcodes_len == <span class="number">0 </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+            }
             <span class="self">self</span>.acir_ir
                 .assertion_payloads
                 .insert(<span class="self">self</span>.acir_ir.last_acir_opcode_location(), payload);
