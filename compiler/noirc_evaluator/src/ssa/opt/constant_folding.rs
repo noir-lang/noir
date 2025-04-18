@@ -264,6 +264,7 @@ impl<'brillig> Context<'brillig> {
         // We need this in addition to the value replacement above in order to take advantage
         // of constraints that may have advised simplifications..
         // The value mapping (`self.values_to_replace`) only maps old instruction results to new instruction results.
+        // However, constraints do not have "results" like other instructions, thus are not included in `self.values_to_replace`.
         // To take advantage of constraint simplification we need to still resolve its cache.
         let mut terminator = function.dfg[block_id].take_terminator();
         terminator.map_values_mut(|value| {
