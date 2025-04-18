@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744987337662,
+  "lastUpdate": 1744995281897,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17956,42 +17956,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "68a0b7b447668ca1085647fbeb60ecc81af71c2e",
-          "message": "chore: add workflow to run nightly tests on ARM64 (#8027)",
-          "timestamp": "2025-04-11T15:34:09Z",
-          "tree_id": "5803a79dd22f318a8dd5816b8ff81db79d62685f",
-          "url": "https://github.com/noir-lang/noir/commit/68a0b7b447668ca1085647fbeb60ecc81af71c2e"
-        },
-        "date": 1744387119035,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 3251687,
-            "range": "± 39857",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 3232533,
-            "range": "± 48990",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "saleel@saleel.xyz",
             "name": "saleel",
             "username": "saleel"
@@ -19773,6 +19737,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3580597,
             "range": "± 7534",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d4f81935f8ae557cfe80b0a6cb8bdc83f2605ef",
+          "message": "fix: wrapping mul support for u128 (#7941)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-18T16:38:54Z",
+          "tree_id": "b470f1a83b4ee9b18fc646478d51695ef3aaeecd",
+          "url": "https://github.com/noir-lang/noir/commit/7d4f81935f8ae557cfe80b0a6cb8bdc83f2605ef"
+        },
+        "date": 1744995276232,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264412,
+            "range": "± 1162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234894,
+            "range": "± 2923",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3580461,
+            "range": "± 10496",
             "unit": "ns/iter"
           }
         ]
