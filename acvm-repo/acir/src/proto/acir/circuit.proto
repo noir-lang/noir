@@ -108,9 +108,9 @@ message BlackBoxFuncCall {
     Sha256Compression sha256_compression = 20;
   }
   message AES128Encrypt {
-    repeated FunctionInput inputs = 1;
-    repeated FunctionInput iv = 2;
-    repeated FunctionInput key = 3;
+    repeated ConstantOrWitnessEnum inputs = 1;
+    repeated ConstantOrWitnessEnum iv = 2;
+    repeated ConstantOrWitnessEnum key = 3;
     repeated native.Witness outputs = 4;
   }
   message AND {
@@ -133,38 +133,38 @@ message BlackBoxFuncCall {
     repeated native.Witness outputs = 2;
   }
   message EcdsaSecp256k1 {
-    repeated FunctionInput public_key_x = 1;
-    repeated FunctionInput public_key_y = 2;
-    repeated FunctionInput signature = 3;
-    repeated FunctionInput hashed_message = 4;
+    repeated ConstantOrWitnessEnum public_key_x = 1;
+    repeated ConstantOrWitnessEnum public_key_y = 2;
+    repeated ConstantOrWitnessEnum signature = 3;
+    repeated ConstantOrWitnessEnum hashed_message = 4;
     native.Witness output = 5;
   }
   message EcdsaSecp256r1 {
-    repeated FunctionInput public_key_x = 1;
-    repeated FunctionInput public_key_y = 2;
-    repeated FunctionInput signature = 3;
-    repeated FunctionInput hashed_message = 4;
+    repeated ConstantOrWitnessEnum public_key_x = 1;
+    repeated ConstantOrWitnessEnum public_key_y = 2;
+    repeated ConstantOrWitnessEnum signature = 3;
+    repeated ConstantOrWitnessEnum hashed_message = 4;
     native.Witness output = 5;
   }
   message MultiScalarMul {
-    repeated FunctionInput points = 1;
-    repeated FunctionInput scalars = 2;
+    repeated ConstantOrWitnessEnum points = 1;
+    repeated ConstantOrWitnessEnum scalars = 2;
     repeated native.Witness outputs = 3;
   }
   message EmbeddedCurveAdd {
-    repeated FunctionInput input1 = 1;
-    repeated FunctionInput input2 = 2;
+    repeated ConstantOrWitnessEnum input1 = 1;
+    repeated ConstantOrWitnessEnum input2 = 2;
     repeated native.Witness outputs = 3;
   }
   message Keccakf1600 {
-    repeated FunctionInput inputs = 1;
+    repeated ConstantOrWitnessEnum inputs = 1;
     repeated native.Witness outputs = 2;
   }
   message RecursiveAggregation {
-    repeated FunctionInput verification_key = 1;
-    repeated FunctionInput proof = 2;
-    repeated FunctionInput public_inputs = 3;
-    FunctionInput key_hash = 4;
+    repeated ConstantOrWitnessEnum verification_key = 1;
+    repeated ConstantOrWitnessEnum proof = 2;
+    repeated ConstantOrWitnessEnum public_inputs = 3;
+    ConstantOrWitnessEnum key_hash = 4;
     uint32 proof_type = 5;
   }
   message BigIntAdd {
@@ -188,7 +188,7 @@ message BlackBoxFuncCall {
     uint32 output = 3;
   }
   message BigIntFromLeBytes {
-    repeated FunctionInput inputs = 1;
+    repeated ConstantOrWitnessEnum inputs = 1;
     bytes modulus = 2;
     uint32 output = 3;
   }
@@ -197,13 +197,13 @@ message BlackBoxFuncCall {
     repeated native.Witness outputs = 2;
   }
   message Poseidon2Permutation {
-    repeated FunctionInput inputs = 1;
+    repeated ConstantOrWitnessEnum inputs = 1;
     repeated native.Witness outputs = 2;
     uint32 len = 3;
   }
   message Sha256Compression {
-    repeated FunctionInput inputs = 1;
-    repeated FunctionInput hash_values = 2;
+    repeated ConstantOrWitnessEnum inputs = 1;
+    repeated ConstantOrWitnessEnum hash_values = 2;
     repeated native.Witness outputs = 3;
   }
 }

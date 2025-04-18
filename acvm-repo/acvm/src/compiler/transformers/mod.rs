@@ -1,9 +1,9 @@
 use acir::{
     AcirField,
     circuit::{
-        self, Circuit, ExpressionWidth, Opcode,
+        Circuit, ExpressionWidth, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, MemOp},
     },
     native_types::{Expression, Witness},
 };
@@ -365,9 +365,9 @@ where
     fn fold_blackbox<F: AcirField>(&mut self, call: &BlackBoxFuncCall<F>) {
         match call {
             BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
-                self.fold_function_inputs(iv.as_slice());
-                self.fold_function_inputs(key.as_slice());
+                self.fold_inputs(inputs.as_slice());
+                self.fold_inputs(iv.as_slice());
+                self.fold_inputs(key.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::AND { lhs, rhs, output } => {
@@ -398,10 +398,10 @@ where
                 hashed_message,
                 output,
             } => {
-                self.fold_function_inputs(public_key_x.as_slice());
-                self.fold_function_inputs(public_key_y.as_slice());
-                self.fold_function_inputs(signature.as_slice());
-                self.fold_function_inputs(hashed_message.as_slice());
+                self.fold_inputs(public_key_x.as_slice());
+                self.fold_inputs(public_key_y.as_slice());
+                self.fold_inputs(signature.as_slice());
+                self.fold_inputs(hashed_message.as_slice());
                 self.fold(*output);
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -411,30 +411,30 @@ where
                 hashed_message,
                 output,
             } => {
-                self.fold_function_inputs(public_key_x.as_slice());
-                self.fold_function_inputs(public_key_y.as_slice());
-                self.fold_function_inputs(signature.as_slice());
-                self.fold_function_inputs(hashed_message.as_slice());
+                self.fold_inputs(public_key_x.as_slice());
+                self.fold_inputs(public_key_y.as_slice());
+                self.fold_inputs(signature.as_slice());
+                self.fold_inputs(hashed_message.as_slice());
                 self.fold(*output);
             }
             BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
-                self.fold_function_inputs(points.as_slice());
-                self.fold_function_inputs(scalars.as_slice());
+                self.fold_inputs(points.as_slice());
+                self.fold_inputs(scalars.as_slice());
                 let (x, y, i) = outputs;
                 self.fold(*x);
                 self.fold(*y);
                 self.fold(*i);
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
-                self.fold_function_inputs(input1.as_slice());
-                self.fold_function_inputs(input2.as_slice());
+                self.fold_inputs(input1.as_slice());
+                self.fold_inputs(input2.as_slice());
                 let (x, y, i) = outputs;
                 self.fold(*x);
                 self.fold(*y);
                 self.fold(*i);
             }
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::RecursiveAggregation {
@@ -444,42 +444,52 @@ where
                 key_hash,
                 proof_type: _,
             } => {
-                self.fold_function_inputs(verification_key.as_slice());
-                self.fold_function_inputs(proof.as_slice());
-                self.fold_function_inputs(public_inputs.as_slice());
-                self.fold_function_input(key_hash);
+                self.fold_inputs(verification_key.as_slice());
+                self.fold_inputs(proof.as_slice());
+                self.fold_inputs(public_inputs.as_slice());
+                self.fold_input(key_hash);
             }
             BlackBoxFuncCall::BigIntAdd { .. }
             | BlackBoxFuncCall::BigIntSub { .. }
             | BlackBoxFuncCall::BigIntMul { .. }
             | BlackBoxFuncCall::BigIntDiv { .. } => {}
             BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus: _, output: _ } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
             }
             BlackBoxFuncCall::BigIntToLeBytes { input: _, outputs } => {
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len: _ } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
-                self.fold_function_inputs(hash_values.as_slice());
+                self.fold_inputs(inputs.as_slice());
+                self.fold_inputs(hash_values.as_slice());
                 self.fold_many(outputs.iter());
             }
         }
     }
 
     fn fold_function_input<F: AcirField>(&mut self, input: &FunctionInput<F>) {
-        if let circuit::opcodes::ConstantOrWitnessEnum::Witness(witness) = input.input() {
-            self.fold(witness);
-        }
+        self.fold_input(&input.input());
     }
 
     fn fold_function_inputs<F: AcirField>(&mut self, inputs: &[FunctionInput<F>]) {
         for input in inputs {
             self.fold_function_input(input);
+        }
+    }
+
+    fn fold_inputs<F: AcirField>(&mut self, inputs: &[ConstantOrWitnessEnum<F>]) {
+        for input in inputs {
+            self.fold_input(input);
+        }
+    }
+
+    fn fold_input<F: AcirField>(&mut self, input: &ConstantOrWitnessEnum<F>) {
+        if let ConstantOrWitnessEnum::Witness(witness) = input {
+            self.fold(*witness);
         }
     }
 }

@@ -731,28 +731,36 @@ pub fn witness_to_value<F>(
 // remove skip_bitsize_checks
 pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
+    input: ConstantOrWitnessEnum<F>,
+) -> Result<F, OpcodeResolutionError<F>> {
+    match input {
+        ConstantOrWitnessEnum::Witness(witness) => {
+            let initial_value = *witness_to_value(initial_witness, witness)?;
+            Ok(initial_value)
+        }
+        ConstantOrWitnessEnum::Constant(value) => Ok(value),
+    }
+}
+
+pub fn function_input_to_value<F: AcirField>(
+    initial_witness: &WitnessMap<F>,
     input: FunctionInput<F>,
     skip_bitsize_checks: bool,
 ) -> Result<F, OpcodeResolutionError<F>> {
-    match input.input() {
-        ConstantOrWitnessEnum::Witness(witness) => {
-            let initial_value = *witness_to_value(initial_witness, witness)?;
-            if skip_bitsize_checks || initial_value.num_bits() <= input.num_bits() {
-                Ok(initial_value)
-            } else {
-                let value_num_bits = initial_value.num_bits();
-                let value = initial_value.to_string();
-                Err(OpcodeResolutionError::InvalidInputBitSize {
-                    opcode_location: ErrorLocation::Unresolved,
-                    invalid_input_bit_size: InvalidInputBitSize {
-                        value,
-                        value_num_bits,
-                        max_bits: input.num_bits(),
-                    },
-                })
-            }
-        }
-        ConstantOrWitnessEnum::Constant(value) => Ok(value),
+    let value = input_to_value(initial_witness, input.input())?;
+    if skip_bitsize_checks || value.num_bits() <= input.num_bits() {
+        Ok(value)
+    } else {
+        let value_num_bits = input.num_bits();
+        let value = value.to_string();
+        Err(OpcodeResolutionError::InvalidInputBitSize {
+            opcode_location: ErrorLocation::Unresolved,
+            invalid_input_bit_size: InvalidInputBitSize {
+                value,
+                value_num_bits,
+                max_bits: input.num_bits(),
+            },
+        })
     }
 }
 
