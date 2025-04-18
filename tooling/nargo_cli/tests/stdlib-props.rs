@@ -3,8 +3,7 @@ mod common;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use acvm::{AcirField, FieldElement, acir::native_types::WitnessStack};
-use iter_extended::vecmap;
+use acvm::{FieldElement, acir::native_types::WitnessStack};
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
 use proptest::prelude::*;
@@ -23,12 +22,6 @@ impl SnippetInputOutput {
             inputs: inputs.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
             expected_output: output,
         }
-    }
-
-    /// Attach some description to hint at the scenario we are testing.
-    fn with_description(mut self, description: String) -> Self {
-        self.description = description;
-        self
     }
 }
 
@@ -94,12 +87,4 @@ fn fuzz_basic() {
         .boxed();
 
     run_snippet_proptest(program.to_string(), false, strategy);
-}
-
-fn field_vec_strategy(len: usize) -> impl Strategy<Value = Vec<FieldElement>> {
-    // Generate Field elements from random 32 byte vectors.
-    let field = prop::collection::vec(any::<u8>(), 32)
-        .prop_map(|bytes| FieldElement::from_be_bytes_reduce(&bytes));
-
-    prop::collection::vec(field, len)
 }
