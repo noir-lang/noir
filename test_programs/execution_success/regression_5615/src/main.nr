@@ -1,6 +1,6 @@
+use poseidon::poseidon2::Poseidon2Hasher;
 use std::collections::umap::UHashMap;
 use std::hash::BuildHasherDefault;
-use poseidon::poseidon2::Poseidon2Hasher;
 
 unconstrained fn main() {
     comptime {

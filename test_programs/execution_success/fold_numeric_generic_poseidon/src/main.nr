@@ -1,4 +1,3 @@
-
 global NUM_HASHES: u32 = 2;
 global HASH_LENGTH: u32 = 10;
 
