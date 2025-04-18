@@ -857,7 +857,7 @@ fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
         // These can fail.
         Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
 
-        // This should never be side-effectful
+        // This should never be side-effectual
         MakeArray { .. } | Noop => false,
 
         // Some binary math can overflow or underflow
