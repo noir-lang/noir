@@ -437,6 +437,8 @@ impl<'brillig> Context<'brillig> {
                         .entry(complex)
                         .or_default()
                         .add(&function.dfg, simple, block);
+
+                    self.replace_result_ids(&[complex], &[simple]);
                 }
             }
         }
