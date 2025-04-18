@@ -2856,4 +2856,29 @@ mod test {
 
         assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
     }
+
+    #[test]
+    fn do_not_overflow_with_constant_constrain_neq() {
+        // Test that we appropriately fetch the assertion payload opcode location.
+        // We expect this constrain neq to be simplified and not lay down any opcodes.
+        // As the constrain neq is the first opcode, if we do not fetch the last opcode
+        // location correctly we can potentially trigger an overflow.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain Field 1 != Field 0, ""
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
+
+        let (acir_functions, _brillig_functions, _, _) = ssa
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
+
+        assert_eq!(acir_functions.len(), 1);
+        assert!(acir_functions[0].opcodes().is_empty());
+    }
 }
