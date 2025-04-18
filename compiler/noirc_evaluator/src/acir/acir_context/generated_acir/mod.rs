@@ -169,41 +169,50 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
-        inputs: &[Vec<FunctionInput<F>>],
+        function_inputs: &[Vec<FunctionInput<F>>],
         constant_inputs: Vec<F>,
         constant_outputs: Vec<F>,
         outputs: Vec<Witness>,
     ) -> Result<(), InternalError> {
-        let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
+        let input_count = function_inputs.iter().fold(0usize, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
         intrinsics_check_outputs(func_name, outputs.len());
-
+        let inputs = function_inputs
+            .iter()
+            .map(|function_input_vec| function_input_vec.iter().map(|f| f.input()))
+            .collect::<Vec<_>>();
         let black_box_func_call = match func_name {
             BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
-                inputs: inputs[0].clone(),
+                inputs: inputs[0].clone().collect::<Vec<_>>(),
                 iv: inputs[1]
                     .clone()
+                    .collect::<Vec<_>>()
                     .try_into()
                     .expect("Compiler should generate correct size inputs"),
                 key: inputs[2]
                     .clone()
+                    .collect::<Vec<_>>()
                     .try_into()
                     .expect("Compiler should generate correct size inputs"),
                 outputs,
             },
-            BlackBoxFunc::AND => {
-                BlackBoxFuncCall::AND { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
-            }
-            BlackBoxFunc::XOR => {
-                BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
-            }
-            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
+            BlackBoxFunc::AND => BlackBoxFuncCall::AND {
+                lhs: function_inputs[0][0],
+                rhs: function_inputs[1][0],
+                output: outputs[0],
+            },
+            BlackBoxFunc::XOR => BlackBoxFuncCall::XOR {
+                lhs: function_inputs[0][0],
+                rhs: function_inputs[1][0],
+                output: outputs[0],
+            },
+            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: function_inputs[0][0] },
             BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
-                inputs: inputs[0].clone(),
+                inputs: function_inputs[0].clone(),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
             BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 {
-                inputs: inputs[0].clone(),
+                inputs: function_inputs[0].clone(),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
             BlackBoxFunc::EcdsaSecp256k1 => {
@@ -211,20 +220,24 @@ impl<F: AcirField> GeneratedAcir<F> {
                     // 32 bytes for each public key co-ordinate
                     public_key_x: inputs[0]
                         .clone()
+                        .collect::<Vec<_>>()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     public_key_y: inputs[1]
                         .clone()
+                        .collect::<Vec<_>>()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
                     signature: inputs[2]
                         .clone()
+                        .collect::<Vec<_>>()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     hashed_message: inputs[3]
                         .clone()
+                        .collect::<Vec<_>>()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
@@ -235,9 +248,12 @@ impl<F: AcirField> GeneratedAcir<F> {
                     // 32 bytes for each public key co-ordinate
                     public_key_x: inputs[0]
                         .clone()
+                        .collect::<Vec<_>>()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     public_key_y: inputs[1]
+                        .clone()
+                        .collect::<Vec<_>>()
                         .clone()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
@@ -245,38 +261,49 @@ impl<F: AcirField> GeneratedAcir<F> {
                     // takes up 64 bytes
                     signature: inputs[2]
                         .clone()
+                        .collect::<Vec<_>>()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     hashed_message: inputs[3]
                         .clone()
+                        .collect::<Vec<_>>()
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
                 }
             }
             BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
-                points: inputs[0].clone(),
-                scalars: inputs[1].clone(),
+                points: inputs[0].clone().collect::<Vec<_>>(),
+                scalars: inputs[1].clone().collect::<Vec<_>>(),
                 outputs: (outputs[0], outputs[1], outputs[2]),
             },
 
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1: Box::new([inputs[0][0], inputs[1][0], inputs[2][0]]),
-                input2: Box::new([inputs[3][0], inputs[4][0], inputs[5][0]]),
+                input1: Box::new([
+                    inputs[0].clone().collect::<Vec<_>>()[0],
+                    inputs[1].clone().collect::<Vec<_>>()[0],
+                    inputs[2].clone().collect::<Vec<_>>()[0],
+                ]),
+                input2: Box::new([
+                    inputs[3].clone().collect::<Vec<_>>()[0],
+                    inputs[4].clone().collect::<Vec<_>>()[0],
+                    inputs[5].clone().collect::<Vec<_>>()[0],
+                ]),
                 outputs: (outputs[0], outputs[1], outputs[2]),
             },
             BlackBoxFunc::Keccakf1600 => BlackBoxFuncCall::Keccakf1600 {
                 inputs: inputs[0]
                     .clone()
+                    .collect::<Vec<_>>()
                     .try_into()
                     .expect("Compiler should generate correct size inputs"),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
             BlackBoxFunc::RecursiveAggregation => BlackBoxFuncCall::RecursiveAggregation {
-                verification_key: inputs[0].clone(),
-                proof: inputs[1].clone(),
-                public_inputs: inputs[2].clone(),
-                key_hash: inputs[3][0],
+                verification_key: inputs[0].clone().collect::<Vec<_>>(),
+                proof: inputs[1].clone().collect::<Vec<_>>(),
+                public_inputs: inputs[2].clone().collect::<Vec<_>>(),
+                key_hash: inputs[3].clone().collect::<Vec<_>>()[0],
                 proof_type: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::BigIntAdd => BlackBoxFuncCall::BigIntAdd {
@@ -300,7 +327,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 output: constant_outputs[0].to_u128() as u32,
             },
             BlackBoxFunc::BigIntFromLeBytes => BlackBoxFuncCall::BigIntFromLeBytes {
-                inputs: inputs[0].clone(),
+                inputs: inputs[0].clone().collect::<Vec<_>>(),
                 modulus: vecmap(constant_inputs, |c| c.to_u128() as u8),
                 output: constant_outputs[0].to_u128() as u32,
             },
@@ -309,17 +336,19 @@ impl<F: AcirField> GeneratedAcir<F> {
                 outputs,
             },
             BlackBoxFunc::Poseidon2Permutation => BlackBoxFuncCall::Poseidon2Permutation {
-                inputs: inputs[0].clone(),
+                inputs: inputs[0].clone().collect::<Vec<_>>(),
                 outputs,
                 len: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::Sha256Compression => BlackBoxFuncCall::Sha256Compression {
                 inputs: inputs[0]
                     .clone()
+                    .collect::<Vec<_>>()
                     .try_into()
                     .expect("Compiler should generate correct size inputs"),
                 hash_values: inputs[1]
                     .clone()
+                    .collect::<Vec<_>>()
                     .try_into()
                     .expect("Compiler should generate correct size inputs"),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),

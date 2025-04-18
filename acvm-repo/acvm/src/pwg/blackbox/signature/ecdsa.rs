@@ -1,6 +1,6 @@
 use acir::{
     AcirField,
-    circuit::opcodes::FunctionInput,
+    circuit::opcodes::ConstantOrWitnessEnum,
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
@@ -15,10 +15,10 @@ use crate::{
 
 pub(crate) fn secp256k1_prehashed<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    public_key_x_inputs: &[FunctionInput<F>; 32],
-    public_key_y_inputs: &[FunctionInput<F>; 32],
-    signature_inputs: &[FunctionInput<F>; 64],
-    hashed_message_inputs: &[FunctionInput<F>],
+    public_key_x_inputs: &[ConstantOrWitnessEnum<F>; 32],
+    public_key_y_inputs: &[ConstantOrWitnessEnum<F>; 32],
+    signature_inputs: &[ConstantOrWitnessEnum<F>; 64],
+    hashed_message_inputs: &[ConstantOrWitnessEnum<F>],
     output: Witness,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let hashed_message = to_u8_vec(initial_witness, hashed_message_inputs)?;
@@ -34,10 +34,10 @@ pub(crate) fn secp256k1_prehashed<F: AcirField>(
 
 pub(crate) fn secp256r1_prehashed<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    public_key_x_inputs: &[FunctionInput<F>; 32],
-    public_key_y_inputs: &[FunctionInput<F>; 32],
-    signature_inputs: &[FunctionInput<F>; 64],
-    hashed_message_inputs: &[FunctionInput<F>],
+    public_key_x_inputs: &[ConstantOrWitnessEnum<F>; 32],
+    public_key_y_inputs: &[ConstantOrWitnessEnum<F>; 32],
+    signature_inputs: &[ConstantOrWitnessEnum<F>; 64],
+    hashed_message_inputs: &[ConstantOrWitnessEnum<F>],
     output: Witness,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let hashed_message = to_u8_vec(initial_witness, hashed_message_inputs)?;

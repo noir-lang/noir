@@ -1,7 +1,7 @@
 use crate::pwg::input_to_value;
 use acir::{
     AcirField, BlackBoxFunc,
-    circuit::opcodes::FunctionInput,
+    circuit::opcodes::ConstantOrWitnessEnum,
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BigIntSolver;
@@ -24,14 +24,14 @@ impl AcvmBigIntSolver {
 
     pub(crate) fn bigint_from_bytes<F: AcirField>(
         &mut self,
-        inputs: &[FunctionInput<F>],
+        inputs: &[ConstantOrWitnessEnum<F>],
         modulus: &[u8],
         output: u32,
         initial_witness: &mut WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let bytes = inputs
             .iter()
-            .map(|input| input_to_value(initial_witness, *input, false).unwrap().to_u128() as u8)
+            .map(|input| input_to_value(initial_witness, *input).unwrap().to_u128() as u8)
             .collect::<Vec<u8>>();
         self.bigint_solver.bigint_from_bytes(&bytes, modulus, output)?;
         Ok(())
