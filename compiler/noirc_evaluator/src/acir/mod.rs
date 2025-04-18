@@ -3694,7 +3694,7 @@ mod test {
 
     // Convert the SSA input into ACIR and use ACVM to execute it
     // Returns the ACVM execution status and the value of the 'output' witness value,
-    // unless the provided output is None or ACVM fail execution.
+    // unless the provided output is None or the ACVM fails during execution.
     fn execute_ssa(
         ssa: Ssa,
         initial_witness: WitnessMap<FieldElement>,
@@ -3726,8 +3726,8 @@ mod test {
             "acir(inline) fn main f0 {{
             b0(v0: [{typ}; 2]):
              v6 = make_array [{typ} {v0}, {typ} {v1}] : [{typ}; 2]
-             v1 = array_get v6, index u32 0 -> {typ}
-             v2 = array_get v6, index u32 1 -> {typ}
+             lhs = array_get v6, index u32 0 -> {typ}
+             rhs = array_get v6, index u32 1 -> {typ}
             "
         )
     }
@@ -3736,8 +3736,8 @@ mod test {
         format!(
             "acir(inline) fn main f0 {{
             b0(v0: [{typ}; 2]):
-              v1 = array_get v0, index u32 0 -> {typ}
-              v2 = array_get v0, index u32 1 -> {typ}
+              lhs = array_get v0, index u32 0 -> {typ}
+              rhs = array_get v0, index u32 1 -> {typ}
               "
         )
     }
@@ -3752,15 +3752,17 @@ mod test {
         let src = match op {
             "constrain" => {
                 output = false;
-                format!("constrain v1 {} v2", ops[1])
+                format!("constrain lhs {} rhs", ops[1])
             }
-            "not" => format!("v3 = {} v1", op),
-            "truncate" => format!("v3 = truncate v1 to {} bits, max_bit_size: {}", ops[1], ops[2]),
+            "not" => format!("result = {} lhs", op),
+            "truncate" => {
+                format!("result = truncate lhs to {} bits, max_bit_size: {}", ops[1], ops[2])
+            }
             "range_check" => {
                 output = false;
-                format!("range_check v1 to {} bits", ops[1])
+                format!("range_check lhs to {} bits", ops[1])
             }
-            _ => format!("v3 = {} v1, v2", op),
+            _ => format!("result = {} lhs, rhs", op),
         };
 
         if output {
@@ -3768,7 +3770,7 @@ mod test {
                 format!(
                     "
             {src}
-        return v3
+        return result
         }}"
                 ),
                 true,
