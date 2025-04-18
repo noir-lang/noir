@@ -58,6 +58,8 @@ impl Parser<'_> {
     ///     | 'test' '(' 'should_fail_with' '=' string ')'
     ///     | 'fuzz'
     ///     | 'fuzz' '(' 'only_fail_with' '=' string ')'
+    ///     | 'fuzz' '(' 'should_fail' ')'
+    ///     | 'fuzz' '(' 'should_fail_with' '=' string ')'
     ///
     /// SecondaryAttribute
     ///     = 'abi' '(' AttributeValue ')'
@@ -147,7 +149,7 @@ impl Parser<'_> {
                     self.parse_test_attribute(start_location)
                 } else if ident.as_str() == "fuzz" {
                     // The fuzz attribute is a secondary attribute that has `a = b` in its syntax
-                    // (`only_fail_with = "..."``) so we parse it differently.
+                    // (`only_fail_with = "..."``) or (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_fuzz_attribute(start_location)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
@@ -366,6 +368,15 @@ impl Parser<'_> {
         let scope = if self.eat_left_paren() {
             let scope = if let Some(ident) = self.eat_ident() {
                 match ident.as_str() {
+                    "should_fail" => Some(FuzzingScope::ShouldFailWith { reason: None }),
+                    "should_fail_with" => {
+                        self.eat_or_error(Token::Assign);
+                        if let Some(reason) = self.eat_str() {
+                            Some(FuzzingScope::ShouldFailWith { reason: Some(reason) })
+                        } else {
+                            Some(FuzzingScope::ShouldFailWith { reason: None })
+                        }
+                    }
                     "only_fail_with" => {
                         self.eat_or_error(Token::Assign);
                         self.eat_str().map(|reason| FuzzingScope::OnlyFailWith { reason })

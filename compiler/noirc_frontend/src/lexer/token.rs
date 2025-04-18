@@ -751,6 +751,12 @@ impl fmt::Display for TestScope {
 /// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
+    /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
+    /// if it fails with the specified reason. If the reason is None, then
+    /// the harness must unconditionally fail
+    ShouldFailWith {
+        reason: Option<String>,
+    },
     /// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
     /// if it fails with the specified reason.
     OnlyFailWith {
@@ -764,6 +770,10 @@ impl fmt::Display for FuzzingScope {
         match self {
             FuzzingScope::None => write!(f, ""),
             FuzzingScope::OnlyFailWith { reason } => write!(f, "(only_fail_with = {reason:?})"),
+            FuzzingScope::ShouldFailWith { reason } => match reason {
+                Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
+                None => write!(f, "(should_fail)"),
+            },
         }
     }
 }

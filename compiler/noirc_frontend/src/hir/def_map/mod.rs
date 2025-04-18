@@ -438,6 +438,17 @@ impl FuzzingHarness {
         match self.scope {
             FuzzingScope::OnlyFailWith { .. } => true,
             FuzzingScope::None => false,
+            FuzzingScope::ShouldFailWith { .. } => false,
+        }
+    }
+    /// Returns true if the fuzzing harness has been specified to fail
+    /// This is done by annotating the function with `#[fuzz(should_fail)]`
+    /// or `#[fuzz(should_fail_with = "reason")]`
+    pub fn should_fail_enabled(&self) -> bool {
+        match self.scope {
+            FuzzingScope::OnlyFailWith { .. } => false,
+            FuzzingScope::None => false,
+            FuzzingScope::ShouldFailWith { .. } => true,
         }
     }
 
@@ -447,6 +458,7 @@ impl FuzzingHarness {
         match &self.scope {
             FuzzingScope::None => None,
             FuzzingScope::OnlyFailWith { reason } => Some(reason.clone()),
+            FuzzingScope::ShouldFailWith { reason } => reason.clone(),
         }
     }
 }
