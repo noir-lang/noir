@@ -1534,7 +1534,23 @@
 <a href="#1533" id="1533">1533</a>
 <a href="#1534" id="1534">1534</a>
 <a href="#1535" id="1535">1535</a>
-<a href="#1536" id="1536">1536</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -1878,8 +1894,24 @@
                 <span class="comment">// `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
-                //   jmpif v12 then: b3, else: b2
+                //   jmpif v12 then: b2, else: b3
                 </span>function.dfg.get_numeric_constant(<span class="kw-2">*</span>rhs).map(|c| c + FieldElement::one())
+            }
+            Instruction::Not(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
+                // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
+                // as a loop header's jump condition.
+                //
+                // `for i in 0..1` is turned into:
+                //  b1(v0: u1):
+                //    v2 = eq v0, u32 0
+                //    jmpif v2 then: b2, else: b3
+                //
+                // Which is further simplified into:
+                //  b1(v0: u1):
+                //    v2 = not v0
+                //    jmpif v2 then: b2, else: b3
+                </span><span class="prelude-val">Some</span>(<span class="bool-val">true</span>.into())
             }
             other =&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected instruction in header: {other:?}"</span>),
         }
