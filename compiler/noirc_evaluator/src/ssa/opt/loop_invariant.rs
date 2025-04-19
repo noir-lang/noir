@@ -127,6 +127,21 @@ impl Loop {
     fn get_induction_variable(&self, function: &Function) -> ValueId {
         function.dfg.block_parameters(self.header)[0]
     }
+
+    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
+    // Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
+    // If a loop can have several exit blocks, we would need to update this function
+    pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
+        let Some(header) = self.blocks.first() else {
+            return true;
+        };
+        for block in cfg.successors(*header) {
+            if !self.blocks.contains(&block) {
+                return cfg.predecessors(block).len() == 1;
+            }
+        }
+        true
+    }
 }
 
 struct LoopInvariantContext<'f> {
@@ -192,20 +207,6 @@ impl<'f> LoopInvariantContext<'f> {
 
     fn pre_header(&self) -> BasicBlockId {
         self.current_pre_header.expect("ICE: Pre-header block should have been set")
-    }
-
-    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
-    // If a loop can have several exit blocks, we would need to update this function
-    fn is_fully_executed(&self, loop_: &Loop) -> bool {
-        let Some(header) = loop_.blocks.first() else {
-            return true;
-        };
-        for block in self.inserter.function.dfg[*header].successors() {
-            if !loop_.blocks.contains(&block) {
-                return self.cfg.predecessors(block).len() == 1;
-            }
-        }
-        true
     }
 
     fn hoist_loop_invariants(&mut self, loop_: &Loop) {
@@ -298,7 +299,7 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
-        self.no_break = self.is_fully_executed(loop_);
+        self.no_break = loop_.is_fully_executed(&self.cfg);
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -439,7 +440,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let results =
                     self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
                 assert!(results.len() == 1);
-                self.inserter.function.dfg.set_value_from_id(results[0], id);
+                self.inserter.map_value(results[0], id);
                 true
             }
             SimplifyResult::SimplifiedToInstruction(instruction) => {
@@ -1521,7 +1522,10 @@ mod test {
 
 #[cfg(test)]
 mod control_dependence {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
@@ -1874,36 +1878,34 @@ mod control_dependence {
 
         let ssa = ssa.loop_invariant_code_motion();
         // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1, and then to be hoisted out of the loop
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
-          entry(v0: u32, v1: u32, v2: u32):
-              v4 = allocate -> &mut u32
-              store v0 at v4
-              constrain u1 0 == u1 1
-              jmp b1(u32 0)
-            b1(v3: u32):
-              v9 = lt v3, u32 5
-              jmpif v9 then: b2, else: b3
-            b2():
-              jmpif u1 1 then: b4, else: b5
-            b3():
-              v10 = load v4 -> u32
-              v11 = lt v1, v10
-              constrain v11 == u1 1
-              return
-            b4():
-              v12 = load v4 -> u32
-              v14 = add v12, u32 1
-              store v14 at v4
-              jmp b5()
-            b5():
-              v16 = lt v3, u32 4
-              v17 = unchecked_add v3, u32 1
-              jmp b1(v17)
-          }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = allocate -> &mut u32
+            store v0 at v4
+            constrain u1 0 == u1 1
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v9 = lt v3, u32 5
+            jmpif v9 then: b2, else: b3
+          b2():
+            jmpif u1 1 then: b4, else: b5
+          b3():
+            v10 = load v4 -> u32
+            v11 = lt v1, v10
+            constrain v11 == u1 1
+            return
+          b4():
+            v12 = load v4 -> u32
+            v14 = add v12, u32 1
+            store v14 at v4
+            jmp b5()
+          b5():
+            v16 = lt v3, u32 4
+            v17 = unchecked_add v3, u32 1
+            jmp b1(v17)
+        }
+        ");
     }
 
     #[test]
@@ -1947,7 +1949,7 @@ mod control_dependence {
 
         let ssa = ssa.loop_invariant_code_motion();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
@@ -1956,10 +1958,10 @@ mod control_dependence {
             jmp b1(u32 0)
           b1(v3: u32):
             v9 = lt v3, u32 5
-            jmpif v9 then: b2, else: loop_exit
+            jmpif v9 then: b2, else: b3
           b2():
             jmpif u1 1 then: b4, else: b5
-          loop_exit():
+          b3():
             v19 = load v4 -> u32
             v20 = lt v1, v19
             constrain v20 == u1 1
@@ -1972,16 +1974,14 @@ mod control_dependence {
           b5():
             v15 = lt u32 2, v3
             v16 = mul v6, v15
-            jmpif v16 then: loop_exit, else: b6
+            jmpif v16 then: b3, else: b6
           b6():
             v17 = lt v3, u32 4
             constrain v17 == u1 1
             v18 = unchecked_add v3, u32 1
             jmp b1(v18)
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -2019,7 +2019,7 @@ mod control_dependence {
 
         let ssa = ssa.loop_invariant_code_motion();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
@@ -2044,9 +2044,7 @@ mod control_dependence {
             v14 = unchecked_add v3, u32 1
             jmp b1(v14)
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -2075,7 +2073,7 @@ mod control_dependence {
 
         let ssa = ssa.loop_invariant_code_motion();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
@@ -2089,8 +2087,6 @@ mod control_dependence {
           b3():
             return
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

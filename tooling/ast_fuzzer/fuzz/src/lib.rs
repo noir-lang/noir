@@ -3,6 +3,7 @@ use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
 use noirc_abi::input_parser::Format;
+use noirc_evaluator::ssa::{primary_passes, secondary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
@@ -46,15 +47,17 @@ pub fn create_ssa_or_die(
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
     if show_ast() {
-        eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
+        // Showing the AST as-is, in case we have problem with IDs.
+        eprintln!("---\n{}\n---", program);
     }
 
-    ssa::create_program(program, options).unwrap_or_else(|e| {
-        panic!(
-            "failed to compile program: {}{e}",
-            msg.map(|s| format!("{s}: ")).unwrap_or_default()
-        )
-    })
+    ssa::create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
+        .unwrap_or_else(|e| {
+            panic!(
+                "failed to compile program: {}{e}",
+                msg.map(|s| format!("{s}: ")).unwrap_or_default()
+            )
+        })
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
@@ -70,9 +73,11 @@ where
     let res = result.return_value_or_err();
 
     if res.is_err() {
+        // Showing the AST as Noir so we can easily create integration tests.
         for (i, ast) in asts(inputs).into_iter().enumerate() {
             eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
         }
+        // Showing the inputs as TOML so we can easily create a Prover.toml file.
         eprintln!(
             "---\nInputs:\n{}",
             Format::Toml

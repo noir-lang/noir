@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81WS07DMBD1Jwm0CDZcoEuW/jb2DokF5yAiPQoH4CQciKsgQdUZ5NpWpDaTqk+Kni1bTy8zz044O6D7ex5g3AALVoIDPwNbtXVu7M2orX5TJg7BK+eHbdBB++DfTbB2DC70cYi9itrZUe98tDt1QKqlzoNWiVYOKm1RqYHAiQTmrCyaXLBgZ2oZ0NKc0JcgLPYpAVTzoCm0AnDF7iIBxEw1WBDJyiDieL9pk5mSNOb+TaZac0MpGV0oG8LmXjKUBIfp4qFsgTssCAawZWUo95s2mSnqUApGF8qW0YWyI24u9SdZJs0k7MdREJc8MDN77aZ8XsHvDsLi5Z76rCFduwN++fl+/fr8eMr33AKvgNfJuqTzblaZH2J9dcNKrCt1QOBF1rDp+qVzkfHUXj6he19ZQ81H4NQvvscvVa3sKbsLAAA=",
+  "debug_symbols": "tZRLDoQgEETv0msWfsDfVSYTg4qGhIBBnGRivPugkYT5LXtHdVc9VtUbDKJbp1bq0SzQ3DZQpudOGu3VBsk5WmauD7U4bh00acYICD0cr2onMEoloGHJTr6stM4vK0tobL0TSBHZGSI7R2RTRDZDZBeI7BKRXSGya8zuoBYTs5npn2rSAKfZZ+J34VgREuX7H150Violpza+ZX784FbyTolLjqvuo617zmET8rM1vRhWKw7SufP4Fw==",
+  "file_map": {
+    "50": {
+      "source": "use std::ops::{Neg, Not};\n\n// x = 3\nfn main(x: u32) {\n    let wx = Wrapper::new(x as i32);\n    let ex: i32 = 3;\n\n    assert((-wx).inner == -ex);\n    assert((!wx).inner == !ex);\n\n    // Check that it works with type variables (x's type isn't immediately known)\n    let x = 3;\n    assert(-3 == -x);\n}\n\nstruct Wrapper {\n    inner: i32,\n}\n\nimpl Wrapper {\n    fn new(inner: i32) -> Self {\n        Wrapper { inner }\n    }\n}\n\nimpl Neg for Wrapper {\n    fn neg(self) -> Wrapper {\n        Wrapper::new(-self.inner)\n    }\n}\n\nimpl Not for Wrapper {\n    fn not(self) -> Wrapper {\n        Wrapper::new(!self.inner)\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

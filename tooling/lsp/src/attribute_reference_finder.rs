@@ -18,7 +18,7 @@ use noirc_frontend::{
     },
     node_interner::ReferenceId,
     parser::ParsedSubModule,
-    token::MetaAttribute,
+    token::{MetaAttribute, MetaAttributeName},
     usage_tracker::UsageTracker,
 };
 
@@ -89,12 +89,16 @@ impl Visitor for AttributeReferenceFinder<'_> {
         &mut self,
         attribute: &MetaAttribute,
         _target: AttributeTarget,
+        span: Span,
     ) -> bool {
-        if !self.includes_span(attribute.location.span) {
+        if !self.includes_span(span) {
             return false;
         }
 
-        let path = attribute.name.clone();
+        let MetaAttributeName::Path(path) = attribute.name.clone() else {
+            return false;
+        };
+
         // The path here must resolve to a function and it's a simple path (can't have turbofish)
         // so it can (and must) be solved as an import.
         let Ok(Some((module_def_id, _, _))) = resolve_import(

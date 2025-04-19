@@ -29,6 +29,7 @@ mod remove_enable_side_effects;
 mod remove_if_else;
 mod remove_truncate_after_range_check;
 mod remove_unreachable;
+mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
 
@@ -78,4 +79,13 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     println!("Expected (after ID normalization):\n~~~\n{expected_ssa}\n~~~\n");
     println!("Got:\n~~~\n{ssa}\n~~~");
     similar_asserts::assert_eq!(expected_ssa, ssa);
+}
+
+#[macro_export]
+macro_rules! assert_ssa_snapshot {
+    ($ssa:expr, $($arg:tt)*) => {
+        let mut mut_ssa = $ssa;
+        mut_ssa.normalize_ids();
+        insta::assert_snapshot!(mut_ssa, $($arg)*)
+    };
 }

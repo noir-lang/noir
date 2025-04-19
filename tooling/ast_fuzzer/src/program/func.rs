@@ -1,5 +1,8 @@
 use nargo::errors::Location;
-use std::fmt::Debug;
+use std::{
+    collections::{BTreeMap, HashSet},
+    fmt::Debug,
+};
 use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
@@ -7,8 +10,9 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Expression, For, FuncId, GlobalId, If, Index, InlineType,
-        LValue, Let, Literal, LocalId, Parameters, Type,
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
+        IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type,
+        While,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -25,6 +29,7 @@ use super::{
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
 /// 2. generate the final HIR function signature
+#[derive(Debug, Clone)]
 pub(super) struct FunctionDeclaration {
     pub name: String,
     pub params: Parameters,
@@ -42,22 +47,7 @@ impl FunctionDeclaration {
             .params
             .iter()
             .zip(self.param_visibilities.iter())
-            .map(|((_id, mutable, _name, typ), vis)| {
-                // The pattern doesn't seem to be used in `ssa::create_program`,
-                // apart from its location, so it shouldn't matter what we put into it.
-                let mut pat = HirPattern::Identifier(HirIdent {
-                    location: Location::dummy(),
-                    id: DefinitionId::dummy_id(),
-                    impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
-                });
-                if *mutable {
-                    pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
-                }
-
-                let typ = types::to_hir_type(typ);
-
-                (pat, typ, *vis)
-            })
+            .map(|((_id, mutable, _name, typ), vis)| hir_param(*mutable, typ, *vis))
             .collect();
 
         let return_type =
@@ -65,6 +55,28 @@ impl FunctionDeclaration {
 
         (param_types, return_type)
     }
+}
+
+/// HIR representation of a function parameter.
+pub(crate) fn hir_param(
+    mutable: bool,
+    typ: &Type,
+    vis: Visibility,
+) -> (HirPattern, hir_def::types::Type, Visibility) {
+    // The pattern doesn't seem to be used in `ssa::create_program`,
+    // apart from its location, so it shouldn't matter what we put into it.
+    let mut pat = HirPattern::Identifier(HirIdent {
+        location: Location::dummy(),
+        id: DefinitionId::dummy_id(),
+        impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
+    });
+    if mutable {
+        pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
+    }
+
+    let typ = types::to_hir_type(typ);
+
+    (pat, typ, vis)
 }
 
 /// Control what kind of expressions we can generate, depending on the surrounding context.
@@ -84,6 +96,9 @@ impl Flags {
     const CONDITION: Self = Self { allow_blocks: false, allow_if_then: false };
     /// In `for` ranges we can use `if` expressions, but let's not do blocks.
     const RANGE: Self = Self { allow_blocks: false, allow_if_then: true };
+    /// In call arguments we can use `if` expressions, but avoid blocks.
+    /// The arg expressions themselves might call other functions.
+    const CALL: Self = Self { allow_blocks: false, allow_if_then: true };
 }
 
 /// Context used during the generation of a function body.
@@ -95,6 +110,9 @@ pub(super) struct FunctionContext<'a> {
     /// Every variable created in the function will have an increasing ID,
     /// which does not reset when variables go out of scope.
     next_local_id: u32,
+    /// Every identifier created in the function will have an increasing ID,
+    /// which does not reset when variables go out of scope.
+    next_ident_id: u32,
     /// Number of statements remaining to be generated in the function.
     budget: usize,
     /// Global variables.
@@ -103,6 +121,12 @@ pub(super) struct FunctionContext<'a> {
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
+    /// Indicator of being in a loop (and hence able to generate
+    /// break and continue statements)
+    in_loop: bool,
+    /// All the functions callable from this one, with the types we can
+    /// produce from their return value.
+    call_targets: BTreeMap<FuncId, HashSet<Type>>,
 }
 
 impl<'a> FunctionContext<'a> {
@@ -123,7 +147,37 @@ impl<'a> FunctionContext<'a> {
                 .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        Self { ctx, id, next_local_id, budget, globals, locals }
+        // Collect all the functions we can call from this one.
+        let call_targets = ctx
+            .function_declarations
+            .iter()
+            .filter_map(|(callee_id, decl)| {
+                // We can't call `main`.
+                if *callee_id == Program::main_id() {
+                    return None;
+                }
+                // From an ACIR function we can call any Brillig function,
+                // but we avoid creating infinite recursive ACIR calls by
+                // only calling functions with higher IDs than ours,
+                // otherwise the inliner could get stuck.
+                if !decl.unconstrained && *callee_id <= id {
+                    return None;
+                }
+                Some((*callee_id, types::types_produced(&decl.return_type)))
+            })
+            .collect();
+
+        Self {
+            ctx,
+            id,
+            next_local_id,
+            budget,
+            globals,
+            locals,
+            in_loop: false,
+            call_targets,
+            next_ident_id: 0,
+        }
     }
 
     /// Generate the function body.
@@ -155,6 +209,13 @@ impl<'a> FunctionContext<'a> {
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
         self.next_local_id += 1;
+        id
+    }
+
+    /// Get and increment the next ident ID.
+    fn next_ident_id(&mut self) -> IdentId {
+        let id = IdentId(self.next_ident_id);
+        self.next_ident_id += 1;
         id
     }
 
@@ -235,6 +296,14 @@ impl<'a> FunctionContext<'a> {
             return self.gen_block(u, typ);
         }
 
+        // Function calls returning a value.
+        if freq.enabled_when("call", allow_nested && self.budget > 0) {
+            // Decreasing the max depth in expression position because it can be very difficult to read.
+            if let Some(expr) = self.gen_call(u, typ, max_depth.saturating_sub(1))? {
+                return Ok(expr);
+            }
+        }
+
         // We can always try to just derive a value from the variables we have.
         if freq.enabled("vars") {
             if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
@@ -243,7 +312,6 @@ impl<'a> FunctionContext<'a> {
         }
 
         // TODO(#7926): Match
-        // TODO(#7925): Call
 
         // If nothing else worked out we can always produce a random literal.
         expr::gen_literal(u, typ)
@@ -258,7 +326,8 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<Expression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
             let (mutable, src_name, src_type) = self.get_variable(&id).clone();
-            let src_expr = expr::ident(id, mutable, src_name, src_type.clone());
+            let ident_id = self.next_ident_id();
+            let src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
             if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
                 return Ok(Some(expr));
             }
@@ -527,14 +596,23 @@ impl<'a> FunctionContext<'a> {
     /// Generate a statement, which is an expression that doesn't return anything,
     /// for example loops, variable declarations, etc.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        let mut freq = Freq::new(u, &self.ctx.config.stmt_freqs)?;
-        // TODO(#7927): Loop
-        // TODO(#7928): While
+        let mut freq = if self.unconstrained() {
+            Freq::new(u, &self.ctx.config.stmt_freqs_brillig)?
+        } else {
+            Freq::new(u, &self.ctx.config.stmt_freqs_acir)?
+        };
         // TODO(#7926): Match
-        // TODO(#7925): Call
         // TODO(#7931): print
         // TODO(#7932): Constrain
 
+        // Start with `drop`, it doesn't need to be frequent even if others are disabled.
+        if freq.enabled("drop") {
+            if let Some(e) = self.gen_drop(u)? {
+                return Ok(e);
+            }
+        }
+
+        // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
         }
@@ -543,9 +621,28 @@ impl<'a> FunctionContext<'a> {
             return self.gen_for(u);
         }
 
-        if freq.enabled("drop") {
-            if let Some(e) = self.gen_drop(u)? {
+        if freq.enabled_when("call", self.budget > 0) {
+            if let Some(e) = self.gen_call(u, &Type::Unit, self.max_depth())? {
                 return Ok(e);
+            }
+        }
+
+        if self.unconstrained() {
+            // Get loop out of the way quick, as it's always disabled for ACIR.
+            if freq.enabled_when("loop", self.budget > 1) {
+                return self.gen_loop(u);
+            }
+
+            if freq.enabled_when("while", self.budget > 1) {
+                return self.gen_while(u);
+            }
+
+            if freq.enabled_when("break", self.in_loop) {
+                return Ok(Expression::Break);
+            }
+
+            if freq.enabled_when("continue", self.in_loop) {
+                return Ok(Expression::Continue);
             }
         }
 
@@ -555,23 +652,32 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        self.gen_let(u)
+        self.gen_let(u, None)
     }
 
-    /// Generate a `Let` statement.
-    fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+    /// Generate a `Let` statement, optionally requesting mutability.
+    fn gen_let(
+        &mut self,
+        u: &mut Unstructured,
+        mutable: Option<bool>,
+    ) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let typ = self.ctx.gen_type(u, max_depth, false)?;
         let id = self.next_local_id();
-        let mutable = bool::arbitrary(u)?;
+
+        let mutable = match mutable {
+            Some(m) => m,
+            None => bool::arbitrary(u)?,
+        };
+
         let name = make_name(id.0 as usize, false);
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
 
         // Add the variable so we can use it in subsequent expressions.
         self.locals.add(id, mutable, name.clone(), typ.clone());
 
-        Ok(Expression::Let(Let { id, mutable, name, expression: Box::new(expr) }))
+        Ok(expr::let_var(id, mutable, name, expr))
     }
 
     /// Drop a local variable, if we have anything to drop.
@@ -585,7 +691,14 @@ impl<'a> FunctionContext<'a> {
         // Remove variable so we stop using it.
         self.locals.remove(&id);
 
-        Ok(Some(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), mutable, name, typ)))))
+        let ident_id = self.next_ident_id();
+        Ok(Some(Expression::Drop(Box::new(expr::ident(
+            VariableId::Local(id),
+            ident_id,
+            mutable,
+            name,
+            typ,
+        )))))
     }
 
     /// Assign to a mutable variable, if we have one in scope.
@@ -603,7 +716,8 @@ impl<'a> FunctionContext<'a> {
 
         let id = *u.choose_iter(opts)?;
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
-        let ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
+        let ident_id = self.next_ident_id();
+        let ident = expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone());
         let ident = LValue::Ident(ident);
 
         // For arrays and tuples we can consider assigning to their items.
@@ -666,12 +780,7 @@ impl<'a> FunctionContext<'a> {
             Some(expr)
         };
 
-        Ok(Expression::If(If {
-            condition: Box::new(condition),
-            consequence: Box::new(consequence),
-            alternative: alternative.map(Box::new),
-            typ: typ.clone(),
-        }))
+        Ok(expr::if_then(condition, consequence, alternative, typ.clone()))
     }
 
     /// Generate a `for` loop.
@@ -682,8 +791,9 @@ impl<'a> FunctionContext<'a> {
             u.choose(&[8, 16, 32, 64]).map(|s| IntegerBitSize::try_from(*s).unwrap())?,
         );
 
-        let max_size = self.ctx.config.max_range_size;
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
+            // Choosing a maximum range size because changing it immediately brought out some bug around modulo.
+            let max_size = u.int_in_range(1..=self.ctx.config.max_loop_size)?;
             // Generate random expression.
             let s = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
             let e = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
@@ -693,6 +803,8 @@ impl<'a> FunctionContext<'a> {
             let e = expr::range_modulo(e, idx_type.clone(), max_size);
             (s, e)
         } else {
+            // `gen_range` will choose a size up to the max.
+            let max_size = self.ctx.config.max_loop_size;
             // If the function is constrained, we need a range we can determine at compile time.
             // For now do it with literals, although we should be able to use constant variables as well.
             let (s, e) = expr::gen_range(u, &idx_type, max_size)?;
@@ -711,7 +823,9 @@ impl<'a> FunctionContext<'a> {
         // Decrease budget so we don't nest for loops endlessly.
         self.decrease_budget(1);
 
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
         let block = self.gen_block(u, &Type::Unit)?;
+        self.in_loop = was_in_loop;
 
         let expr = Expression::For(For {
             index_variable: idx_id,
@@ -729,4 +843,218 @@ impl<'a> FunctionContext<'a> {
 
         Ok(expr)
     }
+
+    /// Generate a function call to any function in the global context except `main`,
+    /// if the function returns the target type, or something we can use to produce that type.
+    fn gen_call(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<Expression>> {
+        // Decrease the budget so we avoid a potential infinite nesting of calls.
+        self.decrease_budget(1);
+
+        let opts = self
+            .call_targets
+            .iter()
+            .filter_map(|(id, types)| types.contains(typ).then_some(id))
+            .collect::<Vec<_>>();
+
+        if opts.is_empty() {
+            return Ok(None);
+        }
+
+        let callee_id = *u.choose_iter(opts)?;
+        let callee = self.ctx.function_decl(callee_id).clone();
+        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+
+        let mut args = Vec::new();
+        for typ in &param_types {
+            args.push(self.gen_expr(u, typ, max_depth, Flags::CALL)?);
+        }
+
+        let call_expr = Expression::Call(Call {
+            func: Box::new(Expression::Ident(Ident {
+                location: None,
+                definition: Definition::Function(callee_id),
+                mutable: false,
+                name: callee.name.clone(),
+                typ: Type::Function(
+                    param_types,
+                    Box::new(callee.return_type.clone()),
+                    Box::new(Type::Unit),
+                    callee.unconstrained,
+                ),
+                id: self.next_ident_id(),
+            })),
+            arguments: args,
+            return_type: callee.return_type.clone(),
+            location: Location::dummy(),
+        });
+
+        // Derive the final result from the call, e.g. by casting, or accessing a member.
+        self.gen_expr_from_source(u, call_expr, &callee.return_type, typ, self.max_depth())
+    }
+
+    /// Generate a `loop` loop.
+    fn gen_loop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // Declare break index variable visible in the loop body. Do not include it
+        // in the locals the generator would be able to manipulate, as it could
+        // lead to the loop becoming infinite.
+        let idx_type = types::U32;
+        let idx_local_id = self.next_local_id();
+        let idx_id = self.next_ident_id();
+        let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
+        let idx_variable_id = VariableId::Local(idx_local_id);
+        let idx_ident =
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
+        let idx_expr = Expression::Ident(idx_ident.clone());
+
+        // Decrease budget so we don't nest endlessly.
+        self.decrease_budget(1);
+
+        // Start building the loop harness, initialize index to 0
+        let let_idx = expr::let_var(idx_local_id, true, idx_name, expr::u32_literal(0));
+
+        // Get the randomized loop body
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+        let mut loop_body = self.gen_block(u, &Type::Unit)?;
+        self.in_loop = was_in_loop;
+
+        // Increment the index in the beginning of the body.
+        expr::prepend(
+            &mut loop_body,
+            expr::assign(
+                idx_ident,
+                expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
+            ),
+        );
+
+        // Put everything into if/else
+        let loop_body = expr::if_else(
+            expr::binary(
+                idx_expr,
+                BinaryOp::Equal,
+                expr::u32_literal(self.ctx.config.max_loop_size as u32),
+            ),
+            Expression::Break,
+            loop_body,
+            Type::Unit,
+        );
+
+        Ok(Expression::Block(vec![let_idx, Expression::Loop(Box::new(loop_body))]))
+    }
+
+    /// Generate a `while` loop.
+    fn gen_while(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+        // Declare break index variable visible in the loop body. Do not include it
+        // in the locals the generator would be able to manipulate, as it could
+        // lead to the loop becoming infinite.
+        let idx_type = types::U32;
+        let idx_local_id = self.next_local_id();
+        let idx_id = self.next_ident_id();
+        let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
+        let idx_variable_id = VariableId::Local(idx_local_id);
+        let idx_ident =
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
+        let idx_expr = Expression::Ident(idx_ident.clone());
+
+        // Decrease budget so we don't nest endlessly.
+        self.decrease_budget(1);
+
+        // Start building the loop harness, initialize index to 0
+        let mut stmts = vec![Expression::Let(Let {
+            id: idx_local_id,
+            mutable: true,
+            name: idx_name,
+            expression: Box::new(expr::u32_literal(0)),
+        })];
+
+        // Get the randomized loop body
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+        let mut loop_body = self.gen_block(u, &Type::Unit)?;
+        self.in_loop = was_in_loop;
+
+        // Increment the index in the beginning of the body.
+        expr::prepend(
+            &mut loop_body,
+            expr::assign(
+                idx_ident,
+                expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
+            ),
+        );
+
+        // Put everything into if/else
+        let inner_block = Expression::Block(vec![expr::if_else(
+            expr::binary(
+                idx_expr,
+                BinaryOp::Equal,
+                expr::u32_literal(self.ctx.config.max_loop_size as u32),
+            ),
+            Expression::Break,
+            loop_body,
+            Type::Unit,
+        )]);
+
+        // Generate the `while` condition with depth 1
+        let condition = self.gen_expr(u, &Type::Bool, 1, Flags::CONDITION)?;
+
+        stmts.push(Expression::While(While {
+            condition: Box::new(condition),
+            body: Box::new(inner_block),
+        }));
+
+        Ok(Expression::Block(stmts))
+    }
+}
+
+#[test]
+fn test_loop() {
+    let mut u = Unstructured::new(&[0u8; 1]);
+    let mut ctx = Context::default();
+    ctx.config.max_loop_size = 10;
+    ctx.add_main_decl(&mut u);
+    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+    fctx.budget = 2;
+    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+
+    println!("{loop_code}");
+    assert!(
+        loop_code.starts_with(
+            &r#"{
+    let mut idx_a$l0 = 0;
+    loop {
+        if (idx_a$l0 == 10) {
+            break
+        } else {
+            idx_a$l0 = (idx_a$l0 + 1);"#
+                .replace(" ", "")
+        )
+    );
+}
+
+#[test]
+fn test_while() {
+    let mut u = Unstructured::new(&[0u8; 1]);
+    let mut ctx = Context::default();
+    ctx.config.max_loop_size = 10;
+    ctx.add_main_decl(&mut u);
+    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+    fctx.budget = 2;
+    let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
+
+    println!("{while_code}");
+    assert!(
+        while_code.starts_with(
+            &r#"{
+    let mut idx_a$l0 = 0;
+    while (!false) {
+        if (idx_a$l0 == 10) {
+            break
+        } else {
+            idx_a$l0 = (idx_a$l0 + 1)"#
+                .replace(" ", "")
+        )
+    );
 }

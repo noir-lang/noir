@@ -1,0 +1,104 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "struct",
+            "path": "Foo",
+            "fields": [
+              {
+                "name": "a",
+                "type": {
+                  "kind": "field"
+                }
+              },
+              {
+                "name": "b",
+                "type": {
+                  "kind": "array",
+                  "length": 3,
+                  "type": {
+                    "kind": "field"
+                  }
+                }
+              },
+              {
+                "name": "bar",
+                "type": {
+                  "kind": "struct",
+                  "path": "Bar",
+                  "fields": [
+                    {
+                      "name": "inner",
+                      "type": {
+                        "kind": "array",
+                        "length": 3,
+                        "type": {
+                          "kind": "integer",
+                          "sign": "unsigned",
+                          "width": 8
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "hash_result",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 8
+          }
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1cd3PTThC9OPn9gIQeek3oLaCTLFumht57J7SY2JTQey/5bPC92CUnIuSFf/Ruhh28MztSnuzze7d7p5VOSocZtzHyL26/g7zTbbvIJ+ew/wTsfwHrEbCpAjZNwGYLWK+AzXFYp+M+10wYHy+5Y12ON/Oc5L4zhbzb8ZzqeEwnn0E+k3yW49HrfiffN/MEPvMFbIGALRSwRQK2WMCWCNhSAVsmYMsFrE/A+gVshYCtFLBVArZawNYI2FoBWydg6wVsg4BtFLBNAjYgYJsFbIuABQJmBSwUsEjAygIWO4zzmK1kWq3DbQfdNihmdi6grea43RLoFm3bpjvZvqi4bdXkOpCBvhyBTo8dFgWVcrlRDRs2ssNBWKsncVCO65XEJjZO4pEwiaJGUk6qtXqtGtRsOWrYZlwLm66tSvG2ItdWUPUUyHzCFeVZwcUi8MkzUcKzBsxtnzy34niWffLchuNZ9clzO45n4pPnDhzPuk+eO3E8Gz557sLxbPrkOQjjaUOfPHfjeMZca3Ch0u3a44HF8zPPfTyv8Jjl8cC5lsZxt2m1Uk5jUMwiQM3ys7/2ANsqGbnIBekOfpczQTGzexRw3OuBo0i0aBLsgxGtDEvJhOxUTcFCc8TFKZdQ4Nnul84smpz7PSSPFJyiPA/AeFbqWgcRMFbeBhEuTp4H0X5gch40OgbRIRxPtWciYKy8DaJDSI5aa9BEAcfD7UAFtqaA4xEPHEWiRafooziiodaEOqqA4zGjJKGO44hGWhPquAKOJ0z7VGK3KuB40igZ+adwRGOtCXVKAcfTRklCncERrWhNqDMKOJ417VOJ3aaA47l2oAK7XQHH8x44ikSLTtEXcERrWhPqggKOF5EceVWePV2V57tSfMODr1H5soIrVi4y+LzAUw5n80XTan/zqvwlYFslM/HUZNZAur0lzSUFHC8b8CnNKAwUtBM8cbzigeMPQy/UZTuz6MgfAvLSmpxDCjheNUqScwiYnNfayWmvKeB43YBrN34dJq1HeFrm7L9uWg2dvMj67IbB1mddxlvyenu04Ib5+5MXuqruOVD/9KMFN9uB0vFowXA7UDqW7OtIjkyOX8XuzJC9aSZeeR3O7NfdPr92OELOr8/wqym3ye+Q3yW/Rz5Kfp/8AflD8kfkj8mfkD8lf0b+nPwF+UvyV+Svyd+QvyV/R/6e/AP5R/JP5J/N+CvxY+ZXy9cSRc/Z84CBumXwyeRD83yg5hElmhcANTeUaF4I1NxUonkRUPNtJZoXAzXfUaJ5CVDzXSWalwI131OieRlQ86gSzcuBmu8r0dwH1PxAieZ+oOaHSjSvAGp+pETzSqDmx0o0rwJqfqJE82qg5qdKNK8Ban6mRPNaoObnSjSvA2p+oUTzeqDml0o0bwBqfqVE80ag5tdKNG8Can6jRPMAUPNbJZo3AzW/U6J5C1DzeyWaA6DmD0o0W6Dmj0o0h0DNn5RojoCaPyvRXAZq/qJEcwzUPAbUzGvh6cMNPv/FeX/mN3hdmtdped2S1/F4XYvXeXjdg9cB+L443yfuc9/j+2p8n4nvu/B9CL4u5+tUvm7j6xiu67nO5bqP6yCuC/g8yQHleZTnFR5nnHdxTmNqAz/jPnP6la+j3/Kfmey2U9y2O3Oc+2jQ/R0UszBtv8dP+8Ek02rdmf2e3LF0HEgPwHT85u9Sbvunz+bxLDZNOJa22eu2Wb6pju+ooNMOe2AAAA==",
+  "debug_symbols": "ldjPasJAEIDxd9mzh8zsn8z6KqWUqFECIZEYC0V890YxRdJcvltmh28vP8hhb+5Q766nr6Y79he3/bi5tt9XY9N303RzQZ9nl3PVPcbLWA2j26r3G1d3h8eX3Tfu2LS128bi/rlxweMi4CLiIq0X8lfkZVHiwnCRaRELXAguFBceFwEXERfYPGLziM0jNk/YPGHzhM0TNk/YPGHzhM3Tunme/yW+kGVhuMi0KAtcCC4UFx4XARcRFwkX2LzE5iU2N2xu2NywuWFzw+aGzQ2bGzY3bG7YPK+ah5heRSj9shBcKC5WzUMOryLqvyLgIuIi4WLVPPo8FzEtC8NFpoUUBU+EJ8oTz5PAk8iTxJOSJ8YTri9cX7i+cH3h+sL1hesL1xeuL1xfuL5yfeX6yvWV6yvXV66vXF+5vkL9adgNTds2p6/3B5Pp+LsammrX1q/xeO32b9vx5zxv5v489Pv6cB3qx03P3XT9Lw==",
+  "file_map": {
+    "50": {
+      "source": "struct Bar {\n    inner: [u8; 3],\n}\n\nstruct Foo {\n    a: Field,\n    b: [Field; 3],\n    bar: Bar,\n}\n\nfn main(mut x: [Foo; 3], y: pub Field, hash_result: pub [u8; 32]) {\n    // Simple dynamic array set for entire inner most array\n    x[y - 1].bar.inner = [106, 107, 10];\n    let mut hash_input = x[y - 1].bar.inner;\n    // Make sure that we are passing a dynamic array to the black box function call\n    // by setting the array using a dynamic index here\n    hash_input[y - 1] = 0;\n    let hash = std::hash::blake3(hash_input);\n    assert_eq(hash, hash_result);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

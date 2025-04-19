@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/62QQQqAMAwErfigpEna5OZXWmz//wQRI5TiTQfC5jQsG5ab4Dezeu6e8A0cXQSJueXYkLBAtKoCLDUpKorKEZWoKWu2ahkMmRp2MeouC//1KpdrG7ZYpv9tm4cToX2ibUQBAAA=",
+  "debug_symbols": "TYxNCoQwDEbvkrULZ8RNrzIM0p9UAqUtaTswFO9uFAV3ed8jr4ND09aFok8F1KdDSFZXSlGow3hOJet4UKmaK6jXex4Ao5NrmrYBPAUENY/bV8AwhUDr8szI/NNM2gS80LdoH7b+823u/8zJomuMR+l0kt8B",
+  "file_map": {
+    "50": {
+      "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

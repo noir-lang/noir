@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VWzU7DMAx2urRbOk1DcEDiBtxR+sM2OPXAi1RMfY48OguLqet6O0AiLEX5sWN//uKkVXAWFZoXTdawz2AqqOtCb/8mVURfNhVGlQDjt2QCsZKg7j30hu33+kXEhA2LG9P/wbY7I+QXEX9jYFq8kf3XhvhM4N8ug58PN/rnuWAdqHTn1CbOs97A/JFRLDedqEYUiwcsT2DxS0haU5Vi8RAP5wfHG7RxIx7FdNrN80Bd7qZ5eFmd2j2x47WVEbsnMn4O48T1uEt8r+3dlZxxbengR5C3BVlDXpHnFbVnOkN02k3jlGGuSRzqC3HkzP4xzLehL8ge3H8jxC9Y/AluYY3zYgR7I9gXp/YQxuvQfA21uAf+755J576F+RuoGVb6hnSRcHIcOch3S8IR+QfIcs60wBONnzP7F4YzZzl0kXDesvxprIRnVcOFs1pc4QZtG4Yv0fdO5AZjrWH8p9Qufvz94VxDXvANzAk/VDTRU/u3MC8v5NH9Euew76uh6Yf+tT8e28+e8+QlIzx9AflKmNs5DQAA",
+  "debug_symbols": "ldNRC4MgEAfw73LPPjjNrL7KGGFlIYiG2WBE3306NohoD/cinvjjDo7/BoPu1qk1bvQLNPcNrO9VNN6latsJdMFYa6b2+Aw0H7z8/F9m5XK5RBUiNIxVBLQb0o2z5EdjNTSC7g8CXKJFhRb1taB/RUHR4oYWDC04WhRoIdDieuel/AlZnoVEiwotaqwQFCf2VD1VMKqz+huMcXX9ISfxNetTZObgez2sQefwHHKTWjNOOE9z3PIcghEhU4vU5g0=",
+  "file_map": {
+    "50": {
+      "source": "type Foo<T> = [T; 2];\n\ntype Bar = Field;\n\ntype One<A, B> = (A, B);\ntype Two<A> = One<A, u32>;\ntype Three = Two<u8>;\n\nstruct MyStruct {\n    foo: Bar,\n}\n\nfn main(x: [Field; 2]) {\n    let a: Foo<Field> = [1, 2];\n    assert(a[0] != x[0]);\n\n    let b: Bar = 2;\n    assert(x[0] == b);\n\n    let c: u8 = 1;\n    let d: u32 = 2;\n    let e: Three = (c, d);\n    assert(e.0 == 1);\n\n    let s = MyStruct { foo: 10 };\n    assert(s.foo == 10);\n\n    let _regression2502: Regression2502Alias = Regression2502 {};\n}\n// An ICE was occurring if a type alias referred to a struct before it was initialized\n// during name resolution. The fix was to initialize structs during def collection instead.\ntype Regression2502Alias = Regression2502;\nstruct Regression2502 {}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
