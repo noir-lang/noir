@@ -43,13 +43,14 @@ impl FromStr for Ssa {
 
 impl Ssa {
     /// Creates an Ssa object from the given string.
-    pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
         FromStr::from_str(src)
     }
 
     /// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
-    pub(crate) fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+    pub fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
         Self::from_str_impl(src, true)
     }
 

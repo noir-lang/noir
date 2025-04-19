@@ -17,25 +17,21 @@ use noirc_evaluator::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
         SsaProgramArtifact, function_builder::FunctionBuilder, ir::call_stack::CallStack,
         ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes,
-        secondary_passes,
+        secondary_passes, ssa_gen::Ssa,
     },
 };
-
 use std::panic::AssertUnwindSafe;
 
-/// Optimizes the given FunctionBuilder into ACIR
-/// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
-/// and to catch panics... It cannot be catched with just catch_unwind.
-fn optimize_into_acir(
-    builder: FunctionBuilder,
+/// Optimizes the given SSA into ACIR
+fn optimize_ssa_into_acir(
+    ssa: Ssa,
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
-    let ssa = builder.finish();
     log::debug!("SSA: {}", format!("{}", ssa));
-    // change to SsaLogging::All to see triage final ssa.
+    // change to SsaLogging::All to triage final ssa.
     let builder = SsaBuilder {
         ssa,
-        ssa_logging: SsaLogging::All,
+        ssa_logging: SsaLogging::Contains("Dead Instruction Elimination (2)".to_string()),
         print_codegen_timings: false,
         passed: HashMap::new(),
     };
@@ -78,6 +74,15 @@ fn optimize_into_acir(
             }))
         }
     }
+}
+
+/// Optimizes the given FunctionBuilder into ACIR
+fn optimize_builder_into_acir(
+    builder: FunctionBuilder,
+    options: SsaEvaluatorOptions,
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
+    let ssa = builder.finish();
+    optimize_ssa_into_acir(ssa, options)
 }
 
 /// Converts the generated ACIR into a circuit artifact
@@ -162,14 +167,11 @@ fn convert_generated_acir_into_circuit_without_signature(
 
 /// Creates a program artifact from the given FunctionBuilder
 /// its taken from noirc_evaluator::ssa::create_program, but modified to accept FunctionBuilder
-fn create_program(
-    builder: FunctionBuilder,
-    options: SsaEvaluatorOptions,
-) -> Result<SsaProgramArtifact, RuntimeError> {
+fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact, RuntimeError> {
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         _ssa_level_warnings,
-    ) = optimize_into_acir(builder, options)?;
+    ) = artifacts;
 
     let error_types = error_types
         .into_iter()
@@ -211,13 +213,8 @@ fn generate_abi() -> Abi {
     Abi { parameters, return_type, error_types }
 }
 
-/// Compiles the given FunctionBuilder into a CompiledProgram
-/// its taken from noirc_driver::compile_no_check, but modified to accept FunctionBuilder
-pub fn compile(
-    builder: FunctionBuilder,
-    options: &CompileOptions,
-) -> Result<CompiledProgram, CompileError> {
-    let ssa_evaluator_options = SsaEvaluatorOptions {
+fn evaluator_options(options: &CompileOptions) -> SsaEvaluatorOptions {
+    SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass {
             Some(string) => SsaLogging::Contains(string.clone()),
             None => {
@@ -237,9 +234,16 @@ pub fn compile(
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
-    };
+    }
+}
+
+/// Compiles the given FunctionBuilder into a CompiledProgram
+/// its taken from noirc_driver::compile_no_check, but modified to accept ArtifactsAndWarnings
+fn compile_from_artifacts(
+    artifacts: ArtifactsAndWarnings,
+) -> Result<CompiledProgram, CompileError> {
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
-        create_program(builder, ssa_evaluator_options)?;
+        create_program(artifacts)?;
     let abi = generate_abi();
     let file_map = BTreeMap::new();
     Ok(CompiledProgram {
@@ -253,4 +257,21 @@ pub fn compile(
         names,
         brillig_names,
     })
+}
+
+/// Compiles the given FunctionBuilder into a CompiledProgram
+pub fn compile_from_builder(
+    builder: FunctionBuilder,
+    options: &CompileOptions,
+) -> Result<CompiledProgram, CompileError> {
+    let artifacts = optimize_builder_into_acir(builder, evaluator_options(options))?;
+    compile_from_artifacts(artifacts)
+}
+
+pub fn compile_from_ssa(
+    ssa: Ssa,
+    options: &CompileOptions,
+) -> Result<CompiledProgram, CompileError> {
+    let artifacts = optimize_ssa_into_acir(ssa, evaluator_options(options))?;
+    compile_from_artifacts(artifacts)
 }
