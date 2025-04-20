@@ -16,7 +16,8 @@
 use crate::base_context::FuzzerContext;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
-use noir_ssa_fuzzer::runner::{CompareResults, execute_single, run_and_compare};
+use noir_ssa_executor::runner::execute_single;
+use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
 
 pub(crate) struct Fuzzer {
