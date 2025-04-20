@@ -25,15 +25,6 @@ pub enum SsaExecutionError {
     SsaParsingFailed(String),
 }
 
-#[derive(Debug)]
-pub enum CompareResults {
-    Agree(FieldElement),
-    Disagree(FieldElement, FieldElement),
-    BothFailed(String, String),
-    AcirFailed(String, FieldElement),
-    BrilligFailed(String, FieldElement),
-}
-
 /// Low level function to execute the given program with the given initial witness
 /// It uses nargo execute_program to run the program
 fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
