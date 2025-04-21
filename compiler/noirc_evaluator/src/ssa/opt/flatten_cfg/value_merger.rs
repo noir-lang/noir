@@ -156,14 +156,16 @@ impl<'a> ValueMerger<'a> {
 
         let actual_length = len * element_types.len() as u32;
 
-        if let Some(result) = self.try_merge_only_changed_indices(
-            then_condition,
-            else_condition,
-            then_value,
-            else_value,
-            actual_length,
-        ) {
-            return result;
+        if false {
+            if let Some(result) = self.try_merge_only_changed_indices(
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+                actual_length,
+            ) {
+                return result;
+            }
         }
 
         for i in 0..len {
