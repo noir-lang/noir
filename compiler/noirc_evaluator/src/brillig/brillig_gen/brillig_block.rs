@@ -1287,9 +1287,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
-                dbg!(results);
-                dbg!(element_size);
-                dbg!(results[element_size + 1]);
                 let pop_variables = vecmap(&results[0..element_size], |result| {
                     self.variables.define_variable(
                         self.function_context,
