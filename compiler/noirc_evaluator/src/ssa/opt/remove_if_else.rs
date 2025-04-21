@@ -382,4 +382,202 @@ mod tests {
         }
         "#);
     }
+
+    #[test]
+    fn try_merge_only_changed_indices_2() {
+        let src = "
+        g0 = u32 2
+
+        acir(inline) predicate_pure fn main f0 {
+          b0(v1: [Field; 2], v2: [Field; 2]):
+            v4 = array_get v1, index u32 0 -> Field
+            v6 = array_get v1, index u32 1 -> Field
+            v7 = array_get v2, index u32 0 -> Field
+            v8 = array_get v2, index u32 1 -> Field
+            v9 = make_array [v4, v6, v7, v8] : [Field; 4]
+            v11 = make_array [Field 0, Field 0] : [Field; 2]
+            v12 = make_array [Field 0, Field 0] : [Field; 2]
+            v13 = allocate -> &mut [Field; 2]
+            v14 = allocate -> &mut u32
+            v15 = allocate -> &mut [Field; 2]
+            v16 = allocate -> &mut u32
+            v17 = array_get v1, index u32 0 -> Field
+            v18 = eq v17, Field 0
+            v19 = not v18
+            enable_side_effects v19
+            v20 = array_get v1, index u32 0 -> Field
+            v21 = make_array [v20, Field 0] : [Field; 2]
+            v22 = if v19 then v21 else (if v18) v11
+            v23 = cast v19 as u32
+            v24 = cast v18 as u32
+            enable_side_effects u1 1
+            v26 = array_get v1, index u32 1 -> Field
+            v27 = eq v26, Field 0
+            v28 = not v27
+            enable_side_effects v28
+            v29 = array_get v1, index u32 1 -> Field
+            v30 = lt v23, u32 2
+            v31 = mul v30, v28
+            constrain v31 == v28
+            v32 = lt v23, u32 2
+            v33 = mul v32, v28
+            constrain v33 == v28
+            v34 = array_set v22, index v23, value v29
+            v35 = add v23, u32 1
+            v36 = if v28 then v34 else (if v27) v22
+            v37 = cast v28 as u32
+            v38 = cast v27 as u32
+            v39 = unchecked_mul v37, v35
+            v40 = unchecked_mul v38, v23
+            v41 = unchecked_add v39, v40
+            enable_side_effects u1 1
+            v42 = array_get v2, index u32 0 -> Field
+            v43 = eq v42, Field 0
+            v44 = not v43
+            enable_side_effects v44
+            v45 = array_get v2, index u32 0 -> Field
+            v46 = make_array [v45, Field 0] : [Field; 2]
+            v47 = if v44 then v46 else (if v43) v12
+            v48 = cast v44 as u32
+            v49 = cast v43 as u32
+            enable_side_effects u1 1
+            v50 = array_get v2, index u32 1 -> Field
+            v51 = eq v50, Field 0
+            v52 = not v51
+            enable_side_effects v52
+            v53 = array_get v2, index u32 1 -> Field
+            v54 = lt v48, u32 2
+            v55 = mul v54, v52
+            constrain v55 == v52
+            v56 = lt v48, u32 2
+            v57 = mul v56, v52
+            constrain v57 == v52
+            v58 = array_set v47, index v48, value v53
+            v59 = add v48, u32 1
+            v60 = if v52 then v58 else (if v51) v47
+            v61 = cast v52 as u32
+            v62 = cast v51 as u32
+            v63 = unchecked_mul v61, v59
+            v64 = unchecked_mul v62, v48
+            v65 = unchecked_add v63, v64
+            enable_side_effects u1 1
+            v66 = array_get v36, index u32 0 -> Field
+            v67 = array_get v36, index u32 1 -> Field
+            v68 = array_get v60, index u32 0 -> Field
+            v69 = array_get v60, index u32 1 -> Field
+            v70 = make_array [v66, v67, v68, v69] : [Field; 4]
+            return v70
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_if_else();
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = u32 2
+
+        acir(inline) predicate_pure fn main f0 {
+          b0(v1: [Field; 2], v2: [Field; 2]):
+            v4 = array_get v1, index u32 0 -> Field
+            v6 = array_get v1, index u32 1 -> Field
+            v7 = array_get v2, index u32 0 -> Field
+            v8 = array_get v2, index u32 1 -> Field
+            v9 = make_array [v4, v6, v7, v8] : [Field; 4]
+            v11 = make_array [Field 0, Field 0] : [Field; 2]
+            v12 = make_array [Field 0, Field 0] : [Field; 2]
+            v13 = allocate -> &mut [Field; 2]
+            v14 = allocate -> &mut u32
+            v15 = allocate -> &mut [Field; 2]
+            v16 = allocate -> &mut u32
+            v17 = array_get v1, index u32 0 -> Field
+            v18 = eq v17, Field 0
+            v19 = not v18
+            enable_side_effects v19
+            v20 = array_get v1, index u32 0 -> Field
+            v21 = make_array [v20, Field 0] : [Field; 2]
+            v22 = cast v19 as Field
+            v23 = cast v18 as Field
+            v24 = mul v22, v20
+            v25 = make_array [v24, Field 0] : [Field; 2]
+            v26 = cast v19 as u32
+            v27 = cast v18 as u32
+            enable_side_effects u1 1
+            v29 = array_get v1, index u32 1 -> Field
+            v30 = eq v29, Field 0
+            v31 = not v30
+            enable_side_effects v31
+            v32 = array_get v1, index u32 1 -> Field
+            v33 = lt v26, u32 2
+            v34 = mul v33, v31
+            constrain v34 == v31
+            v35 = lt v26, u32 2
+            v36 = mul v35, v31
+            constrain v36 == v31
+            v37 = array_set v25, index v26, value v32
+            v38 = add v26, u32 1
+            enable_side_effects v31
+            v39 = array_get v37, index v26 -> Field
+            v40 = array_get v25, index v26 -> Field
+            v41 = cast v31 as Field
+            v42 = cast v30 as Field
+            v43 = mul v41, v39
+            v44 = mul v42, v40
+            v45 = add v43, v44
+            v46 = array_set v37, index v26, value v45
+            enable_side_effects v31
+            v47 = cast v31 as u32
+            v48 = cast v30 as u32
+            v49 = unchecked_mul v47, v38
+            v50 = unchecked_mul v48, v26
+            v51 = unchecked_add v49, v50
+            enable_side_effects u1 1
+            v52 = array_get v2, index u32 0 -> Field
+            v53 = eq v52, Field 0
+            v54 = not v53
+            enable_side_effects v54
+            v55 = array_get v2, index u32 0 -> Field
+            v56 = make_array [v55, Field 0] : [Field; 2]
+            v57 = cast v54 as Field
+            v58 = cast v53 as Field
+            v59 = mul v57, v55
+            v60 = make_array [v59, Field 0] : [Field; 2]
+            v61 = cast v54 as u32
+            v62 = cast v53 as u32
+            enable_side_effects u1 1
+            v63 = array_get v2, index u32 1 -> Field
+            v64 = eq v63, Field 0
+            v65 = not v64
+            enable_side_effects v65
+            v66 = array_get v2, index u32 1 -> Field
+            v67 = lt v61, u32 2
+            v68 = mul v67, v65
+            constrain v68 == v65
+            v69 = lt v61, u32 2
+            v70 = mul v69, v65
+            constrain v70 == v65
+            v71 = array_set v60, index v61, value v66
+            v72 = add v61, u32 1
+            enable_side_effects v65
+            v73 = array_get v71, index v61 -> Field
+            v74 = array_get v60, index v61 -> Field
+            v75 = cast v65 as Field
+            v76 = cast v64 as Field
+            v77 = mul v75, v73
+            v78 = mul v76, v74
+            v79 = add v77, v78
+            v80 = array_set v71, index v61, value v79
+            enable_side_effects v65
+            v81 = cast v65 as u32
+            v82 = cast v64 as u32
+            v83 = unchecked_mul v81, v72
+            v84 = unchecked_mul v82, v61
+            v85 = unchecked_add v83, v84
+            enable_side_effects u1 1
+            v86 = array_get v46, index u32 0 -> Field
+            v87 = array_get v46, index u32 1 -> Field
+            v88 = array_get v80, index u32 0 -> Field
+            v89 = array_get v80, index u32 1 -> Field
+            v90 = make_array [v86, v87, v88, v89] : [Field; 4]
+            return v90
+        }
+        ");
+    }
 }
