@@ -27,9 +27,13 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
+pub fn get_monomorphized_no_emit_test(src: &str) -> Result<Program, MonomorphizationError> {
+    get_monomorphized(src, None, Expect::Success)
+}
+
 pub fn get_monomorphized(
     src: &str,
-    test_path: &str,
+    test_path: Option<&str>,
     expect: Expect,
 ) -> Result<Program, MonomorphizationError> {
     let (_parsed_module, mut context, errors) = get_program(src, test_path, expect);
@@ -60,13 +64,13 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
 
 pub(crate) fn get_program<'a, 'b>(
     src: &'a str,
-    test_path: &'b str,
+    test_path: Option<&'b str>,
     expect: Expect,
 ) -> (ParsedModule, Context<'a, 'b>, Vec<CompilationError>) {
     let allow_parser_errors = false;
     get_program_with_options(
         src,
-        Some(test_path),
+        test_path,
         expect,
         allow_parser_errors,
         FrontendOptions::test_default(),

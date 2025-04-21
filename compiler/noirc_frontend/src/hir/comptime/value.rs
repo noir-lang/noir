@@ -523,6 +523,7 @@ impl Value {
             Value::U16(value) => vec![Token::Int((value as u128).into())],
             Value::U32(value) => vec![Token::Int((value as u128).into())],
             Value::U64(value) => vec![Token::Int((value as u128).into())],
+            Value::U128(value) => vec![Token::Int(value.into())],
             Value::I8(value) => {
                 if value < 0 {
                     vec![Token::Minus, Token::Int((-value as u128).into())]
@@ -563,7 +564,16 @@ impl Value {
         use Value::*;
         matches!(
             self,
-            Field(_) | I8(_) | I16(_) | I32(_) | I64(_) | U8(_) | U16(_) | U32(_) | U64(_)
+            Field(_)
+                | I8(_)
+                | I16(_)
+                | I32(_)
+                | I64(_)
+                | U8(_)
+                | U16(_)
+                | U32(_)
+                | U64(_)
+                | U128(_)
         )
     }
 
@@ -584,6 +594,7 @@ impl Value {
             Self::U16(value) => Some((*value as u128).into()),
             Self::U32(value) => Some((*value as u128).into()),
             Self::U64(value) => Some((*value as u128).into()),
+            Self::U128(value) => Some((*value).into()),
             _ => None,
         }
     }

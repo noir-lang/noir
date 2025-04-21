@@ -48,11 +48,11 @@ pub(crate) fn get_program_using_features(
 }
 
 pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationError> {
-    get_program(src, test_path, Expect::Error).2
+    get_program(src, Some(test_path), Expect::Error).2
 }
 
 fn assert_no_errors(src: &str, test_path: &str) {
-    let (_, context, errors) = get_program(src, test_path, Expect::Success);
+    let (_, context, errors) = get_program(src, Some(test_path), Expect::Success);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);
@@ -933,7 +933,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
 }
 
 fn get_program_captures(src: &str, test_path: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src, test_path, Expect::Success);
+    let (program, context, _errors) = get_program(src, Some(test_path), Expect::Success);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
