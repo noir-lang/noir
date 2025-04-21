@@ -80,6 +80,15 @@ impl Ssa {
             return self;
         }
 
+        // Check whether any globals have been declared. If not, we do not need to run this pass.
+        if !self
+            .functions
+            .values()
+            .any(|function| function.dfg.globals.values_iter().next().is_some())
+        {
+            return self;
+        }
+
         let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
 
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
