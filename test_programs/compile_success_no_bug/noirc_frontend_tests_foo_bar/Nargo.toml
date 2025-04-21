@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_foo_bar"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

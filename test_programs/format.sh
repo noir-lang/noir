@@ -50,7 +50,7 @@ echo "]" >> Nargo.toml
 if [ "$1" == "check" ]; then
   nargo fmt --check
 else
-  nargo fmt
+  cargo run fmt
 fi
 
 

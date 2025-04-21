@@ -3,48 +3,37 @@
 // Message:  attempt to subtract with overflow
 // Location: compiler/noirc_evaluator/src/acir/generated_acir.rs:660
 
-pub fn sort<T>(input: [T; 5])
-where
-    T: Ord,
-{
-    sort_via(input, |a, b| a <= b)
+pub unconstrained fn foo(input: Field) -> Field {
+    (input == 0) as Field
 }
 
-pub unconstrained fn quicksort<T>(arr: [T; 5]) -> [T; 5] {
-    arr
-}
-
-pub fn sort_via<T>(input: [T; 5], ordering: fn(T, T) -> bool) {
+pub fn bar(input: Field) {
     // Safety: test
-    let sorted = unsafe { quicksort(input) };
+    let output = unsafe { foo(input) };
 
-    assert(ordering(sorted[0], sorted[0 + 1]), "");
+    assert(output != 0, "");
 }
 
 mod test {
-    use crate::sort;
+    use crate::bar;
 
-    global arr_global: [u32; 5] = [42, 123, 87, 93, 48];
-
+    // this panics:
     #[test]
-    fn test_sort() {
-        let arr: [u32; 5] = [3, 6, 8, 10, 1];
-        // this panics:
-        sort(arr);
-
-        // this works:
-        // sort_via(arr, |a, b| a <= b)
+    fn test_local() {
+        bar(0);
     }
 
-    #[test]
-    fn test_sort_100_values_comptime() {
-        // this panics:
-        sort(arr_global);
+    global x_global: Field = 0;
 
-        // this works:
-        // sort_via(arr_global, |a, b| a <= b);
+    // this panics:
+    #[test]
+    fn test_global() {
+        bar(x_global);
     }
 
 }
 
-fn main() {}
+// it works when calling or inlining `bar` in `main` (with `input = 0`)
+fn main(input: Field) {
+    bar(input)
+}
