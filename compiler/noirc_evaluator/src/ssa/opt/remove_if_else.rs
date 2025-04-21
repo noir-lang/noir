@@ -355,29 +355,34 @@ mod tests {
         // rather than merging the entire array. As we only modify the `y` array at a single index,
         // we instead only map the if predicate onto the the numeric value we are looking to write,
         // and then write into the array directly.
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
             v5 = array_set v1, index u32 0, value u32 1
             v6 = not v0
-            enable_side_effects v0
-            v7 = array_get v1, index u32 0 -> u32
-            v8 = cast v0 as u32
-            v9 = cast v6 as u32
-            v10 = unchecked_mul v9, v7
-            v11 = unchecked_add v8, v10
-            v12 = array_set v5, index u32 0, value v11
-            enable_side_effects v0
+            v8 = array_get v1, index Field 0 -> u32
+            v9 = cast v0 as u32
+            v10 = cast v6 as u32
+            v11 = unchecked_mul v10, v8
+            v12 = unchecked_add v9, v11
+            v14 = array_get v5, index Field 1 -> u32
+            v15 = array_get v1, index Field 1 -> u32
+            v16 = cast v0 as u32
+            v17 = cast v6 as u32
+            v18 = unchecked_mul v16, v14
+            v19 = unchecked_mul v17, v15
+            v20 = unchecked_add v18, v19
+            v21 = make_array [v12, v20] : [u32; 2]
             enable_side_effects u1 1
-            v14 = array_get v12, index u32 0 -> u32
-            v15 = array_get v12, index u32 1 -> u32
-            v16 = add v14, v15
-            v17 = eq v16, u32 1
-            constrain v16 == u32 1
+            v23 = array_get v21, index u32 0 -> u32
+            v24 = array_get v21, index u32 1 -> u32
+            v25 = add v23, v24
+            v26 = eq v25, u32 1
+            constrain v25 == u32 1
             return
         }
-        "#);
+        ");
     }
 }
