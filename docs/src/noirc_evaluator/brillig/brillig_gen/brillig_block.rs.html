@@ -2137,7 +2137,21 @@
 <a href="#2136" id="2136">2136</a>
 <a href="#2137" id="2137">2137</a>
 <a href="#2138" id="2138">2138</a>
-<a href="#2139" id="2139">2139</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2139" id="2139">2139</a>
+<a href="#2140" id="2140">2140</a>
+<a href="#2141" id="2141">2141</a>
+<a href="#2142" id="2142">2142</a>
+<a href="#2143" id="2143">2143</a>
+<a href="#2144" id="2144">2144</a>
+<a href="#2145" id="2145">2145</a>
+<a href="#2146" id="2146">2146</a>
+<a href="#2147" id="2147">2147</a>
+<a href="#2148" id="2148">2148</a>
+<a href="#2149" id="2149">2149</a>
+<a href="#2150" id="2150">2150</a>
+<a href="#2151" id="2151">2151</a>
+<a href="#2152" id="2152">2152</a>
+<a href="#2153" id="2153">2153</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -2854,8 +2868,22 @@
                                 BrilligBinaryOp::LessThan,
                             );
                         }
-                        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount =&gt; {
+                        Intrinsic::ArrayRefCount =&gt; {
                             <span class="kw">let </span>array = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">0</span>], dfg);
+                            <span class="kw">let </span>result = dfg.instruction_results(instruction_id)[<span class="number">0</span>];
+
+                            <span class="kw">let </span>destination = <span class="self">self</span>.variables.define_variable(
+                                <span class="self">self</span>.function_context,
+                                <span class="self">self</span>.brillig_context,
+                                result,
+                                dfg,
+                            );
+                            <span class="kw">let </span>destination = destination.extract_register();
+                            <span class="kw">let </span>array = array.extract_register();
+                            <span class="self">self</span>.brillig_context.load_instruction(destination, array);
+                        }
+                        Intrinsic::SliceRefCount =&gt; {
+                            <span class="kw">let </span>array = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">1</span>], dfg);
                             <span class="kw">let </span>result = dfg.instruction_results(instruction_id)[<span class="number">0</span>];
 
                             <span class="kw">let </span>destination = <span class="self">self</span>.variables.define_variable(

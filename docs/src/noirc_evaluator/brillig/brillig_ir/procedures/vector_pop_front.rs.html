@@ -95,7 +95,41 @@
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
 <a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
@@ -165,26 +199,60 @@
         BrilligBinaryOp::Sub,
     );
 
-    <span class="comment">// FIXME: https://github.com/noir-lang/noir/issues/7976
-    // There used to be a branch here for `if is_rc_one` but it was removed due to issues with
-    // mutating the reference count while popping from the front of the vector.
-    </span>brillig_context.codegen_initialize_vector(target_vector, target_size, <span class="prelude-val">None</span>);
-
-    <span class="kw">let </span>target_vector_items_pointer =
-        brillig_context.codegen_make_vector_items_pointer(target_vector);
-
-    <span class="kw">let </span>source_copy_pointer = brillig_context.allocate_register();
-    brillig_context.memory_op_instruction(
-        source_items_pointer.address,
-        item_pop_count_arg,
-        source_copy_pointer,
-        BrilligBinaryOp::Add,
+    <span class="kw">let </span>is_rc_one = brillig_context.allocate_register();
+    brillig_context.codegen_usize_op(
+        source_rc.address,
+        is_rc_one,
+        BrilligBinaryOp::Equals,
+        <span class="number">1_usize</span>,
     );
-    <span class="comment">// Now we copy the source vector starting at index removed_items.len() into the target vector
-    </span>brillig_context.codegen_mem_copy(source_copy_pointer, target_vector_items_pointer, target_size);
 
-    brillig_context.deallocate_register(source_copy_pointer);
-    brillig_context.deallocate_register(target_vector_items_pointer);
+    brillig_context.codegen_branch(is_rc_one, |brillig_context, is_rc_one| {
+        <span class="kw">if </span>is_rc_one {
+            <span class="comment">// We reuse the source vector, moving the metadata to the right (decreasing capacity)
+            </span>brillig_context.memory_op_instruction(
+                source_vector.pointer,
+                item_pop_count_arg,
+                target_vector.pointer,
+                BrilligBinaryOp::Add,
+            );
+            brillig_context.memory_op_instruction(
+                source_capacity.address,
+                item_pop_count_arg,
+                source_capacity.address,
+                BrilligBinaryOp::Sub,
+            );
+            brillig_context.codegen_initialize_vector_metadata(
+                target_vector,
+                target_size,
+                <span class="prelude-val">Some</span>(source_capacity),
+            );
+        } <span class="kw">else </span>{
+            brillig_context.codegen_initialize_vector(target_vector, target_size, <span class="prelude-val">None</span>);
+
+            <span class="kw">let </span>target_vector_items_pointer =
+                brillig_context.codegen_make_vector_items_pointer(target_vector);
+
+            <span class="kw">let </span>source_copy_pointer = brillig_context.allocate_register();
+            brillig_context.memory_op_instruction(
+                source_items_pointer.address,
+                item_pop_count_arg,
+                source_copy_pointer,
+                BrilligBinaryOp::Add,
+            );
+            <span class="comment">// Now we copy the source vector starting at index removed_items.len() into the target vector
+            </span>brillig_context.codegen_mem_copy(
+                source_copy_pointer,
+                target_vector_items_pointer,
+                target_size,
+            );
+
+            brillig_context.deallocate_register(source_copy_pointer);
+            brillig_context.deallocate_register(target_vector_items_pointer);
+        }
+    });
+
+    brillig_context.deallocate_register(is_rc_one);
 
     brillig_context.deallocate_single_addr(target_size);
     brillig_context.deallocate_single_addr(source_rc);
