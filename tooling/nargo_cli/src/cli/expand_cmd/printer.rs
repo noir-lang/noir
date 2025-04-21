@@ -17,7 +17,7 @@ use noirc_frontend::{
     modules::{module_def_id_to_reference_id, relative_module_full_path},
     node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
     shared::Visibility,
-    token::{FunctionAttribute, LocatedToken, SecondaryAttribute},
+    token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
 
 use super::items::{Impl, Import, Item, Module, TraitImpl};
@@ -180,7 +180,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
 
     fn show_secondary_attributes(&mut self, attributes: &[SecondaryAttribute]) {
         for attribute in attributes {
-            if !matches!(attribute, SecondaryAttribute::Meta(..)) {
+            if !matches!(attribute.kind, SecondaryAttributeKind::Meta(..)) {
                 self.push_str(&attribute.to_string());
                 self.push('\n');
                 self.write_indent();
@@ -541,17 +541,17 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
         } else {
             match &modifiers.attributes.function {
-                Some((attribute, _)) => match attribute {
-                    FunctionAttribute::Foreign(_)
-                    | FunctionAttribute::Builtin(_)
-                    | FunctionAttribute::Oracle(_) => {
+                Some((attribute, _)) => match attribute.kind {
+                    FunctionAttributeKind::Foreign(_)
+                    | FunctionAttributeKind::Builtin(_)
+                    | FunctionAttributeKind::Oracle(_) => {
                         self.push_str(" {}");
                     }
-                    FunctionAttribute::Test(..)
-                    | FunctionAttribute::FuzzingHarness(..)
-                    | FunctionAttribute::Fold
-                    | FunctionAttribute::NoPredicates
-                    | FunctionAttribute::InlineAlways => {
+                    FunctionAttributeKind::Test(..)
+                    | FunctionAttributeKind::FuzzingHarness(..)
+                    | FunctionAttributeKind::Fold
+                    | FunctionAttributeKind::NoPredicates
+                    | FunctionAttributeKind::InlineAlways => {
                         self.push(';');
                     }
                 },
