@@ -765,9 +765,7 @@
 <a href="#764" id="764">764</a>
 <a href="#765" id="765">765</a>
 <a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
+<a href="#767" id="767">767</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
 <span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement, acir::BlackBoxFunc};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -1274,9 +1272,7 @@
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    <span class="kw">let </span>unknown = <span class="kw-2">&amp;mut </span>HashMap::default();
-    <span class="kw">let </span><span class="kw-2">mut </span>value_merger =
-        ValueMerger::new(dfg, block, <span class="kw-2">&amp;mut </span>slice_sizes, unknown, <span class="prelude-val">None</span>, call_stack);
+    <span class="kw">let </span><span class="kw-2">mut </span>value_merger = ValueMerger::new(dfg, block, <span class="kw-2">&amp;mut </span>slice_sizes, call_stack);
 
     <span class="kw">let </span>new_slice = value_merger.merge_values(
         len_not_equals_capacity,
