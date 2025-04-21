@@ -715,8 +715,22 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                 BrilligBinaryOp::LessThan,
                             );
                         }
-                        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                        Intrinsic::ArrayRefCount => {
                             let array = self.convert_ssa_value(arguments[0], dfg);
+                            let result = dfg.instruction_results(instruction_id)[0];
+
+                            let destination = self.variables.define_variable(
+                                self.function_context,
+                                self.brillig_context,
+                                result,
+                                dfg,
+                            );
+                            let destination = destination.extract_register();
+                            let array = array.extract_register();
+                            self.brillig_context.load_instruction(destination, array);
+                        }
+                        Intrinsic::SliceRefCount => {
+                            let array = self.convert_ssa_value(arguments[1], dfg);
                             let result = dfg.instruction_results(instruction_id)[0];
 
                             let destination = self.variables.define_variable(
@@ -1273,6 +1287,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
 
+                dbg!(results);
+                dbg!(element_size);
+                dbg!(results[element_size + 1]);
                 let pop_variables = vecmap(&results[0..element_size], |result| {
                     self.variables.define_variable(
                         self.function_context,
