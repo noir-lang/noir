@@ -1963,7 +1963,7 @@ mod test {
     #[test]
     fn constant_fold_terminator_argument_from_constrain() {
         // The only instructions advising simplifications for v0 are
-        // constrain instructions. We want to make sure that they simplifications
+        // constrain instructions. We want to make sure that those simplifications
         // are still used for any terminator arguments.
         let src = "
         brillig(inline) predicate_pure fn main f0 {
