@@ -1,11 +1,9 @@
 use std::collections::hash_map::Entry;
 
-use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::instruction::Hint;
-use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     Ssa,
@@ -51,9 +49,6 @@ impl Function {
 #[derive(Default)]
 struct Context {
     slice_sizes: HashMap<ValueId, u32>,
-
-    // Maps array_set result -> enable_side_effects_if value which was active during it.
-    array_set_conditionals: HashMap<ValueId, ValueId>,
 }
 
 impl Context {
@@ -62,9 +57,6 @@ impl Context {
 
         // Make sure this optimization runs when there's only one block
         assert_eq!(function.dfg[block].successors().count(), 0);
-
-        let one = FieldElement::one();
-        let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
 
         function.simple_reachable_blocks_optimization(|context| {
             let instruction_id = context.instruction_id;
@@ -81,14 +73,8 @@ impl Context {
                     assert!(!matches!(typ, Type::Numeric(_)));
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-                    let mut value_merger = ValueMerger::new(
-                        context.dfg,
-                        block,
-                        &mut self.slice_sizes,
-                        &mut self.array_set_conditionals,
-                        Some(current_conditional),
-                        call_stack,
-                    );
+                    let mut value_merger =
+                        ValueMerger::new(context.dfg, block, &mut self.slice_sizes, call_stack);
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -108,7 +94,6 @@ impl Context {
 
                     context.remove_current_instruction();
                     context.replace_value(result, value);
-                    self.array_set_conditionals.insert(value, current_conditional);
                 }
                 Instruction::Call { func, arguments } => {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
@@ -136,13 +121,8 @@ impl Context {
                     let results = context.dfg.instruction_results(instruction_id);
                     let result = if results.len() == 2 { results[1] } else { results[0] };
 
-                    self.array_set_conditionals.insert(result, current_conditional);
-
                     let old_capacity = self.get_or_find_capacity(context.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);
-                }
-                Instruction::EnableSideEffectsIf { condition } => {
-                    current_conditional = *condition;
                 }
                 _ => (),
             }
