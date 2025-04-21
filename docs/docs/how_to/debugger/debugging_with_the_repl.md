@@ -168,7 +168,7 @@ We just went through the basics of debugging using Noir REPL debugger. For a com
 Let's debug a simple test:
 
 ```rust
-#[noir]
+#[test]
 fn test_simple_equal() {
     let x = 2;
     let y = 1 + 1;
