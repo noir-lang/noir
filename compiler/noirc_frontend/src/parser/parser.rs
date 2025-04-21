@@ -419,6 +419,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_semicolon_or_error(&mut self) {
+        if !self.eat_semicolons() {
+            self.expected_token(Token::Semicolon);
+        }
+    }
+
     fn eat_colon(&mut self) -> bool {
         self.eat(Token::Colon)
     }
