@@ -1,11 +1,13 @@
-# ACIR - Abstract Circuit Intermediate Representation
+## Project Structure
 
-ACIR is an NP complete language that generalizes R1CS and arithmetic circuits while not losing proving system specific optimizations through the use of black box functions.
+This folder is organized into several key components:
 
-# ACVM - Abstract Circuit Virtual Machine
+- `acir/` - Definition and implementation of ACIR
+- `acvm/` - Implementation of ACVM that executes ACIR
+- `brillig/` - Definition and implementation of unconstrained Brillig opcodes
+- `brillig_vm/` - Implementation of Brillig VM that executes Brillig
 
-This can be seen as the ACIR compiler. It will take an ACIR instance and convert it to the format required
-by a particular proving system to create a proof.
+Click into each folder to learn more from their READMEs.
 
 # How to add a new crate to the workspace
 
