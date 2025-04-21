@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745236907631,
+  "lastUpdate": 1745236914758,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "saleel@saleel.xyz",
-            "name": "saleel",
-            "username": "saleel"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b31d409d22fc33f1b857a91432c292d9805ff09b",
-          "message": "fix(docs): fix proof splitting script in solidity guide (#8033)",
-          "timestamp": "2025-04-11T16:01:07Z",
-          "tree_id": "1b8bb2c5cb976d17fbff0c73ada4cd2fe7ff467d",
-          "url": "https://github.com/noir-lang/noir/commit/b31d409d22fc33f1b857a91432c292d9805ff09b"
-        },
-        "date": 1744389352397,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 486.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 462.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7d4f81935f8ae557cfe80b0a6cb8bdc83f2605ef"
         },
         "date": 1744995860755,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.77,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 487.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 463.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 261.33,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "58f17b11172d27cc7712834aa81f1c7569e22b99",
+          "message": "fix(ssa): Do not inline simple recursive functions (#8127)",
+          "timestamp": "2025-04-21T11:29:42Z",
+          "tree_id": "eab048468935d39998296c0bfe5667701159c42b",
+          "url": "https://github.com/noir-lang/noir/commit/58f17b11172d27cc7712834aa81f1c7569e22b99"
+        },
+        "date": 1745236907692,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
