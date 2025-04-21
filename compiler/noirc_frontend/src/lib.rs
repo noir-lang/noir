@@ -27,6 +27,7 @@ pub mod locations;
 pub mod modules;
 pub mod monomorphization;
 pub mod node_interner;
+pub(crate) mod ownership;
 pub mod parser;
 pub mod resolve_locations;
 pub mod shared;
@@ -47,3 +48,5 @@ pub use hir_def::types::*;
 
 // Unit tests that involve all modules
 pub mod tests;
+// Utility functions for easily compiling the frontend for tests in other crates
+pub mod test_utils;

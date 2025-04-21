@@ -33,6 +33,7 @@ pub enum PathResolutionItem {
     Global(GlobalId),
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
+    SelfMethod(FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
 }
@@ -42,9 +43,14 @@ impl PathResolutionItem {
         match self {
             PathResolutionItem::ModuleFunction(func_id)
             | PathResolutionItem::Method(_, _, func_id)
+            | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
             | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
-            _ => None,
+            PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..) => None,
         }
     }
 
@@ -64,6 +70,7 @@ impl PathResolutionItem {
             PathResolutionItem::Global(..) => "global",
             PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..) => "function",
         }
@@ -79,6 +86,7 @@ pub struct Turbofish {
 /// Any item that can appear before the last segment in a path.
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
+    SelfType,
     Module,
     Type(TypeId, Option<Turbofish>),
     TypeAlias(TypeAliasId, Option<Turbofish>),
@@ -102,12 +110,59 @@ enum MethodLookupResult {
     FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
+/// Determines whether datatypes found along a path are to be marked as referenced
+/// or used (see [`crate::usage_tracker::UsageTracker::mark_as_referenced`]
+/// and [`crate::usage_tracker::UsageTracker::mark_as_used`])
+///
+/// For example, a struct `Foo` won't be marked as used (just as referenced) if it
+/// mentioned in a function parameter:
+///
+/// ```noir
+/// fn method(foo: Foo) {}
+/// ```
+///
+/// However, if it's used in a return type it will be marked as used, even if
+/// it's not explicitly constructed:
+///
+/// ```noir
+/// fn method() -> Foo {
+///     std::mem::zeroed()
+/// }
+/// ```
+///
+/// Or, for example, a struct used in a impl or trait impl won't be marked as used:
+///
+/// ```noir
+/// impl Foo {}
+/// impl Trait for Foo {}
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(super) enum PathResolutionMode {
+    MarkAsReferenced,
+    MarkAsUsed,
+}
+
 impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let path_resolution = self.resolve_path(path)?;
+        self.resolve_path_or_error_inner(path, PathResolutionMode::MarkAsReferenced)
+    }
+
+    pub(super) fn use_path_or_error(
+        &mut self,
+        path: Path,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        self.resolve_path_or_error_inner(path, PathResolutionMode::MarkAsUsed)
+    }
+
+    pub(super) fn resolve_path_or_error_inner(
+        &mut self,
+        path: Path,
+        mode: PathResolutionMode,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        let path_resolution = self.resolve_path_inner(path, mode)?;
 
         for error in path_resolution.errors {
             self.push_err(error);
@@ -116,12 +171,25 @@ impl Elaborator<'_> {
         Ok(path_resolution.item)
     }
 
+    pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
+        self.resolve_path_inner(path, PathResolutionMode::MarkAsReferenced)
+    }
+
+    pub(super) fn use_path(&mut self, path: Path) -> PathResolutionResult {
+        self.resolve_path_inner(path, PathResolutionMode::MarkAsUsed)
+    }
+
     /// Resolves a path in the current module.
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
     /// will be returned with a potential list of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
-    pub(super) fn resolve_path(&mut self, mut path: Path) -> PathResolutionResult {
+    pub(super) fn resolve_path_inner(
+        &mut self,
+        mut path: Path,
+        mode: PathResolutionMode,
+    ) -> PathResolutionResult {
         let mut module_id = self.module_id();
+        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(Type::DataType(datatype, _)) = &self.self_type {
@@ -135,10 +203,11 @@ impl Elaborator<'_> {
 
                 module_id = datatype.id.module_id();
                 path.segments.remove(0);
+                intermediate_item = IntermediatePathResolutionItem::SelfType;
             }
         }
 
-        self.resolve_path_in_module(path, module_id)
+        self.resolve_path_in_module(path, module_id, intermediate_item, mode)
     }
 
     /// Resolves a path in `current_module`.
@@ -147,6 +216,8 @@ impl Elaborator<'_> {
         &mut self,
         path: Path,
         importing_module: ModuleId,
+        intermediate_item: IntermediatePathResolutionItem,
+        mode: PathResolutionMode,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
             Some(ReferencesTracker::new(self.interner))
@@ -155,7 +226,7 @@ impl Elaborator<'_> {
         };
         let (path, module_id, _) =
             resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(path, module_id, importing_module)
+        self.resolve_name_in_module(path, module_id, importing_module, intermediate_item, mode)
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -165,6 +236,8 @@ impl Elaborator<'_> {
         path: Path,
         starting_module: ModuleId,
         importing_module: ModuleId,
+        mut intermediate_item: IntermediatePathResolutionItem,
+        mode: PathResolutionMode,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
@@ -180,8 +253,6 @@ impl Elaborator<'_> {
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
 
-        let mut intermediate_item = IntermediatePathResolutionItem::Module;
-
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
         let mut current_ns = current_module.find_name(first_segment);
@@ -189,7 +260,14 @@ impl Elaborator<'_> {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+        match mode {
+            PathResolutionMode::MarkAsReferenced => {
+                self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+            }
+            PathResolutionMode::MarkAsUsed => {
+                self.usage_tracker.mark_as_used(current_module_id, first_segment);
+            }
+        }
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
@@ -313,7 +391,14 @@ impl Elaborator<'_> {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+            match mode {
+                PathResolutionMode::MarkAsReferenced => {
+                    self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+                }
+                PathResolutionMode::MarkAsUsed => {
+                    self.usage_tracker.mark_as_used(current_module_id, current_ident);
+                }
+            }
 
             current_ns = found_ns;
         }
@@ -421,6 +506,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
+            IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),
             IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
             IntermediatePathResolutionItem::Type(type_id, generics) => {
                 PathResolutionItem::Method(type_id, generics, func_id)

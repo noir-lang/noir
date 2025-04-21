@@ -1,5 +1,5 @@
 
-    trait Default {
+    trait Default2 {
     }
 
     struct MyStruct {
@@ -7,10 +7,10 @@
 
     type MyType = MyStruct;
 
-    impl Default for MyStruct {
+    impl Default2 for MyStruct {
     }
 
-    impl Default for MyType {
+    impl Default2 for MyType {
     }
 
     fn main() {

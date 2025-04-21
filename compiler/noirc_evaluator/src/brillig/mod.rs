@@ -1,5 +1,5 @@
 pub(crate) mod brillig_gen;
-pub(crate) mod brillig_ir;
+pub mod brillig_ir;
 
 use acvm::FieldElement;
 use brillig_gen::brillig_globals::BrilligGlobals;
@@ -38,7 +38,7 @@ pub struct BrilligOptions {
 
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
@@ -90,7 +90,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
+    pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
         self.to_brillig_with_globals(options, HashMap::default())
     }
 

@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "xs",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VWwU7DMAx12rRbiqYhuCBxA05caLdCd9wB8R8VU78jn04rYvrihh22xFIUJ3bs9zwnq6JfycahnK7drGDOyBe2Hd1cXydNxFh1KowqIkYFtcwWCoBHPWRntkb4TPY8Inkj8saMf6jbzpAvkfHvDfmNHDn+zkDMBPHrlYvzaef4kgv3gaJkv1ObmOduQ8sHRwluOlGPKJGPBE8S+StK2lONEvkYj6wP6xv2sTMeJWzaLnmwrbA+j0nW43gAP9lbGfg9g/4iYn/ZJaaUd3Ls1Y/Evdrc0//3kDmuLP0J23LY45pzndboL2wGbNr6eSq31pAHYzGOQvg/ufXWzSWc4fO3gfylyO/hDuxhjWSsPLDH/uU4Hp1+48bUX698htK+6+fuYOgebGnZB3jPQm8zc+P/QG3jc+kO80cH91UB+VE02NH/za0rwI8cjxfiHLq+Gfb90L/3p1P73d+J+JNkUKcfPYO66LUKAAA=",
+  "debug_symbols": "lY/NCoMwEITfZc85qEmr9VWkSNRVAiGR/BRKyLt3U3oIvXlZdoYdZr8EGy7xmJXZrYdxSqDtKoOyhlTKDBantFbHXNvQlMH7770/pSnSB+kCjO19YIBmo63nlN+VRhhvTX4y4MPlxONaIpN6SafkovEHsEezVjzhfeIf2unsilt0WCArPqruBOOC/mjJmUTHRE8VVPMB",
+  "file_map": {
+    "50": {
+      "source": "// This program tests:\n// - the allocation of virtual arrays for array params to main\n// - load instructions for such arrays\nfn main(xs: [Field; 2]) -> pub Field {\n    xs[1]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

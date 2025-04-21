@@ -16,7 +16,7 @@ function collect_dirs {
   for dir in $test_dirs; do
     # TODO(https://github.com/noir-lang/noir/issues/7835): example blocking issue
     # skip generated tests
-    if [[ "${dir}" =~ ^noirc_frontend_* ]]; then
+    if [[ "${dir}" =~ ^(noirc_frontend_*|noirc_evaluator_*) ]]; then
       continue
     fi
 

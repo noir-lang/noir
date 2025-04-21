@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 1,
+        "type": {
+          "kind": "field"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71WzW7CMAx21rTQIjQ0dp+023ZZO2Bw5LAXqYb6HHn0NZutfjFB2k+CpSiNnXy2v9gBQ99ieHixoNMiuiPP7f+kS4jVmkguhn6QjInoWp5rnm/AXiQkoI7Ekgr/0G7fajrPOWH8m5oxc/IjmBnw2xnjvLsJX+fiZUlhYeGZ+TjWNH3fw3nEI8bTOGLPmetYCzvBtxnwR+mWkqM751Js1oW+0VaCzQKfD4qfHLWG/GSqtW5Nl+trwbk+X8iVKO2ji75ljW8Q3puuV3OF+xjlNfY+F0qH/ptIHinv77f9LNzZSKwriveilwXgzVzo62sGnfSM9NAc9ytbDTbrJr9eGl5b8INYEkep9j/x+pbnCs7I+VXEf6X8B3FHdFhjGquI6GR/NY5H/va8yu+hdRNeqhrZH6Y/IcJ9SWGfkfJfqv0vvG5UvlIrxz/GOez7btj0Q7/rT6ftR3+n8JEzz9MnAUnFDRkKAAA=",
+  "debug_symbols": "lZLRCoMwDEX/Jc99WGvV6a/IkKpRCqWVWgdD/PelYzDZW15CbsghgXsPmHDYl976OWzQdge4MJpkgyd1nAKGaJ2zS38dwy0XJT/722p8llsyMUGrGikA/ZS7ivjZOoS2vJ0PAUqxiYJNaDZRsomKTdRs4s4mGh5xknqaaM3g8Gv2vPvx4n16rfgXgzWGEac9Yg7ELwvZpkIKLekPSZNOK6FrOkFn3g==",
+  "file_map": {
+    "50": {
+      "source": "// A simple program to test that SSA array values elements\n// aren't disconnected from their instruction results, and\n// that dead instruction elemination looks inside of arrays\n// when deciding whether of not an instruction should be\n// retained.\nfn main(x: Field) -> pub [Field; 1] {\n    [x + 1]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

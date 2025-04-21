@@ -38,8 +38,10 @@ base64.workspace = true
 function_name = "0.3.0"
 proptest.workspace = true
 proptest-derive.workspace = true
+insta.workspace = true
 
 [features]
 bn254 = []
 bls12_381 = []
+test_utils = []
 nextest = []

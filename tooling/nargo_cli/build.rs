@@ -333,7 +333,7 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             "execute",
             &format!(
-                "execution_success(nargo, test_program_dir, {});",
+                "execution_success(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
                 !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str())
             ),
             &MatrixConfig {
@@ -490,7 +490,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             &test_dir,
             "info",
             &format!(
-                "compile_success_empty(nargo, {})",
+                "compile_success_empty(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
                 !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str())
             ),
             &MatrixConfig::default(),
@@ -598,7 +598,7 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             &test_name,
             &test_dir,
             "compile",
-            "compile_failure(nargo);",
+            "compile_failure(nargo, test_program_dir);",
             &MatrixConfig::default(),
         );
     }

@@ -21,7 +21,7 @@ pub enum RuntimeError {
     InternalError(#[from] InternalError),
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
-    #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
+    #[error("The value `{value}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
         value: SignedField,
         typ: NumericType,

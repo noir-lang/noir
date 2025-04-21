@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "input",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUSw6CMBAdftFqcKEbN5p4gxJAWLLQgzQSzsHRtXEmDKW4sO0kZMp8Hm9eaSP4WoSPtpTFTKNYh166WeERS0YWnj+HsDXc0Av0McsnHgcXFi6+8FtZ3QUsZ/bIvxSIGVIfwgyALzeI8xgnfHMWbTnMDwfv2WKe1gfWo+3JsKk/pG6ffa8D61acYF2rPepwNmYNxKWivaELi5vt3CeWGopp3ldc55Y6YDlz/mwFM4b53vN1bslxHen8puM832FcOljTTpdlgvgZLPXh38+M+gu+7xh/8qkDz6FRxVCqQdWq76uXOhr4AJP2a/8br/2XhymZ/tYbAHzHUS0HAAA=",
+  "debug_symbols": "tZPNCoQgFIXf5a5dqJVZrzIMYWUhiIXZwBC9++hQ4PzQzo145ONDLvds0Mt2HRtlhmmB+raBnjrh1GR82nYErVVaq7GJnwGHgxRvfpmFCXFxwjqoCS0pAmn6cOXEGwalJdQF3tEPnDN2sHnFYvSOgLC0+jKtnqfVV0n1FKfVk7/6jBWnPuPFtZ5n5cFyhq9RgjN8enFefvxl9+khrBKtlsfCD6vpov13z1l+VWG2Uyf71cpQiqgPYWg0R7TyWq9+AQ==",
+  "file_map": {
+    "50": {
+      "source": "// ---\nfn new_concrete_c_over_d() -> C<D> {\n    let d_method_interface = get_d_method_interface();\n    C::new(d_method_interface)\n}\n// ---\n// Map<V>\nstruct B<T_C> {\n    new_concrete_t_c_constructor: fn() -> T_C,\n}\n\nimpl<T_C> B<T_C> {\n    fn new(new_concrete_t_c_constructor: fn() -> T_C) -> B<T_C> {\n        B { new_concrete_t_c_constructor }\n    }\n\n    fn get_t_c(self) -> T_C {\n        let new_concrete_t_c_constructor = self.new_concrete_t_c_constructor;\n        new_concrete_t_c_constructor()\n    }\n}\n// ---\n// PrivateSet<Note>\nstruct C<T_D> {\n    t_d_interface: MethodInterface<T_D>,\n}\n\nimpl<T_D> C<T_D> {\n    fn new(t_d_interface: MethodInterface<T_D>) -> Self {\n        C { t_d_interface }\n    }\n\n    fn call_method_of_t_d(self, t_d: T_D) -> Field {\n        let some_method_on_t_d = self.t_d_interface.some_method_on_t_d;\n        some_method_on_t_d(t_d)\n    }\n}\n// ---\nstruct MethodInterface<T_D> {\n    some_method_on_t_d: fn(T_D) -> Field,\n}\n// ---\n// Note\nstruct D {\n    d: Field,\n}\n\nfn d_method(input: D) -> Field {\n    input.d * input.d\n}\n\nfn get_d_method_interface() -> MethodInterface<D> {\n    MethodInterface { some_method_on_t_d: d_method }\n}\n// ---\nfn main(input: Field) -> pub Field {\n    let b: B<C<D>> = B::new(new_concrete_c_over_d);\n    let c: C<D> = b.get_t_c(); // PrivateMutable<Note>\n    let d: D = D { d: input }; // Note\n    let output = c.call_method_of_t_d(d);\n\n    output\n}\n// ---\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

@@ -31,6 +31,9 @@ pub(super) fn arb_value_from_abi_type(
         }
         AbiType::Integer { width, .. } => {
             let width = (*width).min(64);
+            // Based on `FieldElement::to_i128`:
+            // * negative integers are represented by the range [p + i128::MIN, p)
+            // * positive integers are represented by the range [0, i128::MAX)
             let shift = 2i128.pow(width);
             IntStrategy::new(width as usize)
                 .prop_map(move |mut int| {
@@ -84,10 +87,7 @@ pub(super) fn arb_value_from_abi_type(
 /// Given the [Abi] description of a [program artifact][noirc_artifacts::program::ProgramArtifact], generate random [InputValue]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
-pub(super) fn arb_input_map(
-    abi: &Abi,
-    dictionary: &HashSet<FieldElement>,
-) -> BoxedStrategy<InputMap> {
+pub fn arb_input_map(abi: &Abi, dictionary: &HashSet<FieldElement>) -> BoxedStrategy<InputMap> {
     let values: Vec<_> = abi
         .parameters
         .iter()

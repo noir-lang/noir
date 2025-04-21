@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 64
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9VVW27DIBDEmLhtonz1IiyPGL7aq9QKvv8RaresRLbUH2EdKSOhBS8a7Y4Z6MQvhmWc87xbRp/jis9lqDyX4i/KfSt0Gwwjl66Uey830A+yooGkAnZFEtG3FUJxI5jVF+fSaBJY+NImTsFr56dLgAA++KsJ1qbgwhinOOqonU0w+2jn3GR3PxcQrh+BmHrUOx44kAw9p3lFgAcaBRi5OI1C4Uot8OwrFASNoiqiMRvlRrC2Hz1fe8FnFCWewygcPWf9djVKIGtGDR72ohxyHFAQNMqa+CAFtBplS7DWF+Ug+IwyiOcwCmedeDmWdW4B97zm+Jbjscj3fPUZ5D/tw69fKj0ei/mJ5NBESvyvDV1LErf2dhu850oOOd9zLOvFPr4B7A7CTIcLAAA=",
+  "debug_symbols": "ldLBCoQgEAbgd5lzh1KzrVdZlrCyEETDbGGJ3n0tCkoC8eY/P99cnAU63sxDLVSvJ6jeC0jdMiu0cmmBbB9NI1NbmiwzFiqEcQJcddurXBPoheRQ5en6SQDFAhwLSAAQ6oH8EdD0BNQHNBYUseAVAAXyQPkEMC4OgAnxQJZGiyxaoJC4/50LjRFSiqG+Hpkbf5kRrJH8iP2s2ktrf+PZnH40uuXdbPi2ae/c+j8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u64) {\n    let two: u64 = 2;\n    let three: u64 = 3;\n    // shifts on constant values\n    assert(two << 2 == 8);\n    assert((two << 3) / 8 == two);\n    assert((three >> 1) == 1);\n    // shifts on runtime values\n    assert(x << 1 == 128);\n    assert(x >> 2 == 16);\n\n    regression_2250();\n\n    //regression for 3481\n    assert(x << 63 == 0);\n\n    assert_eq((1 as u64) << 32, 0x0100000000);\n\n    //regression for 6201\n    let a: i16 = -769;\n    assert_eq(a >> 3, -97);\n}\n\nfn regression_2250() {\n    let a: u1 = 1 >> 1;\n    assert(a == 0);\n\n    let b: u32 = 1 >> 32;\n    assert(b == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

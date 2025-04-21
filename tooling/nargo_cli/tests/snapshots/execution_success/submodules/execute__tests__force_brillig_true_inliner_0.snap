@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 1
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 1
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUUQ6CMAztZESmMRpN9EfvMASFTz/kIIuEc3B0JXZa6vyia7Js0Pb19VGm4G0K12Aa9xn8mo+54W6nWS6IZWPyVJF4jkRW8N+874S7YfmDPxFs2LC6kvi1La8m0J8g/8IQzAj4Z4+v4+DbOeLc+zE+sLoJi+M5NKYhMQ2LWcH4EqA43kdn1ednr7WG73mDZ8PwYswP5SSt/y7A39daYq8H4qPfJ2PveX5IG5DjnqeMz57VjaXZlvXDNfP/vO7l61e1tZ95R/yUaEBNEz+NP+LzItCHnsCzq1zeFa5zF9e25cNxnYDp9AQzqLN2lQcAAA==",
+  "debug_symbols": "tZJBCsMgEEXvMmsXagkxXqWUYJJJEESDMYUSvHu1tCDpNm6EL3/eYuYdMOGwL722s9tA3g8wblRBO5vSEQkMXhujl778Bpof1n7626psjltQPoBsGwJoJ5CMNml81gZBNjSSvyYT/FcVbVl9EGDiMnbHz+yuHpvTimxWix1Teiqv1WDwe/Z5t2NhQXiteBJi9W7EafeY1SisyBvgN8JFwib0Gw==",
+  "file_map": {
+    "50": {
+      "source": "use my_submodule::my_helper;\n\nfn main(x: u1, y: u1) {\n    my_helper();\n    my_submodule::my_bool_or(x, y);\n}\n\nmod my_submodule {\n    pub fn my_bool_or(x: u1, y: u1) {\n        assert(x | y == 1);\n    }\n\n    pub fn my_helper() {}\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

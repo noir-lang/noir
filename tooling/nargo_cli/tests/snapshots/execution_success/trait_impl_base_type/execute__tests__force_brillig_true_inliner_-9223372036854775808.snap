@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91ZzW7TQBBe/6VNq4oKeAHeYJ04icspEm2BK0+A6zQ33iESLwAXOHDlhMSRMzceAIkTB5CQeA6w2GmGL7NO3ey0Ueeytmf8zc/OzO7akVlS5MYU7o0gM3Wj3YzygFhWNLSNSOa3G/tujBk/CehsH/SGxC9tUfUF/wLaP+w7TM34EKYCvt1xOE8XS3z0xbCR5PCdhn/grnmekcyu49P1fXfdh3c05l9xfuw9wf6Y+dbQo4WK7ovaOdbBHxD+iQ7+kPBPHb5RwH4cHvucsJ8Exx7YffOvPl6bZQ4p1n9BNZuaVSJexnTzPEdK4J7b3fj0luGiHOrk9ZpBLLj81I12M5qjvZlgRwQ8kn0A9qXg/zSMjfYuwzWgS7OP/qWRch8tDyCm3E/luBZSTictsd4zqjWZR2a1JhOzGh+aC6lO6d1D4DXE+znyEuFZ7MHCfNsUi6+birnWuedhLhjwkRO3u+l57xguyqFOHsvMEwsTLA65Rf8y49/LYM97CPZtS88LFx/1vfe1rr0fGS7KoU5p7UVMXB8bor0W5sqpG7chV2KQCaVb2bcR5gMn4vWYbvSTk5QrZHfXXOG10fNgYj40RHv+DGSfuZHiiX146u7thiTlCvZcpbqvlX0bYz5wIt4O6Oa8Xcbr2nPIpwbjE8NFObSH1w3Zprjfr9H3TLDDt99/DvbdZI4q7ffPtq2fRcDj+btJr+uSo229zpcrDdF3AtxfvXCj9jcqKY9wr61QYwPcT3AblHvsUOpb0pmOnu3pzsHFmS4BezA+eKZLBVsPjb9XRcDjelJBz6HAo7V52/a/Xeuc738/M1yUQ51t/Tb8OcyO0N4u57CXYN82nMMCxubsNp3BvjBclEOd1/v9M8/R3i7fP1+BfTeRg/tm+b8lXYTXPymtJb3JYhkHnHOuPwP5N+5+z+PH9Ip2zidVPh9W82pUzWZFXWGcGopZnPj/BVyDML/wWWxW+yCtF4jdtuZxHfR/7I6R12COla7BOgYs/n56Caw23TSfPY88nndJ/r0bm9h8Bcx1sTlZ/O9Pm32RgMV9jj26ex55X71/EPxZl0fS2urLyXgNFn4L9/ElXUZ4FpvVueD/DTkvFvSdgmzk0cNxfHXo8wn1ok9t8835Xetc2n/ivdQT+L9R5KEf+P3hMjmyrb3FmKvngPI5sLpN3yi/MVyUQ53Sub2t3/N3fbkYeg0vRtWkriZ5flTk50U+6rKGR2a1n7XlL+Z7YuSzKMpTfFLTbb347sbG5p8gj30AbTjx2NBj11zGd076wWz45a415nFcjPOyrMp6XM+Pivps3TyG1j8oy/HR4MwWk1k9nxXDdfr/AOQCWIntKAAA",
+  "debug_symbols": "ndrRbuIwEAXQf8kzD/Z4xuPpr6xWFW3TCglBRelKq6r/3lA1AdlOLd8XRBCHBLiJPRN/DE/jw/vL/e7wfHwb7v58DPvj4/a8Ox6mrY/PzfBw2u33u5f725cHd3kg//3+t9ft4bL5dt6ezsOdD+Y2w3h4mp6yc9MnPO/243An7vPvZiACTAAMA0YAEwGjgEltk3Jj/SY4wHjAEGDqOWCmxXDIDQNGABMBo4BJgLF+ww4wHjAEGCAHDOSAgRzwSg5EFxMtNwqYBBjrN+IA4wFDgAlNo5obBowAJgJGAVPPgfg4Gwk+N9ZvogOMBwwBJgCGASOAiW2T5zoqYBJgrN/oSg7UFmOSGw8YAkwADANGABMBo4BJLRMd5cb6TXKA8YCp50DdYpQ4NwEwDBgBTASMAiYBxvqNOcD4pgl5DowAEwDDgBHArOQg8WxSUQOaAiYBxvqNdw5BHkGEoIAgRpC0USpQRJAiKCGonggTPyOTPOHeOwR5BBGCAoIYQYKgiCBFUELQSiLiMne0VJwa5BDkEUQICghiBAmCYhtpgRRBCUEGoOAQVE0EOQs/iKbLSIEIQQFBjCBBUESQIighyNoory99vfHYQh5BhKAAoJXmFi3zQy6uryu9LaFr6VeQehpk7qiTFGdSveP0O6knIS4klsS6Sb3ddHNgFeL7CfWT0E/q1wNdiJZE+knr368Q7Sepn1g3qTeZKM19ULIi/PU+gfB8iknkgnA/kX4S+4n2k9RN6hW1pXnkNQsFCf2k+iObLeO7c6URwMTfD61q6jMWb8vE1xdBo5U6t4E8gghBAUGMIEFQRJC2EJX3vlcqNbqOoOXgRiuVWgNFBCmCEoKsiWI+daOVSq2BPIKoF31OW/+2p932YT/+rFF5fj883ixZOf9/HbPVK6+n4+P49H4aL+tYrktYvnsU0x22jRd3uSRcvgGRbohs2s+0ry8=",
+  "file_map": {
+    "50": {
+      "source": "trait Fieldable {\n    fn to_field(self) -> Field;\n}\n\nimpl Fieldable for u32 {\n    fn to_field(self) -> Field {\n        let res = self as Field;\n        res * 3\n    }\n}\n\nimpl Fieldable for [u32; 3] {\n    fn to_field(self) -> Field {\n        let res = self[0] + self[1] + self[2];\n        res as Field\n    }\n}\n\nimpl Fieldable for bool {\n    fn to_field(self) -> Field {\n        if self {\n            14\n        } else {\n            3\n        }\n    }\n}\n\nimpl Fieldable for (u32, bool) {\n    fn to_field(self) -> Field {\n        if self.1 {\n            self.0 as Field\n        } else {\n            32\n        }\n    }\n}\n\nimpl Fieldable for Field {\n    fn to_field(self) -> Field {\n        self\n    }\n}\n\nimpl Fieldable for str<6> {\n    fn to_field(self) -> Field {\n        6\n    }\n}\n\nimpl Fieldable for () {\n    fn to_field(self) -> Field {\n        0\n    }\n}\n\ntype Point2D = [Field; 2];\ntype Point2DAlias = Point2D;\n\nimpl Fieldable for Point2DAlias {\n    fn to_field(self) -> Field {\n        self[0] + self[1]\n    }\n}\n\nimpl Fieldable for fmtstr<14, (Field, Field)> {\n    fn to_field(self) -> Field {\n        52\n    }\n}\n\nimpl Fieldable for fn(u32) -> u32 {\n    fn to_field(self) -> Field {\n        self(10) as Field\n    }\n}\n\nfn some_func(x: u32) -> u32 {\n    x * 2 - 3\n}\n\nimpl Fieldable for u64 {\n    fn to_field(self) -> Field {\n        66 as Field\n    }\n}\n// x = 15\nfn main(x: u32) {\n    assert(x.to_field() == 15);\n    let arr: [u32; 3] = [3, 5, 8];\n    assert(arr.to_field() == 16);\n    let b_true = 2 == 2;\n    assert(b_true.to_field() == 14);\n    let b_false = 2 == 3;\n    assert(b_false.to_field() == 3);\n    let f = 13 as Field;\n    assert(f.to_field() == 13);\n    let k_true = (12 as u32, true);\n    assert(k_true.to_field() == 12);\n    let k_false = (11 as u32, false);\n    assert(k_false.to_field() == 32);\n    let m = \"String\";\n    assert(m.to_field() == 6);\n    let unit = ();\n    assert(unit.to_field() == 0);\n    let point: Point2DAlias = [2, 3];\n    assert(point.to_field() == 5);\n    let i: Field = 2;\n    let j: Field = 6;\n    assert(f\"i: {i}, j: {j}\".to_field() == 52);\n    assert(some_func.to_field() == 17);\n\n    let mut y = 0 as u64;\n    assert(y.to_field() == 66);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

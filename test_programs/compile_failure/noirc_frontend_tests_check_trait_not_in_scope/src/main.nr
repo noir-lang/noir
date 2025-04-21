@@ -4,7 +4,7 @@
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
