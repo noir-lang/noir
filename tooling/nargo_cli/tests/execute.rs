@@ -163,6 +163,13 @@ mod tests {
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
     }
 
+    fn execution_panic(mut nargo: Command) {
+        nargo
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("The application panicked (crashed)."));
+    }
+
     fn noir_test_success(mut nargo: Command) {
         nargo.assert().success();
     }
