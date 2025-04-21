@@ -27,7 +27,7 @@ process_dir() {
             rm -r ./target/
         fi
 
-        if ! nargo execute witness --pedantic-solving; then
+        if ! nargo execute witness; then
             echo "$dir failed"
         else
             if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
