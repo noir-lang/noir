@@ -330,6 +330,9 @@ impl Translator {
                 let value_id = self.builder.insert_load(value, typ);
                 self.define_variable(target, value_id)?;
             }
+            ParsedInstruction::Nop => {
+                self.builder.insert_instruction(Instruction::Noop, None);
+            }
             ParsedInstruction::Not { target, value } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_not(value);
