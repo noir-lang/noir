@@ -1959,4 +1959,62 @@ mod test {
         }
         ");
     }
+
+    #[test]
+    fn constant_fold_terminator_argument_from_constrain() {
+        // The only instructions advising simplifications for v0 are
+        // constrain instructions. We want to make sure that they simplifications
+        // are still used for any terminator arguments.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field):
+            v5 = eq v0, Field 1
+            constrain v0 == Field 1
+            v7 = eq v1, Field 0
+            constrain v1 == Field 0
+            v8 = truncate v0 to 32 bits, max_bit_size: 254
+            v9 = cast v8 as u32
+            v11 = eq v9, u32 0
+            jmpif v11 then: b1, else: b2
+          b1():
+            v13 = add v0, Field 1
+            jmp b3(v0, v13)
+          b2():
+            v12 = add v0, Field 1
+            jmp b3(v12, v0)
+          b3(v2: Field, v3: Field):
+            v14 = add v0, Field 1
+            v15 = eq v2, v14
+            constrain v2 == v14
+            v16 = eq v3, v0
+            constrain v3 == v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+
+        // The terminators of b1 and b2 should now have constant arguments
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field):
+            v5 = eq v0, Field 1
+            constrain v0 == Field 1
+            v7 = eq v1, Field 0
+            constrain v1 == Field 0
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            jmp b3(Field 2, Field 1)
+          b3(v2: Field, v3: Field):
+            v10 = eq v2, Field 2
+            constrain v2 == Field 2
+            v11 = eq v3, Field 1
+            constrain v3 == Field 1
+            return
+        }
+        ");
+    }
 }
