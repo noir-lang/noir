@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745236275652,
+  "lastUpdate": 1745236575806,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "saleel@saleel.xyz",
-            "name": "saleel",
-            "username": "saleel"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b31d409d22fc33f1b857a91432c292d9805ff09b",
-          "message": "fix(docs): fix proof splitting script in solidity guide (#8033)",
-          "timestamp": "2025-04-11T16:01:07Z",
-          "tree_id": "1b8bb2c5cb976d17fbff0c73ada4cd2fe7ff467d",
-          "url": "https://github.com/noir-lang/noir/commit/b31d409d22fc33f1b857a91432c292d9805ff09b"
-        },
-        "date": 1744389081459,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.666,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.456,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.33,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.08,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.084,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.877,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.853,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.45,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.378,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "58f17b11172d27cc7712834aa81f1c7569e22b99",
+          "message": "fix(ssa): Do not inline simple recursive functions (#8127)",
+          "timestamp": "2025-04-21T11:29:42Z",
+          "tree_id": "eab048468935d39998296c0bfe5667701159c42b",
+          "url": "https://github.com/noir-lang/noir/commit/58f17b11172d27cc7712834aa81f1c7569e22b99"
+        },
+        "date": 1745236570199,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.652,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.454,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.192,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.72,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.873,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 116,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.861,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.364,
             "unit": "s"
           }
         ]
