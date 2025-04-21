@@ -39,9 +39,6 @@ impl<let N: u32> Regex for str<N> {
         let self_as_bytes = self.as_bytes();
         for c in self_as_bytes {
             if leftover.len() != 0 {
-                let rc = std::mem::slice_refcount(leftover);
-                println(f"rc of leftover = {rc}");
-
                 let (first_elem, popped_slice) = leftover.pop_front();
                 leftover = popped_slice;
                 matches_input &= first_elem == c;
@@ -177,62 +174,60 @@ fn main() {
 
     // NOTE: leftover ignored in Eq: Match
     let result = graey_regex.find_match("gray".as_bytes().as_slice());
-    // println(result);
+    println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 4, leftover: &[] });
 
-    // // NOTE: leftover ignored in Eq: Match
-    // let result = graey_regex.find_match("grey".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 4, leftover: &[] });
+    // NOTE: leftover ignored in Eq: Match
+    let result = graey_regex.find_match("grey".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 4, leftover: &[] });
 
-    // // colou?r
-    // let colour_regex = ("colo", (Question { inner: "u" }, "r"));
+    // colou?r
+    let colour_regex = ("colo", (Question { inner: "u" }, "r"));
 
-    // let result = colour_regex.find_match("color".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
+    let result = colour_regex.find_match("color".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
 
-    // let result = colour_regex.find_match("colour".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
+    let result = colour_regex.find_match("colour".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
 
-    // // parse the empty string three times
-    // // EMPTY{3}
-    // let three_empties_regex: Repeated<(), 3> = Repeated { inner: () };
+    // parse the empty string three times
+    // EMPTY{3}
+    let three_empties_regex: Repeated<(), 3> = Repeated { inner: () };
 
-    // let result = three_empties_regex.find_match("111".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
+    let result = three_empties_regex.find_match("111".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
 
-    // // 1{0}
-    // let zero_ones_regex: Repeated<str<1>, 0> = Repeated { inner: "1" };
+    // 1{0}
+    let zero_ones_regex: Repeated<str<1>, 0> = Repeated { inner: "1" };
 
-    // let result = zero_ones_regex.find_match("111".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
+    let result = zero_ones_regex.find_match("111".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
 
-    // // 1{1}
-    // let one_ones_regex: Repeated<str<1>, 1> = Repeated { inner: "1" };
+    // 1{1}
+    let one_ones_regex: Repeated<str<1>, 1> = Repeated { inner: "1" };
 
-    // let result = one_ones_regex.find_match("111".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 1, leftover: &[] });
+    let result = one_ones_regex.find_match("111".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 1, leftover: &[] });
 
-    // // 1{2}
-    // let two_ones_regex: Repeated<str<1>, 2> = Repeated { inner: "1" };
+    // 1{2}
+    let two_ones_regex: Repeated<str<1>, 2> = Repeated { inner: "1" };
 
-    // let result = two_ones_regex.find_match("111".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
+    let result = two_ones_regex.find_match("111".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
 
-    // // 1{3}
-    // let three_ones_regex: Repeated<str<1>, 3> = Repeated { inner: "1" };
+    // 1{3}
+    let three_ones_regex: Repeated<str<1>, 3> = Repeated { inner: "1" };
 
-    // let result = three_ones_regex.find_match("1111".as_bytes().as_slice());
-    // println(result);
-    // assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
-
-
+    let result = three_ones_regex.find_match("1111".as_bytes().as_slice());
+    println(result);
+    assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
     // TODO(https://github.com/noir-lang/noir/issues/6285): re-enable these cases and complete the test using array_regex below
     //
     // // 1*
