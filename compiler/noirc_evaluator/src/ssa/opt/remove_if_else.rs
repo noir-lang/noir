@@ -397,10 +397,6 @@ mod tests {
             v9 = make_array [v4, v6, v7, v8] : [Field; 4]
             v11 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
             v12 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
-            v13 = allocate -> &mut [Field; 4]
-            v14 = allocate -> &mut u32
-            v15 = allocate -> &mut [Field; 4]
-            v16 = allocate -> &mut u32
             v17 = array_get v1, index u32 0 -> Field
             v18 = eq v17, Field 0
             v19 = not v18
@@ -487,104 +483,100 @@ mod tests {
             v9 = make_array [v4, v6, v7, v8] : [Field; 4]
             v11 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
             v12 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
-            v13 = allocate -> &mut [Field; 4]
-            v14 = allocate -> &mut u32
-            v15 = allocate -> &mut [Field; 4]
-            v16 = allocate -> &mut u32
-            v17 = array_get v1, index u32 0 -> Field
-            v18 = eq v17, Field 0
-            v19 = not v18
-            enable_side_effects v19
-            v20 = array_get v1, index u32 0 -> Field
+            v13 = array_get v1, index u32 0 -> Field
+            v14 = eq v13, Field 0
+            v15 = not v14
+            enable_side_effects v15
+            v16 = array_get v1, index u32 0 -> Field
+            v17 = make_array [v16, Field 0, Field 0, Field 0] : [Field; 4]
+            v18 = cast v15 as Field
+            v19 = cast v14 as Field
+            v20 = mul v18, v16
             v21 = make_array [v20, Field 0, Field 0, Field 0] : [Field; 4]
-            v22 = cast v19 as Field
-            v23 = cast v18 as Field
-            v24 = mul v22, v20
-            v25 = make_array [v24, Field 0, Field 0, Field 0] : [Field; 4]
-            v26 = cast v19 as u32
-            v27 = cast v18 as u32
+            v22 = cast v15 as u32
+            v23 = cast v14 as u32
             enable_side_effects u1 1
-            v29 = array_get v1, index u32 1 -> Field
-            v30 = eq v29, Field 0
-            v31 = not v30
-            enable_side_effects v31
-            v32 = array_get v1, index u32 1 -> Field
-            v34 = lt v26, u32 4
-            v35 = mul v34, v31
-            constrain v35 == v31
-            v36 = lt v26, u32 4
-            v37 = mul v36, v31
-            constrain v37 == v31
-            v38 = array_set v25, index v26, value v32
-            v39 = add v26, u32 1
-            enable_side_effects v31
-            v40 = array_get v38, index v26 -> Field
-            v41 = array_get v25, index v26 -> Field
-            v42 = cast v31 as Field
-            v43 = cast v30 as Field
-            v44 = mul v42, v40
-            v45 = mul v43, v41
-            v46 = add v44, v45
-            v47 = array_set v38, index v26, value v46
-            enable_side_effects v31
-            v48 = cast v31 as u32
-            v49 = cast v30 as u32
-            v50 = unchecked_mul v48, v39
-            v51 = unchecked_mul v49, v26
-            v52 = unchecked_add v50, v51
+            v25 = array_get v1, index u32 1 -> Field
+            v26 = eq v25, Field 0
+            v27 = not v26
+            enable_side_effects v27
+            v28 = array_get v1, index u32 1 -> Field
+            v30 = lt v22, u32 4
+            v31 = mul v30, v27
+            constrain v31 == v27
+            v32 = lt v22, u32 4
+            v33 = mul v32, v27
+            constrain v33 == v27
+            v34 = array_set v21, index v22, value v28
+            v35 = add v22, u32 1
+            enable_side_effects v27
+            v36 = array_get v34, index v22 -> Field
+            v37 = array_get v21, index v22 -> Field
+            v38 = cast v27 as Field
+            v39 = cast v26 as Field
+            v40 = mul v38, v36
+            v41 = mul v39, v37
+            v42 = add v40, v41
+            v43 = array_set v34, index v22, value v42
+            enable_side_effects v27
+            v44 = cast v27 as u32
+            v45 = cast v26 as u32
+            v46 = unchecked_mul v44, v35
+            v47 = unchecked_mul v45, v22
+            v48 = unchecked_add v46, v47
             enable_side_effects u1 1
-            v53 = array_get v2, index u32 0 -> Field
-            v54 = eq v53, Field 0
-            v55 = not v54
-            enable_side_effects v55
-            v56 = array_get v2, index u32 0 -> Field
+            v49 = array_get v2, index u32 0 -> Field
+            v50 = eq v49, Field 0
+            v51 = not v50
+            enable_side_effects v51
+            v52 = array_get v2, index u32 0 -> Field
+            v53 = make_array [v52, Field 0, Field 0, Field 0] : [Field; 4]
+            v54 = cast v51 as Field
+            v55 = cast v50 as Field
+            v56 = mul v54, v52
             v57 = make_array [v56, Field 0, Field 0, Field 0] : [Field; 4]
-            v58 = cast v55 as Field
-            v59 = cast v54 as Field
-            v60 = mul v58, v56
-            v61 = make_array [v60, Field 0, Field 0, Field 0] : [Field; 4]
-            v62 = cast v55 as u32
-            v63 = cast v54 as u32
+            v58 = cast v51 as u32
+            v59 = cast v50 as u32
             enable_side_effects u1 1
-            v64 = array_get v2, index u32 1 -> Field
-            v65 = eq v64, Field 0
-            v66 = not v65
-            enable_side_effects v66
-            v67 = array_get v2, index u32 1 -> Field
-            v68 = lt v62, u32 4
-            v69 = mul v68, v66
-            constrain v69 == v66
-            v70 = lt v62, u32 4
-            v71 = mul v70, v66
-            constrain v71 == v66
-            v72 = array_set v61, index v62, value v67
-            v73 = add v62, u32 1
-            enable_side_effects v66
-            v74 = array_get v72, index v62 -> Field
-            v75 = array_get v61, index v62 -> Field
-            v76 = cast v66 as Field
-            v77 = cast v65 as Field
-            v78 = mul v76, v74
-            v79 = mul v77, v75
-            v80 = add v78, v79
-            v81 = array_set v72, index v62, value v80
-            enable_side_effects v66
-            v82 = cast v66 as u32
-            v83 = cast v65 as u32
-            v84 = unchecked_mul v82, v73
-            v85 = unchecked_mul v83, v62
-            v86 = unchecked_add v84, v85
+            v60 = array_get v2, index u32 1 -> Field
+            v61 = eq v60, Field 0
+            v62 = not v61
+            enable_side_effects v62
+            v63 = array_get v2, index u32 1 -> Field
+            v64 = lt v58, u32 4
+            v65 = mul v64, v62
+            constrain v65 == v62
+            v66 = lt v58, u32 4
+            v67 = mul v66, v62
+            constrain v67 == v62
+            v68 = array_set v57, index v58, value v63
+            v69 = add v58, u32 1
+            enable_side_effects v62
+            v70 = array_get v68, index v58 -> Field
+            v71 = array_get v57, index v58 -> Field
+            v72 = cast v62 as Field
+            v73 = cast v61 as Field
+            v74 = mul v72, v70
+            v75 = mul v73, v71
+            v76 = add v74, v75
+            v77 = array_set v68, index v58, value v76
+            enable_side_effects v62
+            v78 = cast v62 as u32
+            v79 = cast v61 as u32
+            v80 = unchecked_mul v78, v69
+            v81 = unchecked_mul v79, v58
+            v82 = unchecked_add v80, v81
             enable_side_effects u1 1
-            v87 = array_get v47, index u32 0 -> Field
-            v88 = array_get v47, index u32 1 -> Field
-            v89 = array_get v47, index u32 2 -> Field
-            v91 = array_get v47, index u32 3 -> Field
-            v92 = array_get v81, index u32 0 -> Field
-            v93 = array_get v81, index u32 1 -> Field
-            v94 = array_get v81, index u32 2 -> Field
-            v95 = array_get v81, index u32 3 -> Field
-            v96 = make_array [v87, v88, v89, v91, v92, v93, v94, v95] : [Field; 8]
-            return v96
+            v83 = array_get v43, index u32 0 -> Field
+            v84 = array_get v43, index u32 1 -> Field
+            v85 = array_get v43, index u32 2 -> Field
+            v87 = array_get v43, index u32 3 -> Field
+            v88 = array_get v77, index u32 0 -> Field
+            v89 = array_get v77, index u32 1 -> Field
+            v90 = array_get v77, index u32 2 -> Field
+            v91 = array_get v77, index u32 3 -> Field
+            v92 = make_array [v83, v84, v85, v87, v88, v89, v90, v91] : [Field; 8]
+            return v92
         }
         ");
     }
