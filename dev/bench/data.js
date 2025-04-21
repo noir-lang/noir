@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745236865025,
+  "lastUpdate": 1745236907631,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "saleel@saleel.xyz",
-            "name": "saleel",
-            "username": "saleel"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b31d409d22fc33f1b857a91432c292d9805ff09b",
-          "message": "fix(docs): fix proof splitting script in solidity guide (#8033)",
-          "timestamp": "2025-04-11T16:01:07Z",
-          "tree_id": "1b8bb2c5cb976d17fbff0c73ada4cd2fe7ff467d",
-          "url": "https://github.com/noir-lang/noir/commit/b31d409d22fc33f1b857a91432c292d9805ff09b"
-        },
-        "date": 1744389354131,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 270.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 603.7,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1560,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 270.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7770,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7780,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 268.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.32,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 322.51,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "58f17b11172d27cc7712834aa81f1c7569e22b99",
+          "message": "fix(ssa): Do not inline simple recursive functions (#8127)",
+          "timestamp": "2025-04-21T11:29:42Z",
+          "tree_id": "eab048468935d39998296c0bfe5667701159c42b",
+          "url": "https://github.com/noir-lang/noir/commit/58f17b11172d27cc7712834aa81f1c7569e22b99"
+        },
+        "date": 1745236901704,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 270.98,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 551.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 200.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1370,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 270.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7770,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7780,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 271.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 322.5,
             "unit": "MB"
           }
         ]
