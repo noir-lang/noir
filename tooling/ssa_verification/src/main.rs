@@ -41,7 +41,7 @@ fn ungzip(compressed_data: &[u8]) -> Vec<u8> {
     let mut decompressed_data: Vec<u8> = Vec::new();
     let mut decoder = GzDecoder::new(compressed_data);
     decoder.read_to_end(&mut decompressed_data).unwrap();
-    return decompressed_data;
+    decompressed_data
 }
 
 /// Saves byte data to a file at the specified path
@@ -59,7 +59,7 @@ fn save_artifacts(all_artifacts: Vec<InstructionArtifacts>, dir: &str) {
         println!("{}\n{}", artifacts.instruction_name, artifacts.formatted_ssa);
         let filename = format!("{}{}{}", dir, artifacts.instruction_name, ".acir");
         let acir = &artifacts.serialized_acir;
-        match save_to_file(&ungzip(&acir), &filename) {
+        match save_to_file(&ungzip(acir), &filename) {
             Ok(_) => (),
             Err(error) => {
                 eprintln!("Error saving data: {}", error);

@@ -7,12 +7,17 @@ use acvm::{
 };
 use std::collections::BTreeSet;
 
-use noirc_evaluator::ssa::ir::function::Function;
-use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ssa_gen::Ssa;
-
-use noirc_evaluator::brillig::{Brillig, BrilligOptions};
 use noirc_evaluator::ssa::{
+    SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
+    secondary_passes,
+};
+use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
+use std::collections::HashMap;
+
+use noirc_evaluator::brillig::BrilligOptions;
+use noirc_evaluator::ssa::{
+    SsaBuilder,
     function_builder::FunctionBuilder,
     ir::{instruction::BinaryOp, types::Type},
 };
@@ -56,7 +61,7 @@ pub struct Variable {
 impl Variable {
     /// Gets a string representation of the variable's type and size
     pub fn get_name(&self) -> String {
-        return format!("{:?}_{}", self.variable_type, self.variable_size);
+        format!("{:?}_{}", self.variable_type, self.variable_size)
     }
 }
 
@@ -94,7 +99,7 @@ impl InstructionArtifacts {
 
         Self {
             instruction_name: name,
-            formatted_ssa: formatted_ssa,
+            formatted_ssa,
             serialized_ssa: serialized_ssa.to_string(),
             serialized_acir: serialized_program,
         }
@@ -117,7 +122,7 @@ impl InstructionArtifacts {
 
         Self {
             instruction_name: name,
-            formatted_ssa: formatted_ssa,
+            formatted_ssa,
             serialized_ssa: serialized_ssa.to_string(),
             serialized_acir: serialized_program,
         }
@@ -125,151 +130,130 @@ impl InstructionArtifacts {
 
     /// Creates a new constrain instruction artifact
     pub fn new_constrain(variable: &Variable) -> Self {
-        return Self::new_by_func(constrain_function, "Constrain".into(), variable);
+        Self::new_by_func(constrain_function, "Constrain".into(), variable)
     }
 
     /// Creates a new NOT operation instruction artifact
     pub fn new_not(variable: &Variable) -> Self {
-        return Self::new_by_func(not_function, "Not".into(), variable);
+        Self::new_by_func(not_function, "Not".into(), variable)
     }
 
     /// Creates a new range check instruction artifact
     pub fn new_range_check(variable: &Variable) -> Self {
-        return Self::new_by_func(range_check_function, "RangeCheck".into(), variable);
+        Self::new_by_func(range_check_function, "RangeCheck".into(), variable)
     }
 
     /// Creates a new truncate instruction artifact
     pub fn new_truncate(variable: &Variable) -> Self {
-        return Self::new_by_func(truncate_function, "Truncate".into(), variable);
+        Self::new_by_func(truncate_function, "Truncate".into(), variable)
     }
 
     /// Creates a new ADD operation instruction artifact
     pub fn new_add(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
+        Self::new_binary(
             BinaryOp::Add { unchecked: false },
             "Binary::Add".into(),
             first_variable,
             second_variable,
-        );
+        )
     }
 
     /// Creates a new SUB operation instruction artifact
     pub fn new_sub(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
+        Self::new_binary(
             BinaryOp::Sub { unchecked: false },
             "Binary::Sub".into(),
             first_variable,
             second_variable,
-        );
+        )
     }
 
     /// Creates a new XOR operation instruction artifact
     pub fn new_xor(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Xor,
-            "Binary::Xor".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Xor, "Binary::Xor".into(), first_variable, second_variable)
     }
 
     /// Creates a new AND operation instruction artifact
     pub fn new_and(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::And,
-            "Binary::And".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::And, "Binary::And".into(), first_variable, second_variable)
     }
 
     /// Creates a new OR operation instruction artifact
     pub fn new_or(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Or,
-            "Binary::Or".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Or, "Binary::Or".into(), first_variable, second_variable)
     }
 
     /// Creates a new less than operation instruction artifact
     pub fn new_lt(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Lt,
-            "Binary::Lt".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Lt, "Binary::Lt".into(), first_variable, second_variable)
     }
 
     /// Creates a new equals operation instruction artifact
     pub fn new_eq(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Eq,
-            "Binary::Eq".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Eq, "Binary::Eq".into(), first_variable, second_variable)
     }
 
     /// Creates a new modulo operation instruction artifact
     pub fn new_mod(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Mod,
-            "Binary::Mod".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Mod, "Binary::Mod".into(), first_variable, second_variable)
     }
 
     /// Creates a new multiply operation instruction artifact
     pub fn new_mul(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
+        Self::new_binary(
             BinaryOp::Mul { unchecked: false },
             "Binary::Mul".into(),
             first_variable,
             second_variable,
-        );
+        )
     }
 
     /// Creates a new divide operation instruction artifact
     pub fn new_div(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Div,
-            "Binary::Div".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Div, "Binary::Div".into(), first_variable, second_variable)
     }
 
     /// Creates a new shift left operation instruction artifact
     pub fn new_shl(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Shl,
-            "Binary::Shl".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Shl, "Binary::Shl".into(), first_variable, second_variable)
     }
 
     /// Creates a new shift right operation instruction artifact
     pub fn new_shr(first_variable: &Variable, second_variable: &Variable) -> Self {
-        return Self::new_binary(
-            BinaryOp::Shr,
-            "Binary::Shr".into(),
-            first_variable,
-            second_variable,
-        );
+        Self::new_binary(BinaryOp::Shr, "Binary::Shr".into(), first_variable, second_variable)
     }
 }
 
 /// Converts SSA to ACIR program
 fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     // third brillig names, fourth errors
-    let (acir_functions, brillig, _, _) = ssa
-        .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
-        .expect("Should compile manually written SSA into ACIR");
+    let builder = SsaBuilder {
+        ssa,
+        ssa_logging: SsaLogging::None,
+        print_codegen_timings: false,
+        passed: HashMap::default(),
+    };
+    let ssa_evaluator_options = SsaEvaluatorOptions {
+        ssa_logging: SsaLogging::None,
+        print_codegen_timings: false,
+        expression_width: ExpressionWidth::default(),
+        emit_ssa: { None },
+        skip_underconstrained_check: true,
+        skip_brillig_constraints_check: true,
+        inliner_aggressiveness: 0,
+        max_bytecode_increase_percent: None,
+        brillig_options: BrilligOptions::default(),
+        enable_brillig_constraints_check_lookback: false,
+    };
+    let (acir_functions, brillig, _, _) = match optimize_ssa_builder_into_acir(
+        builder,
+        &ssa_evaluator_options,
+        &primary_passes(&ssa_evaluator_options),
+        secondary_passes,
+    ) {
+        Ok(artifacts_and_warnings) => artifacts_and_warnings.0,
+        Err(_) => panic!("Should compile manually generated SSA into acir"),
+    };
 
     let mut functions: Vec<Circuit<FieldElement>> = Vec::new();
 
@@ -278,9 +262,9 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
             acir_func.input_witnesses.clone().into_iter().collect();
         let ret_values: BTreeSet<Witness> =
             acir_func.return_witnesses.clone().into_iter().collect();
-        let circuit: Circuit<FieldElement>;
+
         private_params.extend(ret_values.iter().cloned());
-        circuit = Circuit {
+        let circuit: Circuit<FieldElement> = Circuit {
             current_witness_index: acir_func.current_witness_index().witness_index(),
             opcodes: acir_func.opcodes().to_vec(),
             private_parameters: private_params.clone(),
@@ -288,7 +272,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         };
         functions.push(circuit);
     }
-    return AcirProgram { functions: functions, unconstrained_functions: brillig };
+    AcirProgram { functions, unconstrained_functions: brillig }
 }
 
 /// Creates an SSA function for binary operations
@@ -301,10 +285,7 @@ fn binary_function(op: BinaryOp, first_variable_type: Type, second_variable_type
     let v2 = builder.insert_binary(v0, op, v1);
     builder.terminate_with_return(vec![v2]);
 
-    let func = builder.finish();
-    // remove_bit_shifts replaces bit shifts with equivalent arithmetic operations
-    let cleared_func = func.remove_bit_shifts();
-    return cleared_func;
+    builder.finish()
 }
 
 /// Creates an SSA function for constraint operations
@@ -318,7 +299,7 @@ fn constrain_function(variable_type: Type) -> Ssa {
     builder.insert_constrain(v0, v1, None);
     builder.terminate_with_return(vec![v1]);
 
-    return builder.finish();
+    builder.finish()
 }
 
 /// Creates an SSA function for range check operations
@@ -330,7 +311,7 @@ fn range_check_function(variable_type: Type) -> Ssa {
     builder.insert_range_check(v0, 64, Some("Range Check failed".to_string()));
     builder.terminate_with_return(vec![v0]);
 
-    return builder.finish();
+    builder.finish()
 }
 
 /// Creates an SSA function for truncate operations
@@ -343,7 +324,7 @@ fn truncate_function(variable_type: Type) -> Ssa {
     let v1 = builder.insert_truncate(v0, 10, 20);
     builder.terminate_with_return(vec![v1]);
 
-    return builder.finish();
+    builder.finish()
 }
 
 /// Creates an SSA function for NOT operations
@@ -356,5 +337,5 @@ fn not_function(variable_type: Type) -> Ssa {
     let v1 = builder.insert_not(v0);
     builder.terminate_with_return(vec![v1]);
 
-    return builder.finish();
+    builder.finish()
 }
