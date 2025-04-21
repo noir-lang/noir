@@ -267,3 +267,7 @@ Blockchain
 ---
 Another use case for Brillig bytecode is for public execution of a smart contract in a blockchain environment. In that case, the public function has a Brillig runtime and is compiled into Brillig bytecode. This bytecode can then be executed by a dedicated zkVM, which results into a new state of the blockchain along with a proof that this state is the result of applying the public function.
 The blockchain can now be updated upon proof verification by the blockchain nodes.
+
+## Documentation
+
+For detailed documentation, visit https://noir-lang.github.io/noir/docs/brillig/index.html.
