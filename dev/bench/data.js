@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745262695530,
+  "lastUpdate": 1745267590385,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17961,42 +17961,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "10a6d1af7202e9ba613d138e2c669cbd0f08e267",
-          "message": "fix(fuzz): remove duplicate gen_loop, move unconstrained generators up (#8029)",
-          "timestamp": "2025-04-11T16:56:30Z",
-          "tree_id": "c4e6efec3bb8b68c6023fe40a01a5101c35b48b4",
-          "url": "https://github.com/noir-lang/noir/commit/10a6d1af7202e9ba613d138e2c669cbd0f08e267"
-        },
-        "date": 1744391570997,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 3256568,
-            "range": "± 2776",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 3226752,
-            "range": "± 31519",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -19808,6 +19772,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3229806,
             "range": "± 10055",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c69acd7dc0528850083b9f1deeb1ab64320882f1",
+          "message": "fix(brillig): SliceRefCount reads from the appropriate pointer (#8148)",
+          "timestamp": "2025-04-21T20:16:35Z",
+          "tree_id": "39c1174504f68b704816765bbd6c5b3a0ec79220",
+          "url": "https://github.com/noir-lang/noir/commit/c69acd7dc0528850083b9f1deeb1ab64320882f1"
+        },
+        "date": 1745267584493,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266535,
+            "range": "± 445",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237327,
+            "range": "± 4539",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3582072,
+            "range": "± 35354",
             "unit": "ns/iter"
           }
         ]
