@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745256121810,
+  "lastUpdate": 1745256183007,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4386a985530a8b3de178a887b21d5a07da080dd9",
-          "message": "fix(ssa): Map terminator instructions after constant folding  (#8019)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-04-11T16:41:35Z",
-          "tree_id": "3aaf2d2edce41391e1d6206eda4231395d9f4c61",
-          "url": "https://github.com/noir-lang/noir/commit/4386a985530a8b3de178a887b21d5a07da080dd9"
-        },
-        "date": 1744391957564,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 486.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 462.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3f1c04451440e6a41789b1e997aca833d459fbfe"
         },
         "date": 1745252440018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.77,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 487.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 463.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 261.33,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3281d53737c62ffd8a5be383ce3bec8ac6f4a562",
+          "message": "chore(ssa): Test terminator value constant folding and resolve cache for data bus (#8132)",
+          "timestamp": "2025-04-21T16:57:29Z",
+          "tree_id": "b82840704558e2aff279d7d7d2cc161acc8ee116",
+          "url": "https://github.com/noir-lang/noir/commit/3281d53737c62ffd8a5be383ce3bec8ac6f4a562"
+        },
+        "date": 1745256177262,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
