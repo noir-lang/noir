@@ -138,7 +138,7 @@ impl Ssa {
 
 /// Given that we have already rewritten all the call sites among the original SSA,
 /// this function provides a helper for resolving the call sites within cloned functions.
-/// This function will update  a cloned function according to the supplied function mapping.
+/// This function will update a cloned function according to the supplied function mapping.
 /// The function assumes that the supplied mapping is per entry point and handled
 /// by the caller of this method.
 fn resolve_cloned_function_call_sites(
