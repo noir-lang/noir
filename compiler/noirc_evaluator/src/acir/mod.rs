@@ -1077,8 +1077,9 @@ impl<'a> Context<'a> {
             BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
             BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
             BinaryOp::Mul { unchecked: false } if bit_size != 1 => {
+                // We exclude the `bit_size == 1` case as multiplying bools can never overflow
                 "attempt to multiply with overflow"
-            },
+            }
             _ => return Ok(()),
         };
 

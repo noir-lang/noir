@@ -1688,6 +1688,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.brillig_context.deallocate_single_addr(condition);
             }
             BinaryOp::Mul { unchecked: false } if bit_size != 1 => {
+                // We exclude the `bit_size == 1` case as multiplying bools can never overflow
                 let division_by_rhs_gives_lhs = |ctx: &mut BrilligContext<
                     FieldElement,
                     Registers,
