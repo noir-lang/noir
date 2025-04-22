@@ -48,11 +48,21 @@ fn main() {
         "compile_success_empty",
         &mut test_file,
         &test_dir,
-        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_EXECUTION_TESTS,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS,
     );
     generate_nargo_expand_compile_tests("compile_success_contract", &mut test_file, &test_dir);
-    generate_nargo_expand_compile_tests("compile_success_no_bug", &mut test_file, &test_dir);
-    generate_nargo_expand_compile_tests("compile_success_with_bug", &mut test_file, &test_dir);
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_no_bug",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS,
+    );
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_with_bug",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
+    );
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -103,7 +113,9 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
 
 /// These tests are ignored because making them work involves a more complex test code that
 /// might not be worth it.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 5] = [
+/// Others are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 6] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -111,6 +123,8 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 5] = [
     "diamond_deps_0",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
+    // bug
+    "poseidonsponge_x5_254",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -123,7 +137,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_EXECUTION_TESTS: [&str; 15] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 15] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
@@ -155,6 +169,29 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_EXECUTION_TESTS: [&str; 15] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
 ];
+
+/// These tests are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
+    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+    "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
+    "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
+    "noirc_frontend_tests_enums_match_on_empty_enum",
+    "noirc_frontend_tests_resolves_generic_type_argument_via_self",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_in_scope",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super",
+    "noirc_frontend_tests_traits_passes_trait_with_associated_number_to_generic_function",
+    "noirc_frontend_tests_traits_passes_trait_with_associated_number_to_generic_function_inside_struct_impl",
+    "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
+    "noirc_frontend_tests_traits_trait_alias_single_member",
+    "noirc_frontend_tests_traits_trait_alias_two_members",
+    "noirc_frontend_tests_u32_globals_as_sizes_in_types",
+    "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
+];
+
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
+    ["noirc_frontend_tests_cast_negative_one_to_u8_size_checks"];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -618,23 +655,6 @@ fn generate_nargo_expand_execution_success_tests(test_file: &mut File, test_data
         "
 mod nargo_expand_{test_type} {{
     use super::*;
-
-    fn copy_dir_all(
-        src: impl AsRef<Path>,
-        dst: impl AsRef<Path>,
-    ) -> std::io::Result<()> {{
-        fs::create_dir_all(&dst)?;
-        for entry in fs::read_dir(src)? {{
-            let entry = entry?;
-            let ty = entry.file_type()?;
-            if ty.is_dir() {{
-                copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-            }} else {{
-                fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-            }}
-            }}
-        Ok(())
-    }}
     "
     )
     .unwrap();
@@ -652,69 +672,7 @@ mod nargo_expand_{test_type} {{
     #[test]
     fn test_{test_name}() {{
         let test_program_dir = PathBuf::from("{test_dir}");
-
-        // First run `nargo execute` on the original code to get the output
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
-        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        nargo.assert().success();
-
-        let original_output = nargo.output().unwrap();
-        let original_output: String = String::from_utf8(original_output.stdout).unwrap();
-
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
-        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        nargo.assert().success();
-
-        let expanded_code = nargo.output().unwrap();
-        let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
-
-        // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
-
-        // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
-
-        // Copy the main file
-        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
-
-        // Now we can run `nargo execute` on the expanded code
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(temp_dir);
-        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        nargo.assert().success();
-
-        let expanded_output = nargo.output().unwrap();
-        let expanded_output: String = String::from_utf8(expanded_output.stdout).unwrap();
-
-        // Remove the lines that have "Witness saved to" in them as the directory will be different
-        let original_output = original_output
-            .lines()
-            .filter(|line| !line.contains("Witness saved to"))
-            .collect::<Vec<&str>>()
-            .join("\n");
-
-        let expanded_output = expanded_output
-            .lines()
-            .filter(|line| !line.contains("Witness saved to"))
-            .collect::<Vec<&str>>()
-            .join("\n");
-
-        assert_eq!(original_output, expanded_output);
+        nargo_expand_execute(test_program_dir);
     }}
     "#
         )
@@ -748,23 +706,6 @@ fn generate_nargo_expand_compile_tests_with_ignore_list(
         "
 mod nargo_expand_{test_type} {{
     use super::*;
-
-    fn copy_dir_all(
-        src: impl AsRef<Path>,
-        dst: impl AsRef<Path>,
-    ) -> std::io::Result<()> {{
-        fs::create_dir_all(&dst)?;
-        for entry in fs::read_dir(src)? {{
-            let entry = entry?;
-            let ty = entry.file_type()?;
-            if ty.is_dir() {{
-                copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-            }} else {{
-                fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-            }}
-            }}
-        Ok(())
-    }}
     "
     )
     .unwrap();
@@ -782,38 +723,7 @@ mod nargo_expand_{test_type} {{
     #[test]
     fn test_{test_name}() {{
         let test_program_dir = PathBuf::from("{test_dir}");
-
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
-        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        nargo.assert().success();
-
-        let expanded_code = nargo.output().unwrap();
-        let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
-
-        // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
-
-        // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
-
-        // Copy the main file
-        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
-
-        // Now we can run `nargo compile` on the expanded code
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(temp_dir);
-        nargo.arg("compile").arg("--force");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        nargo.assert().success();
+        nargo_expand_compile(test_program_dir);
     }}
     "#
         )
