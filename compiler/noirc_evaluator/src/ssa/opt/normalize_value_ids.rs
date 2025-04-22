@@ -21,7 +21,7 @@ impl Ssa {
     /// During normal compilation this is often not the case since prior passes
     /// may increase the ID counter so that later passes start at different offsets,
     /// even if they contain the same SSA code.
-    pub(crate) fn normalize_ids(&mut self) {
+    pub fn normalize_ids(&mut self) {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
@@ -112,7 +112,7 @@ impl Context {
                 assert_eq!(old_results.len(), new_results.len());
                 for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
                 {
-                    let old_result = old_function.dfg.resolve(*old_result);
+                    let old_result = *old_result;
                     self.new_ids.values.insert(old_result, *new_result);
                 }
             }
@@ -156,7 +156,6 @@ impl IdMaps {
             let new_id = self.blocks[&old_id];
             let old_block = &mut old_function.dfg[old_id];
             for old_parameter in old_block.take_parameters() {
-                let old_parameter = old_function.dfg.resolve(old_parameter);
                 let typ = old_function.dfg.type_of_value(old_parameter);
                 let new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
                 self.values.insert(old_parameter, new_parameter);
@@ -170,7 +169,6 @@ impl IdMaps {
         old_function: &Function,
         old_value: ValueId,
     ) -> ValueId {
-        let old_value = old_function.dfg.resolve(old_value);
         if old_function.dfg.is_global(old_value) {
             // Globals are computed at compile-time and thus are expected to be remain normalized
             // between SSA passes

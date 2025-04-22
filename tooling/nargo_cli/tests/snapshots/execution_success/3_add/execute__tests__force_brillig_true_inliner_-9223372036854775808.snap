@@ -51,8 +51,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VWwVKDMBBNCLRix4P14MGrJ72QaSDh5kH6H5HKd/Dp0unusN0GPTTRcWeYZMjjvbebDSDFKbLpkjDPYVTiMhDzBmN1XeiIXFVKn/Kf+MwS+TxrBgkNsxSYlIWxhDEj6ypi0iXTjcnvKmPLQH4R/e9K4MwT8xdp+Ks18LyPMz/NBXUVw/FnFMF0BNMtYPYEs2eYO5hLcamFa7SHO7ZG+x25b6brXszzLcxLppWi/6jf2Pv3EPCPWhvI9ZWs0f0V4GXpebyPPbBawCNfwfCPpN6acdIPlhLhM0Q5Ef8EY+q6bgkvr0vKnpnCSaaXkRopVkfqJ9U7gvcN3bMi4Kdg+GeGwXeOIjxZgAfnq4DumuVKdVdM99h/htUq0d61MuDpuzMW8iPi+dEF8/PCdP/i/GzE/F+Rj/H1rTv17DHUeL4PPHKyTvH4B3UbyCO/wudgvR52fvC1PxxM73mdBKtTbH1Te9t7q3Vr9KfR9W/rN6bRznnXN/3Qmv7jJ/0v1itI9eUMAAA=",
-  "debug_symbols": "ldTRqoQgEAbgd5lrL5zUo/Uqh2WxskUQC6uFJXr31WUXIrqZG2Hk/3BA+DfoXbs+7j4O4wzN/wZh7Ozix5inbWfQJh+Cf9yP18DLgfUnP082lnFebFqg0YaBiz00RmY9+OCgUXy/Mag4MY/EfEXMi6t8rb955OIMJBUoKvijAn0FEPEnUJ+FIYuaKgQnCySLiiwEWUiyUGRx+eUo+E8IdRaaLAxZ1FQhOVkgTex5etrkbRvct5yGNXaHrlpekzvV1pTGzvVrcqXADt1VtpWCSZMXwbKIqpiS+Y38zhs=",
+  "bytecode": "H4sIAAAAAAAA/9VVzVKDMBBOCKjY8WA9ePDkSS86yTRAuHmQvkek8hw8ujjuDttt0EOTOt0ZZrfN8n3f/gBS/Fg2XRLiHLwSh4Y5b+D1cWYiYumUOuWZ6MwS6dxbBgkLs2RYlAVfgs/IuYpYdMl4Y+I7bZsyUF9E/ZsSMPPE+EUafH0JOO/jjE9rQV7F8vg9iuR0JKdbyNmSnC3LuYFYikMuPKM73LEzuu+IfTVdt2KO1xCXjCvF/lG9sed3F9CPXCuo9Zmc0fkK0LJ0P/6PO3CxkI94Bcu/J/1+ZZj0g6VE+BmimJj/AD51X9cEl/cl5c5M5iTjy0iPFOsjjemzqkR4ljTOAzPg7xk6A8x/BP89V3OanrQyoOm33Q3pEfH0mILpeWK8/7GXKzF/r/MxPn/jtEZeNe7PgVtOzmn+C/y+DtSRH6FzaLwZNn7wld/tbO95nwTrU2x+W/mm940xrTWf1lSn5q9tbZzzrq/7obX9x1/8XwNG3kY9DAAA",
+  "debug_symbols": "ldTRCoMgFAbgdznXXnhSZ/UqYwwrG4JYWA1G9O7TsSCim3MjHPk/FJR/hc42y+vpQj9MUN9X8ENrZjeENK0bgyY6793redwGnhesfvlpNCGP02ziDLUuGdjQQV3KpHvnLdSKbw8GBSfmkZgviHlxla/0P49cnIGkAkUFNyrQVwARd4H6LEqyqKhCcLJAsijI4vK9UfBdCHUWkiwUWdzIQpNFSRNbmt4mOtN4+6+BfgntoRXmz2hPBTHGobXdEm2uikNL5L8gOZMqXQTzM8uKKUxnpHO+",
   "file_map": {
     "50": {
       "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32, y: u32, z: u32) {\n    x += y;\n    assert(x == z);\n\n    x *= 8;\n    assert(x > 9);\n}\n",

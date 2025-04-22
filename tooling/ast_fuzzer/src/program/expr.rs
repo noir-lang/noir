@@ -5,8 +5,8 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, If, LValue,
-        Let, Literal, LocalId, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, IdentId, If,
+        LValue, Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
 };
@@ -141,7 +141,7 @@ pub(crate) fn gen_range(
                     let e = (Field::from(e.unsigned_abs()), e < 0);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size}"),
+                _ => unreachable!("invalid bit size for range: {integer_bit_size} (signed)"),
             }
         } else {
             let (s, e) = match integer_bit_size {
@@ -173,7 +173,14 @@ pub(crate) fn gen_range(
                     let e = Field::from(e);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size}"),
+                HundredTwentyEight => {
+                    let s = u128::arbitrary(u)?;
+                    let e = s.saturating_add(u.choose_index(max_size)? as u128);
+                    let s = Field::from(s);
+                    let e = Field::from(e);
+                    (s, e)
+                }
+                _ => unreachable!("invalid bit size for range: {integer_bit_size} (unsigned)"),
             };
             ((s, false), (e, false))
         }
@@ -191,31 +198,44 @@ pub(crate) fn gen_range(
 }
 
 /// Make an `Ident` expression out of a variable.
-pub(crate) fn ident(id: VariableId, mutable: bool, name: Name, typ: Type) -> Expression {
-    Expression::Ident(ident_inner(id, mutable, name, typ))
+pub(crate) fn ident(
+    variable_id: VariableId,
+    id: IdentId,
+    mutable: bool,
+    name: Name,
+    typ: Type,
+) -> Expression {
+    Expression::Ident(ident_inner(variable_id, id, mutable, name, typ))
 }
 
 /// Make an `Ident` out of a variable.
-pub(crate) fn ident_inner(id: VariableId, mutable: bool, name: Name, typ: Type) -> Ident {
+pub(crate) fn ident_inner(
+    variable_id: VariableId,
+    id: IdentId,
+    mutable: bool,
+    name: Name,
+    typ: Type,
+) -> Ident {
     Ident {
         location: None,
-        definition: match id {
+        definition: match variable_id {
             VariableId::Global(id) => Definition::Global(id),
             VariableId::Local(id) => Definition::Local(id),
         },
         mutable,
         name,
         typ,
+        id,
     }
 }
 
-/// 32-bit unsigned int literal, used in indexing arrays.
-fn positive_int_literal<V>(value: V, typ: Type) -> Expression
+/// Integer literal, can be positive or negative depending on type.
+pub(crate) fn int_literal<V>(value: V, is_negative: bool, typ: Type) -> Expression
 where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField { field: FieldElement::from(value), is_negative: false },
+        SignedField { field: FieldElement::from(value), is_negative },
         typ,
         Location::dummy(),
     ))
@@ -223,7 +243,7 @@ where
 
 /// 32-bit unsigned int literal, used in indexing arrays.
 pub(crate) fn u32_literal(value: u32) -> Expression {
-    positive_int_literal(value, types::U32)
+    int_literal(value, false, types::U32)
 }
 
 /// Create a variable.
@@ -274,7 +294,7 @@ pub(crate) fn index_modulo(idx: Expression, len: u32) -> Expression {
 
 /// Take an integer expression and make sure it's no larger than `max_size`.
 pub(crate) fn range_modulo(lhs: Expression, typ: Type, max_size: usize) -> Expression {
-    modulo(lhs, positive_int_literal(max_size as u64, typ))
+    modulo(lhs, int_literal(max_size as u64, false, typ))
 }
 
 /// Make a modulo expression.

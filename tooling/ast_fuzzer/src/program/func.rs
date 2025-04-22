@@ -10,9 +10,9 @@ use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
     monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, Function,
-        GlobalId, Ident, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
-        Type, While,
+        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
+        IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type,
+        While,
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -24,7 +24,6 @@ use super::{
     make_name,
     scope::{Scope, ScopeStack, Variable},
     types,
-    visitor::visit_expr,
 };
 
 /// Something akin to a forward declaration of a function, capturing the details required to:
@@ -119,6 +118,9 @@ pub(super) struct FunctionContext<'a> {
     /// Every variable created in the function will have an increasing ID,
     /// which does not reset when variables go out of scope.
     next_local_id: u32,
+    /// Every identifier created in the function will have an increasing ID,
+    /// which does not reset when variables go out of scope.
+    next_ident_id: u32,
     /// Number of statements remaining to be generated in the function.
     budget: usize,
     /// Global variables.
@@ -187,7 +189,17 @@ impl<'a> FunctionContext<'a> {
             })
             .collect();
 
-        Self { ctx, id, next_local_id, budget, globals, locals, in_loop: false, call_targets }
+        Self {
+            ctx,
+            id,
+            next_local_id,
+            budget,
+            globals,
+            locals,
+            in_loop: false,
+            call_targets,
+            next_ident_id: 0,
+        }
     }
 
     /// Generate the function body.
@@ -219,6 +231,13 @@ impl<'a> FunctionContext<'a> {
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
         self.next_local_id += 1;
+        id
+    }
+
+    /// Get and increment the next ident ID.
+    fn next_ident_id(&mut self) -> IdentId {
+        let id = IdentId(self.next_ident_id);
+        self.next_ident_id += 1;
         id
     }
 
@@ -329,7 +348,8 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<Expression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
             let (mutable, src_name, src_type) = self.get_variable(&id).clone();
-            let src_expr = expr::ident(id, mutable, src_name, src_type.clone());
+            let ident_id = self.next_ident_id();
+            let src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
             if let Some(expr) = self.gen_expr_from_source(u, src_expr, &src_type, typ, max_depth)? {
                 return Ok(Some(expr));
             }
@@ -693,7 +713,14 @@ impl<'a> FunctionContext<'a> {
         // Remove variable so we stop using it.
         self.locals.remove(&id);
 
-        Ok(Some(Expression::Drop(Box::new(expr::ident(VariableId::Local(id), mutable, name, typ)))))
+        let ident_id = self.next_ident_id();
+        Ok(Some(Expression::Drop(Box::new(expr::ident(
+            VariableId::Local(id),
+            ident_id,
+            mutable,
+            name,
+            typ,
+        )))))
     }
 
     /// Assign to a mutable variable, if we have one in scope.
@@ -711,7 +738,8 @@ impl<'a> FunctionContext<'a> {
 
         let id = *u.choose_iter(opts)?;
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
-        let ident = expr::ident_inner(VariableId::Local(id), mutable, name, typ.clone());
+        let ident_id = self.next_ident_id();
+        let ident = expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone());
         let ident = LValue::Ident(ident);
 
         // For arrays and tuples we can consider assigning to their items.
@@ -779,10 +807,16 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `for` loop.
     fn gen_for(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // The index can be signed or unsigned int, 8 to 64 bits,
+        // The index can be signed or unsigned int, 8 to 128 bits, except i128.
+        let bit_size =
+            u.choose(&[8, 16, 32, 64, 128]).map(|s| IntegerBitSize::try_from(*s).unwrap())?;
         let idx_type = Type::Integer(
-            if bool::arbitrary(u)? { Signedness::Signed } else { Signedness::Unsigned },
-            u.choose(&[8, 16, 32, 64]).map(|s| IntegerBitSize::try_from(*s).unwrap())?,
+            if bit_size == IntegerBitSize::HundredTwentyEight || bool::arbitrary(u)? {
+                Signedness::Unsigned
+            } else {
+                Signedness::Signed
+            },
+            bit_size,
         );
 
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
@@ -880,6 +914,7 @@ impl<'a> FunctionContext<'a> {
                     Box::new(Type::Unit),
                     callee.unconstrained,
                 ),
+                id: self.next_ident_id(),
             })),
             arguments: args,
             return_type: callee.return_type.clone(),
@@ -896,17 +931,19 @@ impl<'a> FunctionContext<'a> {
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
         let idx_type = types::U32;
-        let idx_id = self.next_local_id();
-        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_local_id = self.next_local_id();
+        let idx_id = self.next_ident_id();
+        let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
+        let idx_variable_id = VariableId::Local(idx_local_id);
         let idx_ident =
-            expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
         let idx_expr = Expression::Ident(idx_ident.clone());
 
         // Decrease budget so we don't nest endlessly.
         self.decrease_budget(1);
 
         // Start building the loop harness, initialize index to 0
-        let let_idx = expr::let_var(idx_id, true, idx_name, expr::u32_literal(0));
+        let let_idx = expr::let_var(idx_local_id, true, idx_name, expr::u32_literal(0));
 
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
@@ -943,10 +980,12 @@ impl<'a> FunctionContext<'a> {
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
         let idx_type = types::U32;
-        let idx_id = self.next_local_id();
-        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_local_id = self.next_local_id();
+        let idx_id = self.next_ident_id();
+        let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
+        let idx_variable_id = VariableId::Local(idx_local_id);
         let idx_ident =
-            expr::ident_inner(VariableId::Local(idx_id), true, idx_name.clone(), idx_type);
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
         let idx_expr = Expression::Ident(idx_ident.clone());
 
         // Decrease budget so we don't nest endlessly.
@@ -954,7 +993,7 @@ impl<'a> FunctionContext<'a> {
 
         // Start building the loop harness, initialize index to 0
         let mut stmts = vec![Expression::Let(Let {
-            id: idx_id,
+            id: idx_local_id,
             mutable: true,
             name: idx_name,
             expression: Box::new(expr::u32_literal(0)),
@@ -996,23 +1035,6 @@ impl<'a> FunctionContext<'a> {
 
         Ok(Expression::Block(stmts))
     }
-}
-
-/// Find the next local ID we can use to add variables to a [Function] during mutations.
-pub(crate) fn next_local_id(func: &Function) -> u32 {
-    let mut next = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
-    visit_expr(&func.body, &mut |expr| {
-        let id = match expr {
-            Expression::Let(let_) => Some(let_.id),
-            Expression::For(for_) => Some(for_.index_variable),
-            _ => None,
-        };
-        if let Some(id) = id {
-            next = next.max(id.0 + 1);
-        }
-        true
-    });
-    next
 }
 
 #[test]
