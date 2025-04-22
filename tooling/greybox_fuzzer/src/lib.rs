@@ -742,11 +742,12 @@ impl<
                         )
                     }
                 };
-                // If we ran ACIR and  managed to produce an ACIR witness
-                if acir_round && witness.is_some() {
-                    accumulated_coverage.update_non_bool_witness_list_with_witness_stack(
-                        &witness.as_ref().unwrap(),
-                    );
+                // If we ran ACIR and managed to produce an ACIR witness
+                if acir_round {
+                    if let Some(ref witness) = witness {
+                        accumulated_coverage
+                            .update_non_bool_witness_list_with_witness_stack(witness);
+                    }
                 }
 
                 // Form the coverage object to accumulate
@@ -862,10 +863,8 @@ impl<
                 self.metrics.increase_total_acir_duration_micros(&acir_duration_micros);
 
                 // In case we got a witness from ACIR
-                if witness.is_some() {
-                    accumulated_coverage.update_non_bool_witness_list_with_witness_stack(
-                        &witness.as_ref().unwrap(),
-                    );
+                if let Some(ref witness) = witness {
+                    accumulated_coverage.update_non_bool_witness_list_with_witness_stack(witness);
                 }
 
                 let new_coverage = SingleTestCaseCoverage::new(
