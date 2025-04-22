@@ -58,7 +58,8 @@ it(`smart contract can verify a recursive proof`, async () => {
     verification_key: vkAsFields.map((field) => field.toString()),
   };
   const { witness: recursiveWitness } = await recursiveCircuitNoir.execute(recursiveInputs);
-  const { proof: recursiveProof, publicInputs: recursivePublicInputs } = await recursiveBackend.generateProof(recursiveWitness);
+  const { proof: recursiveProof, publicInputs: recursivePublicInputs } =
+    await recursiveBackend.generateProof(recursiveWitness);
 
   // Verify recursive proof
   const verified = await recursiveBackend.verifyProof({ proof: recursiveProof, publicInputs: recursivePublicInputs });
