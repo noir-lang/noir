@@ -97,7 +97,10 @@ impl Ssa {
             call_args: arguments,
         } in calls_to_update
         {
+            // Fetch the caller function whose call site we wish to update
             let new_function_to_update = if entry_point == function_to_update {
+                // Do not fetch entry points from the new functions map.
+                // We leave resolving duplicated entry points to a later pass
                 entry_point
             } else {
                 new_functions_map
@@ -155,11 +158,10 @@ fn resolve_cloned_function_call_sites(
             let func_value = &function.dfg[func_value_id];
             let Value::Function(func_id) = func_value else { continue };
 
-            let new_func_id = new_functions_map.get(func_id).copied().unwrap_or(*func_id);
-            if new_func_id == *func_id {
+            let Some(new_func_id) = new_functions_map.get(func_id) else {
                 continue;
-            }
-            let new_function_value_id = function.dfg.import_function(new_func_id);
+            };
+            let new_function_value_id = function.dfg.import_function(*new_func_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
         }
