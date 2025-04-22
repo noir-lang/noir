@@ -1162,8 +1162,8 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
 
-        assert_eq!(lower, IntegerConstant::Unsigned(0));
-        assert_eq!(upper, IntegerConstant::Unsigned(4));
+        assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
+        assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
     }
 
     #[test]

@@ -1,4 +1,7 @@
+use std::cmp::Ordering;
+
 use acvm::{AcirField, FieldElement};
+use num_traits::Zero;
 
 use super::{instruction::binary, types::NumericType};
 
@@ -7,8 +10,8 @@ use super::{instruction::binary, types::NumericType};
 /// This type can be used in loops and other instances where values have to be compared.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IntegerConstant {
-    Signed(i128),
-    Unsigned(u128),
+    Signed { value: i128, bit_size: u32 },
+    Unsigned { value: u128, bit_size: u32 },
 }
 
 impl IntegerConstant {
@@ -16,14 +19,29 @@ impl IntegerConstant {
         match typ {
             NumericType::Signed { bit_size } => {
                 binary::try_convert_field_element_to_signed_integer(field, bit_size)
-                    .map(Self::Signed)
+                    .map(|value| Self::Signed { value, bit_size })
             }
-            NumericType::Unsigned { .. } => Some(Self::Unsigned(field.to_u128())),
+            NumericType::Unsigned { bit_size } => {
+                Some(Self::Unsigned { value: field.to_u128(), bit_size })
+            }
             NumericType::NativeField => None,
         }
     }
 
-    /// Apply functions on two numeric types, or return `None` if they have different signedness.
+    /// Convert back into a field.
+    pub(crate) fn into_numeric_constant(self) -> (FieldElement, NumericType) {
+        match self {
+            Self::Signed { value, bit_size } => (
+                binary::convert_signed_integer_to_field_element(value, bit_size),
+                NumericType::signed(bit_size),
+            ),
+            Self::Unsigned { value, bit_size } => {
+                (FieldElement::from(value), NumericType::unsigned(bit_size))
+            }
+        }
+    }
+
+    /// Reduce two constants into a result by applying functions on them if their signedness matches.
     pub(crate) fn reduce<T>(
         self,
         other: Self,
@@ -31,17 +49,73 @@ impl IntegerConstant {
         u: impl Fn(u128, u128) -> T,
     ) -> Option<T> {
         match (self, other) {
-            (Self::Signed(a), Self::Signed(b)) => Some(s(a, b)),
-            (Self::Unsigned(a), Self::Unsigned(b)) => Some(u(a, b)),
+            (Self::Signed { value: a, .. }, Self::Signed { value: b, .. }) => Some(s(a, b)),
+            (Self::Unsigned { value: a, .. }, Self::Unsigned { value: b, .. }) => Some(u(a, b)),
             _ => None,
+        }
+    }
+
+    /// Apply functions on signed/unsigned values.
+    pub(crate) fn apply<T>(&self, s: impl Fn(i128) -> T, u: impl Fn(u128) -> T) -> T {
+        match self {
+            Self::Signed { value, .. } => s(*value),
+            Self::Unsigned { value, .. } => u(*value),
         }
     }
 
     /// Increment the value by 1, saturating at the maximum value.
     pub(crate) fn inc(self) -> Self {
         match self {
-            IntegerConstant::Signed(x) => Self::Signed(x.saturating_add(1)),
-            IntegerConstant::Unsigned(x) => Self::Unsigned(x.saturating_add(1)),
+            Self::Signed { value, bit_size } => {
+                Self::Signed { value: value.saturating_add(1), bit_size }
+            }
+            Self::Unsigned { value, bit_size } => {
+                Self::Unsigned { value: value.saturating_add(1), bit_size }
+            }
+        }
+    }
+
+    /// Decrement the value by 1, saturating at the minimum value.
+    pub(crate) fn dec(self) -> Self {
+        match self {
+            Self::Signed { value, bit_size } => {
+                Self::Signed { value: value.saturating_sub(1), bit_size }
+            }
+            Self::Unsigned { value, bit_size } => {
+                Self::Unsigned { value: value.saturating_sub(1), bit_size }
+            }
+        }
+    }
+
+    pub(crate) fn is_zero(&self) -> bool {
+        match self {
+            Self::Signed { value, .. } => value.is_zero(),
+            Self::Unsigned { value, .. } => value.is_zero(),
+        }
+    }
+}
+
+impl PartialOrd for IntegerConstant {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Self::Signed { value: a, .. }, Self::Signed { value: b, .. }) => a.partial_cmp(b),
+            (Self::Signed { value: a, .. }, Self::Unsigned { value: b, .. }) => {
+                if a.is_negative() || *b > i128::MAX as u128 {
+                    Some(Ordering::Less)
+                } else {
+                    let a: u128 = (*a).try_into().ok()?;
+                    a.partial_cmp(b)
+                }
+            }
+            (Self::Unsigned { value: a, .. }, Self::Signed { value: b, .. }) => {
+                if b.is_negative() || *a > i128::MAX as u128 {
+                    Some(Ordering::Less)
+                } else {
+                    let b: u128 = (*b).try_into().ok()?;
+                    a.partial_cmp(&b)
+                }
+            }
+            (Self::Unsigned { value: a, .. }, Self::Unsigned { value: b, .. }) => a.partial_cmp(b),
         }
     }
 }

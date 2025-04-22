@@ -19,7 +19,7 @@ fn loop_with_u128_literal() -> u32 {
     let s: u128 = 170141183460469231731687303715884105715;
     let e: u128 = 170141183460469231731687303715884105730;
     let mut sum = 0;
-    for i in s..e {
+    for _ in s..e {
         sum += 1;
     }
     sum
