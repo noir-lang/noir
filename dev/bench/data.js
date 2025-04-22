@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745314935911,
+  "lastUpdate": 1745314938630,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d5cc0e23c2ab601d0f10b42ae819b2187c070811",
-          "message": "fix(ssa): Remove OOB checks inserted during DIE (#7995)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-11T17:46:44Z",
-          "tree_id": "8094ee68d21afb0e18809e92555cce871eaaeb84",
-          "url": "https://github.com/noir-lang/noir/commit/d5cc0e23c2ab601d0f10b42ae819b2187c070811"
-        },
-        "date": 1744395294106,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 486.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 462.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c69acd7dc0528850083b9f1deeb1ab64320882f1"
         },
         "date": 1745268177294,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 209.77,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 183.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 488.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 464.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 261.33,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "saleel@saleel.xyz",
+            "name": "saleel",
+            "username": "saleel"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "283230ad9806787a2171fed9c93e8b649e32759a",
+          "message": "chore(docs): patch web app tutorial in 1.0.0-beta3 versioned docs (#8158)",
+          "timestamp": "2025-04-22T09:13:17Z",
+          "tree_id": "2eca2b554f0619e4b3b85d9242540c4e52aa3cea",
+          "url": "https://github.com/noir-lang/noir/commit/283230ad9806787a2171fed9c93e8b649e32759a"
+        },
+        "date": 1745314929126,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
