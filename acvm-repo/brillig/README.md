@@ -270,4 +270,4 @@ The blockchain can now be updated upon proof verification by the blockchain node
 
 ## Documentation
 
-For detailed documentation, visit https://noir-lang.github.io/noir/docs/brillig/index.html.
+For detailed documentation, visit <https://noir-lang.github.io/noir/docs/brillig/index.html>.

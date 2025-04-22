@@ -8,4 +8,4 @@ The VM supports various operations including arithmetic operations over fields a
 
 ## Documentation
 
-For detailed documentation, visit https://noir-lang.github.io/noir/docs/brillig_vm/index.html.
+For detailed documentation, visit <https://noir-lang.github.io/noir/docs/brillig_vm/index.html>.

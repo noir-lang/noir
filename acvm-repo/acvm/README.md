@@ -11,4 +11,4 @@ The ACVM crate is organized into several key modules:
 
 ## Documentation
 
-For detailed documentation, visit https://noir-lang.github.io/noir/docs/acvm/index.html.
+For detailed documentation, visit <https://noir-lang.github.io/noir/docs/acvm/index.html>.

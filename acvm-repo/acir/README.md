@@ -105,4 +105,4 @@ _Note_: Opcodes operate on witnesses, but we will see that some opcodes work on
 
 ## Documentation
 
-For detailed documentation, visit https://noir-lang.github.io/noir/docs/acir/index.html.
+For detailed documentation, visit <https://noir-lang.github.io/noir/docs/acir/index.html>.
