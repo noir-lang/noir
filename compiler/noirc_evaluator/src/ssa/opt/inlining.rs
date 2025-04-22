@@ -1208,4 +1208,25 @@ mod test {
         }
         ");
     }
+
+    #[test]
+    fn does_not_inline_simple_function_that_calls_itself() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_simple_functions();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
