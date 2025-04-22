@@ -101,11 +101,10 @@ impl PartialOrd for IntegerConstant {
         match (self, other) {
             (Self::Signed { value: a, .. }, Self::Signed { value: b, .. }) => a.partial_cmp(b),
             (Self::Signed { value: a, .. }, Self::Unsigned { value: b, .. }) => {
-                if a.is_negative() || *b > i128::MAX as u128 {
+                if a.is_negative() {
                     Some(Ordering::Less)
                 } else {
-                    let a: u128 = (*a).try_into().ok()?;
-                    a.partial_cmp(b)
+                    (*a).try_into().ok().and_then(|a: u128| a.partial_cmp(b))                
                 }
             }
             (Self::Unsigned { value: a, .. }, Self::Signed { value: b, .. }) => {
