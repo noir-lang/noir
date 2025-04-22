@@ -12,10 +12,6 @@
 //! These operations are done in parallel so that they can each benefit from each other
 //! without the need for multiple passes.
 //!
-//! Other passes perform a certain amount of constant folding automatically as they insert instructions
-//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value_from_id`]
-//! is used on a value which enables instructions dependent on the value to now be simplified.
-//!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::collections::{BTreeMap, HashSet, VecDeque};
@@ -43,7 +39,7 @@ use crate::{
             function::{Function, FunctionId, RuntimeType},
             instruction::{BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
-            value::{Value, ValueId},
+            value::{Value, ValueId, ValueMapping},
         },
         opt::pure::Purity,
         ssa_gen::Ssa,
@@ -82,7 +78,7 @@ impl Ssa {
     /// Performs constant folding on each instruction while also replacing calls to brillig functions
     /// with all constant arguments by trying to evaluate those calls.
     #[tracing::instrument(level = "trace", skip(self, brillig))]
-    pub(crate) fn fold_constants_with_brillig(mut self, brillig: &Brillig) -> Ssa {
+    pub fn fold_constants_with_brillig(mut self, brillig: &Brillig) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
         for (func_id, func) in &self.functions {
@@ -148,6 +144,8 @@ struct Context<'a> {
 
     // Cache of instructions without any side-effects along with their outputs.
     cached_instruction_results: InstructionResultCache,
+
+    values_to_replace: ValueMapping,
 }
 
 #[derive(Copy, Clone)]
@@ -227,6 +225,7 @@ impl<'brillig> Context<'brillig> {
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
+            values_to_replace: Default::default(),
         }
     }
 
@@ -243,6 +242,11 @@ impl<'brillig> Context<'brillig> {
             function.dfg.make_constant(FieldElement::one(), NumericType::bool());
 
         for instruction_id in instructions {
+            if !self.values_to_replace.is_empty() {
+                let instruction = &mut function.dfg[instruction_id];
+                instruction.replace_values(&self.values_to_replace);
+            }
+
             self.fold_constants_into_instruction(
                 function,
                 dom,
@@ -252,13 +256,15 @@ impl<'brillig> Context<'brillig> {
             );
         }
 
+        function.dfg.replace_values_in_block_terminator(block_id, &self.values_to_replace);
+        function.dfg.data_bus.replace_values(&self.values_to_replace);
+
         // Map a terminator in place, replacing any ValueId in the terminator with the
         // resolved version of that value id from the simplification cache's internal value mapping.
         let mut terminator = function.dfg[block_id].take_terminator();
         terminator.map_values_mut(|value| {
             Self::resolve_cache(
                 block_id,
-                &function.dfg,
                 dom,
                 self.get_constraint_map(side_effects_enabled_var),
                 value,
@@ -301,7 +307,8 @@ impl<'brillig> Context<'brillig> {
                         dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
                     }
 
-                    Self::replace_result_ids(dfg, &old_results, cached);
+                    let cached = cached.to_vec();
+                    self.replace_result_ids(&old_results, &cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
@@ -332,7 +339,7 @@ impl<'brillig> Context<'brillig> {
             })
         };
 
-        Self::replace_result_ids(dfg, &old_results, &new_results);
+        self.replace_result_ids(&old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
@@ -356,21 +363,19 @@ impl<'brillig> Context<'brillig> {
     // constraints to the cache.
     fn resolve_cache(
         block: BasicBlockId,
-        dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
         cache: &HashMap<ValueId, SimplificationCache>,
         value_id: ValueId,
     ) -> ValueId {
-        let resolved_id = dfg.resolve(value_id);
-        match cache.get(&resolved_id) {
+        match cache.get(&value_id) {
             Some(simplification_cache) => {
                 if let Some(simplified) = simplification_cache.get(block, dom) {
-                    Self::resolve_cache(block, dfg, dom, cache, simplified)
+                    Self::resolve_cache(block, dom, cache, simplified)
                 } else {
-                    resolved_id
+                    value_id
                 }
             }
-            None => resolved_id,
+            None => value_id,
         }
     }
 
@@ -386,9 +391,9 @@ impl<'brillig> Context<'brillig> {
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
         instruction.map_values_mut(|value_id| {
-            Self::resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
+            Self::resolve_cache(block, dom, constraint_simplification_mapping, value_id)
         });
-        instruction.map_values(|v| dfg.resolve(v))
+        instruction
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -504,13 +509,9 @@ impl<'brillig> Context<'brillig> {
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-    fn replace_result_ids(
-        dfg: &mut DataFlowGraph,
-        old_results: &[ValueId],
-        new_results: &[ValueId],
-    ) {
+    fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
-            dfg.set_value_from_id(*old_result, *new_result);
+            self.values_to_replace.insert(*old_result, *new_result);
         }
     }
 
@@ -958,6 +959,7 @@ mod test {
                 function::RuntimeType,
                 map::Id,
                 types::{NumericType, Type},
+                value::ValueMapping,
             },
             opt::assert_normalized_ssa_equals,
         },
@@ -978,13 +980,16 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
-        let instructions = main.dfg[main.entry_block()].instructions();
+        let entry_block = main.entry_block();
+        let instructions = main.dfg[entry_block].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v0 = main.parameters()[0];
         let two = main.dfg.make_constant(2_u128.into(), NumericType::NativeField);
 
-        main.dfg.set_value_from_id(v0, two);
+        let mut values_to_replace = ValueMapping::default();
+        values_to_replace.insert(v0, two);
+        main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1011,7 +1016,8 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
-        let instructions = main.dfg[main.entry_block()].instructions();
+        let entry_block = main.entry_block();
+        let instructions = main.dfg[entry_block].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v1 = main.parameters()[1];
@@ -1020,7 +1026,9 @@ mod test {
         let constant = 2_u128.pow(8);
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        main.dfg.set_value_from_id(v1, constant);
+        let mut values_to_replace = ValueMapping::default();
+        values_to_replace.insert(v1, constant);
+        main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1049,7 +1057,8 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let main = ssa.main_mut();
 
-        let instructions = main.dfg[main.entry_block()].instructions();
+        let entry_block = main.entry_block();
+        let instructions = main.dfg[entry_block].instructions();
         assert_eq!(instructions.len(), 2); // The final return is not counted
 
         let v1 = main.parameters()[1];
@@ -1058,7 +1067,9 @@ mod test {
         let constant = 2_u128.pow(8) - 1;
         let constant = main.dfg.make_constant(constant.into(), NumericType::unsigned(16));
 
-        main.dfg.set_value_from_id(v1, constant);
+        let mut values_to_replace = ValueMapping::default();
+        values_to_replace.insert(v1, constant);
+        main.dfg.replace_values_in_block(entry_block, &values_to_replace);
 
         let expected = "
             acir(inline) fn main f0 {

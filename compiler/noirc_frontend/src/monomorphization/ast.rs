@@ -88,6 +88,12 @@ pub struct GlobalId(pub u32);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
 
+/// Each identifier is given a unique ID to distinguish different uses of identifiers.
+/// This is used, for example, in last use analysis to determine which identifiers represent
+/// the last use of their definition and can thus be moved instead of cloned.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IdentId(pub u32);
+
 impl Display for FuncId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -101,6 +107,7 @@ pub struct Ident {
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
+    pub id: IdentId,
 }
 
 #[derive(Debug, Clone, Hash)]

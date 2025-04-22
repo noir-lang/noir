@@ -5,8 +5,8 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, If, LValue,
-        Let, Literal, LocalId, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, IdentId, If,
+        LValue, Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
 };
@@ -191,21 +191,34 @@ pub(crate) fn gen_range(
 }
 
 /// Make an `Ident` expression out of a variable.
-pub(crate) fn ident(id: VariableId, mutable: bool, name: Name, typ: Type) -> Expression {
-    Expression::Ident(ident_inner(id, mutable, name, typ))
+pub(crate) fn ident(
+    variable_id: VariableId,
+    id: IdentId,
+    mutable: bool,
+    name: Name,
+    typ: Type,
+) -> Expression {
+    Expression::Ident(ident_inner(variable_id, id, mutable, name, typ))
 }
 
 /// Make an `Ident` out of a variable.
-pub(crate) fn ident_inner(id: VariableId, mutable: bool, name: Name, typ: Type) -> Ident {
+pub(crate) fn ident_inner(
+    variable_id: VariableId,
+    id: IdentId,
+    mutable: bool,
+    name: Name,
+    typ: Type,
+) -> Ident {
     Ident {
         location: None,
-        definition: match id {
+        definition: match variable_id {
             VariableId::Global(id) => Definition::Global(id),
             VariableId::Local(id) => Definition::Local(id),
         },
         mutable,
         name,
         typ,
+        id,
     }
 }
 

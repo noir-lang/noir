@@ -30,7 +30,7 @@ libraries:
     critical: true
   noir-bignum:
     repo: noir-lang/noir-bignum
-    timeout: 90
+    timeout: 600
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
@@ -82,7 +82,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 90
+    timeout: 100
     critical: false
   blob:
     repo: AztecProtocol/aztec-packages
