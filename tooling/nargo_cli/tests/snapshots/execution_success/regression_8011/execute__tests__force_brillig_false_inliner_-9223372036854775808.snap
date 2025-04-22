@@ -26,11 +26,11 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VUwU7DMAxN1nZtGBMILpwQFw5cIGGpWm478CNho9/RT6cBW3WttICaPCly0rw9PztZpBghIeZiCin+ALnw7RWigrgh+9kwjrDW62AUyxtTv9W2VoH6Ivo/KNCUafQ16ifqvy5B570f9WktmLcaxiWZ72G+X/h9Su/D2VpFNGPrDzC3M/49dtCHJ9IHyhVi2kcaBfOM2LC+JapLXy/UFcqdr8jdTfGhiGYMfQaH+kWa3hnU36bxb/AeycDZ+Jx37JxUJB8tW6MHfB8E6HNvNL8fVYCfL/CxtoLwS8KpyD7lP5Ce3MP8Ssy/XzuynwX2Q/VmAX4xU+92hl8y/8h/hOjXLzAP/S9Lli8j/kLngffyP/foW6uf8o7wXa9A0/7cI4+sH/tAaxAsf8H4z7C+IHVgXPUuNc50B9e52p3P9uRumL4HvTux89vaNSfXGPNmzac19W/5vwC1+Ijm9QkAAA==",
-  "debug_symbols": "lZPNCoQgFIXf5a5dZPnT9CrDEFYWgmiYDQzRu48ODUS0uRvxyPk4wr1ng0F369QaN/oFmucG1vcqGu+S2nYCXTDWmqk9P0ORD8p+/mVWLsslqhCheUgC2g3pUid6NFZDw4v9RYBypF8g/RLnL2//T6k4AErlleBoQqAJiSWq4pYo6z9RiStRojMqdAZDExxNCDQh0USNI/ak3ioY1Vl9VGhcXX9qVPzM+lKuOfheD2vQuWanhuXJMkqYyOtNs5CEPVJGyvkC",
+  "bytecode": "H4sIAAAAAAAA/9VWzU6DQBBeykKLtWmjL6AXve4KFDyYYKwXE+PFg4mntZXn4NGFZDZMxwFaAaNfQnaWnX7zszNDHVHDgVWKfTjiADgt795hDWCdoHO3fDLYq37QAbE7JH+qonXAxDeg/2EAnM44/Mryj5R/NQWex6Lmx7FYu7PyOUXyEuRFy+/H9L282zhAnEPzl9DnDf7b2Co8FKPYVpZ/Mw6/nsM9Xv7CXZUIFyR/GNwcchkdXIvXIC8YPYHOaD1LEu9ItRMtiL0mH9vidVG89ygm0REvvkMPyZhTgtzU7x7Rv4DV5k0SPzPYq544Q7yC2JqLuu9kMbz9JFXK2nWLOg9czUp0jvWvYH/SEEf2Qz/zxOg8NLmJzW4XbQ3NU4UJyhPubVoX1C/K47ZwrxguOwO5nuoV8z4+uNrrw09gLL83Dr/m5pHNlV/xi/08zgbyIyV764MvakjGN2y/eqaMvmzRt7F5SN9HOlN0jvVTlJM1yEvRPKvm6Nxlzrl4XfH9e7Qp+Hh9Rh/zeUT/DtYqH28grxiffOIf9oW7D1uXh9bRX5kBld8Z7LtqNclbEXIz4Bj+tP34hpsBx/B3oHMGPKH3tIc80fx/hvbQC+J8Bvk/9dArrH16iMvXoT1k72Ho73gUm2RrEq1vI/0Z6bjrO/4FDs9oNO0PAAA=",
+  "debug_symbols": "ldbbioUgFAbgd/G6C11q6n6VYdh0sE0QFR0GhujdR4fdJsSb/yYw/o8FK7V1sNbX++vZj920ssfXwYapqbZ+GsPqOAtWL/0w9K/n/TXj8SHK//w6V2Ncrlu1bOyhecH82LKHsUF3/eDju/O7YMKAeQvmHZYnDuYFmKdc3sl3XgiTAokChQKNghIFBgXZryzkR0iXCocKyWEhUKGyNUhfgrRKhYAFwSLbXTJ0CSNT4VChOSwELLI7nay6hKNUlHANA9ewsHCoKDksBCwIFtnuqo9QVqfCwMKiwqj8DX2dD83T82Hy/yShL0HpLjEOrWE5WsMKWBAsJCwULDQmzrD6qZa+qgf/Hj+6fWxu08j2O/tkMJmXqfHtvvg4otymk9j1cF9LG0eD2FBrC8dDjVDnDw==",
   "file_map": {
     "50": {
-      "source": "unconstrained fn main() -> pub u32 {\n    let s: i64 = -5;\n    let e: i64 = 10;\n    let mut sum = 0;\n    for _ in s..e {\n        sum += 1;\n    }\n    sum\n}",
+      "source": "unconstrained fn main() -> pub u32 {\n    let s1 = loop_with_negative_literal();\n    let s2 = loop_with_u128_literal();\n    assert_eq(s1, s2);\n    s1\n}\n\nfn loop_with_negative_literal() -> u32 {\n    let s: i64 = -5;\n    let e: i64 = 10;\n    let mut sum = 0;\n    for _ in s..e {\n        sum += 1;\n    }\n    sum\n}\n\nfn loop_with_u128_literal() -> u32 {\n    let s: u128 = 170141183460469231731687303715884105715;\n    let e: u128 = 170141183460469231731687303715884105730;\n    let mut sum = 0;\n    for _ in s..e {\n        sum += 1;\n    }\n    sum\n}",
       "path": ""
     }
   },
