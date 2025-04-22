@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { ethers } from 'hardhat';
 import { readFileSync } from 'node:fs';
 import { resolve, join } from 'path';
 import toml from 'toml';
@@ -58,11 +59,22 @@ it(`smart contract can verify a recursive proof`, async () => {
     verification_key: vkAsFields.map((field) => field.toString()),
   };
   const { witness: recursiveWitness } = await recursiveCircuitNoir.execute(recursiveInputs);
-  const { proof: recursiveProof, publicInputs: recursivePublicInputs } =
-    await recursiveBackend.generateProof(recursiveWitness);
+  const { proof: recursiveProof, publicInputs: recursivePublicInputs } = await recursiveBackend.generateProof(
+    recursiveWitness,
+    { keccak: true },
+  );
 
   // Verify recursive proof
-  const verified = await recursiveBackend.verifyProof({ proof: recursiveProof, publicInputs: recursivePublicInputs });
+  const verified = await recursiveBackend.verifyProof(
+    { proof: recursiveProof, publicInputs: recursivePublicInputs },
+    { keccak: true },
+  );
 
   expect(verified).to.be.true;
+
+  // Smart contract verification
+  const contract = await ethers.deployContract('contracts/recursion.sol:UltraVerifier', []);
+  const result = await contract.verify.staticCall(recursiveProof, recursivePublicInputs);
+
+  expect(result).to.be.true;
 });
