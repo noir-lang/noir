@@ -687,7 +687,7 @@ impl Loop {
         let increments = self.count_induction_increments(function);
         let all_instructions = self.count_all_instructions(function);
 
-        // Currently we don't iterate in reverse, so if upper >= lower it means 0 iterations.
+        // Currently we don't iterate in reverse, so if upper <= lower it means 0 iterations.
         let iterations: usize = upper
             .reduce(
                 lower,
