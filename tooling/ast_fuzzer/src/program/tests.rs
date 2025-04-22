@@ -58,11 +58,8 @@ fn test_modulo_of_negative_literals_in_range() {
     let index_type =
         Type::Integer(noirc_frontend::shared::Signedness::Signed, IntegerBitSize::SixtyFour);
 
-    let start_range = range_modulo(
-        int_literal(51675949543456665u64, true, index_type.clone()),
-        index_type.clone(),
-        max_size,
-    );
+    let start_range =
+        range_modulo(int_literal(4u64, true, index_type.clone()), index_type.clone(), max_size);
     let end_range =
         range_modulo(int_literal(1u64, true, index_type.clone()), index_type.clone(), max_size);
 
@@ -83,7 +80,7 @@ fn test_modulo_of_negative_literals_in_range() {
     assert_ssa_snapshot!(ssa, @r"
     acir(inline) fn main f0 {
       b0():
-        jmp b1(i64 0)
+        jmp b1(i64 18446744073709551612)
       b1(v0: i64):
         v3 = lt v0, i64 18446744073709551615
         jmpif v3 then: b2, else: b3
