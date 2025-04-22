@@ -94,8 +94,9 @@ impl Ssa {
         self
     }
 
-    /// Inline "simple" functions.
-    /// A simple function being a function with one or less instructions.
+    /// An SSA pass that inlines calls to "simple" functions. That is, the contents of the called
+    /// function is put directly into the caller's body.
+    /// A simple function is a function with one or less instructions.
     /// Simple functions are still restricted to not inlined if they are recursive or marked with no predicates.
     pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
         let should_inline_call = |callee: &Function| {
