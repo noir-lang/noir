@@ -122,8 +122,11 @@ impl ItemPrinter<'_, '_, '_> {
                     }
                     self.show_type(arg);
                 }
-                self.push_str(") -> ");
-                self.show_type(ret);
+                self.push(')');
+                if **ret != Type::Unit {
+                    self.push_str(" -> ");
+                    self.show_type(ret);
+                }
             }
             Type::Reference(typ, mutable) => {
                 if *mutable {
