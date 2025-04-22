@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 30,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2cW1PTUBSFdwveEREREVEKIiIi5tomiIj3+/0u9oFI+v9/gt3D6TTT2Tx1nRnWwJnJlK6H8GWfr4Em+6Qm+6Pd3Qr3c627jbjX3vtqpltjIKsb2YiRjRrZCSM7aWSnjOy0kZ0xsrNGds7IxozsvJGNG9kFI5swsotGNmlkl4xsysguG9m0kV0xshkju2pks0Z2zcjmjOy6kd1wmb4X916k75Lm6oq6oS7o3Otc69zqXOrcjbm5GXe1n3C1nXS1m3K1mXbHPuOObdaxzzm23u+ujp772+41DppJUraiMozD3SDKiywNkrRoZmEWplm6F2VxXGZJ1sqLvBXkYRKXYSfN406wP+Yr+wqGHHWxB2r/B9UgGG6EyBr4YmwgGY8nyh/jggdGE3TYT/4i8KBZhVokYLwpJEIt4UAjVqGWCBhvCYlQyzjQmFWoZQLG20Ii1AoONGEVaoWA8Y6QCLWKA01ZhVolYLwrJEKt4UCbrEKtETDeExKh1nGgLVah1gkY7wuJUAEONGMVKiBgDIVEqAgHmrMKFREwxkIiVIID3WUVKiFgTIVEqCYOtGAVqknA2BISoTIc6D9WoTICxlxIhNrAge6xCrVBwPhASITaxIGWrEJtEjA+FBKhtnCgHVahtggYHwmJUNsw0JC2cQ1XA3+Mj4VEqCc4oWj7oXA18Mf4VEiEeoYTirYfClcDf4zPhUSoFzihaPuhcDXwx/hSSIR6hROKth8KVwN/jK+FRKg3OKFo+6FwNfDH+FZIhHqHE4q2HwpXA3+M74VEqA84oWj7oXA18Mf4UUiE+oQTirYfClcDf4yfhUSoLzihaPuhcDXwx/hVSIT6hhOKth8KVwN/jN+FRKgfOKFo+6FwNfDH+FNIhPqFE4q2HwpXA3+Mv4VEqD84oWj7oXA18Me4g2SsPsJHx0J304cn6Hp3XaKsq0p1IaCu3dLlNrpCQpvatQ9ZW0e1208btLSnRtsg9M613mzU+0N6SV+vwuqFM73WoV9P9RuF/hOof7f1VKufjh3pD7TUuo+G9B9NhJoE5L4awOP9C5SjXpmP6kDW0JrzYLhB8cQb5DyJ54k60k+SaaMZB89EiDNcDby/umA/5W053GfgGnBfdeBcKNeo29e89MdhebDe4PgPqZVYNYFSAAA=",
+  "debug_symbols": "ldfLasMwEIXhd9HaC7vWjCS/SinBFzkIjG18KRSTd68TEkihm395Zs5o8610mC42+/WSxn5aTfV5mGFq6y1N45kOU348Zutcj/e4bvWymUo0M3HsTKX5LTN9GuI5y29fmSlL2LewL7CvsO9g38N+YH2bw34B+9DXQl8LfS30tdDXQl8LfS30Fegr0Fegr0Bfgb4CfQX6CvQV6CvQV6GvQl+Fvgp9Ffoq9FXoq9BXoa9CXwd9HfR10NdBXwd9HfR10NdBXwd9HfT10NdDXw99PfT10NdDXw99PfT10NdD3wB9A/QN0DdA3wB9A/QN0Df861vk4XlQFPLn4gzNkoYhXS/v/45z/F0vqW6G+Iz9PrZv2+1nfm1e9/MytbHbl3h/6bE7n/8F",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

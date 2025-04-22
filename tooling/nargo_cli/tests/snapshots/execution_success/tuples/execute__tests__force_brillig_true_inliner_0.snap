@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAztBKKT6EG96EU/YQgKRw76IYuE7+DTDbENpcJFuyZkkHbvvb51GPiEwaePGNcFfAfV1Li6/yJTxHIhdZpAOkcmG5gPyl1wtWJ/n48UG7aCVxO/csXdTvSnqD+3DDMA/pXw4zD4bok4j26MD4J3A+PLy/dQjs/YE3MrzNP7Ft+twAtx7lyTtm/7Cf3ElWKvJ9FrxPxR0pHJc0pmfOU5qj0IfUkgr3YMFwSXnANFb9xc/3wmjMhR7VHoC3X/prwhrhSG/2/c6fOXlXPEG3WDD3xOQfAnov6M3+uZPuofdbalz9rct/7mm6Z4eelTH/y+vQGI9FklYQgAAA==",
+  "debug_symbols": "lZLLCoQwDEX/JesuWt/2V4ZBqkYplFZqHRjEf592cCHiJpvADedkEe4OI/bb3Gk7uRXkawfjBhW0szHtB4Pea2P03F3XwNMQ5Z9fF2VTXIPyAWRVMEA7gqzLaE/aIMiSH28GoiLyNZFviHxL4zP+xDftyQvO74KgChlVyKlCQRKOmD7Ka9UbPPswbXa41CN8F7w1ZfFuwHHzmDpzqUt6X1axXMSz8fQP",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: Field) {\n    let pair = (x, y);\n    assert(pair.0 == 1);\n    assert(pair.1 == 0);\n\n    let (a, b) = if true { (0, 1) } else { (2, 3) };\n    assert(a == 0);\n    assert(b == 1);\n\n    let (u, v) = if x as u32 < 1 { (x, x + 1) } else { (x + 1, x) };\n    assert(u == x + 1);\n    assert(v == x);\n    // Test mutating tuples\n    let mut mutable = ((0, 0), 1, 2, 3);\n    mutable.0 = (x, y);\n    mutable.2 = 7;\n    assert(mutable.0.0 == 1);\n    assert(mutable.0.1 == 0);\n    assert(mutable.1 == 1);\n    assert(mutable.2 == 7);\n    assert(mutable.3 == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

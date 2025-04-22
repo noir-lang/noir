@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 32,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/9XZx07DQBSF4YSE3nuHEHp3jce08CpEOO//COQXXiBYsOCwOCNZXkSy8rnM3Dm32fgc/dHRafwcY/X5tT5Hfxvx12ulUS/LqiKp4jR+i5JyEPIoywe9EIc4D/l7EtK0ClkoykFZRGWcpVU8zMt0WF+so/tf0X+am0LzkYl5TGjumphbQvOxibktNJ+YmMeF5lMT84TQfGZinhSaz03MU0LzhYl5Wmi+NDHPCM1XJuZZofnaxDwnNN+YmOeF5lsT84LQfGdiXhSa703MS0JzZGJeFppjE/OK0JyYmFeF5tTEvCY0ZybmdaE5NzFvCM09E/Om0FyYmLeE5mBi3haaSxPzjtD8YGLeFZofTcx7QvOTiXlfaH42MR8IzS8m5kOhuS800y9tf7MymvU9aNW/04ehL0FOT25NjkuuSc5H7kUORC5CTsC+mX0k+yr2GdTd1KHUZdQprNusY8zrzHN893wHvBfcp87ooPfaHR305uhV0buhl0G2T9ZN9ksWSjZIVkZ2RJZCtsCDZO/JXoy9CbU6tSu1HLUNaz1rH2sBcyNzBd8O71K/8fv4AJOTv8XIHwAA",
+  "debug_symbols": "ldVBCoMwEIXhu8zahTNW23qVUiRqlEBIJMZCEe/eKBXcvp2T4c/mQ7JSr9tlbIwb/Ez1ayXrOxWNd2laKT+O5km5fZqjCpFq5jwj7fr9q9oyGozVVJf59s6I0UDQoECDGxqUaFChwR0NHmjwhOFwatiaYWyGtRnmZtibYXCGxRkmZ9hcYHPB/2/YXGBzgc0FNhfYXGBzgc0FNi9g8wI0T0MbjLVmbK5vSTr+qGBUa/V/HBbXXbbxO52bs5+C73S/BL3fdOzS9T8=",
+  "file_map": {
+    "50": {
+      "source": "// Simple example of checking where two arrays are equal\nfn main(a: [Field; 32], b: [Field; 32]) {\n    assert(a == b);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

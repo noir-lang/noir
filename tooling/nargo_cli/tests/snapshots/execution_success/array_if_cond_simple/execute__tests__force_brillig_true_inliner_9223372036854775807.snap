@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 30,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9WaV3PTQBDHT7FkxzbGJqGX8BUsYuPAEy29916U4oEHhhfemAENn5ysc5v8tb4zMNE93M1oVO6n3f/1PdmBukpjl0egr0N9HlL9iZl3+ty8XYpztNUMdDlc6g1y1OtK45AHGgseaAw90Bh5oLHogcaSBxqHPdBY9kBjxQONVQ803vFAY80DjXc90Fj3QGPDA433PNA44oHGUQ803vdA4wMPND70QOMjDzQ+9kDjEw80PvVA4zMPND73QOMLDzSOOdDYSy/hmkTThyX6cEMfRujDA23saeNMG1Pa+NHGijYutDGgwJsCWwocKTCjwIcCC1q4aWGkhYcmdpo4aWKigU8DizoudQyqePkxTwk9lH7rc1mfhyA/x49McVn4zdP+RPP1eNlQvhz19+yzzfztx122H7rR3yxpO5/SrH0l/BYEJ99BZhKYSWGXmSlgpizMNDDTFmYGmBkLMwvMrIWZA2bOwswDM29hFoBZsDCLwCxamCVglizMMjDLFmYFmBULswrMqoVZA2bNwqwDs25hNoDZsDCbwGxamC1gtizMNjDbFmYHmB0LswvMroXZA2bPwuwDs29hDoA5sDCHwBxamCNgjizMMTDHFuYEmBMLkwCTWJhTYE4FU9PXwQ1yPbfw/Odi/Zlottpu59f4oqayc6qCcrLvyI3vbiD8KZWd25XwX1Eu17KrH/nQH+uR9cNtXWMmvdEj88K0vxycF0Eety/FVB3gTH2LuQ9w/VFfc5u5jFdc9XdKowb96ItSKVXXieujAM+4Xrmeh5EXeWXIC9Osn4q+D8EP2mIdkeDf6/u6PhfhHX6/YfBfFP4zug3PZL2UDXzZwFP8/lZfV/VBfehMPxs0J/zLmEVfDdU/ZjnPcezY+5EU+9IclH9DaHAxXigNmiM49g9TF77jLrXpF22L2xTnNpx/Al0vnAoGHvsbHSUDXxQMpYbgsc1N/YN9YjvVlbmd0FfBoCcw+GRbpnnV7X6p+WpQXZvKVlf9a7Cs48BgC8sWWeqpaOHZXiT4I32mfvVL8Px+qAbXfST4U312XO/NEbCrhK+qcjsWOxNXf1KixPNApLL9VQn/keA/6/uKoRy3+cNKt5PE3fGkm7ST8/PWWSLridIQ1JNpTcO5jRKvi7huIs/2IsF/Zfby+KavZayE/oj7OYD73zUrTLPPTOspxhnMs+9K2q+R86qQh/MupTv6HusLbbGOSPA/9D23CcYG/H7D4H9Y+M/oNjyTcUbVwFcNPLXPd7anz1j2vGP3nk9hH59Jbdx3qir/cdVqJ52zpBPHb1rxRStu/21c/QETOPUdkSkAAA==",
+  "debug_symbols": "ldTbaoQwEAbgd8l1LjLp5jC+SilL1LgEQpSohSK+e5MidHFlYW7ESb6BIT/Mxnrfro97SMM4s+ZzY3Hs3BLGVKpt56zNIcbwuD8fM1E/5vbn58mlWs6LywtrlObMp541WpTuIURfzsT+xZlRRK+J3hC9JXqkeSuIHoheEj0xL3uZl1WHt3j2mugv80J5eNRnb4keaR7F2/lfPRC9JPoPor/MFwQeDQDq3KHIHZrcYWgde6m+XQ6ujf5YQcOauqeNtPxM/rScpjx2vl+zr2vqf0PVQEEoDlKXSepzKsW1Kv9QrxA5iFutapIgTYFYBihD/AI=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

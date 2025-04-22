@@ -30,7 +30,7 @@ it('successfully executes a program with multiple acir circuits', async () => {
   expect(() => new Noir(fold_fibonacci_program).execute(inputs)).to.not.throw();
 });
 
-it('circuit with a fmt string assert message should fail with the resolved assertion message', async () => {
+it('circuit with a fmt string assert message should fail with the resolved assertion information', async () => {
   const inputs = {
     x: '10',
     y: '5',
@@ -38,8 +38,10 @@ it('circuit with a fmt string assert message should fail with the resolved asser
   try {
     await new Noir(assert_msg_runtime).execute(inputs);
   } catch (error) {
-    const knownError = error as Error;
+    const knownError = error as ErrorWithPayload;
     expect(knownError.message).to.equal('Circuit execution failed: Expected x < y but got 10 < 5');
+    expect(knownError.noirCallStack).to.have.lengthOf(1);
+    expect(knownError.noirCallStack![0]).to.match(/^at x < y \(.*assert_msg_runtime\/src\/main.nr:3:12\)$/);
   }
 });
 

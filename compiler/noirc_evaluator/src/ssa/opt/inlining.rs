@@ -94,6 +94,9 @@ impl Ssa {
         self
     }
 
+    /// Inline "simple" functions.
+    /// A simple function being a function with one or less instructions.
+    /// Simple functions are still restricted to not inlined if they are recursive or marked with no predicates.
     pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
         let should_inline_call = |callee: &Function| {
             if let RuntimeType::Acir(_) = callee.runtime() {
@@ -112,10 +115,32 @@ impl Ssa {
             }
 
             // Only inline functions with 0 or 1 instructions
-            entry_block.instructions().len() <= 1
+            if entry_block.instructions().len() > 1 {
+                return false;
+            }
+
+            let instructions = callee.dfg[entry_block_id].instructions();
+            if instructions.is_empty() {
+                return true;
+            }
+
+            // Check whether the only instruction is a recursive call, which prevents inlining the callee.
+            // This special check is done here to avoid performing the entire inline info computation.
+            // The inline info computation contains extra logic and requires passing over every function.
+            // which we can avoid in when inlining simple functions.
+            let only_instruction = callee.dfg[entry_block_id].instructions()[0];
+            if let Instruction::Call { func, .. } = callee.dfg[only_instruction] {
+                let Value::Function(func_id) = callee.dfg[func] else {
+                    return true;
+                };
+
+                func_id != callee.id()
+            } else {
+                true
+            }
         };
 
-        self.functions = btree_map(self.functions.iter(), |(id, function)| {
+        self.functions = btree_map(&self.functions, |(id, function)| {
             (*id, function.inlined(&self, &should_inline_call))
         });
 
@@ -329,7 +354,6 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
-        let id = self.source_function.dfg.resolve(id);
         if let Some(value) = self.values.get(&id) {
             return *value;
         }
@@ -636,8 +660,7 @@ impl<'function> PerFunctionContext<'function> {
             .dfg
             .call_stack_data
             .extend_call_stack(call_stack, &source_call_stack);
-        let results = self.source_function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
+        let results = self.source_function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -787,17 +810,20 @@ mod test {
     use acvm::{FieldElement, acir::AcirField};
     use noirc_frontend::monomorphization::ast::InlineType;
 
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            function::RuntimeType,
-            instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::{NumericType, Type},
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                basic_block::BasicBlockId,
+                function::RuntimeType,
+                instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::inlining::inline_info::compute_bottom_up_order,
         },
-        opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
     };
 
     #[test]
@@ -1288,7 +1314,8 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let ssa = ssa.inline_simple_functions();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v1 = add v0, v0
@@ -1298,10 +1325,7 @@ mod test {
           b0(v0: Field):
             return v0
         }
-        ";
-
-        let ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1323,7 +1347,8 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
+        let ssa = ssa.inline_simple_functions();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v2 = add v0, Field 1
@@ -1336,9 +1361,6 @@ mod test {
             v2 = add v0, Field 1
             return v2
         }
-        ";
-
-        let ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

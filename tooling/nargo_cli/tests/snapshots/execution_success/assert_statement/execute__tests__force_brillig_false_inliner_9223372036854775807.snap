@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "11885038074309157496": {
+        "error_kind": "string",
+        "string": "x and y are not equal"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/62QwQmFMAyG7eNt4sVj0iQ2ubmKxTqD84gLuJkjCNpDKd70g/CH//AR4pobl6fml3PICe/A0kXQM6fgExKO4C2qAEvsFRVFZfJKlJQ1WLQAhkwJZzGas8x9d9fl+he/aKr9qStZVti79tjq/gRx+KzKYAEAAA==",
+  "debug_symbols": "TYzdCsMgDEbfJde96AqD4auMUfyJJSBRog6G9N2npYXe5XyHnAYOTd1WYh8zqHeDEK0uFLlTg/mYctI8KBctBdRjWSZAduN67RN4CgjqOe+fDkYoBNrWe6bPXy2kTcATfWV7s+WXLnP9J4kWXRUcpcP1/B8=",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is assertion\nfn main(x: Field, y: pub Field) {\n    assert(x == y, \"x and y are not equal\");\n    assert_eq(x, y, \"x and y are not equal\");\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

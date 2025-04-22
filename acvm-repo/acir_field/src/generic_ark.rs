@@ -19,7 +19,7 @@ pub trait AcirField:
     + From<usize>
     + From<u128>
     // + From<u64>
-    // + From<u32>
+    + From<u32>
     // + From<u16>
     // + From<u8>
     + From<bool>
@@ -217,6 +217,12 @@ macro_rules! field_wrapper {
 
         impl From<u128> for $wrapper {
             fn from(value: u128) -> Self {
+                Self($field::from(value))
+            }
+        }
+
+        impl From<u32> for $wrapper {
+            fn from(value: u32) -> Self {
                 Self($field::from(value))
             }
         }

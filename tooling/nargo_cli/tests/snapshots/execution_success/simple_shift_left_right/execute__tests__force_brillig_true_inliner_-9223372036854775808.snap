@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAzdHEYH0YNe9KK/MAIEjhz8kUXCd/DphqTNah2aSNdLO9q9vrajWgXRoDN2VpGYHrRbJ6UglosS/SYYcwdtQW+I3wgWa1leSfzO1Y2N1CfIv7KAmbI/iJkA3+0A5zEFfF6LIhrj+J3ZfwCbvjOM2YMf7SPYlt1JMf+E83HnCH/MVUCtV1Yr5aLluNRavc+sAHuJH37H5Zb/iI/NSpB/pyP9M4xjLD9d0kZ9/i+It2XxF1YXzSH5Rk4EV7FchQo7Npvk87edc5jXTKEP2B8qGfHT+Buc84U6+j95jq0vx8qPvvHDUD8979Ms9C28AK6OSUmZBwAA",
+  "debug_symbols": "ldJRC4MgEAfw73LPPqhlbX2VMcLqCkE0zAYj+u7TsY1o9eCLeOLvHu7+C3TYzEOtTG8nqG4LaNtKr6wJ1bISaJzSWg319hloPJh4/59GaWI5eek8VIwzAmi6eCuD75VGqARd7wRYkSzKQ5H/RP4nLoeiEF9Rsr24pgpOjwU9FyxZ8GSRpYk1VA/plGw0fpbdz6bd7N4/R9zFYHS2xW52GAOxyUKcCBcko6FtaP0C",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested are left and right shifts.\nfn main(x: u32) {\n    let z = x >> 4;\n    let t = x << 4;\n    assert(z == t >> 8);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

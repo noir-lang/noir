@@ -1,0 +1,64 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VUS04EIRAFmu7RGV0ZF+48AsVnGna68CDTmZ69t/AA3kFP4kIXXsKDOMYiqSDOJNPVLyEPCngpXgFS/KLbtwvsy31rkH9wW8RkJaYwRtEg3yGbaQBOLUm0nFl7P/Z2BAcbY9MQg/FhWEeIEGLY2ujcGH3s05B6k8C7EXYhuR2KNXx5GeppU/FUFZ5OzV0xesrpw6Ezm2mIitE/PVPtNdZeFx5QSOa7wHAWQE6VdLm0DfWiRe6yIdnAThz/kDgNO1HLoha0jHl1MxWS+8K1gvfx6KLOOefa46GxvO/66/7m8f3lga5bIH88f769Pm22pRdnyOfISzLP+CHarL+aR98sxF8sSX8l6v7pyj75z1gVfGhtGaexy8pc1rxCpvnmc3wDWqiISu0IAAA=",
+  "debug_symbols": "lZHBCoQgFEX/5a1b+LDG8leGIawsBNEwGxiifx+LhAg3Lu+759zN22CQ3Tq1yox2Af7eQNteeGVNSBvQ87TMwhxp8cJ54KwuQJoBeF3uBYxKS+AV2T8FlHl4lcIbduFI6IN/pXhEjAKyh8ByhTopUBIFWj2EJldAkm1gnhFC55TWamrvvwznr3BKdFpecVxNf2v9b45N9GdnezmsTh5LZxfm/w==",
+  "file_map": {
+    "50": {
+      "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32, y: u32, z: u32) {\n    x += y;\n    assert(x == z);\n\n    x *= 8;\n    assert(x > 9);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

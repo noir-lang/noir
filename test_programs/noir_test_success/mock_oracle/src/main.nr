@@ -151,3 +151,31 @@ fn test_mock_struct_field() {
         assert_eq(20, struct_field(point, another_array));
     }
 }
+
+#[test]
+fn test_times_called() {
+    // Safety: testing context
+    unsafe {
+        let mock = OracleMock::mock("void_field").returns(10);
+        assert_eq(mock.times_called(), 0);
+
+        call_void_field_twice(mock, 0);
+
+        assert_eq(void_field(), 10);
+        assert_eq(void_field(), 10);
+        assert_eq(void_field(), 10);
+        assert_eq(void_field(), 10);
+        assert_eq(void_field(), 10);
+
+        call_void_field_twice(mock, 7);
+
+        assert_eq(mock.times_called(), 9);
+    }
+}
+
+unconstrained fn call_void_field_twice(mock: OracleMock, initial_times_called: Field) {
+    assert_eq(mock.times_called(), initial_times_called);
+    assert_eq(void_field(), 10);
+    assert_eq(void_field(), 10);
+    assert_eq(mock.times_called(), initial_times_called + 2);
+}

@@ -4,7 +4,7 @@
 //! cargo run -p noir_ast_fuzzer --example sample
 //! ```
 use arbitrary::Unstructured;
-use noir_ast_fuzzer::{Config, arb_program};
+use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use rand::RngCore;
 
 fn main() {
@@ -18,5 +18,5 @@ fn main() {
 
     let program = arb_program(&mut u, Config::default()).expect("arb_program");
 
-    println!("{program}");
+    println!("{}", DisplayAstAsNoir(&program));
 }
