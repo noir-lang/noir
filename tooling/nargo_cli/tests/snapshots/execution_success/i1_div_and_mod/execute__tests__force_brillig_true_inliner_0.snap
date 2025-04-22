@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 1
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "zero",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 1
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YTWsUQRCtnpnNZvYjil5EPIl4EA8TE5PFU5AExJPgScTDkLgexIMnES8r4kE8qRf9t2ZIF/v6WTNRdnpmhTQs3cm8ef3qVXdtsU7OhvOfamR+TuTPoZgDPxerje0WuYqYOl0knYHJTuqHPvvl55zer56nLQac075t8s+K3b3ciK9F/Ts5cEbgv6f8WRz+Yuh5Dhchv9C+KeH4HcQcAeaIMFMJiwDy6DM8q/r+5unnkizXl/06J74Y5wc1te3/VUO/7jX2sf6gWDE/0qIW5R9F4tc4B55vAPuMyF+MdxxZz4T4ec8U9KL+a37eOP1c92s9wxvw/gRwNxpwqYHrKidDiFGMPR3p6TsnDvSi/pvg4S0Jvd6E9zEntxtwzsDp/7k2cj6ZR7+L8DsP/R5STIq7AxruAkcX5yIjft4zoxg1nqwGU3eXCoqL78VBS3FdAV6hvXTvSWRPrbs2IR9RzzSyni3Dk6mhh+/anp8r/2Z+bd2hLcA9aMA5A9dVTnKIUeT/y0lOOioPH0roNd5bzMlhA84ZOL7rWP8wn8yj9Rvr3xDWOcWk+Eeg4TFwdHEuBsTPew4oRq0lSQMG11Z9tWrTqvX1iYS+9VFfOWb+7qiLQXFP/Vzxfad4+u5ZuT6sW3+kup+Bh8/9+rye9UUDzhm4delZE9LTd04S0Iv6j8HDlxJ6XdezvmrAJQaO717snvU1aHgDHF2ci6561rcU10XPuv496zs/V/699+vzetYPDThn4NalZ+X613dOuP6p/o/g4ScJva7rWT834BIDx3c9ds/6BTR8BY4uzkXbPWtC+H/tWfXZ39ZXxX+T0LdYv8Fa9RXPkPaaY1nmO1u0r2V/dpbDaqSLpSfqD44MniP+p/97ZMSUraBzvl9uz3fKeXm/PDnZPS7ZM5Hwd+vfIEVcLvEbAAA=",
+  "debug_symbols": "ldnNiuJAFIbhe6m1i6pzqs5JeSvD0PgTm0CIEnVgEO994mCDpEPLuxFKvjcLn4WQuoV9u71+fnTD4XgO61+30B93m0t3HKbT7b4K27Hr++7z4/XrEB8fyf/vz6fN8DieL5vxEtbarEI77MM661Qfur4N6xLvv1chNXBf2V4i3Ce4F7hXuM9wX+De4B76CvQV6KvQV6GvQl+Fvgp9Ffoq9FXoq9BXoW+Gvhn6ZuiboW9+49vM9wXuDe4d7hd9TZ578/m+sn2JcJ/gXuBe4T7DfYF7g3uHe+hboK9BX4O+Bn0N+hr0Nehr0Negr0Ffg74OfR36OvR16OvQ16Gv/+zrMt873DdwX9m+WfQVzc9AcpwXiwJSvv5ixGxeZFwUXBguHBcNLiotasRFwoXgAptXbF6xecXmFZtXbF6xeYqRJ4knwhPlSeZJ4YnxxHnS8OSdvqd5kiJPEk+EJ8v6Tf1Kqn9LMk8KT4wnzpOGJxUnyy+wfk4ST4QnXF+4vnB94frC9YXrC9dXrq9cX7m+cn3l+sr1lesr11eur1w/c/38Rl+jfEuEJ8qTzJL7dPqzGbvNtm+ftw6H67B7uYS4/D21s/uI03jctfvr2D5uJl4uJR6/Y8q+SkWmB08P/wc=",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: i1, zero: i1) {\n    assert(0 / a == 0);\n    assert(a % a == 0);\n\n    // This if conditional is expected to be false\n    // We want to test the division appropriately does not error\n    // under an inactive predicate\n    if a == 0 {\n        assert(a / zero == 0);\n        assert(a % zero == 0);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

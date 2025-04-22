@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 1
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "zero",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 1
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/92YXW6DMAzHA+GzZW3R6NsOkRAo4a1XGRq9/xFWtETyAm+x1zBLUSBB//xs7EQQsR+rn+3DXEfPxk1v7+GYbQmYd82O3U0v/ExCLSVuXTcP7SyV/BTtOOledP1001LLXvdfrVZq1p0exmkcxCg7NctHP6qHEYO8MSVwDBbAgo8RGTkiF1UM+YauLyvHYxR/WQSY3JA3oQROwEJYL/BVO4/wNMibUgKnBLoZC3+3yNg62YSnMcLkytg+dyJErV9FkVMC5wS6BQu/KAoQYCTdf5FsJSVwSaB72EGyHdi+ky1CjDHkPVICL+LYHxpHRMYq8MRd9CqG/6FRMdoioNhgKqCPxQ6Z36APlMex8DTKAGMn2ilwv5eXfiLw+xy430s+ngn8xszzV52uwtMg74US+EKgW7PwT8QaBBhJl6zIKFjhP+4Y6G8VijtXOv0VzCP+xpNWv6HRFzlb2xVcN46fME53JAarx02fsrXFzpx9tnD4Inw+6bLwjbWsvZu+AWM2nt+j8VK/jBkAAA==",
+  "debug_symbols": "ldRNCoMwEIbhu8zahU5M/LlKKSVqLIEQJWqhSO9eFQURN99ykvfJZsSZGlNN75f1bTdQ+ZjJdbUebeeXaSbejoZe+3UaRh1GKkUekfENlan4RdRaZ6iU8e8ZkcDyFMsllissz+5yxXuuskueY3mB5UkM9sldzyLdAafxVTAsBCxuF8zy2AErdRUSFgoWGSxyWBSo4BgWCSwYFgIW9zvPi0MU12+XJSwULDJMLEMVrHP2/Tr/D5fjjw5WV87sYzv5+nQ7fvvj5vB96GrTTMGsL213y/N/",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: i1, zero: i1) {\n    assert(0 / a == 0);\n    assert(a % a == 0);\n\n    // This if conditional is expected to be false\n    // We want to test the division appropriately does not error\n    // under an inactive predicate\n    if a == 0 {\n        assert(a / zero == 0);\n        assert(a % zero == 0);\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

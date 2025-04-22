@@ -1130,24 +1130,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 } else {
                     self.signed_division_var(lhs, rhs, bit_size, predicate)?
                 }
-
-                // For a one bit modulo operation we do in fact know that the max bit size will always be one.
-                // let bit_size = if bit_size == 1 { bit_size + 1 } else { bit_size };
-                // self.signed_division_var(lhs, rhs, bit_size, predicate)?
-
-                // let zero = self.add_constant(F::zero());
-                // let one = self.add_constant(F::one());
-                // if bit_size == 1 {
-                //     let neg_one = self.neg_var(one);
-                //     let rhs_is_neg_one = self.eq_var(neg_one, rhs)?;
-                //     let lhs_is_zero = self.eq_var(lhs, zero)?;
-                //     let lhs_is_neg_one = self.eq_var(lhs, neg_one)?;
-                //     let lhs_is_valid =
-                //     self.assert_eq_var(lhs_is_zero, rhs_is_neg_one, None)?;
-                //     return Ok((zero, zero));
-                // } else {
-                //     self.signed_division_var(lhs, rhs, bit_size, predicate)?
-                // }
             }
             _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
         };
