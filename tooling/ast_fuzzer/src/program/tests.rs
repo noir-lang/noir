@@ -59,7 +59,7 @@ fn test_modulo_of_negative_literals_in_range() {
         Type::Integer(noirc_frontend::shared::Signedness::Signed, IntegerBitSize::SixtyFour);
 
     let start_range =
-        range_modulo(int_literal(4u64, true, index_type.clone()), index_type.clone(), max_size);
+        range_modulo(int_literal(9u64, true, index_type.clone()), index_type.clone(), max_size);
     let end_range =
         range_modulo(int_literal(1u64, true, index_type.clone()), index_type.clone(), max_size);
 
@@ -76,7 +76,7 @@ fn test_modulo_of_negative_literals_in_range() {
 
     let ssa = generate_ssa_from_body(body);
 
-    // The upper bound is -1, represented as a field by subtracting it from 1<<64.
+    // The lower bound is -4 (-9 % 5), represented as a field by subtracting it from u64::MAX.
     assert_ssa_snapshot!(ssa, @r"
     acir(inline) fn main f0 {
       b0():
