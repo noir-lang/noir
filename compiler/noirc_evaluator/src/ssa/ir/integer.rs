@@ -104,7 +104,7 @@ impl PartialOrd for IntegerConstant {
                 if a.is_negative() {
                     Some(Ordering::Less)
                 } else {
-                    (*a).try_into().ok().and_then(|a: u128| a.partial_cmp(b))                
+                    (*a).try_into().ok().and_then(|a: u128| a.partial_cmp(b))
                 }
             }
             (Self::Unsigned { value: a, .. }, Self::Signed { value: b, .. }) => {
