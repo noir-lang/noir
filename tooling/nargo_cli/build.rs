@@ -72,10 +72,11 @@ const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
 const INLINER_MAX_OVERRIDES: [(&str, i64); 0] = [];
 
 /// These tests should only be run on exactly 1 inliner setting (the one given here)
-const INLINER_OVERRIDES: [(&str, i64); 3] = [
+const INLINER_OVERRIDES: [(&str, i64); 4] = [
     ("reference_counts_inliner_0", 0),
     ("reference_counts_inliner_min", i64::MIN),
     ("reference_counts_inliner_max", i64::MAX),
+    ("reference_counts_slices_inliner_0", 0),
 ];
 
 /// Some tests are expected to have warnings

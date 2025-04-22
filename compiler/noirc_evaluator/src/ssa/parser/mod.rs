@@ -335,6 +335,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(instruction));
         }
 
+        if let Some(instruction) = self.parse_nop()? {
+            return Ok(Some(instruction));
+        }
+
         if let Some(target) = self.eat_identifier()? {
             return Ok(Some(self.parse_assignment(target)?));
         }
@@ -456,6 +460,14 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::At))?;
         let address = self.parse_value_or_error()?;
         Ok(Some(ParsedInstruction::Store { address, value }))
+    }
+
+    fn parse_nop(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::Nop)? {
+            return Ok(None);
+        }
+
+        Ok(Some(ParsedInstruction::Nop))
     }
 
     fn parse_assignment(&mut self, target: Identifier) -> ParseResult<ParsedInstruction> {

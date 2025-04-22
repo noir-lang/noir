@@ -342,8 +342,24 @@ impl Loop {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
-                //   jmpif v12 then: b3, else: b2
+                //   jmpif v12 then: b2, else: b3
                 function.dfg.get_numeric_constant(*rhs).map(|c| c + FieldElement::one())
+            }
+            Instruction::Not(_) => {
+                // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
+                // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
+                // as a loop header's jump condition.
+                //
+                // `for i in 0..1` is turned into:
+                //  b1(v0: u1):
+                //    v2 = eq v0, u32 0
+                //    jmpif v2 then: b2, else: b3
+                //
+                // Which is further simplified into:
+                //  b1(v0: u1):
+                //    v2 = not v0
+                //    jmpif v2 then: b2, else: b3
+                Some(true.into())
             }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }

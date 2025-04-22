@@ -30,10 +30,6 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "12049594436772143978": {
-        "error_kind": "string",
-        "string": "array ref-count underflow detected"
-      },
       "14225679739041873922": {
         "error_kind": "string",
         "string": "Index out of bounds"
@@ -44,8 +40,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VYTY/TMBCdbJK2aalawRmJG3BLN23aCxJC7AcSR05IHNwslTggLtyQID+dendGfZlMA6uNV6qlaGL7ZeZ5PB7bieiupPsn4veE5RnLiPuxCPYty/xhZdGjrjwUx+gEOJ6dAMf4BDgmATiG4JkG4kkDRdoHlp847xidDKwB/mGZscRk0mMALDJlt0/9m3zpMmN8PfIvMtAZQH8p+pMw+vMh63lfN/WTshsrnPWNYC4Ac3EEcwmYyyOYK8BcHcFcA+ZaYcR3gWJrGXhuVlNqzgfBWMR2GsZ2GSl7RM24IGV/TEHXwSKi9kEmprZ/JE9NBVMf+ESqL6nb45C+FPpkfkf75zngrNjCPuHiy4f6oOMV6HvN74Fj1WWKU9955JnBH235MqwP/hBfxdAmPpc5GCFe9WXQl9RNO2OuJ2AHdQmPVOFfcn3GcgDfyPdzw/5A2W/wNtq0XzIDnxl4v6e/4PcJPz6GvnBbV774n/WMtubUXs+Cm1E77z1SXsrFlpxvZI61TbwEIR7fiQ4XJ2krWHq/Vmp8CTV9p9u07yKDT2zw0WtS69acLR16Dwq8NxUyviH4sYtX6L0yVXzesPRcPiq/pR2+j1R7St3xlRljJur3goB83rH08blTHALldte1l8r5OqmD2C79OL+xrikZ61dxGkJfbODRRxH7UeOHgJE5nys8+tvKlWIT429G9jwhH+t8g/hE6YoNrmHjodzpfIg5ODb8kyr8J8Uz1F7xFPRqH1lzofewQGfZ/L7+O6N27sR9R/v3M0trD7PyHZ5Tu/Yw6ZtQ2HW/3tz5yBfJOZKHdUmgH/Fbro+Bv8iH/Bzard1iV7idW7mbm2XldIyR8lPf9t262FTny2q9XRWuKB/dfrUqt9Vy5fKvC189/5d96yyN+4gvch7H8zriMY8g/rtg988Pftf3N7Tncb87cNEReavDaEvqZpt1jsf7jeDF9rhuc5S+CfThHufLE66jv1CX8EgV/hfXZU7wTiLfzw37I2W/wdto0/ebiYGfGHg/Pz9FH0sce9//E25tKv3YprlJ7Pi4/gvwuqvAeRkAAA==",
-  "debug_symbols": "ldXbaoQwEAbgd8l1LnIwJuOrlLJ4iEtAVDwUivjuTUq7XYJ0+W8ko35kyAT+g3W+2e+3MPbTyqq3gw1TW29hGmN1nJw1SxiGcL89v2YiPYz+/n+d6zGV61YvG6tkoTnzYxdXRkffh8GzyojznTNTwMLAonwlbC4sKkp5Kaz9FZZyoWChYVHAwsDi+nRL9xBFLiwsHCwIFVbAQsJCwULDooDF9QTpISifubX/CyVULhws6JXIu3ICFhIWChYaFgUsDCxKWFhYOFjAMyd45gTO/IzVR72Euhn8TwD2+9g+5eH2OfssGudlan23Lz6F5F8+pmalMFyqMnaSLoYirimuZfpEmpNLRWqRiEsh4/axhS8=",
+  "bytecode": "H4sIAAAAAAAA/9VYTY/TMBC1G6dtWqqt4IzEDbgltOmuOO1hv5DgAhIHxMV0qZDgR/inUy8z5GUy6e5CfKilyLHnZeZ5ZjKZ1po/I99flu4dzSOaLclxMPac5vL/RjWgrjIVR3sEHEdHwDE7Ao4uAccUPPNEPM1YkI6JFQMXHSOLgXbAXzQXNGMxGTABqkLYHVL/Wbn2hXK+AfmvCtCZQP+G9bs0+ssJ6bkIbf1G2M0ETnuGMZeAuezBXAHmqgdzDZjrHswNYG4Ehn2XKLfWiWNTL0w7HgbOwrbzNLY3Vtgzpp0XRtifmaTvQWVNt5HJTNc/XKcWjAkNHytkLnTPwbIcZBzf6f56Djgtt1DGXOJ4Fxodr0Dfa7pPnKu+EJyGriPPFP5oK45JaPzBvspgj33OMZgiXsgKkLnQtjOjtQM7qIt55AL/ktYnNI/hGX5+qdgfC/st3sqe9Euh4AsFH7/pL+h+TlfMoQ+0d6hePOR9RltL032fLTwna4/MK8ZgbdTeXdQh62ji+rriM3GvlN/DK3W9zwWfmua4vniE763Yf+i5xiAzZtgmF/m8pTnm7ifBIVF98oe+B9wjupDE9iae8zPpWghf38VHcJqALFPw6CNLfpT4CWA45kuBR39r7zvbxPw7Mf3fPWu69SdT8E7oGim6Un4P9yHZSa4OuEr/GtP8wcL494Jnqv78KeiV/pubtLl7elaWf2t+aPyA8TXCfi7wH2k96znH+T/y3J36arfyO1/729v11ks/xTECPw1tf1tvvm3XtS+/V3H55j77Wk+BtSgO7kuwb0E81nPEf2Hs/vpK97KPRXsR9/MA7rE9gwvtPa2fwT6P8Wx7FrocWTYHGdbJOJ7QGv2FuphHLvA/aM0xwd6Mn18q9qfCfou3sif7vLmCnyv4GB/P+mjGsw/9u+rOptCPe5Ib507M698ci+qXgRYAAA==",
+  "debug_symbols": "ldTbaoQwEAbgd8l1LnI++CqlLFHjEghRohaK+O5NSrtdgnSZG8moH44T8h9o9P1+v4U0zSvq3g4U58FtYU6lOk6M+hxiDPfb821E6kXI7/fXxaVarpvLG+qo4Bj5NJaV5MVPIXrUSXK+YyQUWGiwMK+EboWFCskvhda/QttWCLCQYKHAQoPF9XSVeQjRCgsVioAFBQsGFhwsBFhIsFBgcb2D9iFsu+fK/i8YYY3QBCzoK9F2pRlYcLAQYCFh4izVh8vB9dH/BO60p+Epf7fPxTdRvOR58OOefQ3lvzyuQzcKU6JLI/VfmcXcljWtT8qhNqwWddKGYyPLx0sDXw==",
   "file_map": {
     "50": {
       "source": "fn main(mut x: [u32; 5], idx: Field) {\n    // We should not hit out of bounds here as we have a predicate\n    // that should not be hit\n    if idx as u32 < 3 {\n        x[idx] = 10;\n    }\n    assert(x[4] == 111);\n}\n",

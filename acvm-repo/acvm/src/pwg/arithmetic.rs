@@ -23,7 +23,17 @@ pub(crate) enum MulTerm<F> {
 }
 
 impl ExpressionSolver {
-    /// Derives the rest of the witness based on the initial low level variables
+    /// Derives the rest of the witness in the provided expression based on the known witness values
+    /// 1. Fist we simplify the expression based on the known values and try to reduce the multiplication and linear terms
+    /// 2. If we end up with only the constant term;
+    /// - if it is 0 then the opcode is solved, if not,
+    /// - the assert_zero opcode is not satisfied and we return an error
+    /// 3. If we end up with only linear terms on the same witness 'w',
+    ///     we can regroup them and solve 'a*w+c = 0':
+    ///     If 'a' is zero in the above expression;
+    ///         - if c is also 0 then the opcode is solved
+    ///         - if not that means the assert_zero opcode is not satisfied and we return an error
+    ///     If 'a' is not zero, we can solve it by setting the value of w: 'w = -c/a'
     pub(crate) fn solve<F: AcirField>(
         initial_witness: &mut WitnessMap<F>,
         opcode: &Expression<F>,
@@ -129,10 +139,11 @@ impl ExpressionSolver {
         }
     }
 
-    /// Returns the evaluation of the multiplication term in the expression
-    /// If the witness values are not known, then the function returns a None
-    /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another opcode
-    /// XXX: What about making a mul opcode = a constant 5xy + 7 = 0 ? This is the same as the above.
+    /// Try to reduce the multiplication terms of the given expression to a known value or to a linear term,
+    /// using the provided witness mapping.
+    /// If there are 2 or more multiplication terms it returns the OpcodeUnsolvable error.
+    /// If no witnesses value is in the provided 'witness_assignments' map,
+    /// it returns MulTerm::TooManyUnknowns
     fn solve_mul_term<F: AcirField>(
         arith_opcode: &Expression<F>,
         witness_assignments: &WitnessMap<F>,
@@ -149,6 +160,11 @@ impl ExpressionSolver {
         }
     }
 
+    /// Try to solve a multiplication term of the form q*a*b, where
+    /// q is a constant and a,b are witnesses
+    /// If both a and b have known values (in the provided map), it returns the value q*a*b
+    /// If only one of a or b has a known value, it returns the linear term c*w where c is a constant and w is the unknown witness
+    /// If both a and b are unknown, it returns MulTerm::TooManyUnknowns
     fn solve_mul_term_helper<F: AcirField>(
         term: &(F, Witness, Witness),
         witness_assignments: &WitnessMap<F>,
@@ -166,6 +182,8 @@ impl ExpressionSolver {
         }
     }
 
+    /// Reduce a linear term to its value if the witness assignment is known
+    /// If the witness value is not known in the provided map, it returns None.
     fn solve_fan_in_term_helper<F: AcirField>(
         term: &(F, Witness),
         witness_assignments: &WitnessMap<F>,
@@ -215,6 +233,12 @@ impl ExpressionSolver {
     }
 
     // Partially evaluate the opcode using the known witnesses
+    // For instance if values of witness 'a' and 'b' are known, then
+    // the multiplication 'a*b' is removed and their multiplied values are added to the constant term
+    // If only witness 'a' is known, then the multiplication 'a*b' is replaced by the linear term '(value of b)*a'
+    // etc ...
+    // If all values are known, the partial evaluation gives a constant expression
+    // If no value is known, the partial evaluation returns the original expression
     pub(crate) fn evaluate<F: AcirField>(
         expr: &Expression<F>,
         initial_witness: &WitnessMap<F>,
