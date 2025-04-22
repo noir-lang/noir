@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745339648924,
+  "lastUpdate": 1745339773761,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a1fab4adcc513ff8f48da963e93e9ec49c542358",
-          "message": "chore(ssa): Additional unrolling and mem2reg passes  (#8017)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-14T15:21:22Z",
-          "tree_id": "dfe5ff4cbac50cc8224d563b8212dc5e65551494",
-          "url": "https://github.com/noir-lang/noir/commit/a1fab4adcc513ff8f48da963e93e9ec49c542358"
-        },
-        "date": 1744646215079,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.678,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.464,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.302,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.184,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.058,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.911,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 130,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.935,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.426,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.458,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "20fdf4c308822523651d5db10558d5634a1c3e11",
+          "message": "chore: enable '--pedantic-solving' on more tests (#7701)",
+          "timestamp": "2025-04-22T16:15:43Z",
+          "tree_id": "25a73ffab01db8fe445cf093f119b74388e35e3c",
+          "url": "https://github.com/noir-lang/noir/commit/20fdf4c308822523651d5db10558d5634a1c3e11"
+        },
+        "date": 1745339767906,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.632,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.445,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.42,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.38,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.15,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.888,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 119,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.835,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.42,
             "unit": "s"
           }
         ]
