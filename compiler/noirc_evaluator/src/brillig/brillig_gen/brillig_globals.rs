@@ -186,6 +186,13 @@ impl BrilligGlobals {
         &self,
         brillig_function_id: FunctionId,
     ) -> Option<(&SsaToBrilligGlobals, &HoistedConstantsToBrilligGlobals)> {
+        // Check whether the user has declared any globals.
+        // If not we want to override the fetching of globals which relies on having performed
+        // entry point specialization. We skip entry point specialization if there are no globals.
+        if self.used_globals.values().all(|globals| globals.is_empty()) {
+            return None;
+        }
+
         // Check whether `brillig_function_id` is itself an entry point.
         // If so, return the global allocations directly.
         let entry_point_globals = self.get_entry_point_globals(&brillig_function_id);
