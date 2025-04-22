@@ -4,7 +4,7 @@ global HONK_IDENTIFIER: u32 = 1;
 fn main(
     verification_key: [Field; 128],
     proof: [Field; HONK_PROOF_SIZE],
-    public_inputs: [Field; 1]
+    public_inputs: [Field; 2]
 ) {
     std::verify_proof_with_type(
         verification_key,
