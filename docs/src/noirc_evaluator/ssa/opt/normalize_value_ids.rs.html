@@ -229,7 +229,7 @@
     /// During normal compilation this is often not the case since prior passes
     /// may increase the ID counter so that later passes start at different offsets,
     /// even if they contain the same SSA code.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>normalize_ids(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    </span><span class="kw">pub fn </span>normalize_ids(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context::default();
         context.populate_functions(<span class="kw-2">&amp;</span><span class="self">self</span>.functions);
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {

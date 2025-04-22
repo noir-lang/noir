@@ -1058,7 +1058,13 @@
 <a href="#1057" id="1057">1057</a>
 <a href="#1058" id="1058">1058</a>
 <a href="#1059" id="1059">1059</a>
-<a href="#1060" id="1060">1060</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashSet},
     fmt::Debug,
@@ -1845,10 +1851,16 @@
 
     <span class="doccomment">/// Generate a `for` loop.
     </span><span class="kw">fn </span>gen_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
-        <span class="comment">// The index can be signed or unsigned int, 8 to 64 bits,
-        </span><span class="kw">let </span>idx_type = Type::Integer(
-            <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{ Signedness::Signed } <span class="kw">else </span>{ Signedness::Unsigned },
-            u.choose(<span class="kw-2">&amp;</span>[<span class="number">8</span>, <span class="number">16</span>, <span class="number">32</span>, <span class="number">64</span>]).map(|s| IntegerBitSize::try_from(<span class="kw-2">*</span>s).unwrap())<span class="question-mark">?</span>,
+        <span class="comment">// The index can be signed or unsigned int, 8 to 128 bits, except i128.
+        </span><span class="kw">let </span>bit_size =
+            u.choose(<span class="kw-2">&amp;</span>[<span class="number">8</span>, <span class="number">16</span>, <span class="number">32</span>, <span class="number">64</span>, <span class="number">128</span>]).map(|s| IntegerBitSize::try_from(<span class="kw-2">*</span>s).unwrap())<span class="question-mark">?</span>;
+        <span class="kw">let </span>idx_type = Type::Integer(
+            <span class="kw">if </span>bit_size == IntegerBitSize::HundredTwentyEight || bool::arbitrary(u)<span class="question-mark">? </span>{
+                Signedness::Unsigned
+            } <span class="kw">else </span>{
+                Signedness::Signed
+            },
+            bit_size,
         );
 
         <span class="kw">let </span>(start_range, end_range) = <span class="kw">if </span><span class="self">self</span>.unconstrained() &amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>{

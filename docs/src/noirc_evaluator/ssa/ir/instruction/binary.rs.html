@@ -376,7 +376,20 @@
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -580,7 +593,10 @@
 <span class="doccomment">/// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers
 ///
 /// Values in the range `[2^(bit_size-1), 2^bit_size)` are interpreted as negative integers.
-</span><span class="kw">fn </span>try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u32) -&gt; <span class="prelude-ty">Option</span>&lt;i128&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_convert_field_element_to_signed_integer(
+    field: FieldElement,
+    bit_size: u32,
+) -&gt; <span class="prelude-ty">Option</span>&lt;i128&gt; {
     <span class="kw">let </span>unsigned_int = truncate(field.try_into_u128()<span class="question-mark">?</span>, bit_size);
 
     <span class="kw">let </span>max_positive_value = <span class="number">1 </span>&lt;&lt; (bit_size - <span class="number">1</span>);
@@ -597,7 +613,7 @@
     <span class="prelude-val">Some</span>(signed_int)
 }
 
-<span class="kw">fn </span>convert_signed_integer_to_field_element(int: i128, bit_size: u32) -&gt; FieldElement {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_signed_integer_to_field_element(int: i128, bit_size: u32) -&gt; FieldElement {
     <span class="kw">if </span>int &gt;= <span class="number">0 </span>{
         FieldElement::from(int)
     } <span class="kw">else </span>{
@@ -752,6 +768,16 @@
     </span><span class="kw">fn </span>get_i128_function_shift_works_with_values_larger_than_127() {
         <span class="macro">assert!</span>(BinaryOp::Shr.get_i128_function()(<span class="number">1</span>, <span class="number">128</span>).is_none());
         <span class="macro">assert!</span>(BinaryOp::Shl.get_i128_function()(<span class="number">1</span>, <span class="number">128</span>).is_none());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_plus_minus_one_as_field() {
+        <span class="kw">for </span>(i, u) <span class="kw">in </span>[(-<span class="number">1i64</span>, u64::MAX), (-<span class="number">2i64</span>, u64::MAX - <span class="number">1</span>), (<span class="number">1i64</span>, <span class="number">1u64</span>)] {
+            <span class="kw">let </span>i: i128 = i.into();
+            <span class="kw">let </span>f = convert_signed_integer_to_field_element(i, <span class="number">64</span>);
+            <span class="macro">assert_eq!</span>(f.to_u128(), u <span class="kw">as </span>u128);
+            <span class="macro">assert_eq!</span>(i, try_convert_field_element_to_signed_integer(f, <span class="number">64</span>).unwrap());
+        }
     }
 }
 </code></pre></div></section></main></body></html>

@@ -2090,7 +2090,12 @@
 <a href="#2089" id="2089">2089</a>
 <a href="#2090" id="2090">2090</a>
 <a href="#2091" id="2091">2091</a>
-<a href="#2092" id="2092">2092</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
+<a href="#2092" id="2092">2092</a>
+<a href="#2093" id="2093">2093</a>
+<a href="#2094" id="2094">2094</a>
+<a href="#2095" id="2095">2095</a>
+<a href="#2096" id="2096">2096</a>
+<a href="#2097" id="2097">2097</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -2153,6 +2158,7 @@
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
             binary::eval_constant_binary_op,
         },
+        integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -2244,11 +2250,11 @@
     // This map is expected to only ever contain a singular value.
     // However, we store it in a map in order to match the definition of
     // `outer_induction_variables` as both maps share checks for evaluating binary operations.
-    </span>current_induction_variables: HashMap&lt;ValueId, (FieldElement, FieldElement)&gt;,
+    </span>current_induction_variables: HashMap&lt;ValueId, (IntegerConstant, IntegerConstant)&gt;,
     <span class="comment">// Maps outer loop induction variable -&gt; fixed lower and upper loop bound
     // This will be used by inner loops to determine whether they
     // have safe operations reliant upon an outer loop's maximum induction variable.
-    </span>outer_induction_variables: HashMap&lt;ValueId, (FieldElement, FieldElement)&gt;,
+    </span>outer_induction_variables: HashMap&lt;ValueId, (IntegerConstant, IntegerConstant)&gt;,
     <span class="comment">// This context struct processes runs across all loops.
     // This stores the current loop's pre-header block.
     // It is wrapped in an Option as our SSA `Id&lt;T&gt;` does not allow dummy values.
@@ -2488,7 +2494,7 @@
                 <span class="kw">let </span>array_typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>array);
                 <span class="kw">let </span>upper_bound = <span class="self">self</span>.outer_induction_variables.get(index).map(|bounds| bounds.<span class="number">1</span>);
                 <span class="kw">if let </span>(Type::Array(<span class="kw">_</span>, len), <span class="prelude-val">Some</span>(upper_bound)) = (array_typ, upper_bound) {
-                    upper_bound.to_u128() &lt;= len.into()
+                    upper_bound.apply(|i| i &lt;= len.into(), |i| i &lt;= len.into())
                 } <span class="kw">else </span>{
                     <span class="bool-val">false
                 </span>}
@@ -2500,7 +2506,9 @@
                 // If the instruction were to be hoisted out of a loop that never executes it could potentially cause the program to fail when it is not meant to fail.
                 </span><span class="kw">let </span>bounds = <span class="self">self</span>.current_induction_variables.values().next().copied();
                 <span class="kw">let </span>does_loop_body_execute = bounds
-                    .map(|(lower_bound, upper_bound)| !(upper_bound - lower_bound).is_zero())
+                    .and_then(|(lower_bound, upper_bound)| {
+                        upper_bound.reduce(lower_bound, |u, l| u &gt; l, |u, l| u &gt; l)
+                    })
                     .unwrap_or(<span class="bool-val">false</span>);
                 <span class="comment">// If we know the loop will be executed these instructions can still only be hoisted if the instructions
                 // are in a non control dependent block.
@@ -2665,13 +2673,13 @@
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>min_iter = <span class="self">self</span>.inserter.function.dfg.make_constant(<span class="kw-2">*</span>lower, NumericType::length_type());
-        <span class="macro">assert!</span>(<span class="kw-2">*</span>upper != FieldElement::zero(), <span class="string">"executing a non executable loop"</span>);
-        <span class="kw">let </span>max_iter = <span class="self">self
-            </span>.inserter
-            .function
-            .dfg
-            .make_constant(<span class="kw-2">*</span>upper - FieldElement::one(), NumericType::length_type());
+        <span class="macro">assert!</span>(!upper.is_zero(), <span class="string">"executing a non executable loop"</span>);
+
+        <span class="kw">let </span>(upper_field, upper_type) = upper.dec().into_numeric_constant();
+        <span class="kw">let </span>(lower_field, lower_type) = lower.into_numeric_constant();
+
+        <span class="kw">let </span>min_iter = <span class="self">self</span>.inserter.function.dfg.make_constant(lower_field, lower_type);
+        <span class="kw">let </span>max_iter = <span class="self">self</span>.inserter.function.dfg.make_constant(upper_field, upper_type);
         <span class="kw">if </span>(is_left &amp;&amp; <span class="self">self</span>.is_loop_invariant(rhs)) || (!is_left &amp;&amp; <span class="self">self</span>.is_loop_invariant(lhs)) {
             <span class="kw">return </span><span class="prelude-val">Some</span>((is_left, min_iter, max_iter));
         }
@@ -2725,9 +2733,9 @@
         lhs: <span class="kw-2">&amp;</span>ValueId,
         rhs: <span class="kw-2">&amp;</span>ValueId,
         only_outer_induction: bool,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;(bool, FieldElement, FieldElement, FieldElement)&gt; {
-        <span class="kw">let </span>lhs_const = <span class="self">self</span>.inserter.function.dfg.get_numeric_constant_with_type(<span class="kw-2">*</span>lhs);
-        <span class="kw">let </span>rhs_const = <span class="self">self</span>.inserter.function.dfg.get_numeric_constant_with_type(<span class="kw-2">*</span>rhs);
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(bool, IntegerConstant, IntegerConstant, IntegerConstant)&gt; {
+        <span class="kw">let </span>lhs_const = <span class="self">self</span>.inserter.function.dfg.get_integer_constant(<span class="kw-2">*</span>lhs);
+        <span class="kw">let </span>rhs_const = <span class="self">self</span>.inserter.function.dfg.get_integer_constant(<span class="kw-2">*</span>rhs);
         <span class="kw">match </span>(
             lhs_const,
             rhs_const,
@@ -2740,10 +2748,10 @@
                 .and_then(|v| <span class="kw">if </span>only_outer_induction { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(v) })
                 .or(<span class="self">self</span>.outer_induction_variables.get(rhs)),
         ) {
-            (<span class="prelude-val">Some</span>((lhs, <span class="kw">_</span>)), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>((lower_bound, upper_bound))) =&gt; {
+            (<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>((lower_bound, upper_bound))) =&gt; {
                 <span class="prelude-val">Some</span>((<span class="bool-val">false</span>, lhs, <span class="kw-2">*</span>lower_bound, <span class="kw-2">*</span>upper_bound))
             }
-            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>((rhs, <span class="kw">_</span>)), <span class="prelude-val">Some</span>((lower_bound, upper_bound)), <span class="prelude-val">None</span>) =&gt; {
+            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(rhs), <span class="prelude-val">Some</span>((lower_bound, upper_bound)), <span class="prelude-val">None</span>) =&gt; {
                 <span class="prelude-val">Some</span>((<span class="bool-val">true</span>, rhs, <span class="kw-2">*</span>lower_bound, <span class="kw-2">*</span>upper_bound))
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -2796,7 +2804,9 @@
             // of its inputs to check whether it will ever overflow.
             // If so, this will cause `eval_constant_binary_op` to return `None`.
             // Therefore a `Some` value shows that this operation is safe.
-            </span><span class="kw">if </span>eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
+            </span><span class="kw">let </span>lhs = lhs.into_numeric_constant().<span class="number">0</span>;
+            <span class="kw">let </span>rhs = rhs.into_numeric_constant().<span class="number">0</span>;
+            <span class="kw">if </span>eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
                 <span class="comment">// Unchecked version of the binary operation
                 </span><span class="kw">let </span>unchecked = Instruction::Binary(Binary {
                     operator: binary.operator.into_unchecked(),
@@ -2822,7 +2832,7 @@
                 <span class="bool-val">true </span><span class="kw">if </span>upper_bound &lt;= value =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
                 <span class="bool-val">true </span><span class="kw">if </span>lower_bound &gt;= value =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value),
                 <span class="bool-val">false </span><span class="kw">if </span>lower_bound &gt; value =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
-                <span class="bool-val">false </span><span class="kw">if </span>upper_bound &lt;= value + FieldElement::one() =&gt; {
+                <span class="bool-val">false </span><span class="kw">if </span>upper_bound &lt;= value.inc() =&gt; {
                     SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
                 }
                 <span class="kw">_ </span>=&gt; SimplifyResult::None,
@@ -2849,10 +2859,10 @@
                     <span class="kw">return </span><span class="bool-val">false</span>;
                 };
                 <span class="kw">if </span>left {
-                    <span class="kw">if </span>value != FieldElement::zero() {
+                    <span class="kw">if </span>!value.is_zero() {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
-                } <span class="kw">else if </span>lower != FieldElement::zero() {
+                } <span class="kw">else if </span>!lower.is_zero() {
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
 
