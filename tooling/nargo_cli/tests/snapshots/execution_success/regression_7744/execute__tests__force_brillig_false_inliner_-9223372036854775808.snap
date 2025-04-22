@@ -44,7 +44,23 @@ expression: artifact
     },
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/7VTUQ7CIAwFNqe7TTtgK39exSm7/wmMQ7qk8ctk5SXklUDKe6W1pmLc141ju6+O2Qg+4JjvzB7mEPIyZfT4gCmtFCHEdSYkjBRfE3mfKdCS1rRAwuAzbjH5DSo0c/UiF5wDSs9W2fNFTye01Dno6YyW+6xw8f/meBBxz/zPnaupPTs28m74jd+8cA5olf++he9SV6fs2ylozNsXT8U5b1bDsUHvdIq+j1mS/iU6cebEXuIDoRHFlUAGAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : 9",
+    "private parameters indices : [0]",
+    "public parameters indices : []",
+    "return value indices : [1, 2, 3]",
+    "BLACKBOX::RANGE [(_0, 1)] []",
+    "EXPR [ (-1, _0) (-1, _4) 1 ]",
+    "EXPR [ (-1, _5) 0 ]",
+    "EXPR [ (-1, _6) 5 ]",
+    "BLACKBOX::EMBEDDED_CURVE_ADD [(_5, 254), (_6, 254), (_4, 1), (_5, 254), (_6, 254), (_4, 1)] [_7, _8, _9]",
+    "EXPR [ (-1, _0, _7) (1, _1) 0 ]",
+    "EXPR [ (-1, _0, _8) (1, _2) (-5, _4) 0 ]",
+    "EXPR [ (-1, _0, _9) (1, _3) 0 ]",
+    "",
+    ""
+  ],
   "debug_symbols": "tZHLCsMgEEX/ZdYu8ob4K6UE4yMIouKjUMR/rwm1BLp2N2funbOZBIzv8dikFsYDfiRQhpIgjS6UoL9W3hJ9kg/EBcDDuiLgmgEexykjEFJxwHOX0V+179aulss8L796v+QngqGxf2zsn5r6C+xOKiWP7f6Vsn4RJ8mu+BdF1PSWhretSb23zlDOouOn6cqK/gM=",
   "file_map": {
     "16": {

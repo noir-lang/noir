@@ -42,7 +42,24 @@ expression: artifact
     },
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/7WSYQrDIAyFq66ru01itMZ/u8pk9v5HWEsjyOa/2Qch+omRJ09Np+xeD1mrvYz0um+Z6jDdYabDbh02d9i9eb9KS39KJ1i9L9EVJHyBS5kD+JBXRsbA4e2YqLDnmHKKkNBTwS0k2uCUambBf8Jl3Cy40rMe6NkO9FyzcWhp/NdsGTmfJRvf/3PcsdOvPiwHCgvgAgAA",
+  "bytecode": [
+    "func 0",
+    "current witness index : 8",
+    "private parameters indices : [0, 1, 2, 3, 4, 5, 6]",
+    "public parameters indices : []",
+    "return value indices : [7, 8]",
+    "BLACKBOX::RANGE [(_0, 1)] []",
+    "BLACKBOX::RANGE [(_1, 1)] []",
+    "BLACKBOX::RANGE [(_2, 1)] []",
+    "BLACKBOX::RANGE [(_3, 1)] []",
+    "BLACKBOX::RANGE [(_4, 1)] []",
+    "BLACKBOX::RANGE [(_5, 1)] []",
+    "BLACKBOX::RANGE [(_6, 1)] []",
+    "EXPR [ (-1, _1) (1, _7) 0 ]",
+    "EXPR [ (-1, _2) (1, _8) 0 ]",
+    "",
+    ""
+  ],
   "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
   "file_map": {},
   "names": [

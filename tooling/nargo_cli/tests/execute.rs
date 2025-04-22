@@ -1,8 +1,12 @@
 #[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
+    use acvm::FieldElement;
+    use acvm::acir::circuit::Program;
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
+    use base64::Engine;
+    use insta::internals::Content;
     use noirc_artifacts::program::ProgramArtifact;
     use predicates::prelude::*;
     use serde::Deserialize;
@@ -336,6 +340,15 @@ mod tests {
             insta::assert_json_snapshot!(snapshot_name, artifact, {
                 ".noir_version" => "[noir_version]",
                 ".hash" => "[hash]",
+                ".bytecode" => insta::dynamic_redaction(|value, _path| {
+                    // assert that the value looks like a uuid here
+                    let bytecode_b64 = value.as_str().unwrap();
+                    let bytecode = base64::engine::general_purpose::STANDARD
+                        .decode(bytecode_b64)
+                        .unwrap();
+                    let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
+                    Content::Seq(program.to_string().split("\n").map(Content::from).collect::<Vec<Content>>())
+                }),
                 ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
                     // Some paths are absolute: clear those out.
                     let value = value.as_str().expect("Expected a string value in a path entry");

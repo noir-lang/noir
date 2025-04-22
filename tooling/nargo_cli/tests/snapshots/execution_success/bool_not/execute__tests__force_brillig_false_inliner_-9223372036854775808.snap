@@ -20,7 +20,16 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/6WOQQqAMAwELfigpEnazc2vWEz//wQRKgqiF+eysIdh0nSRpifnt4ylf/DdJVRUo+Zg4ZWyNxiptQIGG2zLEAkoqjev5KwS3M2lD9nRNn+0v7EDo/0phPQAAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : 0",
+    "private parameters indices : [0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "EXPR [ (1, _0) -1 ]",
+    "",
+    ""
+  ],
   "debug_symbols": "TYxLCoQwEAXv0msXMoMw5CrDIPl0pCF0QicZkODdjaLgsl7xqoFDU5eZ2McM6tsgRKsLRe7UYDynnDQflIuWAur1GQDZgXpP2wCeAoKaxu3XwQiFQMv8jPT5r4W0CXihr2wftqzpNvc/SbToquBROl3P7w==",
   "file_map": {
     "50": {

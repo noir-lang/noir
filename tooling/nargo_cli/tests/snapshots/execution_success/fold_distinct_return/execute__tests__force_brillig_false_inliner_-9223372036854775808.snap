@@ -34,7 +34,35 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9WUXwrCMAzG2+4PXsAH3zxCsrZb+6YPHsRh9+6pvIvn8CBurIVQ5xBaBT8IgbSELz9CBJtV+ZjExyh8nrSPatzXqMLfg88SWqVc1ziUeIbG9kaD0n1r0KA2+tIYKZ1RprO97cCikg4HbeUAswTpBWmSFfFP/QpSm3LpGfBotlxGcA0YpAmLDPDdMMkZ7mGwCAZfqAXVY2zI+ycLRGuCvS6V+AL/VEZhQetsvlBRDvUPOOTYlfwcANZmTvXJM/Ir/2TmjEcUq4wz0/uydJRZ9PbuOIce28dxd73fTizSE8FNoSjdBgAA",
+  "bytecode": [
+    "func 0",
+    "current witness index : 5",
+    "private parameters indices : [0]",
+    "public parameters indices : [1]",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "EXPR [ (-1, _2) 3 ]",
+    "CALL func 1: PREDICATE = EXPR [ 1 ]",
+    "inputs: [Witness(0), Witness(1), Witness(2)], outputs: [Witness(3), Witness(4), Witness(5)]",
+    "EXPR [ (1, _3) -25 ]",
+    "",
+    "func 1",
+    "current witness index : 6",
+    "private parameters indices : [0, 1, 2]",
+    "public parameters indices : []",
+    "return value indices : [3, 4, 5]",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "BLACKBOX::RANGE [(_2, 32)] []",
+    "EXPR [ (1, _0) (-1, _6) 20 ]",
+    "BLACKBOX::RANGE [(_6, 32)] []",
+    "EXPR [ (1, _3) (-1, _6) 0 ]",
+    "EXPR [ (-1, _1) (1, _4) 0 ]",
+    "EXPR [ (-1, _2) (1, _5) 0 ]",
+    "",
+    ""
+  ],
   "debug_symbols": "tY9LCsMgFEX38sYOkvRHspUSgokaBFHxUyji3qvBQFpSaAcZ3s973BOA0NHPA5dMWejuAYSasONKJhWgWSyrsczKOmwcdJcKAZUEulsbETAuaPZij+D0X/28V2+bUq/r6q2fxGi4EHwethuT/cCG41HQIpmX0yZ1T70m6702aqLEG5o/LVlEH+S7KHV7LeOa6ieY7wfH0vTxBQ==",
   "file_map": {
     "50": {

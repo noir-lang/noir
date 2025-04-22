@@ -30,7 +30,18 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VUsRKCMAxNBdTq6aCDi266V0VhZNAP6cnxHXy61zPREMoi7bvjWkh57yVNq+ADhY9DiuME+qA1FY5mHM4BuUxMnyqSz69RPlcwXPgTjhq6m+TiScCEtcdTKP7S5HftyS+g/6tmnBH4L8SfxuE3M+R5tF1+ELor6B5e/g/F+EF+YmyOcZqvca4FX4x9555C123r8U9aS8x1J3KN1CP5SuwVB8Uypq1EbOrJwXc3JOKd5+TyPTBeuY6whN+dkrZdngq/mxEoSmNIL0H+DPreuX4m1u/xfSH8U42rP302hT03V9vYm63r/GU3gt9hqId4ncjzUP/5zhZAuN5XQi/1+OP6mVh/FD5j3W2yvlzL1fcNxRwFc5UIAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : 1",
+    "private parameters indices : [0]",
+    "public parameters indices : [1]",
+    "return value indices : []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 })], outputs: []",
+    "",
+    "unconstrained func 0",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32838 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 13 }, Call { location: 14 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, Return, Call { location: 23 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 4 }, Mov { destination: Relative(4), source: Direct(0) }, Mov { destination: Relative(5), source: Relative(1) }, Mov { destination: Relative(6), source: Relative(2) }, BinaryIntOp { destination: Direct(0), op: Add, bit_size: U32, lhs: Direct(0), rhs: Relative(3) }, Call { location: 29 }, Mov { destination: Direct(0), source: Relative(0) }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 28 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return, Call { location: 23 }, BinaryFieldOp { destination: Relative(3), op: Equals, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(1), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(2), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(1) }, JumpIf { condition: Relative(2), location: 36 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(4) } }, Return]",
+    ""
+  ],
   "debug_symbols": "lZLBCoQgFEX/5a1dpI5N068MQ1i9QhANs4Eh+vfRoYXEbN5GvHLOXcjdYcR+mzvjJr9C+9zB+kFH411K+8GgD8ZaM3flM1T54OrHr4t2Oa5RhwitbBigG6FVKtmTsZiu1fFiwGsifyfyDZF/0HhREXlO4+Xffi7qU+BSXA1ONgTZkGTjRjYUzThSeutgdG/xnOm0uaFYbfwseBnwEvyA4xYwT7lYcf51IZloUm2q/gI=",
   "file_map": {
     "50": {

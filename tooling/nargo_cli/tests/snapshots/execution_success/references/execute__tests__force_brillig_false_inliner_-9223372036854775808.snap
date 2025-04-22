@@ -18,7 +18,24 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/9VVWw6DIBAEtLH9rt6D5aHw51VqxPsfoTWyCUHSH5eknYQsYckwOyyBswPtZ3TJfAdnZ+DaHKO8Bki5tByNCZMKoOEllV+clcYuowMH1tlVOa2DM27yi5+kB6MDbNbrsB3gBZ1VBO+cIuOlEE+lURDo2iJZLQ9Fgfeqh4JOo2R/0vSpTqqexLun7KOG0b9B6lrFj3vY0nmoavT1fsctOS8YCg+P9xJWzr5/cDlwzyOLQ5Kn7G3k7+vwy65Q45DM+6xOkeRmIg3I18R4Y2eILId775k+Tq8Pci1N4SzEM8Y+WUM/31AMwH5dCQAA",
+  "bytecode": [
+    "func 0",
+    "current witness index : 4",
+    "private parameters indices : [0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: -2 })], outputs: [Simple(Witness(1))]",
+    "EXPR [ (1, _0, _1) (-2, _1) (1, _2) -1 ]",
+    "EXPR [ (1, _0, _2) (-2, _2) 0 ]",
+    "EXPR [ (1, _0) -2 ]",
+    "EXPR [ (-1, _2) (-1, _3) 1 ]",
+    "EXPR [ (-1, _2, _2) (-1, _2) (-1, _4) 2 ]",
+    "EXPR [ (1, _3, _4) (20, _2) -20 ]",
+    "",
+    "unconstrained func 0",
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
+    ""
+  ],
   "debug_symbols": "zZLNCoMwEITfZc85rCYR9FVKkahRAiGRGAtFfPdGicX+UBB68Laz+80wh52gkdXYlcq0doDiMoG2tfDKmqAmwHU19MIsavDCeSg4JSBNE4Z8JtAqLcOI85VAcgxPj+H0GM6+4QmmGA0JsmxvIR8wQ8wjzJDib5jynEU4jNlbGX6mMtkfyjD6LMPZS34QlVNaq67c/1JY34RTotIyynY09e7q7/122fy9s7VsRieXpPUW4h8=",
   "file_map": {
     "50": {

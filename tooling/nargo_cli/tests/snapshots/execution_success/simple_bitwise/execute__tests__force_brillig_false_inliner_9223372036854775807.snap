@@ -55,7 +55,33 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/81WXW7CMAxO2gKlP9M0aQ+7hdMkNHnbHnaQVUveORV34RwchEJTYSqKkOoiPslyaluf4i9uG846lK19hDVvLQ6+f8YxfiMWtZYOYjGK8ZG603qBcmM1S3aNKPjv4CVslHJ15YQUf1DZxmhQutkYYYQ2+r8yUjqjTG0bW4MVSjrhtZUeOkSEXCvEBZPg/Zw9x4RcKWHPeF5WaBbSYGt2mUsKPZzvwNDMMbJ+oKLk4oRnltHtC/B7n4VzwiDWVCwIuTJCTfOZNM2foOmSkCsn1LSYSdPiAU2n7n1NqGlBuK+S0X6ve03LG5oO/1swDSJ5SR262UoCV4L67+808SDW1+HaLPjPw8/Xdr/7RanzvI7l3u7k3u/kTjgCP8b3ZAQKAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : 13",
+    "private parameters indices : [0, 1, 2, 3]",
+    "public parameters indices : []",
+    "return value indices : [4]",
+    "BLACKBOX::RANGE [(_0, 1)] []",
+    "BLACKBOX::RANGE [(_1, 1)] []",
+    "BLACKBOX::RANGE [(_2, 8)] []",
+    "BLACKBOX::RANGE [(_3, 8)] []",
+    "BLACKBOX::AND [(_2, 8), (_3, 8)] [_5]",
+    "BLACKBOX::XOR [(_2, 8), (_3, 8)] [_6]",
+    "EXPR [ (-1, _2) (-1, _7) 255 ]",
+    "EXPR [ (-1, _3) (-1, _8) 255 ]",
+    "BLACKBOX::AND [(_7, 8), (_8, 8)] [_9]",
+    "EXPR [ (-2, _0, _1) (2, _0) (2, _1) (-1, _10) 0 ]",
+    "BLACKBOX::RANGE [(_10, 8)] []",
+    "EXPR [ (1, _5) (1, _10) (-1, _11) 0 ]",
+    "BLACKBOX::RANGE [(_11, 8)] []",
+    "EXPR [ (1, _6) (1, _11) (-1, _12) 0 ]",
+    "BLACKBOX::RANGE [(_12, 8)] []",
+    "EXPR [ (-1, _9) (1, _12) (-1, _13) 255 ]",
+    "BLACKBOX::RANGE [(_13, 8)] []",
+    "EXPR [ (1, _4) (-1, _13) 0 ]",
+    "",
+    ""
+  ],
   "debug_symbols": "ldJRCoQgFAXQvbzvPrTUprYyDGFlIYiG2cAQ7X0sEkKC8M/7LueB6Aq9aJexkXowM9TvFZTpuJNG+7QCOUbzxPWeZsetgxrnOAOh+/3EtgwGqQTUFG2fDOgtICgAQiPAbgGtAmAkAmUqeKWC6haU4Q45KiKAUbLAT6KMRZ4sigeBcSxIsqBPIn5vzNKED62VSsmxuf5MP/5yK3mrxBmHRXeX1v2m0AQ/WdOJfrFi33R0fv0f",
   "file_map": {
     "50": {

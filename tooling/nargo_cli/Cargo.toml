@@ -102,6 +102,7 @@ test-case.workspace = true
 lazy_static.workspace = true
 light-poseidon = "0.3.0"
 insta = { workspace = true, features = ["json", "redactions"] }
+base64.workspace = true
 
 [[bench]]
 name = "criterion"

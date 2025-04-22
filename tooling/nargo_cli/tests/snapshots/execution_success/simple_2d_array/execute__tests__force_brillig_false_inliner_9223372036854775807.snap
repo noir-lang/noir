@@ -40,7 +40,19 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/7WTUQrDMAiGk7bZeTRqo2+7ysLS+x9hK81gbA99qPlAfBDk+0FjOEjvWsI/U+/33glW5lZyQ8IHZKsqwFJXRUVReWYlasparFoBQ6aGmxhtcPC9C66Bk98uGJk5OmaeB2WOzpkXP08a6ZkcPXe3zw/dfpz3m5r7PIVzXmosormYAwAA",
+  "bytecode": [
+    "func 0",
+    "current witness index : 5",
+    "private parameters indices : [0, 1, 2, 3, 4, 5]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "EXPR [ (-1, _0) (1, _2) 0 ]",
+    "EXPR [ (-1, _1) (1, _3) 0 ]",
+    "EXPR [ (-1, _4) 3 ]",
+    "EXPR [ (-1, _5) 3 ]",
+    "",
+    ""
+  ],
   "debug_symbols": "lY9LCoMwFEX38sYOTFJbcCulSL4SCEnIp1CCe28UAyJOnL1zL+fCKyAky/OkrXIRxncB4zhN2tlKBfotip7alWKiIcGI0KMDaUW9yHPpQGkjYRz65dMBuhSGvgkvfBLwlYAJ2gU8kJNA7gkVWNDG6Hk6flbjLw2aMiN3VNnyQ5t+vjXN98FxKXKQ69LW1fk/",
   "file_map": {
     "50": {
