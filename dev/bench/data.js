@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745315206341,
+  "lastUpdate": 1745315469613,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f88cb08a050c6d25ba4575dce82a13ae11fda0e1",
-          "message": "feat: `ssa::create_program_with_passes` (#8035)",
-          "timestamp": "2025-04-11T22:22:30Z",
-          "tree_id": "f3582816ce945ebd2456f2c3ee559897d3adb270",
-          "url": "https://github.com/noir-lang/noir/commit/f88cb08a050c6d25ba4575dce82a13ae11fda0e1"
-        },
-        "date": 1744411396464,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.673,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.459,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.242,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.73,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.98,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.867,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 134,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 130,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.867,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.424,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.372,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "saleel@saleel.xyz",
+            "name": "saleel",
+            "username": "saleel"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5ccc85c42e5ec0864eb1ba5aab6e53930d46dff7",
+          "message": "chore: bump glob package (#8159)",
+          "timestamp": "2025-04-22T09:27:09Z",
+          "tree_id": "37372cd9be1b335ad14eb3a616384a91bd70212e",
+          "url": "https://github.com/noir-lang/noir/commit/5ccc85c42e5ec0864eb1ba5aab6e53930d46dff7"
+        },
+        "date": 1745315462810,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.693,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.4,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.478,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.214,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.828,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.881,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 117,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.851,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.388,
             "unit": "s"
           }
         ]
