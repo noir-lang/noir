@@ -1,0 +1,6 @@
+[package]
+name = "i1_invalid_div_by_neg_one"
+type = "bin"
+authors = [""]
+
+[dependencies]

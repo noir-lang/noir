@@ -1029,6 +1029,30 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let zero = self.add_constant(F::zero());
         let one = self.add_constant(F::one());
 
+        // When dividing the twos complement lhs and rhs, we subtract one from the bit size
+        // to accurately represent the unsigned values we are dividing.
+        // We then internally constrain `q < 2^{max_q_bits}` during euclidean division.
+        // If we do not special case for binary types of one bit, we will range constrain the resulting
+        // quotient to be zero bits, which will cause inadvertent failures.
+        // We could theoretically still use this algorithm as is by incrementing the bit size by one,
+        // but the special case is very simple and then we don't mix the degenerate type
+        // into our general signed division algorithm.
+        //
+        // We know that a signed integer of bit size one can only be -1 or 0
+        // Thus, we know the only valid signed division can be 0 / -1.
+        // 0 / -1, valid as the quotient is 0
+        // -1 / -1, invalid as the quotient is 1, which cannot be represented in an i1
+        // All divisions by zero are invalid
+        if bit_size == 1 {
+            let lhs_is_zero = self.eq_var(lhs, zero)?;
+            // The value is represented internally as one with its sign stored separately
+            // As we are within signed division we can just check whether we have one here.
+            let rhs_is_one = self.eq_var(rhs, one)?;
+            let both_true = self.and_var(lhs_is_zero, rhs_is_one, AcirType::unsigned(1))?;
+            self.assert_neq_var(both_true, zero, predicate, None)?;
+            return Ok((zero, zero));
+        };
+
         // Get the sign bit of rhs by computing rhs / max_power_of_two
         let (rhs_leading, _) = self.euclidean_division_var(rhs, max_power_of_two, bit_size, one)?;
 
@@ -1080,7 +1104,50 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         let (_, remainder_var) = match numeric_type {
             NumericType::Signed { bit_size } => {
-                self.signed_division_var(lhs, rhs, bit_size, predicate)?
+                // When dividing the twos complement lhs and rhs, we subtract one from the bit size
+                // to accurately represent the unsigned values we are dividing.
+                // We then internally constrain `q < 2^{max_q_bits}` during euclidean division.
+                // If we do not special case for binary types of one bit, we will range constrain the resulting
+                // quotient to be zero bits, which will cause inadvertent failures.
+                // We could theoretically still use `signed_division_var` here by incrementing the bit size by one,
+                // but the special case is very simple and then we don't mix the degenerate type
+                // into our general signed division algorithm.
+                //
+                // We know that a signed integer of bit size one can only be -1 or 0
+                // Thus, we know the only valid signed modulo can be 0 % -1 or -1 % -1
+                // 0 / -1, valid as the remainder is 0
+                // -1 / -1, valid as the remainder is 0
+                // All divisions by zero are invalid
+                if bit_size == 1 {
+                    // We only need to check that the rhs is not zero.
+                    // Otherwise the only valid result is zero.
+                    let zero = self.add_constant(F::zero());
+                    let rhs_is_zero = self.eq_var(rhs, zero)?;
+                    let rhs_is_zero_and_predicate_active = self.mul_var(rhs_is_zero, predicate)?;
+                    self.assert_eq_var(rhs_is_zero_and_predicate_active, zero, None)?;
+
+                    (zero, zero)
+                } else {
+                    self.signed_division_var(lhs, rhs, bit_size, predicate)?
+                }
+
+                // For a one bit modulo operation we do in fact know that the max bit size will always be one.
+                // let bit_size = if bit_size == 1 { bit_size + 1 } else { bit_size };
+                // self.signed_division_var(lhs, rhs, bit_size, predicate)?
+
+                // let zero = self.add_constant(F::zero());
+                // let one = self.add_constant(F::one());
+                // if bit_size == 1 {
+                //     let neg_one = self.neg_var(one);
+                //     let rhs_is_neg_one = self.eq_var(neg_one, rhs)?;
+                //     let lhs_is_zero = self.eq_var(lhs, zero)?;
+                //     let lhs_is_neg_one = self.eq_var(lhs, neg_one)?;
+                //     let lhs_is_valid =
+                //     self.assert_eq_var(lhs_is_zero, rhs_is_neg_one, None)?;
+                //     return Ok((zero, zero));
+                // } else {
+                //     self.signed_division_var(lhs, rhs, bit_size, predicate)?
+                // }
             }
             _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
         };

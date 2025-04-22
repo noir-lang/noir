@@ -1,0 +1,6 @@
+[package]
+name = "i1_div_and_mod"
+type = "bin"
+authors = [""]
+
+[dependencies]
