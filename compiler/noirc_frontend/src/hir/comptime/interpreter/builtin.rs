@@ -2795,7 +2795,7 @@ fn module_add_item(
         let mut generated_items = CollectedItems::default();
 
         for top_level_statement in top_level_statements {
-            elaborator.add_item(top_level_statement, &mut generated_items, location);
+            elaborator.add_item(top_level_statement, &mut generated_items);
         }
 
         if !generated_items.is_empty() {

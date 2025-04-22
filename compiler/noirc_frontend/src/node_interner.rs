@@ -3,7 +3,6 @@ use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
 
-use fm::FileId;
 use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
@@ -791,16 +790,14 @@ impl NodeInterner {
     pub fn new_type(
         &mut self,
         name: Ident,
-        span: Span,
+        location: Location,
         attributes: Vec<SecondaryAttribute>,
         generics: Generics,
         krate: CrateId,
         local_id: LocalModuleId,
-        file_id: FileId,
     ) -> TypeId {
         let type_id = TypeId(ModuleId { krate, local_id });
 
-        let location = Location::new(span, file_id);
         let new_type = DataType::new(type_id, name, location, generics);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
@@ -891,13 +888,12 @@ impl NodeInterner {
         local_id: LocalModuleId,
         crate_id: CrateId,
         let_statement: StmtId,
-        file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
         comptime: bool,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
-        let location = Location::new(ident.span(), file);
+        let location = ident.location();
         let name = ident.to_string();
 
         let definition_id =
@@ -928,7 +924,6 @@ impl NodeInterner {
         name: Ident,
         local_id: LocalModuleId,
         crate_id: CrateId,
-        file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
         comptime: bool,
@@ -936,8 +931,8 @@ impl NodeInterner {
         let statement = self.push_stmt(HirStatement::Error);
         let location = name.location();
 
-        let id = self
-            .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
+        let id =
+            self.push_global(name, local_id, crate_id, statement, attributes, mutable, comptime);
         self.push_stmt_location(statement, location);
         id
     }

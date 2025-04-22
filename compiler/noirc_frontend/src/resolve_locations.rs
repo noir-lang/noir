@@ -187,7 +187,8 @@ impl NodeInterner {
             .iter()
             .find(|shared_trait_impl| {
                 let trait_impl = shared_trait_impl.1.borrow();
-                trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
+                trait_impl.ident.location().file == location.file
+                    && trait_impl.ident.span().contains(&location.span)
             })
             .and_then(|shared_trait_impl| {
                 let trait_impl = shared_trait_impl.1.borrow();

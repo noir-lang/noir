@@ -1566,7 +1566,6 @@ impl<'context> Elaborator<'context> {
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
-                file: trait_impl.file_id,
                 where_clause,
                 methods,
             });

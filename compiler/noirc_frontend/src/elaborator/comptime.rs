@@ -359,17 +359,12 @@ impl<'context> Elaborator<'context> {
     ) {
         self.with_elaborate_reason(ElaborateReason::RunningAttribute(location), |elaborator| {
             for item in items {
-                elaborator.add_item(item, generated_items, location);
+                elaborator.add_item(item, generated_items);
             }
         });
     }
 
-    pub(crate) fn add_item(
-        &mut self,
-        item: Item,
-        generated_items: &mut CollectedItems,
-        location: Location,
-    ) {
+    pub(crate) fn add_item(&mut self, item: Item, generated_items: &mut CollectedItems) {
         match item.kind {
             ItemKind::Function(function) => {
                 let module_id = self.module_id();
@@ -385,7 +380,6 @@ impl<'context> Elaborator<'context> {
                 ) {
                     let functions = vec![(self.local_module, id, function)];
                     generated_items.functions.push(UnresolvedFunctions {
-                        file_id: location.file,
                         functions,
                         trait_id: None,
                         self_type: None,
@@ -398,12 +392,10 @@ impl<'context> Elaborator<'context> {
                         self.interner,
                         &mut trait_impl,
                         self.crate_id,
-                        location.file,
                         self.local_module,
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
-                    file_id: location.file,
                     module_id: self.local_module,
                     r#trait: trait_impl.r#trait,
                     object_type: trait_impl.object_type,
@@ -428,7 +420,6 @@ impl<'context> Elaborator<'context> {
                     self.usage_tracker,
                     Documented::new(global, item.doc_comments),
                     visibility,
-                    location.file,
                     self.local_module,
                     self.crate_id,
                 );
@@ -457,7 +448,6 @@ impl<'context> Elaborator<'context> {
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     self.usage_tracker,
                     Documented::new(enum_def, item.doc_comments),
-                    location.file,
                     self.local_module,
                     self.crate_id,
                     &mut self.errors,
@@ -471,7 +461,6 @@ impl<'context> Elaborator<'context> {
                     self.interner,
                     generated_items,
                     r#impl,
-                    location.file,
                     module,
                     &mut self.errors,
                 );

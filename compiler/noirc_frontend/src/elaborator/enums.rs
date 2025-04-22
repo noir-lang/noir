@@ -160,7 +160,6 @@ impl Elaborator<'_> {
             name.clone(),
             type_id.local_module_id(),
             type_id.krate(),
-            name.location().file,
             Vec::new(),
             false,
             false,

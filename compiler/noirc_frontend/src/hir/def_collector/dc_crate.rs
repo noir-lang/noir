@@ -42,7 +42,6 @@ use std::vec;
 /// Stores all of the unresolved functions in a particular file/mod
 #[derive(Clone)]
 pub struct UnresolvedFunctions {
-    pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
     pub trait_id: Option<TraitId>,
 
@@ -61,20 +60,17 @@ impl UnresolvedFunctions {
 }
 
 pub struct UnresolvedStruct {
-    pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub struct_def: NoirStruct,
 }
 
 pub struct UnresolvedEnum {
-    pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub enum_def: NoirEnumeration,
 }
 
 #[derive(Clone)]
 pub struct UnresolvedTrait {
-    pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub crate_id: CrateId,
     pub trait_def: NoirTrait,
@@ -83,7 +79,6 @@ pub struct UnresolvedTrait {
 }
 
 pub struct UnresolvedTraitImpl {
-    pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub r#trait: UnresolvedType,
     pub object_type: UnresolvedType,
@@ -107,14 +102,12 @@ pub struct UnresolvedTraitImpl {
 
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
-    pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub type_alias_def: NoirTypeAlias,
 }
 
 #[derive(Debug, Clone)]
 pub struct UnresolvedGlobal {
-    pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub global_id: GlobalId,
     pub stmt_def: LetStatement,

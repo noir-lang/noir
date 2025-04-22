@@ -44,7 +44,6 @@ use crate::hir::resolution::import::ImportDirective;
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
     pub(crate) def_collector: &'a mut DefCollector,
-    pub(crate) file_id: FileId,
     pub(crate) module_id: LocalModuleId,
 }
 
@@ -59,7 +58,7 @@ pub fn collect_defs(
     crate_id: CrateId,
     context: &mut Context,
 ) -> Vec<CompilationError> {
-    let mut collector = ModCollector { def_collector, file_id, module_id };
+    let mut collector = ModCollector { def_collector, module_id };
     let mut errors: Vec<CompilationError> = vec![];
 
     // First resolve the module declarations
@@ -152,7 +151,6 @@ impl ModCollector<'_> {
                 &mut context.usage_tracker,
                 global,
                 visibility,
-                self.file_id,
                 self.module_id,
                 crate_id,
             );
@@ -182,7 +180,6 @@ impl ModCollector<'_> {
                 &mut context.def_interner,
                 &mut self.def_collector.items,
                 r#impl,
-                self.file_id,
                 module_id,
                 &mut errors,
             );
@@ -210,7 +207,6 @@ impl ModCollector<'_> {
                     &mut context.def_interner,
                     &mut trait_impl,
                     krate,
-                    self.file_id,
                     self.module_id,
                 );
 
@@ -236,7 +232,6 @@ impl ModCollector<'_> {
             }
 
             let unresolved_trait_impl = UnresolvedTraitImpl {
-                file_id: self.file_id,
                 module_id: self.module_id,
                 r#trait: trait_impl.r#trait,
                 methods: unresolved_functions,
@@ -266,12 +261,8 @@ impl ModCollector<'_> {
         functions: Vec<Documented<NoirFunction>>,
         krate: CrateId,
     ) -> Vec<CompilationError> {
-        let mut unresolved_functions = UnresolvedFunctions {
-            file_id: self.file_id,
-            functions: Vec::new(),
-            trait_id: None,
-            self_type: None,
-        };
+        let mut unresolved_functions =
+            UnresolvedFunctions { functions: Vec::new(), trait_id: None, self_type: None };
         let mut errors = vec![];
 
         let module = ModuleId { krate, local_id: self.module_id };
@@ -350,7 +341,6 @@ impl ModCollector<'_> {
                 &mut self.def_collector.def_map,
                 &mut context.usage_tracker,
                 enum_definition,
-                self.file_id,
                 self.module_id,
                 krate,
                 &mut definition_errors,
@@ -374,15 +364,12 @@ impl ModCollector<'_> {
             let doc_comments = type_alias.doc_comments;
             let type_alias = type_alias.item;
             let name = type_alias.name.clone();
-            let location = Location::new(name.span(), self.file_id);
+            let location = name.location();
             let visibility = type_alias.visibility;
 
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
-            let unresolved = UnresolvedTypeAlias {
-                file_id: self.file_id,
-                module_id: self.module_id,
-                type_alias_def: type_alias,
-            };
+            let unresolved =
+                UnresolvedTypeAlias { module_id: self.module_id, type_alias_def: type_alias };
 
             let resolved_generics = Context::resolve_generics(
                 &context.def_interner,
@@ -502,12 +489,8 @@ impl ModCollector<'_> {
             }
 
             // Add all functions that have a default implementation in the trait
-            let mut unresolved_functions = UnresolvedFunctions {
-                file_id: self.file_id,
-                functions: Vec::new(),
-                trait_id: None,
-                self_type: None,
-            };
+            let mut unresolved_functions =
+                UnresolvedFunctions { functions: Vec::new(), trait_id: None, self_type: None };
 
             let mut method_ids = HashMap::default();
             let mut associated_types = Generics::new();
@@ -536,7 +519,7 @@ impl ModCollector<'_> {
                             method_ids.insert(name.to_string(), func_id);
                         }
 
-                        let location = Location::new(name.span(), self.file_id);
+                        let location = name.location();
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: trait_definition.visibility,
@@ -604,7 +587,6 @@ impl ModCollector<'_> {
                             name.clone(),
                             trait_id.0.local_id,
                             krate,
-                            self.file_id,
                             vec![],
                             false,
                             false,
@@ -667,7 +649,6 @@ impl ModCollector<'_> {
             );
 
             let unresolved = UnresolvedTrait {
-                file_id: self.file_id,
                 module_id: self.module_id,
                 crate_id: krate,
                 trait_def: trait_definition,
@@ -772,10 +753,10 @@ impl ModCollector<'_> {
     ) -> Vec<CompilationError> {
         let mut doc_comments = mod_decl.doc_comments;
         let mod_decl = mod_decl.item;
+        let file = mod_decl.ident.location().file;
 
         let mut errors: Vec<CompilationError> = vec![];
-        let child_file_id = match find_module(&context.file_manager, self.file_id, &mod_decl.ident)
-        {
+        let child_file_id = match find_module(&context.file_manager, file, &mod_decl.ident) {
             Ok(child_file_id) => child_file_id,
             Err(err) => {
                 errors.push(err.into());
@@ -783,7 +764,7 @@ impl ModCollector<'_> {
             }
         };
 
-        let location = Location { file: self.file_id, span: mod_decl.ident.span() };
+        let location = mod_decl.ident.location();
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
@@ -1065,19 +1046,18 @@ pub fn collect_struct(
 ) -> Option<(TypeId, UnresolvedStruct)> {
     let doc_comments = struct_definition.doc_comments;
     let struct_definition = struct_definition.item;
-    let file_id = struct_definition.location.file;
 
     check_duplicate_field_names(&struct_definition, definition_errors);
 
     let name = struct_definition.name.clone();
 
-    let unresolved = UnresolvedStruct { file_id, module_id, struct_def: struct_definition };
+    let unresolved = UnresolvedStruct { module_id, struct_def: struct_definition };
 
     let resolved_generics =
         Context::resolve_generics(interner, &unresolved.struct_def.generics, definition_errors);
 
     // Create the corresponding module for the struct namespace
-    let location = Location::new(name.span(), file_id);
+    let location = name.location();
     let id = match push_child_module(
         interner,
         def_map,
@@ -1093,10 +1073,10 @@ pub fn collect_struct(
     ) {
         Ok(module_id) => {
             let name = unresolved.struct_def.name.clone();
-            let span = unresolved.struct_def.location.span;
+            let location = unresolved.struct_def.location;
             let attributes = unresolved.struct_def.attributes.clone();
             let local_id = module_id.local_id;
-            interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
+            interner.new_type(name, location, attributes, resolved_generics, krate, local_id)
         }
         Err(error) => {
             definition_errors.push(error.into());
@@ -1153,7 +1133,6 @@ pub fn collect_enum(
     def_map: &mut CrateDefMap,
     usage_tracker: &mut UsageTracker,
     enum_def: Documented<NoirEnumeration>,
-    file_id: FileId,
     module_id: LocalModuleId,
     krate: CrateId,
     definition_errors: &mut Vec<CompilationError>,
@@ -1165,13 +1144,13 @@ pub fn collect_enum(
 
     let name = enum_def.name.clone();
 
-    let unresolved = UnresolvedEnum { file_id, module_id, enum_def };
+    let unresolved = UnresolvedEnum { module_id, enum_def };
 
     let resolved_generics =
         Context::resolve_generics(interner, &unresolved.enum_def.generics, definition_errors);
 
     // Create the corresponding module for the enum namespace
-    let location = Location::new(name.span(), file_id);
+    let location = name.location();
     let id = match push_child_module(
         interner,
         def_map,
@@ -1187,10 +1166,10 @@ pub fn collect_enum(
     ) {
         Ok(module_id) => {
             let name = unresolved.enum_def.name.clone();
-            let span = unresolved.enum_def.location.span;
+            let location = unresolved.enum_def.location;
             let attributes = unresolved.enum_def.attributes.clone();
             let local_id = module_id.local_id;
-            interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
+            interner.new_type(name, location, attributes, resolved_generics, krate, local_id)
         }
         Err(error) => {
             definition_errors.push(error.into());
@@ -1245,12 +1224,11 @@ pub fn collect_impl(
     interner: &mut NodeInterner,
     items: &mut CollectedItems,
     r#impl: TypeImpl,
-    file_id: FileId,
     module_id: ModuleId,
     errors: &mut Vec<CompilationError>,
 ) {
     let mut unresolved_functions =
-        UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+        UnresolvedFunctions { functions: Vec::new(), trait_id: None, self_type: None };
 
     for (method, _) in r#impl.methods {
         let doc_comments = method.doc_comments;
@@ -1273,7 +1251,7 @@ pub fn collect_impl(
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
         desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
-        let location = Location::new(method.span(), file_id);
+        let location = method.location();
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
         interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
@@ -1374,11 +1352,10 @@ pub(crate) fn collect_trait_impl_items(
     interner: &mut NodeInterner,
     trait_impl: &mut NoirTraitImpl,
     krate: CrateId,
-    file_id: FileId,
     local_id: LocalModuleId,
 ) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     let mut unresolved_functions =
-        UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+        UnresolvedFunctions { functions: Vec::new(), trait_id: None, self_type: None };
 
     let mut associated_types = Vec::new();
     let mut associated_constants = Vec::new();
@@ -1394,7 +1371,7 @@ pub(crate) fn collect_trait_impl_items(
                 impl_method.def.visibility = ItemVisibility::Private;
 
                 let func_id = interner.push_empty_fn();
-                let location = Location::new(impl_method.span(), file_id);
+                let location = impl_method.location();
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
                 desugar_generic_trait_bounds(
@@ -1422,7 +1399,6 @@ pub(crate) fn collect_global(
     usage_tracker: &mut UsageTracker,
     global: Documented<LetStatement>,
     visibility: ItemVisibility,
-    file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
 ) -> (UnresolvedGlobal, Option<CompilationError>) {
@@ -1436,7 +1412,6 @@ pub(crate) fn collect_global(
         name.clone(),
         module_id,
         crate_id,
-        file_id,
         global.attributes.clone(),
         matches!(global.pattern, Pattern::Mutable { .. }),
         global.comptime,
@@ -1464,7 +1439,7 @@ pub(crate) fn collect_global(
 
     interner.set_doc_comments(ReferenceId::Global(global_id), doc_comments);
 
-    let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global, visibility };
+    let global = UnresolvedGlobal { module_id, global_id, stmt_def: global, visibility };
     (global, error)
 }
 

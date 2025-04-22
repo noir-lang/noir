@@ -184,7 +184,7 @@ impl Elaborator<'_> {
                     functions.push(TraitFunction {
                         name: name.clone(),
                         typ: Type::Forall(generics, Box::new(function_type)),
-                        location: Location::new(name.span(), unresolved_trait.file_id),
+                        location: name.location(),
                         default_impl,
                         default_impl_module_id: unresolved_trait.module_id,
                         trait_constraints: func_meta.trait_constraints.clone(),

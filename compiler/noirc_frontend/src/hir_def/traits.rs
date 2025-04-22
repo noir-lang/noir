@@ -9,7 +9,6 @@ use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
 };
-use fm::FileId;
 use noirc_errors::{Location, Span};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -94,7 +93,6 @@ pub struct TraitImpl {
     /// before the impl as a whole is finished resolving.
     pub trait_generics: Vec<Type>,
 
-    pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
     /// The where clause, if present, contains each trait requirement which must
