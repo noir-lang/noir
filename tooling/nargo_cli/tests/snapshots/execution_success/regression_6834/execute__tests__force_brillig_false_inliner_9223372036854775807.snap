@@ -80,12 +80,10 @@ expression: artifact
     "EXPR [ (-1, _4) (-1, _17) 1 ]",
     "EXPR [ (1, _12, _14) (-1, _18) 0 ]",
     "EXPR [ (-1, _17, _18) (1, _2) (-5472060717959818805561601436314318772137091100104008585924551046643952123904, _20) 0 ]",
-    "",
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
     "unconstrained func 1",
-    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
-    ""
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
   "debug_symbols": "ldTBjoMgFIXhd7lrFwIC1VeZTBpUbEgIGtRJJqbvXtpo01g2Z3nh/9gQ2Ki37Xq7ujCMMzU/G/mxM4sbQ5o24q+leTLhOc2LiQs1khdkQ0+Nqu4FDc7btFbefwsSWF5huczlWu355ZwrLNfZXB55fcovWF5jOSvBnoE9B3sB9tmrZWW1A8b4WUhYKFhoWGSvmfG3EF+iRgUvYcFgwfNCvIU+CwGLChYSFgoWGhbg0+bQ205DG5337nb9/GnT8p+JzrTe7uOwhu5jd/mfjp3DT3HsbL9G+zzptZeOfwA=",
   "file_map": {

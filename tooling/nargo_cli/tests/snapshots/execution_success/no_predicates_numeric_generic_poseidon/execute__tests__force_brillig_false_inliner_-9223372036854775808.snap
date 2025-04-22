@@ -104,9 +104,7 @@ expression: artifact
     "BLACKBOX::POSEIDON2_PERMUTATION [(_112, 254), (_113, 254), (_110, 254), (_111, 254)] [_114, _115, _116, _117]",
     "EXPR [ (-1, _20, _45) (1, _22) 0 ]",
     "EXPR [ (-1, _21, _68) (1, _23) 0 ]",
-    "EXPR [ (1, _24) (-1, _114) 0 ]",
-    "",
-    ""
+    "EXPR [ (1, _24) (-1, _114) 0 ]"
   ],
   "debug_symbols": "7dvdioJAGMbxe5ljD5wPHadbWZawshBEw2xhie59LZx4XjbqYA8U9jlz9G2wHwh/Ci9qV23Oh3Xd7ruTWn1cVNNty6Hu2nF1UeZ+6nQs29vqNJT9oFaZCYmq2t14lOlrovZ1U43H6TX5NaoLM40aHV6PWp9Oo866x6h5NmqstnFba/LXw9raOKxtZt4Mpy7ehU6LgMOfibLUAA1HDdDIqAEaOTVAw1MDNApqgEagBmjolBzIocmBHAvNUf+4aeOzN8PaBx+/YaHzP3EstEfn4nB8WJCDRSo4mKSCg00qOBilgoNVihyGVSo4WKWCgz+SCg5WqeBw5ECOp1Va5HH/Ivh/9bDk5EAOTw7kKMiBHIEcwGFTciCHJgdyGHIghyUHcjhyIAerVHCwSgUHq1RwsEoFB6sUORyrVHCwSgUHq1RwsEoFhyMHcrBKBQerVHAstEpn+mPBLbRK5+JYaJXOwjEuNn3dNPVhjW+3jKe/yr4uN001LffndgtXh+9jvBI/f+y7bbU799Vtp/u1cfsf",
   "file_map": {

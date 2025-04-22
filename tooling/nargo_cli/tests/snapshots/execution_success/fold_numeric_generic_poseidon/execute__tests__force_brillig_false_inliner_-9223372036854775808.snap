@@ -63,7 +63,6 @@ expression: artifact
     "EXPR [ (-1, _20, _25) (1, _22) 0 ]",
     "EXPR [ (-1, _21, _26) (1, _23) 0 ]",
     "EXPR [ (1, _24) (-1, _27) 0 ]",
-    "",
     "func 1",
     "current witness index : 34",
     "private parameters indices : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]",
@@ -82,7 +81,6 @@ expression: artifact
     "EXPR [ (1, _9) (1, _26) (-1, _30) 0 ]",
     "BLACKBOX::POSEIDON2_PERMUTATION [(_30, 254), (_27, 254), (_28, 254), (_29, 254)] [_31, _32, _33, _34]",
     "EXPR [ (1, _10) (-1, _31) 0 ]",
-    "",
     "func 2",
     "current witness index : 66",
     "private parameters indices : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]",
@@ -113,9 +111,7 @@ expression: artifact
     "EXPR [ (1, _18) (1, _57) (-1, _61) 0 ]",
     "EXPR [ (1, _19) (1, _58) (-1, _62) 0 ]",
     "BLACKBOX::POSEIDON2_PERMUTATION [(_61, 254), (_62, 254), (_59, 254), (_60, 254)] [_63, _64, _65, _66]",
-    "EXPR [ (1, _20) (-1, _63) 0 ]",
-    "",
-    ""
+    "EXPR [ (1, _20) (-1, _63) 0 ]"
   ],
   "debug_symbols": "7ZjbaoQwEIbfJddeOJNodF+lLIuHuARExUOhiO/e7GLEttKlLLQ0k7sc/gnzeePHzKxU+XS96KZqB3Z6mVndFtmo28bsZob3o6HLmttuGLN+ZKcIw4CppjQrgUvAKl0rsw6Xc8D4TwvEUUHC47UgieMPBWaT97qu9fWyb9Qcv2a9zvJardtqaord7fjW2Rtb3/VtocqpV7eX7ndL8Ak/PGoOJF+bQwj3zQVfolxacMHFFsWjKHLYnuUYfx8Gzm0YeIQPwqGwXUCYpPuw+f7gPiK6j8jdRxTuI0buI8buI0r3ERP3EVMCv/7f1Bu5dYIyehAGmUrbdgLxU4zgOqM3Ym/E3oi9EXsj9kbsjdgbsTfif2LEf8VIwG+AgOAAAcMBQYCRgOMAAckBApYDBDQHCHgOEvAcpDDHQfcnuMgJMAo/pX5mSn1e3gE=",
   "file_map": {

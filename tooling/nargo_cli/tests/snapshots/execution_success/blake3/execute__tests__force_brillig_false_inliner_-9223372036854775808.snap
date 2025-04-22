@@ -112,9 +112,7 @@ expression: artifact
     "EXPR [ (-1, _33) (1, _65) 0 ]",
     "EXPR [ (-1, _34) (1, _66) 0 ]",
     "EXPR [ (-1, _35) (1, _67) 0 ]",
-    "EXPR [ (-1, _36) (1, _68) 0 ]",
-    "",
-    ""
+    "EXPR [ (-1, _36) (1, _68) 0 ]"
   ],
   "debug_symbols": "ldVBCoMwEIXhu8zaha3OpPUqpZSoUQIhStRCEe/eKApSunnLyeTP5ltkptqUU/uyvukGKh4zua7So+18nGbK1HY29Nqv4zDqMFLBKiHjayqUWhJqrDPxLF2eCWW3f/fv6X7/kspvcAeDPEWDCxpc0SBDgxwNGA0EDRQaoNI5Ks2oNKPSjEozKs2oNKPSjEozKs2oNKPSgkoLKi2otKDSgkoLKi2otKDSgkoLJh2HMljnbPs6/zLx+K2D1aUz+9hMvjptx09/bI6+D11l6imY9aVtF5//Ag==",
   "file_map": {

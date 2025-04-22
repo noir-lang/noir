@@ -59,12 +59,10 @@ expression: artifact
     "EXPR [ (-1, _4, _7) (4026531840, _7) (-1, _8) 0 ]",
     "BLACKBOX::RANGE [(_8, 33)] []",
     "EXPR [ (-1, _2) (1, _4) 0 ]",
-    "",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
     "unconstrained func 1",
-    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
-    ""
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
   "debug_symbols": "tdTNCoQgEAfwd5lzh+zDPl5libCyEETDbGGR3n0tchG269zmPzP+bqODiQ/70gs16w3alwOpR2aFVj45yK/WtjJ1ps0yY6EllCbA1eSrOj0SmIXk0Ja+/FutaFncuxWt6W85b44ugQJVL1F1iqpXqHqNqjeoOklxeYLLZ7g87r2S54NtAp+lWcx3PgxGSCmWPv5VfPvNjGCD5HecdzVGU/tZwyS8X40e+bQbfkrXzPNf",
   "file_map": {

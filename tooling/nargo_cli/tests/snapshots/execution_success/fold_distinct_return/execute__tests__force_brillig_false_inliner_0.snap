@@ -46,7 +46,6 @@ expression: artifact
     "CALL func 1: PREDICATE = EXPR [ 1 ]",
     "inputs: [Witness(0), Witness(1), Witness(2)], outputs: [Witness(3), Witness(4), Witness(5)]",
     "EXPR [ (1, _3) -25 ]",
-    "",
     "func 1",
     "current witness index : 6",
     "private parameters indices : [0, 1, 2]",
@@ -59,9 +58,7 @@ expression: artifact
     "BLACKBOX::RANGE [(_6, 32)] []",
     "EXPR [ (1, _3) (-1, _6) 0 ]",
     "EXPR [ (-1, _1) (1, _4) 0 ]",
-    "EXPR [ (-1, _2) (1, _5) 0 ]",
-    "",
-    ""
+    "EXPR [ (-1, _2) (1, _5) 0 ]"
   ],
   "debug_symbols": "tY9LCsMgFEX38sYOkvRHspUSgokaBFHxUyji3qvBQFpSaAcZ3s973BOA0NHPA5dMWejuAYSasONKJhWgWSyrsczKOmwcdJcKAZUEulsbETAuaPZij+D0X/28V2+bUq/r6q2fxGi4EHwethuT/cCG41HQIpmX0yZ1T70m6702aqLEG5o/LVlEH+S7KHV7LeOa6ieY7wfH0vTxBQ==",
   "file_map": {

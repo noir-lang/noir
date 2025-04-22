@@ -139,9 +139,7 @@ expression: artifact
     "EXPR [ (-1, _0, _32) (1, _0) (1, _32) (-1, _92) 0 ]",
     "MEM (id: 1, write EXPR [ (1, _92) 0 ] at: EXPR [ (1, _31) 0 ]) ",
     "MEM (id: 1, read at: EXPR [ (1, _34) 0 ], value: EXPR [ (1, _93) 0 ]) ",
-    "EXPR [ (-1, _0, _1) (-1, _0, _2) (1, _0, _93) (1, _0) (1, _1) (1, _2) -1 ]",
-    "",
-    ""
+    "EXPR [ (-1, _0, _1) (-1, _0, _2) (1, _0, _93) (1, _0) (1, _1) (1, _2) -1 ]"
   ],
   "debug_symbols": "ldfLasMwEIXhd9HaC7vWjCS/SinBFzkIjG18KRSTd68TEkihm395Zs5o8610mC42+/WSxn5aTfV5mGFq6y1N45kOU348Zutcj/e4bvWymUo0M3HsTKX5LTN9GuI5y29fmSlL2LewL7CvsO9g38N+YH2bw34B+9DXQl8LfS30tdDXQl8LfS30Fegr0Fegr0Bfgb4CfQX6CvQV6CvQV6GvQl+Fvgp9Ffoq9FXoq9BXoa9CXwd9HfR10NdBXwd9HfR10NdBXwd9HfT10NdDXw99PfT10NdDXw99PfT10NdD3wB9A/QN0DdA3wB9A/QN0Df861vk4XlQFPLn4gzNkoYhXS/v/45z/F0vqW6G+Iz9PrZv2+1nfm1e9/MytbHbl3h/6bE7n/8F",
   "file_map": {

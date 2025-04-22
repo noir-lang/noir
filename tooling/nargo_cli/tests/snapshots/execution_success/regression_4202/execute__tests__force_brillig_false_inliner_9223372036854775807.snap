@@ -33,9 +33,7 @@ expression: artifact
     "EXPR [ (-1, _0) 1 ]",
     "EXPR [ (-1, _1) 2 ]",
     "EXPR [ (-1, _2) 3 ]",
-    "EXPR [ (-1, _3) 4 ]",
-    "",
-    ""
+    "EXPR [ (-1, _3) 4 ]"
   ],
   "debug_symbols": "lY/LCsMgEEX/ZdYukthu/JVSgo8xDIiKj0KR/HtNaCBbd3Pu5VyYBgZV3VbyNmQQrwYuaFko+E4NpjPKUfqDcpGpgFhmzgC96Rd/7AwsOQTxnPY3g3lUWEYFPiZ0UImco229f9bjj0wklcM/2ur1rS3feDWXH1PQaGrCY+ns+vwP",
   "file_map": {

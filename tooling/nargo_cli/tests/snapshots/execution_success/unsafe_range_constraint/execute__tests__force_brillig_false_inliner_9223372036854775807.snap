@@ -29,9 +29,7 @@ expression: artifact
     "private parameters indices : [0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 48)] []",
-    "",
-    ""
+    "BLACKBOX::RANGE [(_0, 48)] []"
   ],
   "debug_symbols": "ZY1bCsMgFET3cr/90BZp41ZKCT6DICo+CkXce01ISiB/98zMnWmgtKjLbL0JGdirgQuSFxv8oAZ4k3LkfqVceCrACMYItFfjupGOwFingVHc0SVKH/c9SqfpHyXP/h4gknXOLvN5ccgfniwXTu9oqpcnt3zj4Rz/MQWpVU16bdq8Uf8D",
   "file_map": {

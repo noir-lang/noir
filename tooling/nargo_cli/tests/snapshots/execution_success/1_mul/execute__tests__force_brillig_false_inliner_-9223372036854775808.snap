@@ -60,9 +60,7 @@ expression: artifact
     "BLACKBOX::RANGE [(_5, 32)] []",
     "EXPR [ (1, _5, _5) (-1, _6) 0 ]",
     "BLACKBOX::RANGE [(_6, 32)] []",
-    "EXPR [ (-1, _2) (1, _6) 0 ]",
-    "",
-    ""
+    "EXPR [ (-1, _2) (1, _6) 0 ]"
   ],
   "debug_symbols": "ldHNCoQgFAXgd7nrFmnTj73KMISVhSAaZgOD9O5jMQ4lbtx57uG7XNDCyPpt7ric1Art04JQAzVcSZcsFOdoXag80mqoNtCimmTA5OheTblnMHHBoC3z/ZXBIxWUUUCQB6QOQJUK6hjAuT8Jo/CkJhWQKMB/UIQA5ckCRUWFvaiam3Ch11wIPnfXD3XjN9Wc9oL94rTJ4dKaz+Ib7xetBjZumh2bzs6t/wI=",
   "file_map": {

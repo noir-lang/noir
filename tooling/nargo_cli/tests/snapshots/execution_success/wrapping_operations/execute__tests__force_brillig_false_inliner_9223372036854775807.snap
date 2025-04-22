@@ -72,12 +72,10 @@ expression: artifact
     "EXPR [ (-1, _15, _18) (-1, _19) 0 ]",
     "BLACKBOX::RANGE [(_19, 9)] []",
     "EXPR [ (1, _15) -1 ]",
-    "",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
     "unconstrained func 1",
-    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
-    ""
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
   "debug_symbols": "1ZjLioQwEEX/JWsXqSTm4a8MTWNrbAKi4mNgEP99oqjjTDe6GLKonZW6dTklFBUyktw+hufdVUXdkeRjJGWdpb2rKx+NhC1HXZNWc9T1aduTxEBEbJWTBGg8RaRwpSVJTKfoRakEjVetElzuYm6mW0R4SHMR0jwOaS5DmquQ5jqkuQlpDjSoOwR1DzqkcDGlwI/uc8HbyQOmtgoB5zyS7jyScnrkeRWDF5u9U2rEuZwztZH7z58fA2xBj/GiS7zoCi+6xotu0KIzihcd8KIzvOgcLzrebcout6n5c3Vg75eY5FuFUufNai3FqtVam6tm/W1nb1Yo+FezCi+6xotu0KJzihcd8KIzvOgcL7rAix7jRb/apvrXw8DNB4/WlaV73o9vgP74M21d+ijtGhZDlR2y/VezZbb6pq0zmw+tnZ2WnLf/Bg==",
   "file_map": {

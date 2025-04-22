@@ -15,9 +15,7 @@ expression: artifact
     "current witness index : 0",
     "private parameters indices : []",
     "public parameters indices : []",
-    "return value indices : []",
-    "",
-    ""
+    "return value indices : []"
   ],
   "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
   "file_map": {},

@@ -103,9 +103,7 @@ expression: artifact
     "EXPR [ (-1, _10, _14) (1, _26) 0 ]",
     "EXPR [ (-1, _11, _14) (1, _27) 0 ]",
     "EXPR [ (-1, _12, _14) (1, _28) 0 ]",
-    "EXPR [ (-1, _13, _14) (1, _29) 0 ]",
-    "",
-    ""
+    "EXPR [ (-1, _13, _14) (1, _29) 0 ]"
   ],
   "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
   "file_map": {},

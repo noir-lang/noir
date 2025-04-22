@@ -58,9 +58,7 @@ expression: artifact
     "EXPR [ (1, _0) (-1, _2) 1 ]",
     "BLACKBOX::RANGE [(_2, 32)] []",
     "EXPR [ (-1, _1) (1, _2) 0 ]",
-    "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])",
-    "",
-    ""
+    "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
   ],
   "debug_symbols": "lY7LCsIwEEX/ZdZZVFNB8ysiJY9JGQhJyEOQ0H83LRbqRnB57j1zmQYGVZ0n8jZkEPcGLmhZKPhODc5blKP0K+UiUwFx5QzQGxC3cWFgySGIy7A8GPD/9PGnfhr4l99BJXKO5un4Y4+fMpFUDj9oq9eHtrzi3uz3MQWNpiZcl7auz78B",
   "file_map": {

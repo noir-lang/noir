@@ -42,10 +42,8 @@ expression: artifact
     "EXPR [ (1, _0, _5) (-3, _5) (1, _6) -1 ]",
     "EXPR [ (1, _0, _6) (-3, _6) 0 ]",
     "EXPR [ (-1, _6) 0 ]",
-    "",
     "unconstrained func 0",
-    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
-    ""
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
   "debug_symbols": "nZLRCoQgFET/5T77UGpr+SvLElYWgmiYLSzRv69FLsH2Yo9zZ87AwF2gk8081Mr0dgL+XEDbVnhlTVALkP00jcJsavLCeeC4pAik6YATjFcEvdISeJGt6C/K8JFk7BekZH0hoEnNAShSgUcqwK4AQlgEWHF3bJnUHIAqFcizZCK/JKrsICgu780NonFKazXU518K57dwSjRaHrKfTXty/WeMTuRHZ1vZzU5uTbsX6r8=",
   "file_map": {

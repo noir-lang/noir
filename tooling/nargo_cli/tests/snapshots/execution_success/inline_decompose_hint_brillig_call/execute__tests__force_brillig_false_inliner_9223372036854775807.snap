@@ -21,9 +21,7 @@ expression: artifact
     "private parameters indices : []",
     "public parameters indices : []",
     "return value indices : [0]",
-    "EXPR [ (1, _0) 5201446015539463454305911014159497107782029740116487985773310470301159650207 ]",
-    "",
-    ""
+    "EXPR [ (1, _0) 5201446015539463454305911014159497107782029740116487985773310470301159650207 ]"
   ],
   "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
   "file_map": {},

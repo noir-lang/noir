@@ -50,9 +50,7 @@ expression: artifact
     "BLACKBOX::RANGE [(_1, 1)] []",
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _1) (1, _2) -1 ]",
-    "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])",
-    "",
-    ""
+    "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
   ],
   "debug_symbols": "XYxLCoAwDAXvkrUn8Coi0k9aAqEpsRWk9O5+cCFdzhveNPBoa9woBdlhXhqwOFNI0k2tT2CVmCluw3wYJWMZPww1uZ8tZ8bhn1Uc+qr4lF7X134B",
   "file_map": {},

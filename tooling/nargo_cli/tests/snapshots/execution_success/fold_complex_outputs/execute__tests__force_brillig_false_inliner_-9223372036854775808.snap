@@ -76,7 +76,6 @@ expression: artifact
     "EXPR [ (1, _27) -25 ]",
     "EXPR [ (1, _28) -30 ]",
     "EXPR [ (1, _29) -35 ]",
-    "",
     "func 1",
     "current witness index : 59",
     "private parameters indices : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]",
@@ -150,9 +149,7 @@ expression: artifact
     "EXPR [ (1, _44) -20 ]",
     "EXPR [ (1, _45) -25 ]",
     "EXPR [ (1, _46) -30 ]",
-    "EXPR [ (1, _47) -35 ]",
-    "",
-    ""
+    "EXPR [ (1, _47) -35 ]"
   ],
   "debug_symbols": "tdbbisIwEAbgd8m1FzOTs6+yLFK1SqG0UuvCIn33rdJUSWddE9i7JulXks5PkqvYl9vLcVM1h/Ys1h9XUbe7oq/aZmxdBd27zqeiubXOfdH1Yq3Qr0TZ7McnUsNKHKq6FGsNw+dKyFSgOKCVm4A2JgI6FZhUYFOB44BRNAFjKQKeBc5MwKKNAAInrMQgDMYCOeEoCCfjVSBbbKchCKNjwVbb2VBt5+NqI1tuD+HfertYh04WbMG905NAUItp2XTi0olPJgTphC08jm8GgwSxId7Ih9ELI3ljHsYtjOKNnw1JHxudYdgIIGkZjISFsRnGZRifbiSkmrGx7aq6ro6b5w197P4quqrY1uXUPFya3dNo/30KI8GfunZX7i9defvSfWxYxccEnznt5/kZ0O9l7rXhM2fmHQeNx/cy99roDGMyjM0wLsP4dPNL5l4bzDCUYfgcWAynG1oVH29SZRj9p1kcitJkGD4HFuTDLObmMgybAwIMVxUC6eILGmQYNgeEYINBKWNDGYbNARHMcyMVX6WUSjX/u5d+Dj8=",
   "file_map": {

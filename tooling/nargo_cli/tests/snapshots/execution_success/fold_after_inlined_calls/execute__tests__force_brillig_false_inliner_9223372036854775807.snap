@@ -29,15 +29,12 @@ expression: artifact
     "BLACKBOX::RANGE [(_0, 32)] []",
     "CALL func 1: PREDICATE = EXPR [ 1 ]",
     "inputs: [Witness(0)], outputs: []",
-    "",
     "func 1",
     "current witness index : 0",
     "private parameters indices : [0]",
     "public parameters indices : []",
     "return value indices : []",
-    "EXPR [ (1, _0) -1 ]",
-    "",
-    ""
+    "EXPR [ (1, _0) -1 ]"
   ],
   "debug_symbols": "vY7LCsMgEEX/ZdZZmJQU6q+UEHyGAVHxUSjiv1dDAqF03d2ce5nLKSAVz9uKVrsI9FnAOMESOtuowLhH0TPbKSYWEtBxvg2grOzXow6g0SigM6lLAx7QGNzW60yLXywg40YdqLMVlza9/dmc/z44oWQOqi/tXR2+5MgvuYmQQ24i9z/KLfUD",
   "file_map": {

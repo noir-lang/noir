@@ -347,7 +347,7 @@ mod tests {
                         .decode(bytecode_b64)
                         .unwrap();
                     let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
-                    Content::Seq(program.to_string().split("\n").map(Content::from).collect::<Vec<Content>>())
+                    Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
                 }),
                 ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
                     // Some paths are absolute: clear those out.

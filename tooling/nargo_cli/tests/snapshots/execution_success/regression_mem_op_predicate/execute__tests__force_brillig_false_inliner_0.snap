@@ -85,12 +85,10 @@ expression: artifact
     "MEM (id: 1, write EXPR [ (1, _28) 0 ] at: EXPR [ (1, _16) 0 ]) ",
     "MEM (id: 1, read at: EXPR [ (1, _26) 0 ], value: EXPR [ (1, _29) 0 ]) ",
     "EXPR [ (1, _4, _12) (-1, _12, _29) (1, _29) -111 ]",
-    "",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
     "unconstrained func 1",
-    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
-    ""
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
   "debug_symbols": "ldXRioQgFMbxd/G6C/XomL3KsgxWNghiYbWwxLz7OsO2zEYwfHcdDz9v/oQb63273q4hDePMmo+NxbFzSxhTmTZ2eR7Nk0uPaV5cXlgjFFXMp758abpXbAjRs0bz+2fFDApqFFgUCA4LAQsJC4KFgoWGBRxcvC1ujqKGhUWF5LA4b27MLow9CgkLgoWChYbFefNL/SfUURhY1LCwqCAOCwELCQuChYKFhgXcnODmBDcnuLmCmyu4uTpvbnch+f8/qgxtDjGG2/X1LS3HXy4H10b/Ow5r6l62y/e0b3Y/5bHz/Zr946bnrlz/Aw==",
   "file_map": {

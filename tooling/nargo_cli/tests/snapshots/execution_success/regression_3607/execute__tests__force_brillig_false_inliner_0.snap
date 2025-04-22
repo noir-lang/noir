@@ -69,12 +69,10 @@ expression: artifact
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [(1, Witness(2), Witness(18)), (1, Witness(17), Witness(13))], linear_combinations: [], q_c: 0 })], outputs: [Simple(Witness(19))]",
     "EXPR [ (1, _2, _18) (1, _13, _17) (-1, _20) 0 ]",
     "EXPR [ (1, _19, _20) -1 ]",
-    "",
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
     "unconstrained func 1",
-    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
-    ""
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
   "debug_symbols": "ldXBioMwEAbgd8nZg5MYm/gqy1KixhIIUaIuLNJ3ry0GSsjlP07mm7n8AznYaPv9cXdhmlfW/RzMz4PZ3BzO6mD0eVoXE97Vupm4sY7ritkwsk7IZ8Um5y3rZP38rRjHuMB4U+KSLi7bjEuMt0VeX7yljN8wrjCuMU416An0HPQC9A3oJejBcAlMl4rxqnTJusm9xjwv5qtU8jr3BHoOegH6BvQS9C3ob6BXoNeYF2C+AsxXgPmKYr5EaYB4fqGigSckNnEWfXTeu8f9+4s6n/9MdKb39iqnPQxf3e1/SZ00v8R5sOMe7XvTp3eufwE=",
   "file_map": {

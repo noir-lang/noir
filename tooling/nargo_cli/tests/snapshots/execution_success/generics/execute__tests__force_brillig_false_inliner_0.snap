@@ -31,9 +31,7 @@ expression: artifact
     "private parameters indices : [0, 1]",
     "public parameters indices : []",
     "return value indices : []",
-    "EXPR [ (1, _0) (-1, _1) 0 ]",
-    "",
-    ""
+    "EXPR [ (1, _0) (-1, _1) 0 ]"
   ],
   "debug_symbols": "ZY1bCsMgEEX3Mt9+aKFQ3UopwWcYEBUfhSLZe01IQMjnuffMnQ7GqrYuGFwsIN4dfNSyYgyDOtAjKkmGnUqVuYJ48QcBGwwITtlGwKG3IJ50IzeVUXaqjPFZ/QxQGb3HdZk/jvgrM0rl7YmuBT219Zeu5rpPOWprWrb70tGN+T8=",
   "file_map": {

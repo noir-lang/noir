@@ -37,9 +37,7 @@ expression: artifact
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 1)] []",
     "BLACKBOX::RANGE [(_1, 1)] []",
-    "EXPR [ (-1, _0, _1) (1, _0) (1, _1) -1 ]",
-    "",
-    ""
+    "EXPR [ (-1, _0, _1) (1, _0) (1, _1) -1 ]"
   ],
   "debug_symbols": "TYzLCsMgEEX/ZdZZlLZu/JVSgo8xDMgooxaK5N9jQgJZnnu4p4NH25aZOKQC+tMhJmcqJR7U4XlMJRveqVQjFfRLTYDsQb/VOkGgiKDVY/0OsEIx0jLfI2P+GSFjI54YGrubrf98meufJTn0TXAvHW7kNw==",
   "file_map": {

@@ -259,10 +259,8 @@ expression: artifact
     "EXPR [ (1, _46) (1, _76) (-1, _131) 0 ]",
     "BLACKBOX::RANGE [(_131, 32)] []",
     "EXPR [ (1, _36) (-1, _131) 0 ]",
-    "",
     "unconstrained func 0",
-    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
-    ""
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
   "debug_symbols": "ldjBauMwFEDRf9E6Cz09PVnKrwxDcRKnGIwTnGRgCP33pqWGErk1dymJo81FstHdHbrd7fWlH4+ni9v+ubvhtG+v/Wl8jO5O8+fc5dyOH8PLtZ2ubitFNq4bD24bvLxt3LEfOrc1//Z347RQET0WgkXAQrGIWBgWCYsGC9w84uaGmxtubri54eaGmxtubri54eaGmxtunnDzhJsn3Dzh5gk3T7h5ws0Tbp5w87TavHkSjcdCsAhYKBYRi8XmwZdZSH4WCYsGi4xFoSJ7LASLgIViEbHAzTNunnHzjJtn3Lzg5gU3L7h5wc0Lbl5w84KbF9y84OZl7W4P/kmIX46uzUwsVUQ4CSukCRVRTiInxkniZLl9nktq9ZUWnzkpmIjnRDgJnCgnkRPjJHHC6wuvL6v1q1MZPCfCSeBEOYmcGCdr9aU6+6HhJHNSMFHPiXCyWF8lziRYRZSTyIlxkjhpOMmcFEyWH+x+J7JCtLqUYuBEOYmcGCeJk7X6Wt0wMXOydvZrsvx0p1FnUv/DLL/d/Uweg93UD0P/+vL9Nfox/a+d+nY3dF/D423cf1u9/j/PK7M/T6d9d7hN3cdOn2uP7d8B",
   "file_map": {

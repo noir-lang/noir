@@ -31,10 +31,8 @@ expression: artifact
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(0))], q_c: 1 })], outputs: [Simple(Witness(2))]",
     "EXPR [ (-1, _0, _2) (1, _2) -1 ]",
     "EXPR [ (1, _0) -2 ]",
-    "",
     "unconstrained func 0",
-    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
-    ""
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
   "debug_symbols": "lY7LCsMgEEX/ZdYurKUJ+CulBJ9hQFR8FIrk32tChRS66W7OvZzLNNBG1nVBb0MGfm/gghIFg+/UgB5RjsLvlItIBThjlIDxul9XthGw6AzwG90eBC7/CuynMM1DmKcvoYNM6Byuy/nRHj9FQiGd+aCtXp3a8oqjGX5MQRldk9mXjq7PvwE=",
   "file_map": {

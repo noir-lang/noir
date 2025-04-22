@@ -82,10 +82,8 @@ expression: artifact
     "INIT (id: 3, len: 2, witnesses: [_23, _22])",
     "MEM (id: 3, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _24) 0 ]) ",
     "EXPR [ (1, _24) -2 ]",
-    "",
     "unconstrained func 0",
-    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
-    ""
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
   "debug_symbols": "lZXbisMgFEX/xec8aIyX5FeGoeRiihCSYJKBIfTfa0uE1krDfvN41lJhc3AnnWm268WO/bSQ6mcnw9TWq51GX+2EPbeWuR4f1bLWbiWVZBkxY+cX8paR3g6GVILefjOSYzjH8ALDBYbLFC5EwFWEq6+4ohGuMbzEcEZBnoF8MlitDr4UMc+/82XMJ6NlNAiMfdwgYCMZMFM0GDqPDQUb+sz4eFUy6ZwXh5EXPJ4xChsMNnLY4LBRwIaADQkbCjY0bMCZczhzfpp5PIM8nbmUwVA6NjhsFLAhTgzN3gxfNM4Og71eXj8yv/1XO1s3gznKfhvbl+76P4dO8Gc3tabbnHmc9Oz54+8=",
   "file_map": {
