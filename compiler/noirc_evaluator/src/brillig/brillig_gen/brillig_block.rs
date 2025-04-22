@@ -720,8 +720,22 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                 BrilligBinaryOp::LessThan,
                             );
                         }
-                        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                        Intrinsic::ArrayRefCount => {
                             let array = self.convert_ssa_value(arguments[0], dfg);
+                            let result = dfg.instruction_results(instruction_id)[0];
+
+                            let destination = self.variables.define_variable(
+                                self.function_context,
+                                self.brillig_context,
+                                result,
+                                dfg,
+                            );
+                            let destination = destination.extract_register();
+                            let array = array.extract_register();
+                            self.brillig_context.load_instruction(destination, array);
+                        }
+                        Intrinsic::SliceRefCount => {
+                            let array = self.convert_ssa_value(arguments[1], dfg);
                             let result = dfg.instruction_results(instruction_id)[0];
 
                             let destination = self.variables.define_variable(
