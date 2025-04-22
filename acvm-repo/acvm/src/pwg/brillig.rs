@@ -30,6 +30,8 @@ pub enum BrilligSolverStatus<F> {
     ForeignCallWait(ForeignCallWaitInfo<F>),
 }
 
+/// Specific solver for Brillig opcodes
+/// It maintains a Brillig VM that can execute the bytecode of the called brillig function
 pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
     vm: VM<'b, F, B>,
     acir_index: usize,
@@ -86,6 +88,9 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
 
+    /// Get a BrilligVM for executing the provided bytecode
+    /// 1. Reduce the input expressions into a known value, or error if they do not reduce to a value.
+    /// 2. Instantiate the Brillig VM with the bytecode and the reduced inputs.
     fn setup_brillig_vm(
         initial_witness: &WitnessMap<F>,
         memory: &HashMap<BlockId, MemoryOpSolver<F>>,
@@ -181,14 +186,14 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.program_counter()
     }
 
+    /// Returns the status of the Brillig VM as a 'BrilligSolverStatus' resolution.
+    /// It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
+    /// Return the "resolution" to the caller who may choose to make subsequent calls
+    /// (when it gets foreign call results for example).
     fn handle_vm_status(
         &self,
         vm_status: VMStatus<F>,
     ) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
-        // Check the status of the Brillig VM and return a resolution.
-        // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
-        // Return the "resolution" to the caller who may choose to make subsequent calls
-        // (when it gets foreign call results for example).
         match vm_status {
             VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
@@ -234,6 +239,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.finalize_inner(witness, outputs)
     }
 
+    /// Finalize the VM and return the profiling samples.
     pub(crate) fn finalize_with_profiling(
         mut self,
         witness: &mut WitnessMap<F>,
@@ -244,6 +250,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         Ok(self.vm.take_profiling_samples())
     }
 
+    /// Finalize the VM execution and write the outputs to the provided witness map.
     fn finalize_inner(
         &self,
         witness: &mut WitnessMap<F>,
@@ -260,6 +267,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         }
     }
 
+    /// Write VM execution results into the witness map
     fn write_brillig_outputs(
         &self,
         witness_map: &mut WitnessMap<F>,
@@ -267,7 +275,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         return_data_size: usize,
         outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError<F>> {
-        // Write VM execution results into the witness map
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
         for output in outputs.iter() {
