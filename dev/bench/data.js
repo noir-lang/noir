@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745339444182,
+  "lastUpdate": 1745339566375,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17975,42 +17975,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "a1fab4adcc513ff8f48da963e93e9ec49c542358",
-          "message": "chore(ssa): Additional unrolling and mem2reg passes  (#8017)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-14T15:21:22Z",
-          "tree_id": "dfe5ff4cbac50cc8224d563b8212dc5e65551494",
-          "url": "https://github.com/noir-lang/noir/commit/a1fab4adcc513ff8f48da963e93e9ec49c542358"
-        },
-        "date": 1744645537407,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 269858,
-            "range": "± 4562",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237799,
-            "range": "± 6732",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "944683109f0600e8dc34f16752f04ded30a5f6f8",
           "message": "chore(ssa): Remove IfElse pass basic SSA tests (#8058)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
@@ -19867,6 +19831,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3589549,
             "range": "± 35130",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "20fdf4c308822523651d5db10558d5634a1c3e11",
+          "message": "chore: enable '--pedantic-solving' on more tests (#7701)",
+          "timestamp": "2025-04-22T16:15:43Z",
+          "tree_id": "25a73ffab01db8fe445cf093f119b74388e35e3c",
+          "url": "https://github.com/noir-lang/noir/commit/20fdf4c308822523651d5db10558d5634a1c3e11"
+        },
+        "date": 1745339560222,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 279598,
+            "range": "± 369",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 249450,
+            "range": "± 3293",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3591564,
+            "range": "± 5503",
             "unit": "ns/iter"
           }
         ]
