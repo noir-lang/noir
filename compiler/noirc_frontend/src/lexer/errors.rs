@@ -177,7 +177,7 @@ impl LexerErrorKind {
                         ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
                     }
             LexerErrorKind::I1IsUnsupported { location } => {
-                ("i1 is not a supported type".to_string(), "i8, i16, i32, i64, and i128 are supported".to_string(), *location)
+                ("i1 is not a supported type".to_string(), "i8, i16, i32, and i64 are supported".to_string(), *location)
             }
         }
     }
