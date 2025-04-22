@@ -190,7 +190,39 @@
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+
+<span class="kw">use </span>acvm::{
     AcirField, FieldElement,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
@@ -232,6 +264,7 @@
 <span class="kw">pub trait </span>DebugForeignCallExecutor: ForeignCallExecutor&lt;FieldElement&gt; {
     <span class="kw">fn </span>get_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;StackFrame&lt;FieldElement&gt;&gt;;
     <span class="kw">fn </span>current_stack_frame(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;StackFrame&lt;FieldElement&gt;&gt;;
+    <span class="kw">fn </span>restart(<span class="kw-2">&amp;mut </span><span class="self">self</span>, artifact: <span class="kw-2">&amp;</span>DebugArtifact);
 }
 
 <span class="attr">#[derive(Default)]
@@ -242,23 +275,42 @@
 <span class="kw">impl </span>DefaultDebugForeignCallExecutor {
     <span class="kw">fn </span>make&lt;<span class="lifetime">'a</span>, W: <span class="lifetime">'a </span>+ std::io::Write&gt;(
         output: W,
+        resolver_url: <span class="prelude-ty">Option</span>&lt;String&gt;,
         ex: DefaultDebugForeignCallExecutor,
+        root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+        package_name: String,
     ) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="lifetime">'a </span>{
-        DefaultForeignCallBuilder::default().with_output(output).build().add_layer(ex)
+        DefaultForeignCallBuilder {
+            output,
+            enable_mocks: <span class="bool-val">true</span>,
+            resolver_url,
+            root_path: root_path.clone(),
+            package_name: <span class="prelude-val">Some</span>(package_name),
+        }
+        .build()
+        .add_layer(ex)
     }
 
     <span class="attr">#[allow(clippy::new_ret_no_self, dead_code)]
-    </span><span class="kw">pub fn </span>new&lt;<span class="lifetime">'a</span>, W: <span class="lifetime">'a </span>+ std::io::Write&gt;(output: W) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="lifetime">'a </span>{
-        <span class="self">Self</span>::make(output, <span class="self">Self</span>::default())
+    </span><span class="kw">pub fn </span>new&lt;<span class="lifetime">'a</span>, W: <span class="lifetime">'a </span>+ std::io::Write&gt;(
+        output: W,
+        resolver_url: <span class="prelude-ty">Option</span>&lt;String&gt;,
+        root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+        package_name: String,
+    ) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="lifetime">'a </span>{
+        <span class="self">Self</span>::make(output, resolver_url, <span class="self">Self</span>::default(), root_path, package_name)
     }
 
     <span class="kw">pub fn </span>from_artifact&lt;<span class="lifetime">'a</span>, W: <span class="lifetime">'a </span>+ std::io::Write&gt;(
         output: W,
+        resolver_url: <span class="prelude-ty">Option</span>&lt;String&gt;,
         artifact: <span class="kw-2">&amp;</span>DebugArtifact,
+        root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+        package_name: String,
     ) -&gt; <span class="kw">impl </span>DebugForeignCallExecutor + <span class="kw">use</span>&lt;<span class="lifetime">'a</span>, W&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>ex = <span class="self">Self</span>::default();
         ex.load_artifact(artifact);
-        <span class="self">Self</span>::make(output, ex)
+        <span class="self">Self</span>::make(output, resolver_url, ex, root_path, package_name)
     }
 
     <span class="kw">pub fn </span>load_artifact(<span class="kw-2">&amp;mut </span><span class="self">self</span>, artifact: <span class="kw-2">&amp;</span>DebugArtifact) {
@@ -278,6 +330,11 @@
 
     <span class="kw">fn </span>current_stack_frame(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;StackFrame&lt;FieldElement&gt;&gt; {
         <span class="self">self</span>.debug_vars.current_stack_frame()
+    }
+
+    <span class="kw">fn </span>restart(<span class="kw-2">&amp;mut </span><span class="self">self</span>, artifact: <span class="kw-2">&amp;</span>DebugArtifact) {
+        <span class="self">self</span>.debug_vars = DebugVars::default();
+        <span class="self">self</span>.load_artifact(artifact);
     }
 }
 
@@ -380,6 +437,9 @@
 
     <span class="kw">fn </span>current_stack_frame(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;StackFrame&lt;FieldElement&gt;&gt; {
         <span class="self">self</span>.handler().current_stack_frame()
+    }
+    <span class="kw">fn </span>restart(<span class="kw-2">&amp;mut </span><span class="self">self</span>, artifact: <span class="kw-2">&amp;</span>DebugArtifact) {
+        <span class="self">self</span>.handler.restart(artifact);
     }
 }
 </code></pre></div></section></main></body></html>

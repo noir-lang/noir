@@ -311,7 +311,10 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -499,7 +502,10 @@
 /// that a constraint was never satisfiable.
 /// An example of this is the program `assert(false)`
 /// In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
-</span><span class="kw">fn </span>test_status_program_compile_fail(err: CompileError, test_function: <span class="kw-2">&amp;</span>TestFunction) -&gt; TestStatus {
+</span><span class="kw">pub fn </span>test_status_program_compile_fail(
+    err: CompileError,
+    test_function: <span class="kw-2">&amp;</span>TestFunction,
+) -&gt; TestStatus {
     <span class="comment">// The test has failed compilation, but it should never fail. Report error.
     </span><span class="kw">if </span>!test_function.should_fail() {
         <span class="kw">return </span>TestStatus::CompileError(err.into());
@@ -512,7 +518,7 @@
 ///
 /// We now check whether execution passed/failed and whether it should have
 /// passed/failed to determine the test status.
-</span><span class="kw">fn </span>test_status_program_compile_pass(
+</span><span class="kw">pub fn </span>test_status_program_compile_pass(
     test_function: <span class="kw-2">&amp;</span>TestFunction,
     abi: <span class="kw-2">&amp;</span>Abi,
     debug: <span class="kw-2">&amp;</span>[DebugInfo],
@@ -552,7 +558,7 @@
     )
 }
 
-<span class="kw">fn </span>check_expected_failure_message(
+<span class="kw">pub fn </span>check_expected_failure_message(
     test_function: <span class="kw-2">&amp;</span>TestFunction,
     failed_assertion: <span class="prelude-ty">Option</span>&lt;String&gt;,
     error_diagnostic: <span class="prelude-ty">Option</span>&lt;CustomDiagnostic&gt;,

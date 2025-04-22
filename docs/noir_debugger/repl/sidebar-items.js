@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run"],"struct":["ReplDebugger"]};
+window.SIDEBAR_ITEMS = {"enum":["DebugCommandAPI","DebuggerStatus"],"fn":["run"],"struct":["AsyncReplDebugger","DebugController"],"type":["Context"]};

@@ -25,14 +25,7 @@
 <a href="#24" id="24">24</a>
 <a href="#25" id="25">25</a>
 <a href="#26" id="26">26</a>
-<a href="#27" id="27">27</a>
-<a href="#28" id="28">28</a>
-<a href="#29" id="29">29</a>
-<a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a>
-<a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a>
-<a href="#34" id="34">34</a></pre></div><pre class="rust"><code><span class="kw">mod </span>context;
+<a href="#27" id="27">27</a></pre></div><pre class="rust"><code><span class="kw">mod </span>context;
 <span class="kw">mod </span>dap;
 <span class="kw">pub mod </span>errors;
 <span class="kw">mod </span>foreign_calls;
@@ -43,27 +36,20 @@
 
 <span class="kw">use </span>::dap::errors::ServerError;
 <span class="kw">use </span>::dap::server::Server;
-<span class="kw">use </span>acvm::acir::native_types::{WitnessMap, WitnessStack};
-<span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
+<span class="comment">// TODO: extract these pub structs to its own module
+</span><span class="kw">pub use </span>context::DebugExecutionResult;
+<span class="kw">pub use </span>context::DebugProject;
+<span class="kw">pub use </span>context::RunParams;
 
-<span class="kw">use </span>nargo::NargoError;
-<span class="kw">use </span>noirc_driver::CompiledProgram;
-
-<span class="kw">pub fn </span>run_repl_session&lt;B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt;(
-    solver: <span class="kw-2">&amp;</span>B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap&lt;FieldElement&gt;,
-    raw_source_printing: bool,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;WitnessStack&lt;FieldElement&gt;&gt;, NargoError&lt;FieldElement&gt;&gt; {
-    repl::run(solver, program, initial_witness, raw_source_printing)
+<span class="kw">pub fn </span>run_repl_session(project: DebugProject, run_params: RunParams) -&gt; DebugExecutionResult {
+    repl::run(project, run_params)
 }
 
-<span class="kw">pub fn </span>run_dap_loop&lt;R: Read, W: Write, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt;(
-    server: Server&lt;R, W&gt;,
-    solver: <span class="kw-2">&amp;</span>B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap&lt;FieldElement&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServerError&gt; {
-    dap::run_session(server, solver, program, initial_witness)
+<span class="kw">pub fn </span>run_dap_loop&lt;R: Read, W: Write&gt;(
+    server: <span class="kw-2">&amp;mut </span>Server&lt;R, W&gt;,
+    project: DebugProject,
+    run_params: RunParams,
+) -&gt; <span class="prelude-ty">Result</span>&lt;DebugExecutionResult, ServerError&gt; {
+    dap::run_session(server, project, run_params)
 }
 </code></pre></div></section></main></body></html>

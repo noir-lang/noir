@@ -779,15 +779,18 @@
 <a href="#778" id="778">778</a>
 <a href="#779" id="779">779</a>
 <a href="#780" id="780">780</a>
-<a href="#781" id="781">781</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
-<span class="kw">use </span><span class="kw">crate</span>::parser::ParsedModule;
+<span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
-<span class="kw">use crate</span>::{
-    ast,
-    ast::Path,
-    parser::{Item, ItemKind},
-};
+<span class="kw">use crate</span>::{ast, ast::Path, parser::ItemKind};
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_errors::debug_info::{DebugFnId, DebugFunction};
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -841,13 +844,24 @@
 <span class="kw">impl </span>DebugInstrumenter {
     <span class="kw">pub fn </span>instrument_module(<span class="kw-2">&amp;mut </span><span class="self">self</span>, module: <span class="kw-2">&amp;mut </span>ParsedModule, file: FileId) {
         module.items.iter_mut().for_each(|item| {
-            <span class="kw">if let </span>Item { kind: ItemKind::Function(f), .. } = item {
-                <span class="self">self</span>.walk_fn(<span class="kw-2">&amp;mut </span>f.def);
+            <span class="kw">match </span><span class="kw-2">&amp;mut </span>item.kind {
+                <span class="comment">// Instrument top-level functions of a module
+                </span>ItemKind::Function(f) =&gt; <span class="self">self</span>.walk_fn(<span class="kw-2">&amp;mut </span>f.def),
+                <span class="comment">// Instrument contract module
+                </span>ItemKind::Submodules(ParsedSubModule {
+                    is_contract: <span class="bool-val">true</span>,
+                    contents: contract_module,
+                    ..
+                }) =&gt; {
+                    <span class="self">self</span>.instrument_module(contract_module, file);
+                }
+                <span class="kw">_ </span>=&gt; (),
             }
         });
+
         <span class="comment">// this part absolutely must happen after ast traversal above
         // so that oracle functions don't get wrapped, resulting in infinite recursion:
-        </span><span class="self">self</span>.insert_state_set_oracle(module, <span class="number">8</span>, file);
+        </span><span class="self">self</span>.insert_state_set_oracle(module, file);
     }
 
     <span class="kw">fn </span>insert_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;SourceVarId&gt; {
@@ -1280,8 +1294,8 @@
         </span>}
     }
 
-    <span class="kw">fn </span>insert_state_set_oracle(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;mut </span>ParsedModule, n: u32, file: FileId) {
-        <span class="kw">let </span>member_assigns = (<span class="number">1</span>..=n)
+    <span class="kw">fn </span>insert_state_set_oracle(<span class="kw-2">&amp;</span><span class="self">self</span>, module: <span class="kw-2">&amp;mut </span>ParsedModule, file: FileId) {
+        <span class="kw">let </span>member_assigns = (<span class="number">1</span>..=MAX_MEMBER_ASSIGN_DEPTH)
             .map(|i| <span class="macro">format!</span>[<span class="string">"__debug_member_assign_{i}"</span>])
             .collect::&lt;Vec&lt;String&gt;&gt;()
             .join(<span class="string">",\n"</span>);

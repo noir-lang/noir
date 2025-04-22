@@ -670,93 +670,412 @@
 <a href="#669" id="669">669</a>
 <a href="#670" id="670">670</a>
 <a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::context::{DebugCommandResult, DebugContext, DebugLocation};
-
-<span class="kw">use </span>acvm::AcirField;
-<span class="kw">use </span>acvm::acir::brillig::BitSize;
-<span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
-<span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
-<span class="kw">use </span>acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
-<span class="kw">use </span>acvm::brillig_vm::MemoryValue;
-<span class="kw">use </span>acvm::brillig_vm::brillig::Opcode <span class="kw">as </span>BrilligOpcode;
-<span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
-<span class="kw">use </span>nargo::NargoError;
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::DebugProject;
+<span class="kw">use </span><span class="kw">crate</span>::context::{
+    DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
+    RunParams,
+};
 <span class="kw">use </span>noirc_driver::CompiledProgram;
 
 <span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DefaultDebugForeignCallExecutor;
 <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
 
 <span class="kw">use </span>easy_repl::{CommandStatus, Repl, command};
-<span class="kw">use </span>noirc_printable_type::PrintableValueDisplay;
 <span class="kw">use </span>std::cell::RefCell;
+<span class="kw">use </span>std::sync::mpsc::{<span class="self">self</span>, Receiver, Sender};
+<span class="kw">use </span>std::thread;
 
-<span class="kw">use </span><span class="kw">crate</span>::source_code_printer::print_source_code_location;
+<span class="kw">use </span>acvm::brillig_vm::brillig::Opcode <span class="kw">as </span>BrilligOpcode;
+<span class="kw">use </span>acvm::{
+    AcirField, FieldElement,
+    acir::{
+        brillig::BitSize,
+        circuit::{
+            Circuit, Opcode, OpcodeLocation,
+            brillig::{BrilligBytecode, BrilligFunctionId},
+        },
+        native_types::{Witness, WitnessMap},
+    },
+    brillig_vm::MemoryValue,
+};
+<span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
+<span class="kw">use </span>noirc_printable_type::PrintableValueDisplay;
 
-<span class="kw">pub struct </span>ReplDebugger&lt;<span class="lifetime">'a</span>, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt; {
-    context: DebugContext&lt;<span class="lifetime">'a</span>, B&gt;,
-    blackbox_solver: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>B,
-    debug_artifact: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DebugArtifact,
-    initial_witness: WitnessMap&lt;FieldElement&gt;,
-    last_result: DebugCommandResult,
+<span class="kw">use crate</span>::{
+    foreign_calls::DebugForeignCallExecutor, source_code_printer::print_source_code_location,
+};
 
-    <span class="comment">// ACIR functions to debug
-    </span>circuits: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Circuit&lt;FieldElement&gt;],
+<span class="kw">type </span>Context&lt;<span class="lifetime">'a</span>&gt; = DebugContext&lt;<span class="lifetime">'a</span>, Bn254BlackBoxSolver&gt;;
 
-    <span class="comment">// Brillig functions referenced from the ACIR circuits above
-    </span>unconstrained_functions: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[BrilligBytecode&lt;FieldElement&gt;],
-
-    <span class="comment">// whether to print the source without highlighting, pretty-printing,
-    // or line numbers
-    </span>raw_source_printing: bool,
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>DebugCommandAPI {
+    AddBreakpoint(DebugLocation),
+    AddBreakpointAtLine(i64),
+    DeleteBreakpoint(DebugLocation),
+    Restart,
+    StepAcirOpcode,
+    StepIntoOpcode,
+    NextInto,
+    NextOver,
+    NextOut,
+    Cont,
+    UpdateWitness(u32, String),
+    WriteBrilligMemory(usize, String, u32),
+    ShowVariables,
+    ShowWitnessMap,
+    ShowWitness(u32),
+    ShowBrilligMemory,
+    ShowCurrentCallStack,
+    ShowCurrentVmStatus,
+    ShowOpcodes,
+    Terminate,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt; ReplDebugger&lt;<span class="lifetime">'a</span>, B&gt; {
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>DebuggerStatus {
+    Idle,
+    Busy,
+    Final(DebugExecutionResult),
+}
+
+<span class="kw">pub struct </span>AsyncReplDebugger&lt;<span class="lifetime">'a</span>&gt; {
+    circuits: Vec&lt;Circuit&lt;FieldElement&gt;&gt;,
+    debug_artifact: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DebugArtifact,
+    initial_witness: WitnessMap&lt;FieldElement&gt;,
+    unconstrained_functions: Vec&lt;BrilligBytecode&lt;FieldElement&gt;&gt;,
+    command_receiver: Receiver&lt;DebugCommandAPI&gt;,
+    status_sender: Sender&lt;DebuggerStatus&gt;,
+    last_result: DebugCommandResult,
+    pedantic_solving: bool,
+    raw_source_printing: bool,
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; AsyncReplDebugger&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">pub fn </span>new(
-        blackbox_solver: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>B,
-        circuits: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Circuit&lt;FieldElement&gt;],
+        compiled_program: <span class="kw-2">&amp;</span>CompiledProgram,
         debug_artifact: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DebugArtifact,
         initial_witness: WitnessMap&lt;FieldElement&gt;,
-        unconstrained_functions: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[BrilligBytecode&lt;FieldElement&gt;],
+        status_sender: Sender&lt;DebuggerStatus&gt;,
+        command_receiver: Receiver&lt;DebugCommandAPI&gt;,
         raw_source_printing: bool,
+        pedantic_solving: bool,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            std::io::stdout(),
-            debug_artifact,
-        ));
-        <span class="kw">let </span>context = DebugContext::new(
-            blackbox_solver,
-            circuits,
-            debug_artifact,
-            initial_witness.clone(),
-            foreign_call_executor,
-            unconstrained_functions,
-        );
-        <span class="kw">let </span>last_result = <span class="kw">if </span>context.get_current_debug_location().is_none() {
-            <span class="comment">// handle circuit with no opcodes
-            </span>DebugCommandResult::Done
-        } <span class="kw">else </span>{
-            DebugCommandResult::Ok
-        };
+        <span class="kw">let </span>last_result = DebugCommandResult::Ok;
+
         <span class="self">Self </span>{
-            context,
-            blackbox_solver,
-            circuits,
+            command_receiver,
+            status_sender,
+            circuits: compiled_program.program.functions.clone(),
             debug_artifact,
-            initial_witness,
             last_result,
-            unconstrained_functions,
+            unconstrained_functions: compiled_program.program.unconstrained_functions.clone(),
             raw_source_printing,
+            initial_witness,
+            pedantic_solving,
         }
     }
 
-    <span class="kw">pub fn </span>show_current_vm_status(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let </span>location = <span class="self">self</span>.context.get_current_debug_location();
+    <span class="kw">fn </span>send_status(<span class="kw-2">&amp;mut </span><span class="self">self</span>, status: DebuggerStatus) {
+        <span class="self">self</span>.status_sender.send(status).expect(<span class="string">"Downstream channel closed"</span>)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>start_debugging(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        foreign_call_executor: Box&lt;<span class="kw">dyn </span>DebugForeignCallExecutor + <span class="lifetime">'a</span>&gt;,
+    ) {
+        <span class="kw">let </span>blackbox_solver = <span class="kw-2">&amp;</span>Bn254BlackBoxSolver(<span class="self">self</span>.pedantic_solving);
+        <span class="kw">let </span>circuits = <span class="kw-2">&amp;</span><span class="self">self</span>.circuits.clone();
+        <span class="kw">let </span>unconstrained_functions = <span class="kw-2">&amp;</span><span class="self">self</span>.unconstrained_functions.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::new(
+            blackbox_solver,
+            circuits,
+            <span class="self">self</span>.debug_artifact,
+            <span class="self">self</span>.initial_witness.clone(),
+            foreign_call_executor,
+            unconstrained_functions,
+        );
+
+        <span class="kw">if </span>context.get_current_debug_location().is_none() {
+            <span class="comment">// handle circuit with no opcodes
+            </span><span class="self">self</span>.last_result = DebugCommandResult::Done
+        }
+
+        <span class="macro">println!</span>(<span class="string">"Debugger ready to receive messages.."</span>);
+        <span class="kw">loop </span>{
+            <span class="self">self</span>.send_status(DebuggerStatus::Idle);
+            <span class="comment">// recv blocks until it receives message
+            </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(received) = <span class="self">self</span>.command_receiver.recv() {
+                <span class="self">self</span>.send_status(DebuggerStatus::Busy);
+                <span class="kw">match </span>received {
+                    DebugCommandAPI::AddBreakpoint(debug_location) =&gt; {
+                        <span class="self">Self</span>::add_breakpoint_at(<span class="kw-2">&amp;mut </span>context, debug_location);
+                    }
+                    DebugCommandAPI::DeleteBreakpoint(debug_location) =&gt; {
+                        <span class="self">Self</span>::delete_breakpoint_at(<span class="kw-2">&amp;mut </span>context, debug_location);
+                    }
+                    DebugCommandAPI::Restart =&gt; {
+                        <span class="self">self</span>.restart_session(<span class="kw-2">&amp;mut </span>context);
+                    }
+                    DebugCommandAPI::WriteBrilligMemory(index, value, bit_size) =&gt; {
+                        <span class="self">Self</span>::write_brillig_memory(<span class="kw-2">&amp;mut </span>context, index, value, bit_size);
+                    }
+                    DebugCommandAPI::UpdateWitness(index, value) =&gt; {
+                        <span class="self">Self</span>::update_witness(<span class="kw-2">&amp;mut </span>context, index, value);
+                    }
+                    DebugCommandAPI::StepAcirOpcode =&gt; {
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.step_acir_opcode());
+                    }
+                    DebugCommandAPI::StepIntoOpcode =&gt; {
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.step_into_opcode())
+                    }
+                    DebugCommandAPI::NextInto =&gt; {
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_into())
+                    }
+                    DebugCommandAPI::NextOver =&gt; {
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_over())
+                    }
+                    DebugCommandAPI::NextOut =&gt; {
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_out())
+                    }
+                    DebugCommandAPI::Cont =&gt; <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| {
+                        <span class="macro">println!</span>(<span class="string">"(Continuing execution...)"</span>);
+                        context.cont()
+                    }),
+                    DebugCommandAPI::AddBreakpointAtLine(line_number) =&gt; {
+                        <span class="self">Self</span>::add_breakpoint_at_line(<span class="kw-2">&amp;mut </span>context, line_number);
+                    }
+                    DebugCommandAPI::ShowVariables =&gt; {
+                        <span class="self">Self</span>::show_variables(<span class="kw-2">&amp;mut </span>context);
+                    }
+                    DebugCommandAPI::ShowWitnessMap =&gt; {
+                        <span class="self">Self</span>::show_witness_map(<span class="kw-2">&amp;mut </span>context);
+                    }
+                    DebugCommandAPI::ShowWitness(index) =&gt; {
+                        <span class="self">Self</span>::show_witness(<span class="kw-2">&amp;mut </span>context, index);
+                    }
+                    DebugCommandAPI::ShowBrilligMemory =&gt; {
+                        <span class="self">Self</span>::show_brillig_memory(<span class="kw-2">&amp;mut </span>context);
+                    }
+                    DebugCommandAPI::ShowCurrentCallStack =&gt; {
+                        <span class="self">self</span>.show_current_call_stack(<span class="kw-2">&amp;mut </span>context);
+                    }
+                    DebugCommandAPI::ShowOpcodes =&gt; {
+                        <span class="self">self</span>.show_opcodes(<span class="kw-2">&amp;mut </span>context);
+                    }
+                    DebugCommandAPI::ShowCurrentVmStatus =&gt; {
+                        <span class="self">self</span>.show_current_vm_status(<span class="kw-2">&amp;mut </span>context);
+                    }
+                    DebugCommandAPI::Terminate =&gt; {
+                        <span class="self">self</span>.terminate(context);
+                        <span class="kw">break</span>;
+                    }
+                };
+            } <span class="kw">else </span>{
+                <span class="macro">println!</span>(<span class="string">"Upstream channel closed. Terminating debugger"</span>);
+                <span class="kw">break</span>;
+            }
+        }
+    }
+
+    <span class="kw">fn </span>show_current_vm_status(<span class="kw-2">&amp;</span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+        <span class="kw">let </span>location = context.get_current_debug_location();
 
         <span class="kw">match </span>location {
             <span class="prelude-val">None </span>=&gt; <span class="macro">println!</span>(<span class="string">"Finished execution"</span>),
             <span class="prelude-val">Some</span>(location) =&gt; {
                 <span class="kw">let </span>circuit_id = location.circuit_id;
-                <span class="kw">let </span>opcodes = <span class="self">self</span>.context.get_opcodes_of_circuit(circuit_id);
+                <span class="kw">let </span>opcodes = context.get_opcodes_of_circuit(circuit_id);
+
                 <span class="kw">match </span><span class="kw-2">&amp;</span>location.opcode_location {
                     OpcodeLocation::Acir(ip) =&gt; {
                         <span class="macro">println!</span>(<span class="string">"At opcode {} :: {}"</span>, location, opcodes[<span class="kw-2">*</span>ip]);
@@ -774,7 +1093,8 @@
                         );
                     }
                 }
-                <span class="kw">let </span>locations = <span class="self">self</span>.context.get_source_location_for_debug_location(<span class="kw-2">&amp;</span>location);
+                <span class="kw">let </span>locations = context.get_source_location_for_debug_location(<span class="kw-2">&amp;</span>location);
+
                 print_source_code_location(
                     <span class="self">self</span>.debug_artifact,
                     <span class="kw-2">&amp;</span>locations,
@@ -784,8 +1104,13 @@
         }
     }
 
-    <span class="kw">fn </span>show_stack_frame(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize, debug_location: <span class="kw-2">&amp;</span>DebugLocation) {
-        <span class="kw">let </span>opcodes = <span class="self">self</span>.context.get_opcodes();
+    <span class="kw">fn </span>show_stack_frame(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;,
+        index: usize,
+        debug_location: <span class="kw-2">&amp;</span>DebugLocation,
+    ) {
+        <span class="kw">let </span>opcodes = context.get_opcodes();
         <span class="kw">match </span><span class="kw-2">&amp;</span>debug_location.opcode_location {
             OpcodeLocation::Acir(instruction_pointer) =&gt; {
                 <span class="macro">println!</span>(
@@ -806,38 +1131,39 @@
                 );
             }
         }
-        <span class="kw">let </span>locations = <span class="self">self</span>.context.get_source_location_for_debug_location(debug_location);
+        <span class="kw">let </span>locations = context.get_source_location_for_debug_location(debug_location);
         print_source_code_location(<span class="self">self</span>.debug_artifact, <span class="kw-2">&amp;</span>locations, <span class="self">self</span>.raw_source_printing);
     }
 
-    <span class="kw">pub fn </span>show_current_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let </span>call_stack = <span class="self">self</span>.context.get_call_stack();
+    <span class="kw">fn </span>show_current_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+        <span class="kw">let </span>call_stack = context.get_call_stack();
+
         <span class="kw">if </span>call_stack.is_empty() {
             <span class="macro">println!</span>(<span class="string">"Finished execution. Call stack empty."</span>);
             <span class="kw">return</span>;
         }
 
         <span class="kw">for </span>(i, frame_location) <span class="kw">in </span>call_stack.iter().enumerate() {
-            <span class="self">self</span>.show_stack_frame(i, frame_location);
+            <span class="self">self</span>.show_stack_frame(context, i, frame_location);
         }
     }
 
-    <span class="kw">fn </span>display_opcodes(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    <span class="kw">fn </span>show_opcodes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.circuits.len() {
-            <span class="self">self</span>.display_opcodes_of_circuit(i <span class="kw">as </span>u32);
+            <span class="self">self</span>.show_opcodes_of_circuit(context, i <span class="kw">as </span>u32);
         }
     }
 
-    <span class="kw">fn </span>display_opcodes_of_circuit(<span class="kw-2">&amp;</span><span class="self">self</span>, circuit_id: u32) {
+    <span class="kw">fn </span>show_opcodes_of_circuit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, circuit_id: u32) {
         <span class="kw">let </span>current_opcode_location =
-            <span class="self">self</span>.context.get_current_debug_location().and_then(|debug_location| {
+            context.get_current_debug_location().and_then(|debug_location| {
                 <span class="kw">if </span>debug_location.circuit_id == circuit_id {
                     <span class="prelude-val">Some</span>(debug_location.opcode_location)
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None
                 </span>}
             });
-        <span class="kw">let </span>opcodes = <span class="self">self</span>.context.get_opcodes_of_circuit(circuit_id);
+        <span class="kw">let </span>opcodes = context.get_opcodes_of_circuit(circuit_id);
         <span class="kw">let </span>current_acir_index = <span class="kw">match </span>current_opcode_location {
             <span class="prelude-val">Some</span>(OpcodeLocation::Acir(ip)) =&gt; <span class="prelude-val">Some</span>(ip),
             <span class="prelude-val">Some</span>(OpcodeLocation::Brillig { acir_index, .. }) =&gt; <span class="prelude-val">Some</span>(acir_index),
@@ -850,7 +1176,7 @@
         <span class="kw">let </span>outer_marker = |acir_index| {
             <span class="kw">if </span>current_acir_index == <span class="prelude-val">Some</span>(acir_index) {
                 <span class="string">"-&gt;"
-            </span>} <span class="kw">else if </span><span class="self">self</span>.context.is_breakpoint_set(<span class="kw-2">&amp;</span>DebugLocation {
+            </span>} <span class="kw">else if </span>context.is_breakpoint_set(<span class="kw-2">&amp;</span>DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Acir(acir_index),
                 brillig_function_id: <span class="prelude-val">None</span>,
@@ -863,7 +1189,7 @@
         <span class="kw">let </span>brillig_marker = |acir_index, brillig_index, brillig_function_id| {
             <span class="kw">if </span>current_acir_index == <span class="prelude-val">Some</span>(acir_index) &amp;&amp; brillig_index == current_brillig_index {
                 <span class="string">"-&gt;"
-            </span>} <span class="kw">else if </span><span class="self">self</span>.context.is_breakpoint_set(<span class="kw-2">&amp;</span>DebugLocation {
+            </span>} <span class="kw">else if </span>context.is_breakpoint_set(<span class="kw-2">&amp;</span>DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Brillig { acir_index, brillig_index },
                 brillig_function_id: <span class="prelude-val">Some</span>(brillig_function_id),
@@ -905,44 +1231,56 @@
         }
     }
 
-    <span class="kw">fn </span>add_breakpoint_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: DebugLocation) {
-        <span class="kw">if </span>!<span class="self">self</span>.context.is_valid_debug_location(<span class="kw-2">&amp;</span>location) {
+    <span class="kw">fn </span>add_breakpoint_at(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, location: DebugLocation) {
+        <span class="kw">if </span>!context.is_valid_debug_location(<span class="kw-2">&amp;</span>location) {
             <span class="macro">println!</span>(<span class="string">"Invalid location {location}"</span>);
-        } <span class="kw">else if </span><span class="self">self</span>.context.add_breakpoint(location) {
+        } <span class="kw">else if </span>context.add_breakpoint(location) {
             <span class="macro">println!</span>(<span class="string">"Added breakpoint at {location}"</span>);
         } <span class="kw">else </span>{
             <span class="macro">println!</span>(<span class="string">"Breakpoint at {location} already set"</span>);
         }
     }
 
-    <span class="kw">fn </span>add_breakpoint_at_line(<span class="kw-2">&amp;mut </span><span class="self">self</span>, line_number: i64) {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(current_file) = <span class="self">self</span>.context.get_current_file() <span class="kw">else </span>{
-            <span class="macro">println!</span>(<span class="string">"No current file."</span>);
-            <span class="kw">return</span>;
-        };
-
-        <span class="kw">let </span>best_location =
-            <span class="self">self</span>.context.find_opcode_for_source_location(<span class="kw-2">&amp;</span>current_file, line_number);
-
+    <span class="kw">fn </span>add_breakpoint_at_line(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, line_number: i64) {
+        <span class="kw">let </span>best_location = context.find_opcode_at_current_file_line(line_number);
         <span class="kw">match </span>best_location {
             <span class="prelude-val">Some</span>(location) =&gt; {
                 <span class="macro">println!</span>(<span class="string">"Added breakpoint at line {}"</span>, line_number);
-                <span class="self">self</span>.add_breakpoint_at(location)
+                <span class="self">Self</span>::add_breakpoint_at(context, location);
             }
             <span class="prelude-val">None </span>=&gt; <span class="macro">println!</span>(<span class="string">"No opcode at line {}"</span>, line_number),
         }
     }
 
-    <span class="kw">fn </span>delete_breakpoint_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: DebugLocation) {
-        <span class="kw">if </span><span class="self">self</span>.context.delete_breakpoint(<span class="kw-2">&amp;</span>location) {
+    <span class="kw">fn </span>delete_breakpoint_at(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, location: DebugLocation) {
+        <span class="kw">if </span>context.delete_breakpoint(<span class="kw-2">&amp;</span>location) {
             <span class="macro">println!</span>(<span class="string">"Breakpoint at {location} deleted"</span>);
         } <span class="kw">else </span>{
             <span class="macro">println!</span>(<span class="string">"Breakpoint at {location} not set"</span>);
         }
     }
 
-    <span class="kw">fn </span>validate_in_progress(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">match </span><span class="self">self</span>.last_result {
+    <span class="kw">fn </span>handle_result(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: DebugCommandResult) {
+        <span class="self">self</span>.last_result = result;
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.last_result {
+            DebugCommandResult::Done =&gt; {
+                <span class="macro">println!</span>(<span class="string">"Execution finished"</span>);
+            }
+            DebugCommandResult::Ok =&gt; (),
+            DebugCommandResult::BreakpointReached(location) =&gt; {
+                <span class="macro">println!</span>(<span class="string">"Stopped at breakpoint in opcode {}"</span>, location);
+            }
+            DebugCommandResult::Error(error) =&gt; {
+                <span class="macro">println!</span>(<span class="string">"ERROR: {}"</span>, error);
+            }
+        }
+    }
+
+    <span class="kw">fn </span>handle_step&lt;F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, step: F)
+    <span class="kw">where
+        </span>F: Fn(<span class="kw-2">&amp;mut </span>Context) -&gt; DebugCommandResult,
+    {
+        <span class="kw">let </span>should_execute = <span class="kw">match </span><span class="self">self</span>.last_result {
             DebugCommandResult::Ok | DebugCommandResult::BreakpointReached(..) =&gt; <span class="bool-val">true</span>,
             DebugCommandResult::Done =&gt; {
                 <span class="macro">println!</span>(<span class="string">"Execution finished"</span>);
@@ -950,123 +1288,56 @@
             </span>}
             DebugCommandResult::Error(<span class="kw-2">ref </span>error) =&gt; {
                 <span class="macro">println!</span>(<span class="string">"ERROR: {}"</span>, error);
-                <span class="self">self</span>.show_current_vm_status();
+                <span class="self">self</span>.show_current_vm_status(context);
                 <span class="bool-val">false
             </span>}
+        };
+        <span class="kw">if </span>should_execute {
+            <span class="kw">let </span>result = step(context);
+            <span class="self">self</span>.show_current_vm_status(context);
+            <span class="self">self</span>.handle_result(result);
         }
     }
 
-    <span class="kw">fn </span>handle_debug_command_result(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: DebugCommandResult) {
-        <span class="kw">match </span><span class="kw-2">&amp;</span>result {
-            DebugCommandResult::BreakpointReached(location) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"Stopped at breakpoint in opcode {}"</span>, location);
-            }
-            DebugCommandResult::Error(error) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"ERROR: {}"</span>, error);
-            }
-            <span class="kw">_ </span>=&gt; (),
-        }
-        <span class="self">self</span>.last_result = result;
-        <span class="self">self</span>.show_current_vm_status();
-    }
-
-    <span class="kw">fn </span>step_acir_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.validate_in_progress() {
-            <span class="kw">let </span>result = <span class="self">self</span>.context.step_acir_opcode();
-            <span class="self">self</span>.handle_debug_command_result(result);
-        }
-    }
-
-    <span class="kw">fn </span>step_into_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.validate_in_progress() {
-            <span class="kw">let </span>result = <span class="self">self</span>.context.step_into_opcode();
-            <span class="self">self</span>.handle_debug_command_result(result);
-        }
-    }
-
-    <span class="kw">fn </span>next_into(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.validate_in_progress() {
-            <span class="kw">let </span>result = <span class="self">self</span>.context.next_into();
-            <span class="self">self</span>.handle_debug_command_result(result);
-        }
-    }
-
-    <span class="kw">fn </span>next_over(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.validate_in_progress() {
-            <span class="kw">let </span>result = <span class="self">self</span>.context.next_over();
-            <span class="self">self</span>.handle_debug_command_result(result);
-        }
-    }
-
-    <span class="kw">fn </span>next_out(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.validate_in_progress() {
-            <span class="kw">let </span>result = <span class="self">self</span>.context.next_out();
-            <span class="self">self</span>.handle_debug_command_result(result);
-        }
-    }
-
-    <span class="kw">fn </span>cont(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.validate_in_progress() {
-            <span class="macro">println!</span>(<span class="string">"(Continuing execution...)"</span>);
-            <span class="kw">let </span>result = <span class="self">self</span>.context.cont();
-            <span class="self">self</span>.handle_debug_command_result(result);
-        }
-    }
-
-    <span class="kw">fn </span>restart_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span>breakpoints: Vec&lt;DebugLocation&gt; = <span class="self">self</span>.context.iterate_breakpoints().copied().collect();
-        <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            std::io::stdout(),
-            <span class="self">self</span>.debug_artifact,
-        ));
-        <span class="self">self</span>.context = DebugContext::new(
-            <span class="self">self</span>.blackbox_solver,
-            <span class="self">self</span>.circuits,
-            <span class="self">self</span>.debug_artifact,
-            <span class="self">self</span>.initial_witness.clone(),
-            foreign_call_executor,
-            <span class="self">self</span>.unconstrained_functions,
-        );
-        <span class="kw">for </span>debug_location <span class="kw">in </span>breakpoints {
-            <span class="self">self</span>.context.add_breakpoint(debug_location);
-        }
+    <span class="kw">fn </span>restart_session(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+        context.restart();
         <span class="self">self</span>.last_result = DebugCommandResult::Ok;
         <span class="macro">println!</span>(<span class="string">"Restarted debugging session."</span>);
-        <span class="self">self</span>.show_current_vm_status();
+        <span class="self">self</span>.show_current_vm_status(context);
     }
 
-    <span class="kw">pub fn </span>show_witness_map(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let </span>witness_map = <span class="self">self</span>.context.get_witness_map();
+    <span class="kw">fn </span>show_witness_map(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+        <span class="kw">let </span>witness_map = context.get_witness_map();
         <span class="comment">// NOTE: we need to clone() here to get the iterator
         </span><span class="kw">for </span>(witness, value) <span class="kw">in </span>witness_map.clone().into_iter() {
             <span class="macro">println!</span>(<span class="string">"_{} = {value}"</span>, witness.witness_index());
         }
     }
 
-    <span class="kw">pub fn </span>show_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, index: u32) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = <span class="self">self</span>.context.get_witness_map().get_index(index) {
+    <span class="kw">fn </span>show_witness(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, index: u32) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = context.get_witness_map().get_index(index) {
             <span class="macro">println!</span>(<span class="string">"_{} = {value}"</span>, index);
         }
     }
 
-    <span class="kw">pub fn </span>update_witness(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: u32, value: String) {
+    <span class="kw">fn </span>update_witness(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, index: u32, value: String) {
         <span class="kw">let </span><span class="prelude-val">Some</span>(field_value) = FieldElement::try_from_str(<span class="kw-2">&amp;</span>value) <span class="kw">else </span>{
             <span class="macro">println!</span>(<span class="string">"Invalid witness value: {value}"</span>);
             <span class="kw">return</span>;
         };
 
         <span class="kw">let </span>witness = Witness::from(index);
-        <span class="kw">_ </span>= <span class="self">self</span>.context.overwrite_witness(witness, field_value);
+        <span class="kw">_ </span>= context.overwrite_witness(witness, field_value);
         <span class="macro">println!</span>(<span class="string">"_{} = {value}"</span>, index);
     }
 
-    <span class="kw">pub fn </span>show_brillig_memory(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">if </span>!<span class="self">self</span>.context.is_executing_brillig() {
+    <span class="kw">fn </span>show_brillig_memory(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+        <span class="kw">if </span>!context.is_executing_brillig() {
             <span class="macro">println!</span>(<span class="string">"Not executing a Brillig block"</span>);
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(memory) = <span class="self">self</span>.context.get_brillig_memory() <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(memory) = context.get_brillig_memory() <span class="kw">else </span>{
             <span class="comment">// this can happen when just entering the Brillig block since ACVM
             // would have not initialized the Brillig VM yet; in fact, the
             // Brillig code may be skipped altogether
@@ -1084,8 +1355,7 @@
             <span class="macro">println!</span>(<span class="string">"{index} = {}"</span>, value);
         }
     }
-
-    <span class="kw">pub fn </span>write_brillig_memory(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: String, bit_size: u32) {
+    <span class="kw">fn </span>write_brillig_memory(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, index: usize, value: String, bit_size: u32) {
         <span class="kw">let </span><span class="prelude-val">Some</span>(field_value) = FieldElement::try_from_str(<span class="kw-2">&amp;</span>value) <span class="kw">else </span>{
             <span class="macro">println!</span>(<span class="string">"Invalid value: {value}"</span>);
             <span class="kw">return</span>;
@@ -1096,15 +1366,17 @@
             <span class="kw">return</span>;
         };
 
-        <span class="kw">if </span>!<span class="self">self</span>.context.is_executing_brillig() {
+        <span class="kw">if </span>!context.is_executing_brillig() {
             <span class="macro">println!</span>(<span class="string">"Not executing a Brillig block"</span>);
             <span class="kw">return</span>;
         }
-        <span class="self">self</span>.context.write_brillig_memory(index, field_value, bit_size);
+        context.write_brillig_memory(index, field_value, bit_size);
     }
 
-    <span class="kw">pub fn </span>show_vars(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">for </span>frame <span class="kw">in </span><span class="self">self</span>.context.get_variables() {
+    <span class="kw">fn </span>show_variables(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+        <span class="kw">let </span>variables: Vec&lt;DebugStackFrame&lt;FieldElement&gt;&gt; =
+            context.get_variables().iter().map(DebugStackFrame::from).collect();
+        <span class="kw">for </span>frame <span class="kw">in </span>variables {
             <span class="macro">println!</span>(<span class="string">"{}({})"</span>, frame.function_name, frame.function_params.join(<span class="string">", "</span>));
             <span class="kw">for </span>(var_name, value, var_type) <span class="kw">in </span>frame.variables.iter() {
                 <span class="kw">let </span>printable_value =
@@ -1114,33 +1386,146 @@
         }
     }
 
-    <span class="kw">fn </span>is_solved(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.context.is_solved()
-    }
-
-    <span class="kw">fn </span>finalize(<span class="self">self</span>) -&gt; WitnessStack&lt;FieldElement&gt; {
-        <span class="self">self</span>.context.finalize()
+    <span class="kw">fn </span>terminate(<span class="self">self</span>, context: Context&lt;<span class="lifetime">'_</span>&gt;) {
+        <span class="kw">let </span>result = <span class="kw">if </span>context.is_solved() {
+            <span class="kw">let </span>solved_witness_stack = context.finalize();
+            DebugExecutionResult::Solved(solved_witness_stack)
+        } <span class="kw">else </span>{
+            <span class="kw">match </span><span class="self">self</span>.last_result {
+                <span class="comment">// Expose the last known error
+                </span>DebugCommandResult::Error(error) =&gt; DebugExecutionResult::Error(error),
+                <span class="kw">_ </span>=&gt; DebugExecutionResult::Incomplete,
+            }
+        };
+        <span class="self">self</span>.status_sender.send(DebuggerStatus::Final(result)).expect(<span class="string">"Downstream channel closed"</span>)
     }
 }
 
-<span class="kw">pub fn </span>run&lt;B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt;(
-    blackbox_solver: <span class="kw-2">&amp;</span>B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap&lt;FieldElement&gt;,
-    raw_source_printing: bool,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;WitnessStack&lt;FieldElement&gt;&gt;, NargoError&lt;FieldElement&gt;&gt; {
-    <span class="kw">let </span>circuits = <span class="kw-2">&amp;</span>program.program.functions;
-    <span class="kw">let </span>debug_artifact =
-        <span class="kw-2">&amp;</span>DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
-    <span class="kw">let </span>unconstrained_functions = <span class="kw-2">&amp;</span>program.program.unconstrained_functions;
-    <span class="kw">let </span>context = RefCell::new(ReplDebugger::new(
-        blackbox_solver,
-        circuits,
-        debug_artifact,
-        initial_witness,
-        unconstrained_functions,
-        raw_source_printing,
+<span class="kw">struct </span>DebugController {
+    command_sender: Sender&lt;DebugCommandAPI&gt;,
+    status_receiver: Receiver&lt;DebuggerStatus&gt;,
+}
+<span class="kw">impl </span>DebugController {
+    <span class="kw">fn </span>debugger_status(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DebuggerStatus {
+        <span class="self">self</span>.status_receiver.recv().expect(<span class="string">"Debugger closed connection unexpectedly"</span>)
+    }
+
+    <span class="kw">fn </span>call_debugger(<span class="kw-2">&amp;</span><span class="self">self</span>, command: DebugCommandAPI) {
+        <span class="self">self</span>.command_sender.send(command).expect(<span class="string">"Could not communicate with debugger"</span>);
+        <span class="self">self</span>.wait_for_idle();
+    }
+
+    <span class="kw">fn </span>get_final_result(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DebugExecutionResult {
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>status = <span class="self">self</span>.debugger_status();
+            <span class="kw">if let </span>DebuggerStatus::Final(result) = status {
+                <span class="kw">return </span>result;
+            }
+        }
+    }
+
+    <span class="kw">fn </span>wait_for_idle(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>status = <span class="self">self</span>.debugger_status();
+            <span class="kw">if let </span>DebuggerStatus::Idle = status {
+                <span class="kw">break</span>;
+            };
+        }
+    }
+
+    <span class="kw">pub fn </span>step_acir_opcode(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::StepAcirOpcode);
+    }
+    <span class="kw">pub fn </span>cont(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::Cont);
+    }
+    <span class="kw">pub fn </span>step_into_opcode(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::StepIntoOpcode);
+    }
+    <span class="kw">pub fn </span>next_into(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::NextInto);
+    }
+    <span class="kw">pub fn </span>next_over(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::NextOver);
+    }
+    <span class="kw">pub fn </span>next_out(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::NextOut);
+    }
+    <span class="kw">pub fn </span>restart_session(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::Restart);
+    }
+    <span class="kw">pub fn </span>add_breakpoint_at_line(<span class="kw-2">&amp;</span><span class="self">self</span>, line_number: i64) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::AddBreakpointAtLine(line_number));
+    }
+    <span class="kw">pub fn </span>add_breakpoint_at(<span class="kw-2">&amp;</span><span class="self">self</span>, location: DebugLocation) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::AddBreakpoint(location));
+    }
+    <span class="kw">pub fn </span>delete_breakpoint_at(<span class="kw-2">&amp;</span><span class="self">self</span>, location: DebugLocation) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::DeleteBreakpoint(location));
+    }
+    <span class="kw">pub fn </span>update_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, index: u32, value: String) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::UpdateWitness(index, value));
+    }
+    <span class="kw">pub fn </span>write_brillig_memory(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize, value: String, bit_size: u32) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::WriteBrilligMemory(index, value, bit_size));
+    }
+    <span class="kw">pub fn </span>show_vars(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowVariables);
+    }
+    <span class="kw">pub fn </span>show_opcodes(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowOpcodes);
+    }
+    <span class="kw">pub fn </span>show_witness_map(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowWitnessMap);
+    }
+    <span class="kw">pub fn </span>show_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, index: u32) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowWitness(index));
+    }
+    <span class="kw">pub fn </span>show_brillig_memory(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowBrilligMemory);
+    }
+    <span class="kw">pub fn </span>show_current_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowCurrentCallStack);
+    }
+    <span class="kw">pub fn </span>show_current_vm_status(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowCurrentVmStatus);
+    }
+    <span class="kw">pub fn </span>terminate(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.call_debugger(DebugCommandAPI::Terminate);
+    }
+}
+
+<span class="kw">pub fn </span>run(project: DebugProject, run_params: RunParams) -&gt; DebugExecutionResult {
+    <span class="kw">let </span>debug_artifact = DebugArtifact {
+        debug_symbols: project.compiled_program.debug.clone(),
+        file_map: project.compiled_program.file_map.clone(),
+    };
+
+    <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+        std::io::stdout(),
+        run_params.oracle_resolver_url,
+        <span class="kw-2">&amp;</span>debug_artifact,
+        <span class="prelude-val">Some</span>(project.root_dir),
+        project.package_name,
     ));
+
+    <span class="kw">let </span>(command_tx, command_rx) = mpsc::channel::&lt;DebugCommandAPI&gt;();
+    <span class="kw">let </span>(status_tx, status_rx) = mpsc::channel::&lt;DebuggerStatus&gt;();
+    thread::spawn(<span class="kw">move </span>|| {
+        <span class="kw">let </span>debugger = AsyncReplDebugger::new(
+            <span class="kw-2">&amp;</span>project.compiled_program,
+            <span class="kw-2">&amp;</span>debug_artifact,
+            project.initial_witness,
+            status_tx,
+            command_rx,
+            run_params.raw_source_printing.unwrap_or(<span class="bool-val">false</span>),
+            run_params.pedantic_solving,
+        );
+        debugger.start_debugging(foreign_call_executor);
+    });
+
+    <span class="kw">let </span>context =
+        RefCell::new(DebugController { command_sender: command_tx, status_receiver: status_rx });
     <span class="kw">let </span>ref_context = <span class="kw-2">&amp;</span>context;
 
     ref_context.borrow().show_current_vm_status();
@@ -1221,7 +1606,7 @@
             <span class="macro">command!</span> {
                 <span class="string">"display ACIR opcodes"</span>,
                 () =&gt; || {
-                    ref_context.borrow().display_opcodes();
+                    ref_context.borrow().show_opcodes();
                     <span class="prelude-val">Ok</span>(CommandStatus::Done)
                 }
             },
@@ -1330,16 +1715,11 @@
         .expect(<span class="string">"Failed to initialize debugger repl"</span>);
 
     repl.run().expect(<span class="string">"Debugger error"</span>);
-
     <span class="comment">// REPL execution has finished.
     // Drop it so that we can move fields out from `context` again.
     </span>drop(repl);
 
-    <span class="kw">if </span>context.borrow().is_solved() {
-        <span class="kw">let </span>solved_witness_stack = context.into_inner().finalize();
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(solved_witness_stack))
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-    }
+    context.borrow().terminate();
+    context.borrow().get_final_result()
 }
 </code></pre></div></section></main></body></html>

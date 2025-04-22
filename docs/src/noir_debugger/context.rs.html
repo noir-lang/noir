@@ -1386,7 +1386,126 @@
 <a href="#1385" id="1385">1385</a>
 <a href="#1386" id="1386">1386</a>
 <a href="#1387" id="1387">1387</a>
-<a href="#1388" id="1388">1388</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a>
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a>
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a>
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -1401,14 +1520,16 @@
 <span class="kw">use </span>codespan_reporting::files::{Files, SimpleFile};
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>nargo::NargoError;
-<span class="kw">use </span>nargo::errors::{ExecutionError, Location};
+<span class="kw">use </span>nargo::errors::{ExecutionError, Location, ResolvedOpcodeLocation, execution_error_from};
 <span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, StackFrame};
-<span class="kw">use </span>noirc_driver::DebugFile;
+<span class="kw">use </span>noirc_driver::{CompiledProgram, DebugFile};
 
+<span class="kw">use </span>noirc_printable_type::{PrintableType, PrintableValue};
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use </span>std::collections::BTreeMap;
-<span class="kw">use </span>std::collections::{HashSet, hash_set::Iter};
+<span class="kw">use </span>std::collections::HashSet;
+<span class="kw">use </span>std::path::PathBuf;
 
 <span class="doccomment">/// A Noir program is composed by
 /// `n` ACIR circuits
@@ -1577,6 +1698,15 @@
     }
 }
 
+<span class="kw">impl </span>From&lt;DebugLocation&gt; <span class="kw">for </span>ResolvedOpcodeLocation {
+    <span class="kw">fn </span>from(debug_loc: DebugLocation) -&gt; <span class="self">Self </span>{
+        ResolvedOpcodeLocation {
+            acir_function_index: usize::try_from(debug_loc.circuit_id).unwrap(),
+            opcode_location: debug_loc.opcode_location,
+        }
+    }
+}
+
 <span class="attr">#[derive(Error, Debug)]
 </span><span class="kw">pub enum </span>DebugLocationFromStrError {
     <span class="attr">#[error(<span class="string">"Invalid debug location string: {0}"</span>)]
@@ -1615,9 +1745,61 @@
     Error(NargoError&lt;FieldElement&gt;),
 }
 
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub struct </span>DebugStackFrame&lt;F&gt; {
+    <span class="kw">pub </span>function_name: String,
+    <span class="kw">pub </span>function_params: Vec&lt;String&gt;,
+    <span class="kw">pub </span>variables: Vec&lt;(String, PrintableValue&lt;F&gt;, PrintableType)&gt;,
+}
+
+<span class="kw">impl</span>&lt;F: Clone&gt; From&lt;<span class="kw-2">&amp;</span>StackFrame&lt;<span class="lifetime">'_</span>, F&gt;&gt; <span class="kw">for </span>DebugStackFrame&lt;F&gt; {
+    <span class="kw">fn </span>from(value: <span class="kw-2">&amp;</span>StackFrame&lt;F&gt;) -&gt; <span class="self">Self </span>{
+        DebugStackFrame {
+            function_name: value.function_name.to_string(),
+            function_params: value.function_params.iter().map(|param| param.to_string()).collect(),
+            variables: value
+                .variables
+                .iter()
+                .map(|(name, value, var_type)| {
+                    (name.to_string(), (<span class="kw-2">**</span>value).clone(), (<span class="kw-2">*</span>var_type).clone())
+                })
+                .collect(),
+        }
+    }
+}
+
 <span class="kw">pub struct </span>ExecutionFrame&lt;<span class="lifetime">'a</span>, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt; {
     circuit_id: u32,
     acvm: ACVM&lt;<span class="lifetime">'a</span>, FieldElement, B&gt;,
+}
+
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub enum </span>DebugExecutionResult {
+    Solved(WitnessStack&lt;FieldElement&gt;),
+    Incomplete,
+    Error(NargoError&lt;FieldElement&gt;),
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>DebugProject {
+    <span class="kw">pub </span>compiled_program: CompiledProgram,
+    <span class="kw">pub </span>initial_witness: WitnessMap&lt;FieldElement&gt;,
+    <span class="kw">pub </span>root_dir: PathBuf,
+    <span class="kw">pub </span>package_name: String,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+
+</span><span class="kw">pub struct </span>RunParams {
+    <span class="doccomment">/// Use pedantic ACVM solving
+    </span><span class="kw">pub </span>pedantic_solving: bool,
+
+    <span class="doccomment">/// Option for configuring the source_code_printer
+    /// This option only applies for the Repl interface
+    </span><span class="kw">pub </span>raw_source_printing: <span class="prelude-ty">Option</span>&lt;bool&gt;,
+
+    <span class="doccomment">/// JSON RPC url to solve oracle calls
+    </span><span class="kw">pub </span>oracle_resolver_url: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>DebugContext&lt;<span class="lifetime">'a</span>, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt; {
@@ -1639,6 +1821,25 @@
     unconstrained_functions: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[BrilligBytecode&lt;FieldElement&gt;],
 
     acir_opcode_addresses: AddressMap,
+    initial_witness: WitnessMap&lt;FieldElement&gt;,
+}
+
+<span class="kw">fn </span>initialize_acvm&lt;<span class="lifetime">'a</span>, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt;(
+    backend: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>B,
+    circuits: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Circuit&lt;FieldElement&gt;],
+    initial_witness: WitnessMap&lt;FieldElement&gt;,
+    unconstrained_functions: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[BrilligBytecode&lt;FieldElement&gt;],
+) -&gt; ACVM&lt;<span class="lifetime">'a</span>, FieldElement, B&gt; {
+    <span class="kw">let </span>current_circuit_id: u32 = <span class="number">0</span>;
+    <span class="kw">let </span>initial_circuit = <span class="kw-2">&amp;</span>circuits[current_circuit_id <span class="kw">as </span>usize];
+
+    ACVM::new(
+        backend,
+        <span class="kw-2">&amp;</span>initial_circuit.opcodes,
+        initial_witness,
+        unconstrained_functions,
+        <span class="kw-2">&amp;</span>initial_circuit.assert_messages,
+    )
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt; DebugContext&lt;<span class="lifetime">'a</span>, B&gt; {
@@ -1652,16 +1853,8 @@
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
         <span class="kw">let </span>current_circuit_id: u32 = <span class="number">0</span>;
-        <span class="kw">let </span>initial_circuit = <span class="kw-2">&amp;</span>circuits[current_circuit_id <span class="kw">as </span>usize];
         <span class="kw">let </span>acir_opcode_addresses = AddressMap::new(circuits, unconstrained_functions);
         <span class="self">Self </span>{
-            acvm: ACVM::new(
-                blackbox_solver,
-                <span class="kw-2">&amp;</span>initial_circuit.opcodes,
-                initial_witness,
-                unconstrained_functions,
-                <span class="kw-2">&amp;</span>initial_circuit.assert_messages,
-            ),
             current_circuit_id,
             brillig_solver: <span class="prelude-val">None</span>,
             witness_stack: WitnessStack::default(),
@@ -1674,6 +1867,13 @@
             circuits,
             unconstrained_functions,
             acir_opcode_addresses,
+            initial_witness: initial_witness.clone(), <span class="comment">// we keep it so the context can restart itself
+            </span>acvm: initialize_acvm(
+                blackbox_solver,
+                circuits,
+                initial_witness,
+                unconstrained_functions,
+            ),
         }
     }
 
@@ -1803,6 +2003,12 @@
         <span class="prelude-val">Some</span>(found_location)
     }
 
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_opcode_at_current_file_line(<span class="kw-2">&amp;</span><span class="self">self</span>, line: i64) -&gt; <span class="prelude-ty">Option</span>&lt;DebugLocation&gt; {
+        <span class="kw">let </span>file = <span class="self">self</span>.get_current_file()<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.find_opcode_for_source_location(<span class="kw-2">&amp;</span>file, line)
+    }
+
     <span class="doccomment">/// Returns the callstack in source code locations for the currently
     /// executing opcode. This can be `None` if the execution finished (and
     /// `get_current_opcode_location()` returns `None`) or if the opcode is not
@@ -1818,7 +2024,7 @@
     }
 
     <span class="doccomment">/// Returns the `FileId` of the file associated with the innermost function on the call stack.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_current_file(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FileId&gt; {
+    </span><span class="kw">fn </span>get_current_file(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FileId&gt; {
         <span class="self">self</span>.get_current_source_location()
             .and_then(|locations| locations.last().map(|location| location.file))
     }
@@ -1927,9 +2133,17 @@
                 <span class="self">self</span>.brillig_solver = <span class="prelude-val">Some</span>(solver);
                 <span class="self">self</span>.handle_foreign_call(foreign_call)
             }
-            <span class="prelude-val">Err</span>(err) =&gt; DebugCommandResult::Error(NargoError::ExecutionError(
-                ExecutionError::SolvingError(err, <span class="prelude-val">None</span>),
-            )),
+            <span class="prelude-val">Err</span>(err) =&gt; {
+                <span class="kw">let </span>error = execution_error_from(
+                    err,
+                    <span class="kw-2">&amp;</span><span class="self">self
+                        </span>.get_call_stack()
+                        .into_iter()
+                        .map(|op| op.into())
+                        .collect::&lt;Vec&lt;ResolvedOpcodeLocation&gt;&gt;(),
+                );
+                DebugCommandResult::Error(NargoError::ExecutionError(error))
+            }
         }
     }
 
@@ -1938,6 +2152,7 @@
         foreign_call: ForeignCallWaitInfo&lt;FieldElement&gt;,
     ) -&gt; DebugCommandResult {
         <span class="kw">let </span>foreign_call_result = <span class="self">self</span>.foreign_call_executor.execute(<span class="kw-2">&amp;</span>foreign_call);
+
         <span class="kw">match </span>foreign_call_result {
             <span class="prelude-val">Ok</span>(foreign_call_result) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>solver) = <span class="self">self</span>.brillig_solver.take() {
@@ -2232,10 +2447,6 @@
         <span class="self">self</span>.breakpoints.remove(location)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>iterate_breakpoints(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Iter&lt;<span class="lifetime">'_</span>, DebugLocation&gt; {
-        <span class="self">self</span>.breakpoints.iter()
-    }
-
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>clear_breakpoints(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.breakpoints.clear();
     }
@@ -2248,6 +2459,22 @@
         <span class="kw">let </span>last_witness_map = <span class="self">self</span>.acvm.finalize();
         <span class="self">self</span>.witness_stack.push(<span class="number">0</span>, last_witness_map);
         <span class="self">self</span>.witness_stack
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>restart(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="comment">// restart everything that's progress related
+        // by assigning the initial values
+        </span><span class="self">self</span>.current_circuit_id = <span class="number">0</span>;
+        <span class="self">self</span>.brillig_solver = <span class="prelude-val">None</span>;
+        <span class="self">self</span>.witness_stack = WitnessStack::default();
+        <span class="self">self</span>.acvm_stack = <span class="macro">vec!</span>[];
+        <span class="self">self</span>.foreign_call_executor.restart(<span class="self">self</span>.debug_artifact);
+        <span class="self">self</span>.acvm = initialize_acvm(
+            <span class="self">self</span>.backend,
+            <span class="self">self</span>.circuits,
+            <span class="self">self</span>.initial_witness.clone(),
+            <span class="self">self</span>.unconstrained_functions,
+        );
     }
 }
 
@@ -2422,9 +2649,12 @@
 
         <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
             std::io::stdout(),
+            <span class="prelude-val">None</span>,
             debug_artifact,
+            <span class="prelude-val">None</span>,
+            String::new(),
         ));
-        <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::new(
+        <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::&lt;StubbedBlackBoxSolver&gt;::new(
             <span class="kw-2">&amp;</span>solver,
             circuits,
             debug_artifact,
@@ -2590,10 +2820,13 @@
 
         <span class="kw">let </span>foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
             std::io::stdout(),
+            <span class="prelude-val">None</span>,
             debug_artifact,
+            <span class="prelude-val">None</span>,
+            String::new(),
         ));
         <span class="kw">let </span>brillig_funcs = <span class="kw-2">&amp;</span>[brillig_bytecode];
-        <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::new(
+        <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::&lt;StubbedBlackBoxSolver&gt;::new(
             <span class="kw-2">&amp;</span>solver,
             circuits,
             debug_artifact,
@@ -2681,12 +2914,17 @@
         <span class="kw">let </span>debug_artifact = DebugArtifact { debug_symbols: <span class="macro">vec!</span>[], file_map: BTreeMap::new() };
         <span class="kw">let </span>brillig_funcs = <span class="kw-2">&amp;</span>[brillig_one, brillig_two];
 
-        <span class="kw">let </span>context = DebugContext::new(
+        <span class="kw">let </span>context = DebugContext::&lt;StubbedBlackBoxSolver&gt;::new(
             <span class="kw-2">&amp;</span>solver,
             <span class="kw-2">&amp;</span>circuits,
             <span class="kw-2">&amp;</span>debug_artifact,
             WitnessMap::new(),
-            Box::new(DefaultDebugForeignCallExecutor::new(std::io::stdout())),
+            Box::new(DefaultDebugForeignCallExecutor::new(
+                std::io::stdout(),
+                <span class="prelude-val">None</span>,
+                <span class="prelude-val">None</span>,
+                String::new(),
+            )),
             brillig_funcs,
         );
 

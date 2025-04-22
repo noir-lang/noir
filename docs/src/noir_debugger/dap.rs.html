@@ -623,16 +623,25 @@
 <a href="#622" id="622">622</a>
 <a href="#623" id="623">623</a>
 <a href="#624" id="624">624</a>
-<a href="#625" id="625">625</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::io::{Read, Write};
 
-<span class="kw">use </span>acvm::acir::circuit::Circuit;
-<span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
-<span class="kw">use </span>acvm::acir::native_types::WitnessMap;
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
+<span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
+<span class="kw">use </span>nargo::NargoError;
 
-<span class="kw">use </span><span class="kw">crate</span>::context::DebugContext;
-<span class="kw">use </span><span class="kw">crate</span>::context::{DebugCommandResult, DebugLocation};
+<span class="kw">use </span><span class="kw">crate</span>::DebugProject;
+<span class="kw">use </span><span class="kw">crate</span>::context::{DebugCommandResult, DebugLocation, RunParams};
+<span class="kw">use </span><span class="kw">crate</span>::context::{DebugContext, DebugExecutionResult};
 <span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DefaultDebugForeignCallExecutor;
 
 <span class="kw">use </span>dap::errors::ServerError;
@@ -652,18 +661,18 @@
 <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
 
 <span class="kw">use </span>fm::FileId;
-<span class="kw">use </span>noirc_driver::CompiledProgram;
 
 <span class="kw">type </span>BreakpointId = i64;
 
 <span class="kw">pub struct </span>DapSession&lt;<span class="lifetime">'a</span>, R: Read, W: Write, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt; {
-    server: Server&lt;R, W&gt;,
+    server: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Server&lt;R, W&gt;,
     context: DebugContext&lt;<span class="lifetime">'a</span>, B&gt;,
     debug_artifact: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DebugArtifact,
     running: bool,
     next_breakpoint_id: BreakpointId,
     instruction_breakpoints: Vec&lt;(DebugLocation, BreakpointId)&gt;,
     source_breakpoints: BTreeMap&lt;FileId, Vec&lt;(DebugLocation, BreakpointId)&gt;&gt;,
+    last_result: DebugCommandResult,
 }
 
 <span class="kw">enum </span>ScopeReferences {
@@ -684,23 +693,25 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, R: Read, W: Write, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt; DapSession&lt;<span class="lifetime">'a</span>, R, W, B&gt; {
     <span class="kw">pub fn </span>new(
-        server: Server&lt;R, W&gt;,
+        server: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Server&lt;R, W&gt;,
         solver: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>B,
-        circuits: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Circuit&lt;FieldElement&gt;],
+        project: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DebugProject,
         debug_artifact: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DebugArtifact,
-        initial_witness: WitnessMap&lt;FieldElement&gt;,
-        unconstrained_functions: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[BrilligBytecode&lt;FieldElement&gt;],
+        foreign_call_resolver_url: <span class="prelude-ty">Option</span>&lt;String&gt;,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>context = DebugContext::new(
             solver,
-            circuits,
+            <span class="kw-2">&amp;</span>project.compiled_program.program.functions,
             debug_artifact,
-            initial_witness,
+            project.initial_witness.clone(),
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(
                 std::io::stdout(),
+                foreign_call_resolver_url,
                 debug_artifact,
+                <span class="prelude-val">Some</span>(project.root_dir.clone()),
+                project.package_name.clone(),
             )),
-            unconstrained_functions,
+            <span class="kw-2">&amp;</span>project.compiled_program.program.unconstrained_functions,
         );
         <span class="self">Self </span>{
             server,
@@ -710,6 +721,7 @@
             next_breakpoint_id: <span class="number">1</span>,
             instruction_breakpoints: <span class="macro">vec!</span>[],
             source_breakpoints: BTreeMap::new(),
+            last_result: DebugCommandResult::Ok,
         }
     }
 
@@ -749,7 +761,7 @@
             <span class="kw">match </span>req.command {
                 Command::Disconnect(<span class="kw">_</span>) =&gt; {
                     <span class="macro">eprintln!</span>(<span class="string">"INFO: ending debugging session"</span>);
-                    <span class="self">self</span>.server.respond(req.ack()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.running = <span class="bool-val">false</span>;
                     <span class="kw">break</span>;
                 }
                 Command::SetBreakpoints(<span class="kw">_</span>) =&gt; {
@@ -966,7 +978,8 @@
     }
 
     <span class="kw">fn </span>handle_execution_result(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: DebugCommandResult) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServerError&gt; {
-        <span class="kw">match </span>result {
+        <span class="self">self</span>.last_result = result;
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.last_result {
             DebugCommandResult::Done =&gt; {
                 <span class="self">self</span>.running = <span class="bool-val">false</span>;
             }
@@ -982,7 +995,7 @@
                 }))<span class="question-mark">?</span>;
             }
             DebugCommandResult::BreakpointReached(location) =&gt; {
-                <span class="kw">let </span>breakpoint_ids = <span class="self">self</span>.find_breakpoints_at_location(<span class="kw-2">&amp;</span>location);
+                <span class="kw">let </span>breakpoint_ids = <span class="self">self</span>.find_breakpoints_at_location(location);
                 <span class="self">self</span>.server.send_event(Event::Stopped(StoppedEventBody {
                     reason: StoppedEventReason::Breakpoint,
                     description: <span class="prelude-val">Some</span>(String::from(<span class="string">"Paused at breakpoint"</span>)),
@@ -993,17 +1006,7 @@
                     hit_breakpoint_ids: <span class="prelude-val">Some</span>(breakpoint_ids),
                 }))<span class="question-mark">?</span>;
             }
-            DebugCommandResult::Error(err) =&gt; {
-                <span class="self">self</span>.server.send_event(Event::Stopped(StoppedEventBody {
-                    reason: StoppedEventReason::Exception,
-                    description: <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"{err:?}"</span>)),
-                    thread_id: <span class="prelude-val">Some</span>(<span class="number">0</span>),
-                    preserve_focus_hint: <span class="prelude-val">Some</span>(<span class="bool-val">false</span>),
-                    text: <span class="prelude-val">None</span>,
-                    all_threads_stopped: <span class="prelude-val">Some</span>(<span class="bool-val">false</span>),
-                    hit_breakpoint_ids: <span class="prelude-val">None</span>,
-                }))<span class="question-mark">?</span>;
-            }
+            DebugCommandResult::Error(<span class="kw">_</span>) =&gt; <span class="self">self</span>.server.send_event(Event::Terminated(<span class="prelude-val">None</span>))<span class="question-mark">?</span>,
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1228,24 +1231,39 @@
             .respond(req.success(ResponseBody::Variables(VariablesResponse { variables })))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
+
+    <span class="kw">pub fn </span>last_error(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;NargoError&lt;FieldElement&gt;&gt; {
+        <span class="kw">match </span><span class="self">self</span>.last_result {
+            DebugCommandResult::Error(error) =&gt; <span class="prelude-val">Some</span>(error),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
+    }
 }
 
-<span class="kw">pub fn </span>run_session&lt;R: Read, W: Write, B: BlackBoxFunctionSolver&lt;FieldElement&gt;&gt;(
-    server: Server&lt;R, W&gt;,
-    solver: <span class="kw-2">&amp;</span>B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap&lt;FieldElement&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServerError&gt; {
-    <span class="kw">let </span>debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
-    <span class="kw">let </span><span class="kw-2">mut </span>session = DapSession::new(
-        server,
-        solver,
-        <span class="kw-2">&amp;</span>program.program.functions,
-        <span class="kw-2">&amp;</span>debug_artifact,
-        initial_witness,
-        <span class="kw-2">&amp;</span>program.program.unconstrained_functions,
-    );
+<span class="kw">pub fn </span>run_session&lt;R: Read, W: Write&gt;(
+    server: <span class="kw-2">&amp;mut </span>Server&lt;R, W&gt;,
+    project: DebugProject,
+    run_params: RunParams,
+) -&gt; <span class="prelude-ty">Result</span>&lt;DebugExecutionResult, ServerError&gt; {
+    <span class="kw">let </span>debug_artifact = DebugArtifact {
+        debug_symbols: project.compiled_program.debug.clone(),
+        file_map: project.compiled_program.file_map.clone(),
+    };
 
-    session.run_loop()
+    <span class="kw">let </span>solver = Bn254BlackBoxSolver(run_params.pedantic_solving);
+    <span class="kw">let </span><span class="kw-2">mut </span>session =
+        DapSession::new(server, <span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>project, <span class="kw-2">&amp;</span>debug_artifact, run_params.oracle_resolver_url);
+
+    session.run_loop()<span class="question-mark">?</span>;
+    <span class="kw">if </span>session.context.is_solved() {
+        <span class="kw">let </span>solved_witness_stack = session.context.finalize();
+        <span class="prelude-val">Ok</span>(DebugExecutionResult::Solved(solved_witness_stack))
+    } <span class="kw">else </span>{
+        <span class="kw">match </span>session.last_error() {
+            <span class="comment">// Expose the last known error
+            </span><span class="prelude-val">Some</span>(error) =&gt; <span class="prelude-val">Ok</span>(DebugExecutionResult::Error(error)),
+            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(DebugExecutionResult::Incomplete),
+        }
+    }
 }
 </code></pre></div></section></main></body></html>
