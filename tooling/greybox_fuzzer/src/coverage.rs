@@ -153,6 +153,7 @@ impl SingleTestCaseCoverage {
         if let Some(acir_witnesses) = acir_witness_stack {
             let witness_map = &acir_witnesses.peek().unwrap().witness;
 
+            // For each witness, if it is a boolean and not in the non-bool witness list, add it to the acir bool coverage
             for (witness, value) in witness_map.clone().into_iter() {
                 if (value.is_zero() || value.is_one())
                     && !non_bool_witness_list.witness.contains(&witness)

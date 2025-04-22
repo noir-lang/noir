@@ -285,6 +285,7 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
     }
 }
 
+/// Execute the program with ACIR fuzzing enabled (returns the witness on failure, so that the fuzzer can detect boolean states)
 pub(crate) fn execute_program_with_acir_fuzzing<
     F: AcirField,
     B: BlackBoxFunctionSolver<F>,

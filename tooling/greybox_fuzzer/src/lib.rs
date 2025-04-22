@@ -420,8 +420,8 @@ impl<
         let mut non_bool_witness_list = accumulated_coverage.non_bool_witness_list.clone();
 
         // If ACVM solved the witness, collect boolean states
-        if witness.is_some() {
-            non_bool_witness_list = non_bool_witness_list.merge_new(witness.as_ref().unwrap());
+        if let Some(witness) = witness {
+            non_bool_witness_list = non_bool_witness_list.merge_new(&witness);
         }
 
         // Form a coverage object with coverage from this run
