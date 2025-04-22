@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745340129054,
+  "lastUpdate": 1745342343456,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,42 +17966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "944683109f0600e8dc34f16752f04ded30a5f6f8",
-          "message": "chore(ssa): Remove IfElse pass basic SSA tests (#8058)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-04-14T16:15:23Z",
-          "tree_id": "9db68618023e060dc7cf7d4b42687d990cba8660",
-          "url": "https://github.com/noir-lang/noir/commit/944683109f0600e8dc34f16752f04ded30a5f6f8"
-        },
-        "date": 1744648722422,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268816,
-            "range": "± 981",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236854,
-            "range": "± 2042",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -19873,6 +19837,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3591564,
             "range": "± 5503",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "797aea96fca36eae58b85cbecb95f422e71f8cfe",
+          "message": "fix(ssa): Recursive shared Brillig entry points  (#8099)",
+          "timestamp": "2025-04-22T17:00:47Z",
+          "tree_id": "1258e2a0ae2c143a2fbfb86b059b7d5e62050310",
+          "url": "https://github.com/noir-lang/noir/commit/797aea96fca36eae58b85cbecb95f422e71f8cfe"
+        },
+        "date": 1745342337537,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266790,
+            "range": "± 269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237606,
+            "range": "± 3256",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3237793,
+            "range": "± 5277",
             "unit": "ns/iter"
           }
         ]
