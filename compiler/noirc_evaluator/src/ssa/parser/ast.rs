@@ -121,6 +121,13 @@ pub(crate) enum ParsedInstruction {
     EnableSideEffectsIf {
         condition: ParsedValue,
     },
+    IfElse {
+        target: Identifier,
+        then_condition: ParsedValue,
+        then_value: ParsedValue,
+        else_condition: ParsedValue,
+        else_value: ParsedValue,
+    },
     IncrementRc {
         value: ParsedValue,
     },
@@ -134,6 +141,7 @@ pub(crate) enum ParsedInstruction {
         elements: Vec<ParsedValue>,
         typ: Type,
     },
+    Nop,
     Not {
         target: Identifier,
         value: ParsedValue,

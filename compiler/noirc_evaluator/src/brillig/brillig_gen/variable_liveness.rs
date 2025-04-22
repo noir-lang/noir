@@ -49,7 +49,6 @@ pub(crate) fn collect_variables_of_value(
     value_id: ValueId,
     dfg: &DataFlowGraph,
 ) -> Option<ValueId> {
-    let value_id = dfg.resolve(value_id);
     let value = &dfg[value_id];
 
     match value {
@@ -246,13 +245,13 @@ impl VariableLiveness {
         let mut defined_vars = HashSet::default();
 
         for parameter in self.defined_block_params(&block_id) {
-            defined_vars.insert(dfg.resolve(parameter));
+            defined_vars.insert(parameter);
         }
 
         for instruction_id in block.instructions() {
             let result_values = dfg.instruction_results(*instruction_id);
             for result_value in result_values {
-                defined_vars.insert(dfg.resolve(*result_value));
+                defined_vars.insert(*result_value);
             }
         }
 

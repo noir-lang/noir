@@ -6,6 +6,11 @@ fn main(six_as_u32: u32) {
     assert_eq(loop_incl(3), six_as_u32);
     assert(plain_loop() == six_as_u32);
     assert(never_loop() == 0);
+
+    // Safety: testing context
+    unsafe {
+        assert(basic_break() == true)
+    }
 }
 
 fn loop_excl(x: u32) -> u32 {
@@ -38,4 +43,11 @@ fn never_loop() -> u32 {
         sum = sum + i;
     }
     sum
+}
+
+unconstrained fn basic_break() -> bool {
+    for idx_e in 0..5 {
+        if (idx_e < 5) { break; };
+    }
+    true
 }

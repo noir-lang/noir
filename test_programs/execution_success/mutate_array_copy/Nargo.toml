@@ -1,0 +1,6 @@
+[package]
+name = "mutate_array_copy"
+type = "bin"
+authors = [""]
+
+[dependencies]

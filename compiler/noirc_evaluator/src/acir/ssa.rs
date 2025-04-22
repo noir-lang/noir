@@ -14,7 +14,7 @@ use crate::{
 
 use super::{Context, GeneratedAcir, SharedContext, acir_context::BrilligStdLib};
 
-pub(crate) type Artifacts = (
+pub type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
     Vec<String>,
@@ -23,7 +23,7 @@ pub(crate) type Artifacts = (
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(
+    pub fn into_acir(
         self,
         brillig: &Brillig,
         brillig_options: &BrilligOptions,

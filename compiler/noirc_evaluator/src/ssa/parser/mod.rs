@@ -64,7 +64,7 @@ impl Ssa {
     }
 }
 
-pub(crate) struct SsaErrorWithSource {
+pub struct SsaErrorWithSource {
     src: String,
     error: SsaError,
 }
@@ -196,7 +196,7 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
-        let external_name = self.eat_ident_or_error()?;
+        let external_name = self.eat_ident_or_keyword_or_error()?;
         let internal_name = self.eat_ident_or_error()?;
 
         self.eat_or_error(Token::LeftBrace)?;
@@ -335,6 +335,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(instruction));
         }
 
+        if let Some(instruction) = self.parse_nop()? {
+            return Ok(Some(instruction));
+        }
+
         if let Some(target) = self.eat_identifier()? {
             return Ok(Some(self.parse_assignment(target)?));
         }
@@ -458,6 +462,14 @@ impl<'a> Parser<'a> {
         Ok(Some(ParsedInstruction::Store { address, value }))
     }
 
+    fn parse_nop(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::Nop)? {
+            return Ok(None);
+        }
+
+        Ok(Some(ParsedInstruction::Nop))
+    }
+
     fn parse_assignment(&mut self, target: Identifier) -> ParseResult<ParsedInstruction> {
         let mut targets = vec![target];
 
@@ -549,6 +561,25 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::Colon)?;
             let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
             return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
+        }
+
+        if self.eat_keyword(Keyword::If)? {
+            let then_condition = self.parse_value_or_error()?;
+            self.eat_or_error(Token::Keyword(Keyword::Then))?;
+            let then_value = self.parse_value_or_error()?;
+            self.eat_or_error(Token::Keyword(Keyword::Else))?;
+            self.eat_or_error(Token::LeftParen)?;
+            self.eat_or_error(Token::Keyword(Keyword::If))?;
+            let else_condition = self.parse_value_or_error()?;
+            self.eat_or_error(Token::RightParen)?;
+            let else_value = self.parse_value_or_error()?;
+            return Ok(ParsedInstruction::IfElse {
+                target,
+                then_condition,
+                then_value,
+                else_condition,
+                else_value,
+            });
         }
 
         if let Some(op) = self.eat_binary_op()? {
@@ -866,6 +897,18 @@ impl<'a> Parser<'a> {
 
     fn eat_ident_or_error(&mut self) -> ParseResult<String> {
         if let Some(ident) = self.eat_ident()? { Ok(ident) } else { self.expected_identifier() }
+    }
+
+    fn eat_ident_or_keyword_or_error(&mut self) -> ParseResult<String> {
+        if let Some(ident) = self.eat_ident()? {
+            Ok(ident)
+        } else if let Token::Keyword(keyword) = self.token.token() {
+            let ident = keyword.to_string();
+            self.bump()?;
+            Ok(ident)
+        } else {
+            self.expected_identifier()
+        }
     }
 
     fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
