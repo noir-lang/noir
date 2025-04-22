@@ -34,12 +34,9 @@ use crate::{
             dom::DominatorTree,
             function::Function,
             function_inserter::{ArrayCache, FunctionInserter},
-            instruction::{
-                Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction,
-                binary::try_convert_field_element_to_signed_integer,
-            },
+            instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+            integer::IntegerConstant,
             post_order::PostOrder,
-            types::NumericType,
             value::ValueId,
         },
         ssa_gen::Ssa,
@@ -286,17 +283,6 @@ impl Loop {
         Self { header, back_edge_start, blocks }
     }
 
-    /// Handle negative values represented as fields.
-    fn get_const_as_i128(function: &Function, id: ValueId) -> Option<i128> {
-        let (value, typ) = function.dfg.get_numeric_constant_with_type(id)?;
-        if matches!(typ, NumericType::NativeField) {
-            // Shouldn't happen, as fields don't have meaningful ordering.
-            value.try_into_i128()
-        } else {
-            try_convert_field_element_to_signed_integer(value, typ.bit_size())
-        }
-    }
-
     /// Find the lower bound of the loop in the pre-header and return it
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
@@ -311,9 +297,13 @@ impl Loop {
     ///     v5 = lt v1, u32 4
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_lower_bound(&self, function: &Function, pre_header: BasicBlockId) -> Option<i128> {
+    fn get_const_lower_bound(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> Option<IntegerConstant> {
         let jump_value = get_induction_variable(function, pre_header).ok()?;
-        Self::get_const_as_i128(function, jump_value)
+        function.dfg.get_integer_constant(jump_value)
     }
 
     /// Find the upper bound of the loop in the loop header and return it
@@ -330,7 +320,7 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(&self, function: &Function) -> Option<i128> {
+    fn get_const_upper_bound(&self, function: &Function) -> Option<IntegerConstant> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
@@ -347,14 +337,14 @@ impl Loop {
 
         match &function.dfg[instructions[0]] {
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                Self::get_const_as_i128(function, *rhs)
+                function.dfg.get_integer_constant(*rhs)
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b3, else: b2
-                Self::get_const_as_i128(function, *rhs).map(|c| c + 1)
+                function.dfg.get_integer_constant(*rhs).map(|c| c.inc())
             }
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
@@ -365,7 +355,7 @@ impl Loop {
         &self,
         function: &Function,
         pre_header: BasicBlockId,
-    ) -> Option<(i128, i128)> {
+    ) -> Option<(IntegerConstant, IntegerConstant)> {
         let lower = self.get_const_lower_bound(function, pre_header)?;
         let upper = self.get_const_upper_bound(function)?;
         Some((lower, upper))
@@ -695,13 +685,16 @@ impl Loop {
         let increments = self.count_induction_increments(function);
         let all_instructions = self.count_all_instructions(function);
 
-        Some(BoilerplateStats {
-            iterations: (upper - lower).max(0) as usize,
-            loads,
-            stores,
-            increments,
-            all_instructions,
-        })
+        // Currently we don't iterate in reverse, so if upper >= lower it means 0 iterations.
+        let iterations: usize = upper
+            .reduce(
+                lower,
+                |u, l| u.saturating_sub(l).max(0) as usize,
+                |u, l| u.saturating_sub(l) as usize,
+            )
+            .unwrap_or_default();
+
+        Some(BoilerplateStats { iterations, loads, stores, increments, all_instructions })
     }
 }
 
@@ -1042,6 +1035,7 @@ mod tests {
 
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
+    use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{BoilerplateStats, Loops, is_new_size_ok};
@@ -1168,8 +1162,8 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
 
-        assert_eq!(lower, 0);
-        assert_eq!(upper, 4);
+        assert_eq!(lower, IntegerConstant::Unsigned(0));
+        assert_eq!(upper, IntegerConstant::Unsigned(4));
     }
 
     #[test]

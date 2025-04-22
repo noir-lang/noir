@@ -540,9 +540,7 @@ impl FunctionContext<'_> {
             (range_bound(start_index), range_bound(end_index))
         {
             // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
-            if start_constant
-                .reduce(&end_constant, |s, e| s >= e, |s, e| s >= e)
-                .unwrap_or_default()
+            if start_constant.reduce(end_constant, |s, e| s >= e, |s, e| s >= e).unwrap_or_default()
             {
                 return Ok(Self::unit_value());
             }
