@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745326395134,
+  "lastUpdate": 1745337063007,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17976,42 +17976,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1bb9b7fb632445ef0901999a41e830c278a3c4ae",
-          "message": "chore: Add `GITHUB_TOKEN` to more workflow steps (#8046)",
-          "timestamp": "2025-04-14T10:22:29Z",
-          "tree_id": "ac3200d32e84b66905b26fb2f1e33dd913cb10fb",
-          "url": "https://github.com/noir-lang/noir/commit/1bb9b7fb632445ef0901999a41e830c278a3c4ae"
-        },
-        "date": 1744627436518,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263858,
-            "range": "± 817",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232185,
-            "range": "± 13214",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "saleel@saleel.xyz",
             "name": "saleel",
             "username": "saleel"
@@ -19859,6 +19823,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3226174,
             "range": "± 12761",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "saleel@saleel.xyz",
+            "name": "saleel",
+            "username": "saleel"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1df587da799413c45062d6dd8431ae79ea40310b",
+          "message": "chore(docs): minor updates in solidity doc (#8160)",
+          "timestamp": "2025-04-22T15:26:49Z",
+          "tree_id": "2d39db69bbdb812e3ff4e9b3cce0b8a6cb337667",
+          "url": "https://github.com/noir-lang/noir/commit/1df587da799413c45062d6dd8431ae79ea40310b"
+        },
+        "date": 1745337057132,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260242,
+            "range": "± 1789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230789,
+            "range": "± 1568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3220868,
+            "range": "± 4719",
             "unit": "ns/iter"
           }
         ]
