@@ -1,43 +1,19 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import { readFileSync } from 'node:fs';
-import { resolve, join } from 'path';
-import toml from 'toml';
-import { Noir } from '@noir-lang/noir_js';
+import { CompiledCircuit, Noir } from '@noir-lang/noir_js';
 import { Barretenberg, RawBuffer, UltraHonkBackend } from '@aztec/bb.js';
-import { compile, createFileManager } from '@noir-lang/noir_wasm';
+
+import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
+import recursionCircuit from '../../circuits/recursion/target/recursion.json' assert { type: 'json' };
 
 it(`smart contract can verify a recursive proof`, async () => {
-  const basePath = resolve(join(__dirname, '../../../../'));
-  const fm = createFileManager(basePath);
-  const innerCompilationResult = await compile(
-    fm,
-    join(basePath, './test_programs/execution_success/assert_statement'),
-  );
-  if (!('program' in innerCompilationResult)) {
-    throw new Error('Compilation failed');
-  }
-  const innerProgram = innerCompilationResult.program;
-
-  const recursionCompilationResult = await compile(
-    fm,
-    join(basePath, './compiler/integration-tests/circuits/recursion'),
-  );
-  if (!('program' in recursionCompilationResult)) {
-    throw new Error('Compilation failed');
-  }
-  const recursionProgram = recursionCompilationResult.program;
-
-  // Intermediate proof
-
-  const innerBackend = new UltraHonkBackend(innerProgram.bytecode, {}, { recursive: true });
-  const inner = new Noir(innerProgram);
-
-  const innerProverToml = readFileSync(
-    join(basePath, `./test_programs/execution_success/assert_statement/Prover.toml`),
-  ).toString();
-
-  const innerInputs = toml.parse(innerProverToml);
+  // Inner circuit
+  const innerBackend = new UltraHonkBackend(assertLtCircuit.bytecode, {}, { recursive: true });
+  const inner = new Noir(assertLtCircuit as CompiledCircuit);
+  const innerInputs = {
+    x: '2',
+    y: '3',
+  };
 
   // Generate intermediate proof
   const { witness: main_witness } = await inner.execute(innerInputs);
@@ -50,8 +26,8 @@ it(`smart contract can verify a recursive proof`, async () => {
   const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
 
   // Generate proof of the recursive circuit
-  const recursiveCircuitNoir = new Noir(recursionProgram);
-  const recursiveBackend = new UltraHonkBackend(recursionProgram.bytecode, { threads: 1 });
+  const recursiveCircuitNoir = new Noir(recursionCircuit as CompiledCircuit);
+  const recursiveBackend = new UltraHonkBackend(recursionCircuit.bytecode, { threads: 1 });
 
   const recursiveInputs = {
     proof: intermediateProof,
