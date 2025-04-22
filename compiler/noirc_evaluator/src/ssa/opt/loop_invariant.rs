@@ -61,6 +61,7 @@ use crate::ssa::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
             binary::eval_constant_binary_op,
         },
+        integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -152,11 +153,11 @@ struct LoopInvariantContext<'f> {
     // This map is expected to only ever contain a singular value.
     // However, we store it in a map in order to match the definition of
     // `outer_induction_variables` as both maps share checks for evaluating binary operations.
-    current_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
+    current_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     // Maps outer loop induction variable -> fixed lower and upper loop bound
     // This will be used by inner loops to determine whether they
     // have safe operations reliant upon an outer loop's maximum induction variable.
-    outer_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
+    outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     // This context struct processes runs across all loops.
     // This stores the current loop's pre-header block.
     // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
@@ -396,7 +397,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
-                    upper_bound.to_u128() <= len.into()
+                    upper_bound.apply(|i| i <= len.into(), |i| i <= len.into())
                 } else {
                     false
                 }
@@ -408,7 +409,9 @@ impl<'f> LoopInvariantContext<'f> {
                 // If the instruction were to be hoisted out of a loop that never executes it could potentially cause the program to fail when it is not meant to fail.
                 let bounds = self.current_induction_variables.values().next().copied();
                 let does_loop_body_execute = bounds
-                    .map(|(lower_bound, upper_bound)| !(upper_bound - lower_bound).is_zero())
+                    .and_then(|(lower_bound, upper_bound)| {
+                        upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+                    })
                     .unwrap_or(false);
                 // If we know the loop will be executed these instructions can still only be hoisted if the instructions
                 // are in a non control dependent block.
@@ -573,13 +576,13 @@ impl<'f> LoopInvariantContext<'f> {
             _ => None,
         }?;
 
-        let min_iter = self.inserter.function.dfg.make_constant(*lower, NumericType::length_type());
-        assert!(*upper != FieldElement::zero(), "executing a non executable loop");
-        let max_iter = self
-            .inserter
-            .function
-            .dfg
-            .make_constant(*upper - FieldElement::one(), NumericType::length_type());
+        assert!(!upper.is_zero(), "executing a non executable loop");
+
+        let (upper_field, upper_type) = upper.dec().into_numeric_constant();
+        let (lower_field, lower_type) = lower.into_numeric_constant();
+
+        let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
+        let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
         if (is_left && self.is_loop_invariant(rhs)) || (!is_left && self.is_loop_invariant(lhs)) {
             return Some((is_left, min_iter, max_iter));
         }
@@ -633,9 +636,9 @@ impl<'f> LoopInvariantContext<'f> {
         lhs: &ValueId,
         rhs: &ValueId,
         only_outer_induction: bool,
-    ) -> Option<(bool, FieldElement, FieldElement, FieldElement)> {
-        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(*lhs);
-        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(*rhs);
+    ) -> Option<(bool, IntegerConstant, IntegerConstant, IntegerConstant)> {
+        let lhs_const = self.inserter.function.dfg.get_integer_constant(*lhs);
+        let rhs_const = self.inserter.function.dfg.get_integer_constant(*rhs);
         match (
             lhs_const,
             rhs_const,
@@ -648,10 +651,10 @@ impl<'f> LoopInvariantContext<'f> {
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
                 .or(self.outer_induction_variables.get(rhs)),
         ) {
-            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
+            (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {
                 Some((false, lhs, *lower_bound, *upper_bound))
             }
-            (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
+            (None, Some(rhs), Some((lower_bound, upper_bound)), None) => {
                 Some((true, rhs, *lower_bound, *upper_bound))
             }
             _ => None,
@@ -704,6 +707,8 @@ impl<'f> LoopInvariantContext<'f> {
             // of its inputs to check whether it will ever overflow.
             // If so, this will cause `eval_constant_binary_op` to return `None`.
             // Therefore a `Some` value shows that this operation is safe.
+            let lhs = lhs.into_numeric_constant().0;
+            let rhs = rhs.into_numeric_constant().0;
             if eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
                 // Unchecked version of the binary operation
                 let unchecked = Instruction::Binary(Binary {
@@ -730,7 +735,7 @@ impl<'f> LoopInvariantContext<'f> {
                 true if upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
                 true if lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
                 false if lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= value + FieldElement::one() => {
+                false if upper_bound <= value.inc() => {
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }
                 _ => SimplifyResult::None,
@@ -757,10 +762,10 @@ impl<'f> LoopInvariantContext<'f> {
                     return false;
                 };
                 if left {
-                    if value != FieldElement::zero() {
+                    if !value.is_zero() {
                         return true;
                     }
-                } else if lower != FieldElement::zero() {
+                } else if !lower.is_zero() {
                     return true;
                 }
 
