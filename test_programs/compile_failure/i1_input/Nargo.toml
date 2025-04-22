@@ -1,0 +1,6 @@
+[package]
+name = "i1_input"
+type = "bin"
+authors = [""]
+
+[dependencies]

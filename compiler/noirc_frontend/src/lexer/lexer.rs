@@ -383,13 +383,18 @@ impl<'a> Lexer<'a> {
             return Ok(keyword_token.into_span(start, end));
         }
 
-        // Check if word an int type
-        // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word);
-
-        // Check if it is an int type
-        if let Some(int_type) = parsed_token {
-            return Ok(Token::IntType(int_type).into_span(start, end));
+        // Check if word is an int type
+        // If no error occurred, then it is either a valid integer type or it is not an int type
+        match IntType::lookup_int_type(&word) {
+            // Check whether it is an i1 type
+            Some(IntType::Signed(1)) => {
+                let location = self.location(Span::inclusive(start, end));
+                return Err(LexerErrorKind::I1IsUnsupported { location });
+            }
+            // Check if it is an int type
+            Some(int_type) => return Ok(Token::IntType(int_type).into_span(start, end)),
+            // Not an int type
+            _ => {}
         }
 
         // Else it is just an identifier
@@ -1012,6 +1017,18 @@ mod tests {
         let token = lexer.next_token();
         assert!(
             matches!(token, Err(LexerErrorKind::IntegerLiteralTooLarge { .. })),
+            "expected {input} to throw error"
+        );
+    }
+
+    #[test]
+    fn test_i1() {
+        let input = "i1";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        let token = lexer.next_token();
+        assert!(
+            matches!(token, Err(LexerErrorKind::I1IsUnsupported { .. })),
             "expected {input} to throw error"
         );
     }

@@ -44,6 +44,8 @@ pub enum LexerErrorKind {
     NonAsciiComment { location: Location },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
     UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
+    #[error("i1 is not a supported type")]
+    I1IsUnsupported { location: Location },
 }
 
 impl From<LexerErrorKind> for ParserError {
@@ -78,100 +80,104 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
             LexerErrorKind::NonAsciiComment { location, .. } => *location,
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
+            LexerErrorKind::I1IsUnsupported { location } => *location,
         }
     }
 
     fn parts(&self) -> (String, String, Location) {
         match self {
             LexerErrorKind::UnexpectedCharacter {
-                location,
-                expected,
-                found,
-            } => {
-                let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
+                        location,
+                        expected,
+                        found,
+                    } => {
+                        let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
 
-                (
-                    "An unexpected character was found".to_string(),
-                    format!("Expected {expected}, but found {found}"),
-                    *location,
-                )
-            },
+                        (
+                            "An unexpected character was found".to_string(),
+                            format!("Expected {expected}, but found {found}"),
+                            *location,
+                        )
+                    },
             LexerErrorKind::NotADoubleChar { location, found } => (
-                format!("Tried to parse {found} as double char"),
-                format!(
-                    " {found:?} is not a double char, this is an internal error"
-                ),
-                *location,
-            ),
+                        format!("Tried to parse {found} as double char"),
+                        format!(
+                            " {found:?} is not a double char, this is an internal error"
+                        ),
+                        *location,
+                    ),
             LexerErrorKind::InvalidIntegerLiteral { location, found } => (
-                "Invalid integer literal".to_string(),
-                format!(" {found} is not an integer"),
-                *location,
-            ),
+                        "Invalid integer literal".to_string(),
+                        format!(" {found} is not an integer"),
+                        *location,
+                    ),
             LexerErrorKind::IntegerLiteralTooLarge { location, limit } => (
-                "Integer literal is too large".to_string(),
-                format!("value exceeds limit of {limit}"),
-                *location,
-            ),
+                        "Integer literal is too large".to_string(),
+                        format!("value exceeds limit of {limit}"),
+                        *location,
+                    ),
             LexerErrorKind::MalformedFuncAttribute { location, found } => (
-                "Malformed function attribute".to_string(),
-                format!(" {found} is not a valid attribute"),
-                *location,
-            ),
+                        "Malformed function attribute".to_string(),
+                        format!(" {found} is not a valid attribute"),
+                        *location,
+                    ),
             LexerErrorKind::MalformedTestAttribute { location } => (
-                "Malformed test attribute".to_string(),
-                "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
-                *location,
-            ),
+                        "Malformed test attribute".to_string(),
+                        "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
+                        *location,
+                    ),
             LexerErrorKind::MalformedFuzzAttribute { location } => (
-                "Malformed fuzz attribute".to_string(),
-                "The fuzz attribute can be written in one of these forms: `#[fuzz]` or `#[fuzz(only_fail_with = \"message\")]`".to_string(),
-                *location,
-            ),
+                        "Malformed fuzz attribute".to_string(),
+                        "The fuzz attribute can be written in one of these forms: `#[fuzz]` or `#[fuzz(only_fail_with = \"message\")]`".to_string(),
+                        *location,
+                    ),
             LexerErrorKind::InvalidInnerAttribute { location, found } => (
-                "Invalid inner attribute".to_string(),
-                format!(" {found} is not a valid inner attribute"),
-                *location,
-            ),
+                        "Invalid inner attribute".to_string(),
+                        format!(" {found} is not a valid inner attribute"),
+                        *location,
+                    ),
             LexerErrorKind::UnterminatedBlockComment { location } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *location),
             LexerErrorKind::UnterminatedStringLiteral { location } =>
-                ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *location),
+                        ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *location),
             LexerErrorKind::InvalidFormatString { found, location } => {
-                if found == &'}' {
-                    (
-                        "Invalid format string: unmatched '}}' found".to_string(),
-                        "If you intended to print '}', you can escape it using '}}'".to_string(),
-                        *location,
-                    )
-                } else {
-                    (
-                        format!("Invalid format string: expected '}}', found {found:?}"),
-                        if found == &'.' {
-                            "Field access isn't supported in format strings".to_string()
+                        if found == &'}' {
+                            (
+                                "Invalid format string: unmatched '}}' found".to_string(),
+                                "If you intended to print '}', you can escape it using '}}'".to_string(),
+                                *location,
+                            )
                         } else {
-                            "If you intended to print '{', you can escape it using '{{'".to_string()
-                        },
-                        *location,
-                    )
-                }
-            }
+                            (
+                                format!("Invalid format string: expected '}}', found {found:?}"),
+                                if found == &'.' {
+                                    "Field access isn't supported in format strings".to_string()
+                                } else {
+                                    "If you intended to print '{', you can escape it using '{{'".to_string()
+                                },
+                                *location,
+                            )
+                        }
+                    }
             LexerErrorKind::EmptyFormatStringInterpolation { location } => {
-                (
-                    "Invalid format string: expected letter or underscore, found '}}'".to_string(),
-                    "If you intended to print '{' or '}', you can escape them using '{{' and '}}' respectively".to_string(),
-                    *location,
-                )
-            }
+                        (
+                            "Invalid format string: expected letter or underscore, found '}}'".to_string(),
+                            "If you intended to print '{' or '}', you can escape them using '{{' and '}}' respectively".to_string(),
+                            *location,
+                        )
+                    }
             LexerErrorKind::InvalidEscape { escaped, location } =>
-                (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *location),
+                        (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *location),
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
-                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.location())
-            },
+                        (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.location())
+                    },
             LexerErrorKind::NonAsciiComment { location } => {
-                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *location)
-            }
+                        ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *location)
+                    }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
-                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
+                        ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
+                    }
+            LexerErrorKind::I1IsUnsupported { location } => {
+                ("i1 is not a supported type".to_string(), "i8, i16, i32, i64, and i128 are supported".to_string(), *location)
             }
         }
     }
