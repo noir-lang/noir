@@ -141,7 +141,7 @@ pub(crate) fn gen_range(
                     let e = (Field::from(e.unsigned_abs()), e < 0);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size}"),
+                _ => unreachable!("invalid bit size for range: {integer_bit_size} (signed)"),
             }
         } else {
             let (s, e) = match integer_bit_size {
@@ -173,7 +173,14 @@ pub(crate) fn gen_range(
                     let e = Field::from(e);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size}"),
+                HundredTwentyEight => {
+                    let s = u128::arbitrary(u)?;
+                    let e = s.saturating_add(u.choose_index(max_size)? as u128);
+                    let s = Field::from(s);
+                    let e = Field::from(e);
+                    (s, e)
+                }
+                _ => unreachable!("invalid bit size for range: {integer_bit_size} (unsigned)"),
             };
             ((s, false), (e, false))
         }
