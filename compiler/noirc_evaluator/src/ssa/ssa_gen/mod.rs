@@ -28,7 +28,7 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::instruction::{ErrorType, binary};
+use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::{
     function_builder::data_bus::DataBus,
@@ -534,21 +534,16 @@ impl FunctionContext<'_> {
         self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
-        let constant_as_i128 = |id| {
-            let (value, typ) =
-                self.builder.current_function.dfg.get_numeric_constant_with_type(id)?;
-            if matches!(typ, NumericType::NativeField) {
-                value.try_into_i128()
-            } else {
-                binary::try_convert_field_element_to_signed_integer(value, typ.bit_size())
-            }
-        };
+        let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
 
         if let (Some(start_constant), Some(end_constant)) =
-            (constant_as_i128(start_index), constant_as_i128(end_index))
+            (range_bound(start_index), range_bound(end_index))
         {
             // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
-            if start_constant >= end_constant {
+            if start_constant
+                .reduce(&end_constant, |s, e| s >= e, |s, e| s >= e)
+                .unwrap_or_default()
+            {
                 return Ok(Self::unit_value());
             }
         }
