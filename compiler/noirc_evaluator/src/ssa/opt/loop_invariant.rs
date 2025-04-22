@@ -576,7 +576,7 @@ impl<'f> LoopInvariantContext<'f> {
             _ => None,
         }?;
 
-        assert!(upper.is_zero(), "executing a non executable loop");
+        assert!(!upper.is_zero(), "executing a non executable loop");
 
         let (upper_field, upper_type) = upper.dec().into_numeric_constant();
         let (lower_field, lower_type) = lower.into_numeric_constant();
@@ -762,10 +762,10 @@ impl<'f> LoopInvariantContext<'f> {
                     return false;
                 };
                 if left {
-                    if value.is_zero() {
+                    if !value.is_zero() {
                         return true;
                     }
-                } else if lower.is_zero() {
+                } else if !lower.is_zero() {
                     return true;
                 }
 
