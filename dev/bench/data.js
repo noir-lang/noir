@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745315859424,
+  "lastUpdate": 1745322415356,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17976,42 +17976,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4c76f4e698c8122c442d02b0086c3c9704af927b",
-          "message": "chore: parse IfElse in SSA parser (#8043)",
-          "timestamp": "2025-04-12T14:36:45Z",
-          "tree_id": "d03439b8ad67f5aed3eb8a4a07ca9c45bb6f3965",
-          "url": "https://github.com/noir-lang/noir/commit/4c76f4e698c8122c442d02b0086c3c9704af927b"
-        },
-        "date": 1744469531407,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 3625256,
-            "range": "± 19820",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 3586603,
-            "range": "± 2727",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -19847,6 +19811,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3577901,
             "range": "± 12344",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3024dd35f7c6d1b2bee6d521ae44698339682012",
+          "message": "chore: migrate recursive proof test to ultrahonk (#8038)\n\nCo-authored-by: saleel <saleel@saleel.xyz>",
+          "timestamp": "2025-04-22T11:29:54Z",
+          "tree_id": "f92415b6ab459e966d6850c152c468a7fb40e645",
+          "url": "https://github.com/noir-lang/noir/commit/3024dd35f7c6d1b2bee6d521ae44698339682012"
+        },
+        "date": 1745322409409,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263412,
+            "range": "± 689",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232962,
+            "range": "± 7015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3221850,
+            "range": "± 68536",
             "unit": "ns/iter"
           }
         ]
