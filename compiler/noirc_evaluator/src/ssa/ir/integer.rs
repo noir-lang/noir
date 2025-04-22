@@ -109,7 +109,7 @@ impl PartialOrd for IntegerConstant {
             }
             (Self::Unsigned { value: a, .. }, Self::Signed { value: b, .. }) => {
                 if b.is_negative() || *a > i128::MAX as u128 {
-                    Some(Ordering::Less)
+                    Some(Ordering::Greater)
                 } else {
                     (*b).try_into().ok().and_then(|b: u128| a.partial_cmp(&b))
                 }
