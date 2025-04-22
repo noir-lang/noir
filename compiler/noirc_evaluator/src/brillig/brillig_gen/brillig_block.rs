@@ -1530,15 +1530,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         self.brillig_context.binary_instruction(left, right, result_variable, brillig_binary_op);
 
-        self.add_overflow_check(
-            brillig_binary_op,
-            left,
-            right,
-            result_variable,
-            binary,
-            dfg,
-            is_signed,
-        );
+        self.add_overflow_check(left, right, result_variable, binary, dfg, is_signed);
     }
 
     fn convert_signed_modulo(
@@ -1653,7 +1645,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     #[allow(clippy::too_many_arguments)]
     fn add_overflow_check(
         &mut self,
-        binary_operation: BrilligBinaryOp,
         left: SingleAddrVariable,
         right: SingleAddrVariable,
         result: SingleAddrVariable,
@@ -1667,78 +1658,73 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             return;
         }
 
-        if let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) {
-            match binary_operation {
-                BrilligBinaryOp::Add => {
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    // Check that lhs <= result
-                    self.brillig_context.binary_instruction(
-                        left,
-                        result,
-                        condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-                    self.brillig_context.codegen_constrain(condition, Some(msg.to_string()));
-                    self.brillig_context.deallocate_single_addr(condition);
-                }
-                BrilligBinaryOp::Sub => {
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    // Check that rhs <= lhs
-                    self.brillig_context.binary_instruction(
-                        right,
-                        left,
-                        condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-                    self.brillig_context.codegen_constrain(condition, Some(msg.to_string()));
-                    self.brillig_context.deallocate_single_addr(condition);
-                }
-                BrilligBinaryOp::Mul => {
-                    let division_by_rhs_gives_lhs = |ctx: &mut BrilligContext<
-                        FieldElement,
-                        Registers,
-                    >| {
-                        let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
-                        let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
-                        // Check that result / rhs == lhs
-                        ctx.binary_instruction(
-                            result,
-                            right,
-                            division,
-                            BrilligBinaryOp::UnsignedDiv,
-                        );
-                        ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
-                        ctx.codegen_constrain(condition, Some(msg.to_string()));
-                        ctx.deallocate_single_addr(condition);
-                        ctx.deallocate_single_addr(division);
-                    };
-
-                    let rhs_may_be_zero =
-                        dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
-                    if rhs_may_be_zero {
-                        let is_right_zero =
-                            SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                        let zero = self
-                            .brillig_context
-                            .make_constant_instruction(0_usize.into(), bit_size);
-                        self.brillig_context.binary_instruction(
-                            zero,
-                            right,
-                            is_right_zero,
-                            BrilligBinaryOp::Equals,
-                        );
-                        self.brillig_context
-                            .codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
-                        self.brillig_context.deallocate_single_addr(is_right_zero);
-                        self.brillig_context.deallocate_single_addr(zero);
-                    } else {
-                        division_by_rhs_gives_lhs(self.brillig_context);
-                    }
-                }
-                _ => {}
+        match binary.operator {
+            BinaryOp::Add { unchecked: false } => {
+                let condition =
+                    SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                // Check that lhs <= result
+                self.brillig_context.binary_instruction(
+                    left,
+                    result,
+                    condition,
+                    BrilligBinaryOp::LessThanEquals,
+                );
+                let msg = "attempt to add with overflow".to_string();
+                self.brillig_context.codegen_constrain(condition, Some(msg));
+                self.brillig_context.deallocate_single_addr(condition);
             }
+            BinaryOp::Sub { unchecked: false } => {
+                let condition =
+                    SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                // Check that rhs <= lhs
+                self.brillig_context.binary_instruction(
+                    right,
+                    left,
+                    condition,
+                    BrilligBinaryOp::LessThanEquals,
+                );
+                let msg = "attempt to subtract with overflow".to_string();
+                self.brillig_context.codegen_constrain(condition, Some(msg));
+                self.brillig_context.deallocate_single_addr(condition);
+            }
+            BinaryOp::Mul { unchecked: false } => {
+                let division_by_rhs_gives_lhs = |ctx: &mut BrilligContext<
+                    FieldElement,
+                    Registers,
+                >| {
+                    let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
+                    let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
+                    // Check that result / rhs == lhs
+                    ctx.binary_instruction(result, right, division, BrilligBinaryOp::UnsignedDiv);
+                    ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
+                    let msg = "attempt to multiply with overflow".to_string();
+                    ctx.codegen_constrain(condition, Some(msg));
+                    ctx.deallocate_single_addr(condition);
+                    ctx.deallocate_single_addr(division);
+                };
+
+                let rhs_may_be_zero =
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
+                if rhs_may_be_zero {
+                    let is_right_zero =
+                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                    let zero =
+                        self.brillig_context.make_constant_instruction(0_usize.into(), bit_size);
+                    self.brillig_context.binary_instruction(
+                        zero,
+                        right,
+                        is_right_zero,
+                        BrilligBinaryOp::Equals,
+                    );
+                    self.brillig_context
+                        .codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
+                    self.brillig_context.deallocate_single_addr(is_right_zero);
+                    self.brillig_context.deallocate_single_addr(zero);
+                } else {
+                    division_by_rhs_gives_lhs(self.brillig_context);
+                }
+            }
+            _ => {}
         }
     }
 

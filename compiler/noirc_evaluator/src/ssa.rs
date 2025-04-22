@@ -194,6 +194,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
     ]
 }
 

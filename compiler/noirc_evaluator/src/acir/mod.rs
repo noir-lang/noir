@@ -1059,7 +1059,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, dfg, predicate)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, predicate)?;
         }
 
         Ok(result)
@@ -1071,11 +1071,13 @@ impl<'a> Context<'a> {
         result: AcirVar,
         bit_size: u32,
         binary: &Binary,
-        dfg: &DataFlowGraph,
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
-        let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
-            return Ok(());
+        let msg = match binary.operator {
+            BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
+            BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
+            BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
+            _ => return Ok(()),
         };
 
         let with_pred = self.acir_context.mul_var(result, predicate)?;

@@ -2,7 +2,7 @@ use acvm::{FieldElement, acir::AcirField};
 use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
-use super::{DataFlowGraph, InstructionResultType, NumericType, Type, ValueId};
+use super::{InstructionResultType, NumericType, Type, ValueId};
 
 /// Binary Operations allowed in the IR.
 /// Aside from the comparison operators (Eq and Lt), all operators
@@ -84,49 +84,6 @@ impl Binary {
             BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
             _ => InstructionResultType::Operand(self.lhs),
         }
-    }
-
-    /// Check if unsigned overflow is possible, and if so return some message to be used if it fails.
-    pub(crate) fn check_unsigned_overflow_msg(
-        &self,
-        dfg: &DataFlowGraph,
-        bit_size: u32,
-    ) -> Option<&'static str> {
-        // We try to optimize away operations that are guaranteed not to overflow
-        let max_lhs_bits = dfg.get_value_max_num_bits(self.lhs);
-        let max_rhs_bits = dfg.get_value_max_num_bits(self.rhs);
-
-        let msg = match self.operator {
-            BinaryOp::Add { unchecked: false } => {
-                if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
-                    // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return None;
-                }
-                "attempt to add with overflow"
-            }
-            BinaryOp::Sub { unchecked: false } => {
-                if dfg.is_constant(self.lhs) && max_lhs_bits > max_rhs_bits {
-                    // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                    return None;
-                }
-                "attempt to subtract with overflow"
-            }
-            BinaryOp::Mul { unchecked: false } => {
-                if bit_size == 1
-                    || max_lhs_bits + max_rhs_bits <= bit_size
-                    || max_lhs_bits == 1
-                    || max_rhs_bits == 1
-                {
-                    // Either performing boolean multiplication (which cannot overflow),
-                    // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return None;
-                }
-                "attempt to multiply with overflow"
-            }
-            _ => return None,
-        };
-        Some(msg)
     }
 }
 
