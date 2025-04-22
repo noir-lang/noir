@@ -534,10 +534,11 @@ impl FunctionContext<'_> {
         self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
-        if let (Some(start_constant), Some(end_constant)) = (
-            self.builder.current_function.dfg.get_numeric_constant(start_index),
-            self.builder.current_function.dfg.get_numeric_constant(end_index),
-        ) {
+        let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
+
+        if let (Some(start_constant), Some(end_constant)) =
+            (range_bound(start_index), range_bound(end_index))
+        {
             // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
             if start_constant >= end_constant {
                 return Ok(Self::unit_value());

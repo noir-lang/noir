@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VWzU7DMAx21nZrGdMQXDhxReJCw1pauDAJDiDxEmGjz7FHpwVb9Uya/SWWqiTN18/2Fyepgt4UtjFsm4I9TDnefWKbYTti81H7LHGcn2Y6E3598td5UWaW/DzGv8iQU4Xhz4k/kP75BHneNj0/z4X8pu1zzvoz7M8c34eMvV3bImOcvvlb01cD8Xc2RR1emQ4cC7CtI29BxEw2EroFyiu/cORFvmM2F5/gu9m2L+JPPPELM8Q/DqOdJv5JmPg11ZES/IA5XYt1OvMURy3GFEMKvcWW2Lh/Bf19wfGJA0+5JQyfMkzG5jn+mWlyg/05/K9dqnGf+3Of/cO/72Jf4njXOlSN0xa2/XMIf+2efrDV9yH8O8xa36RVt5a37D2fS6CvASViAzZHeM0477A/h+H7TYlxjFyynpTwR/h7bEOf3ZeMF4Qv19kxZflHjvz5fo8s+LHA0/4cD+BToRfhH7Ht5j+wb9tXqfAXsfhs9TBxaGGrM9eZ4dKE4/fRJLbkJDV5wfZQTfjPv+2MdmkydLf8cm16nK8aruq/u6WzaNPrwNcVhP9E4N9xzO8Sns/yyDibyuhmYRpTmvW6WBm51zqjdZgG8F+UplqZSuunQn8Xutzl/wdvYFtnCQ4AAA==",
+  "debug_symbols": "tdbbaoQwEAbgd8m1FzlNovsqpSwe4hIQFQ+FIr57TVkXSZeCyH8jJMx8gUlMZmGVK+bH3bd1N7Lbx8Karswn37XbaFkTVgy+afzjfpxmPHyE/o0f+7wNw3HKh4ndiCfMtRW72XTLrn3jwtya/AmUpJ6RkvQx9DNhgnC0wdEWRsuLtbZyp62KacLRBkdbGK34NTrVO53JmBbv6GzfdyHs/7Z+2Tql2JZAWwHt7JpNfA8lHv82+mJNSNBuy/iY6Lc1EeqFqyzO0Kcz6HSGOZ0BrD9xXP1JAG3guSEFtDXQJqCdwm5zymC3ucE9FEbgaImjFY7WIHrdRl/54POicc+Wt57b8tABT9+9i5rhfuhKV82DC23xoSMOB8LYxMrQDYYttCqxtK2xrfMD",
+  "file_map": {
+    "50": {
+      "source": "unconstrained fn main() -> pub u32 {\n    let s1 = loop_with_negative_literal();\n    let s2 = loop_with_u128_literal();\n    assert_eq(s1, s2);\n    s1\n}\n\nfn loop_with_negative_literal() -> u32 {\n    let s: i64 = -5;\n    let e: i64 = 10;\n    let mut sum = 0;\n    for _ in s..e {\n        sum += 1;\n    }\n    sum\n}\n\nfn loop_with_u128_literal() -> u32 {\n    let s: u128 = 170141183460469231731687303715884105715;\n    let e: u128 = 170141183460469231731687303715884105730;\n    let mut sum = 0;\n    for _ in s..e {\n        sum += 1;\n    }\n    sum\n}",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
