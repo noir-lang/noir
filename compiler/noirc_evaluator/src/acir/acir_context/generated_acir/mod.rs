@@ -49,8 +49,8 @@ pub struct GeneratedAcir<F: AcirField> {
     /// The opcodes of which the compiled ACIR will comprise.
     pub opcodes: Vec<AcirOpcode<F>>,
 
-    pub(crate) call_stacks: CallStackHelper,
-    pub(crate) location_map: OpcodeToLocationsMap,
+    pub call_stacks: CallStackHelper,
+    pub location_map: OpcodeToLocationsMap,
 
     /// All witness indices that comprise the final return value of the program
     pub return_witnesses: Vec<Witness>,
