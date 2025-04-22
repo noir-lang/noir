@@ -5,9 +5,10 @@ use num_traits::Zero;
 
 use super::{instruction::binary, types::NumericType};
 
-/// A `Signed` or `Unsigned` value of a [Value::NumericConstant], converted to 128 bits.
+/// A `Signed` or `Unsigned` value of a `Value::NumericConstant`, converted to 128 bits.
 ///
-/// This type can be used in loops and other instances where values have to be compared.
+/// This type can be used in loops and other instances where values have to be compared,
+/// with correct handling of negative values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IntegerConstant {
     Signed { value: i128, bit_size: u32 },
