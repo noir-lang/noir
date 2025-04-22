@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745337757779,
+  "lastUpdate": 1745337878104,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17971,42 +17971,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "saleel@saleel.xyz",
-            "name": "saleel",
-            "username": "saleel"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a6e9d03bc125ee43a67201bf712083518231bf2c",
-          "message": "chore: bump bb to 0.84.0 (#8047)",
-          "timestamp": "2025-04-14T11:46:26Z",
-          "tree_id": "e52416d85e019d366142ae47f06842c5468bc360",
-          "url": "https://github.com/noir-lang/noir/commit/a6e9d03bc125ee43a67201bf712083518231bf2c"
-        },
-        "date": 1744632077407,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265575,
-            "range": "± 1628",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232779,
-            "range": "± 4725",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -19860,6 +19824,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3220868,
             "range": "± 4719",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1f5f8ab39e34c7e30dc5dbfae4c0cc136b180f33",
+          "message": "chore(test): add `test_programs` dir for expected-panic tests (#8147)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-22T15:39:47Z",
+          "tree_id": "af6eed3c9458fdf8b6c5073cc3da018db4d17e8b",
+          "url": "https://github.com/noir-lang/noir/commit/1f5f8ab39e34c7e30dc5dbfae4c0cc136b180f33"
+        },
+        "date": 1745337871165,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 280962,
+            "range": "± 580",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 250563,
+            "range": "± 9043",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3239542,
+            "range": "± 4607",
             "unit": "ns/iter"
           }
         ]
