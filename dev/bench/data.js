@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745343021566,
+  "lastUpdate": 1745351272738,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,42 +17966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8d34b67c0cffd944b60af3c99c7a402e96bfcbc6",
-          "message": "chore(test): AST generation calibration test (#8054)",
-          "timestamp": "2025-04-14T17:02:17Z",
-          "tree_id": "0d945ea4f54fb1ad31fd618d877c91eb9d0a4ff1",
-          "url": "https://github.com/noir-lang/noir/commit/8d34b67c0cffd944b60af3c99c7a402e96bfcbc6"
-        },
-        "date": 1744651969220,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264301,
-            "range": "± 462",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230936,
-            "range": "± 6074",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -19879,6 +19843,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3237793,
             "range": "± 5277",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "17958e33683f2ba121373c889b010f533177348b",
+          "message": "fix: Use `IntegerConstant` for loop boundaries in `unrolling` (#8094)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-22T19:30:46Z",
+          "tree_id": "205ddabfb64bdfd5031adc2646347864737c0b1b",
+          "url": "https://github.com/noir-lang/noir/commit/17958e33683f2ba121373c889b010f533177348b"
+        },
+        "date": 1745351266015,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267597,
+            "range": "± 357",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 239120,
+            "range": "± 1856",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3224732,
+            "range": "± 5543",
             "unit": "ns/iter"
           }
         ]
