@@ -1494,3 +1494,39 @@ fn returns_self_in_trait_method_3() {
     ";
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn errors_if_constrained_trait_definition_is_impled_unconstrained() {
+    let src = r#"
+    pub trait Foo {
+        fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        unconstrained fn foo() -> Field {
+                         ^^^ foo is expected to be constrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_unconstrained_trait_definition_is_impled_constrained() {
+    let src = r#"
+    pub trait Foo {
+        unconstrained fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        fn foo() -> Field {
+           ^^^ foo is expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
