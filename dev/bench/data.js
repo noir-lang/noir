@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745448168644,
+  "lastUpdate": 1745448322085,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "362738431bf52cc816efbef41395e991d4a3d658",
-          "message": "chore: don't use `set_from_value_id` in `remove_if_else` (#8070)",
-          "timestamp": "2025-04-15T14:12:48Z",
-          "tree_id": "fed06e2089d654720ac2f4fa4d31984f87160639",
-          "url": "https://github.com/noir-lang/noir/commit/362738431bf52cc816efbef41395e991d4a3d658"
-        },
-        "date": 1744728063200,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 486.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 462.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.73,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7211e767d62f3552814432fb3b1cb1e2baeee719",
           "message": "chore: don't use `set_value_from_id` in `simplify_cfg` (#8072)",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6c4dd0c3dfe83203024fcf2684f8e5f3555ffc61"
         },
         "date": 1745442617064,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 203.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 227.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 433.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 425.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.03,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3fb324ebc2ac0a67ef7d2595028fa3cc05c2b601",
+          "message": "chore: Change AST fuzzer recursion limit (#8173)",
+          "timestamp": "2025-04-23T22:17:11Z",
+          "tree_id": "791201425d8f9f7ebbab7d74a4eb806844a5b179",
+          "url": "https://github.com/noir-lang/noir/commit/3fb324ebc2ac0a67ef7d2595028fa3cc05c2b601"
+        },
+        "date": 1745448315680,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
