@@ -768,7 +768,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
-            (Some(lhs_const), Some(rhs_const), _) if !rhs_const.is_zero() => {
+            (Some(lhs_const), Some(rhs_const), _) if rhs_const.to_u128() != 0 => {
                 let quotient = lhs_const.to_u128() / rhs_const.to_u128();
                 let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
 
