@@ -310,7 +310,7 @@
             ),
             LexerErrorKind::MalformedFuzzAttribute { location } =&gt; (
                 <span class="string">"Malformed fuzz attribute"</span>.to_string(),
-                <span class="string">"The fuzz attribute can be written in one of these forms: `#[fuzz]` or `#[fuzz(only_fail_with = \"message\")]`"</span>.to_string(),
+                <span class="string">"The fuzz attribute can be written in one of these forms: `#[fuzz]`, `#[fuzz(should_fail)]`, `#[fuzz(should_fail_with = \"message\")]` or `#[fuzz(only_fail_with = \"message\")]`"</span>.to_string(),
                 <span class="kw-2">*</span>location,
             ),
             LexerErrorKind::InvalidInnerAttribute { location, found } =&gt; (

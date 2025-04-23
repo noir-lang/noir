@@ -393,7 +393,38 @@
 <a href="#392" id="392">392</a>
 <a href="#393" id="393">393</a>
 <a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
     Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
     MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
@@ -553,6 +584,23 @@
                 <span class="self">self</span>.write_left_paren(); <span class="comment">// (
                 </span><span class="self">self</span>.skip_comments_and_whitespace();
                 <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// only_fail_with
+                </span><span class="self">self</span>.write_space();
+                <span class="self">self</span>.write_token(Token::Assign);
+                <span class="self">self</span>.write_space();
+                <span class="self">self</span>.skip_comments_and_whitespace();
+                <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// "reason"
+                </span><span class="self">self</span>.write_right_paren(); <span class="comment">// )
+            </span>}
+            FuzzingScope::ShouldFailWith { reason: <span class="prelude-val">None </span>} =&gt; {
+                <span class="self">self</span>.write_left_paren(); <span class="comment">// (
+                </span><span class="self">self</span>.skip_comments_and_whitespace();
+                <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// should_fail
+                </span><span class="self">self</span>.write_right_paren(); <span class="comment">// )
+            </span>}
+            FuzzingScope::ShouldFailWith { reason: <span class="prelude-val">Some</span>(..) } =&gt; {
+                <span class="self">self</span>.write_left_paren(); <span class="comment">// (
+                </span><span class="self">self</span>.skip_comments_and_whitespace();
+                <span class="self">self</span>.write_current_token_and_bump(); <span class="comment">// should_fail_with
                 </span><span class="self">self</span>.write_space();
                 <span class="self">self</span>.write_token(Token::Assign);
                 <span class="self">self</span>.write_space();
@@ -778,6 +826,20 @@
     </span><span class="kw">fn </span>format_test_only_fail_with_reason_attribute() {
         <span class="kw">let </span>src = <span class="string">"  #[ fuzz ( only_fail_with=\"reason\" )] "</span>;
         <span class="kw">let </span>expected = <span class="string">"#[fuzz(only_fail_with = \"reason\")]"</span>;
+        assert_format_attribute(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_fuzz_should_fail_attribute() {
+        <span class="kw">let </span>src = <span class="string">"  #[ fuzz ( should_fail )] "</span>;
+        <span class="kw">let </span>expected = <span class="string">"#[fuzz(should_fail)]"</span>;
+        assert_format_attribute(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_fuzz_should_fail_with_reason_attribute() {
+        <span class="kw">let </span>src = <span class="string">"  #[ fuzz ( should_fail_with=\"reason\" )] "</span>;
+        <span class="kw">let </span>expected = <span class="string">"#[fuzz(should_fail_with = \"reason\")]"</span>;
         assert_format_attribute(src, expected);
     }
 

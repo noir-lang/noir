@@ -763,7 +763,18 @@
 <a href="#762" id="762">762</a>
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
@@ -823,6 +834,8 @@
     ///     | 'test' '(' 'should_fail_with' '=' string ')'
     ///     | 'fuzz'
     ///     | 'fuzz' '(' 'only_fail_with' '=' string ')'
+    ///     | 'fuzz' '(' 'should_fail' ')'
+    ///     | 'fuzz' '(' 'should_fail_with' '=' string ')'
     ///
     /// SecondaryAttribute
     ///     = 'abi' '(' AttributeValue ')'
@@ -912,7 +925,7 @@
                     </span><span class="self">self</span>.parse_test_attribute(start_location)
                 } <span class="kw">else if </span>ident.as_str() == <span class="string">"fuzz" </span>{
                     <span class="comment">// The fuzz attribute is a secondary attribute that has `a = b` in its syntax
-                    // (`only_fail_with = "..."``) so we parse it differently.
+                    // (`only_fail_with = "..."``) or (`should_fail_with = "..."``) so we parse it differently.
                     </span><span class="self">self</span>.parse_fuzz_attribute(start_location)
                 } <span class="kw">else </span>{
                     <span class="comment">// Every other attribute has the form `name(arg1, arg2, .., argN)`
@@ -1131,6 +1144,15 @@
         <span class="kw">let </span>scope = <span class="kw">if </span><span class="self">self</span>.eat_left_paren() {
             <span class="kw">let </span>scope = <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
                 <span class="kw">match </span>ident.as_str() {
+                    <span class="string">"should_fail" </span>=&gt; <span class="prelude-val">Some</span>(FuzzingScope::ShouldFailWith { reason: <span class="prelude-val">None </span>}),
+                    <span class="string">"should_fail_with" </span>=&gt; {
+                        <span class="self">self</span>.eat_or_error(Token::Assign);
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(reason) = <span class="self">self</span>.eat_str() {
+                            <span class="prelude-val">Some</span>(FuzzingScope::ShouldFailWith { reason: <span class="prelude-val">Some</span>(reason) })
+                        } <span class="kw">else </span>{
+                            <span class="prelude-val">Some</span>(FuzzingScope::ShouldFailWith { reason: <span class="prelude-val">None </span>})
+                        }
+                    }
                     <span class="string">"only_fail_with" </span>=&gt; {
                         <span class="self">self</span>.eat_or_error(Token::Assign);
                         <span class="self">self</span>.eat_str().map(|reason| FuzzingScope::OnlyFailWith { reason })

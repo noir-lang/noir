@@ -737,25 +737,7 @@
 <a href="#736" id="736">736</a>
 <a href="#737" id="737">737</a>
 <a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a>
-<a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a>
-<a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file implements the mechanisms for coverage - detection of changes is the execution of the target program
+<a href="#739" id="739">739</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file implements the mechanisms for coverage - detection of changes is the execution of the target program
 //! It assists in exploration of the program through testcase mutation by telling the fuzzer whether a new testcase represents previously unexplored
 //! functionality. This in turn allows the fuzzer to add them to the corpus as footholds for further exploration
 //!
@@ -803,24 +785,25 @@
 <span class="doccomment">/// A map from a particular branch or comparison to its unique index in the raw vector used inside brillig vm
 </span><span class="kw">pub type </span>FeatureToIndexMap = HashMap&lt;Feature, UniqueFeatureIndex&gt;;
 
-<span class="doccomment">/// Mechanism for automated detection of boolean witnesses in the ACIR witness map
-</span><span class="attr">#[derive(Default)]
-</span><span class="kw">pub struct </span>PotentialBoolWitnessList {
+<span class="doccomment">/// Mechanism for excluding non-boolean witnesses from the ACIR witness map
+/// This mechanism was introduced after we started to use partial witness maps from failed executions
+</span><span class="attr">#[derive(Default, Clone)]
+</span><span class="kw">pub struct </span>NonBoolWitnessList {
     <span class="comment">// Set of witnesses that could be boolean values
     </span>witness: HashSet&lt;Witness&gt;,
 }
 
-<span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>WitnessStack&lt;FieldElement&gt;&gt; <span class="kw">for </span>PotentialBoolWitnessList {
-    <span class="doccomment">/// Generate a bool witness list by parsing the witnesses in the program
+<span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>WitnessStack&lt;FieldElement&gt;&gt; <span class="kw">for </span>NonBoolWitnessList {
+    <span class="doccomment">/// Generate a non-bool witness list by parsing the witnesses in the program
     </span><span class="kw">fn </span>from(witness_stack: <span class="kw-2">&amp;</span>WitnessStack&lt;FieldElement&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>witness_set = HashSet::new();
         <span class="comment">// Should be only one function
         </span><span class="macro">assert!</span>(witness_stack.length() == <span class="number">1</span>);
         <span class="kw">let </span>first_func_witnesses = witness_stack.peek().unwrap();
 
-        <span class="comment">// Look for witnesses that are either 0 or 1
+        <span class="comment">// Look for witnesses that are neither 0 nor 1
         </span><span class="kw">for </span>(witness_index, value) <span class="kw">in </span>first_func_witnesses.witness.clone().into_iter() {
-            <span class="kw">if </span>value.is_one() || value.is_zero() {
+            <span class="kw">if </span>!(value.is_one() || value.is_zero()) {
                 witness_set.insert(witness_index);
             }
         }
@@ -828,56 +811,31 @@
     }
 }
 
-<span class="kw">impl </span>PotentialBoolWitnessList {
+<span class="kw">impl </span>NonBoolWitnessList {
     <span class="kw">pub fn </span>new(given_set: HashSet&lt;Witness&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ witness: given_set }
     }
 
-    <span class="doccomment">/// Given witnesses from a program, remove non-boolean witnesses from the list
-    </span><span class="kw">pub fn </span>update(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness_stack: <span class="kw-2">&amp;</span>WitnessStack&lt;FieldElement&gt;) {
+    <span class="doccomment">/// Given witnesses from a program, add non-boolean witnesses to the list
+    </span><span class="kw">pub fn </span>update_with_witness_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness_stack: <span class="kw-2">&amp;</span>WitnessStack&lt;FieldElement&gt;) {
         <span class="macro">assert!</span>(witness_stack.length() == <span class="number">1</span>);
         <span class="kw">let </span>first_func_witnesses = witness_stack.peek().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>witnesses_for_removal = Vec::new();
 
         <span class="comment">// Go through the list of perceived boolean witnesses
-        </span><span class="kw">for </span>witness_index <span class="kw">in </span><span class="self">self</span>.witness.iter().copied() {
-            <span class="kw">let </span>value = first_func_witnesses
-                .witness
-                .get(<span class="kw-2">&amp;</span>witness_index)
-                .expect(<span class="string">"There should be a witness in the witness map"</span>);
-
-            <span class="comment">// Check that the values are zero or one
-            </span><span class="kw">if </span>!value.is_one() &amp;&amp; !value.is_zero() {
-                witnesses_for_removal.push(witness_index);
+        </span><span class="kw">for </span>(witness_index, value) <span class="kw">in </span>first_func_witnesses.witness.clone().into_iter() {
+            <span class="kw">if </span>!(value.is_one() || value.is_zero()) {
+                <span class="self">self</span>.witness.insert(witness_index);
             }
-        }
-
-        <span class="comment">// Remove values that are not boolean
-        </span><span class="kw">for </span>witness_index <span class="kw">in </span>witnesses_for_removal.into_iter() {
-            <span class="self">self</span>.witness.remove(<span class="kw-2">&amp;</span>witness_index);
         }
     }
 
-    <span class="doccomment">/// Create a new list by filtering the witness indices in this list using the witnesses produced from ACIR execution
+    <span class="doccomment">/// Create a new list of non-boolean witnesses by merging the current list with the witnesses from a new execution
     </span><span class="kw">pub fn </span>merge_new(<span class="kw-2">&amp;</span><span class="self">self</span>, witness_stack: <span class="kw-2">&amp;</span>WitnessStack&lt;FieldElement&gt;) -&gt; <span class="self">Self </span>{
-        <span class="macro">assert!</span>(witness_stack.length() == <span class="number">1</span>);
-        <span class="kw">let </span>first_func_witnesses = witness_stack.peek().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>new_set = HashSet::new();
-
-        <span class="comment">// Keep only witnesses that are 0 or 1
-        </span><span class="kw">for </span>witness_index <span class="kw">in </span><span class="self">self</span>.witness.iter().copied() {
-            <span class="kw">let </span>value = first_func_witnesses
-                .witness
-                .get(<span class="kw-2">&amp;</span>witness_index)
-                .expect(<span class="string">"There should be a witness in the witness map"</span>);
-            <span class="kw">if </span>value.is_zero() || value.is_one() {
-                new_set.insert(witness_index);
-            }
-        }
-        <span class="self">Self</span>::new(new_set)
+        <span class="kw">let </span><span class="kw-2">mut </span>new_list = NonBoolWitnessList::new(<span class="self">self</span>.witness.clone());
+        new_list.update_with_witness_stack(witness_stack);
+        new_list
     }
 }
-
 <span class="doccomment">/// Represents a single encountered state of a boolean witness in the Acir program
 </span><span class="attr">#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
 </span><span class="kw">pub struct </span>AcirBoolState {
@@ -925,7 +883,7 @@
         testcase_id: TestCaseId,
         acir_witness_stack: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;WitnessStack&lt;FieldElement&gt;&gt;,
         brillig_coverage: RawBrilligCoverage,
-        potential_bool_witness_list: <span class="kw-2">&amp;</span>PotentialBoolWitnessList,
+        non_bool_witness_list: <span class="kw-2">&amp;</span>NonBoolWitnessList,
     ) -&gt; <span class="self">Self </span>{
         <span class="comment">// Process all booleans
         </span><span class="kw">let </span><span class="kw-2">mut </span>acir_bool_coverage = Vec::new();
@@ -934,19 +892,18 @@
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(acir_witnesses) = acir_witness_stack {
             <span class="kw">let </span>witness_map = <span class="kw-2">&amp;</span>acir_witnesses.peek().unwrap().witness;
 
-            <span class="comment">// Collect states of all boolean witnesses
-            </span><span class="kw">for </span>potential_bool_witness_index <span class="kw">in </span>potential_bool_witness_list.witness.iter() {
-                <span class="kw">let </span>value =
-                    witness_map.get(potential_bool_witness_index).expect(<span class="string">"Witness should be there"</span>);
-                <span class="macro">assert!</span>(value.is_zero() || value.is_one());
-
-                acir_bool_coverage.push(AcirBoolState {
-                    witness_id: potential_bool_witness_index.witness_index(),
-                    state: value.is_one(),
-                });
+            <span class="comment">// For each witness, if it is a boolean and not in the non-bool witness list, add it to the acir bool coverage
+            </span><span class="kw">for </span>(witness, value) <span class="kw">in </span>witness_map.clone().into_iter() {
+                <span class="kw">if </span>(value.is_zero() || value.is_one())
+                    &amp;&amp; !non_bool_witness_list.witness.contains(<span class="kw-2">&amp;</span>witness)
+                {
+                    acir_bool_coverage.push(AcirBoolState {
+                        witness_id: witness.witness_index(),
+                        state: value.is_one(),
+                    });
+                }
             }
         }
-
         <span class="self">Self </span>{ testcase_id, acir_bool_coverage, brillig_coverage }
     }
 }
@@ -997,8 +954,8 @@
     </span>brillig_branch_coverage: Vec&lt;AccumulatedSingleBranchCoverage&gt;,
     <span class="doccomment">/// Comparison coverage in brillig that has been observed
     </span>brillig_cmp_approach_coverage: Vec&lt;AccumulatedCmpCoverage&gt;,
-    <span class="doccomment">/// The list of indices of all witnesses that are inferred to be boolean
-    </span><span class="kw">pub </span>potential_bool_witness_list: <span class="prelude-ty">Option</span>&lt;PotentialBoolWitnessList&gt;,
+    <span class="doccomment">/// The list of indices of all witnesses that are inferred to be non-boolean
+    </span><span class="kw">pub </span>non_bool_witness_list: NonBoolWitnessList,
 }
 
 <span class="kw">type </span>UnusedTestcaseIdSet = HashSet&lt;TestCaseId&gt;;
@@ -1054,7 +1011,7 @@
             bool_state_to_testcase_id: HashMap::new(),
             brillig_branch_coverage: single_branch_coverage,
             brillig_cmp_approach_coverage: cmp_coverage,
-            potential_bool_witness_list: <span class="prelude-val">None</span>,
+            non_bool_witness_list: NonBoolWitnessList::new(HashSet::new()),
         }
     }
 
@@ -1117,8 +1074,16 @@
         unused_testcases
     }
 
+    <span class="doccomment">/// Update the non-bool witness list with a witness stack
+    </span><span class="kw">pub fn </span>update_non_bool_witness_list_with_witness_stack(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        witness_stack: <span class="kw-2">&amp;</span>WitnessStack&lt;FieldElement&gt;,
+    ) {
+        <span class="self">self</span>.non_bool_witness_list.update_with_witness_stack(witness_stack);
+    }
     <span class="doccomment">/// Merge the coverage of a testcase into accumulated coverage
     /// Returns (false, empty set) if there is no new coverage (true, set of no longer needed testcases' ids) if there is
+    /// We assume that the non-bool witness list is already updated and is the same in new_coverage
     </span><span class="kw">pub fn </span>merge(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_coverage: <span class="kw-2">&amp;</span>SingleTestCaseCoverage) -&gt; (bool, UnusedTestcaseIdSet) {
         <span class="comment">// Use quick detect first to see if we need to try and merge anything
         </span><span class="kw">if </span>!<span class="self">self</span>.detect_new_coverage(new_coverage) {
@@ -1135,8 +1100,9 @@
 
         <span class="self">self</span>.merge_branch_coverage(new_coverage, <span class="kw-2">&amp;mut </span>add_to_leavers);
         <span class="self">self</span>.merge_comparison_coverage(new_coverage, <span class="kw-2">&amp;mut </span>add_to_leavers);
+
         <span class="self">self</span>.merge_acir_coverage(new_coverage, <span class="kw-2">&amp;mut </span>add_to_leavers);
-        <span class="self">self</span>.remove_boolean_witness_false_positives(new_coverage, <span class="kw-2">&amp;mut </span>add_to_leavers);
+        <span class="self">self</span>.remove_boolean_witness_false_positives(<span class="kw-2">&amp;mut </span>add_to_leavers);
 
         <span class="comment">// Filter testcase ids of testcases, whose feature ownership has been revoked by this new testcase
         </span>(<span class="bool-val">true</span>, <span class="self">self</span>.check_if_unused(<span class="kw-2">&amp;</span>potential_leavers))
@@ -1289,6 +1255,11 @@
     ) {
         <span class="comment">// Insert all ACIR states and replace testcase association
         </span><span class="kw">for </span>acir_bool_state <span class="kw">in </span>new_coverage.acir_bool_coverage.iter() {
+            <span class="kw">let </span>witness = Witness::new(acir_bool_state.witness_id);
+            <span class="comment">// If the witness is non-boolean according the merged non-bool witness list, skip it
+            </span><span class="kw">if </span><span class="self">self</span>.non_bool_witness_list.witness.contains(<span class="kw-2">&amp;</span>witness) {
+                <span class="kw">continue</span>;
+            }
             add_to_leavers(
                 <span class="self">self</span>.bool_state_to_testcase_id.insert(<span class="kw-2">*</span>acir_bool_state, new_coverage.testcase_id),
             );
@@ -1300,20 +1271,13 @@
 
     <span class="kw">fn </span>remove_boolean_witness_false_positives(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        new_coverage: <span class="kw-2">&amp;</span>SingleTestCaseCoverage,
         add_to_leavers: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>FnMut(<span class="prelude-ty">Option</span>&lt;TestCaseId&gt;),
     ) {
-        <span class="comment">// Get all boolean witnesses in the state
-        </span><span class="kw">let </span>all_witnesses_in_bool_coverage: HashSet&lt;<span class="kw">_</span>&gt; = new_coverage
-            .acir_bool_coverage
-            .iter()
-            .map(|acir_bool_state| acir_bool_state.witness_id)
-            .collect();
-
         <span class="kw">let </span><span class="kw-2">mut </span>states_to_remove = Vec::new();
-        <span class="comment">// Check that all boolean state witnesses observed in accumulated coverage are booleans here, too
+
+        <span class="comment">// Check that all boolean state witnesses observed in accumulated coverage are not in the non-bool witness list
         </span><span class="kw">for </span>state <span class="kw">in </span><span class="self">self</span>.acir_bool_coverage.iter() {
-            <span class="kw">if </span>!all_witnesses_in_bool_coverage.contains(<span class="kw-2">&amp;</span>state.witness_id) {
+            <span class="kw">if </span><span class="self">self</span>.non_bool_witness_list.witness.contains(<span class="kw-2">&amp;</span>Witness::new(state.witness_id)) {
                 states_to_remove.push(<span class="kw-2">*</span>state);
             }
         }

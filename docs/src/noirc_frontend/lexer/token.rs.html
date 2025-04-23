@@ -1332,7 +1332,17 @@
 <a href="#1331" id="1331">1331</a>
 <a href="#1332" id="1332">1332</a>
 <a href="#1333" id="1333">1333</a>
-<a href="#1334" id="1334">1334</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -2085,6 +2095,12 @@
 <span class="doccomment">/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
 </span><span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 </span><span class="kw">pub enum </span>FuzzingScope {
+    <span class="doccomment">/// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
+    /// if it fails with the specified reason. If the reason is None, then
+    /// the harness must unconditionally fail
+    </span>ShouldFailWith {
+        reason: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    },
     <span class="doccomment">/// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
     /// if it fails with the specified reason.
     </span>OnlyFailWith {
@@ -2098,6 +2114,10 @@
         <span class="kw">match </span><span class="self">self </span>{
             FuzzingScope::None =&gt; <span class="macro">write!</span>(f, <span class="string">""</span>),
             FuzzingScope::OnlyFailWith { reason } =&gt; <span class="macro">write!</span>(f, <span class="string">"(only_fail_with = {reason:?})"</span>),
+            FuzzingScope::ShouldFailWith { reason } =&gt; <span class="kw">match </span>reason {
+                <span class="prelude-val">Some</span>(failure_reason) =&gt; <span class="macro">write!</span>(f, <span class="string">"(should_fail_with = {failure_reason:?})"</span>),
+                <span class="prelude-val">None </span>=&gt; <span class="macro">write!</span>(f, <span class="string">"(should_fail)"</span>),
+            },
         }
     }
 }
