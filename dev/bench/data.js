@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745426974384,
+  "lastUpdate": 1745426999471,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17971,42 +17971,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "5b748215598530e44405b0f87cd622d3d5732e46",
-          "message": "chore: Print `unsafe { ... }` around calls to Brillig from ACIR in AST (#8077)",
-          "timestamp": "2025-04-15T10:08:59Z",
-          "tree_id": "cb0ab521fc917922b0a1c8282e57f17d090b03a4",
-          "url": "https://github.com/noir-lang/noir/commit/5b748215598530e44405b0f87cd622d3d5732e46"
-        },
-        "date": 1744712736158,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264449,
-            "range": "± 4264",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231023,
-            "range": "± 3281",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "2714a743e33846cc3d43fda791007ecf8c067c7e",
           "message": "fix: Allow more slack in AST calibration for CI (#8076)",
           "timestamp": "2025-04-15T10:16:44Z",
@@ -19904,6 +19868,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3224103,
             "range": "± 14481",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9845edc4a14d0d9647cf57219ef8adac0e0eb8af",
+          "message": "fix(parser): avoid using `Location::dummy()` (#8178)",
+          "timestamp": "2025-04-23T16:32:20Z",
+          "tree_id": "7dd96a60ec8b4f4e3141f8bcad9ac1a324f538f2",
+          "url": "https://github.com/noir-lang/noir/commit/9845edc4a14d0d9647cf57219ef8adac0e0eb8af"
+        },
+        "date": 1745426993286,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269576,
+            "range": "± 2200",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 239416,
+            "range": "± 9637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3601711,
+            "range": "± 21006",
             "unit": "ns/iter"
           }
         ]
