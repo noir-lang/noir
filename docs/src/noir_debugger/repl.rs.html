@@ -860,7 +860,11 @@
 <a href="#859" id="859">859</a>
 <a href="#860" id="860">860</a>
 <a href="#861" id="861">861</a>
-<a href="#862" id="862">862</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::DebugProject;
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::DebugProject;
 <span class="kw">use </span><span class="kw">crate</span>::context::{
     DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
     RunParams,
@@ -992,7 +996,6 @@
 
         <span class="macro">println!</span>(<span class="string">"Debugger ready to receive messages.."</span>);
         <span class="kw">loop </span>{
-            <span class="self">self</span>.send_status(DebuggerStatus::Idle);
             <span class="comment">// recv blocks until it receives message
             </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(received) = <span class="self">self</span>.command_receiver.recv() {
                 <span class="self">self</span>.send_status(DebuggerStatus::Busy);
@@ -1064,6 +1067,7 @@
                 <span class="macro">println!</span>(<span class="string">"Upstream channel closed. Terminating debugger"</span>);
                 <span class="kw">break</span>;
             }
+            <span class="self">self</span>.send_status(DebuggerStatus::Idle);
         }
     }
 
@@ -1411,8 +1415,12 @@
     }
 
     <span class="kw">fn </span>call_debugger(<span class="kw-2">&amp;</span><span class="self">self</span>, command: DebugCommandAPI) {
-        <span class="self">self</span>.command_sender.send(command).expect(<span class="string">"Could not communicate with debugger"</span>);
+        <span class="self">self</span>.call_debugger_no_wait_for_idle(command);
         <span class="self">self</span>.wait_for_idle();
+    }
+
+    <span class="kw">fn </span>call_debugger_no_wait_for_idle(<span class="kw-2">&amp;</span><span class="self">self</span>, command: DebugCommandAPI) {
+        <span class="self">self</span>.command_sender.send(command).expect(<span class="string">"Could not communicate with debugger"</span>);
     }
 
     <span class="kw">fn </span>get_final_result(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DebugExecutionResult {
@@ -1491,7 +1499,7 @@
         <span class="self">self</span>.call_debugger(DebugCommandAPI::ShowCurrentVmStatus);
     }
     <span class="kw">pub fn </span>terminate(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.call_debugger(DebugCommandAPI::Terminate);
+        <span class="self">self</span>.call_debugger_no_wait_for_idle(DebugCommandAPI::Terminate);
     }
 }
 
