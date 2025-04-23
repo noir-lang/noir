@@ -380,17 +380,20 @@ impl Type {
 mod tests {
     use acvm::{AcirField, FieldElement};
 
-    use crate::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
+    use crate::{
+        NamedGeneric,
+        hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+    };
 
     #[test]
     fn solves_n_minus_one_plus_one_through_checked_casts() {
         // We want to test that the inclusion of a `CheckedCast` won't prevent us from canonicalizing
         // the expression `(N - 1) + 1` to `N` if there exists a `CheckedCast` on the `N - 1` term.
 
-        let n = Type::NamedGeneric(
-            TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
-            std::rc::Rc::new("N".to_owned()),
-        );
+        let n = Type::NamedGeneric(NamedGeneric {
+            type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
+            name: std::rc::Rc::new("N".to_owned()),
+        });
         let n_minus_one = Type::infix_expr(
             Box::new(n.clone()),
             BinaryTypeOperator::Subtraction,

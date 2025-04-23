@@ -1,5 +1,5 @@
 use crate::{
-    ResolvedGeneric,
+    NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -161,7 +161,10 @@ impl Elaborator<'_> {
         ) in method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+            });
             bindings.insert(
                 trait_fn_generic.id(),
                 (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
@@ -198,6 +201,11 @@ impl Elaborator<'_> {
                 override_trait_constraint.trait_bound.trait_id,
                 override_trait_constraint.trait_bound.trait_generics.clone(),
             )) {
+                dbg!(&substituted_method_ids);
+                dbg!(override_trait_constraint.typ.clone());
+                dbg!(override_trait_constraint.trait_bound.trait_id);
+                dbg!(override_trait_constraint.trait_bound.trait_generics.clone());
+
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
                 self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
