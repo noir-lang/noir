@@ -91,6 +91,8 @@ impl TypedValue {
 
     /// Helper to check if shift operations are supported for this type
     pub fn supports_shift(&self) -> bool {
+        //!self.is_field()
+        // https://github.com/noir-lang/noir/issues/8089
         !self.is_field()
     }
 
@@ -148,6 +150,23 @@ impl ValueType {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
+        }
+    }
+
+    /// Helper to check if this type could be used for casts into it
+    /// Signed types are not supported right now
+    pub fn can_be_used_for_casts(&self) -> bool {
+        match self {
+            //https://github.com/noir-lang/noir/issues/8089
+            ValueType::I8 => false,
+            ValueType::I16 => false,
+            ValueType::I32 => false,
+            ValueType::I64 => false,
+            //https://github.com/noir-lang/noir/issues/7555
+            ValueType::U128 => false,
+            //https://github.com/noir-lang/noir/issues/8157
+            ValueType::Boolean => false,
+            _ => true,
         }
     }
 

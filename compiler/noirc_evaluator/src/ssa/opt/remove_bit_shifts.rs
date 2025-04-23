@@ -184,18 +184,31 @@ impl Context<'_, '_, '_> {
             let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
             // Performs the division on the 1-complement (or the operand if positive)
             let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-            // Convert back to 2-complement representation if operand is negative
-            let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
             // The requirements for this to underflow are all of these:
             // - lhs < 0
             // - ones_complement(lhs) / (2^rhs) == 0
             // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
             // to be larger than the lhs bitsize for this to overflow.
+
+            // To prevent underflow described above
+            // lhs_sign = (shifted_complement != 0) & lhs_sign
+            let shifted_complement_equal_0 =
+                self.insert_binary(shifted_complement, BinaryOp::Eq, zero);
+
+            let shift_complement_not_equal_0 = self.insert_not(shifted_complement_equal_0);
+
+            let lhs_sign_if_rhs_is_not_0 =
+                self.insert_binary(lhs_sign, BinaryOp::And, shift_complement_not_equal_0);
+
+            // Convert back to 2-complement representation if operand is negative
+            let lhs_sign_if_complement_is_not_0 =
+                self.insert_cast(lhs_sign_if_rhs_is_not_0, lhs_typ);
+
             let shifted = self.insert_binary(
                 shifted_complement,
                 BinaryOp::Sub { unchecked: true },
-                lhs_sign_as_int,
+                lhs_sign_if_complement_is_not_0,
             );
             self.insert_truncate(shifted, bit_size, bit_size + 1)
         }

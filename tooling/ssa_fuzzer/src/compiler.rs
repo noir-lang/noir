@@ -32,10 +32,10 @@ fn optimize_into_acir(
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa = builder.finish();
     log::debug!("SSA: {}", format!("{}", ssa));
-    // change to SsaLogging::All to see triage final ssa.
+    // change to SsaLogging::Contains("Dead Instruction Elimination (2)".to_string()) to see triage final ssa.
     let builder = SsaBuilder {
         ssa,
-        ssa_logging: SsaLogging::All,
+        ssa_logging: SsaLogging::Contains("Dead Instruction Elimination (2)".to_string()),
         print_codegen_timings: false,
         passed: HashMap::new(),
     };

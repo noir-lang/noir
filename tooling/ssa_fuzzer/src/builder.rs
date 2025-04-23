@@ -88,16 +88,27 @@ impl FuzzerBuilder {
         self.builder.terminate_with_return(vec![return_value.value_id]);
     }
 
+    fn balance_arithmetic(&mut self, lhs: TypedValue, rhs: TypedValue) -> (TypedValue, TypedValue) {
+        let mut rhs = rhs;
+        if !lhs.compatible_with(&rhs, "arithmetic") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+
+        // cannot cast
+        if !lhs.compatible_with(&rhs, "arithmetic") {
+            return (lhs.clone(), lhs);
+        }
+
+        return (lhs, rhs);
+    }
+
     /// Inserts an add instruction between two values
     pub fn insert_add_instruction_checked(
         &mut self,
         lhs: TypedValue,
         rhs: TypedValue,
     ) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "add") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
+        let (lhs, rhs) = self.balance_arithmetic(lhs, rhs);
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Add { unchecked: false },
@@ -112,10 +123,7 @@ impl FuzzerBuilder {
         lhs: TypedValue,
         rhs: TypedValue,
     ) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "sub") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
+        let (lhs, rhs) = self.balance_arithmetic(lhs, rhs);
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Sub { unchecked: false },
@@ -130,24 +138,30 @@ impl FuzzerBuilder {
         lhs: TypedValue,
         rhs: TypedValue,
     ) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "mul") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
+        let (lhs, rhs) = self.balance_arithmetic(lhs, rhs);
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Mul { unchecked: false },
             rhs.value_id,
+        );
+        let init_bit_length = match lhs.type_of_variable {
+            Type::Numeric(NumericType::NativeField) => 254,
+            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+            Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
+            _ => unreachable!("Trying to cast not numeric type"),
+        };
+
+        self.builder.insert_range_check(
+            res,
+            init_bit_length,
+            Some("Attempt to multiply with overflow".to_string()),
         );
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a divide instruction between two values
     pub fn insert_div_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "div") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
+        let (lhs, rhs) = self.balance_arithmetic(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Div, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
@@ -156,16 +170,10 @@ impl FuzzerBuilder {
     pub fn insert_mod_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
         let mut lhs = lhs;
         let mut rhs = rhs;
-        let (lhs, rhs) = match (lhs.supports_mod(), rhs.supports_mod()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                rhs = self.insert_cast(rhs, lhs.to_value_type());
-                (lhs, rhs)
-            }
-            (false, true) => {
-                lhs = self.insert_cast(lhs, rhs.to_value_type());
-                (lhs, rhs)
-            }
+        let (lhs, mut rhs) = match (lhs.supports_mod(), rhs.supports_mod()) {
+            (true, true) => self.balance_arithmetic(lhs, rhs),
+            (true, false) => self.balance_arithmetic(lhs, rhs),
+            (false, true) => self.balance_arithmetic(rhs, lhs),
             _ => {
                 // field case, doesn't support mod, cannot balance
                 return lhs;
@@ -186,19 +194,20 @@ impl FuzzerBuilder {
 
     /// Inserts a cast instruction
     pub fn insert_cast(&mut self, value: TypedValue, cast_type: ValueType) -> TypedValue {
-        // if we cast to lower type, we need to truncate
+        if !cast_type.can_be_used_for_casts() {
+            return value;
+        }
+
         let init_bit_length = match value.type_of_variable {
             Type::Numeric(NumericType::NativeField) => 254,
             Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
             Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
-            _ => unreachable!("Trying to cast not numeric type"),
+            _ => unreachable!("Trying to cast not to numeric type"),
         };
 
-        let value_id = if init_bit_length > cast_type.bit_length() {
-            self.builder.insert_truncate(value.value_id, cast_type.bit_length(), init_bit_length)
-        } else {
-            value.value_id
-        };
+        // always truncate, optimizations will eliminate if we truncate to bigger bit_len
+        let value_id =
+            self.builder.insert_truncate(value.value_id, cast_type.bit_length(), init_bit_length);
 
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
         TypedValue::new(res, cast_type.to_ssa_type())
@@ -206,20 +215,14 @@ impl FuzzerBuilder {
 
     /// Inserts an equals comparison instruction between two values
     pub fn insert_eq_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "eq") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
+        let (lhs, rhs) = self.balance_arithmetic(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Eq, rhs.value_id);
         TypedValue::new(res, ValueType::Boolean.to_ssa_type())
     }
 
     /// Inserts a less than comparison instruction between two values
     pub fn insert_lt_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        let mut rhs = rhs;
-        if !lhs.compatible_with(&rhs, "lt") {
-            rhs = self.insert_cast(rhs, lhs.to_value_type());
-        }
+        let (lhs, rhs) = self.balance_arithmetic(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Lt, rhs.value_id);
         TypedValue::new(res, ValueType::Boolean.to_ssa_type())
     }
@@ -231,7 +234,7 @@ impl FuzzerBuilder {
     ) -> (TypedValue, TypedValue) {
         let mut lhs = lhs;
         let mut rhs = rhs;
-        let (lhs, rhs) = match (lhs.supports_bitwise(), rhs.supports_bitwise()) {
+        let (lhs, mut rhs) = match (lhs.supports_bitwise(), rhs.supports_bitwise()) {
             (true, true) => (lhs, rhs),
             (true, false) => {
                 rhs = self.insert_cast(rhs, lhs.to_value_type());
@@ -249,6 +252,14 @@ impl FuzzerBuilder {
                 (lhs, rhs)
             }
         };
+        if !lhs.compatible_with(&rhs, "bitwise") {
+            rhs = self.insert_cast(rhs, lhs.to_value_type());
+        }
+
+        if !lhs.compatible_with(&rhs, "bitwise") {
+            // cannot cast
+            return (lhs.clone(), lhs);
+        }
         (lhs, rhs)
     }
 
@@ -276,10 +287,15 @@ impl FuzzerBuilder {
     /// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shl_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        //TODO
+        return lhs;
         // rhs must be 8bit, otherwise compiler will throw panic...
         // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
         let rhs = self.insert_cast(rhs, ValueType::U8);
         let mut lhs = lhs;
+        if !lhs.supports_shift() {
+            return lhs;
+        }
         if !lhs.compatible_with(&rhs, "shift") {
             // if field type, cast to u64
             lhs = self.insert_cast(lhs, ValueType::U64);
@@ -291,9 +307,14 @@ impl FuzzerBuilder {
     /// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shr_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        // TODO
+        return lhs;
         // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
         let rhs = self.insert_cast(rhs, ValueType::U8);
         let mut lhs = lhs;
+        if !lhs.supports_shift() {
+            return lhs;
+        }
         if !lhs.compatible_with(&rhs, "shift") {
             // if field type, cast to u64
             lhs = self.insert_cast(lhs, ValueType::U64);
