@@ -342,6 +342,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             let arg = Type::NamedGeneric(NamedGeneric {
                 type_var: impl_fn_generic.clone(),
                 name: name.clone(),
+                implicit: false,
             });
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }

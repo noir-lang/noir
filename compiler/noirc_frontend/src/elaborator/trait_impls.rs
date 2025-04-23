@@ -164,6 +164,7 @@ impl Elaborator<'_> {
             let arg = Type::NamedGeneric(NamedGeneric {
                 type_var: impl_fn_generic.clone(),
                 name: name.clone(),
+                implicit: false,
             });
             bindings.insert(
                 trait_fn_generic.id(),
@@ -174,10 +175,14 @@ impl Elaborator<'_> {
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in method.trait_constraints.iter() {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
-            let substituted_trait_generics = method_constraint
+            let mut substituted_trait_generics = method_constraint
                 .trait_bound
                 .trait_generics
                 .map(|generic| generic.substitute(&bindings));
+
+            // Here and a bit below we remove implicitly added named generics as each time they are implicitly
+            // added they'll get different type variables, and they won't match by equality.
+            substituted_trait_generics.remove_implicitly_added_named_generics();
 
             substituted_method_ids.insert((
                 substituted_constraint_type,
@@ -196,16 +201,18 @@ impl Elaborator<'_> {
                 continue;
             }
 
+            let mut override_trait_generics =
+                override_trait_constraint.trait_bound.trait_generics.clone();
+
+            // Here and a bit above we remove implicitly added named generics as each time they are implicitly
+            // added they'll get different type variables, and they won't match by equality.
+            override_trait_generics.remove_implicitly_added_named_generics();
+
             if !substituted_method_ids.contains(&(
                 override_trait_constraint.typ.clone(),
                 override_trait_constraint.trait_bound.trait_id,
-                override_trait_constraint.trait_bound.trait_generics.clone(),
+                override_trait_generics,
             )) {
-                dbg!(&substituted_method_ids);
-                dbg!(override_trait_constraint.typ.clone());
-                dbg!(override_trait_constraint.trait_bound.trait_id);
-                dbg!(override_trait_constraint.trait_bound.trait_generics.clone());
-
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
                 self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {

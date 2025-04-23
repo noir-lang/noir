@@ -446,7 +446,11 @@ fn type_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = Type::NamedGeneric(NamedGeneric { type_var: type_var.clone(), name: name.clone() });
+    let typ = Type::NamedGeneric(NamedGeneric {
+        type_var: type_var.clone(),
+        name: name.clone(),
+        implicit: false,
+    });
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 

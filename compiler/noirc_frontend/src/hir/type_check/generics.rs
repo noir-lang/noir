@@ -3,7 +3,7 @@ use std::cell::Ref;
 use iter_extended::vecmap;
 
 use crate::{
-    DataType, ResolvedGeneric, Type,
+    DataType, NamedGeneric, ResolvedGeneric, Type,
     hir_def::traits::NamedType,
     node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
 };
@@ -136,6 +136,12 @@ impl TraitGenerics {
 
     pub fn is_empty(&self) -> bool {
         self.ordered.is_empty() && self.named.is_empty()
+    }
+
+    pub fn remove_implicitly_added_named_generics(&mut self) {
+        self.named.retain(|named_type| {
+            !matches!(named_type.typ, Type::NamedGeneric(NamedGeneric { implicit: true, .. }))
+        });
     }
 }
 

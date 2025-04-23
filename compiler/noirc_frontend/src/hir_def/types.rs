@@ -148,6 +148,8 @@ pub enum Type {
 pub struct NamedGeneric {
     pub type_var: TypeVariable,
     pub name: Rc<String>,
+    /// Was this named generic implicitly added?
+    pub implicit: bool,
 }
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -401,7 +403,11 @@ pub struct ResolvedGeneric {
 
 impl ResolvedGeneric {
     pub fn as_named_generic(self) -> Type {
-        Type::NamedGeneric(NamedGeneric { type_var: self.type_var, name: self.name })
+        Type::NamedGeneric(NamedGeneric {
+            type_var: self.type_var,
+            name: self.name,
+            implicit: false,
+        })
     }
 
     pub fn kind(&self) -> Kind {
@@ -1024,7 +1030,7 @@ impl std::fmt::Display for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::NamedGeneric(NamedGeneric { type_var, name }) => match &*type_var.borrow() {
+            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match &*type_var.borrow() {
                 TypeBinding::Bound(type_var) => type_var.fmt(f),
                 TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_, _) => write!(f, "{name}"),
@@ -1889,8 +1895,8 @@ impl Type {
             }
 
             (
-                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a }),
-                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
             ) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
@@ -3083,7 +3089,7 @@ impl std::fmt::Debug for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
-            Type::NamedGeneric(NamedGeneric { type_var, name }) => match type_var.kind() {
+            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
                     write!(f, "{}{:?}", name, type_var)
                 }

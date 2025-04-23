@@ -659,8 +659,11 @@ impl<'context> Elaborator<'context> {
         generics.push(new_generic.clone());
 
         let name = format!("impl {trait_path}");
-        let generic_type =
-            Type::NamedGeneric(NamedGeneric { type_var: new_generic, name: Rc::new(name) });
+        let generic_type = Type::NamedGeneric(NamedGeneric {
+            type_var: new_generic,
+            name: Rc::new(name),
+            implicit: false,
+        });
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
         if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
@@ -729,7 +732,7 @@ impl<'context> Elaborator<'context> {
             // previous macro call being inserted into a generics list.
             UnresolvedGeneric::Resolved(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(NamedGeneric { type_var, name }) => {
+                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
                         Ok((type_var.clone(), name))
                     }
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
@@ -892,6 +895,7 @@ impl<'context> Elaborator<'context> {
                     let typ = Type::NamedGeneric(NamedGeneric {
                         type_var: type_var.clone(),
                         name: name.clone(),
+                        implicit: true,
                     });
                     let typ = self.interner.push_quoted_type(typ);
                     let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
@@ -902,8 +906,6 @@ impl<'context> Elaborator<'context> {
                 }
             }
         }
-
-        dbg!(&added_generics);
 
         added_generics
     }

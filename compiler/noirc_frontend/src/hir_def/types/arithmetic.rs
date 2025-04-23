@@ -393,6 +393,7 @@ mod tests {
         let n = Type::NamedGeneric(NamedGeneric {
             type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
             name: std::rc::Rc::new("N".to_owned()),
+            implicit: false,
         });
         let n_minus_one = Type::infix_expr(
             Box::new(n.clone()),
