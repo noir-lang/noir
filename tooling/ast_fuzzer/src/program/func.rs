@@ -1023,7 +1023,7 @@ fn test_loop() {
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
     ctx.config.vary_loop_size = false;
-    ctx.add_main_decl(&mut u);
+    ctx.gen_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
     let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
@@ -1049,7 +1049,7 @@ fn test_while() {
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
     ctx.config.vary_loop_size = false;
-    ctx.add_main_decl(&mut u);
+    ctx.gen_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
     let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");

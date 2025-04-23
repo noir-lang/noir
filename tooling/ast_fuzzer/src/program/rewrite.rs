@@ -106,21 +106,22 @@ pub(crate) fn add_recursion_limit(
             );
             let limit_expr = Expression::Ident(limit_ident.clone());
 
-            expr::replace(&mut func.body, |body| {
+            expr::replace(&mut func.body, |mut body| {
+                expr::prepend(
+                    &mut body,
+                    expr::assign_ref(
+                        limit_ident,
+                        expr::binary(
+                            expr::deref(limit_expr.clone(), types::U32),
+                            BinaryOpKind::Subtract,
+                            expr::u32_literal(1),
+                        ),
+                    ),
+                );
                 expr::if_else(
                     expr::equal(expr::deref(limit_expr.clone(), types::U32), expr::u32_literal(0)),
                     default_return,
-                    Expression::Block(vec![
-                        expr::assign_ref(
-                            limit_ident,
-                            expr::binary(
-                                expr::deref(limit_expr.clone(), types::U32),
-                                BinaryOpKind::Subtract,
-                                expr::u32_literal(1),
-                            ),
-                        ),
-                        body,
-                    ]),
+                    body,
                     func.return_type.clone(),
                 )
             });

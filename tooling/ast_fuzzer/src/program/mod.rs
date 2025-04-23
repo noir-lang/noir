@@ -180,7 +180,7 @@ impl Context {
 
     /// Generate and add main (for testing)
     #[cfg(test)]
-    fn add_main_decl(&mut self, u: &mut Unstructured) {
+    fn gen_main_decl(&mut self, u: &mut Unstructured) {
         let d = self.gen_function_decl(u, 0).unwrap();
         self.function_declarations.insert(FuncId(0u32), d);
     }
