@@ -931,7 +931,7 @@ impl<'a> FunctionContext<'a> {
         // Increment the index in the beginning of the body.
         expr::prepend(
             &mut loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
             ),
@@ -985,7 +985,7 @@ impl<'a> FunctionContext<'a> {
         // Increment the index in the beginning of the body.
         expr::prepend(
             &mut loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
             ),

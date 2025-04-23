@@ -208,7 +208,7 @@ impl Context {
 
     /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        rewrite::add_recursion_depth(self, u)
+        rewrite::add_recursion_limit(self, u)
     }
 
     /// Return the generated [Program].
