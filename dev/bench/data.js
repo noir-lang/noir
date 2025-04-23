@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745423563224,
+  "lastUpdate": 1745423568150,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f2cfe3e90872e84957473e9640d361ed94afeb8d",
-          "message": "fix: allow keywords in function names in SSA parser (#8063)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-15T00:02:34Z",
-          "tree_id": "d2906b310ae818c204634849163ba71e307db150",
-          "url": "https://github.com/noir-lang/noir/commit/f2cfe3e90872e84957473e9640d361ed94afeb8d"
-        },
-        "date": 1744677076305,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 486.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 462.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ccbaf3db0c6b3b5ffd853ef174c72f40ef53a4dc"
         },
         "date": 1745422566205,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 203.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 227.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 433.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 425.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.03,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "isennovskiy@gmail.com",
+            "name": "Innokentii Sennovskii",
+            "username": "Rumata888"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4c4bee7f98c813ce6f71c4fdd84ebdf1cd1098ba",
+          "message": "feat(greybox_fuzzer): Should_fail and should_fail_with (#8118)",
+          "timestamp": "2025-04-23T15:24:53Z",
+          "tree_id": "8af2c224833d222165eede78b5d9cbc9889fcb5b",
+          "url": "https://github.com/noir-lang/noir/commit/4c4bee7f98c813ce6f71c4fdd84ebdf1cd1098ba"
+        },
+        "date": 1745423561086,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
