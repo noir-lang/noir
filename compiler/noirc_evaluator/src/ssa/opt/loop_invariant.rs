@@ -1935,7 +1935,7 @@ mod control_dependence {
             jmp b5()
           b5():
             v15 = lt u32 2, v3
-            v16 = mul v6, v15
+            v16 = unchecked_mul v6, v15
             jmpif v16 then: loop_exit, else: b6
           b6():
             v17 = lt v3, u32 4
