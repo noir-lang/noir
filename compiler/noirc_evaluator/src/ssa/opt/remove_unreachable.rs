@@ -3,7 +3,7 @@
 //! or even from monomorphizing an unconstrained version of a constrained function
 //! where the original constrained version ends up never being used.
 //!
-//! This pass identifies all such unreachable functions and prunes them from the
+//! This pass identifies all unreachable functions and prunes them from the
 //! function set. Reachability is defined as:
 //! - A function is reachable if it is an entry point (e.g., `main`)
 //! - A function is reachable if it is called from another reachable function
@@ -58,8 +58,8 @@ impl Ssa {
 /// to be entry points or transitively reachable from one.
 ///
 /// # Arguments
-/// - `ssa`: The full SSA structure containing all functions.
-/// - `current_func_id`: The function ID from which to begin a traversal.
+/// - `ssa`: The full [Ssa] structure containing all functions.
+/// - `current_func_id`: The [FunctionId] from which to begin a traversal.
 /// - `reachable_functions`: A mutable set used to collect all reachable functions.
 ///   It serves both as the final output of this traversal and as a visited set
 ///   to prevent cycles and redundant recursion.
@@ -94,11 +94,11 @@ fn collect_reachable_functions(
 
 /// Identifies all reachable function IDs within a given function.
 /// This includes:
-/// - Function calls (e.g., functions used via `Call` instructions)
-/// - Function references (e.g., functions stored via `Store` instruction)
+/// - Function calls (functions used via `Call` instructions)
+/// - Function references (functions stored via `Store` instructions)
 ///
 /// # Arguments
-/// - `func`: The function to analyze for usage
+/// - `func`: The [Function] to analyze for usage
 ///
 /// # Returns
 /// A sorted set of [`FunctionId`]s that are reachable from the function.
