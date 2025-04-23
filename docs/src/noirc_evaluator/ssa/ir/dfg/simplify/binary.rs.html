@@ -301,7 +301,9 @@
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -328,7 +330,7 @@
     }
 
     <span class="kw">let </span>operator = <span class="kw">if </span>lhs_type == NumericType::NativeField {
-        <span class="comment">// Unchecked operations between fields or bools don't make sense, so we convert those to non-unchecked
+        <span class="comment">// Unchecked operations between fields don't make sense, so we convert those to non-unchecked
         // to reduce noise and confusion in the generated SSA.
         </span><span class="kw">match </span>operator {
             BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; BinaryOp::Add { unchecked: <span class="bool-val">false </span>},
@@ -337,9 +339,11 @@
             <span class="kw">_ </span>=&gt; operator,
         }
     } <span class="kw">else if </span>lhs_type == NumericType::bool() {
-        <span class="comment">// Unchecked mul between bools doesn't make sense, so we convert that to non-unchecked
-        </span><span class="kw">if let </span>BinaryOp::Mul { unchecked: <span class="bool-val">true </span>} = operator {
-            BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
+        <span class="comment">// When multiplying bools there can never be an overflow so using checked or unchecked
+        // should be the same. However, acir/brillig will check overflow for unsigned operations
+        // so here we turn checked bool multiplications to unchecked.
+        </span><span class="kw">if let </span>BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} = operator {
+            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}
         } <span class="kw">else </span>{
             operator
         }

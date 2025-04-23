@@ -3945,7 +3945,7 @@
 
         <span class="kw">if let </span>NumericType::Unsigned { bit_size } = <span class="kw-2">&amp;</span>num_type {
             <span class="comment">// Check for integer overflow
-            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, dfg, predicate)<span class="question-mark">?</span>;
+            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, predicate)<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(result)
@@ -3957,11 +3957,13 @@
         result: AcirVar,
         bit_size: u32,
         binary: <span class="kw-2">&amp;</span>Binary,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        <span class="kw">let </span>msg = <span class="kw">match </span>binary.operator {
+            BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to add with overflow"</span>,
+            BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to subtract with overflow"</span>,
+            BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to multiply with overflow"</span>,
+            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
         };
 
         <span class="kw">let </span>with_pred = <span class="self">self</span>.acir_context.mul_var(result, predicate)<span class="question-mark">?</span>;
@@ -5578,13 +5580,11 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>multiply_with_bool_should_not_emit_range_check() {
+    </span><span class="kw">fn </span>unchecked_mul_should_not_have_range_check() {
         <span class="kw">let </span>src = <span class="string">"
             acir(inline) fn main f0 {
-            b0(v0: bool, v1: u32):
-                enable_side_effects v0
-                v2 = cast v0 as u32
-                v3 = mul v2, v1
+            b0(v0: u32, v1: u32):
+                v3 = unchecked_mul v0, v1
                 return v3
             }
         "</span>;

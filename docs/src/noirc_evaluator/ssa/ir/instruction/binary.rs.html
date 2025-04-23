@@ -346,54 +346,11 @@
 <a href="#345" id="345">345</a>
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#348" id="348">348</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="kw">use super</span>::{DataFlowGraph, InstructionResultType, NumericType, Type, ValueId};
+<span class="kw">use super</span>::{InstructionResultType, NumericType, Type, ValueId};
 
 <span class="doccomment">/// Binary Operations allowed in the IR.
 /// Aside from the comparison operators (Eq and Lt), all operators
@@ -475,49 +432,6 @@
             BinaryOp::Eq | BinaryOp::Lt =&gt; InstructionResultType::Known(Type::bool()),
             <span class="kw">_ </span>=&gt; InstructionResultType::Operand(<span class="self">self</span>.lhs),
         }
-    }
-
-    <span class="doccomment">/// Check if unsigned overflow is possible, and if so return some message to be used if it fails.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>check_unsigned_overflow_msg(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-        bit_size: u32,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
-        <span class="comment">// We try to optimize away operations that are guaranteed not to overflow
-        </span><span class="kw">let </span>max_lhs_bits = dfg.get_value_max_num_bits(<span class="self">self</span>.lhs);
-        <span class="kw">let </span>max_rhs_bits = dfg.get_value_max_num_bits(<span class="self">self</span>.rhs);
-
-        <span class="kw">let </span>msg = <span class="kw">match </span><span class="self">self</span>.operator {
-            BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="kw">if </span>std::cmp::max(max_lhs_bits, max_rhs_bits) &lt; bit_size {
-                    <span class="comment">// `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    </span><span class="kw">return </span><span class="prelude-val">None</span>;
-                }
-                <span class="string">"attempt to add with overflow"
-            </span>}
-            BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="kw">if </span>dfg.is_constant(<span class="self">self</span>.lhs) &amp;&amp; max_lhs_bits &gt; max_rhs_bits {
-                    <span class="comment">// `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs &gt; 0`
-                    // Note strict inequality as `rhs &gt; lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                    </span><span class="kw">return </span><span class="prelude-val">None</span>;
-                }
-                <span class="string">"attempt to subtract with overflow"
-            </span>}
-            BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="kw">if </span>bit_size == <span class="number">1
-                    </span>|| max_lhs_bits + max_rhs_bits &lt;= bit_size
-                    || max_lhs_bits == <span class="number">1
-                    </span>|| max_rhs_bits == <span class="number">1
-                </span>{
-                    <span class="comment">// Either performing boolean multiplication (which cannot overflow),
-                    // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    </span><span class="kw">return </span><span class="prelude-val">None</span>;
-                }
-                <span class="string">"attempt to multiply with overflow"
-            </span>}
-            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
-        };
-        <span class="prelude-val">Some</span>(msg)
     }
 }
 

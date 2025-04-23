@@ -2141,21 +2141,7 @@
 <a href="#2140" id="2140">2140</a>
 <a href="#2141" id="2141">2141</a>
 <a href="#2142" id="2142">2142</a>
-<a href="#2143" id="2143">2143</a>
-<a href="#2144" id="2144">2144</a>
-<a href="#2145" id="2145">2145</a>
-<a href="#2146" id="2146">2146</a>
-<a href="#2147" id="2147">2147</a>
-<a href="#2148" id="2148">2148</a>
-<a href="#2149" id="2149">2149</a>
-<a href="#2150" id="2150">2150</a>
-<a href="#2151" id="2151">2151</a>
-<a href="#2152" id="2152">2152</a>
-<a href="#2153" id="2153">2153</a>
-<a href="#2154" id="2154">2154</a>
-<a href="#2155" id="2155">2155</a>
-<a href="#2156" id="2156">2156</a>
-<a href="#2157" id="2157">2157</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2143" id="2143">2143</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -3691,15 +3677,7 @@
 
         <span class="self">self</span>.brillig_context.binary_instruction(left, right, result_variable, brillig_binary_op);
 
-        <span class="self">self</span>.add_overflow_check(
-            brillig_binary_op,
-            left,
-            right,
-            result_variable,
-            binary,
-            dfg,
-            is_signed,
-        );
+        <span class="self">self</span>.add_overflow_check(left, right, result_variable, binary, dfg, is_signed);
     }
 
     <span class="kw">fn </span>convert_signed_modulo(
@@ -3814,7 +3792,6 @@
     <span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>add_overflow_check(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        binary_operation: BrilligBinaryOp,
         left: SingleAddrVariable,
         right: SingleAddrVariable,
         result: SingleAddrVariable,
@@ -3828,78 +3805,73 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) {
-            <span class="kw">match </span>binary_operation {
-                BrilligBinaryOp::Add =&gt; {
-                    <span class="kw">let </span>condition =
-                        SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
-                    <span class="comment">// Check that lhs &lt;= result
-                    </span><span class="self">self</span>.brillig_context.binary_instruction(
-                        left,
-                        result,
-                        condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-                    <span class="self">self</span>.brillig_context.codegen_constrain(condition, <span class="prelude-val">Some</span>(msg.to_string()));
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
-                }
-                BrilligBinaryOp::Sub =&gt; {
-                    <span class="kw">let </span>condition =
-                        SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
-                    <span class="comment">// Check that rhs &lt;= lhs
-                    </span><span class="self">self</span>.brillig_context.binary_instruction(
-                        right,
-                        left,
-                        condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-                    <span class="self">self</span>.brillig_context.codegen_constrain(condition, <span class="prelude-val">Some</span>(msg.to_string()));
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
-                }
-                BrilligBinaryOp::Mul =&gt; {
-                    <span class="kw">let </span>division_by_rhs_gives_lhs = |ctx: <span class="kw-2">&amp;mut </span>BrilligContext&lt;
-                        FieldElement,
-                        Registers,
-                    &gt;| {
-                        <span class="kw">let </span>condition = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
-                        <span class="kw">let </span>division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
-                        <span class="comment">// Check that result / rhs == lhs
-                        </span>ctx.binary_instruction(
-                            result,
-                            right,
-                            division,
-                            BrilligBinaryOp::UnsignedDiv,
-                        );
-                        ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
-                        ctx.codegen_constrain(condition, <span class="prelude-val">Some</span>(msg.to_string()));
-                        ctx.deallocate_single_addr(condition);
-                        ctx.deallocate_single_addr(division);
-                    };
-
-                    <span class="kw">let </span>rhs_may_be_zero =
-                        dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
-                    <span class="kw">if </span>rhs_may_be_zero {
-                        <span class="kw">let </span>is_right_zero =
-                            SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
-                        <span class="kw">let </span>zero = <span class="self">self
-                            </span>.brillig_context
-                            .make_constant_instruction(<span class="number">0_usize</span>.into(), bit_size);
-                        <span class="self">self</span>.brillig_context.binary_instruction(
-                            zero,
-                            right,
-                            is_right_zero,
-                            BrilligBinaryOp::Equals,
-                        );
-                        <span class="self">self</span>.brillig_context
-                            .codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
-                        <span class="self">self</span>.brillig_context.deallocate_single_addr(is_right_zero);
-                        <span class="self">self</span>.brillig_context.deallocate_single_addr(zero);
-                    } <span class="kw">else </span>{
-                        division_by_rhs_gives_lhs(<span class="self">self</span>.brillig_context);
-                    }
-                }
-                <span class="kw">_ </span>=&gt; {}
+        <span class="kw">match </span>binary.operator {
+            BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
+                <span class="kw">let </span>condition =
+                    SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
+                <span class="comment">// Check that lhs &lt;= result
+                </span><span class="self">self</span>.brillig_context.binary_instruction(
+                    left,
+                    result,
+                    condition,
+                    BrilligBinaryOp::LessThanEquals,
+                );
+                <span class="kw">let </span>msg = <span class="string">"attempt to add with overflow"</span>.to_string();
+                <span class="self">self</span>.brillig_context.codegen_constrain(condition, <span class="prelude-val">Some</span>(msg));
+                <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
             }
+            BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
+                <span class="kw">let </span>condition =
+                    SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
+                <span class="comment">// Check that rhs &lt;= lhs
+                </span><span class="self">self</span>.brillig_context.binary_instruction(
+                    right,
+                    left,
+                    condition,
+                    BrilligBinaryOp::LessThanEquals,
+                );
+                <span class="kw">let </span>msg = <span class="string">"attempt to subtract with overflow"</span>.to_string();
+                <span class="self">self</span>.brillig_context.codegen_constrain(condition, <span class="prelude-val">Some</span>(msg));
+                <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
+            }
+            BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
+                <span class="kw">let </span>division_by_rhs_gives_lhs = |ctx: <span class="kw-2">&amp;mut </span>BrilligContext&lt;
+                    FieldElement,
+                    Registers,
+                &gt;| {
+                    <span class="kw">let </span>condition = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
+                    <span class="kw">let </span>division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
+                    <span class="comment">// Check that result / rhs == lhs
+                    </span>ctx.binary_instruction(result, right, division, BrilligBinaryOp::UnsignedDiv);
+                    ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
+                    <span class="kw">let </span>msg = <span class="string">"attempt to multiply with overflow"</span>.to_string();
+                    ctx.codegen_constrain(condition, <span class="prelude-val">Some</span>(msg));
+                    ctx.deallocate_single_addr(condition);
+                    ctx.deallocate_single_addr(division);
+                };
+
+                <span class="kw">let </span>rhs_may_be_zero =
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
+                <span class="kw">if </span>rhs_may_be_zero {
+                    <span class="kw">let </span>is_right_zero =
+                        SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
+                    <span class="kw">let </span>zero =
+                        <span class="self">self</span>.brillig_context.make_constant_instruction(<span class="number">0_usize</span>.into(), bit_size);
+                    <span class="self">self</span>.brillig_context.binary_instruction(
+                        zero,
+                        right,
+                        is_right_zero,
+                        BrilligBinaryOp::Equals,
+                    );
+                    <span class="self">self</span>.brillig_context
+                        .codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
+                    <span class="self">self</span>.brillig_context.deallocate_single_addr(is_right_zero);
+                    <span class="self">self</span>.brillig_context.deallocate_single_addr(zero);
+                } <span class="kw">else </span>{
+                    division_by_rhs_gives_lhs(<span class="self">self</span>.brillig_context);
+                }
+            }
+            <span class="kw">_ </span>=&gt; {}
         }
     }
 
