@@ -57,16 +57,20 @@ impl Function {
                     }
                 }
                 BinaryOp::Sub { unchecked: false } => {
-                    if dfg.is_constant(lhs) {
-                        let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
-                        let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
-                        if max_lhs_bits > max_rhs_bits {
-                            // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                            // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                            let operator = BinaryOp::Sub { unchecked: true };
-                            let binary = Binary { operator, ..*binary };
-                            context.replace_current_instruction_with(Instruction::Binary(binary));
-                        }
+                    let Some(lhs_const) = dfg.get_numeric_constant(lhs) else {
+                        return;
+                    };
+
+                    let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
+                    let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
+
+                    // 1. `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
+                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                    // 2. `lhs` is 1 and rhs has one bit so it's either (1 - 0) or (1 - 1) which can never overflow.
+                    if max_lhs_bits > max_rhs_bits || (lhs_const.is_one() && max_rhs_bits == 1) {
+                        let operator = BinaryOp::Sub { unchecked: true };
+                        let binary = Binary { operator, ..*binary };
+                        context.replace_current_instruction_with(Instruction::Binary(binary));
                     }
                 }
                 BinaryOp::Mul { unchecked: false } => {
@@ -183,6 +187,28 @@ mod tests {
           b0(v0: u16):
             v1 = cast v0 as u32
             v3 = unchecked_sub u32 65536, v1
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_when_subtracting_from_1_a_value_that_has_one_bit() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = cast v0 as u32
+            v3 = sub u32 1, v1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = cast v0 as u32
+            v3 = unchecked_sub u32 1, v1
             return v3
         }
         ");
