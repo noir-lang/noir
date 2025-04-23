@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745442628781,
+  "lastUpdate": 1745447688368,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18000,42 +18000,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "362738431bf52cc816efbef41395e991d4a3d658",
-          "message": "chore: don't use `set_from_value_id` in `remove_if_else` (#8070)",
-          "timestamp": "2025-04-15T14:12:48Z",
-          "tree_id": "fed06e2089d654720ac2f4fa4d31984f87160639",
-          "url": "https://github.com/noir-lang/noir/commit/362738431bf52cc816efbef41395e991d4a3d658"
-        },
-        "date": 1744727366632,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266715,
-            "range": "± 621",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234951,
-            "range": "± 3487",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7211e767d62f3552814432fb3b1cb1e2baeee719",
           "message": "chore: don't use `set_value_from_id` in `simplify_cfg` (#8072)",
@@ -19970,6 +19934,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3224992,
             "range": "± 48718",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3fb324ebc2ac0a67ef7d2595028fa3cc05c2b601",
+          "message": "chore: Change AST fuzzer recursion limit (#8173)",
+          "timestamp": "2025-04-23T22:17:11Z",
+          "tree_id": "791201425d8f9f7ebbab7d74a4eb806844a5b179",
+          "url": "https://github.com/noir-lang/noir/commit/3fb324ebc2ac0a67ef7d2595028fa3cc05c2b601"
+        },
+        "date": 1745447681645,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261181,
+            "range": "± 1441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231925,
+            "range": "± 4182",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3574280,
+            "range": "± 78723",
             "unit": "ns/iter"
           }
         ]
