@@ -246,7 +246,19 @@
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
 //!
 //! This module defines the core set opcodes used in ACIR.
 </span><span class="kw">use </span><span class="kw">super</span>::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
@@ -491,6 +503,18 @@
         <span class="macro">insta::assert_snapshot!</span>(
             xor.to_string(),
             @<span class="string">"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"
+        </span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>range_display_snapshot() {
+        <span class="kw">let </span>range: Opcode&lt;FieldElement&gt; = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput::witness(<span class="number">0</span>.into(), <span class="number">32</span>),
+        });
+
+        <span class="macro">insta::assert_snapshot!</span>(
+            range.to_string(),
+            @<span class="string">"BLACKBOX::RANGE [(_0, 32)] []"
         </span>);
     }
 }
