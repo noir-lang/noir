@@ -31,7 +31,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/71UwU7DMAx9oa0gTMAEZ7jAiVPGCtuxB/Yh0aZ+Rz99i2ZvrptctmRPqpzI6fOzHcfgCENfQE32DlPwmY6suw6LjFyupE5TSOdJqFwbpAv/TdZi3KTgrzImbCOacvGvXftnI/ll1L+0grMA/w/z12X43T3x/A9jfqi4TxgPr/yHfXKQN+R7ID+vn2ltFV+JvktNuev2FtHPsWaU64eqXSXqYxIWGNefwdxzTHtkblDTA1rOo8YU7GtUbCD+zlRqL3WH2n0JXn2O8ZLIF5F9g3S/GnX2nWzp2XsVvFCxZji/vfWQP/5q7RzHrYZzHXRfZPxGnf+k/WMij+5Cnf3KL/ql7/2v3+3ardd1CkjNGt8JOfd6PmSO3YUaFbzMGyK2fn8C5pjeRdn3PYppcdotCQAA",
-  "debug_symbols": "ldPbCoQgEAbgd5lrLzysu9WrLEtYWQiiYbawRO++GnuI6GZuxBG/GRj4F+h0Mw+1cb2foLovYH2rovEuVctKoAnGWjPU+2eg+WDF9n8alcvlFFWIUDEqCGjXpRujyffGaqgkXR8EWIkVnKIFQwuOFgItLmghTwWXXyHEUVzR4oYWBVYI9AxxPoP9dsXlX/BNlFhxoTixpuqpglGN1Z9g9LNrdzmJr1EfIjMG3+puDjqHZ5ebPFtQImRqm1q/AQ==",
+  "debug_symbols": "nZHRisMgEEX/ZZ59UKfZbfMrpQSTmCKICVYXluC/76jNJvuwUPricRzvvQOzwqj7eO+Mm+YHtNcVem+sNffOzoMKZnb0ugLPhzhDKxiIS4HkFaJCVmDFqaKBVhI+Kj4rzgVYK6QKCZeCE3liSgy28C54rXP2YRqacVFeuwCti9Yy+FI2lk+PRbnCoDx1OQPtRiIZTsbqfEtsV/P/pYLjUyzELm9e18tm0yO+oxe/+bLZ9TKlG1VqMP7PflJ28kb1Vj/LKbrh0A3fy9bZ9rv4edBj9Do7HZZM5xU5w+aWctoP",
   "file_map": {
     "50": {
       "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",

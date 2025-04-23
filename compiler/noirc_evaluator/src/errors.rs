@@ -8,11 +8,12 @@
 //!
 //! An Error of the latter is an error in the implementation of the compiler
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
+use crate::ssa::ir::types::NumericType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
