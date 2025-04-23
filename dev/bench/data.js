@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745427592363,
+  "lastUpdate": 1745428809874,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17961,42 +17961,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2714a743e33846cc3d43fda791007ecf8c067c7e",
-          "message": "fix: Allow more slack in AST calibration for CI (#8076)",
-          "timestamp": "2025-04-15T10:16:44Z",
-          "tree_id": "68c83fab130e454a12afcfa1f3aeccc9be799c09",
-          "url": "https://github.com/noir-lang/noir/commit/2714a743e33846cc3d43fda791007ecf8c067c7e"
-        },
-        "date": 1744713116491,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 269528,
-            "range": "± 729",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236575,
-            "range": "± 1810",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+jewelofchaos9@users.noreply.github.com",
             "name": "defkit",
             "username": "jewelofchaos9"
@@ -19910,6 +19874,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3601711,
             "range": "± 21006",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "78c7e373d6d40e9082740242a9cb1d8c5657392b",
+          "message": "fix: Use `get_local_or_global_instruction` when simplifying `IfElse` (#8185)",
+          "timestamp": "2025-04-23T17:00:01Z",
+          "tree_id": "aaeb8e4400347545017d835ee4bd77d77c56af5b",
+          "url": "https://github.com/noir-lang/noir/commit/78c7e373d6d40e9082740242a9cb1d8c5657392b"
+        },
+        "date": 1745428803869,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260956,
+            "range": "± 1426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232519,
+            "range": "± 4448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3222304,
+            "range": "± 3994",
             "unit": "ns/iter"
           }
         ]
