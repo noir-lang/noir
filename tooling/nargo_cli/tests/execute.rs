@@ -160,6 +160,11 @@ mod tests {
                     println!(
                         "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
                     );
+                    if expected_stdout.is_empty() && !stdout_path.exists() {
+                        println!(
+                            "Hint: set the OVERWRITE_TEST_OUTPUT env var to establish a stdout.txt"
+                        )
+                    }
                     assert_eq!(stdout, expected_stdout);
                 }
             }

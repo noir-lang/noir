@@ -785,10 +785,16 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `for` loop.
     fn gen_for(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // The index can be signed or unsigned int, 8 to 64 bits,
+        // The index can be signed or unsigned int, 8 to 128 bits, except i128.
+        let bit_size =
+            u.choose(&[8, 16, 32, 64, 128]).map(|s| IntegerBitSize::try_from(*s).unwrap())?;
         let idx_type = Type::Integer(
-            if bool::arbitrary(u)? { Signedness::Signed } else { Signedness::Unsigned },
-            u.choose(&[8, 16, 32, 64]).map(|s| IntegerBitSize::try_from(*s).unwrap())?,
+            if bit_size == IntegerBitSize::HundredTwentyEight || bool::arbitrary(u)? {
+                Signedness::Unsigned
+            } else {
+                Signedness::Signed
+            },
+            bit_size,
         );
 
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
