@@ -146,15 +146,11 @@ mod tests {
         ];
 
         // Try to use relative paths if possible, otherwise the test breaks when run from the repository root
-        let at_filename = if let Ok(current_dir) = std::env::current_dir() {
-            if let Ok(stripped) = test_program_path.strip_prefix(current_dir) {
-                format!("At {}", stripped.display())
-            } else {
-                format!("At {}", test_program_dir)
-            }
-        } else {
-            format!("At {}", test_program_dir)
-        };
+        let at_filename = std::env::current_dir()
+            .ok()
+            .and_then(|dir| test_program_path.strip_prefix(&dir).ok())
+            .map(|stripped| format!("At {}", stripped.display()))
+            .unwrap_or_else(|| format!("At {}", test_program_dir));
 
         for mut expected_lines in expected_lines_by_command {
             // While running the debugger, issue a "next" cmd,
