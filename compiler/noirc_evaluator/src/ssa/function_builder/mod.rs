@@ -3,7 +3,10 @@ pub mod data_bus;
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{FieldElement, acir::circuit::ErrorSelector};
-use noirc_errors::Location;
+use noirc_errors::{
+    Location,
+    call_stack::{CallStack, CallStackId},
+};
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -18,7 +21,6 @@ use crate::ssa::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
-        call_stack::{CallStack, CallStackId},
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
@@ -128,7 +130,7 @@ impl FunctionBuilder {
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
         self.call_stack =
-            self.current_function.dfg.call_stack_data.get_or_insert_locations(call_stack);
+            self.current_function.dfg.call_stack_data.get_or_insert_locations(&call_stack);
         self.finished_functions.push(old_function);
 
         self.current_function.dfg.set_function_purities(self.purities.clone());

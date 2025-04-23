@@ -24,7 +24,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VS7QrCMAzsXEWrDsGP98jYxvbTH75IcfQ59ugqXGgIZX/WBso1NL3epalMjApoVW4SNS8gbYs2Ixclha4F1zyBDrgT53VGs069m5N/on5wCX8Z9XcOnCX7w5wF+OkAnvcS+bWXfzTI5QzxneNvXUzcN9g7dafE3xbsPd0T+vmtM7xeRc6zZpf8esaJiHXU4N+b+D8yrDiX9Q/kJ+GH0W7QGUbfhs4HP/h57j/+pviN6tsXcii9b2EFAAA=",
-  "debug_symbols": "XYzBCoAgEET/Zc8dKujSr0SE2ioLomIahOy/p9AhvAy8ecwUOFFmc5DT/oJ1K2C9Eom8q1R4ABnJWjJHV98ikpAWP9TZqZ9NT8BuH6JXeOaI7ak5GFtMNbdpGeZxZ+adXw==",
+  "debug_symbols": "XY7BCoRACIbfxfMcamEvvUpE2GQxIM5gM8ESvfs6sUHsRf391N8DZprKOgZZ4gZdf8CkgTmsI0ePOUSx7nE6uOWYlcha8OC2lVBJMnRSmB3syOUa2hLKlTOq0cYByWzZDi6BqVbnYAJ90H/HHTXgxPSTSxH/oPmTbnJ/nDR6motSvVQZNDW0Fvv27V7NcFa3Lw==",
   "file_map": {},
   "names": [
     "main"

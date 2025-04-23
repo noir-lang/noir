@@ -22,15 +22,18 @@ use acvm::{
     FieldElement,
     acir::{
         circuit::{
-            Circuit, ErrorSelector, ExpressionWidth, Program as AcirProgram, PublicInputs,
-            brillig::BrilligBytecode,
+            AcirOpcodeLocation, Circuit, ErrorSelector, ExpressionWidth, OpcodeLocation,
+            Program as AcirProgram, PublicInputs, brillig::BrilligBytecode,
         },
         native_types::Witness,
     },
 };
 
 use ir::instruction::ErrorType;
-use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+use noirc_errors::{
+    call_stack::CallStackId,
+    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+};
 
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
@@ -470,7 +473,7 @@ pub fn convert_generated_acir_into_circuit(
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
         return_witnesses,
-        locations,
+        location_map,
         brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
@@ -495,27 +498,18 @@ pub fn convert_generated_acir_into_circuit(
         return_values,
         assert_messages: assert_messages.into_iter().collect(),
     };
-
-    // This converts each im::Vector in the BTreeMap to a Vec
-    let locations = locations
-        .into_iter()
-        .map(|(index, locations)| (index, locations.into_iter().collect()))
-        .collect();
-
-    let brillig_locations = brillig_locations
-        .into_iter()
-        .map(|(function_index, locations)| {
-            let locations = locations
-                .into_iter()
-                .map(|(index, locations)| (index, locations.into_iter().collect()))
-                .collect();
-            (function_index, locations)
+    let acir_location_map: BTreeMap<AcirOpcodeLocation, CallStackId> = location_map
+        .iter()
+        .map(|(k, v)| match k {
+            OpcodeLocation::Acir(index) => (AcirOpcodeLocation::new(*index), *v),
+            OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-
+    let location_tree = generated_acir.call_stacks.to_location_tree();
     let mut debug_info = DebugInfo::new(
-        locations,
         brillig_locations,
+        acir_location_map,
+        location_tree,
         debug_variables,
         debug_functions,
         debug_types,

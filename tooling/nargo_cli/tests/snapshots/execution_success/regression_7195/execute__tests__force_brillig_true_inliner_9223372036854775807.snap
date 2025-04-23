@@ -31,7 +31,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/71VwQ6CMAztBNRp9KCJFy960SsICkcP+iGLhO/g0w2h1VKHMWGzCVlJy+t77RoUtKbwaSzEcwSfRjlXPONhljjEin3yVJ54vohyX0F/4494augOqYkHDgVrCydX+EWcXbRFn0P+qWaYHvBPhB/6wY8niHOru/gg6i6gu7z8G4rxRb5jbIpx8pfoa4HnY+6ck+u+rS38qdYcte6F1oD1xxUPOaeop6+cR8RiLrlQ3THi8TvL/UhwpfyN4DkBP7NbCf28Vl8/5T0in7//qpfyt0Lv+I96qZbUZLs/I6FXWfQGX/RS/k7o9bWbNr18N+mfENbu6+dFuweNBfW7D3z3QdSPRP4B32cWHeEAnlVukio1lTmbssweRvYJRJ+eAPeVIbUJAAA=",
-  "debug_symbols": "zZXLCoMwEEX/ZdZZ5FFj9FdKKVFjCYQoUQtF/PfGoiBWCm7KbEIm3DOcVe4IlSmGx936uukgv47gmlL3tvFxGicCRbDO2cd9+wx0PljyyXet9vPY9Tr0kHOZEjC+irdURL62zkCe0Il8RRmTS5Rx/jsq6JIUchu8EWAShUWKwkKhsMgwWHCKwoKhsOCHFmm2WqjkHxYChcUFhUWCwkKisDj+OzO1AvSyJ9RpIjtLCHqaYOeIKU5PHawunFnKth58uene/tWaXQ23oSlNNQQzF/Kmi2dbIYhQcW1c/QY=",
+  "debug_symbols": "tZLNboQgFIXfhTULfhTUV5lMDCpOSAgaRps0xncveKXVBd003fCJ1+94FndDg+7WV2vcOL1R89hQ54215tXaqVeLmVx4uyESD1qihmNEBUACKkB9gBEABTDUiAAOKAAlQABCigyoAPUBTgAhRe47RqlKu3itY5NLt9B4Vl67BTVutRajD2XX46P3rNzBRfkwJRhpNwSGwNFYHZ92/GOTvMqEPGUm+bde3n2a9ykVp08Zy/ks7/PUnYuc/Vt7Waf2VZnziz+2L/+tfV0lnRQ3/xluqjf+tql7TPJGdVaf13F1/WW6fM5pkjZ99lOvh9XrmHRZ93A+OMe8eu7xb18=",
   "file_map": {
     "50": {
       "source": "fn bar(y: Field) {\n    assert(y != 0);\n}\n\nfn foo(x: Field) {\n    // Safety: test\n    let y = unsafe { baz(x) };\n    bar(y);\n}\n\nunconstrained fn baz(x: Field) -> Field {\n    x\n}\n\nfn main(x: Field, y: pub Field) {\n    // Safety: test\n    let x = unsafe { baz(x) };\n    foo(x);\n    foo(y);\n    assert(x != y);\n}\n",
