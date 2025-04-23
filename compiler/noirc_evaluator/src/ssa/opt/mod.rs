@@ -11,6 +11,7 @@ mod basic_conditional;
 mod brillig_array_gets;
 pub(crate) mod brillig_entry_points;
 mod check_u128_mul_overflow;
+mod checked_to_unchecked;
 mod constant_folding;
 mod defunctionalize;
 mod die;

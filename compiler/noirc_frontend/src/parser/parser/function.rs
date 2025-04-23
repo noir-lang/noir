@@ -223,8 +223,8 @@ impl Parser<'_> {
             );
 
             let visibility = Visibility::Private;
-            let typ =
-                UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
+            let location = self.location_at_previous_token_end();
+            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
             (visibility, typ)
         } else {
             (
@@ -328,7 +328,7 @@ fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
         body: None,
         location: Location::new(span, location.file),
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Location::dummy()),
+        return_type: FunctionReturnType::Default(Location::new(span, location.file)),
         return_visibility: Visibility::Private,
     }
 }
