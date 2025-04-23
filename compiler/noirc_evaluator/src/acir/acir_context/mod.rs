@@ -21,11 +21,12 @@ use acvm::{
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use std::{borrow::Cow, cmp::Ordering};
 
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
-use crate::ssa::ir::{call_stack::CallStack, instruction::Endian, types::NumericType};
+use crate::ssa::ir::{instruction::Endian, types::NumericType};
 
 mod big_int;
 mod black_box;
@@ -190,11 +191,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
-        self.acir_ir.call_stack.clone()
+        self.acir_ir.call_stacks.get_call_stack(self.acir_ir.call_stack_id)
     }
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
-        self.acir_ir.call_stack = call_stack;
+        self.acir_ir.call_stack_id = self.acir_ir.call_stacks.get_or_insert_locations(&call_stack);
+    }
+
+    pub(crate) fn set_call_stack_helper(&mut self, call_stack: CallStackHelper) {
+        self.acir_ir.call_stacks = call_stack;
     }
 
     pub(crate) fn get_or_create_witness_var(
@@ -499,8 +504,20 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     ) -> Result<(), RuntimeError> {
         let diff_var = self.sub_var(lhs, rhs)?;
 
+        let old_opcodes_len = self.acir_ir.opcodes().len();
         let _ = self.inv_var(diff_var, predicate)?;
         if let Some(payload) = assert_message {
+            // Non-equality can potentially be a no-op if we have all constant
+            // inputs that we know satisfy the non-equality check.
+            // If a no-op non-equality check were to then add an assertion payload
+            // opcode location based upon `GeneratedAcir::last_acir_opcode_location`,
+            // it would be pointing at the previous opcode location.
+            // This at best leads to a mismatch in assertion payload opcode locations
+            // and at worst an attempt to subtract with overflow if the non-equality
+            // check is the first opcode.
+            if self.acir_ir.opcodes().len() - old_opcodes_len == 0 {
+                return Ok(());
+            }
             self.acir_ir
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);

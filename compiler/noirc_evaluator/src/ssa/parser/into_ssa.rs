@@ -1,12 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
 use acvm::acir::circuit::ErrorSelector;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::GlobalsGraph,
         function::{Function, FunctionId},
         instruction::{ConstrainError, Instruction},
@@ -329,6 +329,9 @@ impl Translator {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_load(value, typ);
                 self.define_variable(target, value_id)?;
+            }
+            ParsedInstruction::Nop => {
+                self.builder.insert_instruction(Instruction::Noop, None);
             }
             ParsedInstruction::Not { target, value } => {
                 let value = self.translate_value(value)?;

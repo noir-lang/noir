@@ -31,7 +31,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/8VVzQ6CMAzu+IlOogdNPOpF70NQOHLQB1kkPAePbghdKGW76BabkDHafv36dYCA0QRegyW4RrA0E9Pgqn6z3COWCslTBOI5E1mA24zviqtk+YM/9tiwZHV94teqfEhLfx75F5JgBsC/GfwkDL5aIc6zn+MDq7uF+ctLc4yPnrEX+tboN/c7vJcML8TcKSffuh0s/E2tDHs94z6G5QxpHo2xaU/9XC+KIR3PGz895ynjcGR1Q53RPeuH1rLpFoFdW5t21E/zhENbEUZbJRivxNGPqZuy+BPj+Y9ZZDD9L5Lef/2qHnUaLO4nHegsgdVPWfwF9xtHH82XPLtK512hO33XbVu+NddpMPp9+AAg/Lo7EQkAAA==",
-  "debug_symbols": "ldPBCoQgEAbgd5lzh9TK6lWWJawsBNEwW1iid19ddiOky1zEET9hGP8dRtlvc6fMZFdoHztoOwivrAnVfmTQO6W1mrvrMeRxIeX3/roIE8vVC+ehpaTIQJox7CgLflJaQlvmxzMDUqEFR4v6TpCGnqJIRYMVNEcLghb0tvOK/QWnqWBoUaDF/cyLsw+ezoNWaMHRokaLBieOUL2EU6LX8heMaTPDJSf+vcgkMouzgxw3J2N4LrmJv4eRjFXh2fD0Bw==",
+  "debug_symbols": "nZLNroMgEEbfZdYs5Kfa8ipNY1CxISFoKNzkxvDud5DqtYsmTTcccTjfTAILDLqL99a4cXqAvC7QeWOtubd26lUwk8O/C1R5oSeQlACtC5qCM0iGuKxgVQEtYCA5gheIAkwRiLqgKTgXYIpIicDWvA1e69z7MA3OOCuvXQDporUEfpSN66HHrNzKoDxWKwLaDUgMHI3V+SuRf7t6rzIqnjJjfNdPH/v0wnZffOGzmm9+w77xxd6/eZ3/hjvVG/9yvykneaM6q5/bMbr+UA2/81bZ3sfsp14P0eucdHgkuF45Jby+pdztDw==",
   "file_map": {
     "50": {
       "source": "// Tests a very simple Brillig function.\n//\n// The features being tested is not instruction on brillig\nfn main(x: Field, y: Field) {\n    // Safety: testing context\n    unsafe {\n        assert(false == not_operator(x as bool));\n        assert(true == not_operator(y as bool));\n    }\n}\n\nunconstrained fn not_operator(x: bool) -> bool {\n    !x\n}\n",

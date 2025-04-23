@@ -26,7 +26,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/71UwQ6CMAzdZESn0YNGL/oRJUDg6MEfWSR8xz7dmLRhvCxc2OilXdq9vtcu02oyzd7AWUVq3uxpnVUJsShKdMmk5sXest8F+SKhWAt9U+L31LQ2oi8h/9oyZs75CGYGfNozzsdP+KhFBV7q8M4/f+Y4fGdSc+C8xBeOLdzJsf+M+6FbhL/0OrHWB2jN9Va0mu+s5Bh76oXZq4R8SuBz32YOdAU9uBP5E4xP37/riaRv4ed7QDNBPqx/8vkY0WFW8Bw7V421G13rhqH5OpyTgjn9ADHRX24JBwAA",
-  "debug_symbols": "lZDLCsMgEEX/ZdYuEiEvf6WUYJIxCKLio1DEf6+WLqQ7NwN3OHMHToILj3jvUgvjgT0SKHPyII0uKWUCh5NKyXtv1zDUMU5f3luua/SBuwBs3gigvoAta7kWUiGwachPAuPcyS+d/NrJb308HXr4XNKLO8kPhT+VIuqzMRveFv8kW2dOvKLDqrsxXT9TSuhSakv1Bw==",
+  "debug_symbols": "dZDbDoMgDIbfpddcqMk8vYoxBrEaEgIEYcliePcVD5u72E1/Svv9TbvBhGNYBqlns0LbbTA6qZRcBmUE99Jo+t0gSyF/QJszyMtDqkPqQ5pdCmrMY2Rw0YN3iAm+2dEQyx1qD60OSjF4chX2ptVyvavnjqoZA9QTKRnOUmF6Rfals/9o2ZxsVX/gB9E9ZVxI97NeTD5O8lHhmc5Bi1vVv+xVuc5jnRE4BYfJ6XYjil1RsKLqY5r2Bg==",
   "file_map": {
     "50": {
       "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32) {\n    assert(x > foo());\n}\n\n#[field(bn254)]\nfn foo() -> u32 {\n    1\n}\n\n#[field(23)]\nfn foo() -> u32 {\n    2\n}\n\n#[field(bls12_381)]\nfn foo() -> u32 {\n    3\n}\n",

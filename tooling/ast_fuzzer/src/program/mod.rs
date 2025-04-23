@@ -24,6 +24,9 @@ mod scope;
 mod types;
 pub(crate) mod visitor;
 
+#[cfg(test)]
+mod tests;
+
 /// Generate an arbitrary monomorphized AST.
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
     let mut ctx = Context::new(config);
@@ -330,19 +333,5 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         let mut printer = AstPrinter::default();
         printer.show_id = false;
         printer.print_program(self.0, f)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::program::make_name;
-
-    #[test]
-    fn test_make_name() {
-        for (i, n) in
-            [(0, "a"), (1, "b"), (24, "y"), (25, "z"), (26, "ba"), (27, "bb"), (26 * 2 + 3, "cd")]
-        {
-            assert_eq!(make_name(i, false), n, "{i} should be {n}");
-        }
     }
 }

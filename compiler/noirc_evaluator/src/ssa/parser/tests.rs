@@ -649,3 +649,15 @@ fn regression_modulo_fields_brillig() {
     let ssa = Ssa::from_str(src).unwrap();
     ssa.to_brillig(&BrilligOptions::default());
 }
+
+#[test]
+fn test_parses_nop() {
+    let src = "
+        acir(inline) fn add f0 {
+          b0():
+            nop
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}

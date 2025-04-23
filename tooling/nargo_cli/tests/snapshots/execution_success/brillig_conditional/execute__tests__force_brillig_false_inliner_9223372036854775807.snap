@@ -24,7 +24,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7WVS07DMBCGHScRDQiQaLtgA1ewa7txdlnAQVKanKNHJxEeOp0YKjXjkSwnfvz+/PuViZ/Ix1SG72JMWUg0oKwNuVoWGmsZtbe2r3e9NrpTu+bgnbLusPfaa+fdceeN6b31dXNoatVoa3o9uMYMQSyLcCYBnjQl0eWA52KUjFypPJQR3aWsko9RFXQjiXSHgJMb8+bXwJcanvOB24ntP9NpwAF8D3lFyrNgQMu0SBXS5db3yu4rMV8rRn5TicuLK4U/oJlAX90FnY/TWZ/ORaAc2tE+UzyK+QsHbVZjehLn72fUZ4pPpAX9U3o77g2X2Fu9Fn/7+RB8eA3/MtKWXjqUNVaPz5FE9VWkrOWZp4XxCjKXPMKSkMNRj+UVT6iH9K7EawX3SHG6rG8Z2Gt/fmDyoF+KyEODxi9J+7fwf4/48ZzaGzmHutOD6YbOdcej/epeiP4UMuIT5FvB75dC78Ymjf7vvYhji743ZJ4J9rMCPdgHpZiHJHXQdkX4Mn4+TVnyyFgQ65BvUBn4+Q0nBMrBLg0AAA==",
-  "debug_symbols": "lZDLCoMwEEX/ZdZZRK1U/ZUiEjWRQEhCHoUS8u9NSlOk6MLdnLmcGbgBVjr7beKSKQvDI4BQC3FcyUQB8GdlNZGZrCPGwVD1NQIq1zx1EQHjgsLQ4jgiqK4K9VWhORQ6/BP6P+F2KNzbEyHBbLgQfJv2VaT1kxhOZkG/yLxcdql76ZIUXxu10NUbmi+VPgNUudW6RQ0eY0wP3w==",
+  "debug_symbols": "nZHNCoMwDMffJeceqk42fRURqRqlUKrUdjDEd19arHMHYeySNB+/pv1nhR5bNzZSD9MCZbVCa6RScmzU1AkrJ03ZdWMQw8YaRErBqU7ULAxqC6V2SjF4CuVC0zILHbwVhqqcAeqePF04SIX+tLEPza/RpEh3OCkeB57/zj/4wRf/8Pf8gq8pEp00X4oBp0YGSbBpsBmU9IUblNnmxxgpWoW7uoPT3Uls+5pjJa5jNlOHvTPox8QJKyRkqzRnGa83/5Q3",
   "file_map": {
     "50": {
       "source": "// Tests a very simple program.\n//\n// The features being tested is basic conditional on brillig\nfn main(x: Field) {\n    // Safety: testing context\n    unsafe {\n        assert(4 == conditional(x == 1));\n    }\n}\n\nunconstrained fn conditional(x: bool) -> Field {\n    if x {\n        4\n    } else {\n        5\n    }\n}\n",
