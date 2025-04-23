@@ -224,47 +224,43 @@ pub(crate) fn simplify(
                 return SimplifiedTo(then_value);
             }
 
-            if let Value::Instruction { instruction, .. } = &dfg[then_value] {
-                if let Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    then_value: inner_then_value,
-                    ..
-                } = dfg[*instruction]
-                {
-                    if then_condition == inner_then_condition {
-                        let instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value: inner_then_value,
-                            else_condition,
-                            else_value,
-                        };
-                        return SimplifiedToInstruction(instruction);
-                    }
-                    // TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            if let Some(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                then_value: inner_then_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(then_value)
+            {
+                if then_condition == *inner_then_condition {
+                    let instruction = Instruction::IfElse {
+                        then_condition,
+                        then_value: *inner_then_value,
+                        else_condition,
+                        else_value,
+                    };
+                    return SimplifiedToInstruction(instruction);
                 }
-            };
+                // TODO: We could check to see if `then_condition == inner_else_condition`
+                // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            }
 
-            if let Value::Instruction { instruction, .. } = &dfg[else_value] {
-                if let Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    else_value: inner_else_value,
-                    ..
-                } = dfg[*instruction]
-                {
-                    if then_condition == inner_then_condition {
-                        let instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value,
-                            else_condition,
-                            else_value: inner_else_value,
-                        };
-                        return SimplifiedToInstruction(instruction);
-                    }
-                    // TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            if let Some(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                else_value: inner_else_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(else_value)
+            {
+                if then_condition == *inner_then_condition {
+                    let instruction = Instruction::IfElse {
+                        then_condition,
+                        then_value,
+                        else_condition,
+                        else_value: *inner_else_value,
+                    };
+                    return SimplifiedToInstruction(instruction);
                 }
-            };
+                // TODO: We could check to see if `then_condition == inner_else_condition`
+                // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            }
 
             if matches!(&typ, Type::Numeric(_)) {
                 let result = ValueMerger::merge_numeric_values(
