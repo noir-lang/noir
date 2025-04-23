@@ -255,6 +255,6 @@ mod tests {
         insta::assert_snapshot!(
             range.to_string(),
             @"BLACKBOX::RANGE [(_0, 32)] []"
-        )
+        );
     }
 }
