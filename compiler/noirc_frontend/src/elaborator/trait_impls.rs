@@ -175,14 +175,10 @@ impl Elaborator<'_> {
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in method.trait_constraints.iter() {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
-            let mut substituted_trait_generics = method_constraint
+            let substituted_trait_generics = method_constraint
                 .trait_bound
                 .trait_generics
                 .map(|generic| generic.substitute(&bindings));
-
-            // Here and a bit below we remove implicitly added named generics as each time they are implicitly
-            // added they'll get different type variables, and they won't match by equality.
-            substituted_trait_generics.remove_implicitly_added_named_generics();
 
             substituted_method_ids.insert((
                 substituted_constraint_type,
@@ -201,12 +197,8 @@ impl Elaborator<'_> {
                 continue;
             }
 
-            let mut override_trait_generics =
+            let override_trait_generics =
                 override_trait_constraint.trait_bound.trait_generics.clone();
-
-            // Here and a bit above we remove implicitly added named generics as each time they are implicitly
-            // added they'll get different type variables, and they won't match by equality.
-            override_trait_generics.remove_implicitly_added_named_generics();
 
             if !substituted_method_ids.contains(&(
                 override_trait_constraint.typ.clone(),
