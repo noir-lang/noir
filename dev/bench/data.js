@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745433497484,
+  "lastUpdate": 1745433863819,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+jewelofchaos9@users.noreply.github.com",
-            "name": "defkit",
-            "username": "jewelofchaos9"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9158338da31218d8f0a28d3b13491028dfa2d040",
-          "message": "feat: ssa fuzzer (#7641)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
-          "timestamp": "2025-04-15T10:20:27Z",
-          "tree_id": "75ca2baecae6c56acd0636e3d7947e1bed352b1f",
-          "url": "https://github.com/noir-lang/noir/commit/9158338da31218d8f0a28d3b13491028dfa2d040"
-        },
-        "date": 1744713963826,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.163,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.214,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "76cc8b458882f1a38944e89aec4eefda6cb1bcfb",
+          "message": "fix(debugger): send idle at loop end + fix test (#8187)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-23T18:19:45Z",
+          "tree_id": "efeca90a9f4e7e92f960f7a834a4c90c2286060c",
+          "url": "https://github.com/noir-lang/noir/commit/76cc8b458882f1a38944e89aec4eefda6cb1bcfb"
+        },
+        "date": 1745433857702,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.333,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.214,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.4,
             "unit": "s"
           },
           {
