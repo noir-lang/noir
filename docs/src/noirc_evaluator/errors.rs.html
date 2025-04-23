@@ -221,7 +221,8 @@
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -231,11 +232,12 @@
 //!
 //! An Error of the latter is an error in the implementation of the compiler
 </span><span class="kw">use </span>iter_extended::vecmap;
-<span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{call_stack::CallStack, types::NumericType};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Error)]

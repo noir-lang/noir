@@ -1609,13 +1609,13 @@
 
 <span class="kw">use </span>acvm::acir::AcirField;
 <span class="kw">use </span>im::HashSet;
+<span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackId};
 
 <span class="kw">use crate</span>::{
     errors::RuntimeError,
     ssa::{
         ir::{
             basic_block::BasicBlockId,
-            call_stack::{CallStack, CallStackId},
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             dom::DominatorTree,

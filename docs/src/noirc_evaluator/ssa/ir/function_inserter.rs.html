@@ -276,12 +276,12 @@
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
 <a href="#277" id="277">277</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::Type;
 
 <span class="kw">use super</span>::{
     basic_block::BasicBlockId,
-    call_stack::CallStackId,
     dfg::InsertInstructionResult,
     function::Function,
     instruction::{Instruction, InstructionId},

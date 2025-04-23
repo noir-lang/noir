@@ -56,7 +56,14 @@
 <a href="#55" id="55">55</a>
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
-<a href="#58" id="58">58</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::{FileId, FileManager};
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::{
@@ -79,10 +86,13 @@
     <span class="kw">let </span><span class="kw-2">mut </span>files_with_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
         .iter()
         .flat_map(|function_symbols| {
-            function_symbols
-                .locations
-                .values()
-                .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+            function_symbols.acir_locations.values().flat_map(|call_stack_id| {
+                function_symbols
+                    .location_tree
+                    .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+                    .into_iter()
+                    .map(|location| location.file)
+            })
         })
         .collect();
 
@@ -91,9 +101,13 @@
         .flat_map(|function_symbols| {
             <span class="kw">let </span>brillig_location_maps =
                 function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-                    brillig_location_map
-                        .values()
-                        .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                    brillig_location_map.values().flat_map(|call_stack_id| {
+                        function_symbols
+                            .location_tree
+                            .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+                            .into_iter()
+                            .map(|location| location.file)
+                    })
                 });
             brillig_location_maps
         })

@@ -2094,8 +2094,7 @@
 <a href="#2093" id="2093">2093</a>
 <a href="#2094" id="2094">2094</a>
 <a href="#2095" id="2095">2095</a>
-<a href="#2096" id="2096">2096</a>
-<a href="#2097" id="2097">2097</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
+<a href="#2096" id="2096">2096</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -2141,14 +2140,10 @@
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
-</span><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
-<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
-
-<span class="kw">use </span><span class="kw">crate</span>::ssa::{
+</span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         cfg::ControlFlowGraph,
         dfg::simplify::SimplifyResult,
         dom::DominatorTree,
@@ -2165,6 +2160,9 @@
     },
     opt::pure::Purity,
 };
+<span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">super</span>::unrolling::{Loop, Loops};
 

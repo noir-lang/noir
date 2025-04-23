@@ -639,17 +639,25 @@
 <a href="#638" id="638">638</a>
 <a href="#639" id="639">639</a>
 <a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
-<span class="kw">use super</span>::{
-    BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId,
-};
-<span class="kw">use </span><span class="kw">crate</span>::brillig::{Brillig, BrilligOptions, FunctionId};
+<span class="kw">use </span><span class="kw">super</span>::brillig_block::BrilligBlock;
+<span class="kw">use super</span>::{BrilligVariable, Function, FunctionContext, ValueId};
 <span class="kw">use crate</span>::{
-    brillig::{ConstantAllocation, DataFlowGraph, brillig_ir::BrilligContext},
+    brillig::{
+        Brillig, BrilligOptions, ConstantAllocation, DataFlowGraph, FunctionId, Label,
+        brillig_ir::{BrilligContext, artifact::BrilligArtifact},
+    },
     ssa::ir::types::NumericType,
     ssa::opt::brillig_entry_points::{build_inner_call_to_entry_points, get_brillig_entry_points},
 };
@@ -796,8 +804,8 @@
                     },
                 )
                 .collect();
-            <span class="kw">let </span>(artifact, brillig_globals, globals_size, hoisted_global_constants) =
-                convert_ssa_globals(
+            <span class="kw">let </span>(artifact, brillig_globals, globals_size, hoisted_global_constants) = brillig
+                .convert_ssa_globals(
                     options,
                     globals_dfg,
                     <span class="kw-2">&amp;</span>used_globals,
@@ -880,44 +888,50 @@
     </span>HashMap&lt;(FieldElement, NumericType), BrilligVariable&gt;,
 );
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_globals(
-    options: <span class="kw-2">&amp;</span>BrilligOptions,
-    globals_dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-    used_globals: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
-    hoisted_global_constants: <span class="kw-2">&amp;</span>BTreeSet&lt;(FieldElement, NumericType)&gt;,
-    entry_point: FunctionId,
-) -&gt; BrilligGlobalsArtifact {
-    <span class="kw">let </span><span class="kw-2">mut </span>brillig_context = BrilligContext::new_for_global_init(options, entry_point);
-    <span class="comment">// The global space does not have globals itself
-    </span><span class="kw">let </span>empty_globals = HashMap::default();
-    <span class="comment">// We can use any ID here as this context is only going to be used for globals which does not differentiate
-    // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
-    </span><span class="kw">let </span><span class="kw-2">mut </span>function_context = FunctionContext::default();
-    brillig_context.enter_context(Label::globals_init(entry_point));
+<span class="kw">impl </span>Brillig {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_globals(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        options: <span class="kw-2">&amp;</span>BrilligOptions,
+        globals_dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        used_globals: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
+        hoisted_global_constants: <span class="kw-2">&amp;</span>BTreeSet&lt;(FieldElement, NumericType)&gt;,
+        entry_point: FunctionId,
+    ) -&gt; BrilligGlobalsArtifact {
+        <span class="kw">let </span><span class="kw-2">mut </span>brillig_context = BrilligContext::new_for_global_init(options, entry_point);
+        <span class="comment">// The global space does not have globals itself
+        </span><span class="kw">let </span>empty_globals = HashMap::default();
+        <span class="comment">// We can use any ID here as this context is only going to be used for globals which does not differentiate
+        // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
+        </span><span class="kw">let </span><span class="kw-2">mut </span>function_context = FunctionContext::default();
+        brillig_context.enter_context(Label::globals_init(entry_point));
 
-    <span class="kw">let </span>block_id = DataFlowGraph::default().make_block();
-    <span class="kw">let </span><span class="kw-2">mut </span>brillig_block = BrilligBlock {
-        function_context: <span class="kw-2">&amp;mut </span>function_context,
-        block_id,
-        brillig_context: <span class="kw-2">&amp;mut </span>brillig_context,
-        variables: Default::default(),
-        last_uses: HashMap::default(),
-        globals: <span class="kw-2">&amp;</span>empty_globals,
-        hoisted_global_constants: <span class="kw-2">&amp;</span>HashMap::default(),
-        building_globals: <span class="bool-val">true</span>,
-    };
+        <span class="kw">let </span>block_id = DataFlowGraph::default().make_block();
+        <span class="kw">let </span><span class="kw-2">mut </span>brillig_block = BrilligBlock {
+            function_context: <span class="kw-2">&amp;mut </span>function_context,
+            block_id,
+            brillig_context: <span class="kw-2">&amp;mut </span>brillig_context,
+            variables: Default::default(),
+            last_uses: HashMap::default(),
+            globals: <span class="kw-2">&amp;</span>empty_globals,
+            hoisted_global_constants: <span class="kw-2">&amp;</span>HashMap::default(),
+            building_globals: <span class="bool-val">true</span>,
+        };
 
-    <span class="kw">let </span>hoisted_global_constants =
-        brillig_block.compile_globals(globals_dfg, used_globals, hoisted_global_constants);
+        <span class="kw">let </span>hoisted_global_constants = brillig_block.compile_globals(
+            globals_dfg,
+            used_globals,
+            <span class="kw-2">&amp;mut </span><span class="self">self</span>.call_stacks,
+            hoisted_global_constants,
+        );
 
-    <span class="kw">let </span>globals_size = brillig_context.global_space_size();
+        <span class="kw">let </span>globals_size = brillig_context.global_space_size();
 
-    brillig_context.return_instruction();
+        brillig_context.return_instruction();
 
-    <span class="kw">let </span>artifact = brillig_context.artifact();
-    (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
+        <span class="kw">let </span>artifact = brillig_context.artifact();
+        (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
+    }
 }
-
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acvm::{

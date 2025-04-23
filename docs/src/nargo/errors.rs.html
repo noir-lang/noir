@@ -286,11 +286,16 @@
 
 <span class="kw">use </span>acvm::{
     AcirField, FieldElement,
-    acir::circuit::{ErrorSelector, OpcodeLocation, brillig::BrilligFunctionId},
+    acir::circuit::{
+        AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
+        brillig::BrilligFunctionId,
+    },
     pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
 <span class="kw">use </span>noirc_abi::{Abi, AbiErrorType, display_abi_error};
-<span class="kw">use </span>noirc_errors::{CustomDiagnostic, debug_info::DebugInfo, reporter::ReportedErrors};
+<span class="kw">use </span>noirc_errors::{
+    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
+};
 
 <span class="kw">pub use </span>noirc_errors::Location;
 
@@ -454,25 +459,20 @@
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
+                <span class="kw">let </span>call_stack_id = <span class="kw">match </span>resolved_location.opcode_location {
+                    OpcodeLocation::Acir(idx) =&gt; <span class="kw-2">*</span>debug[resolved_location.acir_function_index]
+                        .acir_locations
+                        .get(<span class="kw-2">&amp;</span>AcirOpcodeLocation::new(idx))
+                        .unwrap_or(<span class="kw-2">&amp;</span>CallStackId::root()),
+                    OpcodeLocation::Brillig { brillig_index, .. } =&gt; <span class="kw-2">*</span>debug
+                        [resolved_location.acir_function_index]
+                        .brillig_locations[<span class="kw-2">&amp;</span>brillig_function_id.unwrap()]
+                        .get(<span class="kw-2">&amp;</span>BrilligOpcodeLocation(brillig_index))
+                        .unwrap_or(<span class="kw-2">&amp;</span>CallStackId::root()),
+                };
                 debug[resolved_location.acir_function_index]
-                    .opcode_location(<span class="kw-2">&amp;</span>resolved_location.opcode_location)
-                    .unwrap_or_else(|| {
-                        <span class="kw">if let </span>(<span class="prelude-val">Some</span>(brillig_function_id), <span class="prelude-val">Some</span>(brillig_location)) = (
-                            brillig_function_id,
-                            <span class="kw-2">&amp;</span>resolved_location.opcode_location.to_brillig_location(),
-                        ) {
-                            <span class="kw">let </span>brillig_locations = debug[resolved_location.acir_function_index]
-                                .brillig_locations
-                                .get(<span class="kw-2">&amp;</span>brillig_function_id);
-                            brillig_locations
-                                .unwrap()
-                                .get(brillig_location)
-                                .cloned()
-                                .unwrap_or_default()
-                        } <span class="kw">else </span>{
-                            <span class="macro">vec!</span>[]
-                        }
-                    })
+                    .location_tree
+                    .get_call_stack(call_stack_id)
             })
             .collect(),
     )

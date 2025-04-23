@@ -474,8 +474,8 @@
 <span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::blackbox_solver::sha256_compression;
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::call_stack::CallStackId;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,

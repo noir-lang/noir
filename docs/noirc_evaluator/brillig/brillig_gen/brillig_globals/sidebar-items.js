@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["convert_ssa_globals"],"struct":["BrilligGlobals"],"type":["BrilligGlobalsArtifact","ConstantCounterMap","HoistedConstantsToBrilligGlobals","SsaToBrilligGlobals"]};
+window.SIDEBAR_ITEMS = {"struct":["BrilligGlobals"],"type":["BrilligGlobalsArtifact","ConstantCounterMap","HoistedConstantsToBrilligGlobals","SsaToBrilligGlobals"]};

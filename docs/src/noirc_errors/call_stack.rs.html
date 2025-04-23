@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/ir/call_stack.rs`."><title>call_stack.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/ir/</div>call_stack.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_errors/src/call_stack.rs`."><title>call_stack.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noirc_errors" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_errors/</div>call_stack.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -127,51 +127,104 @@
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap;
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="kw">use </span>noirc_errors::Location;
+<span class="kw">use </span><span class="kw">crate</span>::Location;
 
 <span class="kw">pub type </span>CallStack = Vec&lt;Location&gt;;
-
 <span class="attr">#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>CallStackId(u32);
 
 <span class="kw">impl </span>CallStackId {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>root() -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>root() -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::new(<span class="number">0</span>)
     }
 
-    <span class="kw">fn </span>new(id: usize) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(id: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>(id <span class="kw">as </span>u32)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="kw">pub fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.<span class="number">0 </span><span class="kw">as </span>usize
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_root(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="kw">pub fn </span>is_root(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.<span class="number">0 </span>== <span class="number">0
     </span>}
 }
 
+<span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+</span><span class="kw">pub struct </span>LocationNodeDebugInfo {
+    <span class="kw">pub </span>parent: <span class="prelude-ty">Option</span>&lt;CallStackId&gt;,
+    <span class="kw">pub </span>value: Location,
+}
+
+<span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, Default, Hash)]
+</span><span class="kw">pub struct </span>LocationTree {
+    <span class="kw">pub </span>locations: Vec&lt;LocationNodeDebugInfo&gt;,
+}
+
+<span class="kw">impl </span>LocationTree {
+    <span class="doccomment">/// Construct a CallStack from a CallStackId
+    </span><span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>call_stack: CallStackId) -&gt; CallStack {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
+        <span class="kw">while let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.locations[call_stack.index()].parent {
+            result.push(<span class="self">self</span>.locations[call_stack.index()].value);
+            call_stack = parent;
+        }
+        result.reverse();
+        result
+    }
+}
+
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>LocationNode {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) parent: <span class="prelude-ty">Option</span>&lt;CallStackId&gt;,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) children: Vec&lt;CallStackId&gt;,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) children_hash: FxHashMap&lt;u64, CallStackId&gt;,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) value: Location,
+</span><span class="kw">pub struct </span>LocationNode {
+    <span class="kw">pub </span>parent: <span class="prelude-ty">Option</span>&lt;CallStackId&gt;,
+    <span class="kw">pub </span>children: Vec&lt;CallStackId&gt;,
+    <span class="kw">pub </span>children_hash: FxHashMap&lt;u64, CallStackId&gt;,
+    <span class="kw">pub </span>value: Location,
 }
 
 <span class="kw">impl </span>LocationNode {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(parent: <span class="prelude-ty">Option</span>&lt;CallStackId&gt;, value: Location) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(parent: <span class="prelude-ty">Option</span>&lt;CallStackId&gt;, value: Location) -&gt; <span class="self">Self </span>{
         LocationNode { parent, children: Vec::new(), children_hash: FxHashMap::default(), value }
     }
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>CallStackHelper {
-    locations: Vec&lt;LocationNode&gt;,
+</span><span class="kw">pub struct </span>CallStackHelper {
+    <span class="kw">pub </span>locations: Vec&lt;LocationNode&gt;,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>CallStackHelper {
@@ -185,7 +238,7 @@
 
 <span class="kw">impl </span>CallStackHelper {
     <span class="doccomment">/// Construct a CallStack from a CallStackId
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>call_stack: CallStackId) -&gt; CallStack {
+    </span><span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>call_stack: CallStackId) -&gt; CallStack {
         <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
         <span class="kw">while let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.locations[call_stack.index()].parent {
             result.push(<span class="self">self</span>.locations[call_stack.index()].value);
@@ -196,7 +249,7 @@
     }
 
     <span class="doccomment">/// Returns a new CallStackId which extends the call_stack with the provided call_stack.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend_call_stack(
+    </span><span class="kw">pub fn </span>extend_call_stack(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         <span class="kw-2">mut </span>call_stack: CallStackId,
         locations: <span class="kw-2">&amp;</span>CallStack,
@@ -208,7 +261,7 @@
     }
 
     <span class="doccomment">/// Adds a location to the call stack
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_child(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId, location: Location) -&gt; CallStackId {
+    </span><span class="kw">pub fn </span>add_child(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId, location: Location) -&gt; CallStackId {
         <span class="kw">let </span>key = fxhash::hash64(<span class="kw-2">&amp;</span>location);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">self</span>.locations[call_stack.index()].children_hash.get(<span class="kw-2">&amp;</span>key) {
             <span class="kw">if </span><span class="self">self</span>.locations[result.index()].value == location {
@@ -226,11 +279,7 @@
     }
 
     <span class="doccomment">/// Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwind_call_stack(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>call_stack: CallStackId,
-        <span class="kw-2">mut </span>len: usize,
-    ) -&gt; CallStackId {
+    </span><span class="kw">pub fn </span>unwind_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>call_stack: CallStackId, <span class="kw-2">mut </span>len: usize) -&gt; CallStackId {
         <span class="kw">while </span>len &gt; <span class="number">0 </span>{
             <span class="kw">if let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.locations[call_stack.index()].parent {
                 len -= <span class="number">1</span>;
@@ -242,7 +291,7 @@
         call_stack
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_location_to_root(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: Location) -&gt; CallStackId {
+    <span class="kw">pub fn </span>add_location_to_root(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: Location) -&gt; CallStackId {
         <span class="kw">if </span><span class="self">self</span>.locations.is_empty() {
             <span class="self">self</span>.locations.push(LocationNode::new(<span class="prelude-val">None</span>, location));
             CallStackId::root()
@@ -252,8 +301,19 @@
     }
 
     <span class="doccomment">/// Get (or create) a CallStackId corresponding to the given locations
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_or_insert_locations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, locations: CallStack) -&gt; CallStackId {
-        <span class="self">self</span>.extend_call_stack(CallStackId::root(), <span class="kw-2">&amp;</span>locations)
+    </span><span class="kw">pub fn </span>get_or_insert_locations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, locations: <span class="kw-2">&amp;</span>CallStack) -&gt; CallStackId {
+        <span class="self">self</span>.extend_call_stack(CallStackId::root(), locations)
+    }
+
+    <span class="comment">// Clone the locations into a LocationTree
+    </span><span class="kw">pub fn </span>to_location_tree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LocationTree {
+        LocationTree {
+            locations: <span class="self">self
+                </span>.locations
+                .iter()
+                .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
+                .collect(),
+        }
     }
 }
 </code></pre></div></section></main></body></html>

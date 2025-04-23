@@ -180,9 +180,9 @@
 
 <span class="kw">use crate</span>::{
     errors::InternalError,
-    ssa::ir::{call_stack::CallStack, types::NumericType, types::Type <span class="kw">as </span>SsaType},
+    ssa::ir::{types::NumericType, types::Type <span class="kw">as </span>SsaType},
 };
-
+<span class="kw">use </span>noirc_errors::call_stack::CallStack;
 <span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 </span><span class="doccomment">/// High level Type descriptor for Variables.
 ///

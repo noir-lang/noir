@@ -149,7 +149,26 @@
 <a href="#148" id="148">148</a>
 <a href="#149" id="149">149</a>
 <a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::BrilligOpcodeLocation;
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::AcirOpcodeLocation;
+<span class="kw">use </span>acvm::acir::circuit::BrilligOpcodeLocation;
 <span class="kw">use </span>acvm::acir::circuit::OpcodeLocation;
 <span class="kw">use </span>acvm::acir::circuit::brillig::BrilligFunctionId;
 <span class="kw">use </span>acvm::compiler::AcirTransformationMap;
@@ -160,14 +179,16 @@
 <span class="kw">use </span>flate2::write::DeflateEncoder;
 <span class="kw">use </span>serde::Deserializer;
 <span class="kw">use </span>serde::Serializer;
-<span class="kw">use </span>serde_with::DisplayFromStr;
-<span class="kw">use </span>serde_with::serde_as;
-<span class="kw">use </span>std::collections::BTreeMap;
+<span class="comment">//use serde_with::DisplayFromStr;
+//use serde_with::serde_as;
+</span><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::io::Read;
 <span class="kw">use </span>std::io::Write;
 <span class="kw">use </span>std::mem;
 
 <span class="kw">use </span><span class="kw">crate</span>::Location;
+<span class="kw">use </span><span class="kw">crate</span>::call_stack::CallStackId;
+<span class="kw">use </span><span class="kw">crate</span>::call_stack::LocationTree;
 <span class="kw">use </span>noirc_printable_type::PrintableType;
 <span class="kw">use </span>serde::{
     Deserialize, Serialize, de::Error <span class="kw">as </span>DeserializationError, ser::Error <span class="kw">as </span>SerializationError,
@@ -244,16 +265,13 @@
     }
 }
 
-<span class="attr">#[serde_as]
-#[derive(Default, Debug, Clone, Deserialize, Serialize, Hash)]
+<span class="attr">#[derive(Default, Debug, Clone, Deserialize, Serialize, Hash)]
 </span><span class="kw">pub struct </span>DebugInfo {
-    <span class="doccomment">/// Map opcode index of an ACIR circuit into the source code location
-    /// Serde does not support mapping keys being enums for json, so we indicate
-    /// that they should be serialized to/from strings.
-    </span><span class="attr">#[serde_as(<span class="kw">as </span>= <span class="string">"BTreeMap&lt;DisplayFromStr, _&gt;"</span>)]
-    </span><span class="kw">pub </span>locations: BTreeMap&lt;OpcodeLocation, Vec&lt;Location&gt;&gt;,
     <span class="kw">pub </span>brillig_locations:
-        BTreeMap&lt;BrilligFunctionId, BTreeMap&lt;BrilligOpcodeLocation, Vec&lt;Location&gt;&gt;&gt;,
+        BTreeMap&lt;BrilligFunctionId, BTreeMap&lt;BrilligOpcodeLocation, CallStackId&gt;&gt;,
+    <span class="kw">pub </span>location_tree: LocationTree,
+    <span class="doccomment">/// Map opcode index of an ACIR circuit into the source code location
+    </span><span class="kw">pub </span>acir_locations: BTreeMap&lt;AcirOpcodeLocation, CallStackId&gt;,
     <span class="kw">pub </span>variables: DebugVariables,
     <span class="kw">pub </span>functions: DebugFunctions,
     <span class="kw">pub </span>types: DebugTypes,
@@ -264,11 +282,12 @@
 
 <span class="kw">impl </span>DebugInfo {
     <span class="kw">pub fn </span>new(
-        locations: BTreeMap&lt;OpcodeLocation, Vec&lt;Location&gt;&gt;,
         brillig_locations: BTreeMap&lt;
             BrilligFunctionId,
-            BTreeMap&lt;BrilligOpcodeLocation, Vec&lt;Location&gt;&gt;,
+            BTreeMap&lt;BrilligOpcodeLocation, CallStackId&gt;,
         &gt;,
+        location_map: BTreeMap&lt;AcirOpcodeLocation, CallStackId&gt;,
+        location_tree: LocationTree,
         variables: DebugVariables,
         functions: DebugFunctions,
         types: DebugTypes,
@@ -277,7 +296,15 @@
             BTreeMap&lt;ProcedureDebugId, (usize, usize)&gt;,
         &gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ locations, brillig_locations, variables, functions, types, brillig_procedure_locs }
+        <span class="self">Self </span>{
+            brillig_locations,
+            acir_locations: location_map,
+            location_tree,
+            variables,
+            functions,
+            types,
+            brillig_procedure_locs,
+        }
     }
 
     <span class="doccomment">/// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
@@ -287,17 +314,26 @@
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>, update_map))]
     </span><span class="kw">pub fn </span>update_acir(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update_map: AcirTransformationMap) {
-        <span class="kw">let </span>old_locations = mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.locations);
+        <span class="kw">let </span>old_locations = mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.acir_locations);
 
         <span class="kw">for </span>(old_opcode_location, source_locations) <span class="kw">in </span>old_locations {
-            update_map.new_locations(old_opcode_location).for_each(|new_opcode_location| {
-                <span class="self">self</span>.locations.insert(new_opcode_location, source_locations.clone());
+            update_map.new_acir_locations(old_opcode_location).for_each(|new_opcode_location| {
+                <span class="self">self</span>.acir_locations.insert(new_opcode_location, source_locations);
             });
         }
     }
 
+    <span class="kw">pub fn </span>acir_opcode_location(<span class="kw-2">&amp;</span><span class="self">self</span>, loc: <span class="kw-2">&amp;</span>AcirOpcodeLocation) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Location&gt;&gt; {
+        <span class="self">self</span>.acir_locations
+            .get(loc)
+            .map(|call_stack_id| <span class="self">self</span>.location_tree.get_call_stack(<span class="kw-2">*</span>call_stack_id))
+    }
+
     <span class="kw">pub fn </span>opcode_location(<span class="kw-2">&amp;</span><span class="self">self</span>, loc: <span class="kw-2">&amp;</span>OpcodeLocation) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Location&gt;&gt; {
-        <span class="self">self</span>.locations.get(loc).cloned()
+        <span class="kw">match </span>loc {
+            OpcodeLocation::Brillig { .. } =&gt; <span class="prelude-val">None</span>, <span class="comment">//TODO: need brillig function id in order to look into brillig_locations
+            </span>OpcodeLocation::Acir(loc) =&gt; <span class="self">self</span>.acir_opcode_location(<span class="kw-2">&amp;</span>AcirOpcodeLocation::new(<span class="kw-2">*</span>loc)),
+        }
     }
 }
 </code></pre></div></section></main></body></html>

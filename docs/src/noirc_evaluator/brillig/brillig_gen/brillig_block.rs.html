@@ -2151,7 +2151,11 @@
 <a href="#2150" id="2150">2150</a>
 <a href="#2151" id="2151">2151</a>
 <a href="#2152" id="2152">2152</a>
-<a href="#2153" id="2153">2153</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2153" id="2153">2153</a>
+<a href="#2154" id="2154">2154</a>
+<a href="#2155" id="2155">2155</a>
+<a href="#2156" id="2156">2156</a>
+<a href="#2157" id="2157">2157</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -2160,7 +2164,6 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::call_stack::CallStack;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{ConstrainError, Hint};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
@@ -2176,6 +2179,7 @@
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::call_stack::{CallStackHelper, CallStackId};
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::sync::Arc;
@@ -2211,6 +2215,7 @@
         brillig_context: <span class="kw-2">&amp;</span><span class="lifetime">'block </span><span class="kw-2">mut </span>BrilligContext&lt;FieldElement, Registers&gt;,
         block_id: BasicBlockId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper,
         globals: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HashMap&lt;ValueId, BrilligVariable&gt;,
         hoisted_global_constants: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HoistedConstantsToBrilligGlobals,
     ) {
@@ -2250,13 +2255,14 @@
             building_globals: <span class="bool-val">false</span>,
         };
 
-        brillig_block.convert_block(dfg);
+        brillig_block.convert_block(dfg, call_stacks);
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_globals(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         globals: <span class="kw-2">&amp;</span>DataFlowGraph,
         used_globals: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
+        call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper,
         hoisted_global_constants: <span class="kw-2">&amp;</span>BTreeSet&lt;(FieldElement, NumericType)&gt;,
     ) -&gt; HashMap&lt;(FieldElement, NumericType), BrilligVariable&gt; {
         <span class="comment">// Using the end of the global memory space adds more complexity as we
@@ -2279,7 +2285,7 @@
                     <span class="self">self</span>.convert_ssa_value(id, globals);
                 }
                 Value::Instruction { instruction, .. } =&gt; {
-                    <span class="self">self</span>.convert_ssa_instruction(<span class="kw-2">*</span>instruction, globals);
+                    <span class="self">self</span>.convert_ssa_instruction(<span class="kw-2">*</span>instruction, globals, call_stacks);
                 }
                 <span class="kw">_ </span>=&gt; {
                     <span class="macro">panic!</span>(
@@ -2301,7 +2307,7 @@
         new_hoisted_constants
     }
 
-    <span class="kw">fn </span>convert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+    <span class="kw">fn </span>convert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper) {
         <span class="comment">// Add a label for this block
         </span><span class="kw">let </span>block_label = <span class="self">self</span>.create_block_label_for_current_function(<span class="self">self</span>.block_id);
         <span class="self">self</span>.brillig_context.enter_context(block_label);
@@ -2312,7 +2318,7 @@
 
         <span class="comment">// Convert all of the instructions into the block
         </span><span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
-            <span class="self">self</span>.convert_ssa_instruction(<span class="kw-2">*</span>instruction_id, dfg);
+            <span class="self">self</span>.convert_ssa_instruction(<span class="kw-2">*</span>instruction_id, dfg, call_stacks);
         }
 
         <span class="comment">// Process the block's terminator instruction
@@ -2436,13 +2442,16 @@
     }
 
     <span class="doccomment">/// Converts an SSA instruction into a sequence of Brillig opcodes.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_instruction(
+    </span><span class="kw">fn </span>convert_ssa_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper,
     ) {
         <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>dfg[instruction_id];
-        <span class="self">self</span>.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
+        <span class="kw">let </span>call_stack = dfg.get_instruction_call_stack(instruction_id);
+        <span class="kw">let </span>call_stack_new_id = call_stacks.get_or_insert_locations(<span class="kw-2">&amp;</span>call_stack);
+        <span class="self">self</span>.brillig_context.set_call_stack(call_stack_new_id);
 
         <span class="self">self</span>.initialize_constants(
             <span class="kw-2">&amp;</span><span class="self">self</span>.function_context.constant_allocation.allocated_at_location(
@@ -3190,8 +3199,7 @@
                 }
             }
         }
-
-        <span class="self">self</span>.brillig_context.set_call_stack(CallStack::new());
+        <span class="self">self</span>.brillig_context.set_call_stack(CallStackId::root());
     }
 
     <span class="kw">fn </span>assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {

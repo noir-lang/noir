@@ -403,10 +403,10 @@
 <a href="#402" id="402">402</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
-        call_stack::CallStackId,
         dfg::InsertInstructionResult,
         function::Function,
         instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},

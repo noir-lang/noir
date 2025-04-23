@@ -922,7 +922,6 @@
 
 <span class="kw">use super</span>::{
     basic_block::{BasicBlock, BasicBlockId},
-    call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
@@ -936,6 +935,7 @@
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>serde_with::DisplayFromStr;
 <span class="kw">use </span>serde_with::serde_as;

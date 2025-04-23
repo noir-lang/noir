@@ -1135,12 +1135,12 @@
     <span class="kw">use </span>std::cmp::Ordering;
 
     <span class="kw">use </span>iter_extended::vecmap;
+    <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
     <span class="kw">use </span><span class="kw">crate</span>::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             basic_block::{BasicBlock, BasicBlockId},
-            call_stack::CallStackId,
             cfg::ControlFlowGraph,
             dom::DominatorTree,
             function::Function,

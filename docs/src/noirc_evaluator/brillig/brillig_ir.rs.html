@@ -537,11 +537,11 @@
 
 <span class="kw">use </span>artifact::Label;
 <span class="kw">use </span>brillig_variable::SingleAddrVariable;
-<span class="kw">pub use </span>instructions::BrilligBinaryOp;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>instructions::BrilligBinaryOp;
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>registers::{RegisterAllocator, ScratchSpace};
 
 <span class="kw">use </span><span class="self">self</span>::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::call_stack::CallStack;
 <span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode <span class="kw">as </span>BrilligOpcode},
@@ -811,7 +811,7 @@
     }
 
     <span class="doccomment">/// Sets a current call stack that the next pushed opcodes will be associated with.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStack) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) {
         <span class="self">self</span>.obj.set_call_stack(call_stack);
     }
 }

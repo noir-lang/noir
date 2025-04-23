@@ -250,13 +250,9 @@
 <a href="#249" id="249">249</a>
 <a href="#250" id="250">250</a>
 <a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#252" id="252">252</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
-    acir::circuit::{Circuit, ExpressionWidth},
+    acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
 };
 <span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -264,16 +260,18 @@
 <span class="kw">use </span>acvm::acir::circuit::PublicInputs;
 <span class="kw">use </span>noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility};
 <span class="kw">use </span>noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-<span class="kw">use </span>noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+<span class="kw">use </span>noirc_errors::{
+    call_stack::{CallStack, CallStackId},
+    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+};
 <span class="kw">use </span>noirc_evaluator::{
     acir::GeneratedAcir,
     brillig::BrilligOptions,
     errors::{InternalError, RuntimeError},
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
-        SsaProgramArtifact, function_builder::FunctionBuilder, ir::call_stack::CallStack,
-        ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes,
-        secondary_passes,
+        SsaProgramArtifact, function_builder::FunctionBuilder, ir::instruction::ErrorType,
+        optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
     },
 };
 
@@ -352,7 +350,8 @@
     <span class="kw">let </span>current_witness_index = generated_acir.current_witness_index().<span class="number">0</span>;
     <span class="kw">let </span>GeneratedAcir {
         return_witnesses,
-        locations,
+        call_stacks,
+        location_map,
         brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
@@ -376,25 +375,18 @@
         assert_messages: assert_messages.into_iter().collect(),
     };
 
-    <span class="kw">let </span>locations = locations
-        .into_iter()
-        .map(|(index, locations)| (index, locations.into_iter().collect()))
-        .collect();
-
-    <span class="kw">let </span>brillig_locations = brillig_locations
-        .into_iter()
-        .map(|(function_index, locations)| {
-            <span class="kw">let </span>locations = locations
-                .into_iter()
-                .map(|(index, locations)| (index, locations.into_iter().collect()))
-                .collect();
-            (function_index, locations)
+    <span class="kw">let </span>acir_location_map: BTreeMap&lt;AcirOpcodeLocation, CallStackId&gt; = location_map
+        .iter()
+        .map(|(k, v)| <span class="kw">match </span>k {
+            OpcodeLocation::Acir(index) =&gt; (AcirOpcodeLocation::new(<span class="kw-2">*</span>index), <span class="kw-2">*</span>v),
+            OpcodeLocation::Brillig { .. } =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected ACIR opcode"</span>),
         })
         .collect();
-
+    <span class="kw">let </span>location_tree = call_stacks.to_location_tree();
     <span class="kw">let </span><span class="kw-2">mut </span>debug_info = DebugInfo::new(
-        locations,
         brillig_locations,
+        acir_location_map,
+        location_tree,
         debug_variables,
         debug_functions,
         debug_types,

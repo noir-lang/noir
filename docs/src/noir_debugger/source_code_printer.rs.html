@@ -339,7 +339,16 @@
 <a href="#338" id="338">338</a>
 <a href="#339" id="339">339</a>
 <a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::Files;
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::Files;
 <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>owo_colors::OwoColorize;
@@ -587,9 +596,10 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::source_code_printer::PrintedLine::Content;
     <span class="kw">use </span><span class="kw">crate</span>::source_code_printer::render_location;
-    <span class="kw">use </span>acvm::acir::circuit::OpcodeLocation;
+    <span class="kw">use </span>acvm::acir::circuit::AcirOpcodeLocation;
     <span class="kw">use </span>fm::FileManager;
     <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
+    <span class="kw">use </span>noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
     <span class="kw">use </span>noirc_errors::{Location, Span, debug_info::DebugInfo};
     <span class="kw">use </span>std::collections::BTreeMap;
     <span class="kw">use </span>std::ops::Range;
@@ -631,12 +641,20 @@
 
         <span class="comment">// We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        </span><span class="kw">let </span><span class="kw-2">mut </span>opcode_locations = BTreeMap::&lt;OpcodeLocation, Vec&lt;Location&gt;&gt;::new();
-        opcode_locations.insert(OpcodeLocation::Acir(<span class="number">42</span>), <span class="macro">vec!</span>[loc]);
+        </span><span class="kw">let </span><span class="kw-2">mut </span>opcode_locations = BTreeMap::&lt;AcirOpcodeLocation, CallStackId&gt;::new();
+        opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">42</span>), CallStackId::new(<span class="number">1</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>location_tree = LocationTree::default();
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: <span class="prelude-val">None</span>, value: Location::dummy() });
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: <span class="prelude-val">Some</span>(CallStackId::root()), value: loc });
 
         <span class="kw">let </span>debug_symbols = <span class="macro">vec!</span>[DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

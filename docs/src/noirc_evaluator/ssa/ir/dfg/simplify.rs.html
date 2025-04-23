@@ -496,17 +496,9 @@
 <a href="#495" id="495">495</a>
 <a href="#496" id="496">496</a>
 <a href="#497" id="497">497</a>
-<a href="#498" id="498">498</a>
-<a href="#499" id="499">499</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
-<span class="kw">use </span>binary::simplify_binary;
-<span class="kw">use </span>call::simplify_call;
-<span class="kw">use </span>cast::simplify_cast;
-<span class="kw">use </span>constrain::decompose_constrain;
-
-<span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#498" id="498">498</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         instruction::{
             Binary, BinaryOp, Instruction,
             binary::{truncate, truncate_field},
@@ -516,6 +508,12 @@
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
+<span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<span class="kw">use </span>binary::simplify_binary;
+<span class="kw">use </span>call::simplify_call;
+<span class="kw">use </span>cast::simplify_cast;
+<span class="kw">use </span>constrain::decompose_constrain;
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">super</span>::DataFlowGraph;
 

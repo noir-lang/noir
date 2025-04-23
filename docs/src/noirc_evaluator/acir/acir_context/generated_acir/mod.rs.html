@@ -812,7 +812,14 @@
 <a href="#811" id="811">811</a>
 <a href="#812" id="812">812</a>
 <a href="#813" id="813">813</a>
-<a href="#814" id="814">814</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
 //!
 //! This module defines the `GeneratedAcir` which is constructed as part of the ACIR-gen pass
 //! to accumulate all of the ACIR. This tracks properties such as which witnesses form part of the circuit interface
@@ -836,11 +843,13 @@
     ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
-    ssa::ir::call_stack::CallStack,
 };
 
 <span class="kw">use </span>iter_extended::vecmap;
-<span class="kw">use </span>noirc_errors::debug_info::ProcedureDebugId;
+<span class="kw">use </span>noirc_errors::{
+    call_stack::{CallStack, CallStackHelper, CallStackId},
+    debug_info::ProcedureDebugId,
+};
 <span class="kw">use </span>num_bigint::BigUint;
 
 <span class="kw">mod </span>brillig_directive;
@@ -861,13 +870,14 @@
     <span class="doccomment">/// The opcodes of which the compiled ACIR will comprise.
     </span><span class="kw">pub </span>opcodes: Vec&lt;AcirOpcode&lt;F&gt;&gt;,
 
+    <span class="kw">pub </span>call_stacks: CallStackHelper,
+    <span class="kw">pub </span>location_map: OpcodeToLocationsMap,
+
     <span class="doccomment">/// All witness indices that comprise the final return value of the program
     </span><span class="kw">pub </span>return_witnesses: Vec&lt;Witness&gt;,
 
     <span class="doccomment">/// All witness indices which are inputs to the main function
     </span><span class="kw">pub </span>input_witnesses: Vec&lt;Witness&gt;,
-
-    <span class="kw">pub </span>locations: OpcodeToLocationsMap,
 
     <span class="doccomment">/// Brillig function id -&gt; Opcodes locations map
     /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
@@ -875,7 +885,7 @@
 
     <span class="doccomment">/// Source code location of the current instruction being processed
     /// None if we do not know the location
-    </span><span class="kw">pub </span>call_stack: CallStack,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) call_stack_id: CallStackId,
 
     <span class="doccomment">/// Correspondence between an opcode index and the error message associated with it.
     </span><span class="kw">pub </span>assertion_payloads: BTreeMap&lt;OpcodeLocation, AssertionPayload&lt;F&gt;&gt;,
@@ -901,9 +911,9 @@
 }
 
 <span class="doccomment">/// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>OpcodeToLocationsMap = BTreeMap&lt;OpcodeLocation, CallStack&gt;;
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>OpcodeToLocationsMap = BTreeMap&lt;OpcodeLocation, CallStackId&gt;;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BrilligOpcodeToLocationsMap = BTreeMap&lt;BrilligOpcodeLocation, CallStack&gt;;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BrilligOpcodeToLocationsMap = BTreeMap&lt;BrilligOpcodeLocation, CallStackId&gt;;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BrilligProcedureRangeMap = BTreeMap&lt;ProcedureDebugId, (usize, usize)&gt;;
 
@@ -916,12 +926,16 @@
     <span class="doccomment">/// Adds a new opcode into ACIR.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>, opcode: AcirOpcode&lt;F&gt;) {
         <span class="self">self</span>.opcodes.push(opcode);
-        <span class="kw">if </span>!<span class="self">self</span>.call_stack.is_empty() {
-            <span class="self">self</span>.locations.insert(<span class="self">self</span>.last_acir_opcode_location(), <span class="self">self</span>.call_stack.clone());
+        <span class="kw">if </span>!<span class="self">self</span>.call_stack_id.is_root() {
+            <span class="self">self</span>.location_map.insert(<span class="self">self</span>.last_acir_opcode_location(), <span class="self">self</span>.call_stack_id);
         }
     }
 
-    <span class="kw">pub fn </span>opcodes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[AcirOpcode&lt;F&gt;] {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CallStack {
+        <span class="self">self</span>.call_stacks.get_call_stack(<span class="self">self</span>.call_stack_id)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>opcodes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[AcirOpcode&lt;F&gt;] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.opcodes
     }
 
@@ -1377,7 +1391,7 @@
         </span><span class="kw">if </span>num_bits &gt;= F::max_num_bits() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::InvalidRangeConstraint {
                 num_bits: F::max_num_bits(),
-                call_stack: <span class="self">self</span>.call_stack.clone(),
+                call_stack: <span class="self">self</span>.get_call_stack(),
             });
         };
 
@@ -1435,7 +1449,7 @@
             <span class="self">self</span>.brillig_locations
                 .entry(brillig_function_index)
                 .or_default()
-                .insert(BrilligOpcodeLocation(<span class="kw-2">*</span>brillig_index), call_stack.clone());
+                .insert(BrilligOpcodeLocation(<span class="kw-2">*</span>brillig_index), <span class="kw-2">*</span>call_stack);
         }
     }
 

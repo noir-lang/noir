@@ -1657,7 +1657,12 @@
 <a href="#1656" id="1656">1656</a>
 <a href="#1657" id="1657">1657</a>
 <a href="#1658" id="1658">1658</a>
-<a href="#1659" id="1659">1659</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1680,11 +1685,12 @@
 };
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
+<span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackHelper};
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>std::{borrow::Cow, cmp::Ordering};
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{call_stack::CallStack, instruction::Endian, types::NumericType};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::Endian, types::NumericType};
 
 <span class="kw">mod </span>big_int;
 <span class="kw">mod </span>black_box;
@@ -1849,11 +1855,15 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CallStack {
-        <span class="self">self</span>.acir_ir.call_stack.clone()
+        <span class="self">self</span>.acir_ir.call_stacks.get_call_stack(<span class="self">self</span>.acir_ir.call_stack_id)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStack) {
-        <span class="self">self</span>.acir_ir.call_stack = call_stack;
+        <span class="self">self</span>.acir_ir.call_stack_id = <span class="self">self</span>.acir_ir.call_stacks.get_or_insert_locations(<span class="kw-2">&amp;</span>call_stack);
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack_helper(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackHelper) {
+        <span class="self">self</span>.acir_ir.call_stacks = call_stack;
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_or_create_witness_var(

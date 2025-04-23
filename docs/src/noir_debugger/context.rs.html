@@ -1505,7 +1505,24 @@
 <a href="#1504" id="1504">1504</a>
 <a href="#1505" id="1505">1505</a>
 <a href="#1506" id="1506">1506</a>
-<a href="#1507" id="1507">1507</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -1524,6 +1541,8 @@
 <span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, StackFrame};
 <span class="kw">use </span>noirc_driver::{CompiledProgram, DebugFile};
 
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<span class="kw">use </span>noirc_errors::debug_info::DebugInfo;
 <span class="kw">use </span>noirc_printable_type::{PrintableType, PrintableValue};
 <span class="kw">use </span>thiserror::Error;
 
@@ -2050,7 +2069,14 @@
                         [debug_location.circuit_id <span class="kw">as </span>usize]
                         .brillig_locations
                         .get(<span class="kw-2">&amp;</span>brillig_function_id);
-                    brillig_locations.unwrap().get(<span class="kw-2">&amp;</span>brillig_location).cloned().unwrap_or_default()
+                    <span class="kw">let </span>call_stack_id = brillig_locations
+                        .unwrap()
+                        .get(<span class="kw-2">&amp;</span>brillig_location)
+                        .copied()
+                        .unwrap_or_default();
+                    <span class="self">self</span>.debug_artifact.debug_symbols[debug_location.circuit_id <span class="kw">as </span>usize]
+                        .location_tree
+                        .get_call_stack(call_stack_id)
                 } <span class="kw">else </span>{
                     <span class="macro">vec!</span>[]
                 }
@@ -2503,10 +2529,15 @@
         .collect();
 
     <span class="kw">let </span><span class="kw-2">mut </span>result: BTreeMap&lt;FileId, Vec&lt;(usize, DebugLocation)&gt;&gt; = BTreeMap::new();
-
     <span class="kw">for </span>(circuit_id, debug_symbols) <span class="kw">in </span>debug_artifact.debug_symbols.iter().enumerate() {
+        <span class="kw">let </span>location_map = debug_symbols
+            .acir_locations
+            .iter()
+            .map(|(key, val)| (OpcodeLocation::Acir(key.index()), <span class="kw-2">*</span>val))
+            .collect();
         add_opcode_locations_map(
-            <span class="kw-2">&amp;</span>debug_symbols.locations,
+            debug_symbols,
+            <span class="kw-2">&amp;</span>location_map,
             <span class="kw-2">&amp;mut </span>result,
             <span class="kw-2">&amp;</span>simple_files,
             circuit_id,
@@ -2520,12 +2551,13 @@
                     (
                         <span class="comment">// TODO: this is a temporary placeholder until the debugger is updated to handle the new brillig debug locations.
                         </span>OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: key.<span class="number">0 </span>},
-                        val.clone(),
+                        <span class="kw-2">*</span>val,
                     )
                 })
                 .collect();
 
             add_opcode_locations_map(
+                debug_symbols,
                 <span class="kw-2">&amp;</span>brillig_locations_map,
                 <span class="kw-2">&amp;mut </span>result,
                 <span class="kw-2">&amp;</span>simple_files,
@@ -2540,13 +2572,15 @@
 }
 
 <span class="kw">fn </span>add_opcode_locations_map(
-    opcode_to_locations: <span class="kw-2">&amp;</span>BTreeMap&lt;OpcodeLocation, Vec&lt;Location&gt;&gt;,
+    debug_info: <span class="kw-2">&amp;</span>DebugInfo,
+    opcode_to_locations: <span class="kw-2">&amp;</span>BTreeMap&lt;OpcodeLocation, CallStackId&gt;,
     source_to_locations: <span class="kw-2">&amp;mut </span>BTreeMap&lt;FileId, Vec&lt;(usize, DebugLocation)&gt;&gt;,
     simple_files: <span class="kw-2">&amp;</span>BTreeMap&lt;<span class="kw-2">&amp;</span>FileId, SimpleFile&lt;<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str&gt;&gt;,
     circuit_id: usize,
     brillig_function_id: <span class="prelude-ty">Option</span>&lt;BrilligFunctionId&gt;,
 ) {
     <span class="kw">for </span>(opcode_location, source_locations) <span class="kw">in </span>opcode_to_locations {
+        <span class="kw">let </span>source_locations = debug_info.location_tree.get_call_stack(<span class="kw-2">*</span>source_locations);
         source_locations.iter().for_each(|source_location| {
             <span class="kw">let </span>span = source_location.span;
             <span class="kw">let </span>file_id = source_location.file;

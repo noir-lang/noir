@@ -2882,7 +2882,8 @@
 <a href="#2881" id="2881">2881</a>
 <a href="#2882" id="2882">2882</a>
 <a href="#2883" id="2883">2883</a>
-<a href="#2884" id="2884">2884</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#2884" id="2884">2884</a>
+<a href="#2885" id="2885">2885</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2892,6 +2893,7 @@
 
 </span><span class="kw">use </span>arrays::can_omit_element_sizes_array;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<span class="kw">use </span>noirc_errors::call_stack::CallStack;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
 <span class="kw">use </span>types::{AcirDynamicArray, AcirValue};
 
@@ -2925,7 +2927,6 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        call_stack::CallStack,
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{
@@ -3136,10 +3137,11 @@
     }
 
     <span class="kw">fn </span>convert_ssa_function(
-        <span class="self">self</span>,
+        <span class="kw-2">mut </span><span class="self">self</span>,
         ssa: <span class="kw-2">&amp;</span>Ssa,
         function: <span class="kw-2">&amp;</span>Function,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;GeneratedAcir&lt;FieldElement&gt;&gt;, RuntimeError&gt; {
+        <span class="self">self</span>.acir_context.set_call_stack_helper(<span class="self">self</span>.brillig.call_stacks.to_owned());
         <span class="kw">match </span>function.runtime() {
             RuntimeType::Acir(inline_type) =&gt; {
                 <span class="kw">match </span>inline_type {
@@ -4861,7 +4863,7 @@
         <span class="comment">// Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         </span><span class="kw">let </span>stack = <span class="macro">vec!</span>[Location::dummy(), Location::dummy()];
         <span class="kw">let </span>call_stack =
-            builder.current_function.dfg.call_stack_data.get_or_insert_locations(stack);
+            builder.current_function.dfg.call_stack_data.get_or_insert_locations(<span class="kw-2">&amp;</span>stack);
         builder.set_call_stack(call_stack);
 
         <span class="kw">let </span>foo_v0 = builder.add_parameter(Type::field());

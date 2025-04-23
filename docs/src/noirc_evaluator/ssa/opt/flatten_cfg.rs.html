@@ -1729,11 +1729,11 @@
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 <span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},

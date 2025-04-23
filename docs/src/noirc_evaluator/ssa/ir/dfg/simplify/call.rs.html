@@ -765,18 +765,18 @@
 <a href="#764" id="764">764</a>
 <a href="#765" id="765">765</a>
 <a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
+<a href="#767" id="767">767</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
 <span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement, acir::BlackBoxFunc};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
-<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>num_bigint::BigUint;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},

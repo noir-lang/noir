@@ -302,7 +302,7 @@
                 <span class="kw">let </span>call_stack = old_function.dfg.get_instruction_call_stack_id(old_instruction_id);
                 <span class="kw">let </span>locations = old_function.dfg.get_call_stack(call_stack);
                 <span class="kw">let </span>new_call_stack =
-                    new_function.dfg.call_stack_data.get_or_insert_locations(locations);
+                    new_function.dfg.call_stack_data.get_or_insert_locations(<span class="kw-2">&amp;</span>locations);
                 <span class="kw">let </span>old_results = old_function.dfg.instruction_results(old_instruction_id);
 
                 <span class="kw">let </span>ctrl_typevars = instruction
@@ -333,7 +333,7 @@
             terminator.mutate_blocks(|old_block| <span class="self">self</span>.new_ids.blocks[<span class="kw-2">&amp;</span>old_block]);
             <span class="kw">let </span>locations = old_function.dfg.get_call_stack(terminator.call_stack());
             <span class="kw">let </span>new_call_stack =
-                new_function.dfg.call_stack_data.get_or_insert_locations(locations);
+                new_function.dfg.call_stack_data.get_or_insert_locations(<span class="kw-2">&amp;</span>locations);
             terminator.set_call_stack(new_call_stack);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }

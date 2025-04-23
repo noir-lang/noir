@@ -283,7 +283,23 @@
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
 <a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::{Error, Files, SimpleFile};
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::{Error, Files, SimpleFile};
 <span class="kw">use </span>noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
 <span class="kw">use </span>noirc_errors::{Location, debug_info::DebugInfo};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -311,10 +327,13 @@
         <span class="kw">let </span><span class="kw-2">mut </span>files_with_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
-                function_symbols
-                    .locations
-                    .values()
-                    .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                function_symbols.acir_locations.values().flat_map(|call_stack_id| {
+                    function_symbols
+                        .location_tree
+                        .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+                        .into_iter()
+                        .map(|location| location.file)
+                })
             })
             .collect();
 
@@ -323,9 +342,13 @@
             .flat_map(|function_symbols| {
                 <span class="kw">let </span>brillig_location_maps =
                     function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-                        brillig_location_map
-                            .values()
-                            .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                        brillig_location_map.values().flat_map(|call_stack_id| {
+                            function_symbols
+                                .location_tree
+                                .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+                                .into_iter()
+                                .map(|location| location.file)
+                        })
                     });
                 brillig_location_maps
             })
@@ -498,8 +521,9 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::debug::DebugArtifact;
-    <span class="kw">use </span>acvm::acir::circuit::OpcodeLocation;
+    <span class="kw">use </span>acvm::acir::circuit::AcirOpcodeLocation;
     <span class="kw">use </span>fm::FileManager;
+    <span class="kw">use </span>noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
     <span class="kw">use </span>noirc_errors::{Location, Span, debug_info::DebugInfo};
     <span class="kw">use </span>std::collections::BTreeMap;
     <span class="kw">use </span>std::ops::Range;
@@ -551,12 +575,20 @@
 
         <span class="comment">// We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        </span><span class="kw">let </span><span class="kw-2">mut </span>opcode_locations = BTreeMap::&lt;OpcodeLocation, Vec&lt;Location&gt;&gt;::new();
-        opcode_locations.insert(OpcodeLocation::Acir(<span class="number">42</span>), <span class="macro">vec!</span>[loc]);
+        </span><span class="kw">let </span><span class="kw-2">mut </span>opcode_locations = BTreeMap::&lt;AcirOpcodeLocation, CallStackId&gt;::new();
+        opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">42</span>), CallStackId::new(<span class="number">1</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>location_tree = LocationTree::default();
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: <span class="prelude-val">None</span>, value: Location::dummy() });
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: <span class="prelude-val">Some</span>(CallStackId::root()), value: loc });
 
         <span class="kw">let </span>debug_symbols = <span class="macro">vec!</span>[DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

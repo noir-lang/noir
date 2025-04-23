@@ -355,12 +355,14 @@
 <a href="#354" id="354">354</a>
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::Opcode <span class="kw">as </span>BrilligOpcode;
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::Opcode <span class="kw">as </span>BrilligOpcode;
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>std::collections::{BTreeMap, HashMap};
 
 <span class="kw">use </span><span class="kw">crate</span>::ErrorType;
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{basic_block::BasicBlockId, call_stack::CallStack, function::FunctionId};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 <span class="kw">use </span><span class="kw">super</span>::procedures::ProcedureId;
 
@@ -381,7 +383,7 @@
 </span><span class="attr">#[derive(Debug, Default, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>GeneratedBrillig&lt;F&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) byte_code: Vec&lt;BrilligOpcode&lt;F&gt;&gt;,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) locations: BTreeMap&lt;OpcodeLocation, CallStack&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) locations: BTreeMap&lt;OpcodeLocation, CallStackId&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) error_types: BTreeMap&lt;ErrorSelector, ErrorType&gt;,
     <span class="kw">pub</span>(<span class="kw">crate</span>) name: String,
     <span class="kw">pub</span>(<span class="kw">crate</span>) procedure_locations: BTreeMap&lt;ProcedureId, (OpcodeLocation, OpcodeLocation)&gt;,
@@ -406,9 +408,9 @@
     /// TODO: and have an enum which indicates whether the jump is internal or external
     </span>unresolved_external_call_labels: Vec&lt;(JumpInstructionPosition, Label)&gt;,
     <span class="doccomment">/// Maps the opcodes that are associated with a callstack to it.
-    </span>locations: BTreeMap&lt;OpcodeLocation, CallStack&gt;,
+    </span>locations: BTreeMap&lt;OpcodeLocation, CallStackId&gt;,
     <span class="doccomment">/// The current call stack. All opcodes that are pushed will be associated with this call stack.
-    </span>call_stack: CallStack,
+    </span>call_stack_id: CallStackId,
     <span class="doccomment">/// Name of the function, only used for debugging purposes.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) name: String,
 
@@ -584,14 +586,14 @@
         }
 
         <span class="kw">for </span>(position_in_bytecode, call_stack) <span class="kw">in </span>obj.locations.iter() {
-            <span class="self">self</span>.locations.insert(position_in_bytecode + offset, call_stack.clone());
+            <span class="self">self</span>.locations.insert(position_in_bytecode + offset, <span class="kw-2">*</span>call_stack);
         }
     }
 
     <span class="doccomment">/// Adds a brillig instruction to the brillig byte code
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>, opcode: BrilligOpcode&lt;F&gt;) {
-        <span class="kw">if </span>!<span class="self">self</span>.call_stack.is_empty() {
-            <span class="self">self</span>.locations.insert(<span class="self">self</span>.index_of_next_opcode(), <span class="self">self</span>.call_stack.clone());
+        <span class="kw">if </span>!<span class="self">self</span>.call_stack_id.is_root() {
+            <span class="self">self</span>.locations.insert(<span class="self">self</span>.index_of_next_opcode(), <span class="self">self</span>.call_stack_id);
         }
         <span class="self">self</span>.byte_code.push(opcode);
     }
@@ -703,8 +705,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStack) {
-        <span class="self">self</span>.call_stack = call_stack;
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) {
+        <span class="self">self</span>.call_stack_id = call_stack;
     }
 
     <span class="attr">#[cfg(test)]

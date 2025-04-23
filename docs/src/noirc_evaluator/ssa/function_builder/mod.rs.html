@@ -580,12 +580,17 @@
 <a href="#579" id="579">579</a>
 <a href="#580" id="580">580</a>
 <a href="#581" id="581">581</a>
-<a href="#582" id="582">582</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::circuit::ErrorSelector};
-<span class="kw">use </span>noirc_errors::Location;
+<span class="kw">use </span>noirc_errors::{
+    Location,
+    call_stack::{CallStack, CallStackId},
+};
 <span class="kw">use </span>noirc_frontend::hir_def::types::Type <span class="kw">as </span>HirType;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 
@@ -600,7 +605,6 @@
 <span class="kw">use super</span>::{
     ir::{
         basic_block::BasicBlock,
-        call_stack::{CallStack, CallStackId},
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
@@ -710,7 +714,7 @@
         <span class="kw">let </span>old_function = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.current_function, new_function);
         <span class="comment">// Copy the call stack to the new function
         </span><span class="self">self</span>.call_stack =
-            <span class="self">self</span>.current_function.dfg.call_stack_data.get_or_insert_locations(call_stack);
+            <span class="self">self</span>.current_function.dfg.call_stack_data.get_or_insert_locations(<span class="kw-2">&amp;</span>call_stack);
         <span class="self">self</span>.finished_functions.push(old_function);
 
         <span class="self">self</span>.current_function.dfg.set_function_purities(<span class="self">self</span>.purities.clone());

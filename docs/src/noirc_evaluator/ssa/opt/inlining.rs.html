@@ -1373,12 +1373,12 @@
 <span class="kw">use </span>acvm::acir::AcirField;
 <span class="kw">use </span>im::HashMap;
 <span class="kw">use </span>iter_extended::{btree_map, vecmap};
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},

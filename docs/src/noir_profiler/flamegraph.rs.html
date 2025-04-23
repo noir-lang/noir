@@ -429,11 +429,27 @@
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::{collections::BTreeMap, io::BufWriter};
 
-<span class="kw">use </span>acir::circuit::OpcodeLocation;
 <span class="kw">use </span>acir::circuit::brillig::BrilligFunctionId;
+<span class="kw">use </span>acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>fm::codespan_files::Files;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -607,29 +623,38 @@
     files: <span class="kw-2">&amp;</span><span class="lifetime">'files </span><span class="kw">impl </span>Files&lt;<span class="lifetime">'files</span>, FileId = fm::FileId&gt;,
 ) -&gt; Vec&lt;String&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>procedure_id = <span class="prelude-val">None</span>;
-    <span class="kw">let </span>source_locations = debug_symbols.opcode_location(opcode_location).unwrap_or_else(|| {
-        <span class="kw">if let </span>(<span class="prelude-val">Some</span>(brillig_function_id), <span class="prelude-val">Some</span>(brillig_location)) =
-            (brillig_function_id, opcode_location.to_brillig_location())
-        {
-            <span class="kw">let </span>procedure_locs = debug_symbols.brillig_procedure_locs.get(<span class="kw-2">&amp;</span>brillig_function_id);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_locs) = procedure_locs {
-                <span class="kw">for </span>(procedure, range) <span class="kw">in </span>procedure_locs.iter() {
-                    <span class="kw">if </span>brillig_location.<span class="number">0 </span>&gt;= range.<span class="number">0 </span>&amp;&amp; brillig_location.<span class="number">0 </span>&lt;= range.<span class="number">1 </span>{
-                        procedure_id = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>procedure);
-                        <span class="kw">break</span>;
+    <span class="kw">let </span>source_locations = <span class="kw">match </span>opcode_location {
+        OpcodeLocation::Acir(idx) =&gt; {
+            debug_symbols.acir_opcode_location(<span class="kw-2">&amp;</span>AcirOpcodeLocation::new(<span class="kw-2">*</span>idx)).unwrap_or_default()
+        }
+        OpcodeLocation::Brillig { .. } =&gt; {
+            <span class="kw">if let </span>(<span class="prelude-val">Some</span>(brillig_function_id), <span class="prelude-val">Some</span>(brillig_location)) =
+                (brillig_function_id, opcode_location.to_brillig_location())
+            {
+                <span class="kw">let </span>procedure_locs = debug_symbols.brillig_procedure_locs.get(<span class="kw-2">&amp;</span>brillig_function_id);
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_locs) = procedure_locs {
+                    <span class="kw">for </span>(procedure, range) <span class="kw">in </span>procedure_locs.iter() {
+                        <span class="kw">if </span>brillig_location.<span class="number">0 </span>&gt;= range.<span class="number">0 </span>&amp;&amp; brillig_location.<span class="number">0 </span>&lt;= range.<span class="number">1 </span>{
+                            procedure_id = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>procedure);
+                            <span class="kw">break</span>;
+                        }
                     }
                 }
-            }
-            <span class="kw">let </span>brillig_locations = debug_symbols.brillig_locations.get(<span class="kw-2">&amp;</span>brillig_function_id);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(brillig_locations) = brillig_locations {
-                brillig_locations.get(<span class="kw-2">&amp;</span>brillig_location).cloned().unwrap_or_default()
+                <span class="kw">let </span>brillig_locations = debug_symbols.brillig_locations.get(<span class="kw-2">&amp;</span>brillig_function_id);
+
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(brillig_locations) = brillig_locations {
+                    brillig_locations
+                        .get(<span class="kw-2">&amp;</span>brillig_location)
+                        .map(|call_stack| debug_symbols.location_tree.get_call_stack(<span class="kw-2">*</span>call_stack))
+                        .unwrap_or_default()
+                } <span class="kw">else </span>{
+                    <span class="macro">vec!</span>[]
+                }
             } <span class="kw">else </span>{
                 <span class="macro">vec!</span>[]
             }
-        } <span class="kw">else </span>{
-            <span class="macro">vec!</span>[]
         }
-    });
+    };
 
     <span class="kw">let </span><span class="kw-2">mut </span>callsite_labels: Vec&lt;<span class="kw">_</span>&gt; = source_locations
         .into_iter()
@@ -725,11 +750,15 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acir::{
         FieldElement,
-        circuit::{Opcode <span class="kw">as </span>AcirOpcode, OpcodeLocation, opcodes::BlockId},
+        circuit::{AcirOpcodeLocation, Opcode <span class="kw">as </span>AcirOpcode, OpcodeLocation, opcodes::BlockId},
         native_types::Expression,
     };
     <span class="kw">use </span>fm::FileManager;
-    <span class="kw">use </span>noirc_errors::{Location, Span, debug_info::DebugInfo};
+    <span class="kw">use </span>noirc_errors::{
+        Location, Span,
+        call_stack::{CallStackHelper, CallStackId},
+        debug_info::DebugInfo,
+    };
     <span class="kw">use </span>std::{collections::BTreeMap, path::Path};
 
     <span class="kw">use crate</span>::{flamegraph::CompilationSample, opcode_formatter::format_acir_opcode};
@@ -787,32 +816,35 @@
         <span class="kw">let </span>baz_whatever_call_location =
             Location::new(find_spans_for(source_code, <span class="string">"whatever()"</span>)[<span class="number">2</span>], file_id);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>opcode_locations = BTreeMap::&lt;OpcodeLocation, Vec&lt;Location&gt;&gt;::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>opcode_locations = BTreeMap::&lt;AcirOpcodeLocation, CallStackId&gt;::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>call_stack_hlp = CallStackHelper::default();
         <span class="comment">// main::foo::baz::whatever
-        </span>opcode_locations.insert(
-            OpcodeLocation::Acir(<span class="number">0</span>),
-            <span class="macro">vec!</span>[
-                main_declaration_location,
-                main_foo_call_location,
-                foo_baz_call_location,
-                baz_whatever_call_location,
-            ],
-        );
-
+        </span><span class="kw">let </span>call_stack_id = call_stack_hlp.get_or_insert_locations(<span class="kw-2">&amp;</span><span class="macro">vec!</span>[
+            main_declaration_location,
+            main_foo_call_location,
+            foo_baz_call_location,
+            baz_whatever_call_location,
+        ]);
+        opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">0</span>), call_stack_id);
         <span class="comment">// main::bar::whatever
-        </span>opcode_locations.insert(
-            OpcodeLocation::Acir(<span class="number">1</span>),
-            <span class="macro">vec!</span>[main_declaration_location, main_bar_call_location, bar_whatever_call_location],
-        );
+        </span><span class="kw">let </span>call_stack_id = call_stack_hlp.get_or_insert_locations(<span class="kw-2">&amp;</span><span class="macro">vec!</span>[
+            main_declaration_location,
+            main_bar_call_location,
+            bar_whatever_call_location,
+        ]);
+        opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">1</span>), call_stack_id);
         <span class="comment">// main::whatever
-        </span>opcode_locations.insert(
-            OpcodeLocation::Acir(<span class="number">2</span>),
-            <span class="macro">vec!</span>[main_declaration_location, main_whatever_call_location],
-        );
+        </span><span class="kw">let </span>call_stack_id = call_stack_hlp
+            .get_or_insert_locations(<span class="kw-2">&amp;</span><span class="macro">vec!</span>[main_declaration_location, main_whatever_call_location]);
+        opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">2</span>), call_stack_id);
+
+        opcode_locations.insert(AcirOpcodeLocation::new(<span class="number">42</span>), CallStackId::new(<span class="number">1</span>));
+        <span class="kw">let </span>location_tree = call_stack_hlp.to_location_tree();
 
         <span class="kw">let </span>debug_info = DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
