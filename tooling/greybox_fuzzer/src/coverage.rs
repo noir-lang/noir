@@ -516,12 +516,9 @@ impl AccumulatedFuzzerCoverage {
     ) {
         // Insert all ACIR states and replace testcase association
         for acir_bool_state in new_coverage.acir_bool_coverage.iter() {
+            let witness = Witness::new(acir_bool_state.witness_id);
             // If the witness is non-boolean according the merged non-bool witness list, skip it
-            if self
-                .non_bool_witness_list
-                .witness
-                .contains(&Witness::new(acir_bool_state.witness_id))
-            {
+            if self.non_bool_witness_list.witness.contains(&witness) {
                 continue;
             }
             add_to_leavers(

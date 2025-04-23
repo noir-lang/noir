@@ -228,6 +228,24 @@ where
                 acir_program: acir_program.into(),
                 brillig_program: brillig_program.into(),
             };
+            let failure_configuration = match fuzzing_harness.failure_reason() {
+                Some(failure_reason) => {
+                    if fuzzing_harness.should_fail_enabled() {
+                        FuzzedExecutorFailureConfiguration::ShouldFailWith(failure_reason)
+                    } else {
+                        assert!(fuzzing_harness.only_fail_enabled());
+                        FuzzedExecutorFailureConfiguration::OnlyFailWith(failure_reason)
+                    }
+                }
+
+                None => {
+                    if fuzzing_harness.should_fail_enabled() {
+                        FuzzedExecutorFailureConfiguration::ShouldFail
+                    } else {
+                        FuzzedExecutorFailureConfiguration::None
+                    }
+                }
+            };
             let mut fuzzer = FuzzedExecutor::new(
                 acir_and_brillig_programs,
                 acir_executor,
@@ -238,11 +256,7 @@ where
                     num_threads: fuzz_execution_config.num_threads,
                     timeout: fuzz_execution_config.timeout,
                 },
-                FuzzedExecutorFailureConfiguration {
-                    fail_on_specific_asserts: fuzzing_harness.only_fail_enabled(),
-                    failure_reason: fuzzing_harness.failure_reason(),
-                    should_always_fail: fuzzing_harness.should_fail_enabled(),
-                },
+                failure_configuration,
                 FuzzedExecutorFolderConfiguration {
                     corpus_dir: fuzz_folder_config.corpus_dir.clone(),
                     minimized_corpus_dir: fuzz_folder_config.minimized_corpus_dir.clone(),
