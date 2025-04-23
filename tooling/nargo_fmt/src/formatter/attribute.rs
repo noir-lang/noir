@@ -165,6 +165,23 @@ impl Formatter<'_> {
                 self.write_current_token_and_bump(); // "reason"
                 self.write_right_paren(); // )
             }
+            FuzzingScope::ShouldFailWith { reason: None } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // should_fail
+                self.write_right_paren(); // )
+            }
+            FuzzingScope::ShouldFailWith { reason: Some(..) } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // should_fail_with
+                self.write_space();
+                self.write_token(Token::Assign);
+                self.write_space();
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // "reason"
+                self.write_right_paren(); // )
+            }
         }
 
         self.write_right_bracket(); // ]
@@ -383,6 +400,20 @@ mod tests {
     fn format_test_only_fail_with_reason_attribute() {
         let src = "  #[ fuzz ( only_fail_with=\"reason\" )] ";
         let expected = "#[fuzz(only_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_should_fail_attribute() {
+        let src = "  #[ fuzz ( should_fail )] ";
+        let expected = "#[fuzz(should_fail)]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_should_fail_with_reason_attribute() {
+        let src = "  #[ fuzz ( should_fail_with=\"reason\" )] ";
+        let expected = "#[fuzz(should_fail_with = \"reason\")]";
         assert_format_attribute(src, expected);
     }
 
