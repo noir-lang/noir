@@ -31,7 +31,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAztZEQn0YNGL/oRQ1A4etAPWSR8B59uiJ2UMk50TUhLWl5fXzcU/Ezh05tGv4Kp+ZonervMckEsG5OnisTzT5TGCuaFv6I3MF5Sn08EBzYBTlL4tS0fJjCfIP/CEMwI+DePr+Pg2zXivLoxPrC+OxhfXvqNz9GL/MbcBvM+3mNsGF6MvVNO0rodA/x9rwxnPbNZE6KPEA/H9wQzuoZyKUzP1orlfO1pZhZpXQ8El/PPYPgf6U6+f1Vb6/sm3aAD1Q9Y/5TVX/B9G5hDL+DZVi5vC9e6u2ua8uO4Tr3R8/cFCaTsDnEHAAA=",
-  "debug_symbols": "tZHBCoMwEET/Zc85JBGr9VdKkairBEIiMRaK+O/dlLaEtpccvCw7y7zZw2wwYLdOrbajW6C5bGBcr4J2ltS2M+i8NkZPbXoGHocon/5lVjbKJSgfoBG8YIB2oE1w4kdtEJqS1l+rqN/WIrGK/cpAnI4Mr/6Gy/JDFGl4JOps4pxLSJ5H7KRuymvVGXyVNa62T7oL9xm/apy963FYPcZCky7jbymZrCiWoh8=",
+  "debug_symbols": "jZHLDoMgEEX/ZdYsBGIf/krTGNSxISFoEJo0hn/v4KPqok03XIaZc2/CjNBgFR6ltm03QHEboXLaGP0oTVcrrztLryNk6eA5FIIBP81yhkKSXGa5TiJoUMbIYKVL7xATvLOjkF45tB4KG4xh8FQmTENDr+ykXjnqZgzQNqRk2GqD6RbZRmffUZ7JBeZ8w/Mjz3/w/LLycsfzv/NF/uHlIf9Olaq1O3xwTE5Oq8rgUrbB1ruuf/VrZ11Q77oam+AwOe22ROdNCCbO95jS3g==",
   "file_map": {
     "50": {
       "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",

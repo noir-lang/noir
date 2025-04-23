@@ -26,7 +26,7 @@ expression: artifact
     "error_types": {}
   },
   "bytecode": "H4sIAAAAAAAA/62QQQqAMAwErfigpEna5OZXWmz//wQRI5TiTQfC5jQsG5ab4Dezeu6e8A0cXQSJueXYkLBAtKoCLDUpKorKEZWoKWu2ahkMmRp2MeouC//1KpdrG7ZYpv9tm4cToX2ibUQBAAA=",
-  "debug_symbols": "TYxNCoQwDEbvkrULZ8RNrzIM0p9UAqUtaTswFO9uFAV3ed8jr4ND09aFok8F1KdDSFZXSlGow3hOJet4UKmaK6jXex4Ao5NrmrYBPAUENY/bV8AwhUDr8szI/NNM2gS80LdoH7b+823u/8zJomuMR+l0kt8B",
+  "debug_symbols": "jZBNCoMwEIXvMmsXSUUoXqUUiXGUQEjCmAhFvHtHMVUXLV3Nz5tvHrwZOmzT0BjX+xHqxwwtGWvN0FivVTTe8XZeCshjEwmRV3DSmQqK0EWoXbK2gEnZtB2NQbmtRkWsigLQdVz5YW8srt1SHLT4jkpR7rCUB15defmDl/fMlyde/u1/qz58efF/8qS0oUtiIKBezyZFRrUW9xT75PQp1PgKWcmxB/Iau0S4vts0NngD",
   "file_map": {
     "50": {
       "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",

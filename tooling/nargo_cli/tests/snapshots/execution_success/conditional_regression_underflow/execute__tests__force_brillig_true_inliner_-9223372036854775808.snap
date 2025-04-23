@@ -26,7 +26,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7WVvw7CIBDGQfEPNjpYBx10UBedaNqmdXPwRYhNn6OPrk2OcF4uLsAlzX2E4+N3kLZS+JCQFRkLpuYJ2YRFEdHLsKD/wtXcIWvIEzQ/jdisJvvG9G9NVWumv4j8pQbPlOfjPBP4mwX4vAbvT3sRKLs6umZ81kjTmiXMO70BrcmaFPef8H5MzvC7vTLo9Up6xSwyHouV4vfOFNqD45uR+hzy/PvsGJ2Y/xHKv0fMB0an5W9NKP8RMZ8Ynfj8m1D+M2K+MDoT/n+iBu8X631sWmMc53TwjI4Ph0LzuP4G4xXq12UVwNk3tuhL29vadl31tlviPwb+bnwAy1dx+4UIAAA=",
-  "debug_symbols": "ldHRCoMgFAbgdznXXnhyGfkqY4SVhSAaZoMRvft0tBGtG2+EX/wOHv4VetUuY6Pt4GYQ9xWM62TQzsa0bgRar43RY3O8BpoOLD/v50naFOcgfQBRMwLK9iCQ0sgHbRSIkm4PAsgzQUGvALKfYPVZYLa43AIr/IrqT/BcwS73KJDuokB+Fpgntpie0mvZGrUXNyy2O/QYXpM6VTp516l+8SqVe+g1/ZZxcsM4No5+Aw==",
+  "debug_symbols": "nZHRCsIwDEX/Jc99WNY5cb8iMrotk0LpRm0FGf1302l1PgjiS2+T23NDyQIDdeHcajtOF2iOC3ROG6PPrZl65fVkubtAkQ7cQYMCsF6l5F7Jgg9hT7LUq0j2Khb2qhgF5KzWO6IUtQnnkbNyZD00Nhgj4KpMWB9dZmVX9cqxWwggO7By4KgNpVsUb7r4jh7kk8XiTe9+xlG+eHn4h99j5vf/8CXmv5dYf/AnrlSv3ce2YkpyWnWGnuUYbL9x/W3OTt727KaehuAoJW1WzudR1qLCU0zT7g==",
   "file_map": {
     "50": {
       "source": "// Regression test for https://github.com/noir-lang/noir/issues/3493\nfn main(x: u8) {\n    if x == 10 {\n        x + 255;\n    }\n    if x == 9 {\n        x << 7;\n    }\n    if x == 128 {\n        x * 3;\n    }\n    if x == 7 {\n        x - 8;\n    }\n}\n",
