@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745441348931,
+  "lastUpdate": 1745442026415,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18001,42 +18001,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "28b000e416da57dd7e69eecc0f9b54ced4882e76",
-          "message": "fix: replace values in data_bus too (#8086)",
-          "timestamp": "2025-04-15T13:31:01Z",
-          "tree_id": "ddf5b58f295e579279187658c68b8b332f2513f1",
-          "url": "https://github.com/noir-lang/noir/commit/28b000e416da57dd7e69eecc0f9b54ced4882e76"
-        },
-        "date": 1744724870781,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267029,
-            "range": "± 1032",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235171,
-            "range": "± 7761",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "362738431bf52cc816efbef41395e991d4a3d658",
           "message": "chore: don't use `set_from_value_id` in `remove_if_else` (#8070)",
           "timestamp": "2025-04-15T14:12:48Z",
@@ -19964,6 +19928,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3234976,
             "range": "± 12087",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6c4dd0c3dfe83203024fcf2684f8e5f3555ffc61",
+          "message": "chore(acir): Unify how we display witness indices (#8192)",
+          "timestamp": "2025-04-23T20:42:20Z",
+          "tree_id": "8d1e47c2ae8a0411c9a773a3834853f110d361e0",
+          "url": "https://github.com/noir-lang/noir/commit/6c4dd0c3dfe83203024fcf2684f8e5f3555ffc61"
+        },
+        "date": 1745442019829,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266574,
+            "range": "± 973",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236500,
+            "range": "± 2840",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3224992,
+            "range": "± 48718",
             "unit": "ns/iter"
           }
         ]
