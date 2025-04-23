@@ -8,6 +8,7 @@ use acir::{
     native_types::{Expression, Witness},
 };
 use std::collections::{BTreeSet, HashMap, HashSet};
+use tracing::field::Field;
 
 #[derive(PartialEq)]
 enum BlockStatus {
@@ -20,7 +21,10 @@ enum BlockStatus {
 pub struct CircuitSimulator {
     /// Track the witnesses that can be solved
     solvable_witness: HashSet<Witness>,
-
+    /// Track the witnesses that require a hard inversion
+    hard_to_invert: HashSet<Witness>,
+    /// Track the witnesses that are only require inverting a 1 or -1
+    easy_to_invert: HashSet<Witness>,
     /// Tells whether a Memory Block is:
     /// - Not initialized if not in the map
     /// - Initialized if its status is Initialized in the Map
@@ -48,24 +52,37 @@ impl CircuitSimulator {
         let mut unresolved = HashSet::new();
         match opcode {
             Opcode::AssertZero(expr) => {
-                for (_, w1, w2) in &expr.mul_terms {
+                for (c, w1, w2) in &expr.mul_terms {
                     if !self.solvable_witness.contains(w1) {
+                        // this means that w1 is not known at the time
                         if !self.solvable_witness.contains(w2) {
                             return false;
+                        } else {
+                            // now we can compute the term that's getting multiplied by w1
+                            if *c == F::one() || *c == -F::one() {
+                                self.easy_to_invert.insert(*w1);
+                            } else {
+                                self.hard_to_invert.insert(*w1);
+                            }
                         }
-                        unresolved.insert(*w1);
                     }
                     if !self.solvable_witness.contains(w2) && w1 != w2 {
                         unresolved.insert(*w2);
                     }
                 }
-                for (_, w) in &expr.linear_combinations {
+                for (c, w) in &expr.linear_combinations {
                     if !self.solvable_witness.contains(w) {
                         unresolved.insert(*w);
                     }
                 }
                 if unresolved.len() == 1 {
                     self.mark_solvable(*unresolved.iter().next().unwrap());
+                    // we should be assigning the witness in this opcode now
+                    if *c == F::one() || *c == -F::one() {
+                        self.easy_to_invert.insert(*w);
+                    } else {
+                        self.hard_to_invert.insert(*w);
+                    }
                     return true;
                 }
                 unresolved.is_empty()
