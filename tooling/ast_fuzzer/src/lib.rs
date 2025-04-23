@@ -30,6 +30,8 @@ pub struct Config {
     pub max_array_size: usize,
     /// Maximum size of for loop ranges, which affects unrolling in ACIR.
     pub max_loop_size: usize,
+    /// Whether to choose the backstop for `loop` and `while` randomly.
+    pub vary_loop_size: bool,
     /// Maximum number of recursive calls to make at runtime.
     pub max_recursive_calls: usize,
     /// Frequency of expressions, which produce a value.
@@ -81,6 +83,7 @@ impl Default for Config {
             max_tuple_size: 5,
             max_array_size: 4,
             max_loop_size: 10,
+            vary_loop_size: true,
             max_recursive_calls: 25,
             expr_freqs,
             stmt_freqs_acir,

@@ -938,12 +938,9 @@ impl<'a> FunctionContext<'a> {
         );
 
         // Put everything into if/else
+        let max_loop_size = self.gen_loop_size(u)?;
         let loop_body = expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(self.ctx.config.max_loop_size as u32),
-            ),
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -992,12 +989,9 @@ impl<'a> FunctionContext<'a> {
         );
 
         // Put everything into if/else
+        let max_loop_size = self.gen_loop_size(u)?;
         let inner_block = Expression::Block(vec![expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(self.ctx.config.max_loop_size as u32),
-            ),
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -1013,6 +1007,14 @@ impl<'a> FunctionContext<'a> {
 
         Ok(Expression::Block(stmts))
     }
+
+    fn gen_loop_size(&self, u: &mut Unstructured) -> arbitrary::Result<usize> {
+        if self.ctx.config.vary_loop_size {
+            u.choose_index(self.ctx.config.max_loop_size)
+        } else {
+            Ok(self.ctx.config.max_loop_size)
+        }
+    }
 }
 
 #[test]
@@ -1020,6 +1022,7 @@ fn test_loop() {
     let mut u = Unstructured::new(&[0u8; 1]);
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
+    ctx.config.vary_loop_size = false;
     ctx.add_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
@@ -1045,6 +1048,7 @@ fn test_while() {
     let mut u = Unstructured::new(&[0u8; 1]);
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
+    ctx.config.vary_loop_size = false;
     ctx.add_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
