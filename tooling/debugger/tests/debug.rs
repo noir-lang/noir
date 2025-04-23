@@ -144,6 +144,18 @@ mod tests {
             VecDeque::from(["foo(x);", "bar(y);", "fn bar(y: Field) {"]),
             VecDeque::from(["foo(x);", "bar(y);", "assert(y != 0);"]),
         ];
+
+        // Try to use relative paths if possible, otherwise the test breaks when run from the repository root
+        let at_filename = if let Ok(current_dir) = std::env::current_dir() {
+            if let Ok(stripped) = test_program_path.strip_prefix(current_dir) {
+                format!("At {}", stripped.display())
+            } else {
+                format!("At {}", test_program_dir)
+            }
+        } else {
+            format!("At {}", test_program_dir)
+        };
+
         for mut expected_lines in expected_lines_by_command {
             // While running the debugger, issue a "next" cmd,
             // which should run to the program to the next source line given
@@ -158,7 +170,6 @@ mod tests {
                 .exp_string(">")
                 .expect("Failed while waiting for debugger to step through program.");
 
-            let at_filename = format!("At {test_program_dir}");
             while let Some(expected_line) = expected_lines.pop_front() {
                 let line = loop {
                     let read_line = dbg_session.read_line().unwrap();
