@@ -606,7 +606,8 @@
 <a href="#605" id="605">605</a>
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span>noirc_errors::{Located, Location};
 
@@ -812,7 +813,8 @@
             <span class="self">self</span>.parse_type_or_error()
         } <span class="kw">else </span>{
             <span class="self">self</span>.expected_token(Token::Colon);
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location: Location::dummy() }
+            <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
         };
 
         <span class="kw">let </span>default_value =

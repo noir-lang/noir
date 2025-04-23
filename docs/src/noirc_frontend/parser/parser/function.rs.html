@@ -909,8 +909,8 @@
             );
 
             <span class="kw">let </span>visibility = Visibility::Private;
-            <span class="kw">let </span>typ =
-                UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
+            <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
+            <span class="kw">let </span>typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
             (visibility, typ)
         } <span class="kw">else </span>{
             (
@@ -1014,7 +1014,7 @@
         body: <span class="prelude-val">None</span>,
         location: Location::new(span, location.file),
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Location::dummy()),
+        return_type: FunctionReturnType::Default(Location::new(span, location.file)),
         return_visibility: Visibility::Private,
     }
 }

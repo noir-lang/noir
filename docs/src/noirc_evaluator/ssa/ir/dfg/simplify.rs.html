@@ -492,11 +492,7 @@
 <a href="#491" id="491">491</a>
 <a href="#492" id="492">492</a>
 <a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a>
-<a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a>
-<a href="#498" id="498">498</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#494" id="494">494</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
@@ -722,47 +718,43 @@
                 <span class="kw">return </span>SimplifiedTo(then_value);
             }
 
-            <span class="kw">if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>dfg[then_value] {
-                <span class="kw">if let </span>Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    then_value: inner_then_value,
-                    ..
-                } = dfg[<span class="kw-2">*</span>instruction]
-                {
-                    <span class="kw">if </span>then_condition == inner_then_condition {
-                        <span class="kw">let </span>instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value: inner_then_value,
-                            else_condition,
-                            else_value,
-                        };
-                        <span class="kw">return </span>SimplifiedToInstruction(instruction);
-                    }
-                    <span class="comment">// TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
-                </span>}
-            };
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                then_value: inner_then_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(then_value)
+            {
+                <span class="kw">if </span>then_condition == <span class="kw-2">*</span>inner_then_condition {
+                    <span class="kw">let </span>instruction = Instruction::IfElse {
+                        then_condition,
+                        then_value: <span class="kw-2">*</span>inner_then_value,
+                        else_condition,
+                        else_value,
+                    };
+                    <span class="kw">return </span>SimplifiedToInstruction(instruction);
+                }
+                <span class="comment">// TODO: We could check to see if `then_condition == inner_else_condition`
+                // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            </span>}
 
-            <span class="kw">if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>dfg[else_value] {
-                <span class="kw">if let </span>Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    else_value: inner_else_value,
-                    ..
-                } = dfg[<span class="kw-2">*</span>instruction]
-                {
-                    <span class="kw">if </span>then_condition == inner_then_condition {
-                        <span class="kw">let </span>instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value,
-                            else_condition,
-                            else_value: inner_else_value,
-                        };
-                        <span class="kw">return </span>SimplifiedToInstruction(instruction);
-                    }
-                    <span class="comment">// TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
-                </span>}
-            };
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                else_value: inner_else_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(else_value)
+            {
+                <span class="kw">if </span>then_condition == <span class="kw-2">*</span>inner_then_condition {
+                    <span class="kw">let </span>instruction = Instruction::IfElse {
+                        then_condition,
+                        then_value,
+                        else_condition,
+                        else_value: <span class="kw-2">*</span>inner_else_value,
+                    };
+                    <span class="kw">return </span>SimplifiedToInstruction(instruction);
+                }
+                <span class="comment">// TODO: We could check to see if `then_condition == inner_else_condition`
+                // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            </span>}
 
             <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>typ, Type::Numeric(<span class="kw">_</span>)) {
                 <span class="kw">let </span>result = ValueMerger::merge_numeric_values(

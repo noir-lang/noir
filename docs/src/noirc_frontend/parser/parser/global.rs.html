@@ -192,8 +192,7 @@
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#194" id="194">194</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -222,13 +221,11 @@
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
             <span class="self">self</span>.eat_semicolon();
+            <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
             <span class="kw">return </span>LetStatement {
                 pattern: ident_to_pattern(Ident::default(), mutable),
-                r#type: UnresolvedType {
-                    typ: UnresolvedTypeData::Unspecified,
-                    location: Location::dummy(),
-                },
-                expression: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
+                r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
+                expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
                 comptime,
                 is_global_let,
@@ -243,7 +240,8 @@
             <span class="self">self</span>.parse_expression_or_error()
         } <span class="kw">else </span>{
             <span class="self">self</span>.push_error(ParserErrorReason::GlobalWithoutValue, pattern.location());
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
         <span class="self">self</span>.eat_semicolon_or_error();
