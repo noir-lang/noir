@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["FullDictionary","IntDictionary"],"type":["FieldDictionary"]};
+window.SIDEBAR_ITEMS = {"fn":["add_elements_from_input_map_to_vector_without_abi","add_elements_from_input_value_to_vector"],"struct":["FullDictionary","IntDictionary"],"type":["FieldDictionary"]};
