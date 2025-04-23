@@ -88,7 +88,10 @@
 <a href="#87" id="87">87</a>
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
 <span class="kw">pub mod </span>compare;
 <span class="kw">mod </span>input;
 <span class="kw">mod </span>program;
@@ -120,8 +123,10 @@
     </span><span class="kw">pub </span>max_array_size: usize,
     <span class="doccomment">/// Maximum size of for loop ranges, which affects unrolling in ACIR.
     </span><span class="kw">pub </span>max_loop_size: usize,
-    <span class="doccomment">/// Maximum call depth for recursive calls.
-    </span><span class="kw">pub </span>max_call_depth: usize,
+    <span class="doccomment">/// Whether to choose the backstop for `loop` and `while` randomly.
+    </span><span class="kw">pub </span>vary_loop_size: bool,
+    <span class="doccomment">/// Maximum number of recursive calls to make at runtime.
+    </span><span class="kw">pub </span>max_recursive_calls: usize,
     <span class="doccomment">/// Frequency of expressions, which produce a value.
     </span><span class="kw">pub </span>expr_freqs: Freqs,
     <span class="doccomment">/// Frequency of statements in ACIR functions.
@@ -171,7 +176,8 @@
             max_tuple_size: <span class="number">5</span>,
             max_array_size: <span class="number">4</span>,
             max_loop_size: <span class="number">10</span>,
-            max_call_depth: <span class="number">5</span>,
+            vary_loop_size: <span class="bool-val">true</span>,
+            max_recursive_calls: <span class="number">25</span>,
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,

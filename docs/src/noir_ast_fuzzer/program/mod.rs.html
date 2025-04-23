@@ -517,7 +517,7 @@
 
     <span class="doccomment">/// Generate and add main (for testing)
     </span><span class="attr">#[cfg(test)]
-    </span><span class="kw">fn </span>add_main_decl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) {
+    </span><span class="kw">fn </span>gen_main_decl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) {
         <span class="kw">let </span>d = <span class="self">self</span>.gen_function_decl(u, <span class="number">0</span>).unwrap();
         <span class="self">self</span>.function_declarations.insert(FuncId(<span class="number">0u32</span>), d);
     }
@@ -545,7 +545,7 @@
 
     <span class="doccomment">/// As a post-processing step, identify recursive functions and add a call depth parameter to them.
     </span><span class="kw">fn </span>rewrite_functions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;()&gt; {
-        rewrite::add_recursion_depth(<span class="self">self</span>, u)
+        rewrite::add_recursion_limit(<span class="self">self</span>, u)
     }
 
     <span class="doccomment">/// Return the generated [Program].

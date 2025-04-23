@@ -222,7 +222,12 @@
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>noirc_frontend::{
@@ -445,5 +450,10 @@
         (Type::Reference(typ, <span class="kw">_</span>), <span class="kw">_</span>) =&gt; can_binary_op_return_from_input(op, typ, output),
         <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
     }
+}
+
+<span class="doccomment">/// Reference an expression into a target type
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ref_mut(typ: Type) -&gt; Type {
+    Type::Reference(Box::new(typ), <span class="bool-val">true</span>)
 }
 </code></pre></div></section></main></body></html>

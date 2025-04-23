@@ -1064,7 +1064,11 @@
 <a href="#1063" id="1063">1063</a>
 <a href="#1064" id="1064">1064</a>
 <a href="#1065" id="1065">1065</a>
-<a href="#1066" id="1066">1066</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, HashSet},
     fmt::Debug,
@@ -1997,19 +2001,16 @@
         <span class="comment">// Increment the index in the beginning of the body.
         </span>expr::prepend(
             <span class="kw-2">&amp;mut </span>loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(<span class="number">1</span>)),
             ),
         );
 
         <span class="comment">// Put everything into if/else
-        </span><span class="kw">let </span>loop_body = expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(<span class="self">self</span>.ctx.config.max_loop_size <span class="kw">as </span>u32),
-            ),
+        </span><span class="kw">let </span>max_loop_size = <span class="self">self</span>.gen_loop_size(u)<span class="question-mark">?</span>;
+        <span class="kw">let </span>loop_body = expr::if_else(
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size <span class="kw">as </span>u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -2051,19 +2052,16 @@
         <span class="comment">// Increment the index in the beginning of the body.
         </span>expr::prepend(
             <span class="kw-2">&amp;mut </span>loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(<span class="number">1</span>)),
             ),
         );
 
         <span class="comment">// Put everything into if/else
-        </span><span class="kw">let </span>inner_block = Expression::Block(<span class="macro">vec!</span>[expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(<span class="self">self</span>.ctx.config.max_loop_size <span class="kw">as </span>u32),
-            ),
+        </span><span class="kw">let </span>max_loop_size = <span class="self">self</span>.gen_loop_size(u)<span class="question-mark">?</span>;
+        <span class="kw">let </span>inner_block = Expression::Block(<span class="macro">vec!</span>[expr::if_else(
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size <span class="kw">as </span>u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -2079,6 +2077,14 @@
 
         <span class="prelude-val">Ok</span>(Expression::Block(stmts))
     }
+
+    <span class="kw">fn </span>gen_loop_size(<span class="kw-2">&amp;</span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;usize&gt; {
+        <span class="kw">if </span><span class="self">self</span>.ctx.config.vary_loop_size {
+            u.choose_index(<span class="self">self</span>.ctx.config.max_loop_size)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(<span class="self">self</span>.ctx.config.max_loop_size)
+        }
+    }
 }
 
 <span class="attr">#[test]
@@ -2086,7 +2092,8 @@
     <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">1</span>]);
     <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
     ctx.config.max_loop_size = <span class="number">10</span>;
-    ctx.add_main_decl(<span class="kw-2">&amp;mut </span>u);
+    ctx.config.vary_loop_size = <span class="bool-val">false</span>;
+    ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
     <span class="kw">let </span><span class="kw-2">mut </span>fctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
     fctx.budget = <span class="number">2</span>;
     <span class="kw">let </span>loop_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, fctx.gen_loop(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
@@ -2111,7 +2118,8 @@
     <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">1</span>]);
     <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
     ctx.config.max_loop_size = <span class="number">10</span>;
-    ctx.add_main_decl(<span class="kw-2">&amp;mut </span>u);
+    ctx.config.vary_loop_size = <span class="bool-val">false</span>;
+    ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
     <span class="kw">let </span><span class="kw-2">mut </span>fctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
     fctx.budget = <span class="number">2</span>;
     <span class="kw">let </span>while_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, fctx.gen_while(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
