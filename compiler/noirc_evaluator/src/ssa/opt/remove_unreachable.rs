@@ -5,10 +5,10 @@
 //!
 //! This pass identifies all such unreachable functions and prunes them from the
 //! function set. Reachability is defined as:
-//! - A function is reachable if it is an entry point (e.g., `main`) or marked as
-//!   an entry point for its runtime (e.g., ACIR).
-//! - A function is reachable if it's stored in a reference (e.g., in a `Store` instruction),
-//!   even if not immediately called, because it may later be dynamically loaded and invoked.
+//! - A function is reachable if it is an entry point (e.g., `main`)
+//! - A function is reachable if it is called from another reachable function
+//! - A function is reachable if it is stored in a reference (e.g., in a `Store` instruction) from another reachable function.
+//!   Even if not immediately called, it may later be dynamically loaded and invoked.
 //!   This marking is conservative but ensures correctness. We should instead rely on [mem2reg][crate::ssa::opt::mem2reg]
 //!   for resolving loads/stores.
 //!
@@ -35,8 +35,8 @@ impl Ssa {
     pub(crate) fn remove_unreachable_functions(mut self) -> Self {
         let mut reachable_functions = HashSet::default();
 
-        // Go through all the functions, and if we have an entry point, add to the set of all
-        // functions which are reachable from that entry point.
+        // Go through all the functions, and if we have an entry point, extend the set of all
+        // functions which are reachable.
         for (id, function) in self.functions.iter() {
             // XXX: `self.is_entry_point(*id)` could leave Brillig functions that nobody calls in the SSA.
             let is_entry_point = function.id() == self.main_id
@@ -94,14 +94,14 @@ fn collect_reachable_functions(
 
 /// Identifies all reachable function IDs within a given function.
 /// This includes:
-/// - Function calls via `Call` instructions
-/// - Function references (e.g., functions stored via `Store`)
+/// - Function calls (e.g., functions used via `Call` instructions)
+/// - Function references (e.g., functions stored via `Store` instruction)
 ///
 /// # Arguments
 /// - `func`: The function to analyze for usage
 ///
 /// # Returns
-/// A sorted set of `FunctionId`s that are reachable from the function.
+/// A sorted set of [`FunctionId`]s that are reachable from the function.
 fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
     let mut used_function_ids = BTreeSet::default();
 
