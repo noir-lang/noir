@@ -51,7 +51,7 @@ pub(crate) fn add_recursion_limit(
 
     // Rewrite recursive functions.
     for (func_id, unconstrained) in recursive_functions.iter() {
-        let func = ctx.functions.get_mut(&func_id).unwrap();
+        let func = ctx.functions.get_mut(func_id).unwrap();
         let is_main = *func_id == Program::main_id();
 
         // We'll need a new ID for variables or parameters. We could speed this up by
@@ -127,7 +127,7 @@ pub(crate) fn add_recursion_limit(
         }
 
         // Add the non-reference version of the parameter to the proxy function.
-        if let Some(proxy) = proxy_functions.get_mut(&func_id) {
+        if let Some(proxy) = proxy_functions.get_mut(func_id) {
             proxy.parameters.push((limit_id, true, limit_name.clone(), types::U32));
             // The body is just a call the the non-proxy function.
             proxy.body = Expression::Call(Call {
