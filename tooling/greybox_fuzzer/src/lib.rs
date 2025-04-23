@@ -1002,7 +1002,8 @@ impl<
                             counterexample: testcase.value().clone(),
                         })
                     }
-                    _ => {
+                    FuzzedExecutorFailureConfiguration::OnlyFailWith(_)
+                    | FuzzedExecutorFailureConfiguration::None => {
                         // If both were OK, collect coverage and ACIR witnesses along with timings and return
                         HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                             case_id: testcase.id(),
@@ -1140,14 +1141,17 @@ impl<
                             counterexample: testcase.value().clone(),
                         })
                     }
-                    _ => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                        case_id: testcase.id(),
-                        case: testcase.value().clone(),
-                        witness: Some(witnesses),
-                        brillig_coverage: None,
-                        acir_duration_micros: acir_elapsed.as_micros(),
-                        brillig_duration_micros: 0,
-                    }),
+                    FuzzedExecutorFailureConfiguration::OnlyFailWith(_)
+                    | FuzzedExecutorFailureConfiguration::None => {
+                        HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: Some(witnesses),
+                            brillig_coverage: None,
+                            acir_duration_micros: acir_elapsed.as_micros(),
+                            brillig_duration_micros: 0,
+                        })
+                    }
                 }
             }
             Err((err, witness)) => self.handle_failed_case(
@@ -1185,14 +1189,17 @@ impl<
                             counterexample: testcase.value().clone(),
                         })
                     }
-                    _ => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                        case_id: testcase.id(),
-                        case: testcase.value().clone(),
-                        witness: None,
-                        brillig_coverage: Some(brillig_coverage.unwrap()),
-                        acir_duration_micros: 0,
-                        brillig_duration_micros: brillig_elapsed.as_micros(),
-                    }),
+                    FuzzedExecutorFailureConfiguration::OnlyFailWith(_)
+                    | FuzzedExecutorFailureConfiguration::None => {
+                        HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: None,
+                            brillig_coverage: Some(brillig_coverage.unwrap()),
+                            acir_duration_micros: 0,
+                            brillig_duration_micros: brillig_elapsed.as_micros(),
+                        })
+                    }
                 }
             }
             Err((err, coverage)) => self.handle_failed_case(
