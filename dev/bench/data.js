@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745448324744,
+  "lastUpdate": 1745490015261,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17991,42 +17991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7211e767d62f3552814432fb3b1cb1e2baeee719",
-          "message": "chore: don't use `set_value_from_id` in `simplify_cfg` (#8072)",
-          "timestamp": "2025-04-15T14:13:55Z",
-          "tree_id": "5790e0e55b5dd0d06b6663581dc8ef3c5fde5219",
-          "url": "https://github.com/noir-lang/noir/commit/7211e767d62f3552814432fb3b1cb1e2baeee719"
-        },
-        "date": 1744727564544,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266089,
-            "range": "± 1607",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233620,
-            "range": "± 6500",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -19976,6 +19940,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3574280,
             "range": "± 78723",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d8d02646f70411f9df0f57af32f52f184f1f0f80",
+          "message": "chore(docs): remove_unreachable SSA pass  (#8196)",
+          "timestamp": "2025-04-24T10:01:52Z",
+          "tree_id": "7e3cb33f6fc1a9581507068e9a327a07644c487a",
+          "url": "https://github.com/noir-lang/noir/commit/d8d02646f70411f9df0f57af32f52f184f1f0f80"
+        },
+        "date": 1745490008071,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260747,
+            "range": "± 699",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231727,
+            "range": "± 3814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3576125,
+            "range": "± 14844",
             "unit": "ns/iter"
           }
         ]
