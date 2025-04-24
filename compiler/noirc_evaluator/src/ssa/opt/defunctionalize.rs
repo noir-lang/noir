@@ -287,7 +287,7 @@ fn find_variants(ssa: &Ssa) -> Variants {
         variants.insert((dispatch_signature, caller_runtime), target_fns);
     }
 
-    // We will now have fully construct our variants map and can return it
+    // We will now have fully constructed our variants map and can return it
     variants
 }
 
