@@ -224,11 +224,148 @@
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
+<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction},
         types::NumericType,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -247,6 +384,8 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">fn </span>checked_to_unchecked(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span><span class="kw-2">mut </span>value_max_num_bits = HashMap::&lt;ValueId, u32&gt;::default();
+
         <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
             <span class="kw">let </span>instruction = context.instruction();
             <span class="kw">let </span>Instruction::Binary(binary) = instruction <span class="kw">else </span>{
@@ -265,10 +404,10 @@
             <span class="kw">match </span>binary.operator {
                 BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
                     <span class="kw">let </span>bit_size = dfg.type_of_value(lhs).bit_size();
+                    <span class="kw">let </span>max_lhs_bits = get_max_num_bits(dfg, lhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
+                    <span class="kw">let </span>max_rhs_bits = get_max_num_bits(dfg, rhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
 
-                    <span class="kw">if </span>dfg.get_value_max_num_bits(lhs) &lt; bit_size
-                        &amp;&amp; dfg.get_value_max_num_bits(rhs) &lt; bit_size
-                    {
+                    <span class="kw">if </span>max_lhs_bits &lt; bit_size &amp;&amp; max_rhs_bits &lt; bit_size {
                         <span class="comment">// `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
                         </span><span class="kw">let </span>operator = BinaryOp::Add { unchecked: <span class="bool-val">true </span>};
                         <span class="kw">let </span>binary = Binary { operator, ..<span class="kw-2">*</span>binary };
@@ -276,20 +415,30 @@
                     }
                 }
                 BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
-                    <span class="kw">if </span>dfg.is_constant(lhs)
-                        &amp;&amp; dfg.get_value_max_num_bits(lhs) &gt; dfg.get_value_max_num_bits(rhs)
-                    {
-                        <span class="comment">// `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs &gt; 0`
-                        // Note strict inequality as `rhs &gt; lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                        </span><span class="kw">let </span>operator = BinaryOp::Sub { unchecked: <span class="bool-val">true </span>};
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(lhs_const) = dfg.get_numeric_constant(lhs) <span class="kw">else </span>{
+                        <span class="kw">return</span>;
+                    };
+
+                    <span class="kw">let </span>max_lhs_bits = get_max_num_bits(dfg, lhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
+                    <span class="kw">let </span>max_rhs_bits = get_max_num_bits(dfg, rhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
+                    <span class="kw">let </span>max_rhs =
+                        <span class="kw">if </span>max_rhs_bits == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ (<span class="number">1 </span>&lt;&lt; max_rhs_bits) - <span class="number">1 </span>};
+
+                    <span class="comment">// 1. `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs &gt; 0`
+                    // Note strict inequality as `rhs &gt; lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                    // 2. `lhs` is the maximum value for the maximum bitsize of `rhs`.
+                    //    For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1` which cannot overflow.
+                    //    Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255` which cannot overflow, etc.
+                    </span><span class="kw">if </span>max_lhs_bits &gt; max_rhs_bits || (lhs_const == max_rhs.into()) {
+                        <span class="kw">let </span>operator = BinaryOp::Sub { unchecked: <span class="bool-val">true </span>};
                         <span class="kw">let </span>binary = Binary { operator, ..<span class="kw-2">*</span>binary };
                         context.replace_current_instruction_with(Instruction::Binary(binary));
                     }
                 }
                 BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
                     <span class="kw">let </span>bit_size = dfg.type_of_value(lhs).bit_size();
-                    <span class="kw">let </span>max_lhs_bits = dfg.get_value_max_num_bits(lhs);
-                    <span class="kw">let </span>max_rhs_bits = dfg.get_value_max_num_bits(rhs);
+                    <span class="kw">let </span>max_lhs_bits = get_max_num_bits(dfg, lhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
+                    <span class="kw">let </span>max_rhs_bits = get_max_num_bits(dfg, rhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
 
                     <span class="kw">if </span>bit_size == <span class="number">1
                         </span>|| max_lhs_bits + max_rhs_bits &lt;= bit_size
@@ -307,6 +456,51 @@
             }
         });
     }
+}
+
+<span class="doccomment">/// The logic here is almost the same as [`DataFlowGraph::get_value_max_num_bits`] except that
+/// - it takes into account that the bitsize of multiplying two bools is 1
+/// - it recurses by memoizing the results in `value_max_num_bits`
+</span><span class="kw">fn </span>get_max_num_bits(
+    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    value: ValueId,
+    value_max_num_bits: <span class="kw-2">&amp;mut </span>HashMap&lt;ValueId, u32&gt;,
+) -&gt; u32 {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(bits) = value_max_num_bits.get(<span class="kw-2">&amp;</span>value) {
+        <span class="kw">return </span><span class="kw-2">*</span>bits;
+    }
+
+    <span class="kw">let </span>value_bit_size = dfg.type_of_value(value).bit_size();
+
+    <span class="kw">let </span>bits = <span class="kw">match </span>dfg[value] {
+        Value::Instruction { instruction, .. } =&gt; {
+            <span class="kw">match </span>dfg[instruction] {
+                Instruction::Cast(original_value, <span class="kw">_</span>) =&gt; {
+                    <span class="kw">let </span>original_bit_size =
+                        get_max_num_bits(dfg, original_value, value_max_num_bits);
+                    <span class="comment">// We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                    // in which case we want to recover the original smaller bit size;
+                    // OTOH if we cast down, then we don't need the higher original size.
+                    </span>value_bit_size.min(original_bit_size)
+                }
+                Instruction::Binary(Binary { lhs, operator: BinaryOp::Mul { .. }, rhs })
+                    <span class="kw">if </span>get_max_num_bits(dfg, lhs, value_max_num_bits) == <span class="number">1
+                        </span>&amp;&amp; get_max_num_bits(dfg, rhs, value_max_num_bits) == <span class="number">1 </span>=&gt;
+                {
+                    <span class="comment">// When multiplying two values, if their bitsize is 1 then the result's bitsize will be 1 too
+                    </span><span class="number">1
+                </span>}
+                <span class="kw">_ </span>=&gt; value_bit_size,
+            }
+        }
+        Value::NumericConstant { constant, .. } =&gt; constant.num_bits(),
+        <span class="kw">_ </span>=&gt; value_bit_size,
+    };
+
+    <span class="macro">assert!</span>(bits &lt;= value_bit_size);
+    value_max_num_bits.insert(value, bits);
+
+    bits
 }
 
 <span class="attr">#[cfg(test)]
@@ -357,6 +551,50 @@
           b0(v0: u16):
             v1 = cast v0 as u32
             v3 = unchecked_sub u32 65536, v1
+            return v3
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>checked_to_unchecked_when_subtracting_from_1_a_value_that_has_1_bit() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = cast v0 as u32
+            v3 = sub u32 1, v1
+            return v3
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.checked_to_unchecked();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = cast v0 as u32
+            v3 = unchecked_sub u32 1, v1
+            return v3
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>checked_to_unchecked_when_subtracting_from_255_a_value_that_has_8_bits() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v3 = sub u32 255, v1
+            return v3
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.checked_to_unchecked();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v3 = unchecked_sub u32 255, v1
             return v3
         }
         "</span>);
@@ -448,6 +686,32 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.checked_to_unchecked();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>checked_to_unchecked_when_multiplying_two_upcasted_bools_to_u32_then_multiplying_again() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            v3 = cast v0 as u32
+            v4 = cast v1 as u32
+            v5 = mul v3, v4
+            v6 = mul v2, v5
+            return v6
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.checked_to_unchecked();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            v3 = cast v0 as u32
+            v4 = cast v1 as u32
+            v5 = unchecked_mul v3, v4
+            v6 = unchecked_mul v2, v5
+            return v6
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>
