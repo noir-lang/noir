@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745498047564,
+  "lastUpdate": 1745499129186,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17991,42 +17991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ea3b681406b8a1bdf0f79302396abc64552b0bda",
-          "message": "fix(ssa): Do not unroll loop with break (#8090)",
-          "timestamp": "2025-04-15T17:40:59Z",
-          "tree_id": "6697d0eb3b447682930ffabc0ba33362b4c79a83",
-          "url": "https://github.com/noir-lang/noir/commit/ea3b681406b8a1bdf0f79302396abc64552b0bda"
-        },
-        "date": 1744739805978,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265973,
-            "range": "± 1129",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233988,
-            "range": "± 3603",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "sirasistant@gmail.com",
             "name": "Álvaro Rodríguez",
             "username": "sirasistant"
@@ -20006,6 +19970,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3573079,
             "range": "± 2730",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c9721fb6e69a78d74e1ae3742ed63103cad86b8d",
+          "message": "fix: Use `get_local_or_global_instruction` in `try_optimize_array_set_from_previous_get` (#8200)",
+          "timestamp": "2025-04-24T12:34:55Z",
+          "tree_id": "d3352448efa982cbe5304ebb50e24287f920336a",
+          "url": "https://github.com/noir-lang/noir/commit/c9721fb6e69a78d74e1ae3742ed63103cad86b8d"
+        },
+        "date": 1745499123071,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267305,
+            "range": "± 5403",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237839,
+            "range": "± 4977",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3580874,
+            "range": "± 14005",
             "unit": "ns/iter"
           }
         ]
