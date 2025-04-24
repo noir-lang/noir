@@ -1111,7 +1111,29 @@
 <a href="#1110" id="1110">1110</a>
 <a href="#1111" id="1111">1111</a>
 <a href="#1112" id="1112">1112</a>
-<a href="#1113" id="1113">1113</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a>
+<a href="#1120" id="1120">1120</a>
+<a href="#1121" id="1121">1121</a>
+<a href="#1122" id="1122">1122</a>
+<a href="#1123" id="1123">1123</a>
+<a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a>
+<a href="#1135" id="1135">1135</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1167,6 +1189,14 @@
             (!types::is_unit(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)).then(|| types::to_hir_type(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type));
 
         (param_types, return_type)
+    }
+
+    <span class="kw">fn </span>is_acir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        !<span class="self">self</span>.unconstrained
+    }
+
+    <span class="kw">fn </span>is_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.unconstrained
     }
 }
 
@@ -1266,19 +1296,33 @@
         </span><span class="kw">let </span>call_targets = ctx
             .function_declarations
             .iter()
-            .filter_map(|(callee_id, decl)| {
+            .filter_map(|(callee_id, callee_decl)| {
                 <span class="comment">// We can't call `main`.
                 </span><span class="kw">if </span><span class="kw-2">*</span>callee_id == Program::main_id() {
                     <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
+
                 <span class="comment">// From an ACIR function we can call any Brillig function,
                 // but we avoid creating infinite recursive ACIR calls by
                 // only calling functions with higher IDs than ours,
                 // otherwise the inliner could get stuck.
-                </span><span class="kw">if </span>!decl.unconstrained &amp;&amp; <span class="kw-2">*</span>callee_id &lt;= id {
+                </span><span class="kw">if </span>decl.is_acir() &amp;&amp; callee_decl.is_acir() &amp;&amp; <span class="kw-2">*</span>callee_id &lt;= id {
                     <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
-                <span class="prelude-val">Some</span>((<span class="kw-2">*</span>callee_id, types::types_produced(<span class="kw-2">&amp;</span>decl.return_type)))
+
+                <span class="comment">// From a Brillig function we restrict ourselves to only call
+                // other Brillig functions. That's because the `Monomorphizer`
+                // would make an unconstrained copy of any ACIR function called
+                // from Brillig, and this is expected by the inliner for example,
+                // but if we did similarly in the generator after we know who
+                // calls who, we would incur two drawbacks:
+                // 1) it would make programs bigger for little benefit
+                // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
+                </span><span class="kw">if </span>decl.is_brillig() &amp;&amp; !callee_decl.is_brillig() {
+                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                }
+
+                <span class="prelude-val">Some</span>((<span class="kw-2">*</span>callee_id, types::types_produced(<span class="kw-2">&amp;</span>callee_decl.return_type)))
             })
             .collect();
 
