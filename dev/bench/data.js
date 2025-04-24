@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745508059053,
+  "lastUpdate": 1745509645212,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17981,42 +17981,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+jewelofchaos9@users.noreply.github.com",
-            "name": "defkit",
-            "username": "jewelofchaos9"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bee86cbca93df3b67a76c4292492747312dde5a7",
-          "message": "fix(ssa): fix possibility to `Field % Field` operaions in Brillig from SSA (#8105)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-16T16:03:15Z",
-          "tree_id": "e30f687fef7a7b12c6ce0b28d6ab6be4c6614706",
-          "url": "https://github.com/noir-lang/noir/commit/bee86cbca93df3b67a76c4292492747312dde5a7"
-        },
-        "date": 1744820690548,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 291580,
-            "range": "± 961",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 258167,
-            "range": "± 1426",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20038,6 +20002,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3216897,
             "range": "± 6436",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de5e2150ee9572e996a59c80a7ddfe35af715b1e",
+          "message": "chore: bump more dependencies (#8208)",
+          "timestamp": "2025-04-24T15:28:02Z",
+          "tree_id": "f6097ceff9930ca7c4a244e30ff0d7e742bd1ee7",
+          "url": "https://github.com/noir-lang/noir/commit/de5e2150ee9572e996a59c80a7ddfe35af715b1e"
+        },
+        "date": 1745509638917,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 275709,
+            "range": "± 832",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 245725,
+            "range": "± 9097",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3257360,
+            "range": "± 18014",
             "unit": "ns/iter"
           }
         ]
