@@ -51,6 +51,8 @@ fn arb_program_can_be_executed() {
 
         // If we have a seed to debug and we know it's going to crash, print the AST.
         if maybe_seed.is_some() {
+            // It could be useful to also show the input, but in the smoke test we're mostly interested in compiler crashes,
+            // not the execution. For that we have the actual fuzz targets.
             eprintln!("{}", DisplayAstAsNoir(&program));
         }
 
