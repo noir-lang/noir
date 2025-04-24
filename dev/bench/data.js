@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745521246026,
+  "lastUpdate": 1745528056539,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17981,42 +17981,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e1c2ed004affaeff7ba92c646433646a2d5b58f7",
-          "message": "chore(optimization): Enable experimental ownership clone scheme by default (#8097)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
-          "timestamp": "2025-04-16T18:08:20Z",
-          "tree_id": "df64837af4796c6293cf3cca9e605c435a4d7f51",
-          "url": "https://github.com/noir-lang/noir/commit/e1c2ed004affaeff7ba92c646433646a2d5b58f7"
-        },
-        "date": 1744827872712,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267370,
-            "range": "± 569",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234945,
-            "range": "± 1286",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20056,6 +20020,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3257457,
             "range": "± 2885",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c14cc79bcd554500a11c6625499543e457987f09",
+          "message": "fix: validate numeric types when passing them to a FunctionBuilder (#8215)",
+          "timestamp": "2025-04-24T20:37:28Z",
+          "tree_id": "5a3a7e868b814ceb3c283c849ec7a7aba2d3be33",
+          "url": "https://github.com/noir-lang/noir/commit/c14cc79bcd554500a11c6625499543e457987f09"
+        },
+        "date": 1745528049665,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 274842,
+            "range": "± 1728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 245947,
+            "range": "± 3594",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3613111,
+            "range": "± 7925",
             "unit": "ns/iter"
           }
         ]
