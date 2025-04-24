@@ -1,9 +1,18 @@
 
-use bignum::{BigNum, BN254_Fq};
-
-
 // https://github.com/noir-lang/noir/issues/8210
 fn main() {
-    BN254_Fq::zero().modulus_bits();
+    (42 as Field).bar();
 }
 
+
+trait Foo {
+    let BAR: u32;
+
+    fn bar(_: Self) -> u32 {
+        Foo::BAR
+    }  
+}
+
+impl Foo for Field {
+    let BAR: u32 = 254;
+}
