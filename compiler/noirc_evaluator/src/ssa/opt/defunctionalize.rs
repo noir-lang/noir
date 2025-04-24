@@ -582,9 +582,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.defunctionalize();
-        // ssa.normalize_ids();
-        // println!("{}", ssa);
+        let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
