@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745492482301,
+  "lastUpdate": 1745492834090,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8c4a83ac8ef52db58d6d93342e4be2b47e3c9595",
-          "message": "feat(experimental): Implement separate `-Zownership` analysis for ownership pass (#7861)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-15T15:24:56Z",
-          "tree_id": "853ae0119b316b0e5de02098ca0968f63cb4240f",
-          "url": "https://github.com/noir-lang/noir/commit/8c4a83ac8ef52db58d6d93342e4be2b47e3c9595"
-        },
-        "date": 1744732206446,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.709,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 15.4,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.486,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.496,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.886,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.896,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.875,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.456,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.358,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b41112159d86863fc4d582ffd461a018639e2de5",
+          "message": "feat: optimize `checked_to_unchecked` to take into account multiplications (#8188)",
+          "timestamp": "2025-04-24T10:45:22Z",
+          "tree_id": "d3ad35d3bae4b51f8d889b9beac2f40ba87564d3",
+          "url": "https://github.com/noir-lang/noir/commit/b41112159d86863fc4d582ffd461a018639e2de5"
+        },
+        "date": 1745492827985,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.646,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.468,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.148,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.808,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.022,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.879,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 121,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 119,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.847,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.406,
             "unit": "s"
           }
         ]
