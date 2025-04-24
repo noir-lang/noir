@@ -23,7 +23,7 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles, def_map::TestFunction};
 
 use crate::errors::CliError;
 
@@ -478,7 +478,7 @@ impl<'a> TestRunner<'a> {
 
         let tests: Vec<Test> = test_functions
             .into_iter()
-            .map(|test_name| {
+            .map(|(test_name, test_function)| {
                 let test_name_copy = test_name.clone();
                 let root_path = root_path.clone();
                 let package_name_clone = package_name.clone();
@@ -487,6 +487,7 @@ impl<'a> TestRunner<'a> {
                     self.run_test::<S>(
                         package,
                         &test_name,
+                        test_function.has_arguments(),
                         foreign_call_resolver_url,
                         root_path,
                         package_name_clone.clone(),
@@ -500,20 +501,15 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Compiles a single package and returns all of its test names
-    fn get_tests_in_package(&'a self, package: &'a Package) -> Result<Vec<String>, CliError> {
+    fn get_tests_in_package(
+        &'a self,
+        package: &'a Package,
+    ) -> Result<Vec<(String, TestFunction)>, CliError> {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
         check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
 
-        let mut tests = context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern);
-        if self.args.no_fuzz {
-            tests.retain(|(_, test)| !test.has_arguments());
-        }
-        if self.args.only_fuzz {
-            tests.retain(|(_, test)| test.has_arguments());
-        }
-
-        Ok(tests.into_iter().map(|(test_name, _)| test_name).collect())
+        Ok(context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern))
     }
 
     /// Runs a single test and returns its status together with whatever was printed to stdout
@@ -522,10 +518,15 @@ impl<'a> TestRunner<'a> {
         &'a self,
         package: &Package,
         fn_name: &str,
+        has_arguments: bool,
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: String,
     ) -> (TestStatus, String) {
+        if (self.args.no_fuzz && has_arguments) || (self.args.only_fuzz && !has_arguments) {
+            return (TestStatus::Skipped, String::new());
+        }
+
         // This is really hacky but we can't share `Context` or `S` across threads.
         // We then need to construct a separate copy for each test.
 
