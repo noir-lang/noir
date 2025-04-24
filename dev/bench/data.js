@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745528946779,
+  "lastUpdate": 1745529497799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "859fd0f97887c5c1a5a95f679c9ee517f7c33509",
-          "message": "feat: avoid unnecessary zero check in brillig overflow check (#8109)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-04-17T14:12:51Z",
-          "tree_id": "b8b0f17df2c623ff06d699adc862f76af789cef1",
-          "url": "https://github.com/noir-lang/noir/commit/859fd0f97887c5c1a5a95f679c9ee517f7c33509"
-        },
-        "date": 1744900545892,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.666,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.3,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.46,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.32,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.246,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.088,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.78,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.874,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 115,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.871,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.464,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.34,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10333d28ec4c2b15666ab46332ec6b1c931827e2",
+          "message": "chore: add regression test for panic encountered in bigcurve library. (#8211)",
+          "timestamp": "2025-04-24T20:49:44Z",
+          "tree_id": "6c65689237d095d02a40a5eb9777db03f3cb328c",
+          "url": "https://github.com/noir-lang/noir/commit/10333d28ec4c2b15666ab46332ec6b1c931827e2"
+        },
+        "date": 1745529491361,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.648,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.472,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.194,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.424,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.024,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 19.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.886,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.867,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.41,
             "unit": "s"
           }
         ]
