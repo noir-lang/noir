@@ -1,7 +1,7 @@
 //! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
-//! The pass eliminates higher-order functions (accepts function arguments used as values or returns functions)
+//! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
 //! by transforming functions used as values (i.e., first-class functions)
 //! into constant numbers (fields) that represent their function IDs.
 //!
