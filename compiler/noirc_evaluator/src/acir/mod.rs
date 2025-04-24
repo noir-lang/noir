@@ -8,6 +8,7 @@
 
 use arrays::can_omit_element_sizes_array;
 use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStack;
 use std::collections::{BTreeMap, HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
@@ -41,7 +42,6 @@ use crate::ssa::ir::instruction::Hint;
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        call_stack::CallStack,
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{
@@ -252,10 +252,11 @@ impl<'a> Context<'a> {
     }
 
     fn convert_ssa_function(
-        self,
+        mut self,
         ssa: &Ssa,
         function: &Function,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
+        self.acir_context.set_call_stack_helper(self.brillig.call_stacks.to_owned());
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
@@ -1059,7 +1060,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, dfg, predicate)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, predicate)?;
         }
 
         Ok(result)
@@ -1071,11 +1072,13 @@ impl<'a> Context<'a> {
         result: AcirVar,
         bit_size: u32,
         binary: &Binary,
-        dfg: &DataFlowGraph,
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
-        let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
-            return Ok(());
+        let msg = match binary.operator {
+            BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
+            BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
+            BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
+            _ => return Ok(()),
         };
 
         let with_pred = self.acir_context.mul_var(result, predicate)?;
@@ -1977,7 +1980,7 @@ mod test {
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         let stack = vec![Location::dummy(), Location::dummy()];
         let call_stack =
-            builder.current_function.dfg.call_stack_data.get_or_insert_locations(stack);
+            builder.current_function.dfg.call_stack_data.get_or_insert_locations(&stack);
         builder.set_call_stack(call_stack);
 
         let foo_v0 = builder.add_parameter(Type::field());
@@ -2692,13 +2695,11 @@ mod test {
     }
 
     #[test]
-    fn multiply_with_bool_should_not_emit_range_check() {
+    fn unchecked_mul_should_not_have_range_check() {
         let src = "
             acir(inline) fn main f0 {
-            b0(v0: bool, v1: u32):
-                enable_side_effects v0
-                v2 = cast v0 as u32
-                v3 = mul v2, v1
+            b0(v0: u32, v1: u32):
+                v3 = unchecked_mul v0, v1
                 return v3
             }
         ";

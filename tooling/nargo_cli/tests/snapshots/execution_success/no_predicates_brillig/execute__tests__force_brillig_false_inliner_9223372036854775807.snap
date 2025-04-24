@@ -35,7 +35,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/81VSQ7CMAx0aFgCQiDgAhfgAtcAZTlygIdEoL6jT6cVDnVNigQkCEuRXdmZjCdLBdxN4MhNoq/Bs9maI3r9na08YumQPEUgng+iNBZQLfwSvYLyJuX5yGPDysHJF/5Bxzvl6M8j/40imAHw1xZfhsHXTcQ5pWV8YOtGrM41x9acSc2Z1XSh/AhQHJujD4Kd38pGD4q4j7FieCHOD+XkW/+hg79dq4O9zkmO7k8dY85PkDytn6BvZGP0A/2y6x1zzvJNzmPGM9Q9GBBcYGvles0Yj0DnwbzSy3VGuF7TP9OrA8U/RKb+uewPWlsOUVpoYvWgJkme1i/wu13R0/FDnsnerJKNSczWXK/xxXDNcqN3/QbStuKCJQkAAA==",
-  "debug_symbols": "zdXNCoQgEAfwd5mzBz/arF5lWcLKQhALs4UlevfVpUDaw95aL8LI3+HnZWaFTjbLUCvTjzNU9xX02AqnRuOrdUPQWKW1Gur4GnA4CP/k50mYUM5OWAdVViCQpoOK3/zrXmkJ1Q1v6CtIKN+TJPsRpfhoSgmLow8EFF+myMtDwfOzgiShoEkoWBKKLAlFfpmCkUPBirOCJ6EoklCUKSgY/r9i89VTWCUaLfdh3y+mjWa/e03ytAYmO7ayW6wMCyHaBeE/jCFW+La+9Rs=",
+  "debug_symbols": "nZLLroMgEED/ZdYsBHzVX2kag4oNCUFD5SY3hn/vINLqwk03cxiGM8NiVhhk556tMuP0gua+QmeV1urZ6qkXi5oM3q6QhUAraDgBhkmOoBEsgkfkESU0BaKKqCNuGzjqhfcE0oB2sVKG/oeJ+I9ZWGkWaIzTmsCf0G579JqF2bgIi9WMgDQDEhuOSstw8uRrZ9dqXu9uVXzk4mzTa5uyatdpfumza59laTyj/Be/vCW/Kn/xOU0+r0/+AzPRK3vaAB86WSU6Lfd0dKY/VJf/OVXSBs126uXgrAydDmuE8c454fXDh2lv",
   "file_map": {
     "50": {
       "source": "unconstrained fn main(x: u32, y: pub u32) {\n    intermediate_function(x, y);\n}\n\nfn intermediate_function(x: u32, y: u32) {\n    basic_checks(x, y);\n}\n\n#[no_predicates]\nfn basic_checks(x: u32, y: u32) {\n    if x > y {\n        assert(x == 10);\n    } else {\n        assert(y == 20);\n    }\n}\n",

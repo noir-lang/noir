@@ -29,7 +29,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUwQ6CMAztZESnwYNc9C+2AMLRg37IItl38Om62IVahxe2l5DCSl9f37IJ+EDg4yHJGkdYu2HU62AScmkR0fl3iFjBBaPCuCH5IuHgKqIlFf+g26uC35kT6m8Ucub0J3Bm4Ndb5LlPMz+fxaOC78NBa3aYD+9HUuPxINyhPqdv733vMvtmalj26oA+1AuzAqS9OGhv7jPtW0VyVHM4K3JK71k/zBdTgfwl0w2sf8n+P+P3nugPUa7Q6XprXGOd7ew4tk97YvxAPPQ+vQCmYX51LQYAAA==",
-  "debug_symbols": "lY5LCgMhEETv0msXY5IJiVcZwuCnHQRR8RMI4t2jIQvJLpuiq6kqXgWFohy7cdonYFsF6yXPxrvuaiMgorHWHPv8hmUIXT/5FLgbNmUeMzC6nAmgU+O69b42FoGtS3sQoNf/Gq27J4+GC4tfHF2cnOjyK+APaIheoioRB/JE23Wjd3K69Nk+/QY=",
+  "debug_symbols": "dZDdDoMgDIXfpddcwP6y+SrGGNRqSAiQCksWw7uvGN3cxW5ayjnfIXSBAbs0tcaNfoaqXqAjY62ZWut7HY13fLuALEVdoVIC1I1bzgJ2RxsJsRgOCAcFTegiVC5ZK+CpbVpNc9Bu7VETq1IAuoE7B47GYjll8aXlf1TJ8wYref/gV+YbnnRv6OcTuSSR0Z3FbRyT6w9qfIVd2ZcQyPc4JMKSdNgE11o9xOnS5PLaGw==",
   "file_map": {
     "50": {
       "source": "// The feature being tested is handling of\n// a binary operation.\nfn main(x: Field) -> pub Field {\n    x + 1\n}\n",

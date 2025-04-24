@@ -16,11 +16,12 @@ impl Parser<'_> {
     ) -> NoirTypeAlias {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
+            let location = self.location_at_previous_token_end();
             return NoirTypeAlias {
                 visibility,
                 name: Ident::default(),
                 generics: Vec::new(),
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,
             };
         };
@@ -37,7 +38,10 @@ impl Parser<'_> {
                 visibility,
                 name,
                 generics,
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                typ: UnresolvedType {
+                    typ: UnresolvedTypeData::Error,
+                    location: self.location_at_previous_token_end(),
+                },
                 location,
             };
         }

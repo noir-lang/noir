@@ -35,7 +35,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/9WUXwrCMAzG2+4PXsAH3zxCsrZb+6YPHsRh9+6pvIvn8CBurIVQ5xBaBT8IgbSELz9CBJtV+ZjExyh8nrSPatzXqMLfg88SWqVc1ziUeIbG9kaD0n1r0KA2+tIYKZ1RprO97cCikg4HbeUAswTpBWmSFfFP/QpSm3LpGfBotlxGcA0YpAmLDPDdMMkZ7mGwCAZfqAXVY2zI+ycLRGuCvS6V+AL/VEZhQetsvlBRDvUPOOTYlfwcANZmTvXJM/Ir/2TmjEcUq4wz0/uydJRZ9PbuOIce28dxd73fTizSE8FNoSjdBgAA",
-  "debug_symbols": "tY9LCsMgFEX38sYOkvRHspUSgokaBFHxUyji3qvBQFpSaAcZ3s973BOA0NHPA5dMWejuAYSasONKJhWgWSyrsczKOmwcdJcKAZUEulsbETAuaPZij+D0X/28V2+bUq/r6q2fxGi4EHwethuT/cCG41HQIpmX0yZ1T70m6702aqLEG5o/LVlEH+S7KHV7LeOa6ieY7wfH0vTxBQ==",
+  "debug_symbols": "zZFLCoMwEEDvMmsXfmv1KkUk6iiBECUmQhHv3iQYq4uC2C66yWcmbybMm6HBSnUl5W0/Qv6YoRKUMdqVrK+JpD3X0XnxwF1LKRB1CHZ5TQ1EIJeQc8WYBxNhyj4aB8LtLonQWd8D5I3edcGWMjSnxXvT/mc0va1smm5wcppOXOc0u0Bn4UoHfvwVHvgHvNA3UlNxmDWEkGsgsmsMuek4EUFJxXB10Spe79TI5+AyTt4g+hobJdCUtjnz1z9VG2TObXhpvnv+it7gnjhBWXRC0KYm/JGaYnkB",
   "file_map": {
     "50": {
       "source": "fn main(x: u32, y: pub u32) {\n    let new_field = new_field_in_array([x, y, 3]);\n    assert(new_field[0] == 25);\n}\n\n#[fold]\nfn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {\n    input[0] = input[0] + 20;\n    input\n}\n",
