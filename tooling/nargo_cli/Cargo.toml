@@ -28,6 +28,7 @@ clap.workspace = true
 fm.workspace = true
 fxhash.workspace = true
 iter-extended.workspace = true
+bytes-writer.workspace = true
 # This is the only crate that really needs the RPC feature,
 # but enabling it here implicitly enables it for the whole
 # workspace. A crate could opt out using `path` dependency,

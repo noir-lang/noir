@@ -39,6 +39,7 @@ members = [
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
     # Utility crates
+    "utils/bytes-writer",
     "utils/iter-extended",
 
     "tooling/ssa_fuzzer",
@@ -118,6 +119,7 @@ ark-std = { version = "^0.5.0", default-features = false }
 
 # Misc utils crates
 iter-extended = { path = "utils/iter-extended" }
+bytes-writer = { path = "utils/bytes-writer" }
 
 # LSP
 async-lsp = { version = "0.1.0", default-features = false }

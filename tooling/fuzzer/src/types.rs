@@ -16,6 +16,9 @@ pub struct FuzzTestResult {
 
     /// Minimal reproduction test case for failing fuzz tests
     pub counterexample: Option<CounterExample>,
+
+    /// Whatever was written to the output via `print` and `println`
+    pub output: Vec<u8>,
 }
 
 /// Returned by a single fuzz in the case of a successful run
@@ -23,6 +26,8 @@ pub struct FuzzTestResult {
 pub struct CaseOutcome {
     /// Data of a single fuzz test case
     pub case: InputMap,
+    /// Whatever was written to the output via `print` and `println`
+    pub output: Vec<u8>,
 }
 
 /// Returned by a single fuzz when a counterexample has been discovered
@@ -32,6 +37,8 @@ pub struct CounterExampleOutcome {
     pub counterexample: CounterExample,
     /// The status of the call
     pub exit_reason: String,
+    /// Whatever was written to the output via `print` and `println`
+    pub output: Vec<u8>,
 }
 
 /// Outcome of a single fuzz

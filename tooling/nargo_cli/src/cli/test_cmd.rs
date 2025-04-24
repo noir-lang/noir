@@ -30,7 +30,6 @@ use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
-mod bytes_writer;
 pub(crate) mod formatters;
 
 /// Run the tests for this program
@@ -529,7 +528,7 @@ impl<'a> TestRunner<'a> {
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         let blackbox_solver = S::default();
-        let bytes_writer = BytesWriter::new();
+        let bytes_writer = BytesWriter::default();
 
         let test_status = nargo::ops::run_test(
             &blackbox_solver,

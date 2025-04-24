@@ -3,6 +3,8 @@
 //!
 //! Code is used under the MIT license.
 
+use std::cell::RefCell;
+
 use acvm::{
     FieldElement,
     acir::{
@@ -10,6 +12,7 @@ use acvm::{
         native_types::{WitnessMap, WitnessStack},
     },
 };
+use bytes_writer::BytesWriter;
 use dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
@@ -27,7 +30,7 @@ use noirc_artifacts::program::ProgramArtifact;
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
 /// inputs, until it finds a counterexample. The provided [`TestRunner`] contains all the
 /// configuration which can be overridden via [environment variables](proptest::test_runner::Config)
-pub struct FuzzedExecutor<E, W> {
+pub struct FuzzedExecutor<E> {
     /// The program to be fuzzed
     program: ProgramArtifact,
 
@@ -36,56 +39,82 @@ pub struct FuzzedExecutor<E, W> {
 
     /// The fuzzer
     runner: TestRunner,
-
-    /// An output stream to write `println` calls to.
-    output: W,
 }
 
-impl<E, W> FuzzedExecutor<E, W>
+impl<E> FuzzedExecutor<E>
 where
     E: Fn(
         &Program<FieldElement>,
         WitnessMap<FieldElement>,
-        W,
+        BytesWriter,
     ) -> Result<WitnessStack<FieldElement>, String>,
-    W: std::io::Write + Clone,
 {
     /// Instantiates a fuzzed executor given a [TestRunner].
-    pub fn new(program: ProgramArtifact, executor: E, runner: TestRunner, output: W) -> Self {
-        Self { program, executor, runner, output }
+    pub fn new(program: ProgramArtifact, executor: E, runner: TestRunner) -> Self {
+        Self { program, executor, runner }
     }
 
     /// Fuzzes the provided program.
-    pub fn fuzz(&self) -> FuzzTestResult {
+    pub fn fuzz(&mut self) -> FuzzTestResult {
         let dictionary = build_dictionary_from_program(&self.program.bytecode);
         let strategy = strategies::arb_input_map(&self.program.abi, &dictionary);
+
+        // Each fuzz run produces output from `print` and `println` calls.
+        // We don't print the output of all runs. Instead, two things can happen:
+        //  1. There is a counter-example, in which case we'd like to show the output for that counter-example.
+        //  2. There is no counter-example, in which case we'd like to show just one of the successfull cases.
+        // We accomplish this by replacing the contents of `outer_bytes_writer` with the output of a run,
+        // but only if we didn't find a counter-example so far.
+        let outer_bytes_writer = BytesWriter::default();
+        let found_counter_example = RefCell::new(false);
 
         let run_result: Result<(), TestError<InputMap>> =
             self.runner.clone().run(&strategy, |input_map| {
                 let fuzz_res = self.single_fuzz(input_map)?;
 
                 match fuzz_res {
-                    FuzzOutcome::Case(_) => Ok(()),
+                    FuzzOutcome::Case(CaseOutcome { output, .. }) => {
+                        if !*found_counter_example.borrow() {
+                            outer_bytes_writer.replace(output);
+                        }
+
+                        Ok(())
+                    }
                     FuzzOutcome::CounterExample(CounterExampleOutcome {
                         exit_reason: status,
+                        output,
                         ..
-                    }) => Err(TestCaseError::fail(status)),
+                    }) => {
+                        if !*found_counter_example.borrow() {
+                            found_counter_example.replace(true);
+                            outer_bytes_writer.replace(output);
+                        }
+                        Err(TestCaseError::fail(status))
+                    }
                 }
             });
 
+        let output = outer_bytes_writer.into_bytes();
+
         match run_result {
-            Ok(()) => FuzzTestResult { success: true, reason: None, counterexample: None },
+            Ok(()) => FuzzTestResult { success: true, reason: None, counterexample: None, output },
 
             Err(TestError::Abort(reason)) => FuzzTestResult {
                 success: false,
                 reason: Some(reason.to_string()),
                 counterexample: None,
+                output,
             },
             Err(TestError::Fail(reason, counterexample)) => {
                 let reason = reason.to_string();
                 let reason = if reason.is_empty() { None } else { Some(reason) };
 
-                FuzzTestResult { success: false, reason, counterexample: Some(counterexample) }
+                FuzzTestResult {
+                    success: false,
+                    reason,
+                    counterexample: Some(counterexample),
+                    output,
+                }
             }
         }
     }
@@ -94,15 +123,18 @@ where
     /// or a `CounterExampleOutcome`
     pub fn single_fuzz(&self, input_map: InputMap) -> Result<FuzzOutcome, TestCaseError> {
         let initial_witness = self.program.abi.encode(&input_map, None).unwrap();
-        let result = (self.executor)(&self.program.bytecode, initial_witness, self.output.clone());
+        let bytes_writer = BytesWriter::default();
+        let result = (self.executor)(&self.program.bytecode, initial_witness, bytes_writer.clone());
+        let output = bytes_writer.into_bytes();
 
         // TODO: Add handling for `vm.assume` equivalent
 
         match result {
-            Ok(_) => Ok(FuzzOutcome::Case(CaseOutcome { case: input_map })),
+            Ok(_) => Ok(FuzzOutcome::Case(CaseOutcome { case: input_map, output })),
             Err(err) => Ok(FuzzOutcome::CounterExample(CounterExampleOutcome {
                 exit_reason: err,
                 counterexample: input_map,
+                output,
             })),
         }
     }

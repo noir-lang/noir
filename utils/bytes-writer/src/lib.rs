@@ -2,17 +2,19 @@ use std::{cell::RefCell, rc::Rc};
 
 /// Similar to [`Vec<u8>`], which implements [`std::io::Write`],
 /// but also implements [`Clone`].
-#[derive(Clone)]
-pub(super) struct BytesWriter {
+#[derive(Clone, Default)]
+pub struct BytesWriter {
     bytes: Rc<RefCell<Vec<u8>>>,
 }
 
 impl BytesWriter {
-    pub(super) fn new() -> Self {
-        BytesWriter { bytes: Rc::new(RefCell::new(Vec::new())) }
+    /// Replaces the contents of this writer with the contents of `other`.
+    pub fn replace(&self, other: Vec<u8>) {
+        self.bytes.borrow_mut().clear();
+        self.bytes.borrow_mut().extend(other);
     }
 
-    pub(super) fn into_bytes(self) -> Vec<u8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         Rc::try_unwrap(self.bytes).unwrap().into_inner()
     }
 }

@@ -43,7 +43,7 @@ pub fn run_test<'a, W, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
-    output: W,
+    mut output: W,
     config: &CompileOptions,
     build_foreign_call_executor: F,
 ) -> TestStatus
@@ -166,9 +166,12 @@ where
                     }
                 };
 
-                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner, output);
+                let mut fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
 
                 let result = fuzzer.fuzz();
+
+                let _ = output.write(&result.output);
+
                 if result.success {
                     TestStatus::Pass
                 } else {
