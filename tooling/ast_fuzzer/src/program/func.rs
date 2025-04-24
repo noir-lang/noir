@@ -1,6 +1,6 @@
 use nargo::errors::Location;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
 };
 use strum::IntoEnumIterator;
@@ -127,6 +127,8 @@ pub(super) struct FunctionContext<'a> {
     /// All the functions callable from this one, with the types we can
     /// produce from their return value.
     call_targets: BTreeMap<FuncId, HashSet<Type>>,
+    /// Indicate that we have generated a `Call`.
+    has_call: bool,
 }
 
 impl<'a> FunctionContext<'a> {
@@ -177,6 +179,7 @@ impl<'a> FunctionContext<'a> {
             in_loop: false,
             call_targets,
             next_ident_id: 0,
+            has_call: false,
         }
     }
 
@@ -186,7 +189,11 @@ impl<'a> FunctionContext<'a> {
         // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
         self.budget = self.budget.min(u.len());
         let ret = self.decl().return_type.clone();
-        self.gen_expr(u, &ret, self.max_depth(), Flags::TOP)
+        let mut body = self.gen_expr(u, &ret, self.max_depth(), Flags::TOP)?;
+        if let Some(call) = self.gen_guaranteed_call_from_main(u)? {
+            expr::prepend(&mut body, call);
+        }
+        Ok(body)
     }
 
     /// Get the function declaration.
@@ -197,6 +204,11 @@ impl<'a> FunctionContext<'a> {
     /// Is this function unconstrained.
     fn unconstrained(&self) -> bool {
         self.decl().unconstrained
+    }
+
+    /// Is this the main function?
+    fn is_main(&self) -> bool {
+        self.id == Program::main_id()
     }
 
     /// The default maximum depth to start from. We use `max_depth` to limit the
@@ -652,32 +664,38 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        self.gen_let(u, None)
+        self.gen_let(u)
     }
 
-    /// Generate a `Let` statement, optionally requesting mutability.
-    fn gen_let(
-        &mut self,
-        u: &mut Unstructured,
-        mutable: Option<bool>,
-    ) -> arbitrary::Result<Expression> {
+    /// Generate a `Let` statement with arbitrary type and value.
+    fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let typ = self.ctx.gen_type(u, max_depth, false)?;
-        let id = self.next_local_id();
-
-        let mutable = match mutable {
-            Some(m) => m,
-            None => bool::arbitrary(u)?,
-        };
-
-        let name = make_name(id.0 as usize, false);
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+        let mutable = bool::arbitrary(u)?;
+        Ok(self.let_var(mutable, typ, expr, true))
+    }
+
+    /// Add a new local variable and return a `Let` expression.
+    ///
+    /// If `add_to_scope` is `false`, the value will not be added to the `locals`.
+    fn let_var(
+        &mut self,
+        mutable: bool,
+        typ: Type,
+        expr: Expression,
+        add_to_scope: bool,
+    ) -> Expression {
+        let id = self.next_local_id();
+        let name = make_name(id.0 as usize, false);
 
         // Add the variable so we can use it in subsequent expressions.
-        self.locals.add(id, mutable, name.clone(), typ.clone());
+        if add_to_scope {
+            self.locals.add(id, mutable, name.clone(), typ.clone());
+        }
 
-        Ok(expr::let_var(id, mutable, name, expr))
+        expr::let_var(id, mutable, name, expr)
     }
 
     /// Drop a local variable, if we have anything to drop.
@@ -871,6 +889,9 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
 
+        // Remember that we will have made a call to something.
+        self.has_call = true;
+
         let callee_id = *u.choose_iter(opts)?;
         let callee = self.ctx.function_decl(callee_id).clone();
         let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
@@ -931,19 +952,16 @@ impl<'a> FunctionContext<'a> {
         // Increment the index in the beginning of the body.
         expr::prepend(
             &mut loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
             ),
         );
 
         // Put everything into if/else
+        let max_loop_size = self.gen_loop_size(u)?;
         let loop_body = expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(self.ctx.config.max_loop_size as u32),
-            ),
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -985,19 +1003,16 @@ impl<'a> FunctionContext<'a> {
         // Increment the index in the beginning of the body.
         expr::prepend(
             &mut loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
             ),
         );
 
         // Put everything into if/else
+        let max_loop_size = self.gen_loop_size(u)?;
         let inner_block = Expression::Block(vec![expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(self.ctx.config.max_loop_size as u32),
-            ),
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -1013,6 +1028,36 @@ impl<'a> FunctionContext<'a> {
 
         Ok(Expression::Block(stmts))
     }
+
+    /// Choose a random maximum guard size for `loop` and `while` to match the average of the size of a `for`.
+    fn gen_loop_size(&self, u: &mut Unstructured) -> arbitrary::Result<usize> {
+        if self.ctx.config.vary_loop_size {
+            u.choose_index(self.ctx.config.max_loop_size)
+        } else {
+            Ok(self.ctx.config.max_loop_size)
+        }
+    }
+
+    /// If this is main, and we could have made a call to another function, but we didn't,
+    /// ensure we do, so as not to let all the others we generate go to waste.
+    fn gen_guaranteed_call_from_main(
+        &mut self,
+        u: &mut Unstructured,
+    ) -> arbitrary::Result<Option<Expression>> {
+        if self.is_main() && !self.has_call && !self.call_targets.is_empty() {
+            // Choose a type we'll return.
+            let opts = self.call_targets.values().fold(BTreeSet::new(), |mut acc, types| {
+                acc.extend(types.iter());
+                acc
+            });
+            let typ = (*u.choose_iter(opts.iter())?).clone();
+            // Assign the result of the call to a variable we won't use.
+            if let Some(call) = self.gen_call(u, &typ, self.max_depth())? {
+                return Ok(Some(self.let_var(false, typ, call, false)));
+            }
+        }
+        Ok(None)
+    }
 }
 
 #[test]
@@ -1020,7 +1065,8 @@ fn test_loop() {
     let mut u = Unstructured::new(&[0u8; 1]);
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
-    ctx.add_main_decl(&mut u);
+    ctx.config.vary_loop_size = false;
+    ctx.gen_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
     let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
@@ -1045,7 +1091,8 @@ fn test_while() {
     let mut u = Unstructured::new(&[0u8; 1]);
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
-    ctx.add_main_decl(&mut u);
+    ctx.config.vary_loop_size = false;
+    ctx.gen_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
     let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");

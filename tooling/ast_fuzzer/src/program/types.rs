@@ -222,3 +222,8 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
         _ => false,
     }
 }
+
+/// Reference an expression into a target type
+pub(crate) fn ref_mut(typ: Type) -> Type {
+    Type::Reference(Box::new(typ), true)
+}
