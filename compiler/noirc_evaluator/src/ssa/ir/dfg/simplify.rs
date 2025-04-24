@@ -372,20 +372,17 @@ fn try_optimize_array_set_from_previous_get(
     target_index: ValueId,
     target_value: ValueId,
 ) -> SimplifyResult {
-    let array_from_get = match &dfg[target_value] {
-        Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-            Instruction::ArrayGet { array, index } => {
-                if *array == array_id && *index == target_index {
-                    // If array and index match from the value, we can immediately simplify
-                    return SimplifyResult::SimplifiedTo(array_id);
-                } else if *index == target_index {
-                    *array
-                } else {
-                    return SimplifyResult::None;
-                }
+    let array_from_get = match dfg.get_local_or_global_instruction(target_value) {
+        Some(Instruction::ArrayGet { array, index }) => {
+            if *array == array_id && *index == target_index {
+                // If array and index match from the value, we can immediately simplify
+                return SimplifyResult::SimplifiedTo(array_id);
+            } else if *index == target_index {
+                *array
+            } else {
+                return SimplifyResult::None;
             }
-            _ => return SimplifyResult::None,
-        },
+        }
         _ => return SimplifyResult::None,
     };
 
