@@ -132,7 +132,71 @@
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a></pre></div><pre class="rust"><code><span class="doccomment">//! Removes any unreachable functions from the code. These can result from
+//! optimizations making existing functions unreachable, e.g. `if false { foo() }`,
+//! or even from monomorphizing an unconstrained version of a constrained function
+//! where the original constrained version ends up never being used.
+//!
+//! This pass identifies all unreachable functions and prunes them from the
+//! function set. Reachability is defined as:
+//! - A function is reachable if it is an entry point (e.g., `main`)
+//! - A function is reachable if it is called from another reachable function
+//! - A function is reachable if it is stored in a reference (e.g., in a `Store` instruction) from another reachable function.
+//!   Even if not immediately called, it may later be dynamically loaded and invoked.
+//!   This marking is conservative but ensures correctness. We should instead rely on [mem2reg][crate::ssa::opt::mem2reg]
+//!   for resolving loads/stores.
+//!
+//! The pass performs a recursive traversal starting from all entry points and marks
+//! any transitively reachable functions. It then discards the rest.
+//!
+//! This pass helps shrink the SSA before compilation stages like inlining and dead code elimination.
+
+</span><span class="kw">use </span>std::collections::BTreeSet;
 
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -146,37 +210,50 @@
 };
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// Removes any unreachable functions from the code. These can result from
-    /// optimizations making existing functions unreachable, e.g. `if false { foo() }`,
-    /// or even from monomorphizing an unconstrained version of a constrained function
-    /// where the original constrained version ends up never being used.
+    <span class="doccomment">/// See [`remove_unreachable`][self] module for more information.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_unreachable_functions(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>used_functions = HashSet::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>reachable_functions = HashSet::default();
 
-        <span class="kw">for </span>(id, function) <span class="kw">in </span><span class="self">self</span>.functions.iter() {
+        <span class="comment">// Go through all the functions, and if we have an entry point, extend the set of all
+        // functions which are reachable.
+        </span><span class="kw">for </span>(id, function) <span class="kw">in </span><span class="self">self</span>.functions.iter() {
             <span class="comment">// XXX: `self.is_entry_point(*id)` could leave Brillig functions that nobody calls in the SSA.
             </span><span class="kw">let </span>is_entry_point = function.id() == <span class="self">self</span>.main_id
                 || function.runtime().is_acir() &amp;&amp; function.runtime().is_entry_point();
 
             <span class="kw">if </span>is_entry_point {
-                collect_reachable_functions(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">*</span>id, <span class="kw-2">&amp;mut </span>used_functions);
+                collect_reachable_functions(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">*</span>id, <span class="kw-2">&amp;mut </span>reachable_functions);
             }
         }
 
-        <span class="self">self</span>.functions.retain(|id, <span class="kw">_</span>| used_functions.contains(id));
+        <span class="comment">// Discard all functions not marked as reachable
+        </span><span class="self">self</span>.functions.retain(|id, <span class="kw">_</span>| reachable_functions.contains(id));
         <span class="self">self
     </span>}
 }
 
-<span class="kw">fn </span>collect_reachable_functions(
+<span class="doccomment">/// Recursively determine the reachable functions from a given function.
+/// This function is only intended to be called on functions that are already known
+/// to be entry points or transitively reachable from one.
+///
+/// # Arguments
+/// - `ssa`: The full [Ssa] structure containing all functions.
+/// - `current_func_id`: The [FunctionId] from which to begin a traversal.
+/// - `reachable_functions`: A mutable set used to collect all reachable functions.
+///   It serves both as the final output of this traversal and as a visited set
+///   to prevent cycles and redundant recursion.
+</span><span class="kw">fn </span>collect_reachable_functions(
     ssa: <span class="kw-2">&amp;</span>Ssa,
     current_func_id: FunctionId,
     reachable_functions: <span class="kw-2">&amp;mut </span>HashSet&lt;FunctionId&gt;,
 ) {
-    <span class="kw">if </span>reachable_functions.contains(<span class="kw-2">&amp;</span>current_func_id) {
+    <span class="comment">// If this function has already been determine as reachable, then we have already
+    // processed the given function and we can simply return.
+    </span><span class="kw">if </span>reachable_functions.contains(<span class="kw-2">&amp;</span>current_func_id) {
         <span class="kw">return</span>;
     }
-    reachable_functions.insert(current_func_id);
+    <span class="comment">// Mark the given function as reachable
+    </span>reachable_functions.insert(current_func_id);
 
     <span class="comment">// If the debugger is used, its possible for function inlining
     // to remove functions that the debugger still references
@@ -184,14 +261,27 @@
         <span class="kw">return</span>;
     };
 
-    <span class="kw">let </span>used_functions = used_functions(func);
+    <span class="comment">// Get the set of reachable functions from the given function
+    </span><span class="kw">let </span>used_functions = used_functions(func);
 
-    <span class="kw">for </span>called_func_id <span class="kw">in </span>used_functions.iter() {
+    <span class="comment">// For each reachable function within the given function recursively collect
+    // any more reachable functions.
+    </span><span class="kw">for </span>called_func_id <span class="kw">in </span>used_functions.iter() {
         collect_reachable_functions(ssa, <span class="kw-2">*</span>called_func_id, reachable_functions);
     }
 }
 
-<span class="kw">fn </span>used_functions(func: <span class="kw-2">&amp;</span>Function) -&gt; BTreeSet&lt;FunctionId&gt; {
+<span class="doccomment">/// Identifies all reachable function IDs within a given function.
+/// This includes:
+/// - Function calls (functions used via `Call` instructions)
+/// - Function references (functions stored via `Store` instructions)
+///
+/// # Arguments
+/// - `func`: The [Function] to analyze for usage
+///
+/// # Returns
+/// A sorted set of [`FunctionId`]s that are reachable from the function.
+</span><span class="kw">fn </span>used_functions(func: <span class="kw-2">&amp;</span>Function) -&gt; BTreeSet&lt;FunctionId&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>used_function_ids = BTreeSet::default();
 
     <span class="kw">let </span><span class="kw-2">mut </span>find_functions = |value| {
