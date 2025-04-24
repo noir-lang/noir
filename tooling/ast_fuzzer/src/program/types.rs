@@ -78,6 +78,14 @@ pub(crate) fn types_produced(typ: &Type) -> HashSet<Type> {
                 for size in IntegerBitSize::iter()
                     .filter(|size| size.bit_size() > integer_bit_size.bit_size())
                 {
+                    // We don't want to produce `i1` or `i128`
+                    if sign.is_signed()
+                        && (size == IntegerBitSize::One
+                            || size == IntegerBitSize::HundredTwentyEight)
+                    {
+                        continue;
+                    }
+
                     acc.insert(Type::Integer(*sign, size));
                 }
                 // There are `From<u*>` for Field
