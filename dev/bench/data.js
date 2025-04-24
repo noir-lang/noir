@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745521241781,
+  "lastUpdate": 1745521246026,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e1c2ed004affaeff7ba92c646433646a2d5b58f7",
-          "message": "chore(optimization): Enable experimental ownership clone scheme by default (#8097)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>",
-          "timestamp": "2025-04-16T18:08:20Z",
-          "tree_id": "df64837af4796c6293cf3cca9e605c435a4d7f51",
-          "url": "https://github.com/noir-lang/noir/commit/e1c2ed004affaeff7ba92c646433646a2d5b58f7"
-        },
-        "date": 1744828462995,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 270.22,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 550.52,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.53,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 270.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7770,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7780,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 271.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 321.9,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 322.41,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "114c06c2e02412d43f01e9df9befb07314e49f58",
+          "message": "chore: refactor constrainedness checks on trait impls (#8170)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-24T18:33:17Z",
+          "tree_id": "887f6336e90512bb44f5e73977e38e4c6a36feac",
+          "url": "https://github.com/noir-lang/noir/commit/114c06c2e02412d43f01e9df9befb07314e49f58"
+        },
+        "date": 1745521238453,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 270.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 535.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 200.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1330,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 270.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7770,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7780,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 271.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 322.44,
             "unit": "MB"
           }
         ]
