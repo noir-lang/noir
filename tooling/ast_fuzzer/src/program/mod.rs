@@ -180,7 +180,7 @@ impl Context {
 
     /// Generate and add main (for testing)
     #[cfg(test)]
-    fn add_main_decl(&mut self, u: &mut Unstructured) {
+    fn gen_main_decl(&mut self, u: &mut Unstructured) {
         let d = self.gen_function_decl(u, 0).unwrap();
         self.function_declarations.insert(FuncId(0u32), d);
     }
@@ -208,7 +208,7 @@ impl Context {
 
     /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        rewrite::add_recursion_depth(self, u)
+        rewrite::add_recursion_limit(self, u)
     }
 
     /// Return the generated [Program].

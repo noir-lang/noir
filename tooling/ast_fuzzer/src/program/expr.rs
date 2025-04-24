@@ -277,8 +277,16 @@ pub(crate) fn if_else(
 }
 
 /// Assign a value to an identifier.
-pub(crate) fn assign(ident: Ident, expr: Expression) -> Expression {
+pub(crate) fn assign_ident(ident: Ident, expr: Expression) -> Expression {
     Expression::Assign(Assign { lvalue: LValue::Ident(ident), expression: Box::new(expr) })
+}
+
+/// Assign a value to a mutable reference.
+pub(crate) fn assign_ref(ident: Ident, expr: Expression) -> Expression {
+    let typ = ident.typ.clone();
+    let lvalue = LValue::Ident(ident);
+    let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type: typ };
+    Expression::Assign(Assign { lvalue, expression: Box::new(expr) })
 }
 
 /// Cast an expression to a target type.
@@ -310,6 +318,11 @@ pub(crate) fn equal(lhs: Expression, rhs: Expression) -> Expression {
 /// Dereference an expression into a target type
 pub(crate) fn deref(rhs: Expression, tgt_type: Type) -> Expression {
     unary(UnaryOp::Dereference { implicitly_added: false }, rhs, tgt_type)
+}
+
+/// Reference an expression as a target type
+pub(crate) fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
+    unary(UnaryOp::Reference { mutable: true }, rhs, tgt_type)
 }
 
 /// Make a unary expression.

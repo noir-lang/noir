@@ -931,19 +931,16 @@ impl<'a> FunctionContext<'a> {
         // Increment the index in the beginning of the body.
         expr::prepend(
             &mut loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
             ),
         );
 
         // Put everything into if/else
+        let max_loop_size = self.gen_loop_size(u)?;
         let loop_body = expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(self.ctx.config.max_loop_size as u32),
-            ),
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -985,19 +982,16 @@ impl<'a> FunctionContext<'a> {
         // Increment the index in the beginning of the body.
         expr::prepend(
             &mut loop_body,
-            expr::assign(
+            expr::assign_ident(
                 idx_ident,
                 expr::binary(idx_expr.clone(), BinaryOp::Add, expr::u32_literal(1)),
             ),
         );
 
         // Put everything into if/else
+        let max_loop_size = self.gen_loop_size(u)?;
         let inner_block = Expression::Block(vec![expr::if_else(
-            expr::binary(
-                idx_expr,
-                BinaryOp::Equal,
-                expr::u32_literal(self.ctx.config.max_loop_size as u32),
-            ),
+            expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
             Type::Unit,
@@ -1013,6 +1007,14 @@ impl<'a> FunctionContext<'a> {
 
         Ok(Expression::Block(stmts))
     }
+
+    fn gen_loop_size(&self, u: &mut Unstructured) -> arbitrary::Result<usize> {
+        if self.ctx.config.vary_loop_size {
+            u.choose_index(self.ctx.config.max_loop_size)
+        } else {
+            Ok(self.ctx.config.max_loop_size)
+        }
+    }
 }
 
 #[test]
@@ -1020,7 +1022,8 @@ fn test_loop() {
     let mut u = Unstructured::new(&[0u8; 1]);
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
-    ctx.add_main_decl(&mut u);
+    ctx.config.vary_loop_size = false;
+    ctx.gen_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
     let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
@@ -1045,7 +1048,8 @@ fn test_while() {
     let mut u = Unstructured::new(&[0u8; 1]);
     let mut ctx = Context::default();
     ctx.config.max_loop_size = 10;
-    ctx.add_main_decl(&mut u);
+    ctx.config.vary_loop_size = false;
+    ctx.gen_main_decl(&mut u);
     let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
     fctx.budget = 2;
     let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");

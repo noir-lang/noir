@@ -31,7 +31,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUQQ6CMBBspUQr0YNGL/qIIigcOehDGgnv4OmmYRuWtXiQ7SSkJdvOzA6lUgyQ8DgoGFfiG35NA6NZhpyRy8T0KSP5nIQsxTx87QqjJvtdPWFsWBNdTv7alA8d6I/Rf6ERZwT+m+dXcfjNGnie/ZRfEN2dmP68eI+v4TP2gtoG6n6+h7kmfDG+O/bEndsx4N9rZdDrGeWBc01/7A3lIhh9S6KnAv6wfkrWn4jPWOfyQPrHWpkY7yXV8+tX9ZCTQ9KPOfh8MBSq4/UXeN/O9NH86bOrbN4VtrN327bl29KcHPA5/ACOyeBWeQcAAA==",
-  "debug_symbols": "lZDLCsMgEEX/ZdYuopAm9VdKCSYZgyAqPgpF/Pdq6UK6czNwhzl34GQ4cU/Xpoy0Afgjg7aHiMqamnIhsHultbq2fg1TG3T+3gcnTIshCh+BrzMBNCdwSmnFpdIIfGblSYDeRoFlFFhHgfsgwKYhoNT0El6JXeNPqEzm6PzGt8M/1c7bA8/ksUnvfLfXjBG21Npa/QE=",
+  "debug_symbols": "dZDdDoMgDIXfpddcCImb81WMMajVkBAgCEsWw7uv+LO5i930UNrvNO0KI/Zx7pSZ7AJ1s0LvldZq7rQdZFDW0O8KRQ68hJoz4Ldd7rtUuzw2EdTIU2Jw0l3wiBm+2NEQJz2aALWJWjN4Sh23psVJs2mQnqoFAzQjKRlOSmN+Jfali/9oVR4s5/xDlyKlljI5KP+zX8pGXsle45FO0QyXani5s3Lex3k74Bg9ZqfLkSg2QjBxb1Oe9gY=",
   "file_map": {
     "52": {
       "source": "mod foo;\n// An example of the module system\nfn main(x: Field, y: Field) {\n    assert(x != foo::bar::from_bar(y));\n}\n",

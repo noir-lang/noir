@@ -22,13 +22,13 @@ use std::collections::BTreeSet;
 
 use acvm::acir::AcirField;
 use im::HashSet;
+use noirc_errors::call_stack::{CallStack, CallStackId};
 
 use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
             basic_block::BasicBlockId,
-            call_stack::{CallStack, CallStackId},
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             dom::DominatorTree,

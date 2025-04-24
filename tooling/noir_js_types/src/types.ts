@@ -65,12 +65,22 @@ export interface SourceCodeLocation {
   file: FileId;
 }
 
-export type OpcodeToLocationsMap = Record<OpcodeLocation, SourceCodeLocation[]>;
+export type OpcodeToLocationsMap = Record<OpcodeLocation, number>;
+
+export type LocationNodeDebugInfo = {
+  parent: number | null;
+  value: SourceCodeLocation;
+};
+
+export type LocationTree = {
+  locations: LocationNodeDebugInfo[];
+};
 
 /** The debug information for a given function. */
 export interface DebugInfo {
   /** A map of the opcode location to the source code location. */
-  locations: OpcodeToLocationsMap;
+  location_tree: LocationTree;
+  acir_locations: OpcodeToLocationsMap;
   /** For each Brillig function, we have a map of the opcode location to the source code location. */
   brillig_locations: Record<BrilligFunctionId, OpcodeToLocationsMap>;
 }

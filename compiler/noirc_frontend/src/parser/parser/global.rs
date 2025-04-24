@@ -27,13 +27,11 @@ impl Parser<'_> {
 
         let Some(ident) = self.eat_ident() else {
             self.eat_semicolon();
+            let location = self.location_at_previous_token_end();
             return LetStatement {
                 pattern: ident_to_pattern(Ident::default(), mutable),
-                r#type: UnresolvedType {
-                    typ: UnresolvedTypeData::Unspecified,
-                    location: Location::dummy(),
-                },
-                expression: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
+                r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
+                expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
                 comptime,
                 is_global_let,
@@ -48,7 +46,8 @@ impl Parser<'_> {
             self.parse_expression_or_error()
         } else {
             self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.location());
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
         self.eat_semicolon_or_error();
