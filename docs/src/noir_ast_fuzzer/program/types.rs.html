@@ -444,8 +444,8 @@
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
             </span>(op.is_arithmetic() &amp;&amp; size != <span class="number">1 </span>&amp;&amp; size != <span class="number">128 </span>&amp;&amp; size_in &lt;= size_out)
-                || op.is_bitshift() &amp;&amp; size != <span class="number">128
-                </span>|| op.is_bitwise()
+                || op.is_bitshift() &amp;&amp; size != <span class="number">128 </span>&amp;&amp; !(size == <span class="number">1 </span>&amp;&amp; sign_in.is_signed())
+                || op.is_bitwise()
         }
         (Type::Reference(typ, <span class="kw">_</span>), <span class="kw">_</span>) =&gt; can_binary_op_return_from_input(op, typ, output),
         <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
