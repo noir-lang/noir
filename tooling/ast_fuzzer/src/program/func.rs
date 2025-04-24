@@ -664,35 +664,37 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        self.gen_let(u, None)
+        self.gen_let(u)
     }
 
-    /// Generate a `Let` statement, optionally requesting mutability.
-    fn gen_let(
-        &mut self,
-        u: &mut Unstructured,
-        mutable: Option<bool>,
-    ) -> arbitrary::Result<Expression> {
+    /// Generate a `Let` statement with arbitrary type and value.
+    fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let typ = self.ctx.gen_type(u, max_depth, false)?;
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
-
-        let mutable = match mutable {
-            Some(m) => m,
-            None => bool::arbitrary(u)?,
-        };
-
-        Ok(self.add_let(mutable, typ, expr))
+        let mutable = bool::arbitrary(u)?;
+        Ok(self.let_var(mutable, typ, expr, true))
     }
 
     /// Add a new local variable and return a `Let` expression.
-    fn add_let(&mut self, mutable: bool, typ: Type, expr: Expression) -> Expression {
+    ///
+    /// If `add_to_scope` is `false`, the value will not be added to the `locals`.
+    fn let_var(
+        &mut self,
+        mutable: bool,
+        typ: Type,
+        expr: Expression,
+        add_to_scope: bool,
+    ) -> Expression {
         let id = self.next_local_id();
         let name = make_name(id.0 as usize, false);
 
         // Add the variable so we can use it in subsequent expressions.
-        self.locals.add(id, mutable, name.clone(), typ.clone());
+        if add_to_scope {
+            self.locals.add(id, mutable, name.clone(), typ.clone());
+        }
+
         expr::let_var(id, mutable, name, expr)
     }
 
@@ -1051,7 +1053,7 @@ impl<'a> FunctionContext<'a> {
             let typ = (*u.choose_iter(opts.iter())?).clone();
             // Assign the result of the call to a variable we won't use.
             if let Some(call) = self.gen_call(u, &typ, self.max_depth())? {
-                return Ok(Some(self.add_let(false, typ, call)));
+                return Ok(Some(self.let_var(false, typ, call, false)));
             }
         }
         Ok(None)
