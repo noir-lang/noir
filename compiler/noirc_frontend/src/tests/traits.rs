@@ -1519,3 +1519,28 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     ";
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_impl_with_where_clause_with_trait_with_associated_type() {
+    let src = "
+    trait Bar {
+        type typ;
+    }
+
+    impl Bar for Field {
+        type typ = Field;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar; 
+    }
+
+    impl Foo for Field{
+        fn foo<B>(_: B) where B: Bar {} 
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
