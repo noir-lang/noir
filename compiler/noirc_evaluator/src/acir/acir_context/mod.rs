@@ -830,12 +830,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let (max_q_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
             // when rhs is constant, we can better estimate the maximum bit sizes
             let max_rhs_bits = rhs_const.num_bits();
-            assert!(
-                max_rhs_bits <= bit_size,
-                "attempted to divide by constant larger than operand type"
-            );
 
-            let max_q_bits = bit_size - max_rhs_bits + 1;
+            // It is possible that we have an AcirVar which is a result of a multiplication of constants
+            // which resulted in an overflow, but that check will only happen at runtime, and here we
+            // can't assume that the RHS will never have more bits than the operand.
+            let max_q_bits = if max_rhs_bits > bit_size {
+                // Ignore what we know about the constant and let the runtime handle it.
+                bit_size
+            } else {
+                bit_size - max_rhs_bits + 1
+            };
             (max_q_bits, max_rhs_bits)
         } else {
             (bit_size, bit_size)

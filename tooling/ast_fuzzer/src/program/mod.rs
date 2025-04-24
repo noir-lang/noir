@@ -273,10 +273,14 @@ impl Context {
                 // 4 leaf types
                 0 => Type::Bool,
                 1 => Type::Field,
-                2 => Type::Integer(
-                    *u.choose(&[Signedness::Signed, Signedness::Unsigned])?,
-                    u.choose_iter(IntegerBitSize::iter())?,
-                ),
+                2 => {
+                    // i1 is deprecated
+                    let sign = *u.choose(&[Signedness::Signed, Signedness::Unsigned])?;
+                    let sizes = IntegerBitSize::iter()
+                        .filter(|bs| !(sign.is_signed() && bs.bit_size() == 1))
+                        .collect::<Vec<_>>();
+                    Type::Integer(sign, u.choose_iter(sizes)?)
+                }
                 3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
                 // 2 composite types
                 4 | 5 => {
