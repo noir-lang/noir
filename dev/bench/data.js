@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745490727560,
+  "lastUpdate": 1745492482301,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17991,42 +17991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8c4a83ac8ef52db58d6d93342e4be2b47e3c9595",
-          "message": "feat(experimental): Implement separate `-Zownership` analysis for ownership pass (#7861)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-15T15:24:56Z",
-          "tree_id": "853ae0119b316b0e5de02098ca0968f63cb4240f",
-          "url": "https://github.com/noir-lang/noir/commit/8c4a83ac8ef52db58d6d93342e4be2b47e3c9595"
-        },
-        "date": 1744731731806,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267504,
-            "range": "± 352",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236485,
-            "range": "± 1684",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19988,6 +19952,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3581886,
             "range": "± 7418",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b41112159d86863fc4d582ffd461a018639e2de5",
+          "message": "feat: optimize `checked_to_unchecked` to take into account multiplications (#8188)",
+          "timestamp": "2025-04-24T10:45:22Z",
+          "tree_id": "d3ad35d3bae4b51f8d889b9beac2f40ba87564d3",
+          "url": "https://github.com/noir-lang/noir/commit/b41112159d86863fc4d582ffd461a018639e2de5"
+        },
+        "date": 1745492476183,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 268194,
+            "range": "± 1126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 239140,
+            "range": "± 6124",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3579542,
+            "range": "± 18839",
             "unit": "ns/iter"
           }
         ]
