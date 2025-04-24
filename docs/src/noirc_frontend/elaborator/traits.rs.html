@@ -430,10 +430,7 @@
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, rc::Rc};
+<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, rc::Rc};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -711,7 +708,6 @@
     noir_function: <span class="kw-2">&amp;</span>NoirFunction,
 ) -&gt; Vec&lt;TypeCheckError&gt; {
     <span class="kw">let </span>meta = interner.function_meta(<span class="kw-2">&amp;</span>function);
-    <span class="kw">let </span>modifiers = interner.function_modifiers(<span class="kw-2">&amp;</span>function);
     <span class="kw">let </span>method_name = interner.function_name(<span class="kw-2">&amp;</span>function);
     <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
 
@@ -750,14 +746,6 @@
     // issue an error for it here.
     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_fn_id) = trait_info.method_ids.get(method_name) {
         <span class="kw">let </span>trait_fn_meta = interner.function_meta(trait_fn_id);
-        <span class="kw">let </span>trait_fn_modifiers = interner.function_modifiers(trait_fn_id);
-
-        <span class="kw">if </span>modifiers.is_unconstrained != trait_fn_modifiers.is_unconstrained {
-            <span class="kw">let </span>expected = trait_fn_modifiers.is_unconstrained;
-            <span class="kw">let </span>location = meta.name.location;
-            <span class="kw">let </span>item = method_name.to_string();
-            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, location });
-        }
 
         <span class="kw">if </span>trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             <span class="kw">let </span>expected = trait_fn_meta.direct_generics.len();
@@ -809,17 +797,23 @@
     errors: <span class="kw-2">&amp;mut </span>Vec&lt;TypeCheckError&gt;,
 ) {
     <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
-    <span class="comment">// Shouldn't need to unify envs, they should always be equal since they're both free functions
-    </span><span class="kw">if let </span>(
-        Type::Function(params_a, ret_a, _env_a, _unconstrained_a),
-        Type::Function(params_b, ret_b, _env_b, _unconstrained_b),
+    <span class="kw">if let </span>(
+        Type::Function(params_a, ret_a, env_a, unconstrained_a),
+        Type::Function(params_b, ret_b, env_b, unconstrained_b),
     ) = (expected, actual)
     {
-        <span class="comment">// TODO: we don't yet allow marking a trait function or a trait impl function as unconstrained,
-        // so both values will always be false here. Once we support that, we should check that both
-        // match (adding a test for it).
+        <span class="comment">// Shouldn't need to unify envs, they should always be equal since they're both free functions
+        </span><span class="macro">debug_assert_eq!</span>(env_a, env_b, <span class="string">"envs should match as they're both free functions"</span>);
 
-        </span><span class="kw">if </span>params_a.len() == params_b.len() {
+        <span class="kw">if </span>unconstrained_a != unconstrained_b {
+            errors.push(TypeCheckError::UnconstrainedMismatch {
+                item: method_name.to_string(),
+                expected: <span class="kw-2">*</span>unconstrained_a,
+                location,
+            });
+        }
+
+        <span class="kw">if </span>params_a.len() == params_b.len() {
             <span class="kw">for </span>(i, (a, b)) <span class="kw">in </span>params_a.iter().zip(params_b.iter()).enumerate() {
                 <span class="kw">if </span>a.try_unify(b, <span class="kw-2">&amp;mut </span>bindings).is_err() {
                     <span class="kw">let </span>parameter_location = noir_function.def.parameters.get(i);

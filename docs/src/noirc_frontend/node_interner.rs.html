@@ -2510,7 +2510,15 @@
 <a href="#2509" id="2509">2509</a>
 <a href="#2510" id="2510">2510</a>
 <a href="#2511" id="2511">2511</a>
-<a href="#2512" id="2512">2512</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2512" id="2512">2512</a>
+<a href="#2513" id="2513">2513</a>
+<a href="#2514" id="2514">2514</a>
+<a href="#2515" id="2515">2515</a>
+<a href="#2516" id="2516">2516</a>
+<a href="#2517" id="2517">2517</a>
+<a href="#2518" id="2518">2518</a>
+<a href="#2519" id="2519">2519</a>
+<a href="#2520" id="2520">2520</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
@@ -4088,16 +4096,24 @@
 
             <span class="kw">let </span><span class="kw-2">mut </span>check_trait_generics =
                 |impl_generics: <span class="kw-2">&amp;</span>[Type], impl_associated_types: <span class="kw-2">&amp;</span>[NamedType]| {
-                    trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
-                        <span class="kw">let </span>impl_generic = impl_generic.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
-                        trait_generic.try_unify(<span class="kw-2">&amp;</span>impl_generic, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
-                    }) &amp;&amp; trait_associated_types.iter().zip(impl_associated_types).all(
+                    <span class="kw">let </span>generics_unify = trait_generics.iter().zip(impl_generics).all(
                         |(trait_generic, impl_generic)| {
+                            <span class="kw">let </span>impl_generic =
+                                impl_generic.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
+                            trait_generic.try_unify(<span class="kw-2">&amp;</span>impl_generic, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
+                        },
+                    );
+
+                    <span class="kw">let </span>associated_types_unify = trait_associated_types
+                        .iter()
+                        .zip(impl_associated_types)
+                        .all(|(trait_generic, impl_generic)| {
                             <span class="kw">let </span>impl_generic2 =
                                 impl_generic.typ.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
                             trait_generic.typ.try_unify(<span class="kw-2">&amp;</span>impl_generic2, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
-                        },
-                    )
+                        });
+
+                    generics_unify &amp;&amp; associated_types_unify
                 };
 
             <span class="kw">let </span>trait_generics = <span class="kw">match </span>impl_kind {
