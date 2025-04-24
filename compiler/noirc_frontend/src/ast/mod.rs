@@ -393,6 +393,8 @@ impl UnresolvedTypeData {
             Signed(num_bits) => {
                 if num_bits == 128 {
                     Err(InvalidIntegerBitSizeError(128))
+                } else if num_bits == 1 {
+                    Err(InvalidIntegerBitSizeError(1))
                 } else {
                     Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
                 }
