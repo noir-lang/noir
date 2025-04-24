@@ -229,7 +229,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn try_to_u32(&self) -> Option<u32> {
-        (self.num_bits() <= 32).then(|| self.try_into_u128().unwrap() as u32)
+        (self.num_bits() <= 32).then(|| self.try_to_u32().unwrap())
     }
 
     /// Computes the inverse or returns zero if the inverse does not exist

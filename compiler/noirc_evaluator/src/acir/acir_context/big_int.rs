@@ -31,8 +31,7 @@ impl BigIntContext {
     /// Creates a new BigIntId for the given modulus identifier and returns it.
     pub(super) fn new_big_int<F: AcirField>(&mut self, modulus_id: F) -> BigIntId {
         let id = self.big_integers.len() as u32;
-        let result =
-            BigIntId { bigint_id: id, modulus_id: modulus_id.try_into_u128().unwrap() as u32 };
+        let result = BigIntId { bigint_id: id, modulus_id: modulus_id.try_to_u32().unwrap() };
         self.big_integers.push(result);
         result
     }

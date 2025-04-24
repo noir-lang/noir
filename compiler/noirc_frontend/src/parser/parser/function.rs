@@ -279,7 +279,7 @@ impl Parser<'_> {
                 if let Some(int) = self.eat_int() {
                     self.eat_or_error(Token::RightParen);
 
-                    let id = int.try_into_u128().unwrap() as u32;
+                    let id = int.try_to_u32().unwrap();
                     return Visibility::CallData(id);
                 } else {
                     self.expected_label(ParsingRuleLabel::Integer);

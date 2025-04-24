@@ -1299,7 +1299,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         result_element_type: AcirType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
-            Some(radix) => radix.try_into_u128().unwrap() as u32,
+            Some(radix) => radix.try_to_u32().unwrap(),
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),

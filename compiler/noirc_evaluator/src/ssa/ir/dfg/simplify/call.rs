@@ -74,7 +74,7 @@ pub(super) fn simplify_call(
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
-                let radix = constant_args[1].try_into_u128().unwrap() as u32;
+                let radix = constant_args[1].try_to_u32().unwrap();
                 let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len
                 } else {
@@ -306,7 +306,7 @@ pub(super) fn simplify_call(
             let value = arguments[0];
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
-                let max_bit_size = max_bit_size.try_into_u128().unwrap() as u32;
+                let max_bit_size = max_bit_size.try_to_u32().unwrap();
                 let max_potential_bits = dfg.get_value_max_num_bits(value);
                 if max_potential_bits < max_bit_size {
                     SimplifyResult::Remove
