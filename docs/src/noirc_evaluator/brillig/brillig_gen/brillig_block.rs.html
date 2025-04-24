@@ -2141,7 +2141,26 @@
 <a href="#2140" id="2140">2140</a>
 <a href="#2141" id="2141">2141</a>
 <a href="#2142" id="2142">2142</a>
-<a href="#2143" id="2143">2143</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2143" id="2143">2143</a>
+<a href="#2144" id="2144">2144</a>
+<a href="#2145" id="2145">2145</a>
+<a href="#2146" id="2146">2146</a>
+<a href="#2147" id="2147">2147</a>
+<a href="#2148" id="2148">2148</a>
+<a href="#2149" id="2149">2149</a>
+<a href="#2150" id="2150">2150</a>
+<a href="#2151" id="2151">2151</a>
+<a href="#2152" id="2152">2152</a>
+<a href="#2153" id="2153">2153</a>
+<a href="#2154" id="2154">2154</a>
+<a href="#2155" id="2155">2155</a>
+<a href="#2156" id="2156">2156</a>
+<a href="#2157" id="2157">2157</a>
+<a href="#2158" id="2158">2158</a>
+<a href="#2159" id="2159">2159</a>
+<a href="#2160" id="2160">2160</a>
+<a href="#2161" id="2161">2161</a>
+<a href="#2162" id="2162">2162</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -3759,28 +3778,47 @@
 
         <span class="self">self</span>.brillig_context.codegen_branch(left_is_negative.address, |ctx, is_negative| {
             <span class="kw">if </span>is_negative {
-                <span class="kw">let </span>one = ctx.make_constant_instruction(<span class="number">1_u128</span>.into(), left.bit_size);
+                <span class="comment">// If right value is greater than the left bit size, return 0
+                </span><span class="kw">let </span>rhs_does_not_overflow = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
+                <span class="kw">let </span>lhs_bit_size =
+                    ctx.make_constant_instruction(left.bit_size.into(), right.bit_size);
+                ctx.binary_instruction(
+                    right,
+                    lhs_bit_size,
+                    rhs_does_not_overflow,
+                    BrilligBinaryOp::LessThan,
+                );
 
-                <span class="comment">// computes 2^right
-                </span><span class="kw">let </span>two = ctx.make_constant_instruction(<span class="number">2_u128</span>.into(), left.bit_size);
-                <span class="kw">let </span>two_pow = ctx.make_constant_instruction(<span class="number">1_u128</span>.into(), left.bit_size);
-                <span class="kw">let </span>right_u32 = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">32</span>);
-                ctx.cast(right_u32, right);
-                <span class="kw">let </span>pow_body = |ctx: <span class="kw-2">&amp;mut </span>BrilligContext&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;, <span class="kw">_</span>: SingleAddrVariable| {
-                    ctx.binary_instruction(two_pow, two, two_pow, BrilligBinaryOp::Mul);
-                };
-                ctx.codegen_for_loop(<span class="prelude-val">None</span>, right_u32.address, <span class="prelude-val">None</span>, pow_body);
+                ctx.codegen_branch(rhs_does_not_overflow.address, |ctx, no_overflow| {
+                    <span class="kw">if </span>no_overflow {
+                        <span class="kw">let </span>one = ctx.make_constant_instruction(<span class="number">1_u128</span>.into(), left.bit_size);
 
-                <span class="comment">// Right shift using division on 1-complement
-                </span>ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
-                ctx.convert_signed_division(result, two_pow, result);
-                ctx.binary_instruction(result, one, result, BrilligBinaryOp::Sub);
+                        <span class="comment">// computes 2^right
+                        </span><span class="kw">let </span>two = ctx.make_constant_instruction(<span class="number">2_u128</span>.into(), left.bit_size);
+                        <span class="kw">let </span>two_pow = ctx.make_constant_instruction(<span class="number">1_u128</span>.into(), left.bit_size);
+                        <span class="kw">let </span>right_u32 = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">32</span>);
+                        ctx.cast(right_u32, right);
+                        <span class="kw">let </span>pow_body = |ctx: <span class="kw-2">&amp;mut </span>BrilligContext&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;, <span class="kw">_</span>: SingleAddrVariable| {
+                            ctx.binary_instruction(two_pow, two, two_pow, BrilligBinaryOp::Mul);
+                        };
+                        ctx.codegen_for_loop(<span class="prelude-val">None</span>, right_u32.address, <span class="prelude-val">None</span>, pow_body);
 
-                <span class="comment">// Clean-up
-                </span>ctx.deallocate_single_addr(one);
-                ctx.deallocate_single_addr(two);
-                ctx.deallocate_single_addr(two_pow);
-                ctx.deallocate_single_addr(right_u32);
+                        <span class="comment">// Right shift using division on 1-complement
+                        </span>ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
+                        ctx.convert_signed_division(result, two_pow, result);
+                        ctx.binary_instruction(result, one, result, BrilligBinaryOp::Sub);
+
+                        <span class="comment">// Clean-up
+                        </span>ctx.deallocate_single_addr(one);
+                        ctx.deallocate_single_addr(two);
+                        ctx.deallocate_single_addr(two_pow);
+                        ctx.deallocate_single_addr(right_u32);
+                    } <span class="kw">else </span>{
+                        ctx.const_instruction(result, <span class="number">0_u128</span>.into());
+                    }
+                });
+
+                ctx.deallocate_single_addr(rhs_does_not_overflow);
             } <span class="kw">else </span>{
                 ctx.binary_instruction(left, right, result, BrilligBinaryOp::Shr);
             }
