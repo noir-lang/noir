@@ -16,6 +16,7 @@ mod check;
 mod compile;
 mod execute;
 mod fuzz;
+mod interpret_ssa;
 mod optimize;
 mod test;
 mod transform;

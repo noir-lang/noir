@@ -81,9 +81,7 @@ impl Interpreter<'_> {
     fn is_constant(&self, value_id: ValueId) -> bool {
         match self.dfg()[value_id] {
             crate::ssa::ir::value::Value::Instruction { .. }
-            | crate::ssa::ir::value::Value::Param { .. } => {
-                false
-            }
+            | crate::ssa::ir::value::Value::Param { .. } => false,
             crate::ssa::ir::value::Value::NumericConstant { .. }
             | crate::ssa::ir::value::Value::Function(_)
             | crate::ssa::ir::value::Value::Intrinsic(_)
@@ -138,9 +136,7 @@ impl Interpreter<'_> {
 
         assert!(slice_elements.len() >= element_types.len());
 
-        let mut popped_elements = vecmap(0 .. element_types.len(), |_| {
-            slice_elements.pop().unwrap()
-        });
+        let mut popped_elements = vecmap(0..element_types.len(), |_| slice_elements.pop().unwrap());
         popped_elements.reverse();
 
         let new_length = Value::Numeric(NumericValue::U32(length - 1));
@@ -163,7 +159,7 @@ impl Interpreter<'_> {
         }
 
         assert!(slice_elements.len() >= element_types.len());
-        let mut results = slice_elements.drain(0 .. element_types.len()).collect::<Vec<_>>();
+        let mut results = slice_elements.drain(0..element_types.len()).collect::<Vec<_>>();
 
         let new_length = Value::Numeric(NumericValue::U32(length - 1));
         let new_slice = Value::slice(slice_elements, element_types);
@@ -207,12 +203,18 @@ impl Interpreter<'_> {
         assert!(slice_elements.len() >= element_types.len());
 
         let index = index as usize * element_types.len();
-        let removed: Vec<_> = slice_elements.drain(index .. index + element_types.len()).collect();
+        let removed: Vec<_> = slice_elements.drain(index..index + element_types.len()).collect();
 
         let new_length = Value::Numeric(NumericValue::U32(length - 1));
         let new_slice = Value::slice(slice_elements, element_types);
         let mut results = vec![new_length, new_slice];
         results.extend(removed);
         Ok(results)
+    }
+
+    /// Print is not an intrinsic but it is treated like one.
+    pub(super) fn call_print(&mut self, _args: Vec<Value>) -> IResults {
+        // Stub the call for now
+        Ok(Vec::new())
     }
 }

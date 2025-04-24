@@ -25,6 +25,7 @@ mod fuzz_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
+mod interpret_ssa_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
@@ -107,6 +108,8 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
+    #[command(hide = true)]
+    InterpretSsa(interpret_ssa_cmd::InterpretSsaCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -149,6 +152,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Lsp(_) => lsp_cmd::run(),
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
+        NargoCommand::InterpretSsa(args) => with_workspace(args, config, interpret_ssa_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 

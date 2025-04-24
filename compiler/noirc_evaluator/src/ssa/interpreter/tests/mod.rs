@@ -134,3 +134,40 @@ fn run_flattened_function() {
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
     assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
 }
+
+#[test]
+fn accepts_globals() {
+    let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        brillig(inline) predicate_pure fn main f0 {
+        b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            constrain v0 == g2
+            return
+        }
+    ";
+    executes_with_no_errors(src);
+}
+
+#[test]
+fn accepts_print() {
+    // fn main(x: Field) {
+    //     print(x);
+    //     println(x);
+    // }
+    // TODO: Uncomment when fixed: https://github.com/noir-lang/noir/issues/8209
+    // let src = r#"
+    //     brillig(inline) impure fn main f0 {
+    //     b0(v0: Field):
+    //         v12 = make_array b"{\"kind\":\"field\"}"
+    //         call print(u1 0, v0, v12, u1 0)
+    //         inc_rc v12
+    //         call print(u1 1, v0, v12, u1 0)
+    //         return
+    //     }
+    // "#;
+    // executes_with_no_errors(src);
+}
