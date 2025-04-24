@@ -3,7 +3,8 @@ use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::ssa::{primary_passes, secondary_passes};
+use noirc_evaluator::brillig::Brillig;
+use noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
@@ -42,6 +43,22 @@ pub fn create_ssa_or_die(
     options: &SsaEvaluatorOptions,
     msg: Option<&str>,
 ) -> SsaProgramArtifact {
+    create_ssa_with_passes_or_die(program, options, &primary_passes(options), secondary_passes, msg)
+}
+
+/// Compile a [Program] into SSA using the given primary and secondary passes, or panic.
+///
+/// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
+pub fn create_ssa_with_passes_or_die<S>(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+    primary: &[SsaPass],
+    secondary: S,
+    msg: Option<&str>,
+) -> SsaProgramArtifact
+where
+    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
+{
     // Unfortunately we can't use `std::panic::catch_unwind`
     // and `std::panic::resume_unwind` to catch any panic
     // and print the AST, then resume the panic, because
@@ -51,13 +68,12 @@ pub fn create_ssa_or_die(
         eprintln!("---\n{}\n---", program);
     }
 
-    ssa::create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
-        .unwrap_or_else(|e| {
-            panic!(
-                "failed to compile program: {}{e}",
-                msg.map(|s| format!("{s}: ")).unwrap_or_default()
-            )
-        })
+    ssa::create_program_with_passes(program, options, primary, secondary).unwrap_or_else(|e| {
+        panic!(
+            "failed to compile program: {}{e}",
+            msg.map(|s| format!("{s}: ")).unwrap_or_default()
+        )
+    })
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.

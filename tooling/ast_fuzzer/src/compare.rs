@@ -197,11 +197,11 @@ impl CompareMutants {
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
-        f: impl Fn(&mut Unstructured, &Program) -> arbitrary::Result<Program>,
+        f: impl Fn(&mut Unstructured, Program) -> arbitrary::Result<Program>,
         g: impl Fn(Program) -> SsaProgramArtifact,
     ) -> arbitrary::Result<Self> {
         let program1 = arb_program(u, c)?;
-        let program2 = f(u, &program1)?;
+        let program2 = f(u, program1.clone())?;
         let abi = program_abi(&program1);
 
         let ssa1 = g(program1.clone());

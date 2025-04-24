@@ -1,8 +1,12 @@
 //! Perform random equivalence mutations on the AST and check that the
 //! execution result does not change.
+//!
+//! ```text
+//! cargo +nightly fuzz run orig_vs_mutant
+//! ```
 #![no_main]
 
-use color_eyre::eyre::{self, Context};
+use color_eyre::eyre;
 use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use noir_ast_fuzzer::Config;
@@ -25,7 +29,7 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         |program| create_ssa_or_die(program, &options, None),
     )?;
 
-    let result = inputs.exec().wrap_err("exec")?;
+    let result = inputs.exec()?;
 
     compare_results(&inputs, &result, |inputs| [&inputs.program.0, &inputs.program.1])
 }
