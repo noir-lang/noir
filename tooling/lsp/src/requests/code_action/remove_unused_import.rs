@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use fm::FileId;
 use async_lsp::lsp_types::TextEdit;
+use fm::FileId;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ParsedModule,

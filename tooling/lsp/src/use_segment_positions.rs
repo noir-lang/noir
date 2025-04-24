@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use fm::{FileId, FileMap};
 use async_lsp::lsp_types::{Position, Range, TextEdit};
+use fm::{FileId, FileMap};
 use noirc_errors::Span;
 use noirc_frontend::ast::{PathKind, UseTree, UseTreeKind};
 

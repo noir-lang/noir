@@ -1,11 +1,11 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
 use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
 use noirc_frontend::{
     ParsedModule,

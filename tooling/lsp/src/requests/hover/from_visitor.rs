@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use fm::{FileId, FileMap};
 use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
+use fm::{FileId, FileMap};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
