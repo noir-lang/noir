@@ -1515,7 +1515,7 @@ fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
 
 #[named]
 #[test]
-fn errors_if_unconstrained_trait_definition_is_impled_constrained() {
+fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
     let src = r#"
     pub trait Foo {
         unconstrained fn foo() -> Field;

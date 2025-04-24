@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_errors_if_unconstrained_trait_definition_is_impled_constrained"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
