@@ -168,7 +168,7 @@ where
 
                 let result = fuzzer.fuzz();
 
-                let _ = output.write(&result.output);
+                output.write(&result.output).expect("could not write to output");
 
                 if result.success {
                     TestStatus::Pass
