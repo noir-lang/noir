@@ -1,6 +1,6 @@
 // Re-usable methods that backends can use to implement their PWG
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use acir::{
     AcirField, BlackBoxFunc,
@@ -403,31 +403,28 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// 2. The circuit has been found to be unsatisfiable.
     /// 2. A Brillig [foreign call][`ForeignCallWaitInfo`] has been encountered and must be resolved.
     pub fn solve(&mut self) -> ACVMStatus<F> {
-        let mut pending_arithmetic_opcodes: PendingArithmeticOpcodes<F> =
-            PendingArithmeticOpcodes::new();
-
+        let mut easy_to_solve_witnesses: HashSet<u32> = HashSet::new();
+        let mut hard_to_solve_witnesses: HashSet<u32> = HashSet::new();
         while self.status == ACVMStatus::InProgress {
-            self.solve_opcode_optimized(&mut pending_arithmetic_opcodes);
+            self.solve_opcode_optimized(&mut easy_to_solve_witnesses, &mut hard_to_solve_witnesses);
         }
-        // write the pending opcodes that are not written down yet
-        let final_write_result =
-            pending_arithmetic_opcodes.write_pending_ops(&mut self.witness_map);
-        if self.status == ACVMStatus::Solved && final_write_result.is_err() {
-            self.status(ACVMStatus::Failure(final_write_result.err().unwrap()));
-        }
+        println!("easy_to_solve_witnesses: {:?}", easy_to_solve_witnesses.len());
+        println!("hard_to_solve_witnesses: {:?}", hard_to_solve_witnesses.len());
         self.status.clone()
     }
 
     pub(crate) fn solve_opcode_optimized(
         &mut self,
-        pending_arithmetic_opcodes: &mut PendingArithmeticOpcodes<F>,
+        easy_to_solve_witnesses: &mut HashSet<u32>,
+        hard_to_solve_witnesses: &mut HashSet<u32>,
     ) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {
             Opcode::AssertZero(expr) => ExpressionSolver::solve_optimized(
                 &mut self.witness_map,
                 expr,
-                pending_arithmetic_opcodes,
+                easy_to_solve_witnesses,
+                hard_to_solve_witnesses,
             ),
             Opcode::BlackBoxFuncCall(bb_func) => blackbox::solve(
                 self.backend,

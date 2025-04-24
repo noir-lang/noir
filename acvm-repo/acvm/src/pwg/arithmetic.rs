@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::{ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 use acir::{
     AcirField,
@@ -112,161 +114,6 @@ pub(crate) enum MulTerm<F> {
 impl ExpressionSolver {
     /// the solver method along side the the optimization with the pending arithmetic opcodes
     /// Derives the rest of the witness based on the initial low level variables
-    pub(crate) fn solve_optimized<F: AcirField>(
-        initial_witness: &mut WitnessMap<F>,
-        opcode: &Expression<F>,
-        pending_arithmetic_opcodes: &mut PendingArithmeticOpcodes<F>,
-    ) -> Result<(), OpcodeResolutionError<F>> {
-        let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
-        // Evaluate multiplication term
-        let mul_result =
-            ExpressionSolver::solve_mul_term(opcode, initial_witness).map_err(|_| {
-                OpcodeResolutionError::OpcodeNotSolvable(
-                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
-                )
-            })?;
-        // Evaluate the fan-in terms
-        let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
-
-        match (mul_result, opcode_status) {
-            (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
-                // if we have too many unknowns, and there are no pending ops, then we can return an error
-                if pending_arithmetic_opcodes.pending_witness_write.is_empty() {
-                    return Err(OpcodeResolutionError::OpcodeNotSolvable(
-                        OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
-                    ));
-                }
-                // there might be too many unknowns that are in the pending witness list that is not written down yet.
-                // so we write down the pending witness lists and solve again
-                // pending_arithmetic_opcodes.failures += 1;
-                let write_output = pending_arithmetic_opcodes.write_pending_ops(initial_witness);
-                write_output.map_err(|_| {
-                    OpcodeResolutionError::OpcodeNotSolvable(
-                        OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
-                    )
-                })?;
-                // no we have to solve again to see if the opcode is solvable
-                ExpressionSolver::solve_optimized(
-                    initial_witness,
-                    opcode,
-                    pending_arithmetic_opcodes,
-                )
-            }
-
-            (MulTerm::OneUnknown(q, w1), OpcodeStatus::OpcodeSolvable(a, (b, w2))) => {
-                if w1 == w2 {
-                    // We have one unknown so we can solve the equation
-                    let total_sum = a + opcode.q_c;
-                    match q + b {
-                        x if x.is_zero() => {
-                            if !total_sum.is_zero() {
-                                Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                                    opcode_location: ErrorLocation::Unresolved,
-                                    payload: None,
-                                })
-                            } else {
-                                Ok(())
-                            }
-                        }
-                        x if x == F::one() => insert_value(&w1, total_sum, initial_witness),
-                        x if x == -F::one() => insert_value(&w1, -total_sum, initial_witness),
-                        x => {
-                            // normally we would do
-                            // let assignment = -total_sum / (q + b);
-                            // insert_value(&w1, assignment, initial_witness)
-                            // but we want to add this to pending_arithmetic_opcodes
-                            pending_arithmetic_opcodes.add_pending_op(-total_sum, x, w1)
-                        }
-                    }
-                } else {
-                    // TODO: can we be more specific with this error?
-                    Err(OpcodeResolutionError::OpcodeNotSolvable(
-                        OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
-                    ))
-                }
-            }
-            (
-                MulTerm::OneUnknown(partial_prod, unknown_var),
-                OpcodeStatus::OpcodeSatisfied(sum),
-            ) => {
-                // We have one unknown in the mul term and the fan-in terms are solved.
-                // Hence the equation is solvable, since there is a single unknown
-                // The equation is: partial_prod * unknown_var + sum + qC = 0
-
-                let total_sum = sum + opcode.q_c;
-
-                match partial_prod {
-                    x if x.is_zero() => {
-                        if !total_sum.is_zero() {
-                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                                opcode_location: ErrorLocation::Unresolved,
-                                payload: None,
-                            })
-                        } else {
-                            Ok(())
-                        }
-                    }
-                    x if x == F::one() => insert_value(&unknown_var, -total_sum, initial_witness),
-                    x if x == -F::one() => insert_value(&unknown_var, total_sum, initial_witness),
-                    _ => {
-                        // normally we would do
-                        // let assignment = -(total_sum / partial_prod);
-                        // insert_value(&unknown_var, assignment, initial_witness)
-                        // but we want to add this to pending_arithmetic_opcodes
-                        pending_arithmetic_opcodes.add_pending_op(
-                            -total_sum,
-                            partial_prod,
-                            unknown_var,
-                        )
-                    }
-                }
-            }
-            (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
-                // All the variables in the MulTerm are solved and the Fan-in is also solved
-                // There is nothing to solve
-                if !(a + b + opcode.q_c).is_zero() {
-                    Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                        opcode_location: ErrorLocation::Unresolved,
-                        payload: None,
-                    })
-                } else {
-                    Ok(())
-                }
-            }
-            (
-                MulTerm::Solved(total_prod),
-                OpcodeStatus::OpcodeSolvable(partial_sum, (coeff, unknown_var)),
-            ) => {
-                // The variables in the MulTerm are solved and there is one unknown in the Fan-in
-                // Hence the equation is solvable, since we have one unknown
-                // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
-                let total_sum = total_prod + partial_sum + opcode.q_c;
-                match coeff {
-                    x if x.is_zero() => {
-                        if !total_sum.is_zero() {
-                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                                opcode_location: ErrorLocation::Unresolved,
-                                payload: None,
-                            })
-                        } else {
-                            Ok(())
-                        }
-                    }
-                    x if x == F::one() => insert_value(&unknown_var, -total_sum, initial_witness),
-                    x if x == -F::one() => insert_value(&unknown_var, total_sum, initial_witness),
-                    _ => {
-                        // normally we would do
-                        // let assignment = -(total_sum / coeff);
-                        // insert_value(&unknown_var, assignment, initial_witness)
-                        // but we want to add this to pending_arithmetic_opcodes
-                        pending_arithmetic_opcodes.add_pending_op(-total_sum, coeff, unknown_var)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Derives the rest of the witness based on the initial low level variables
     pub(crate) fn solve<F: AcirField>(
         initial_witness: &mut WitnessMap<F>,
         opcode: &Expression<F>,
@@ -366,6 +213,123 @@ impl ExpressionSolver {
                     }
                 } else {
                     let assignment = -quick_invert(total_sum, coeff);
+                    insert_value(&unknown_var, assignment, initial_witness)
+                }
+            }
+        }
+    }
+    /// Derives the rest of the witness based on the initial low level variables
+    pub(crate) fn solve_optimized<F: AcirField>(
+        initial_witness: &mut WitnessMap<F>,
+        opcode: &Expression<F>,
+        easy_to_solve_witnesses: &mut HashSet<u32>,
+        hard_to_solve_witnesses: &mut HashSet<u32>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
+        // Evaluate multiplication term
+        let mul_result =
+            ExpressionSolver::solve_mul_term(opcode, initial_witness).map_err(|_| {
+                OpcodeResolutionError::OpcodeNotSolvable(
+                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                )
+            })?;
+        // Evaluate the fan-in terms
+        let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
+
+        match (mul_result, opcode_status) {
+            (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
+                Err(OpcodeResolutionError::OpcodeNotSolvable(
+                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                ))
+            }
+            (MulTerm::OneUnknown(q, w1), OpcodeStatus::OpcodeSolvable(a, (b, w2))) => {
+                if w1 == w2 {
+                    // We have one unknown so we can solve the equation
+                    let total_sum = a + opcode.q_c;
+                    if (q + b).is_zero() {
+                        if !total_sum.is_zero() {
+                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                                opcode_location: ErrorLocation::Unresolved,
+                                payload: None,
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    } else {
+                        let assignment = -quick_invert(total_sum, q + b);
+                        insert_value(&w1, assignment, initial_witness)
+                    }
+                } else {
+                    // TODO: can we be more specific with this error?
+                    Err(OpcodeResolutionError::OpcodeNotSolvable(
+                        OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                    ))
+                }
+            }
+            (
+                MulTerm::OneUnknown(partial_prod, unknown_var),
+                OpcodeStatus::OpcodeSatisfied(sum),
+            ) => {
+                // We have one unknown in the mul term and the fan-in terms are solved.
+                // Hence the equation is solvable, since there is a single unknown
+                // The equation is: partial_prod * unknown_var + sum + qC = 0
+
+                let total_sum = sum + opcode.q_c;
+                if partial_prod.is_zero() {
+                    if !total_sum.is_zero() {
+                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                            opcode_location: ErrorLocation::Unresolved,
+                            payload: None,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    let assignment = -quick_invert(total_sum, partial_prod);
+                    if partial_prod == F::one() || partial_prod == -F::one() {
+                        easy_to_solve_witnesses.insert(unknown_var.0);
+                    } else {
+                        hard_to_solve_witnesses.insert(unknown_var.0);
+                    }
+                    insert_value(&unknown_var, assignment, initial_witness)
+                }
+            }
+            (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
+                // All the variables in the MulTerm are solved and the Fan-in is also solved
+                // There is nothing to solve
+                if !(a + b + opcode.q_c).is_zero() {
+                    Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                        opcode_location: ErrorLocation::Unresolved,
+                        payload: None,
+                    })
+                } else {
+                    Ok(())
+                }
+            }
+            (
+                MulTerm::Solved(total_prod),
+                OpcodeStatus::OpcodeSolvable(partial_sum, (coeff, unknown_var)),
+            ) => {
+                // The variables in the MulTerm are solved nad there is one unknown in the Fan-in
+                // Hence the equation is solvable, since we have one unknown
+                // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
+                let total_sum = total_prod + partial_sum + opcode.q_c;
+                if coeff.is_zero() {
+                    if !total_sum.is_zero() {
+                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                            opcode_location: ErrorLocation::Unresolved,
+                            payload: None,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    let assignment = -quick_invert(total_sum, coeff);
+                    if coeff == F::one() || coeff == -F::one() {
+                        easy_to_solve_witnesses.insert(unknown_var.0);
+                    } else {
+                        hard_to_solve_witnesses.insert(unknown_var.0);
+                    }
                     insert_value(&unknown_var, assignment, initial_witness)
                 }
             }
@@ -624,170 +588,170 @@ mod tests {
         assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4_i128));
     }
 
-    #[test]
-    fn test_pending_ops() {
-        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
-            PendingArithmeticOpcodes::new();
-        let a = Witness(0);
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one() + FieldElement::one(), a)],
-            q_c: -FieldElement::one(),
-        };
-        let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
-        let _ =
-            ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
-        println!("pending_ops: {:?}", pending_ops);
-    }
-    #[test]
-    fn test_pending_ops_2() {
-        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
-            PendingArithmeticOpcodes::new();
-        let a = Witness(0);
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one() + FieldElement::one(), a)],
-            q_c: -FieldElement::one(),
-        };
-        let b: Witness = Witness(1);
-        let opcode_b = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one() + FieldElement::one(), a),
-                (FieldElement::one(), b),
-            ],
-            q_c: -FieldElement::one(),
-        };
-        let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
-        let _ =
-            ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
-        println!("pending_ops: {:?}", pending_ops);
-        println!("initial_witness: {:?}", initial_witness);
-        let _ =
-            ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_b, &mut pending_ops);
-        println!("pending_ops: {:?}", pending_ops);
-        println!("initial_witness: {:?}", initial_witness);
-    }
+    // #[test]
+    // fn test_pending_ops() {
+    //     let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+    //         PendingArithmeticOpcodes::new();
+    //     let a = Witness(0);
+    //     let opcode_a = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::one() + FieldElement::one(), a)],
+    //         q_c: -FieldElement::one(),
+    //     };
+    //     let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
+    //     let _ =
+    //         ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
+    //     println!("pending_ops: {:?}", pending_ops);
+    // }
+    // #[test]
+    // fn test_pending_ops_2() {
+    //     let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+    //         PendingArithmeticOpcodes::new();
+    //     let a = Witness(0);
+    //     let opcode_a = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::one() + FieldElement::one(), a)],
+    //         q_c: -FieldElement::one(),
+    //     };
+    //     let b: Witness = Witness(1);
+    //     let opcode_b = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![
+    //             (FieldElement::one() + FieldElement::one(), a),
+    //             (FieldElement::one(), b),
+    //         ],
+    //         q_c: -FieldElement::one(),
+    //     };
+    //     let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
+    //     let _ =
+    //         ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_a, &mut pending_ops);
+    //     println!("pending_ops: {:?}", pending_ops);
+    //     println!("initial_witness: {:?}", initial_witness);
+    //     let _ =
+    //         ExpressionSolver::solve_optimized(&mut initial_witness, &opcode_b, &mut pending_ops);
+    //     println!("pending_ops: {:?}", pending_ops);
+    //     println!("initial_witness: {:?}", initial_witness);
+    // }
 
-    #[test]
-    fn test_pending_ops_batching_linear_combinations() {
-        // we want the following scenario
-        // w0 = 2
-        // 9w1 = 3 + w0
-        // w1 1/9 should be added to pending_ops,
-        // 5w2 = 3 * w0
-        // w2 1/5 should be added to the pending ops
-        // w3 = 4 + w1
-        // a failure should happen so w1 and w2 should be written
-        // w4 = 5 * w2
-        // there's no unknowns here so the pending ops should be empty
-        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
-            PendingArithmeticOpcodes::new();
-        let w0 = Witness(0);
-        let w1 = Witness(1);
-        let w2 = Witness(2);
-        let w3 = Witness(3);
-        let w4 = Witness(4);
-        // opcode0 : w0 - 15 = 0
-        // w0 = 15
-        let opcode0 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one(), w0)],
-            q_c: -FieldElement::from(15_i128),
-        };
-        // opcode1 : 9w1 - 3 - w0 = 0
-        // w1 = 2
-        let opcode1 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::from(9_i128), w1), (-FieldElement::one(), w0)],
-            q_c: -FieldElement::from(3_i128),
-        };
-        // opcode2 : 5w2 - 3 * w0 = 0
-        // w2 = 9
-        let opcode2 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::from(5_i128), w2),
-                (-FieldElement::from(3_i128), w0),
-            ],
-            q_c: FieldElement::zero(),
-        };
-        // opcode3 : w3 - 4 - w1 = 0
-        // w3 = 6
-        let opcode3 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one(), w3), (-FieldElement::one(), w1)],
-            q_c: -FieldElement::from(4_i128),
-        };
-        // opcode4:  w4 - 5 * w2 = 0
-        // w4 = 45
-        let opcode4 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one(), w4), (-FieldElement::from(5_i128), w2)],
-            q_c: FieldElement::zero(),
-        };
-        let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode0, &mut pending_ops);
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode1, &mut pending_ops);
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode2, &mut pending_ops);
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode3, &mut pending_ops);
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode4, &mut pending_ops);
+    // #[test]
+    // fn test_pending_ops_batching_linear_combinations() {
+    //     // we want the following scenario
+    //     // w0 = 2
+    //     // 9w1 = 3 + w0
+    //     // w1 1/9 should be added to pending_ops,
+    //     // 5w2 = 3 * w0
+    //     // w2 1/5 should be added to the pending ops
+    //     // w3 = 4 + w1
+    //     // a failure should happen so w1 and w2 should be written
+    //     // w4 = 5 * w2
+    //     // there's no unknowns here so the pending ops should be empty
+    //     let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+    //         PendingArithmeticOpcodes::new();
+    //     let w0 = Witness(0);
+    //     let w1 = Witness(1);
+    //     let w2 = Witness(2);
+    //     let w3 = Witness(3);
+    //     let w4 = Witness(4);
+    //     // opcode0 : w0 - 15 = 0
+    //     // w0 = 15
+    //     let opcode0 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::one(), w0)],
+    //         q_c: -FieldElement::from(15_i128),
+    //     };
+    //     // opcode1 : 9w1 - 3 - w0 = 0
+    //     // w1 = 2
+    //     let opcode1 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::from(9_i128), w1), (-FieldElement::one(), w0)],
+    //         q_c: -FieldElement::from(3_i128),
+    //     };
+    //     // opcode2 : 5w2 - 3 * w0 = 0
+    //     // w2 = 9
+    //     let opcode2 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![
+    //             (FieldElement::from(5_i128), w2),
+    //             (-FieldElement::from(3_i128), w0),
+    //         ],
+    //         q_c: FieldElement::zero(),
+    //     };
+    //     // opcode3 : w3 - 4 - w1 = 0
+    //     // w3 = 6
+    //     let opcode3 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::one(), w3), (-FieldElement::one(), w1)],
+    //         q_c: -FieldElement::from(4_i128),
+    //     };
+    //     // opcode4:  w4 - 5 * w2 = 0
+    //     // w4 = 45
+    //     let opcode4 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::one(), w4), (-FieldElement::from(5_i128), w2)],
+    //         q_c: FieldElement::zero(),
+    //     };
+    //     let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode0, &mut pending_ops);
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode1, &mut pending_ops);
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode2, &mut pending_ops);
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode3, &mut pending_ops);
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode4, &mut pending_ops);
 
-        assert_eq!(initial_witness.get(&w0).unwrap(), &FieldElement::from(15_i128));
-        assert_eq!(initial_witness.get(&w1).unwrap(), &FieldElement::from(2_i128));
-        assert_eq!(initial_witness.get(&w2).unwrap(), &FieldElement::from(9_i128));
-        assert_eq!(initial_witness.get(&w3).unwrap(), &FieldElement::from(6_i128));
-        assert_eq!(initial_witness.get(&w4).unwrap(), &FieldElement::from(45_i128));
-    }
-    #[test]
-    fn test_pending_ops_batching_multiplication_terms() {
-        // 5 * w0 = 15 => w0 = 3 // opcode0 = 5 * w0 - 15 = 0
-        // 3 * w1 = 12 => w1 = 4 // opcode1 = 3 * w1 - 12 = 0
-        // w2 * w0 = 15 => w2 = 5 // opcode2 = w2 * w0 - 15 = 0
-        // w3 + 2 = w2  => true // opcode3 = w3 + 2 - w2 = 0
-        //
-        let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
-            PendingArithmeticOpcodes::new();
-        let w0 = Witness(0);
-        let w1 = Witness(1);
-        let w2 = Witness(2);
+    //     assert_eq!(initial_witness.get(&w0).unwrap(), &FieldElement::from(15_i128));
+    //     assert_eq!(initial_witness.get(&w1).unwrap(), &FieldElement::from(2_i128));
+    //     assert_eq!(initial_witness.get(&w2).unwrap(), &FieldElement::from(9_i128));
+    //     assert_eq!(initial_witness.get(&w3).unwrap(), &FieldElement::from(6_i128));
+    //     assert_eq!(initial_witness.get(&w4).unwrap(), &FieldElement::from(45_i128));
+    // }
+    // #[test]
+    // fn test_pending_ops_batching_multiplication_terms() {
+    //     // 5 * w0 = 15 => w0 = 3 // opcode0 = 5 * w0 - 15 = 0
+    //     // 3 * w1 = 12 => w1 = 4 // opcode1 = 3 * w1 - 12 = 0
+    //     // w2 * w0 = 15 => w2 = 5 // opcode2 = w2 * w0 - 15 = 0
+    //     // w3 + 2 = w2  => true // opcode3 = w3 + 2 - w2 = 0
+    //     //
+    //     let mut pending_ops: PendingArithmeticOpcodes<FieldElement> =
+    //         PendingArithmeticOpcodes::new();
+    //     let w0 = Witness(0);
+    //     let w1 = Witness(1);
+    //     let w2 = Witness(2);
 
-        // opcode0 : 5 * w0 - 15 = 0
-        let opcode0 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::from(5_i128), w0)],
-            q_c: -FieldElement::from(15_i128),
-        };
-        // opcode1 = 3 * w1 - 12 = 0
-        let opcode1 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::from(3_i128), w1)],
-            q_c: -FieldElement::from(12_i128),
-        };
-        // opcode2 = w2 * w0 - 15 = 0
-        let opcode2 = Expression {
-            mul_terms: vec![(FieldElement::one(), w0, w2)],
-            linear_combinations: vec![],
-            q_c: -FieldElement::from(15_i128),
-        };
-        // opcode3 = w0 + 2 - w2 = 0
-        let opcode3 = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one(), w0), (-FieldElement::one(), w2)],
-            q_c: FieldElement::from(2_i128),
-        };
-        // set up an empty witness map
-        let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
-        // now we run the opcodes
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode0, &mut pending_ops);
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode1, &mut pending_ops);
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode2, &mut pending_ops);
-        let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode3, &mut pending_ops);
+    //     // opcode0 : 5 * w0 - 15 = 0
+    //     let opcode0 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::from(5_i128), w0)],
+    //         q_c: -FieldElement::from(15_i128),
+    //     };
+    //     // opcode1 = 3 * w1 - 12 = 0
+    //     let opcode1 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::from(3_i128), w1)],
+    //         q_c: -FieldElement::from(12_i128),
+    //     };
+    //     // opcode2 = w2 * w0 - 15 = 0
+    //     let opcode2 = Expression {
+    //         mul_terms: vec![(FieldElement::one(), w0, w2)],
+    //         linear_combinations: vec![],
+    //         q_c: -FieldElement::from(15_i128),
+    //     };
+    //     // opcode3 = w0 + 2 - w2 = 0
+    //     let opcode3 = Expression {
+    //         mul_terms: vec![],
+    //         linear_combinations: vec![(FieldElement::one(), w0), (-FieldElement::one(), w2)],
+    //         q_c: FieldElement::from(2_i128),
+    //     };
+    //     // set up an empty witness map
+    //     let mut initial_witness: WitnessMap<FieldElement> = WitnessMap::new();
+    //     // now we run the opcodes
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode0, &mut pending_ops);
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode1, &mut pending_ops);
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode2, &mut pending_ops);
+    //     let _ = ExpressionSolver::solve_optimized(&mut initial_witness, &opcode3, &mut pending_ops);
 
-        // empty the pending writes
-        let _ = pending_ops.write_pending_ops(&mut initial_witness);
-        assert_eq!(initial_witness.get(&w0).unwrap(), &FieldElement::from(3_i128));
-        assert_eq!(initial_witness.get(&w1).unwrap(), &FieldElement::from(4_i128));
-        assert_eq!(initial_witness.get(&w2).unwrap(), &FieldElement::from(5_i128));
-    }
+    //     // empty the pending writes
+    //     let _ = pending_ops.write_pending_ops(&mut initial_witness);
+    //     assert_eq!(initial_witness.get(&w0).unwrap(), &FieldElement::from(3_i128));
+    //     assert_eq!(initial_witness.get(&w1).unwrap(), &FieldElement::from(4_i128));
+    //     assert_eq!(initial_witness.get(&w2).unwrap(), &FieldElement::from(5_i128));
+    // }
 }
