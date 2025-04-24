@@ -1505,7 +1505,7 @@ fn errors_if_constrained_trait_definition_is_impled_unconstrained() {
 
     impl Foo for Field {
         unconstrained fn foo() -> Field {
-                         ^^^ foo is expected to be constrained
+                         ^^^ foo is not expected to be unconstrained
             42
         }
     }
