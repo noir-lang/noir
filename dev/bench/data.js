@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745500948401,
+  "lastUpdate": 1745501231829,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "sirasistant@gmail.com",
-            "name": "Álvaro Rodríguez",
-            "username": "sirasistant"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7fea2276c7ef7d1270dabf0be3bdd08bf6858b33",
-          "message": "feat: Port callstack resolution from aztec to noirjs (#7642)\n\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: guipublic <guipublic@gmail.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>",
-          "timestamp": "2025-04-15T17:48:53Z",
-          "tree_id": "a3b35513cb53ae201a5789df9832a0c36ebefe5b",
-          "url": "https://github.com/noir-lang/noir/commit/7fea2276c7ef7d1270dabf0be3bdd08bf6858b33"
-        },
-        "date": 1744740817918,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.659,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 14.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.468,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.494,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.928,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.146,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.887,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 134,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.896,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.532,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.42,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "730529aabdf1fac3a0207decb65040cfe44369c2",
+          "message": "chore(fuzz): Make sure `main` makes at least one call (#8202)",
+          "timestamp": "2025-04-24T13:05:11Z",
+          "tree_id": "c2d73c801b8b1dca77fc7493924e865674e7064a",
+          "url": "https://github.com/noir-lang/noir/commit/730529aabdf1fac3a0207decb65040cfe44369c2"
+        },
+        "date": 1745501225603,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.673,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.471,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.2,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.518,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.901,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.915,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.4,
             "unit": "s"
           }
         ]
