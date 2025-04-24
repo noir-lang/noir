@@ -427,7 +427,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// - `signature`: The shared [Signature] of all variants.
 /// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
 /// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
-///                   This method will panic if `function_ids` is empty.
+///   This method will panic if `function_ids` is empty.
 ///
 /// # Returns
 /// The [FunctionId] of the new apply function
