@@ -64,9 +64,9 @@ where
         // We don't print the output of all runs. Instead, two things can happen:
         //  1. There is a counter-example, in which case we'd like to show the output for that counter-example.
         //  2. There is no counter-example, in which case we'd like to show just one of the successfull cases.
-        // We accomplish this by replacing the contents of `outer_bytes_writer` with the output of a run,
+        // We accomplish this by replacing the contents of `output` with the output of a run,
         // but only if we didn't find a counter-example so far.
-        let outer_bytes_writer = BytesWriter::default();
+        let output = RefCell::new(Vec::<u8>::new());
         let found_counter_example = RefCell::new(false);
 
         let run_result: Result<(), TestError<InputMap>> =
@@ -74,28 +74,28 @@ where
                 let fuzz_res = self.single_fuzz(input_map)?;
 
                 match fuzz_res {
-                    FuzzOutcome::Case(CaseOutcome { output, .. }) => {
+                    FuzzOutcome::Case(CaseOutcome { output: run_output, .. }) => {
                         if !*found_counter_example.borrow() {
-                            outer_bytes_writer.replace(output);
+                            output.replace(run_output);
                         }
 
                         Ok(())
                     }
                     FuzzOutcome::CounterExample(CounterExampleOutcome {
                         exit_reason: status,
-                        output,
+                        output: run_output,
                         ..
                     }) => {
                         if !*found_counter_example.borrow() {
                             found_counter_example.replace(true);
-                            outer_bytes_writer.replace(output);
+                            output.replace(run_output);
                         }
                         Err(TestCaseError::fail(status))
                     }
                 }
             });
 
-        let output = outer_bytes_writer.into_bytes();
+        let output: Vec<u8> = output.into_inner();
 
         match run_result {
             Ok(()) => FuzzTestResult { success: true, reason: None, counterexample: None, output },

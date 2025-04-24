@@ -8,12 +8,6 @@ pub struct BytesWriter {
 }
 
 impl BytesWriter {
-    /// Replaces the contents of this writer with the contents of `other`.
-    pub fn replace(&self, other: Vec<u8>) {
-        self.bytes.borrow_mut().clear();
-        self.bytes.borrow_mut().extend(other);
-    }
-
     pub fn into_bytes(self) -> Vec<u8> {
         Rc::try_unwrap(self.bytes).unwrap().into_inner()
     }
