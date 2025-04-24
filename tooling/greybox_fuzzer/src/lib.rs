@@ -24,7 +24,7 @@ mod mutation;
 mod types;
 
 use corpus::{Corpus, DEFAULT_CORPUS_FOLDER, TestCase, TestCaseId};
-use mutation::InputMutator;
+use mutation::{InputMutator, add_elements_from_input_map_to_vector_without_abi};
 use rayon::iter::ParallelIterator;
 use termcolor::{ColorChoice, StandardStream};
 pub use types::FuzzTestResult;
@@ -432,6 +432,39 @@ impl<
         accumulated_coverage.detect_new_coverage(&new_coverage)
     }
 
+    /// Filter the starting corpus and add elements to the dictionary
+    /// Removes testcases that can't be encoded by the new ABI and adds interesting values from them to the dictionary
+    fn filter_starting_corpus(
+        &self,
+        corpus: &Corpus,
+        starting_corpus_ids: &mut Vec<TestCaseId>,
+    ) -> Option<Vec<FieldElement>> {
+        let mut elements_for_dictionary = Vec::new();
+        let mut ids_to_remove = Vec::new();
+        for (index, id) in starting_corpus_ids.iter().enumerate() {
+            let testcase = corpus.get_testcase_by_id(*id);
+            match self.acir_program.abi.encode(testcase, None) {
+                Ok(_) => (),
+                Err(_) => {
+                    add_elements_from_input_map_to_vector_without_abi(
+                        testcase,
+                        &mut elements_for_dictionary,
+                    );
+                    // Remove the testcase from the corpus
+                    ids_to_remove.push(index);
+                }
+            }
+        }
+        ids_to_remove.sort();
+        for index in ids_to_remove.iter().rev() {
+            starting_corpus_ids.remove(*index);
+        }
+        if elements_for_dictionary.is_empty() {
+            return None;
+        }
+        Some(elements_for_dictionary)
+    }
+
     /// Start the fuzzing campaign
     pub fn fuzz(&mut self) -> FuzzTestResult {
         self.metrics.set_num_threads(self.num_threads);
@@ -465,11 +498,21 @@ impl<
         let mut starting_corpus_ids: Vec<_> =
             corpus.get_full_stored_corpus().iter().map(|x| x.id()).collect();
 
+        let elements_for_dictionary =
+            self.filter_starting_corpus(&corpus, &mut starting_corpus_ids);
+
         // Can't minimize if there is no corpus
         if self.minimize_corpus && starting_corpus_ids.is_empty() {
-            return FuzzTestResult::MinimizationFailure(
-                "No initial corpus found to minimize".to_string(),
-            );
+            let minimization_failure_message = if elements_for_dictionary.is_some() {
+                "The corpus has only elements from a previous ABI version of the fuzzing harness. Nothing to minimize"
+            } else {
+                "No initial corpus found to minimize"
+            };
+            return FuzzTestResult::MinimizationFailure(minimization_failure_message.to_string());
+        }
+        let abi_change_detected = elements_for_dictionary.is_some();
+        if let Some(elements_for_dictionary) = elements_for_dictionary {
+            self.mutator.update_dictionary_from_vector(&elements_for_dictionary);
         }
 
         let minimized_corpus = if self.minimize_corpus {
@@ -496,6 +539,7 @@ impl<
             &self.function_name,
             corpus.get_corpus_storage_path(),
             &minimized_corpus_path,
+            abi_change_detected,
         );
 
         // Generate the default input (it is needed if the corpus is empty)
@@ -1225,6 +1269,7 @@ fn display_starting_info(
     fuzzing_harness_name: &str,
     corpus_path: &Path,
     minimized_corpus_path: &Path,
+    abi_change_detected: bool,
 ) -> Result<(), std::io::Error> {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
@@ -1249,6 +1294,7 @@ fn display_starting_info(
             minimized_corpus_path.to_str().unwrap_or("No minimized corpus path provided")
         )?;
         writer.reset()?;
+
         writeln!(writer, "\"")?;
     } else {
         write!(writer, "Starting fuzzing with harness ")?;
@@ -1279,6 +1325,16 @@ fn display_starting_info(
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
     writeln!(writer, "{}", num_threads)?;
     writer.reset()?;
+
+    if abi_change_detected {
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
+        write!(writer, "ABI change detected. ")?;
+        writeln!(
+            writer,
+            "Some testcases will be skipped due to ABI change and elements from them will be added to the dictionary."
+        )?;
+        writer.reset()?;
+    }
     writer.flush()?;
     Ok(())
 }

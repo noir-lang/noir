@@ -112,9 +112,10 @@ fn get_max_num_bits(
         return *bits;
     }
 
+    let value_bit_size = dfg.type_of_value(value).bit_size();
+
     let bits = match dfg[value] {
         Value::Instruction { instruction, .. } => {
-            let value_bit_size = dfg.type_of_value(value).bit_size();
             match dfg[instruction] {
                 Instruction::Cast(original_value, _) => {
                     let original_bit_size =
@@ -135,9 +136,10 @@ fn get_max_num_bits(
             }
         }
         Value::NumericConstant { constant, .. } => constant.num_bits(),
-        _ => dfg.type_of_value(value).bit_size(),
+        _ => value_bit_size,
     };
 
+    assert!(bits <= value_bit_size);
     value_max_num_bits.insert(value, bits);
 
     bits
