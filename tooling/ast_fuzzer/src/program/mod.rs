@@ -274,10 +274,12 @@ impl Context {
                 0 => Type::Bool,
                 1 => Type::Field,
                 2 => {
-                    // i1 is deprecated
+                    // i1 is deprecated, and i128 does not exist yet
                     let sign = *u.choose(&[Signedness::Signed, Signedness::Unsigned])?;
                     let sizes = IntegerBitSize::iter()
-                        .filter(|bs| !(sign.is_signed() && bs.bit_size() == 1))
+                        .filter(|bs| {
+                            !(sign.is_signed() && (bs.bit_size() == 1 || bs.bit_size() == 128))
+                        })
                         .collect::<Vec<_>>();
                     Type::Integer(sign, u.choose_iter(sizes)?)
                 }
