@@ -1497,7 +1497,7 @@ fn returns_self_in_trait_method_3() {
 
 #[named]
 #[test]
-fn errors_if_constrained_trait_definition_is_impled_unconstrained() {
+fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
     let src = r#"
     pub trait Foo {
         fn foo() -> Field;
