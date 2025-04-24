@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745507191093,
+  "lastUpdate": 1745507278729,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17981,42 +17981,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7108709e56f6c3a36be0cb086ed024d26d4215dc",
-          "message": "fix(parser): error on missing let semicolon in trait (and others) (#8101)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-16T15:19:13Z",
-          "tree_id": "5e4cb8ab23a7a93fda4c589e5562165885e720e7",
-          "url": "https://github.com/noir-lang/noir/commit/7108709e56f6c3a36be0cb086ed024d26d4215dc"
-        },
-        "date": 1744818800039,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266199,
-            "range": "± 746",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234054,
-            "range": "± 3432",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+jewelofchaos9@users.noreply.github.com",
             "name": "defkit",
             "username": "jewelofchaos9"
@@ -20032,6 +19996,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3577094,
             "range": "± 10335",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7976865a58cff5cd5abe70bec41dfbf967909dae",
+          "message": "chore: Don't use `i1` in the AST fuzzer (#8204)",
+          "timestamp": "2025-04-24T14:46:35Z",
+          "tree_id": "b95a782cef93b13d6e9c94b9e43b530cffeced7f",
+          "url": "https://github.com/noir-lang/noir/commit/7976865a58cff5cd5abe70bec41dfbf967909dae"
+        },
+        "date": 1745507271773,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267667,
+            "range": "± 1270",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237768,
+            "range": "± 2778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3216897,
+            "range": "± 6436",
             "unit": "ns/iter"
           }
         ]
