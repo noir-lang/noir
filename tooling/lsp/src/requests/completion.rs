@@ -12,7 +12,7 @@ use completion_items::{
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
+use async_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     DataType, ParsedModule, Type, TypeBinding,

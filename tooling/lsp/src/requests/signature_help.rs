@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use async_lsp::ResponseError;
 use fm::{FileId, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
 };
 use noirc_errors::{Location, Span};

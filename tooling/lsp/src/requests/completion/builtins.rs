@@ -1,4 +1,4 @@
-use lsp_types::CompletionItemKind;
+use async_lsp::lsp_types::CompletionItemKind;
 use noirc_frontend::{ast::AttributeTarget, token::Keyword};
 use strum::IntoEnumIterator;
 

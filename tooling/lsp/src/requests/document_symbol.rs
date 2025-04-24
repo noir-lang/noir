@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use async_lsp::ResponseError;
 use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
@@ -520,7 +520,7 @@ mod document_symbol_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;

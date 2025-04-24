@@ -6,7 +6,7 @@ use std::{
 
 use async_lsp::ResponseError;
 use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
