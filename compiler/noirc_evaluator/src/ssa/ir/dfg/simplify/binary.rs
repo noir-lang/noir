@@ -25,7 +25,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
     }
 
     let operator = if lhs_type == NumericType::NativeField {
-        // Unchecked operations between fields or bools don't make sense, so we convert those to non-unchecked
+        // Unchecked operations between fields don't make sense, so we convert those to non-unchecked
         // to reduce noise and confusion in the generated SSA.
         match operator {
             BinaryOp::Add { unchecked: true } => BinaryOp::Add { unchecked: false },
@@ -34,9 +34,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             _ => operator,
         }
     } else if lhs_type == NumericType::bool() {
-        // Unchecked mul between bools doesn't make sense, so we convert that to non-unchecked
-        if let BinaryOp::Mul { unchecked: true } = operator {
-            BinaryOp::Mul { unchecked: false }
+        // When multiplying bools there can never be an overflow so using checked or unchecked
+        // should be the same. However, acir/brillig will check overflow for unsigned operations
+        // so here we turn checked bool multiplications to unchecked.
+        if let BinaryOp::Mul { unchecked: false } = operator {
+            BinaryOp::Mul { unchecked: true }
         } else {
             operator
         }

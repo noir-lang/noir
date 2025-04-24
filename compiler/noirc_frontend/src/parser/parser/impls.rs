@@ -155,19 +155,18 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
+            let location = self.location_at_previous_token_end();
             return Some(TraitImplItemKind::Type {
                 name: Ident::default(),
-                alias: UnresolvedType {
-                    typ: UnresolvedTypeData::Error,
-                    location: Location::dummy(),
-                },
+                alias: UnresolvedType { typ: UnresolvedTypeData::Error, location },
             });
         };
 
         let alias = if self.eat_assign() {
             self.parse_type_or_error()
         } else {
-            UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Error, location }
         };
 
         self.eat_semicolon_or_error();
@@ -195,7 +194,8 @@ impl Parser<'_> {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
         self.eat_semicolon_or_error();
