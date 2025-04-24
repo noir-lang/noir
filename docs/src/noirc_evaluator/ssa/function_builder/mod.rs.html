@@ -582,7 +582,31 @@
 <a href="#581" id="581">581</a>
 <a href="#582" id="582">582</a>
 <a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -755,6 +779,7 @@
         value: <span class="kw">impl </span>Into&lt;FieldElement&gt;,
         typ: NumericType,
     ) -&gt; ValueId {
+        validate_numeric_type(<span class="kw-2">&amp;</span>typ);
         <span class="self">self</span>.current_function.dfg.make_constant(value.into(), typ)
     }
 
@@ -884,6 +909,7 @@
     <span class="doccomment">/// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     </span><span class="kw">pub fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, typ: NumericType) -&gt; ValueId {
+        validate_numeric_type(<span class="kw-2">&amp;</span>typ);
         <span class="self">self</span>.insert_instruction(Instruction::Cast(value, typ), <span class="prelude-val">None</span>).first()
     }
 
@@ -1125,6 +1151,28 @@
 
     <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: BasicBlockId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
         <span class="kw-2">&amp;</span><span class="self">self</span>.current_function.dfg[id]
+    }
+}
+
+<span class="kw">fn </span>validate_numeric_type(typ: <span class="kw-2">&amp;</span>NumericType) {
+    <span class="kw">match </span><span class="kw-2">&amp;</span>typ {
+        NumericType::Signed { bit_size } =&gt; <span class="kw">match </span>bit_size {
+            <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>=&gt; (),
+            <span class="kw">_ </span>=&gt; {
+                <span class="macro">panic!</span>(
+                    <span class="string">"Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32 or 64."
+                </span>);
+            }
+        },
+        NumericType::Unsigned { bit_size } =&gt; <span class="kw">match </span>bit_size {
+            <span class="number">1 </span>| <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>| <span class="number">128 </span>=&gt; (),
+            <span class="kw">_ </span>=&gt; {
+                <span class="macro">panic!</span>(
+                    <span class="string">"Invalid bit size for unsigned numeric type: {bit_size}. Expected one of 1, 8, 16, 32, 64, or 128."
+                </span>);
+            }
+        },
+        <span class="kw">_ </span>=&gt; (),
     }
 }
 

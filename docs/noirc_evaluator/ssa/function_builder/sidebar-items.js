@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["data_bus"],"struct":["FunctionBuilder"]};
+window.SIDEBAR_ITEMS = {"fn":["validate_numeric_type"],"mod":["data_bus"],"struct":["FunctionBuilder"]};
