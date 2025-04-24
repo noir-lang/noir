@@ -63,7 +63,7 @@ where
         // Each fuzz run produces output from `print` and `println` calls.
         // We don't print the output of all runs. Instead, two things can happen:
         //  1. There is a counter-example, in which case we'd like to show the output for that counter-example.
-        //  2. There is no counter-example, in which case we'd like to show just one of the successfull cases.
+        //  2. There is no counter-example, in which case we'd like to show just one of the successful cases.
         // We accomplish this by replacing the contents of `output` with the output of a run,
         // but only if we didn't find a counter-example so far.
         let output = RefCell::new(Vec::<u8>::new());
