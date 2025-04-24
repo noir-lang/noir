@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 acvm.workspace = true
-bytes-writer.workspace = true
 noirc_artifacts.workspace = true
 noirc_abi.workspace = true
 proptest.workspace = true

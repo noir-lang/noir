@@ -10,7 +10,6 @@ use std::{
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use bytes_writer::BytesWriter;
 use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
@@ -528,13 +527,13 @@ impl<'a> TestRunner<'a> {
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         let blackbox_solver = S::default();
-        let bytes_writer = BytesWriter::default();
+        let mut output = Vec::<u8>::new();
 
         let test_status = nargo::ops::run_test(
             &blackbox_solver,
             &mut context,
             test_function,
-            bytes_writer.clone(),
+            &mut output,
             &self.args.compile_options,
             |output, base| {
                 DefaultForeignCallBuilder {
@@ -547,10 +546,9 @@ impl<'a> TestRunner<'a> {
                 .build_with_base(base)
             },
         );
-        let output_buffer = bytes_writer.into_bytes();
 
         let output_string =
-            String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
+            String::from_utf8(output).expect("output buffer should contain valid utf8");
 
         (test_status, output_string)
     }

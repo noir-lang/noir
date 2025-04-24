@@ -23,8 +23,6 @@ use crate::{
 
 use super::execute_program;
 
-pub(super) mod stdout;
-
 #[derive(Debug)]
 pub enum TestStatus {
     Pass,
@@ -48,7 +46,7 @@ pub fn run_test<'a, W, B, F, E>(
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
-    W: std::io::Write + Clone + 'a,
+    W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement>,
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,

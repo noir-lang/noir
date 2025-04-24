@@ -17,6 +17,7 @@ use dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
 
+mod bytes_writer;
 pub mod dictionary;
 pub mod strategies;
 mod types;
