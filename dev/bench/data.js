@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745501745905,
+  "lastUpdate": 1745501757076,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "sirasistant@gmail.com",
-            "name": "Álvaro Rodríguez",
-            "username": "sirasistant"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7fea2276c7ef7d1270dabf0be3bdd08bf6858b33",
-          "message": "feat: Port callstack resolution from aztec to noirjs (#7642)\n\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: guipublic <guipublic@gmail.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>",
-          "timestamp": "2025-04-15T17:48:53Z",
-          "tree_id": "a3b35513cb53ae201a5789df9832a0c36ebefe5b",
-          "url": "https://github.com/noir-lang/noir/commit/7fea2276c7ef7d1270dabf0be3bdd08bf6858b33"
-        },
-        "date": 1744741172135,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 486.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 462.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.73,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c9721fb6e69a78d74e1ae3742ed63103cad86b8d"
         },
         "date": 1745499710418,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 203.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 227.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 433.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 425.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.03,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "730529aabdf1fac3a0207decb65040cfe44369c2",
+          "message": "chore(fuzz): Make sure `main` makes at least one call (#8202)",
+          "timestamp": "2025-04-24T13:05:11Z",
+          "tree_id": "c2d73c801b8b1dca77fc7493924e865674e7064a",
+          "url": "https://github.com/noir-lang/noir/commit/730529aabdf1fac3a0207decb65040cfe44369c2"
+        },
+        "date": 1745501750449,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
