@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745520893210,
+  "lastUpdate": 1745520896555,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a23bb647339293674012c27a35ae3e08fb5470b0",
-          "message": "chore(experimental): Function::simple_optimization for SSA optimizations (#8102)",
-          "timestamp": "2025-04-16T18:06:30Z",
-          "tree_id": "1cf405b86036c3e7c22e54a36a3b52bae7ea69c2",
-          "url": "https://github.com/noir-lang/noir/commit/a23bb647339293674012c27a35ae3e08fb5470b0"
-        },
-        "date": 1744828104120,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.637,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.2,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.459,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.432,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.542,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.112,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.877,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 119,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 119,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.881,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.37,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.394,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "114c06c2e02412d43f01e9df9befb07314e49f58",
+          "message": "chore: refactor constrainedness checks on trait impls (#8170)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-24T18:33:17Z",
+          "tree_id": "887f6336e90512bb44f5e73977e38e4c6a36feac",
+          "url": "https://github.com/noir-lang/noir/commit/114c06c2e02412d43f01e9df9befb07314e49f58"
+        },
+        "date": 1745520889257,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.762,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.9,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.491,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.186,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.482,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.106,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.876,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 117,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 121,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.887,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.362,
             "unit": "s"
           }
         ]
