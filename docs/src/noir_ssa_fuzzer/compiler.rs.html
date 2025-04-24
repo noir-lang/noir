@@ -285,7 +285,7 @@
     options: SsaEvaluatorOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt; {
     <span class="kw">let </span>ssa = builder.finish();
-    <span class="macro">log::debug!</span>(<span class="string">"SSA: {}"</span>, <span class="macro">format!</span>(<span class="string">"{}"</span>, ssa));
+    <span class="macro">log::debug!</span>(<span class="string">"SSA: {}"</span>, ssa);
     <span class="comment">// change to SsaLogging::All to see triage final ssa.
     </span><span class="kw">let </span>builder = SsaBuilder {
         ssa,

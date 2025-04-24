@@ -1679,7 +1679,11 @@
 <a href="#1678" id="1678">1678</a>
 <a href="#1679" id="1679">1679</a>
 <a href="#1680" id="1680">1680</a>
-<a href="#1681" id="1681">1681</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2511,12 +2515,16 @@
         </span><span class="kw">let </span>(max_q_bits, max_rhs_bits) = <span class="kw">if let </span><span class="prelude-val">Some</span>(rhs_const) = rhs_expr.to_const() {
             <span class="comment">// when rhs is constant, we can better estimate the maximum bit sizes
             </span><span class="kw">let </span>max_rhs_bits = rhs_const.num_bits();
-            <span class="macro">assert!</span>(
-                max_rhs_bits &lt;= bit_size,
-                <span class="string">"attempted to divide by constant larger than operand type"
-            </span>);
 
-            <span class="kw">let </span>max_q_bits = bit_size - max_rhs_bits + <span class="number">1</span>;
+            <span class="comment">// It is possible that we have an AcirVar which is a result of a multiplication of constants
+            // which resulted in an overflow, but that check will only happen at runtime, and here we
+            // can't assume that the RHS will never have more bits than the operand.
+            </span><span class="kw">let </span>max_q_bits = <span class="kw">if </span>max_rhs_bits &gt; bit_size {
+                <span class="comment">// Ignore what we know about the constant and let the runtime handle it.
+                </span>bit_size
+            } <span class="kw">else </span>{
+                bit_size - max_rhs_bits + <span class="number">1
+            </span>};
             (max_q_bits, max_rhs_bits)
         } <span class="kw">else </span>{
             (bit_size, bit_size)
