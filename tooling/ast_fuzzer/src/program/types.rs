@@ -215,7 +215,7 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
             (op.is_arithmetic() && size != 1 && size != 128 && size_in <= size_out)
-                || op.is_bitshift() && size != 128
+                || op.is_bitshift() && size != 128 && !(size == 1 && sign_in.is_signed())
                 || op.is_bitwise()
         }
         (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
