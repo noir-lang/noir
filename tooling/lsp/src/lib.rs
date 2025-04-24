@@ -14,19 +14,19 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use async_lsp::{
-    AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
-    router::Router,
-};
-use fm::{FileManager, codespan_files as files};
-use fxhash::FxHashSet;
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeLens,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
         PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
+use async_lsp::{
+    AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
+    router::Router,
+};
+use fm::{FileManager, codespan_files as files};
+use fxhash::FxHashSet;
 use nargo::{
     package::{Package, PackageType},
     parse_all,
