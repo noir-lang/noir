@@ -817,13 +817,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             // It is possible that we have an AcirVar which is a result of a multiplication of constants
             // which resulted in an overflow, but that check will only happen at runtime, and here we
             // can't assume that the RHS will never have more bits than the operand.
-            if max_rhs_bits > bit_size {
+            let max_q_bits = if max_rhs_bits > bit_size {
                 // Ignore what we know about the constant and let the runtime handle it.
-                (bit_size, bit_size)
+                bit_size
             } else {
-                let max_q_bits = bit_size - max_rhs_bits + 1;
-                (max_q_bits, max_rhs_bits)
-            }
+                bit_size - max_rhs_bits + 1
+            };
+            (max_q_bits, max_rhs_bits)
         } else {
             (bit_size, bit_size)
         };
