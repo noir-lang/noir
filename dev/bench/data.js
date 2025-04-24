@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745507065323,
+  "lastUpdate": 1745507191093,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17991,42 +17991,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "c39d58e5c4d0263cca996aa86af01bce0fd4c947",
-          "message": "chore: simpler `make_mutable` in `array_set` optimization (#8106)",
-          "timestamp": "2025-04-16T14:50:10Z",
-          "tree_id": "d25afcc0f1c37ebb8f65d25a7d576f15dd225ccc",
-          "url": "https://github.com/noir-lang/noir/commit/c39d58e5c4d0263cca996aa86af01bce0fd4c947"
-        },
-        "date": 1744816647853,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268601,
-            "range": "± 711",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 241218,
-            "range": "± 2511",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "7108709e56f6c3a36be0cb086ed024d26d4215dc",
           "message": "fix(parser): error on missing let semicolon in trait (and others) (#8101)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2025-04-16T15:19:13Z",
@@ -20026,6 +19990,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3596448,
             "range": "± 5160",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bddf22d2f0e2b26c81a6856a41c245137f7dfc1c",
+          "message": "fix: Do not panic if RHS constant in division has more bits than the operand (#8197)",
+          "timestamp": "2025-04-24T14:45:29Z",
+          "tree_id": "5d1b8ba1590df0ce332a5325d7053c0fc490b136",
+          "url": "https://github.com/noir-lang/noir/commit/bddf22d2f0e2b26c81a6856a41c245137f7dfc1c"
+        },
+        "date": 1745507184861,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267139,
+            "range": "± 847",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236494,
+            "range": "± 3587",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3577094,
+            "range": "± 10335",
             "unit": "ns/iter"
           }
         ]
