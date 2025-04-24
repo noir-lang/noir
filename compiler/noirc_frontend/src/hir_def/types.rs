@@ -2880,8 +2880,8 @@ impl BinaryTypeOperator {
                 }
             },
             Some(_maximum_size) => {
-                let a = a.to_i128();
-                let b = b.to_i128();
+                let a = a.try_into_i128().unwrap();
+                let b = b.try_into_i128().unwrap();
 
                 let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
                 let result = match self {

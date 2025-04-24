@@ -59,7 +59,8 @@ impl<'a> StringMutator<'a> {
         let position = self.prng.gen_range(0..input.len());
         result[position] = match self.value_mutation_configuration.select(self.prng) {
             ByteValueMutationOptions::DictionaryByte => {
-                self.dictionary.choose(self.prng).unwrap().to_i128() as u8 & MAX_ASCII
+                self.dictionary.choose(self.prng).unwrap().try_into_i128().unwrap() as u8
+                    & MAX_ASCII
             }
             ByteValueMutationOptions::RandomByte => self.prng.gen_range(MIN_ASCII..=MAX_ASCII),
         };

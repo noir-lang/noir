@@ -655,7 +655,7 @@ impl DataFlowGraph {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
             (Type::Array(elements, len), Some(index))
-                if index.to_u128() < (len as u128 * elements.len() as u128) =>
+                if index.try_into_u128().unwrap() < (len as u128 * elements.len() as u128) =>
             {
                 true
             }

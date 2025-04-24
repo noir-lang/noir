@@ -193,31 +193,21 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         bit_counter.bits()
     }
 
-    fn to_u128(self) -> u128 {
-        let as_bigint = self.0.into_bigint();
-        let limbs = as_bigint.as_ref();
-
-        let mut result = limbs[0] as u128;
-        if limbs.len() > 1 {
-            let high_limb = limbs[1] as u128;
-            result += high_limb << 64;
-        }
-
-        result
-    }
-
     fn try_into_u128(self) -> Option<u128> {
-        self.fits_in_u128().then(|| self.to_u128())
+        self.fits_in_u128().then(|| {
+            let as_bigint = self.0.into_bigint();
+            let limbs = as_bigint.as_ref();
+
+            let mut result = limbs[0] as u128;
+            if limbs.len() > 1 {
+                let high_limb = limbs[1] as u128;
+                result += high_limb << 64;
+            }
+
+            result
+        })
     }
 
-    fn to_i128(self) -> i128 {
-        // Negative integers are represented by the range [p + i128::MIN, p) whilst
-        // positive integers are represented by the range [0, i128::MAX).
-        // We can then differentiate positive from negative values by their MSB.
-        let is_negative = self.neg().num_bits() < self.num_bits();
-        let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
-        i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
-    }
     fn try_into_i128(self) -> Option<i128> {
         // Negative integers are represented by the range [p + i128::MIN, p) whilst
         // positive integers are represented by the range [0, i128::MAX).
@@ -235,11 +225,11 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn try_to_u64(&self) -> Option<u64> {
-        (self.num_bits() <= 64).then(|| self.to_u128() as u64)
+        (self.num_bits() <= 64).then(|| self.try_into_u128().unwrap() as u64)
     }
 
     fn try_to_u32(&self) -> Option<u32> {
-        (self.num_bits() <= 32).then(|| self.to_u128() as u32)
+        (self.num_bits() <= 32).then(|| self.try_into_u128().unwrap() as u32)
     }
 
     /// Computes the inverse or returns zero if the inverse does not exist

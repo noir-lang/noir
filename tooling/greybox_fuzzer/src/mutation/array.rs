@@ -233,7 +233,7 @@ mod tests {
         let mut original_elements: Vec<u128> = buffer
             .iter()
             .map(|v| match v {
-                InputValue::Field(i) => i.to_u128(),
+                InputValue::Field(i) => i.try_into_u128().unwrap(),
                 _ => panic!("Unexpected input value type"),
             })
             .collect();
@@ -241,7 +241,7 @@ mod tests {
         let mut result_elements: Vec<u128> = result
             .iter()
             .map(|v| match v {
-                InputValue::Field(i) => i.to_u128(),
+                InputValue::Field(i) => i.try_into_u128().unwrap(),
                 _ => panic!("Unexpected input value type"),
             })
             .collect();
@@ -258,14 +258,14 @@ mod tests {
             buffer
                 .iter()
                 .map(|v| match v {
-                    InputValue::Field(i) => i.to_u128(),
+                    InputValue::Field(i) => i.try_into_u128().unwrap(),
                     _ => panic!("Unexpected input value type"),
                 })
                 .collect::<Vec<_>>(),
             result
                 .iter()
                 .map(|v| match v {
-                    InputValue::Field(i) => i.to_u128(),
+                    InputValue::Field(i) => i.try_into_u128().unwrap(),
                     _ => panic!("Unexpected input value type"),
                 })
                 .collect::<Vec<_>>()

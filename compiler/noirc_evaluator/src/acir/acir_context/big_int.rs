@@ -31,19 +31,20 @@ impl BigIntContext {
     /// Creates a new BigIntId for the given modulus identifier and returns it.
     pub(super) fn new_big_int<F: AcirField>(&mut self, modulus_id: F) -> BigIntId {
         let id = self.big_integers.len() as u32;
-        let result = BigIntId { bigint_id: id, modulus_id: modulus_id.to_u128() as u32 };
+        let result =
+            BigIntId { bigint_id: id, modulus_id: modulus_id.try_into_u128().unwrap() as u32 };
         self.big_integers.push(result);
         result
     }
 
     /// Returns the modulus corresponding to the given modulus index
     pub(super) fn modulus<F: AcirField>(&self, idx: F) -> BigUint {
-        self.modulus[idx.to_u128() as usize].clone()
+        self.modulus[idx.try_into_u128().unwrap() as usize].clone()
     }
 
     /// Returns the BigIntId corresponding to the given identifier
     pub(super) fn get<F: AcirField>(&self, id: F) -> BigIntId {
-        self.big_integers[id.to_u128() as usize]
+        self.big_integers[id.try_into_u128().unwrap() as usize]
     }
 
     /// Adds a modulus to the context (if it is not already present)

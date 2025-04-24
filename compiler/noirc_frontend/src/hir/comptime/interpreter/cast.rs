@@ -48,7 +48,7 @@ pub(super) fn evaluate_cast_one_step(
 
     macro_rules! cast_to_int {
         ($x:expr, $method:ident, $typ:ty, $f:ident) => {{
-            let mut value = $x.$method() as $typ;
+            let mut value = $x.$method().unwrap() as $typ;
             if lhs_is_negative {
                 value = 0 - value;
             }
@@ -68,31 +68,33 @@ pub(super) fn evaluate_cast_one_step(
             (Signedness::Unsigned, IntegerBitSize::One) => {
                 Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
             }
-            (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => {
+                cast_to_int!(lhs, try_into_u128, u8, U8)
+            }
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                cast_to_int!(lhs, to_u128, u16, U16)
+                cast_to_int!(lhs, try_into_u128, u16, U16)
             }
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                cast_to_int!(lhs, to_u128, u32, U32)
+                cast_to_int!(lhs, try_into_u128, u32, U32)
             }
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                cast_to_int!(lhs, to_u128, u64, U64)
+                cast_to_int!(lhs, try_into_u128, u64, U64)
             }
             (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                cast_to_int!(lhs, to_u128, u128, U128)
+                cast_to_int!(lhs, try_into_u128, u128, U128)
             }
             (Signedness::Signed, IntegerBitSize::One) => {
                 Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
             }
-            (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
+            (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, try_into_i128, i8, I8),
             (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                cast_to_int!(lhs, to_i128, i16, I16)
+                cast_to_int!(lhs, try_into_i128, i16, I16)
             }
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                cast_to_int!(lhs, to_i128, i32, I32)
+                cast_to_int!(lhs, try_into_i128, i32, I32)
             }
             (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                cast_to_int!(lhs, to_i128, i64, I64)
+                cast_to_int!(lhs, try_into_i128, i64, I64)
             }
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
                 todo!()

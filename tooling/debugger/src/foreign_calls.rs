@@ -117,11 +117,11 @@ impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
 }
 
 fn debug_var_id(value: &FieldElement) -> DebugVarId {
-    DebugVarId(value.to_u128() as u32)
+    DebugVarId(value.try_into_u128().unwrap() as u32)
 }
 
 fn debug_fn_id(value: &FieldElement) -> DebugFnId {
-    DebugFnId(value.to_u128() as u32)
+    DebugFnId(value.try_into_u128().unwrap() as u32)
 }
 
 impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor {
@@ -158,7 +158,7 @@ impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor {
                         .iter()
                         .map(|fcp_v| {
                             if let ForeignCallParam::Single(v) = fcp_v {
-                                v.to_u128() as u32
+                                v.try_into_u128().unwrap() as u32
                             } else {
                                 panic!("expected ForeignCallParam::Single(v)");
                             }

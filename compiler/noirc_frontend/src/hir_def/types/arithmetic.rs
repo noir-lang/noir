@@ -312,7 +312,11 @@ impl Type {
             (Multiplication, Division) => {
                 // We need to ensure the result divides evenly to preserve integer division semantics
                 let divides_evenly = !lhs.infix_kind(rhs).is_type_level_field_element()
-                    && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
+                    && l_const
+                        .try_into_i128()
+                        .unwrap()
+                        .checked_rem(r_const.try_into_i128().unwrap())
+                        == Some(0);
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {
@@ -509,7 +513,7 @@ mod proptests {
             strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let typ = Type::Integer(Signedness::Unsigned, bit_size);
-                let maximum_size = typ.integral_maximum_size().unwrap().to_u128();
+                let maximum_size = typ.integral_maximum_size().unwrap().try_into_u128().unwrap();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
             strategy::Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),

@@ -69,7 +69,7 @@ impl UintStrategy {
         // Generate value tree from fixture.
         let fixture = &self.fixtures[runner.rng().gen_range(0..self.fixtures.len())];
 
-        Ok(BinarySearch::new(fixture.to_u128()))
+        Ok(BinarySearch::new(fixture.try_into_u128().unwrap()))
     }
 
     /// Generate random values between 0 and the MAX with the given bit width.

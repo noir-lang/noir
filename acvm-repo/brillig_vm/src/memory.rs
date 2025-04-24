@@ -68,7 +68,7 @@ impl<F: AcirField> MemoryValue<F> {
     /// Builds a memory value from a field element.
     pub fn new_from_field(value: F, bit_size: BitSize) -> Self {
         if let BitSize::Integer(bit_size) = bit_size {
-            MemoryValue::new_integer(value.to_u128(), bit_size)
+            MemoryValue::new_integer(value.try_into_u128().unwrap(), bit_size)
         } else {
             MemoryValue::new_field(value)
         }

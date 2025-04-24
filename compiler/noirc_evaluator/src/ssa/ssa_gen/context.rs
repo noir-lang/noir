@@ -408,7 +408,7 @@ impl<'a> FunctionContext<'a> {
                     }
                     BinaryOpKind::ShiftLeft => {
                         if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
-                            let bit_shift_size = rhs_const.to_u128() as u32;
+                            let bit_shift_size = rhs_const.try_into_u128().unwrap() as u32;
 
                             if max_lhs_bits + bit_shift_size <= bit_size {
                                 // `lhs` has been casted up from a smaller type such that shifting it by a constant

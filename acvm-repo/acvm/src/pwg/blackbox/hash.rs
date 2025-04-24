@@ -43,7 +43,7 @@ fn get_hash_input<F: AcirField>(
     match message_size {
         Some(input) => {
             let num_bytes_to_take =
-                input_to_value(initial_witness, *input, false)?.to_u128() as usize;
+                input_to_value(initial_witness, *input, false)?.try_into_u128().unwrap() as usize;
 
             // If the number of bytes to take is more than the amount of bytes available
             // in the message, then we error.
@@ -84,7 +84,7 @@ fn to_u32_array<const N: usize, F: AcirField>(
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
         let witness_value = input_to_value(initial_witness, *input, false)?;
-        *it = witness_value.to_u128() as u32;
+        *it = witness_value.try_into_u128().unwrap() as u32;
     }
     Ok(result)
 }

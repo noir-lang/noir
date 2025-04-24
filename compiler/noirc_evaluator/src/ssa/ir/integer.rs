@@ -23,7 +23,7 @@ impl IntegerConstant {
                     .map(|value| Self::Signed { value, bit_size })
             }
             NumericType::Unsigned { bit_size } => {
-                Some(Self::Unsigned { value: field.to_u128(), bit_size })
+                Some(Self::Unsigned { value: field.try_into_u128().unwrap(), bit_size })
             }
             NumericType::NativeField => None,
         }

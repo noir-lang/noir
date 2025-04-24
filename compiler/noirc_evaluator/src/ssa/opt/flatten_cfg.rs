@@ -1230,7 +1230,7 @@ mod test {
                 constants.dedup();
                 constants
             }
-            Value::NumericConstant { constant, .. } => vec![constant.to_u128()],
+            Value::NumericConstant { constant, .. } => vec![constant.try_into_u128().unwrap()],
             _ => Vec::new(),
         }
     }
@@ -1404,7 +1404,7 @@ mod test {
             Some(TerminatorInstruction::Return { return_values, .. }) => {
                 match main.dfg.get_numeric_constant(return_values[0]) {
                     Some(constant) => {
-                        let value = constant.to_u128();
+                        let value = constant.try_into_u128().unwrap();
                         assert_eq!(value, 200);
                     }
                     None => unreachable!("Expected constant 200 for return value"),

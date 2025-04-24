@@ -1878,7 +1878,7 @@ impl<'a> Context<'a> {
             if let Type::Slice(elements_type) = result_type {
                 let error = "ICE - cannot get slice length when converting slice to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
-                let len = self.acir_context.constant(len).to_u128();
+                let len = self.acir_context.constant(len).try_into_u128().unwrap();
                 let mut element_values = im::Vector::new();
                 for _ in 0..len {
                     for element_type in elements_type.iter() {

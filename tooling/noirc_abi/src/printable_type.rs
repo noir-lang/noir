@@ -34,7 +34,8 @@ pub fn decode_value<F: AcirField>(
             let length = field_iterator
                 .next()
                 .expect("not enough data to decode variable array length")
-                .to_u128() as usize;
+                .try_into_u128()
+                .unwrap() as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {
                 array_elements.push(decode_value(field_iterator, typ));
@@ -76,7 +77,7 @@ pub fn decode_value<F: AcirField>(
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
             let tag = field_iterator.next().unwrap();
-            let tag_value = tag.to_u128() as usize;
+            let tag_value = tag.try_into_u128().unwrap() as usize;
 
             let (_name, variant_types) = &variants[tag_value];
             PrintableValue::Vec {

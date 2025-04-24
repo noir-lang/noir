@@ -76,14 +76,14 @@ fn check_u128_mul_overflow(
 
     // If lhs is less than 2^64 then the condition trivially holds.
     if let Some(value) = lhs_value {
-        if value.to_u128() < two_pow_64 {
+        if value.try_into_u128().unwrap() < two_pow_64 {
             return;
         }
     }
 
     // Same goes for rhs
     if let Some(value) = rhs_value {
-        if value.to_u128() < two_pow_64 {
+        if value.try_into_u128().unwrap() < two_pow_64 {
             return;
         }
     }

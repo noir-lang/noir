@@ -294,7 +294,7 @@ mod tests {
         )
         .unwrap();
         // Convert back to u128
-        result_value.to_field().to_u128()
+        result_value.to_field().try_into_u128().unwrap()
     }
 
     fn to_negative(a: u128, bit_size: IntegerBitSize) -> u128 {

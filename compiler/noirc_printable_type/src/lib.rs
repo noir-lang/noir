@@ -100,7 +100,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
         (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
             // Retain the lower 'width' bits
             debug_assert!(*width <= 128, "We don't currently support uints larger than u128");
-            let mut uint_cast = f.to_u128();
+            let mut uint_cast = f.try_into_u128().unwrap();
             if *width != 128 {
                 uint_cast &= (1 << width) - 1;
             };
@@ -108,7 +108,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             output.push_str(&uint_cast.to_string());
         }
         (PrintableValue::Field(f), PrintableType::SignedInteger { width }) => {
-            let mut uint = f.to_u128(); // Interpret as uint
+            let mut uint = f.try_into_u128().unwrap(); // Interpret as uint
 
             // Extract sign relative to width of input
             if (uint >> (width - 1)) == 1 {

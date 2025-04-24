@@ -15,7 +15,7 @@ pub(crate) fn cast<F: AcirField>(
     match (source_value, target_bit_size) {
         // Field downcast to arbitrary bit size
         (Field(field), BitSize::Integer(target_bit_size)) => {
-            let as_u128 = field.to_u128();
+            let as_u128 = field.try_into_u128().unwrap();
             match target_bit_size {
                 IntegerBitSize::U1 => U1(as_u128 & 0x01 == 1),
                 IntegerBitSize::U8 => U8(as_u128 as u8),

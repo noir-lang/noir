@@ -774,8 +774,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
             (Some(lhs_const), Some(rhs_const), _) if !rhs_const.is_zero() => {
-                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
-                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+                let quotient =
+                    lhs_const.try_into_u128().unwrap() / rhs_const.try_into_u128().unwrap();
+                let remainder = lhs_const.try_into_u128().unwrap()
+                    - quotient * rhs_const.try_into_u128().unwrap();
 
                 let quotient_var = self.add_constant(quotient);
                 let remainder_var = self.add_constant(remainder);
@@ -962,12 +964,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let rhs_expr = self.var_to_expression(rhs)?;
         if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 {
             // We try to move the offset to rhs
-            let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
-                lhs_offset = lhs;
-                rhs_expr.q_c.to_u128() - 1
-            } else {
-                rhs_expr.q_c.to_u128()
-            };
+            let rhs_offset =
+                if self.is_constant_one(&offset) && rhs_expr.q_c.try_into_u128().unwrap() >= 1 {
+                    lhs_offset = lhs;
+                    rhs_expr.q_c.try_into_u128().unwrap() - 1
+                } else {
+                    rhs_expr.q_c.try_into_u128().unwrap()
+                };
             // we now have lhs+offset <= rhs <=> lhs_offset <= rhs_offset
 
             let bit_size = bit_size_u128(rhs_offset);
@@ -1296,7 +1299,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         result_element_type: AcirType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
-            Some(radix) => radix.to_u128() as u32,
+            Some(radix) => radix.try_into_u128().unwrap() as u32,
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),

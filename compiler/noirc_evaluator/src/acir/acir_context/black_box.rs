@@ -127,7 +127,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         }));
                     }
                 }
-                let big_modulus = BigUint::from_bytes_le(&vecmap(&modulus, |b| b.to_u128() as u8));
+                let big_modulus =
+                    BigUint::from_bytes_le(&vecmap(&modulus, |b| b.try_into_u128().unwrap() as u8));
                 output_count = 0;
 
                 let modulus_id = self.big_int_ctx.get_or_insert_modulus(big_modulus);

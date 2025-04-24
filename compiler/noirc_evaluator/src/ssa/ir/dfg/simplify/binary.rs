@@ -156,7 +156,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                 // lhs % 2**bit_size is equivalent to truncating `lhs` to `bit_size` bits.
                 // We then convert to a truncation for consistency, allowing more optimizations.
                 if let Some(modulus) = rhs_value {
-                    let modulus = modulus.to_u128();
+                    let modulus = modulus.try_into_u128().unwrap();
                     if modulus.is_power_of_two() {
                         let bit_size = modulus.ilog2();
                         return SimplifyResult::SimplifiedToInstruction(Instruction::Truncate {
@@ -234,7 +234,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                     (Some(bitmask), None) | (None, Some(bitmask)) => {
                         // This substitution requires the bitmask to retain all of the lower bits.
                         // The bitmask must then be one less than a power of 2.
-                        let bitmask_plus_one = bitmask.to_u128() + 1;
+                        let bitmask_plus_one = bitmask.try_into_u128().unwrap() + 1;
                         if bitmask_plus_one.is_power_of_two() {
                             let value = if lhs_value.is_some() { rhs } else { lhs };
                             let bit_size = bitmask_plus_one.ilog2();

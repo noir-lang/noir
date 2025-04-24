@@ -85,7 +85,7 @@ pub(crate) fn simplify(
                     // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
                     let bit_size = typ.bit_size();
                     assert!(bit_size <= 128);
-                    let not_value: u128 = truncate(!constant.to_u128(), bit_size);
+                    let not_value: u128 = truncate(!constant.try_into_u128().unwrap(), bit_size);
                     SimplifiedTo(dfg.make_constant(not_value.into(), *typ))
                 }
                 Value::Instruction { instruction, .. } => {

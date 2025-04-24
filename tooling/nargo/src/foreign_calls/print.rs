@@ -112,7 +112,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
         .ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
     let mut output = Vec::new();
-    let num_values = num_values.unwrap_field().to_u128() as usize;
+    let num_values = num_values.unwrap_field().try_into_u128().unwrap() as usize;
 
     let types_start_at = input_and_printable_types.len() - num_values;
 

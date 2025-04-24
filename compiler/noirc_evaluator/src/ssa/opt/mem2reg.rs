@@ -885,7 +885,7 @@ mod tests {
                 assert_eq!(arguments.len(), 1);
                 let argument =
                     main.dfg.get_numeric_constant(arguments[0]).expect("Expected constant value");
-                assert_eq!(argument.to_u128(), 5);
+                assert_eq!(argument.try_into_u128().unwrap(), 5);
             }
             _ => unreachable!(),
         };

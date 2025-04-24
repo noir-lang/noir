@@ -340,7 +340,7 @@ fn shift_unsigned_int<
 /// Convert a value from field representation to integer representation
 /// Width is needed to detect negative values in 2-complement form
 fn field_to_i128(input: &FieldElement, width: u32) -> i128 {
-    let mut initial_i128 = input.to_i128();
+    let mut initial_i128 = input.try_into_i128().unwrap();
     if initial_i128 >= 2i128.pow(width - 1) {
         initial_i128 -= 2i128.pow(width);
     }
@@ -348,7 +348,7 @@ fn field_to_i128(input: &FieldElement, width: u32) -> i128 {
 }
 /// Convert a value from field representation to integer representation
 fn field_to_u128(input: &FieldElement) -> u128 {
-    input.to_u128()
+    input.try_into_u128().unwrap()
 }
 
 /// Convert a value from integer representation to field representation

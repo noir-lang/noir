@@ -52,11 +52,7 @@ pub trait AcirField:
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32;
 
-    fn to_u128(self) -> u128;
-
     fn try_into_u128(self) -> Option<u128>;
-
-    fn to_i128(self) -> i128;
 
     fn try_into_i128(self) -> Option<i128>;
 
@@ -153,7 +149,7 @@ macro_rules! field_wrapper {
             }
 
             fn to_u128(self) -> u128 {
-                self.0.to_u128()
+                self.0.try_into_u128().unwrap()
             }
 
             fn try_into_u128(self) -> Option<u128> {

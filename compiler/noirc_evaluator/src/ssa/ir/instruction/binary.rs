@@ -341,7 +341,7 @@ mod test {
         for (i, u) in [(-1i64, u64::MAX), (-2i64, u64::MAX - 1), (1i64, 1u64)] {
             let i: i128 = i.into();
             let f = convert_signed_integer_to_field_element(i, 64);
-            assert_eq!(f.to_u128(), u as u128);
+            assert_eq!(f.try_into_u128().unwrap(), u as u128);
             assert_eq!(i, try_convert_field_element_to_signed_integer(f, 64).unwrap());
         }
     }

@@ -74,7 +74,7 @@ pub(super) fn simplify_call(
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
-                let radix = constant_args[1].to_u128() as u32;
+                let radix = constant_args[1].try_into_u128().unwrap() as u32;
                 let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len
                 } else {
@@ -214,7 +214,7 @@ pub(super) fn simplify_call(
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
                 let elements = &arguments[3..];
-                let mut index = index.to_u128() as usize * elements.len();
+                let mut index = index.try_into_u128().unwrap() as usize * elements.len();
 
                 // Do not simplify the index is greater than the slice capacity
                 // or else we will panic inside of the im::Vector insert method
@@ -250,7 +250,7 @@ pub(super) fn simplify_call(
             if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
                 let element_count = typ.element_size();
                 let mut results = Vec::with_capacity(element_count + 1);
-                let index = index.to_u128() as usize * element_count;
+                let index = index.try_into_u128().unwrap() as usize * element_count;
 
                 // Do not simplify if the index is not less than the slice capacity
                 // or else we will panic inside of the im::Vector remove method.
@@ -306,7 +306,7 @@ pub(super) fn simplify_call(
             let value = arguments[0];
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
-                let max_bit_size = max_bit_size.to_u128() as u32;
+                let max_bit_size = max_bit_size.try_into_u128().unwrap() as u32;
                 let max_potential_bits = dfg.get_value_max_num_bits(value);
                 if max_potential_bits < max_bit_size {
                     SimplifyResult::Remove
@@ -602,7 +602,7 @@ fn simplify_black_box_func(
                             let field = dfg
                                 .get_numeric_constant(*id)
                                 .expect("value id from array should point at constant");
-                            field.to_u128() as u64
+                            field.try_into_u128().unwrap() as u64
                         })
                         .collect();
 
@@ -705,7 +705,7 @@ fn simplify_derive_generators(
             let domain_separator_bytes = domain_separator_string
                 .0
                 .iter()
-                .map(|&x| dfg.get_numeric_constant(x).unwrap().to_u128() as u8)
+                .map(|&x| dfg.get_numeric_constant(x).unwrap().try_into_u128().unwrap() as u8)
                 .collect::<Vec<u8>>();
             let generators = derive_generators(
                 &domain_separator_bytes,

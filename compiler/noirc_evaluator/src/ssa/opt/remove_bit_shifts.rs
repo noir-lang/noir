@@ -102,7 +102,7 @@ impl Context<'_, '_, '_> {
         {
             // Happy case is that we know precisely by how many bits the integer will
             // increase: lhs_bit_size + rhs
-            let bit_shift_size = rhs_constant.to_u128() as u32;
+            let bit_shift_size = rhs_constant.try_into_u128().unwrap() as u32;
 
             let (rhs_bit_size_pow_2, overflows) = 2_u128.overflowing_pow(bit_shift_size);
             if overflows {

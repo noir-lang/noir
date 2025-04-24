@@ -451,7 +451,7 @@ fn field_from_big_int(bigint: BigInt) -> FieldElement {
 }
 
 fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
-    let f_u128 = f.to_u128();
+    let f_u128 = f.try_into_u128().unwrap();
     let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
     if f_u128 > max {
         let f = FieldElement::from(2u32).pow(&bit_size.into()) - f;

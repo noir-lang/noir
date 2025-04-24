@@ -960,7 +960,7 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
-    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+    let decomposed_integer = vecmap(0..limb_count.try_into_u128().unwrap() as usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
