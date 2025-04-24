@@ -51,7 +51,7 @@ fn arb_program_can_be_executed() {
 
         // If we have a seed to debug and we know it's going to crash, print the AST.
         if maybe_seed.is_some() {
-            eprintln!("{program}");
+            eprintln!("{}", DisplayAstAsNoir(&program));
         }
 
         let ssa = ssa::create_program(program.clone(), &options)
