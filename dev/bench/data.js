@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745490015261,
+  "lastUpdate": 1745490093174,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18001,42 +18001,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "0f2b90f1553b6f2eb98dd329c779457a6bcd4640",
-          "message": "chore(docs): Add architecture docs (#7992)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: guipublic <guipublic@gmail.com>",
-          "timestamp": "2025-04-15T14:52:18Z",
-          "tree_id": "1da61b5de2e05c3abbca7418fda15a73bd2b0913",
-          "url": "https://github.com/noir-lang/noir/commit/0f2b90f1553b6f2eb98dd329c779457a6bcd4640"
-        },
-        "date": 1744729737862,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265659,
-            "range": "± 866",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234183,
-            "range": "± 5642",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8c4a83ac8ef52db58d6d93342e4be2b47e3c9595",
           "message": "feat(experimental): Implement separate `-Zownership` analysis for ownership pass (#7861)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2025-04-15T15:24:56Z",
@@ -19982,6 +19946,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3576125,
             "range": "± 14844",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7c6ab0c679e69f1ce1fcc8d46490e1ad47ba1c1b",
+          "message": "chore: document ssa `inline_simple_functions` (#8169)",
+          "timestamp": "2025-04-24T10:03:11Z",
+          "tree_id": "35c1d21d8fea6903c32247da75abee084bf59aee",
+          "url": "https://github.com/noir-lang/noir/commit/7c6ab0c679e69f1ce1fcc8d46490e1ad47ba1c1b"
+        },
+        "date": 1745490086398,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263545,
+            "range": "± 1359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236787,
+            "range": "± 4213",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3581886,
+            "range": "± 7418",
             "unit": "ns/iter"
           }
         ]
