@@ -489,10 +489,7 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a>
-<a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
@@ -866,20 +863,17 @@
     target_index: ValueId,
     target_value: ValueId,
 ) -&gt; SimplifyResult {
-    <span class="kw">let </span>array_from_get = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[target_value] {
-        Value::Instruction { instruction, .. } =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction] {
-            Instruction::ArrayGet { array, index } =&gt; {
-                <span class="kw">if </span><span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
-                    <span class="comment">// If array and index match from the value, we can immediately simplify
-                    </span><span class="kw">return </span>SimplifyResult::SimplifiedTo(array_id);
-                } <span class="kw">else if </span><span class="kw-2">*</span>index == target_index {
-                    <span class="kw-2">*</span>array
-                } <span class="kw">else </span>{
-                    <span class="kw">return </span>SimplifyResult::None;
-                }
+    <span class="kw">let </span>array_from_get = <span class="kw">match </span>dfg.get_local_or_global_instruction(target_value) {
+        <span class="prelude-val">Some</span>(Instruction::ArrayGet { array, index }) =&gt; {
+            <span class="kw">if </span><span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
+                <span class="comment">// If array and index match from the value, we can immediately simplify
+                </span><span class="kw">return </span>SimplifyResult::SimplifiedTo(array_id);
+            } <span class="kw">else if </span><span class="kw-2">*</span>index == target_index {
+                <span class="kw-2">*</span>array
+            } <span class="kw">else </span>{
+                <span class="kw">return </span>SimplifyResult::None;
             }
-            <span class="kw">_ </span>=&gt; <span class="kw">return </span>SimplifyResult::None,
-        },
+        }
         <span class="kw">_ </span>=&gt; <span class="kw">return </span>SimplifyResult::None,
     };
 
