@@ -60,12 +60,13 @@ impl AstPrinter {
         write!(f, ";")?;
         self.next_line(f)
     }
-
-    pub fn print_function(
+    
+    fn print_function_inner(
         &mut self,
         function: &Function,
         return_visibility: Option<Visibility>,
         f: &mut Formatter,
+        comptime_wrap: bool,
     ) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
             format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
@@ -87,13 +88,45 @@ impl AstPrinter {
 
         write!(f, "{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
+        if comptime_wrap { self.indent_level += 1; self.next_line(f)?; write!(f, "comptime {{")?; }
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
+        if comptime_wrap { self.next_line(f)?; self.indent_level -= 1; write!(f, "}}")?; }
         self.in_unconstrained = false;
         self.next_line(f)?;
         writeln!(f, "}}")?;
         Ok(())
+    }
+
+    pub fn print_function(
+        &mut self,
+        function: &Function,
+        return_visibility: Option<Visibility>,
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
+        self.print_function_inner(function, return_visibility, f, false)
+    }
+
+    /// Debug method used in fuzzing. Prints a function marked as comptime
+    pub fn print_function_as_comptime(
+        &mut self,
+        function: &Function,
+        return_visibility: Option<Visibility>,
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
+        write!(f, "comptime ")?;
+        self.print_function(function, return_visibility, f)
+    }
+    
+    /// Debug method used in fuzzing. Prints a function wrapping a comptime function call
+    pub fn print_function_as_comptime_wrapper(
+        &mut self,
+        function: &Function,
+        return_visibility: Option<Visibility>,
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
+        self.print_function_inner(function, return_visibility, f, true)
     }
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {

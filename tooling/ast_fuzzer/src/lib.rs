@@ -7,7 +7,9 @@ pub use abi::program_abi;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::visitor::{visit_expr, visit_expr_mut};
-pub use program::{DisplayAstAsNoir, arb_program};
+pub use program::{
+    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
+};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -40,6 +42,8 @@ pub struct Config {
     pub stmt_freqs_acir: Freqs,
     /// Frequency of statements in Brillig functions.
     pub stmt_freqs_brillig: Freqs,
+    /// Whether to generate Brillig functions.
+    pub include_brillig: bool,
 }
 
 impl Default for Config {
@@ -88,6 +92,7 @@ impl Default for Config {
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,
+            include_brillig: true,
         }
     }
 }

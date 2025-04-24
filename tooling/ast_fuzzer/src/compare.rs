@@ -212,3 +212,7 @@ impl CompareMutants {
         Ok(Self { program: (program1, program2), abi, input_map, ssa1, ssa2 })
     }
 }
+
+/// Compare the results of a program ran with the compiler versus the interpreter
+/// (comptime)
+pub type CompareComptime = CompareSsa<(Program, Program)>;

@@ -189,6 +189,15 @@ impl<'a> FunctionContext<'a> {
         self.gen_expr(u, &ret, self.max_depth(), Flags::TOP)
     }
 
+    /// Generate the function body, wrapping a function call with literal arguments.
+    pub fn gen_lit_call_wrapper_body(
+        mut self,
+        u: &mut Unstructured,
+        callee_id: FuncId,
+    ) -> arbitrary::Result<Expression> {
+        self.gen_lit_call(u, callee_id)
+    }
+
     /// Get the function declaration.
     fn decl(&self) -> &FunctionDeclaration {
         self.ctx.function_decl(self.id)
@@ -901,6 +910,43 @@ impl<'a> FunctionContext<'a> {
 
         // Derive the final result from the call, e.g. by casting, or accessing a member.
         self.gen_expr_from_source(u, call_expr, &callee.return_type, typ, self.max_depth())
+    }
+
+    /// Generate a call to a specific function, with arbitrary literals
+    /// for arguments (useful for generating comptime wrapper calls)
+    fn gen_lit_call(
+        &mut self,
+        u: &mut Unstructured,
+        callee_id: FuncId,
+    ) -> arbitrary::Result<Expression> {
+        let callee = self.ctx.function_decl(callee_id).clone();
+        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+
+        let mut args = Vec::new();
+        for typ in &param_types {
+            args.push(expr::gen_literal(u, typ)?);
+        }
+
+        let call_expr = Expression::Call(Call {
+            func: Box::new(Expression::Ident(Ident {
+                location: None,
+                definition: Definition::Function(callee_id),
+                mutable: false,
+                name: callee.name.clone(),
+                typ: Type::Function(
+                    param_types,
+                    Box::new(callee.return_type.clone()),
+                    Box::new(Type::Unit),
+                    callee.unconstrained,
+                ),
+                id: self.next_ident_id(),
+            })),
+            arguments: args,
+            return_type: callee.return_type.clone(),
+            location: Location::dummy(),
+        });
+
+        Ok(call_expr)
     }
 
     /// Generate a `loop` loop.

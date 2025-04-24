@@ -31,9 +31,46 @@ mod tests;
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
     let mut ctx = Context::new(config);
     ctx.gen_globals(u)?;
-    ctx.gen_function_decls(u)?;
+    ctx.gen_function_decls(u, None)?;
     ctx.gen_functions(u)?;
     ctx.rewrite_functions(u)?;
+    let program = ctx.finalize();
+    Ok(program)
+}
+
+/// Generate an arbitrary monomorphized AST to be reversed into a valid comptime
+/// Noir, with a single comptime function called from main with literal arguments.
+pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
+    let mut ctx = Context::new(config);
+    ctx.gen_function_decls(u, Some(1))?;
+    ctx.gen_functions(u)?;
+    ctx.rewrite_functions(u)?;
+
+    let body = FunctionContext::new(&mut ctx, FuncId(0)).gen_lit_call_wrapper_body(u, FuncId(1))?;
+    let decl_inner = ctx.function_decl(FuncId(1));
+    let decl_main = FunctionDeclaration {
+        name: "main".into(),
+        params: vec![],
+        return_type: decl_inner.return_type.clone(),
+        param_visibilities: vec![],
+        return_visibility: Visibility::Public,
+        inline_type: InlineType::default(),
+        unconstrained: false,
+    };
+    ctx.function_declarations.insert(FuncId(0), decl_main.clone());
+
+    let func_main = Function {
+        id: FuncId(0),
+        name: decl_main.name.clone(),
+        parameters: decl_main.params.clone(),
+        body,
+        return_type: decl_main.return_type.clone(),
+        unconstrained: decl_main.unconstrained,
+        inline_type: decl_main.inline_type,
+        func_sig: decl_main.signature(),
+    };
+    ctx.functions.insert(FuncId(0), func_main);
+
     let program = ctx.finalize();
     Ok(program)
 }
@@ -109,9 +146,17 @@ impl Context {
         Ok((name, typ, val))
     }
 
-    /// Generate random function names and signatures.
-    fn gen_function_decls(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        let num_non_main_fns = u.int_in_range(0..=self.config.max_functions)?;
+    /// Generate random function names and signatures, optionally specifying their exact number.
+    fn gen_function_decls(
+        &mut self,
+        u: &mut Unstructured,
+        num: Option<usize>,
+    ) -> arbitrary::Result<()> {
+        let num_non_main_fns = match num {
+            Some(num) => num,
+            None => u.int_in_range(0..=self.config.max_functions)?,
+        };
+
         for i in 0..(1 + num_non_main_fns) {
             let d = self.gen_function_decl(u, i)?;
             self.function_declarations.insert(FuncId(i as u32), d);
@@ -172,7 +217,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
-            unconstrained: bool::arbitrary(u)?,
+            unconstrained: if self.config.include_brillig { bool::arbitrary(u)? } else { false },
         };
 
         Ok(decl)
@@ -333,5 +378,26 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         let mut printer = AstPrinter::default();
         printer.show_id = false;
         printer.print_program(self.0, f)
+    }
+}
+
+/// Wrapper around `Program` that prints its AST as close to
+/// Noir syntax as we can get, making it `comptime`. The AST must
+/// be specifically prepared to include a main function consisting
+/// of a `comptime` wrapped call to a `comptime` marked function.
+pub struct DisplayAstAsNoirComptime<'a>(pub &'a Program);
+
+impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut printer = AstPrinter::default();
+        printer.show_id = false;
+        for function in &self.0.functions {
+            if function.id == Program::main_id() {
+                printer.print_function_as_comptime_wrapper(function, Some(self.0.return_visibility), f)?;
+            } else {
+                printer.print_function_as_comptime(function, None, f)?;
+            }
+        }
+        Ok(())
     }
 }
