@@ -71,6 +71,14 @@ pub(crate) struct TestCommand {
     /// Display one character per test instead of one line
     #[clap(short = 'q', long = "quiet")]
     quiet: bool,
+
+    /// Do not run fuzz tests (tests that have arguments)
+    #[clap(long, conflicts_with("only_fuzz"))]
+    no_fuzz: bool,
+
+    /// Only run fuzz tests (tests that have arguments)
+    #[clap(long, conflicts_with("no_fuzz"))]
+    only_fuzz: bool,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -497,11 +505,15 @@ impl<'a> TestRunner<'a> {
             prepare_package(self.file_manager, self.parsed_files, package);
         check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
 
-        Ok(context
-            .get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
-            .into_iter()
-            .map(|(test_name, _)| test_name)
-            .collect())
+        let mut tests = context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern);
+        if self.args.no_fuzz {
+            tests.retain(|(_, test)| !test.has_arguments());
+        }
+        if self.args.only_fuzz {
+            tests.retain(|(_, test)| test.has_arguments());
+        }
+
+        Ok(tests.into_iter().map(|(test_name, _)| test_name).collect())
     }
 
     /// Runs a single test and returns its status together with whatever was printed to stdout
