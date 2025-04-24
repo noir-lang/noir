@@ -515,6 +515,7 @@ fn create_apply_function(
 }
 
 /// Create the final return block for an apply function.
+///
 /// The return block is meant to be shared among all branches of the apply function.
 /// The apply function will jump to this block after calling the appropriate
 /// target function.
