@@ -3,6 +3,7 @@
 use clap::Parser;
 use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
+use nargo::ops::Stdout;
 use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
 use noirc_frontend::hir::FunctionNameMatch;
 use std::io::Write;
@@ -95,7 +96,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
                     &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
                     &mut context,
                     &test_function,
-                    std::io::stdout(),
+                    Stdout {},
                     &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
                     |output, base| {
                         DefaultForeignCallBuilder::default()

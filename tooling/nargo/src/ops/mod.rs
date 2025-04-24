@@ -23,3 +23,4 @@ mod fuzz;
 mod optimize;
 mod test;
 mod transform;
+pub use test::stdout::Stdout;

@@ -23,6 +23,8 @@ use crate::{
 
 use super::execute_program;
 
+pub(super) mod stdout;
+
 #[derive(Debug)]
 pub enum TestStatus {
     Pass,
@@ -46,7 +48,7 @@ pub fn run_test<'a, W, B, F, E>(
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
-    W: std::io::Write + 'a,
+    W: std::io::Write + Clone + 'a,
     B: BlackBoxFunctionSolver<FieldElement>,
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
@@ -136,7 +138,7 @@ where
                  -> Result<WitnessStack<FieldElement>, String> {
                     // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
                     let inner_executor =
-                        build_foreign_call_executor(Box::new(std::io::empty()), layers::Unhandled);
+                        build_foreign_call_executor(Box::new(output.clone()), layers::Unhandled);
 
                     let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
 
