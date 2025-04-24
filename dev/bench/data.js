@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745493134594,
+  "lastUpdate": 1745495412740,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18001,42 +18001,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "3822b6856cbe7225d775d37870c03d437b6c1eae",
-          "message": "chore: don't use `set_value_from_id` in `loop_invariant` (#8085)",
-          "timestamp": "2025-04-15T15:58:40Z",
-          "tree_id": "dbf62a84b14b90584893d4332c4d137b37832576",
-          "url": "https://github.com/noir-lang/noir/commit/3822b6856cbe7225d775d37870c03d437b6c1eae"
-        },
-        "date": 1744733741836,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265162,
-            "range": "± 838",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234940,
-            "range": "± 4654",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "6e2ea75650075292210d5d7fe48ecaa420430574",
           "message": "feat: `#[allow(dead_code)]` (#8066)",
           "timestamp": "2025-04-15T16:33:43Z",
@@ -19994,6 +19958,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3579542,
             "range": "± 18839",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f4910ca5df08d787361e36038ff257ecec4042e0",
+          "message": "feat: avoid overflow check when subtracting from a value that is the maximum for its bitsize (#8190)",
+          "timestamp": "2025-04-24T11:32:00Z",
+          "tree_id": "97ee70e7e84cc5c34a193821cccf55536354a04a",
+          "url": "https://github.com/noir-lang/noir/commit/f4910ca5df08d787361e36038ff257ecec4042e0"
+        },
+        "date": 1745495405923,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 270628,
+            "range": "± 316",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 243404,
+            "range": "± 1185",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3227135,
+            "range": "± 11114",
             "unit": "ns/iter"
           }
         ]
