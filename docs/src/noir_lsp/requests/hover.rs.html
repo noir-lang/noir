@@ -494,10 +494,10 @@
 <a href="#493" id="493">493</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
+<span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverParams};
 <span class="kw">use </span>fm::PathString;
 <span class="kw">use </span>from_reference::hover_from_reference;
 <span class="kw">use </span>from_visitor::hover_from_visitor;
-<span class="kw">use </span>lsp_types::{Hover, HoverParams};
 
 <span class="kw">use </span><span class="kw">crate</span>::LspState;
 
@@ -527,7 +527,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::test_utils;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span>lsp_types::{
+    <span class="kw">use </span>async_lsp::lsp_types::{
         HoverContents, Position, TextDocumentIdentifier, TextDocumentPositionParams, Url,
         WorkDoneProgressParams,
     };

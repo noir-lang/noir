@@ -764,11 +764,11 @@
 <a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
-<span class="kw">use </span>fm::{FileId, FileMap, PathString};
-<span class="kw">use </span>lsp_types::{
+<span class="kw">use </span>async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
+<span class="kw">use </span>fm::{FileId, FileMap, PathString};
 <span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
@@ -1283,7 +1283,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::test_utils;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span>lsp_types::{
+    <span class="kw">use </span>async_lsp::lsp_types::{
         PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     <span class="kw">use </span>tokio::test;

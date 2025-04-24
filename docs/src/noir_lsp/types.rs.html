@@ -248,7 +248,8 @@
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
 <a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::{
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
     SignatureHelpOptions, TypeDefinitionProviderCapability, WorkspaceSymbolOptions,
@@ -257,7 +258,7 @@
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="comment">// Re-providing lsp_types that we don't need to override
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>lsp_types::{
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>async_lsp::lsp_types::{
     CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic, DiagnosticSeverity,
     DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams, InitializedParams,
@@ -265,7 +266,7 @@
 };
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>request {
-    <span class="kw">use </span>lsp_types::{InitializeParams, request::Request};
+    <span class="kw">use </span>async_lsp::lsp_types::{InitializeParams, request::Request};
 
     <span class="kw">use super</span>::{
         InitializeResult, NargoTestRunParams, NargoTestRunResult, NargoTestsParams,
@@ -273,7 +274,7 @@
     };
 
     <span class="comment">// Re-providing lsp_types that we don't need to override
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>lsp_types::request::{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>async_lsp::lsp_types::request::{
         CodeLensRequest <span class="kw">as </span>CodeLens, Formatting, GotoDeclaration, GotoDefinition,
         GotoTypeDefinition, Shutdown,
     };
@@ -304,12 +305,12 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>notification {
-    <span class="kw">use </span>lsp_types::notification::Notification;
+    <span class="kw">use </span>async_lsp::lsp_types::notification::Notification;
 
     <span class="kw">use </span><span class="kw">super</span>::NargoPackageTests;
 
     <span class="comment">// Re-providing lsp_types that we don't need to override
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>lsp_types::notification::{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>async_lsp::lsp_types::notification::{
         DidChangeConfiguration, DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument,
         DidSaveTextDocument, Exit, Initialized,
     };
@@ -496,6 +497,7 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>CodeLensResult = <span class="prelude-ty">Option</span>&lt;Vec&lt;CodeLens&gt;&gt;;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>GotoDefinitionResult = <span class="prelude-ty">Option</span>&lt;lsp_types::GotoDefinitionResponse&gt;;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>GotoDeclarationResult = <span class="prelude-ty">Option</span>&lt;lsp_types::request::GotoDeclarationResponse&gt;;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>GotoDefinitionResult = <span class="prelude-ty">Option</span>&lt;async_lsp::lsp_types::GotoDefinitionResponse&gt;;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>GotoDeclarationResult =
+    <span class="prelude-ty">Option</span>&lt;async_lsp::lsp_types::request::GotoDeclarationResponse&gt;;
 </code></pre></div></section></main></body></html>

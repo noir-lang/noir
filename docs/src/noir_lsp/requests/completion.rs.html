@@ -2018,13 +2018,18 @@
 <a href="#2017" id="2017">2017</a>
 <a href="#2018" id="2018">2018</a>
 <a href="#2019" id="2019">2019</a>
-<a href="#2020" id="2020">2020</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
 };
 
 <span class="kw">use </span>async_lsp::ResponseError;
+<span class="kw">use </span>async_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse,
+};
 <span class="kw">use </span>completion_items::{
     field_completion_item, simple_completion_item, snippet_completion_item,
     trait_impl_method_completion_item,
@@ -2032,7 +2037,6 @@
 <span class="kw">use </span>convert_case::{Case, Casing};
 <span class="kw">use </span>fm::{FileId, FileMap, PathString};
 <span class="kw">use </span>kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
-<span class="kw">use </span>lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
     DataType, ParsedModule, Type, TypeBinding,

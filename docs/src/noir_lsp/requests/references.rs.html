@@ -226,7 +226,7 @@
 <a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
-<span class="kw">use </span>lsp_types::{Location, ReferenceParams};
+<span class="kw">use </span>async_lsp::lsp_types::{Location, ReferenceParams};
 
 <span class="kw">use </span><span class="kw">crate</span>::LspState;
 
@@ -256,7 +256,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::test_utils::{<span class="self">self</span>, search_in_file};
     <span class="kw">use </span><span class="kw">crate</span>::utils::get_cursor_line_and_column;
     <span class="kw">use crate</span>::{notifications, on_did_open_text_document};
-    <span class="kw">use </span>lsp_types::{
+    <span class="kw">use </span>async_lsp::lsp_types::{
         DidOpenTextDocumentParams, PartialResultParams, Position, Range, ReferenceContext,
         TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
         WorkDoneProgressParams,

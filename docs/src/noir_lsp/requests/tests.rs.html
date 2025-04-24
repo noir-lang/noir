@@ -77,8 +77,8 @@
 <a href="#76" id="76">76</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span><span class="kw">crate</span>::insert_all_files_for_workspace_into_file_manager;
+<span class="kw">use </span>async_lsp::lsp_types::{LogMessageParams, MessageType};
 <span class="kw">use </span>async_lsp::{ErrorCode, LanguageClient, ResponseError};
-<span class="kw">use </span>lsp_types::{LogMessageParams, MessageType};
 <span class="kw">use </span>nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
 <span class="kw">use </span>noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, check_crate};
 

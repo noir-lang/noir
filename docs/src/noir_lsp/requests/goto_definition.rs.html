@@ -288,13 +288,15 @@
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span><span class="kw">crate</span>::attribute_reference_finder::AttributeReferenceFinder;
 <span class="kw">use </span><span class="kw">crate</span>::utils;
 <span class="kw">use crate</span>::{LspState, types::GotoDefinitionResult};
 <span class="kw">use </span>async_lsp::ResponseError;
 
+<span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>fm::PathString;
 <span class="kw">use </span>lsp_types::request::GotoTypeDefinitionParams;
 <span class="kw">use </span>lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
@@ -366,7 +368,7 @@
     <span class="kw">use </span>std::panic;
 
     <span class="kw">use </span><span class="kw">crate</span>::test_utils::{<span class="self">self</span>, search_in_file};
-    <span class="kw">use </span>lsp_types::{Position, Range};
+    <span class="kw">use </span>async_lsp::lsp_types::{Position, Range};
     <span class="kw">use </span>tokio::test;
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;

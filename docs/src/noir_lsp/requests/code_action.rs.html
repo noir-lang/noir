@@ -337,11 +337,11 @@
 };
 
 <span class="kw">use </span>async_lsp::ResponseError;
-<span class="kw">use </span>fm::{FileId, FileMap, PathString};
-<span class="kw">use </span>lsp_types::{
+<span class="kw">use </span>async_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
+<span class="kw">use </span>fm::{FileId, FileMap, PathString};
 <span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,

@@ -759,7 +759,10 @@
 <a href="#758" id="758">758</a>
 <a href="#759" id="759">759</a>
 <a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::{collections::HashMap, future::Future};
 
@@ -785,6 +788,8 @@
 <span class="kw">use </span>noirc_frontend::usage_tracker::UsageTracker;
 <span class="kw">use </span>noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
+
+<span class="kw">use </span>async_lsp::lsp_types;
 
 <span class="kw">use crate</span>::{
     LspState,
@@ -953,7 +958,8 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>on_initialize(
+<span class="attr">#[expect(deprecated)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>on_initialize(
     state: <span class="kw-2">&amp;mut </span>LspState,
     params: InitializeParams,
 ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;InitializeResult, ResponseError&gt;&gt; + <span class="kw">use</span>&lt;&gt; {
@@ -1471,7 +1477,7 @@
 </span><span class="kw">mod </span>initialization {
     <span class="kw">use </span>acvm::blackbox_solver::StubbedBlackBoxSolver;
     <span class="kw">use </span>async_lsp::ClientSocket;
-    <span class="kw">use </span>lsp_types::{
+    <span class="kw">use </span>async_lsp::lsp_types::{
         CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
     <span class="kw">use </span>tokio::test;

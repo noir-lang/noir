@@ -485,19 +485,19 @@
 };
 
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
-<span class="kw">use </span>async_lsp::{
-    AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
-    router::Router,
-};
-<span class="kw">use </span>fm::{FileManager, codespan_files <span class="kw">as </span>files};
-<span class="kw">use </span>fxhash::FxHashSet;
-<span class="kw">use </span>lsp_types::{
+<span class="kw">use </span>async_lsp::lsp_types::{
     CodeLens,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
         PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
+<span class="kw">use </span>async_lsp::{
+    AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
+    router::Router,
+};
+<span class="kw">use </span>fm::{FileManager, codespan_files <span class="kw">as </span>files};
+<span class="kw">use </span>fxhash::FxHashSet;
 <span class="kw">use </span>nargo::{
     package::{Package, PackageType},
     parse_all,

@@ -117,8 +117,8 @@
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
+<span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
-<span class="kw">use </span>lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
     Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
