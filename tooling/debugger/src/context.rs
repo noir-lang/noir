@@ -652,6 +652,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                         .map(|op| op.into())
                         .collect::<Vec<ResolvedOpcodeLocation>>(),
                 );
+                let error = update_assert_error_call_stack(error, err);
                 DebugCommandResult::Error(NargoError::ExecutionError(error))
             }
         }
@@ -988,6 +989,35 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 }
 
+fn update_assert_error_call_stack<F: AcirField>(
+    error: ExecutionError<F>,
+    opcode_err: OpcodeResolutionError<F>,
+) -> ExecutionError<F> {
+    match &error {
+        ExecutionError::AssertionFailed(resolved_assertion_payload, ..) => {
+            if let OpcodeResolutionError::BrilligFunctionFailed {
+                payload: _,
+                function_id,
+                call_stack,
+            } = opcode_err
+            {
+                ExecutionError::AssertionFailed(
+                    resolved_assertion_payload.clone(),
+                    call_stack
+                        .iter()
+                        .map(|opcode_location| ResolvedOpcodeLocation {
+                            acir_function_index: 0,
+                            opcode_location: opcode_location.clone(),
+                        })
+                        .collect::<Vec<ResolvedOpcodeLocation>>(),
+                    Some(function_id),
+                )
+            } else {
+                error
+            }
+        }
+        _ => error,
+    }
 }
 
 fn is_debug_file_in_debug_crate(debug_file: &DebugFile) -> bool {
