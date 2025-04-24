@@ -1662,7 +1662,24 @@
 <a href="#1661" id="1661">1661</a>
 <a href="#1662" id="1662">1662</a>
 <a href="#1663" id="1663">1663</a>
-<a href="#1664" id="1664">1664</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1687,6 +1704,7 @@
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackHelper};
 <span class="kw">use </span>num_bigint::BigUint;
+<span class="kw">use </span>num_integer::Integer;
 <span class="kw">use </span>std::{borrow::Cow, cmp::Ordering};
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
@@ -2438,12 +2456,28 @@
             <span class="comment">// If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
             </span>(<span class="prelude-val">Some</span>(lhs_const), <span class="prelude-val">Some</span>(rhs_const), <span class="kw">_</span>) <span class="kw">if </span>!rhs_const.is_zero() =&gt; {
-                <span class="kw">let </span>quotient = lhs_const.to_u128() / rhs_const.to_u128();
-                <span class="kw">let </span>remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+                <span class="kw">if </span>lhs_const.num_bits() &lt;= <span class="number">128 </span>&amp;&amp; rhs_const.num_bits() &lt;= <span class="number">128 </span>{
+                    <span class="kw">let </span>lhs_const = lhs_const.to_u128();
+                    <span class="kw">let </span>rhs_const = rhs_const.to_u128();
+                    <span class="kw">let </span>quotient = lhs_const / rhs_const;
+                    <span class="kw">let </span>remainder = lhs_const - quotient * rhs_const;
 
-                <span class="kw">let </span>quotient_var = <span class="self">self</span>.add_constant(quotient);
-                <span class="kw">let </span>remainder_var = <span class="self">self</span>.add_constant(remainder);
-                <span class="kw">return </span><span class="prelude-val">Ok</span>((quotient_var, remainder_var));
+                    <span class="kw">let </span>quotient_var = <span class="self">self</span>.add_constant(quotient);
+                    <span class="kw">let </span>remainder_var = <span class="self">self</span>.add_constant(remainder);
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>((quotient_var, remainder_var));
+                } <span class="kw">else </span>{
+                    <span class="comment">// If we're truncating to 128 bits, the RHS will be 2**128, which is 1 followed by 128 zeros;
+                    // when converted to u128, it becomes all zero.
+                    </span><span class="kw">let </span>lhs_const = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>lhs_const.to_be_bytes());
+                    <span class="kw">let </span>rhs_const = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>rhs_const.to_be_bytes());
+                    <span class="kw">let </span>(quotient, remainder) = lhs_const.div_rem(<span class="kw-2">&amp;</span>rhs_const);
+                    <span class="kw">let </span>quotient = F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>quotient.to_bytes_be());
+                    <span class="kw">let </span>remainder = F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>remainder.to_bytes_be());
+
+                    <span class="kw">let </span>quotient_var = <span class="self">self</span>.add_constant(quotient);
+                    <span class="kw">let </span>remainder_var = <span class="self">self</span>.add_constant(remainder);
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>((quotient_var, remainder_var));
+                };
             }
 
             <span class="comment">// If `rhs` is one then the division is a noop.
