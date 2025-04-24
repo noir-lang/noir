@@ -134,11 +134,12 @@ where
                 let debug = compiled_program.debug.clone();
 
                 let executor = |program: &Program<FieldElement>,
-                                initial_witness: WitnessMap<FieldElement>|
+                                initial_witness: WitnessMap<FieldElement>,
+                                output|
                  -> Result<WitnessStack<FieldElement>, String> {
                     // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
                     let inner_executor =
-                        build_foreign_call_executor(Box::new(output.clone()), layers::Unhandled);
+                        build_foreign_call_executor(Box::new(output), layers::Unhandled);
 
                     let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
 
@@ -165,7 +166,7 @@ where
                     }
                 };
 
-                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner, output);
 
                 let result = fuzzer.fuzz();
                 if result.success {

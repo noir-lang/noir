@@ -27,7 +27,7 @@ use noirc_artifacts::program::ProgramArtifact;
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
 /// inputs, until it finds a counterexample. The provided [`TestRunner`] contains all the
 /// configuration which can be overridden via [environment variables](proptest::test_runner::Config)
-pub struct FuzzedExecutor<E> {
+pub struct FuzzedExecutor<E, W> {
     /// The program to be fuzzed
     program: ProgramArtifact,
 
@@ -36,18 +36,23 @@ pub struct FuzzedExecutor<E> {
 
     /// The fuzzer
     runner: TestRunner,
+
+    /// An output stream to write `println` calls to.
+    output: W,
 }
 
-impl<E> FuzzedExecutor<E>
+impl<E, W> FuzzedExecutor<E, W>
 where
     E: Fn(
         &Program<FieldElement>,
         WitnessMap<FieldElement>,
+        W,
     ) -> Result<WitnessStack<FieldElement>, String>,
+    W: std::io::Write + Clone,
 {
     /// Instantiates a fuzzed executor given a [TestRunner].
-    pub fn new(program: ProgramArtifact, executor: E, runner: TestRunner) -> Self {
-        Self { program, executor, runner }
+    pub fn new(program: ProgramArtifact, executor: E, runner: TestRunner, output: W) -> Self {
+        Self { program, executor, runner, output }
     }
 
     /// Fuzzes the provided program.
@@ -89,7 +94,7 @@ where
     /// or a `CounterExampleOutcome`
     pub fn single_fuzz(&self, input_map: InputMap) -> Result<FuzzOutcome, TestCaseError> {
         let initial_witness = self.program.abi.encode(&input_map, None).unwrap();
-        let result = (self.executor)(&self.program.bytecode, initial_witness);
+        let result = (self.executor)(&self.program.bytecode, initial_witness, self.output.clone());
 
         // TODO: Add handling for `vm.assume` equivalent
 
