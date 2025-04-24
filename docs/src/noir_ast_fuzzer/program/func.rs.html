@@ -1068,9 +1068,52 @@
 <a href="#1067" id="1067">1067</a>
 <a href="#1068" id="1068">1068</a>
 <a href="#1069" id="1069">1069</a>
-<a href="#1070" id="1070">1070</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
 };
 <span class="kw">use </span>strum::IntoEnumIterator;
@@ -1197,6 +1240,8 @@
     <span class="doccomment">/// All the functions callable from this one, with the types we can
     /// produce from their return value.
     </span>call_targets: BTreeMap&lt;FuncId, HashSet&lt;Type&gt;&gt;,
+    <span class="doccomment">/// Indicate that we have generated a `Call`.
+    </span>has_call: bool,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FunctionContext&lt;<span class="lifetime">'a</span>&gt; {
@@ -1247,6 +1292,7 @@
             in_loop: <span class="bool-val">false</span>,
             call_targets,
             next_ident_id: <span class="number">0</span>,
+            has_call: <span class="bool-val">false</span>,
         }
     }
 
@@ -1256,7 +1302,11 @@
         // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
         </span><span class="self">self</span>.budget = <span class="self">self</span>.budget.min(u.len());
         <span class="kw">let </span>ret = <span class="self">self</span>.decl().return_type.clone();
-        <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>ret, <span class="self">self</span>.max_depth(), Flags::TOP)
+        <span class="kw">let </span><span class="kw-2">mut </span>body = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>ret, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(call) = <span class="self">self</span>.gen_guaranteed_call_from_main(u)<span class="question-mark">? </span>{
+            expr::prepend(<span class="kw-2">&amp;mut </span>body, call);
+        }
+        <span class="prelude-val">Ok</span>(body)
     }
 
     <span class="doccomment">/// Get the function declaration.
@@ -1267,6 +1317,11 @@
     <span class="doccomment">/// Is this function unconstrained.
     </span><span class="kw">fn </span>unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.decl().unconstrained
+    }
+
+    <span class="doccomment">/// Is this the main function?
+    </span><span class="kw">fn </span>is_main(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.id == Program::main_id()
     }
 
     <span class="doccomment">/// The default maximum depth to start from. We use `max_depth` to limit the
@@ -1722,32 +1777,38 @@
             }
         }
 
-        <span class="self">self</span>.gen_let(u, <span class="prelude-val">None</span>)
+        <span class="self">self</span>.gen_let(u)
     }
 
-    <span class="doccomment">/// Generate a `Let` statement, optionally requesting mutability.
-    </span><span class="kw">fn </span>gen_let(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        u: <span class="kw-2">&amp;mut </span>Unstructured,
-        mutable: <span class="prelude-ty">Option</span>&lt;bool&gt;,
-    ) -&gt; arbitrary::Result&lt;Expression&gt; {
+    <span class="doccomment">/// Generate a `Let` statement with arbitrary type and value.
+    </span><span class="kw">fn </span>gen_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="comment">// Generate a type or choose an existing one.
         </span><span class="kw">let </span>max_depth = <span class="self">self</span>.max_depth();
         <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>id = <span class="self">self</span>.next_local_id();
-
-        <span class="kw">let </span>mutable = <span class="kw">match </span>mutable {
-            <span class="prelude-val">Some</span>(m) =&gt; m,
-            <span class="prelude-val">None </span>=&gt; bool::arbitrary(u)<span class="question-mark">?</span>,
-        };
-
-        <span class="kw">let </span>name = make_name(id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>);
         <span class="kw">let </span>expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
+        <span class="kw">let </span>mutable = bool::arbitrary(u)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.let_var(mutable, typ, expr, <span class="bool-val">true</span>))
+    }
+
+    <span class="doccomment">/// Add a new local variable and return a `Let` expression.
+    ///
+    /// If `add_to_scope` is `false`, the value will not be added to the `locals`.
+    </span><span class="kw">fn </span>let_var(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        mutable: bool,
+        typ: Type,
+        expr: Expression,
+        add_to_scope: bool,
+    ) -&gt; Expression {
+        <span class="kw">let </span>id = <span class="self">self</span>.next_local_id();
+        <span class="kw">let </span>name = make_name(id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>);
 
         <span class="comment">// Add the variable so we can use it in subsequent expressions.
-        </span><span class="self">self</span>.locals.add(id, mutable, name.clone(), typ.clone());
+        </span><span class="kw">if </span>add_to_scope {
+            <span class="self">self</span>.locals.add(id, mutable, name.clone(), typ.clone());
+        }
 
-        <span class="prelude-val">Ok</span>(expr::let_var(id, mutable, name, expr))
+        expr::let_var(id, mutable, name, expr)
     }
 
     <span class="doccomment">/// Drop a local variable, if we have anything to drop.
@@ -1941,6 +2002,9 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         }
 
+        <span class="comment">// Remember that we will have made a call to something.
+        </span><span class="self">self</span>.has_call = <span class="bool-val">true</span>;
+
         <span class="kw">let </span>callee_id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
         <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
         <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
@@ -2078,12 +2142,34 @@
         <span class="prelude-val">Ok</span>(Expression::Block(stmts))
     }
 
-    <span class="kw">fn </span>gen_loop_size(<span class="kw-2">&amp;</span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;usize&gt; {
+    <span class="doccomment">/// Choose a random maximum guard size for `loop` and `while` to match the average of the size of a `for`.
+    </span><span class="kw">fn </span>gen_loop_size(<span class="kw-2">&amp;</span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;usize&gt; {
         <span class="kw">if </span><span class="self">self</span>.ctx.config.vary_loop_size {
             u.choose_index(<span class="self">self</span>.ctx.config.max_loop_size)
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(<span class="self">self</span>.ctx.config.max_loop_size)
         }
+    }
+
+    <span class="doccomment">/// If this is main, and we could have made a call to another function, but we didn't,
+    /// ensure we do, so as not to let all the others we generate go to waste.
+    </span><span class="kw">fn </span>gen_guaranteed_call_from_main(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+        <span class="kw">if </span><span class="self">self</span>.is_main() &amp;&amp; !<span class="self">self</span>.has_call &amp;&amp; !<span class="self">self</span>.call_targets.is_empty() {
+            <span class="comment">// Choose a type we'll return.
+            </span><span class="kw">let </span>opts = <span class="self">self</span>.call_targets.values().fold(BTreeSet::new(), |<span class="kw-2">mut </span>acc, types| {
+                acc.extend(types.iter());
+                acc
+            });
+            <span class="kw">let </span>typ = (<span class="kw-2">*</span>u.choose_iter(opts.iter())<span class="question-mark">?</span>).clone();
+            <span class="comment">// Assign the result of the call to a variable we won't use.
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(call) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.let_var(<span class="bool-val">false</span>, typ, call, <span class="bool-val">false</span>)));
+            }
+        }
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
     }
 }
 
