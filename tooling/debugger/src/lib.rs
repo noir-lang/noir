@@ -9,26 +9,19 @@ use std::io::{Read, Write};
 
 use ::dap::errors::ServerError;
 use ::dap::server::Server;
-use acvm::acir::native_types::{WitnessMap, WitnessStack};
-use acvm::{BlackBoxFunctionSolver, FieldElement};
+// TODO: extract these pub structs to its own module
+pub use context::DebugExecutionResult;
+pub use context::DebugProject;
+pub use context::RunParams;
 
-use nargo::NargoError;
-use noirc_driver::CompiledProgram;
-
-pub fn run_repl_session<B: BlackBoxFunctionSolver<FieldElement>>(
-    solver: &B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap<FieldElement>,
-    raw_source_printing: bool,
-) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
-    repl::run(solver, program, initial_witness, raw_source_printing)
+pub fn run_repl_session(project: DebugProject, run_params: RunParams) -> DebugExecutionResult {
+    repl::run(project, run_params)
 }
 
-pub fn run_dap_loop<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
-    server: Server<R, W>,
-    solver: &B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap<FieldElement>,
-) -> Result<(), ServerError> {
-    dap::run_session(server, solver, program, initial_witness)
+pub fn run_dap_loop<R: Read, W: Write>(
+    server: &mut Server<R, W>,
+    project: DebugProject,
+    run_params: RunParams,
+) -> Result<DebugExecutionResult, ServerError> {
+    dap::run_session(server, project, run_params)
 }

@@ -35,6 +35,24 @@ mod tests {
         // Allow more bytecode in exchange to catch illegal states.
         nargo.arg("--enable-brillig-debug-assertions");
 
+        // Enable pedantic solving
+        let skip_pedantic_solving = [
+            // TODO(https://github.com/noir-lang/noir/issues/8098): all of these are failing with:
+            // ```
+            // Failed to solve program:
+            // \'Failed to solve blackbox function: embedded_curve_add, reason: Infinite input: embedded_curve_add(infinity, infinity)\'
+            // ```
+            "execution_success/multi_scalar_mul",
+            "execution_success/regression_5045",
+            "execution_success/regression_7744",
+        ];
+        if !skip_pedantic_solving
+            .into_iter()
+            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip))
+        {
+            nargo.arg("--pedantic-solving");
+        }
+
         // Enable enums and ownership as unstable features
         nargo.arg("-Zenums");
 
@@ -143,6 +161,11 @@ mod tests {
                     println!(
                         "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
                     );
+                    if expected_stdout.is_empty() && !stdout_path.exists() {
+                        println!(
+                            "Hint: set the OVERWRITE_TEST_OUTPUT env var to establish a stdout.txt"
+                        )
+                    }
                     assert_eq!(stdout, expected_stdout);
                 }
             }
@@ -162,6 +185,13 @@ mod tests {
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
+    }
+
+    fn execution_panic(mut nargo: Command) {
+        nargo
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("The application panicked (crashed)."));
     }
 
     fn noir_test_success(mut nargo: Command) {

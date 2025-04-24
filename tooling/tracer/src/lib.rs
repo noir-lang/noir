@@ -1,5 +1,5 @@
 mod source_location;
-use acvm::acir::circuit::ErrorSelector;
+use acvm::acir::circuit::{ErrorSelector, OpcodeLocation};
 use acvm::pwg::{OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload};
 use nargo::errors::ExecutionError;
 use noirc_abi::AbiErrorType;
@@ -22,8 +22,8 @@ use tracer_glue::{
 pub mod tail_diff_vecs;
 use tail_diff_vecs::tail_diff_vecs;
 
-use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::{BlackBoxFunctionSolver, FieldElement};
+use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
+use acvm::{AcirField, BlackBoxFunctionSolver, FieldElement};
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use nargo::NargoError;
 use noir_debugger::context::{DebugCommandResult, DebugContext};
@@ -97,8 +97,13 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         let print_output = Rc::new(RefCell::new(String::new()));
         let writer: StringWriter = StringWriter::new(Rc::clone(&print_output));
 
-        let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(writer, debug_artifact));
+        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+            writer,
+            None,
+            debug_artifact,
+            None,
+            String::new(),
+        ));
         let debug_context = DebugContext::new(
             blackbox_solver,
             circuit,
@@ -282,53 +287,51 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     loop {
         let source_locations = match tracing_context.step_debugger() {
             DebugStepResult::Finished => break,
-            DebugStepResult::Error(err) => {
-                if let NargoError::ExecutionError(ExecutionError::SolvingError(
+            DebugStepResult::Error(err) => match &err {
+                NargoError::ExecutionError(ExecutionError::SolvingError(
                     OpcodeResolutionError::BrilligFunctionFailed {
                         function_id,
                         call_stack,
                         payload,
                     },
                     _,
-                )) = &err
-                {
-                    let err_str =
-                        if let Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
-                            selector,
-                            data: _,
-                        })) = payload
-                        {
-                            if let Some(AbiErrorType::String { string }) = error_types.get(selector)
-                            {
-                                string.clone()
-                            } else {
-                                err.to_string()
-                            }
-                        } else {
-                            err.to_string()
-                        };
-
-                    let mut debug_locations = vec![];
-                    for opcode_loc in call_stack {
-                        debug_locations.push(noir_debugger::context::DebugLocation {
-                            circuit_id: 0,
-                            opcode_location: *opcode_loc,
-                            brillig_function_id: Some(*function_id),
-                        });
-                    }
-                    let source_locations = get_source_locations_for_call_stack(
-                        &tracing_context.debug_context,
-                        debug_locations,
+                )) => {
+                    handle_function_error(
+                        function_id,
+                        call_stack,
+                        payload.as_ref(),
+                        error_types,
+                        &err,
+                        &mut tracing_context,
+                        tracer,
                     );
-
-                    tracing_context.update_record(tracer, &source_locations);
-                    register_error(tracer, err_str.as_str());
                     break;
-                } else {
+                }
+                NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                    payload,
+                    call_stack,
+                    Some(function_id),
+                )) => {
+                    let opcode_locations = call_stack
+                        .iter()
+                        .map(|loc| loc.opcode_location)
+                        .collect::<Vec<_>>();
+                    handle_function_error(
+                        function_id,
+                        &opcode_locations,
+                        Some(payload),
+                        error_types,
+                        &err,
+                        &mut tracing_context,
+                        tracer,
+                    );
+                    break;
+                }
+                _ => {
                     println!("Error: {err}");
                     break;
                 }
-            }
+            },
             DebugStepResult::Paused(source_location) => source_location,
         };
 
@@ -341,4 +344,45 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     }
 
     Ok(())
+}
+
+fn handle_function_error<F, B: BlackBoxFunctionSolver<FieldElement>>(
+    function_id: &BrilligFunctionId,
+    call_stack: &[OpcodeLocation],
+    payload: Option<&ResolvedAssertionPayload<F>>,
+    error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
+    err: &NargoError<F>,
+    tracing_context: &mut TracingContext<B>,
+    tracer: &mut Tracer,
+) 
+where F: AcirField
+{
+    let err_str = if let Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
+        selector,
+        data: _,
+    })) = payload
+    {
+        if let Some(AbiErrorType::String { string }) = error_types.get(selector) {
+            string.clone()
+        } else {
+            err.to_string()
+        }
+    } else {
+        err.to_string()
+    };
+
+    let debug_locations = call_stack
+        .iter()
+        .map(|opcode_loc| noir_debugger::context::DebugLocation {
+            circuit_id: 0,
+            opcode_location: *opcode_loc,
+            brillig_function_id: Some(*function_id),
+        })
+        .collect();
+
+    let source_locations =
+        get_source_locations_for_call_stack(&tracing_context.debug_context, debug_locations);
+
+    tracing_context.update_record(tracer, &source_locations);
+    register_error(tracer, &err_str);
 }

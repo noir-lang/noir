@@ -46,7 +46,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/8VWS07DMBCdNHbbtKqKYInEDlgSt01TseqCco+QknP46CTCr5lMLJDAVi1Z/szzvPnZckLfbdL2xM0V25MNmKMb8/81E1BXnjD7YtmbBLaXZKwnHuP53Cd/dWMmMJ08Deh8JnhD6j/kuzKjcfIC2r/NmM4I+jfQr+Loz2dOz5sd6ifBmwqc7wwwJ4Y5MUzXVm7O6xB64GuMWmtroYgcS7OiYfy43+DWcbg3ieAjGuaRBP+CotatSQQf7JHxQa5XwNjeHilTduwHZJrJkN952+8ZzldbwD2x+bPQ/W77MzKfkWp1H/ldMXc/xAM+zixdGmQp20PMEac5xwtZxmTKDnkWbq0YD9cFO7TAP7r12o1Tdgbnbzz8U8E/sNuzx2MkdaWePeCnbX9w86XrXX0ZnKHr3UFf3tc0fh+1sDXSP+Dy0YItitnK3y/wa4F/cWMX35L6PMjz8K1rS+r/N8qG96s89B8y3AdNw/ePBL8W+L1bL5gP3JfjH+1syso026qpiup83tXVrdCP+CFOofnrYv9R74oq/zTdcvMb/xdZ/DtEVQwAAA==",
-  "debug_symbols": "lZBLCsMgEEDvMmsX+WikuUoowSSTIIgGYwolePeOpaVp6caN+IYnI++ACYd96bWd3QZtd4BxowraWaIjMhi8NkYv/XkMRTp4/fS3VdmEW1A+QCsrBmgnutT0etYGoRVFvDLgPNMXmX6T6ct/ftO8ff7lR6Kb8loNBl9p5t2Op1LhvuJPtNW7EafdY8r3KZfCVZLVkn5R0qTjFyZ4gpJACCYk7aOdDw==",
+  "debug_symbols": "jZDNisQgEITfpc99yI9GNq8SQjBJZxDEBEcXluC7bzuZzM9hYC6W1e1XSO0w0xgvg3HLeoW222H0xlpzGew66WBWx9MdinyIGtoSQYhD5CHNIQraKiWEExuCJ8rUSw6nb9qTC9C6aC3Cr7bx9ui6aXfToD1vCwRyMysHLsZSviV80sVnVFV3VtUPWH5NN81Jize6Z6cn499aSTnHGz1autsluullG/62c3O2uvl1ojl6yknParnZrlJYqx6h5EknflCKbEo2UqJUfcrf+Ac=",
   "file_map": {
     "50": {
       "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",

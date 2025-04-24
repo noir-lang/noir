@@ -26,7 +26,7 @@ expression: artifact
     "error_types": {}
   },
   "bytecode": "H4sIAAAAAAAA/62QQQqAMAwEW/FBSZO0yc2vWGz//wRBI5TiTQfC5jQsG8NN9JtZPDdP+AaOLoLM3EpqSLhDsqoCLDUrKorKkZSoKWuxagUMmRp2Meoui//1ulzrsEWY/rdtHk55268IRAEAAA==",
-  "debug_symbols": "TYxLCsMwDAXvonUWKTQbX6WU4I8cBEY2sl0oJnevEhrITvMGzYCArm8rccwVzGtAyt42yqw0YD6nWiwfVJuVBua5TIAcwCyPfYJICfWc97eCE0qJtvUe0fljhaxL+MfY2d9s+5bLXP9FssfQBY/S6TT/Aw==",
+  "debug_symbols": "dY9NCoNADIXvkvUsLNSNVylF4hhlIGSGOCMU8e6Noq1ddJWfly/JW6CnroxtkCFO0DwW6DQwh7Hl6DGHKNZdVgdn2WYlshZcdKMSKkmGRgqzgxm57ENTQtljRjW1ckDSW7SFQ2DastV96eo/eq8Ptr594Nrop1Xog/78CxU029iMGrBjOjwMRfzFUn6lUzlNJ42e+qK0rds1O/AG",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: pub Field) {\n    assert(x == y);\n}\n",

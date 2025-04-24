@@ -24,7 +24,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VVwYrCMBCdtsnuZl3ZZT0IIogXvSikaNGjB38kKP2OfroWZsg4Tr2YDJRJ2sl7b15CWkCMArMRc1BqTpj9e1EnxPKq0FdBNVvMDnPJvlcJm3WCNyX+0e8bp/SXUP/OIWZOfwgzA77/RJxzF/FlL32Mcc7PEK35uj8/EMdjHDuxJsfeZvTeTxT9xDXCXtfCn4r5UwxkgMf9pCiFbyZTX3/wfKaM4LZMVyLehrg+EM/Cs79W6Mhxdu5R036Vige9vil7z3UZ1DG01or6GcNcihryYcFq5gO8MMBL/mj9WKUfbe9LReMv6P5zXlrHPeH10hOqX2HOfbf9M1zZwwjiv8106fkPR++Jt+qiD/x+AMFvRf0G599KH+YNne0h1O0utKEJ1+v+EqRPffB77gYXk/5IEQkAAA==",
-  "debug_symbols": "ldPNCoMwDADgd8nZgxrr36uMIVWrFEqVWgdDfPe1Q4fUwuglNCVfyCHZoGftOjZcDtMC9WMDMXVU80mabNsjaBUXgo/N9RtiG5LsW7/MVNp00VRpqNOERMBkb1+58QMXDGoS788IEhIs8mBRBIvSK0h8CnITVahI0SvwNxXehH+qojpFGTsCk2DhnQrT8hCI6IrsnyhdQYJFHiyKMLGb7EUVp61gx5oPq+wuW6/fM3MOYFZTx/pVMXsKlysw8YFVlGWmrWn9AQ==",
+  "debug_symbols": "pZLBjoMgEIbfZc4cBMSqr9I0BhUbEoKG6iYbw7vvINK1hyaNvfDJjN/8HGaFXrXLvdF2GB9QX1donTZG3xszdnLWo8XqClk4aA41JUBFRBFxiSihZohqA+NQcwQWcwKcRmBRIHBKgRARRQROKbwnkFKb2SkVQg/PwMdN0ik7Q20XYwj8SLNsPz0maTfO0mE3I6Bsj8SBgzYqfHnyb2fvVUbFLjNaPHXxuS9SOBOnfP7M56f8S5X8Mjvhc1buPuf8S7988W94k512L4vlwySnZWvUfh0W2x268++UOmkxJzd2ql+cCpMO24nnlVckz28+pP0B",
   "file_map": {
     "50": {
       "source": "// Regression for issue #7359 (https://github.com/noir-lang/noir/issues/7359)\n// We want the loop to be small enough that the compiler may attempt to unroll it.\nunconstrained fn main(x: Field) {\n    let mut count = 0;\n\n    for i in 0..1 {\n        if x == 5 {\n            count = i;\n            break;\n        }\n    }\n    assert(count == 0);\n}\n",

@@ -3388,6 +3388,7 @@ dependencies = [
  "build-data",
  "color-eyre",
  "im",
+ "insta",
  "nargo",
  "noir_fuzzer",
  "noirc_abi",
@@ -3417,6 +3418,7 @@ version = "1.0.0-beta.4"
 dependencies = [
  "acvm",
  "assert_cmd",
+ "bn254_blackbox_solver",
  "build-data",
  "codespan-reporting",
  "dap",
@@ -3723,10 +3725,10 @@ dependencies = [
  "codespan-reporting",
  "flate2",
  "fm",
+ "fxhash",
  "noirc_printable_type",
  "serde",
  "serde_json",
- "serde_with",
  "tracing",
 ]
 

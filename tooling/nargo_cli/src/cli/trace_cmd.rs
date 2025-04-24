@@ -1,8 +1,9 @@
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
-use nargo::constants::PROVER_INPUT_FILE;
+use nargo::ops::debug::compile_options_for_debugging;
 use nargo::package::Package;
+use nargo::{constants::PROVER_INPUT_FILE, ops::debug::compile_bin_package_for_debugging};
 use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_toml};
 use noir_tracer::tracer_glue::store_trace;
 use noirc_abi::InputMap;
@@ -11,7 +12,6 @@ use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
-use super::debug_cmd::compile_bin_package_for_debugging;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
@@ -57,13 +57,15 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
         return Ok(());
     };
 
-    let compiled_program = compile_bin_package_for_debugging(
-        &workspace,
-        package,
+    let compile_options = compile_options_for_debugging(
         acir_mode,
         skip_instrumentation,
+        None,
         args.compile_options.clone(),
-    )?;
+    );
+
+    let compiled_program =
+        compile_bin_package_for_debugging(&workspace, package, &compile_options)?;
 
     trace_program_and_decode(
         compiled_program,

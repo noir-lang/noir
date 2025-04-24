@@ -1,0 +1,62 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "start",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 64
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "end",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 64
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1YTU/bQBDdtTd2nDQNbU9V1VNV9VBVsotdh1NbtYA4c0JcsAiRQOI/5KcTw4z8MoyNgHVAiJWsXXuf37z58NiJNTcjWB2W1g6uycGYPzSnjxuZR660T53Wo04LOoNbCxCPa23/kuZEYOr90KPzibDrk3+W5mVi1odn/dsJcPbA/5P5XT/8aUw8/5fr/EbYDQVO3uMAswuYXYGZ0BrrkHl4D+uR7x+uji3TrN+Z5p567IEd5k4En+fa+tVz7rMPLfrrMaY4zIWvWCfOn5aC+See+MvF+uC8DYlvQPzSpszt2378TdnWVPBLmxb0ov6PNEer4xOtub6x500B97kDZxXcpnIyMt05cc8sJw70ov4vEMOvItZjo+fkWwfOKTjWGNF5CBoxn2OBfwMx5OtDWI+ET4z/Dhp+AIfPumjLQyT4pc1I+MjvmgDwkgPxA4UfvxPinvx9aG8KhJ6nfg4C0Iv6C5rr2Je0vqs37XTgAgX32pvu15t+Qwz/ili39aZ/HTin4Dbdm/ZBwwFwvITeZBV+/E5jPu2b1rbM9QiVa7Kv9PVbYEvxw23Gdpa0xNwX/wQ0Mz+/X2qbh8LPxJOOmTiX9WZMUz+oTX77DRW87cCzb9gXY8DguwzxxxCTI1pPFXtcI2PYHyj7mr+h0d/vmr9RCz4W+hl/QnN9fkFrra5jYW8A+rR8cF3ep46uuZYNztfzUs6aP3rCZROH0NweDvYRf07nI/CD58fU+6KsssV2taiKaj7PT6v3gr8eWDu+7edFVZ5WZZbt5NlZnhV32b8C59X6eaUUAAA=",
+  "debug_symbols": "pdTBjoIwFIXhd+maRcttb4uvMjEGtRqSBkiFSSaGd58LRxxdTDJhNvwinI8N4a7O8TheD0176W5q93FXx9yk1FwPqTvVQ9O18u9d6flggtqZQplqSakRg5QIIRZxCCMegVJCISgEhaAQFIJCUAgKQSEoBMVCsVAsFAvFQrFQLBQrSikJSLXEacQgJUKIRRzCCBQHxUFhKAyFoTAUhsJQGApDYSgMxUPxUDwUD8VD8aKQhBGPhCVB7rQSiziEEXmCK1QlNEuE9hJCLOIQRoT201So9ZU4DDnG+Y14eUfkzenrHNtB7doxpUJ91mlcbrr1dbt0qLNc1YWK7Vkq4KVJcf41FT9r/fvU28c20HPs/rw22jzmRoct+7Ja96S37F257p3bsg+87kO1Zc/PPf9z7+3bfi9n9anJb9+MaZZyUx9TfJxexvb0cnX46tcr6zenz90pnsccZ+nlwyPHD6N1YbTbywfILKcsp2E/zY//Bg==",
+  "file_map": {
+    "50": {
+      "source": "unconstrained fn main(start: i64, end: i64) -> pub u32 {\n    let start = (start % 5);\n    let end = (end % 5);\n    let mut sum = 0;\n    for i in start..end {\n        sum += 1;\n    }\n    sum\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

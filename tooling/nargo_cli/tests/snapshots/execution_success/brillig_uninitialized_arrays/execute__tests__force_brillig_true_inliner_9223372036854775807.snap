@@ -40,7 +40,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VWS27CMBC1QwwxFaVqD9BdV13E+RCWLNreww3NOTh6sepRhodDVGGPFPkz4zdvnicBKf4sOz/Sz3O2h0YxBz+W95mJiFWm5Ckj8pSMZ3Y1YeT5PORv/aghxvkXEYvXkDcm/r5sOi0uLTL/WjPMBPgV4edp8MuVx/k4XeILyLvxa94/dIZ8vI8+va84P49inG8ZnrMvlpewNeBF7old4jszLxP8nT14Hd5BV/KLgA6J7r6WkE+AJgLyrxPrJiEf8UF9MtBOBbg+BXwS5iqQRwXyhLAyOJdP5HF+PbF/EFF0q7AeNcOL+CyZT8TjYxTwefWj6/sK+ND3h2sZumuKLwLxKxZD9W7F9Z0VcI5rg++qhP05TRXEv92oOftnzctAfHajZt5n/Czmnno/NgEcOue+X/Sbmp9Gf6x+7vbjn5iFxyft0XLm5/HGr9eMP435HTyHzpqhtoNt7fHY9PYZ8AXoFDt/3+6++6a15Y9xy2ou/y/JOlM+gQsAAA==",
-  "debug_symbols": "tdbNioMwEAfwd8k5hziTaPVVlqX4EUsgRIm6sIjvvslii6SlFzsXcWT8JYQM/FfW6Wa5XY3rh4lVXyuzQ1vPZnChWjfOGm+sNbfr8TMT8ZHl//3TWLtYTnPtZ1ZlouBMuy68gQr/98ZqVimx8adWBNxbEeSx9ZuzrKDEL5R4SYiDoMQzShwocaTEJSWuXuKo7rjC9zgg7K2AmOI5JV5Q4hdKvCTEUVDi2Vkc8geeXkUEShwpcXkWl/cJBfmEK0o8p8QLSvz8hBYPXKV4SYhLQYl/cEITfAvVT+1N3Vi9h7N+ce0hq82/o05i2+iHVneL1zHAHbJbPAMpuSxjYol7VoIrCGuEdf4A",
+  "debug_symbols": "pZPBjoMgEIbfhTMHHECrr9I0DVVsSAgaqptsjO++o6Ou3cQ92AufiN8/TsIMrLKP/nl3oW5erLgO7BGd9+55901pOtcEfDswMS1JygrgLMkIF0I+AwQhIQBBEhRBs0IhUkJGuBDyGVIQMEUjgCAJmJIiNCElZARMyRD5DCUImHIZR87WTu5dtHZqZNcaNtyaaEPHitB7z9mX8f380as1YWZnIp4KzmyokBhYO2+np5H/2uJYTUS2yAnoTdfvfnLsS5CLL0Ed+f/Vl3qtr+WRL499kLD4IE/5kG6+OuOrtX9Qp3yZbb7+7P//+DfcmdLFt2EZp6TozMPbZVv3odyddt/terIOWxub0lZ9tFPSbuJwvSrFVX7DScP7fNWCa7iNU+kf",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",

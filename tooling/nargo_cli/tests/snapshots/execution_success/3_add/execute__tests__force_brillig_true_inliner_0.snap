@@ -52,7 +52,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/9VVzVKDMBBOCKjY8WA9ePDkSS86yTRAuHmQvkek8hw8ujjuDttt0EOTOt0ZZrfN8n3f/gBS/Fg2XRLiHLwSh4Y5b+D1cWYiYumUOuWZ6MwS6dxbBgkLs2RYlAVfgs/IuYpYdMl4Y+I7bZsyUF9E/ZsSMPPE+EUafH0JOO/jjE9rQV7F8vg9iuR0JKdbyNmSnC3LuYFYikMuPKM73LEzuu+IfTVdt2KO1xCXjCvF/lG9sed3F9CPXCuo9Zmc0fkK0LJ0P/6PO3CxkI94Bcu/J/1+ZZj0g6VE+BmimJj/AD51X9cEl/cl5c5M5iTjy0iPFOsjjemzqkR4ljTOAzPg7xk6A8x/BP89V3OanrQyoOm33Q3pEfH0mILpeWK8/7GXKzF/r/MxPn/jtEZeNe7PgVtOzmn+C/y+DtSRH6FzaLwZNn7wld/tbO95nwTrU2x+W/mm940xrTWf1lSn5q9tbZzzrq/7obX9x1/8XwNG3kY9DAAA",
-  "debug_symbols": "ldTRCoMgFAbgdznXXnhSZ/UqYwwrG4JYWA1G9O7TsSCim3MjHPk/FJR/hc42y+vpQj9MUN9X8ENrZjeENK0bgyY6793redwGnhesfvlpNCGP02ziDLUuGdjQQV3KpHvnLdSKbw8GBSfmkZgviHlxla/0P49cnIGkAkUFNyrQVwARd4H6LEqyqKhCcLJAsijI4vK9UfBdCHUWkiwUWdzIQpNFSRNbmt4mOtN4+6+BfgntoRXmz2hPBTHGobXdEm2uikNL5L8gOZMqXQTzM8uKKUxnpHO+",
+  "debug_symbols": "nZJNjoQgEEbvUmsWlED7c5WOMajYISFoaJ1kYrz7gKUz9mKSTm94luX7LAIr9KZdHo31w/iE6r5CG6xz9tG4sdOzHX18uwJPC5ZQIYOME5CQEQRUWYQkKMKNkEMlIgpCuUNwAhIyQkyREZKgCDdCTogpctsYnPM1czAmjXcZOG5j0sH4GSq/OMfgS7tl/+g5ab9z1iF2OQPj+8gYOFhn0tPG/mz+v5oXh1vIX1m9bZf5YSMXH+iIePqYf+KLc+co1Itfx0p3Nryc/5aSgtWtM0c5LL67dOfv6eyc92cKY2f6JZiUdLlEcb1LzqSqGSCmomQK6y39+gc=",
   "file_map": {
     "50": {
       "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32, y: u32, z: u32) {\n    x += y;\n    assert(x == z);\n\n    x *= 8;\n    assert(x > 9);\n}\n",

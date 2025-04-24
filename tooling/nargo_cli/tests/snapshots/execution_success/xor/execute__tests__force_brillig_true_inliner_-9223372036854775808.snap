@@ -35,7 +35,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUQQ6CMBDcSo1WYjR60os+oQgKRw7ykEbCO3i6ELayrOWi7SRNS3Y7OzulFTBA4OghcV7AN2xOibP+D4lHLh1Spwik8yOUrgXMG3/FWcH0kPp45LFh5dDki7/Q2UM5+vOoP1WEMwD/zfLLMPx6hTzPdsoPrG7E8lx7bE5FciqWs4XpI0B5bIw+CHb/uhs7GNd7XCvGF+L/oZp8+3906Le1Yuz1TGL0fBSu5/aH9KaDEayeJHoipnlOD/jTo7k/0uEJrb9k+SemM9SdO7D+aa0YxjdXtv7r58XgU4+oHX2wHlBIEqf5F/zezPRR/qizyU3SpKYxd1PX2ctwn3rQu/EGFj2O3lUIAAA=",
-  "debug_symbols": "ldHBCoQgEAbgd5mzh7S22l5lWcJqCkE0TBcW8d1Xlw4SXbyIv3zOYX4PC05uG4Va9QHDy4PUM7dCq5h8IDAZIaXYxvwZqnTQ7u+PnasUD8uNhaFhBFAt8dLF36uQCMOjCm8CtL/zLT1921/9s8yzqtDTQs8KfV3omxIfYvpwI/gk8axqdWrOmrPfHS8l7kbPuDiDqc6sybQ51pKaxrFx9A8=",
+  "debug_symbols": "jZBNDoMgEEbvMmsWQq1tvYoxBnU0JAQNQpPGcPcO/rS6aNINj2F43yQzQ4u17ytlumGCvJihtkpr1Vd6aKRTg6HXGZJ48BvknAG/Qy4IjwUiWcFXiBWXFSkhBAZ7VuUsYow6hNPIUVo0DnLjtWbwlNovn6ZRmoVOWuomDNC0RArslMZ4C+xrJ7/VVGxuevvI17/tjG92dj/ZJVWyUfa0qhBzrJK1xq3svGkOXfca986+6tEODbbeYkw67JvOQmTswssQp70B",
   "file_map": {
     "50": {
       "source": "fn main(x: u32, y: pub u32) {\n    let m = x ^ y;\n\n    assert(m != 10);\n}\n",
