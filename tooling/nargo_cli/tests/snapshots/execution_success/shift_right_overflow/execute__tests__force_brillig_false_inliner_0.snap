@@ -20,8 +20,8 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/9Va0VLbMBA823HsEChQQqGFFlpCaYAHn52A88avQHH+/xMagW8qZJFhJnszys14bGSx7N6dVkAU0WvcLq9Z+xwtr6S9m8iXV699TqgbMu+hvRfrBQOxCg9dFHatiF1GVm5z6zlua2DqkS6v/vLKZI5dOPtKrG92xxLPWM8zlnrG+p6xzDOW0/8mkRhgE/amaaribjpt7suGK34syvlTPSums6e7mmue1bPnsq6qpp7W9/On+X0x52nV8GI2rxYtWATAahavEeOwnhMc1ryHw+IUhtVwH4b1lzMYVs05YU0JbJpl3q6zGIs7zYHragDUq5BDVsphiczhFmE9U8LVvC7PDIg1BGsG1/fFZ4C9zabGQ09/r5vHbQrbwwy/bQXdO2HrZi3dn8C6JdBe0Qdi7VLYXmG0AvuRTY13FXpnj8L2CsNvT0H3fti6WUv3Z9oMr0iBWAcUtlcYrcB+ZFPjA4XeGVHYXmH4jRR0H4atm7V0f6HN8IoeEOuIwvYKoxXYj2xqfKTQO8cUtlcYfscKur+GrZu1dH+jzfCKBIh1QmF7hdEK7Ec2NT5R6J1TCtsrDL9TBd3fw9bNWrp/0GZ4RQzEOqOwvcLgAfuRTY3PFHrnnML2CsPvXEH3z7B1s5buX7QZXhEBsS6AdZHP+GPqRrgHOhq9Ax386usS4/Z+KQmRwwxj6h5wMJNyh1SimMT1PswueEy4prxUKi56ISI1/6awN23Tk8CNgY3ZXhDexK9wHF/+2RPT24NGaCMzdb8C4rZnhBZjYB5s/X+0E4FqXF8i1m2uCTCpGjk0xZlYxULpXrWzE1iDjYnOD7J+di6u2/uNkJZd3AycO4lC7+ITYKFvgFi3QCw7p7dWTtG7x6QtJhr3hjZjgVwTdtfoOTxXhayL/fYux3lTCyMB8hP8vg4+C36mg19l1A17LHXy6vstRjgNnJyDuT5GHn6J8zNdjvacHnXD3Yx6znjygbm+vpR3ex5+7vcNPFztMemtHeqGWxf5ay99Byuz3tvzM2euVg0PPJxc7vJuS4dDKfhDHfzCt6a2rOeh8076ytef0Ttfx8591dxoBa6vpwRTamXzFR1unxxauBr+N9LB99bq0HoeOTrtfD+AOAierNeUuhE772Suu2YiPD92ufj2AgnpmZE1Jvn8B3x5JnfUNQAA",
-  "debug_symbols": "jdLBboQgEAbgd+HswZnBbruv0jQGFTckBA2rTRrjuxf5sd09NOllUIb/iwibGmy33loXxumuru+b6qLz3t1aP/VmcVNIs9teqfO1XaK1aUo99FNqNtGGRV3D6n2lPo1f86L7bEIeFxNTt66UDUMaEzg6b4+nvfpN139HqaYSpvryE2/+n2c580JP+Y/0ZnoXn3asKC2sFOcquepcm1xfcr3k+prrW65UY0CaECfkCQBBIBAEg4AQFIbC5RugMBSGwlAYCkNhKAxFoAgUKVuBIlAEikARKAJFoGgoGoqGossfgaKhaCgaioaioTRQGihNUng/zio603lbrti4hv7hxi1f89k57+Qcp94Oa7THWeVeOr1v",
+  "bytecode": "H4sIAAAAAAAA/9Va21LbMBBd27maQrkktNBCgZZCeNLaDjhv/AoU5/8/oRa16FYomc7k7IyyMxorknK8Zy/HmYkT+mN37ai6edKOrLtaG7Wj181Tem/u3GN3NZsZ47AaE3AXg83GpIEYpH4A5XBraRdUaZliEEtzX1XNQ9FwyU+mWDzXc1PNn+9rrnlez1+KuiybuqofFs+LB7Pgqmx4OV+UzdKa4QSAtewcS4HJ7Ym40opi3NTfZAWu2cyARW70ityYWhG7kLF1/WBzafPab8egHcNub9yOnOjfRpJN5ua9wFo/sDYIrA0Da6PA2jiwltPfIkEXIYn7AhPASB8zQgnOctnDYb30cViLAQ6LhzCshkcwrF88hmHVnBNW5MAiXORd36ZY3CoH9tUOkK9CDFkphgUyhh8Iq5nOfM6b+jkGYu2COYPz+6ozwNpmm+Ndwj979yhuDbP+7Snw/hg3b9bivQ/m7QytFSMg1gHFrRWWK7Ae2eb4QKF2DilurbD+HSrwPoqbN2vxntB2aMUQiDWluLXCcgXWI9scTxVq55ji1grr37EC709x82Yt3p9pO7RiAMQ6obi1wnIF1iPbHJ8o1M4pxa0V1r9TBd5f4ubNWry/0nZoRR+IdUZxa4XlCqxHtjk+U6idc4pbK6x/5wq8v8XNm7V4X9B2aEUPiHVJcWuF5QqsR75oMS4VaueK4tYK69+VAu/vcfNmLd4/aDu0IgNiXRO2r1ORlxB3s5mxrc0MiGdzfi38BeEaGYOfWsGwgQA261sw0I11Q3ELik3QDb0vAsRDXeY9ZCgOEhMdH2T+ZCxuu+vMOe3eFrIbF97arFuThn4t8AaY/BkQ6w6IJWN6J2Kq0fS3CrgzwjaNxiuRId5mM+Nbwj6del7e15nrM/caonvTLhcYwKdy4fB3dPBf//HxLRfzHW/PiVYv8L1kxefUu647m6zB3Q3sOcyj7ir9dTwOuquLZV/gImPp8Ac6+Ozwhzr4ZagW5JqLWybuT97c+TT2Yg729SkJ+Jd59/R9lGdC9ev/OPF/tGT/cTZUv25vP+Cf/71xwFe55mor1At+XpxG9VdgDcW+PD/0zmrl8CjgU7Li3lMdH956aqKDH9TXqZhPPJ6yrh5BPjg8VwN9em+pt7fqOZfg/WPfl5C+OHM1MxFrLp6/AQ7IWHukNAAA",
+  "debug_symbols": "jdLBboQgEAbgd+HswZnBbruv0jQGFTckBA2rTRrjuxf5sd09NOllUIb/iwibGmy33loXxumuru+b6qLz3t1aP/VmcVNIs9teqfO1XaK1aUo99FNqNtGGRV3D6n2lPo1f86L7bEIeFxNTt66UDUMaEzg6b4+nvfpN139HqaYSpvryE2/+n2c580JP+Y/0ZnoXn3asKC2sFOcquepcm1xfcr3k+prrW65UY0CaECfkCQBBIBAEg4AQFIbC5RugMBSGwlAYCkNhKAxFoAgUKVuBIlAEikARKAJFoGgoGoqGossfgaKhaCgaioaioTRQmqTwfhxSdKbzttytcQ39w1Vbvuazc17GOU69HdZoj0PKvXRs3w==",
   "file_map": {
     "50": {
       "source": "fn main(x: u8) {\n    // This would previously overflow in ACIR. Now it returns zero.\n    let value = 1 >> x;\n    assert_eq(value, 0);\n}\n",
@@ -32,8 +32,8 @@ expression: artifact
     "main"
   ],
   "brillig_names": [
-    "directive_to_radix",
     "directive_integer_quotient",
+    "directive_to_radix",
     "directive_invert"
   ]
 }
