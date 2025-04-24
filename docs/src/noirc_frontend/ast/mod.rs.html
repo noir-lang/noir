@@ -573,7 +573,9 @@
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
 <a href="#574" id="574">574</a>
-<a href="#575" id="575">575</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
 //! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
@@ -968,6 +970,8 @@
             Signed(num_bits) =&gt; {
                 <span class="kw">if </span>num_bits == <span class="number">128 </span>{
                     <span class="prelude-val">Err</span>(InvalidIntegerBitSizeError(<span class="number">128</span>))
+                } <span class="kw">else if </span>num_bits == <span class="number">1 </span>{
+                    <span class="prelude-val">Err</span>(InvalidIntegerBitSizeError(<span class="number">1</span>))
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Ok</span>(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)<span class="question-mark">?</span>))
                 }

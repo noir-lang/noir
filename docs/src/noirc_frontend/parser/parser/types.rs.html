@@ -814,7 +814,25 @@
 <a href="#813" id="813">813</a>
 <a href="#814" id="814">814</a>
 <a href="#815" id="815">815</a>
-<a href="#816" id="816">816</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use crate</span>::{
     QuotedType,
@@ -1286,6 +1304,9 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::collections::BTreeMap;
+
+    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>strum::IntoEnumIterator;
 
     <span class="kw">use crate</span>::{
@@ -1329,26 +1350,41 @@
         ));
     }
 
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>errors_on_invalid_bit_size() {
-        <span class="kw">let </span>src = <span class="string">"u31"</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
-        <span class="kw">let </span>typ = parser.parse_type_or_error();
-        <span class="macro">assert_eq!</span>(typ.typ, UnresolvedTypeData::Error);
-        <span class="macro">assert_eq!</span>(parser.errors.len(), <span class="number">1</span>);
-        <span class="kw">let </span>error = <span class="kw-2">&amp;</span>parser.errors[<span class="number">0</span>];
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(error.reason(), <span class="prelude-val">Some</span>(ParserErrorReason::InvalidBitSize(..))));
-    }
+    <span class="macro">proptest!</span> {
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>parses_only_expected_types(sign <span class="kw">in </span><span class="macro">proptest::prop_oneof!</span>[Just(<span class="string">'u'</span>), Just(<span class="string">'i'</span>)], width: u8) {
+            <span class="kw">let </span>accepted_types = BTreeMap::from([
+                (<span class="string">"u1"</span>, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One)),
+                (<span class="string">"u8"</span>, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+                (<span class="string">"u16"</span>, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen)),
+                (<span class="string">"u32"</span>, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)),
+                (<span class="string">"u64"</span>, UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)),
+                (
+                    <span class="string">"u128"</span>,
+                    UnresolvedTypeData::Integer(
+                        Signedness::Unsigned,
+                        IntegerBitSize::HundredTwentyEight,
+                    ),
+                ),
+                (<span class="string">"i8"</span>, UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Eight)),
+                (<span class="string">"i16"</span>, UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
+                (<span class="string">"i32"</span>, UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)),
+                (<span class="string">"i64"</span>, UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)),
+            ]);
 
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>errors_on_i128() {
-        <span class="kw">let </span>src = <span class="string">"i128"</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
-        <span class="kw">let </span>typ = parser.parse_type_or_error();
-        <span class="macro">assert_eq!</span>(typ.typ, UnresolvedTypeData::Error);
-        <span class="macro">assert_eq!</span>(parser.errors.len(), <span class="number">1</span>);
-        <span class="kw">let </span>error = <span class="kw-2">&amp;</span>parser.errors[<span class="number">0</span>];
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(error.reason(), <span class="prelude-val">Some</span>(ParserErrorReason::InvalidBitSize(..))));
+            <span class="kw">let </span>src = <span class="macro">format!</span>(<span class="string">"{sign}{width}"</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+            <span class="kw">let </span>typ = parser.parse_type_or_error();
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(expected_typ) = accepted_types.get(<span class="kw-2">&amp;</span>src.as_str()) {
+                <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>typ.typ, expected_typ);
+            } <span class="kw">else </span>{
+                <span class="macro">assert_eq!</span>(typ.typ, UnresolvedTypeData::Error);
+                <span class="macro">assert_eq!</span>(parser.errors.len(), <span class="number">1</span>);
+                <span class="kw">let </span>error = <span class="kw-2">&amp;</span>parser.errors[<span class="number">0</span>];
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(error.reason(), <span class="prelude-val">Some</span>(ParserErrorReason::InvalidBitSize(..))));
+            }
+        }
     }
 
     <span class="attr">#[test]
