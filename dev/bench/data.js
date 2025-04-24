@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745528608077,
+  "lastUpdate": 1745528647638,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a23bb647339293674012c27a35ae3e08fb5470b0",
-          "message": "chore(experimental): Function::simple_optimization for SSA optimizations (#8102)",
-          "timestamp": "2025-04-16T18:06:30Z",
-          "tree_id": "1cf405b86036c3e7c22e54a36a3b52bae7ea69c2",
-          "url": "https://github.com/noir-lang/noir/commit/a23bb647339293674012c27a35ae3e08fb5470b0"
-        },
-        "date": 1744828472962,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 486.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 462.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/114c06c2e02412d43f01e9df9befb07314e49f58"
         },
         "date": 1745521235355,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 203.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 227.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 433.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 425.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 254.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 260.03,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c14cc79bcd554500a11c6625499543e457987f09",
+          "message": "fix: validate numeric types when passing them to a FunctionBuilder (#8215)",
+          "timestamp": "2025-04-24T20:37:28Z",
+          "tree_id": "5a3a7e868b814ceb3c283c849ec7a7aba2d3be33",
+          "url": "https://github.com/noir-lang/noir/commit/c14cc79bcd554500a11c6625499543e457987f09"
+        },
+        "date": 1745528640895,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
