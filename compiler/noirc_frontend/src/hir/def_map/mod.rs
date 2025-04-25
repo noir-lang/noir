@@ -206,7 +206,8 @@ impl CrateDefMap {
                     match attributes.function().map(|attr| &attr.kind) {
                         Some(FunctionAttributeKind::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
-                            Some(TestFunction::new(func_id, scope.clone(), location, has_arguments))
+                            let scope = scope.clone();
+                            Some(TestFunction { id: func_id, scope, location, has_arguments })
                         }
                         _ => None,
                     }
@@ -230,7 +231,7 @@ impl CrateDefMap {
                     match attributes.function().map(|attr| &attr.kind) {
                         Some(FunctionAttributeKind::FuzzingHarness(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
-                            Some(FuzzingHarness::new(func_id, scope.clone(), location))
+                            Some(FuzzingHarness { id: func_id, scope: scope.clone(), location })
                         }
                         _ => None,
                     }
@@ -373,30 +374,13 @@ pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<Parse
 }
 
 pub struct TestFunction {
-    id: FuncId,
-    scope: TestScope,
-    location: Location,
-    has_arguments: bool,
+    pub id: FuncId,
+    pub scope: TestScope,
+    pub location: Location,
+    pub has_arguments: bool,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope, location: Location, has_arguments: bool) -> Self {
-        TestFunction { id, scope, location, has_arguments }
-    }
-
-    /// Returns the function id of the test function
-    pub fn get_id(&self) -> FuncId {
-        self.id
-    }
-
-    pub fn file_id(&self) -> FileId {
-        self.location.file
-    }
-
-    pub fn has_arguments(&self) -> bool {
-        self.has_arguments
-    }
-
     /// Returns true if the test function has been specified to fail
     /// This is done by annotating the function with `#[test(should_fail)]`
     /// or `#[test(should_fail_with = "reason")]`
@@ -418,25 +402,12 @@ impl TestFunction {
 }
 
 pub struct FuzzingHarness {
-    id: FuncId,
-    scope: FuzzingScope,
-    location: Location,
+    pub id: FuncId,
+    pub scope: FuzzingScope,
+    pub location: Location,
 }
 
 impl FuzzingHarness {
-    fn new(id: FuncId, scope: FuzzingScope, location: Location) -> Self {
-        FuzzingHarness { id, scope, location }
-    }
-
-    /// Returns the function id of the test function
-    pub fn get_id(&self) -> FuncId {
-        self.id
-    }
-
-    pub fn file_id(&self) -> FileId {
-        self.location.file
-    }
-
     /// Returns true if the fuzzing harness has been specified to fail only under specific reason
     /// This is done by annotating the function with
     /// `#[fuzz(only_fail_with = "reason")]`
