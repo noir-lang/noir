@@ -214,6 +214,21 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     ]
 }
 
+/// For testing purposes we want a list of the minimum number of SSA passes that should
+/// return the same result as the full pipeline.
+///
+/// Due to it being minimal, it can only be executed with the Brillig VM; the ACIR runtime
+/// would for example require unrolling loops, which we want to avoid to keep the SSA as
+/// close to the initial state as possible.
+///
+/// In the future, we can potentially execute the actual initial version using the SSA interpreter.
+pub fn minimal_passes() -> Vec<SsaPass<'static>> {
+    vec![
+        // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+    ]
+}
+
 /// Optimize the given SsaBuilder by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into an ACIR program and return it.

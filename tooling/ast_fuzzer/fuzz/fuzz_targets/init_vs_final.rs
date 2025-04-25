@@ -15,7 +15,7 @@ use noir_ast_fuzzer::compare::ComparePasses;
 use noir_ast_fuzzer_fuzz::{
     compare_results, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
 };
-use noirc_evaluator::ssa::{SsaPass, ssa_gen::Ssa};
+use noirc_evaluator::ssa::minimal_passes;
 
 fuzz_target!(|data: &[u8]| {
     fuzz(&mut Unstructured::new(data)).unwrap();
@@ -33,14 +33,10 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
             for f in program.functions.iter_mut() {
                 f.unconstrained = true;
             }
-            let minimal_pipeline = vec![
-                // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
-                SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-            ];
             create_ssa_with_passes_or_die(
                 program,
                 &options,
-                &minimal_pipeline,
+                &minimal_passes(),
                 |_| Vec::new(),
                 Some("init"),
             )
