@@ -163,6 +163,7 @@ impl<'a> Parser<'a> {
             };
 
             self.expected_identifier();
+            self.bump();
             self.eat_semicolons();
         }
 
