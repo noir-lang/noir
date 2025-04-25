@@ -234,7 +234,8 @@ where
         fuzzing_failure_dir: None,
     };
     // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
-    let fuzz_execution_config = FuzzExecutionConfig { timeout: 1, num_threads: 1 };
+    let fuzz_execution_config =
+        FuzzExecutionConfig { timeout: 1, num_threads: 1, show_progress: false };
 
     // TODO: show output?
     let show_output = false;

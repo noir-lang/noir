@@ -30,6 +30,8 @@ pub struct FuzzExecutionConfig {
     pub num_threads: usize,
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     pub timeout: u64,
+    /// Whether to output metrics to stdout or not.
+    pub show_progress: bool,
 }
 
 /// Folder configuration for fuzzing
@@ -205,6 +207,7 @@ where
                 FuzzedExecutorExecutionConfiguration {
                     num_threads: fuzz_execution_config.num_threads,
                     timeout: fuzz_execution_config.timeout,
+                    show_progress: fuzz_execution_config.show_progress,
                 },
                 failure_configuration,
                 FuzzedExecutorFolderConfiguration {

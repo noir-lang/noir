@@ -152,8 +152,11 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
         minimized_corpus_dir: args.minimized_corpus_dir,
         fuzzing_failure_dir: args.fuzzing_failure_dir,
     };
-    let fuzz_execution_config =
-        FuzzExecutionConfig { timeout: args.timeout.unwrap_or(0), num_threads: args.num_threads };
+    let fuzz_execution_config = FuzzExecutionConfig {
+        timeout: args.timeout.unwrap_or(0),
+        num_threads: args.num_threads,
+        show_progress: true,
+    };
 
     let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace
         .into_iter()
