@@ -1,4 +1,4 @@
-//! This module implements the pruning of unused block parameters from SSA functions.
+//! This module implements the pruning of unused block parameters from functions.
 //!
 //! Blocks can accept parameters that are passed via terminator instructions (e.g., `jmp`).
 //! During the compilation pipeline, it's common for some of these parameters to become unused.
