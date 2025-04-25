@@ -53,7 +53,8 @@ impl AstPrinter {
             self.print_global(id, global, f)?;
         }
         for function in &program.functions {
-            let return_visibility = (function.id == Program::main_id()).then_some(program.return_visibility);
+            let return_visibility =
+                (function.id == Program::main_id()).then_some(program.return_visibility);
             let fpo = FunctionPrintOptions { return_visibility, ..Default::default() };
             self.print_function(function, f, fpo)?;
         }
@@ -71,7 +72,7 @@ impl AstPrinter {
         write!(f, ";")?;
         self.next_line(f)
     }
-    
+
     pub fn print_function(
         &mut self,
         function: &Function,
@@ -83,7 +84,8 @@ impl AstPrinter {
         })
         .join(", ");
 
-        let vis = options.return_visibility
+        let vis = options
+            .return_visibility
             .map(|vis| match vis {
                 Visibility::Private => "".to_string(),
                 Visibility::Public => "pub ".to_string(),
@@ -99,11 +101,19 @@ impl AstPrinter {
 
         write!(f, "{comptime}{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
-        if options.comptime_wrap_body { self.indent_level += 1; self.next_line(f)?; write!(f, "comptime {{")?; }
+        if options.comptime_wrap_body {
+            self.indent_level += 1;
+            self.next_line(f)?;
+            write!(f, "comptime {{")?;
+        }
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
-        if options.comptime_wrap_body { self.next_line(f)?; self.indent_level -= 1; write!(f, "}}")?; }
+        if options.comptime_wrap_body {
+            self.next_line(f)?;
+            self.indent_level -= 1;
+            write!(f, "}}")?;
+        }
         self.in_unconstrained = false;
         self.next_line(f)?;
         writeln!(f, "}}")?;
