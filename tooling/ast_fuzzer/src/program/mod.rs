@@ -41,6 +41,10 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
 /// Generate an arbitrary monomorphized AST to be reversed into a valid comptime
 /// Noir, with a single comptime function called from main with literal arguments.
 pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
+    let mut config = config.clone();
+    // Prevents using unconstrained/unsafe keywords
+    config.include_brillig = false;
+
     let mut ctx = Context::new(config);
     ctx.gen_function_decls(u, Some(1))?;
     ctx.gen_functions(u)?;
