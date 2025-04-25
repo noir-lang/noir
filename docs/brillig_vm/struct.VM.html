@@ -85,8 +85,11 @@ counter in the last position of the returned vector.</p>
 <ol>
 <li>Retrieve the current opcode using the program counter</li>
 <li>Execute the opcode.
-For instance a binary ‘result = lhs+rhs’ opcode will read the VM memory at the lhs and rhs addresses,
+<ul>
+<li>For instance a binary ‘result = lhs+rhs’ opcode will read the VM memory at the lhs and rhs addresses,
 compute the sum and write it to the ‘result’ memory address.</li>
+</ul>
+</li>
 <li>Update the program counter, usually by incrementing it.</li>
 </ol>
 <ul>
