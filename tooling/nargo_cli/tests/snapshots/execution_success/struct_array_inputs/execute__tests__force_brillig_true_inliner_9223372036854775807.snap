@@ -1,0 +1,64 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "foos",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "struct",
+            "path": "Foo",
+            "fields": [
+              {
+                "name": "bar",
+                "type": {
+                  "kind": "field"
+                }
+              },
+              {
+                "name": "baz",
+                "type": {
+                  "kind": "field"
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWwU7DMAx1urRbO01DcEHiBlyRWtq1O+7Aib8ITP2OfDqNsKnrBiQgmVRLkZ3YsZ9de4uCT8qGpVDWyBXjGUyJdCfk5f+oCuirjIVRLQBjsgCMqwVg1AvAmAbESNgcZTMBwbvmch/PFScVOp+9oxp5jjxh+oCNUOUibkj/x7J5y2FKgfHXOatxBP9tznxG8F+u0c+LHf3LXKgPFET7Tk3kPNudyA1YLhRbx4ndKREPRJ4g4hcQtacqJeIRHlkfkndkY0c8Sui0nedButRO83C0GdYts5O9lTC7ByY/Ct+vdo4p5kwOvWoi92p1A9/PIeW4tvBFpFuxM6o51WnD7YUuZzptp3EK3GsWh/siHKmwv8f9HnnG7tD9K0/8TMSf4Pac8RpJXyvPGdm7/7w7lLe4XH890R2IOoOHn2bQNwd7mPeBvgzWljClv8TKf0/lu0OJvS+vLYzvD23D59YdxwcUzUTKsHDSTM/tn3FfMPw8j9Mfcfadqfra9OZgzufm3VwL/44SVqcP9DL9dBEOAAA=",
+  "debug_symbols": "lZDLDoMgEEX/ZdYswEdb/RVjDOpoSAgahCaN4d8Loq0uuuiGwzzuneSu0GNrx0aoYVqgrFZotZBSjI2cOm7EpHx3BRqe9A4lI5A+IooNGY1gEUlECmXiHIHDpDEaMXicXP2tmWtUBkplpSTw5NJuS8vM1UbDtZ9SAqh6T284CInh58hXTX9LC7Zri8dHnP+vZux2kde+4p3Ql5BcMNKCtxL3crCqO03Naz4mR8iznjrsrcbgdErap5NkJM1qAsx3qiwnOa1duPwG",
+  "file_map": {
+    "50": {
+      "source": "struct Foo {\n    bar: Field,\n    baz: Field,\n}\n\nfn main(foos: [Foo; 3]) -> pub Field {\n    foos[2].bar + foos[2].baz\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

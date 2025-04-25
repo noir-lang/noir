@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/42KMQoAAAgCkxr6/4tbAsXJW/TgUASyLb7/x7qEA78lNFZgAAAA",
+  "debug_symbols": "dY/RCoMwDEX/Jc99cIw9zF8ZQ2KNUghpia0wxH9fFEUZ7Cm9OT2XdoaO2jI0Qfo4Qv2aodXAHIaGo8ccoth2XhwcsclKZCu4cLMSKkmGWgqzgwm5bJfGhLLNjGq0ckDS2bTCPjCtp8WddvVffd5391ad9sP0tyX0QX8fPKEGbJn22BfxF5o/6SDHh5NGT11RWps2Zt1f",
+  "file_map": {},
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

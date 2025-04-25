@@ -134,7 +134,6 @@ fn trait_inheritance_missing_parent_implementation() {
                      ~~~~~~ The trait `Foo` is not implemented for `Struct`
 
         fn main() {
-            let _ = Struct {}; // silence Struct never constructed warning
         }
     "#;
     check_errors!(src);
@@ -1398,4 +1397,186 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
     }
     ";
     assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_1() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self;
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_magic_value() -> Foo {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_magic_value() -> Bar {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_2() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_3() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    impl MagicNumber for i32 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    impl MagicNumber for i64 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
+    let src = "
+    trait Bar {
+        let N: Field;
+    }
+
+    impl Bar for Field {
+        let N: Field = 42;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar; 
+    }
+
+    impl Foo for Field{
+        fn foo<B>(_: B) where B: Bar {} 
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_impl_with_where_clause_with_trait_with_associated_type() {
+    let src = "
+    trait Bar {
+        type typ;
+    }
+
+    impl Bar for Field {
+        type typ = Field;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar; 
+    }
+
+    impl Foo for Field{
+        fn foo<B>(_: B) where B: Bar {} 
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        unconstrained fn foo() -> Field {
+                         ^^^ foo is not expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        unconstrained fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        fn foo() -> Field {
+           ^^^ foo is expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
 }

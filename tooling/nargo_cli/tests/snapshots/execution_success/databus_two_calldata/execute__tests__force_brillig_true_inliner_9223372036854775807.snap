@@ -1,0 +1,91 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 4,
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        }
+      },
+      "visibility": "databus"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1ZzW7TQBDeje382PkTvEhMHVJurdT/v3dI00ZI3HgBfOPEjTsXkDggLtyQQOLNyLY7zZfxrJtQL2DEStHaO59nvpmd2V07Wt22/uKn7XVo+8D2GsYUjJm2Y/vRw1paoa6RL466BhwbNeAYVMhRQ5764hvWIKZRDTg2K55332tSqwYxbdeAY6cGHOOKc5M4Uo4mi1938eup2732bhAdMot3YB8yBW0KxiShmWQTxBjwpYohQD9s37F9A+QVLsRph9mtUv/2aLzVUautYv43+nHCKtZ/SfojP/pHLatnL1/qR1/IbsBw/JkAMPuA2XdgDgBz4MAcAubQgTkCzJEDcwyYYwfmBDAnDswpYE4dmDPAnDkw54A5d2AuAHPBMJQTfmomyzznXNZTxZcD8oVsN/3YHmtmT6nVFxbF7MfKa32nmtkjPjw+tP72CJMv+WgmC/OiHySLQEbza/aJXcDx3CIeNDc+9oJF3m17zrutP5h32b+Yd1wW5kU/Ns07zC2ed4GHWCzy7vL/elevvAuYLMyLfmyad9JHK4M7g+tzwGCuog9a8MFz/s49n0GzTWufzw/OAcZ2l8XH074y9xl/E5/HDv50bVorV3ctYPHEGFHM2ohnsg7IwnzVTmzvQ7CDuohHxPCn9n5g+yY8Q88PBftNZn+FtzCGMeK6AmGM8Kau9+x1Yn8mh97ZMarjaPmo0o4ebUn1OlTF/YCv1z7O3qaRH03BD7Ld8mN77b2C7MfK6951t1e0GB8eH1yLjKwtcB0KMs2u24KdtmCnjrooNhjLh9YH5iHNh+fzTNoRfPTxPYd/l6qaf+yHf+GsiTlg5uQ5GydZpIrnMIxzxPCvQOcLez1QxfxtMRmu/3x9xbU7EPAx0xWW6Grc41fM/CL8S9sbvz+swS+AsQbDS2dc5Bkyf/B5fo6V3vcpR0OQVbkfmBh8BB7c3yj/PfEZquKaUrYWBYyzFmTm/CDlK8+jrsBRl/jUE/BdwSeynYCsx2RSHXFemN+oi9ct4V/bXspviXujxNe+gO8BJmH+YBz6Dtsuf3i9Ev5NiT8Sv7J8HAj4fok/6OtgDdvof89hu+nA95n/hH+rlv5/t9d/25qBNcTXjLJ6MW2dOZJybqiK89JnMqypLrOjBTu4f+D6zGX0LO63PuM+2V7+eUhzTnXEWwhyxL+393guUeDbzi/ynE+m6XxrOp+Op1dX2Wz6iOk3jeY48WB/Nn56OcvG09F1am6f3Gdfev/FOjKN3qHxHRvxePZA/CfCLn6f7TX/RoL2DO5bCU47+hsdwliYr45J7974TYLwZDvOixxJloAMa9y0rr3HeKEu4hEx/Fd7T3OC3xHo+aFgv83sr/AWxvg3iUTAJwLezM8X0md79L3qd+Ebm0w/jnFulDs+6mpRUpPZdJKmz7L0OkvH99XVT8BUYUwxKAAA",
+  "debug_symbols": "pdTRqtswDAbgd/F1LmzLjq2+Siklbd1DIKQlJxmMknefVMk5Z4PByG7y2XV/RRjHL3Mrl+Xj3I/3x6c5HF/mMvXD0H+ch8e1m/vHSL++jOVHdubgGpO9AEIQotAKScgCvkErSBWUKihVUKqgVEGpglLFWVr0LM2BzSrVDaSzKlWOrFdBpXzLRrVVqV5is4qit6pTvQpqUJP05SmfWRTBqk71KqhBpX6QbdWkZhXFYFXeOcsDXwdQB7x/vFch1kFbB6kOdNsCitGqTvUqqEGNKlWEdW1MPRnneSqFD8a3o0IH6NlNZZzNYVyGoTE/umF5/+nz2Y1v526iVeq6jDeSCt77ofBobb7S9u9RgBoGcFs8/ns+Qs3HsCefUfPB2h35AKnmw57+Q9jycV8+bnm/q3+79b8nD6m+HxLueb+Fbf935Z2veZf/7/1/5E8066799NvluXKlqe8uQ9HpfRmv31bnn8+6Ui/f5/S4ltsyFa70dQPT4+ja3LiMp8bQd3psY5PiiS9DXorYuDbw1PEUbePQn1Zu7Bc=",
+  "file_map": {
+    "50": {
+      "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

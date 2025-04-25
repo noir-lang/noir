@@ -1,4 +1,4 @@
-use lsp_types::CompletionItemKind;
+use async_lsp::lsp_types::CompletionItemKind;
 use noirc_frontend::{ast::AttributeTarget, token::Keyword};
 use strum::IntoEnumIterator;
 
@@ -88,12 +88,17 @@ impl NodeFinder<'_> {
 
     pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
         match target {
-            AttributeTarget::Module | AttributeTarget::Trait => (),
+            AttributeTarget::Module => (),
+            AttributeTarget::Trait => {
+                self.suggest_allow("dead_code", prefix);
+            }
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
+                self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Enum => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
+                self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Function => {
                 let no_arguments_attributes = &[
@@ -147,16 +152,40 @@ impl NodeFinder<'_> {
                         None,
                     ));
                 }
-            }
-            AttributeTarget::Let => {
-                if name_matches("allow", prefix) || name_matches("unused_variables", prefix) {
-                    self.completion_items.push(simple_completion_item(
-                        "allow(unused_variables)",
+
+                if name_matches("fuzz", prefix) || name_matches("should_fail", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(should_fail)",
                         CompletionItemKind::METHOD,
+                        "fuzz(should_fail)",
                         None,
                     ));
                 }
+
+                if name_matches("fuzz", prefix) || name_matches("should_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(should_fail_with = \"...\")",
+                        CompletionItemKind::METHOD,
+                        "fuzz(should_fail_with = \"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                self.suggest_allow("dead_code", prefix);
             }
+            AttributeTarget::Let => {
+                self.suggest_allow("unused_variables", prefix);
+            }
+        }
+    }
+
+    fn suggest_allow(&mut self, name: &'static str, prefix: &str) {
+        if name_matches("allow", prefix) || name_matches(name, prefix) {
+            self.completion_items.push(simple_completion_item(
+                format!("allow({name})"),
+                CompletionItemKind::METHOD,
+                None,
+            ));
         }
     }
 }

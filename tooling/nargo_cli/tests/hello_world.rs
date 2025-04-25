@@ -21,7 +21,11 @@ fn hello_world_example() {
     cmd.arg("new").arg(project_name);
     cmd.assert().success().stdout(predicate::str::contains(format!(
         "Project successfully created! It is located at {}",
-        project_dir.display()
+        // Note: on MacOS `test_dir` will be something like `/var/folders/...` but when asking
+        // what's the current dir it will be `/private/var/folders/...`, and that's what
+        // the command output will include. That's why we use `current_dir` here instead of
+        // relying on `test_dir` or `project_dir` above.
+        std::env::current_dir().unwrap().join(project_name).display()
     )));
 
     project_dir.child("src").assert(predicate::path::is_dir());
@@ -41,5 +45,6 @@ fn hello_world_example() {
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("execute");
+    cmd.arg("--pedantic-solving");
     cmd.assert().success();
 }

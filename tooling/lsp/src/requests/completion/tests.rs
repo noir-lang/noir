@@ -19,7 +19,7 @@ mod completion_tests {
         utils::get_cursor_line_and_column,
     };
 
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
         CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
         Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
@@ -2410,6 +2410,20 @@ fn main() {
         assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item("no_predicates", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_built_in_allow_function_attribute() {
+        let src = r#"
+            #[dead_c>|<]
+            fn foo() {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item("allow(dead_code)", CompletionItemKind::METHOD, None)],
         )
         .await;
     }

@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71UwQrCMAxtXUXr0IOCXvQfOraxHXfwR4pj37FPl2JK46N60HYPRlKSvrwkZVIESLIKziKSM5A1/6FKyGWiQr/B59zIarIrFi8SNquhbkr+3jStjvSXUH+tiTPnfDxnBn6zIZ77HPixF8Gsz8M77tszH3O2FPf+gXwNd3LsP+N+zCmi39cqqdcL9JrrrUjxvrOSfKwpF5i9g4TaiukpInrWkH8GnSqTziPjFVCrFOEfqOb09bv+NSeHYg5z8PPhUCzO86903n3oY/hR59TZaqrtZFs7js3D4pwc+Ft/AvxX7NQ5BwAA",
+  "debug_symbols": "jZBNCoMwEEbvMussEovVehURiTpKIESJSaFI7t6JP60uCt3kZTJ538As0GHjh1qZfpyhKBdorNJaDbUeW+nUaOh1AR4PkUIhGIj7hgyKhJBveKxI+AZBCIHBEVI7ixgzTqk0a5IWjYPCeK0ZPKX266d5kmalk5a6nAGajkiBvdIYb4F9bf5bFVzssuDZR0//95Pb4d/Exa+okq2ylz2FmGSVbDTuZe9Ne+q613R0jj1Pdmyx8xZj0mnZdJY0PcmrEKe9AQ==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u8) {\n    // This would previously overflow in ACIR. Now it returns zero.\n    let value = 1 >> x;\n    assert_eq(value, 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

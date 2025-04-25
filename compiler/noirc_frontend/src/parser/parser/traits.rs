@@ -47,9 +47,7 @@ impl Parser<'_> {
 
             let where_clause = self.parse_where_clause();
             let items = Vec::new();
-            if !self.eat_semicolon() {
-                self.expected_token(Token::Semicolon);
-            }
+            self.eat_semicolon_or_error();
 
             let is_alias = true;
             (bounds, where_clause, items, is_alias)
@@ -183,7 +181,7 @@ impl Parser<'_> {
             }
         };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitItem::Type { name })
     }
@@ -206,13 +204,14 @@ impl Parser<'_> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Colon);
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
         };
 
         let default_value =
             if self.eat_assign() { Some(self.parse_expression_or_error()) } else { None };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitItem::Constant { name, typ, default_value })
     }
@@ -592,5 +591,19 @@ mod tests {
         assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
         assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_constant_missing_semicolon() {
+        let src = "trait Foo { let x: Field = 1 }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_type_missing_semicolon() {
+        let src = "trait Foo { type X }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }

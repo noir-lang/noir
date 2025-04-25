@@ -1,15 +1,15 @@
+use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStackId;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
 use bn254_blackbox_solver::derive_generators;
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
@@ -505,9 +505,7 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let unknown = &mut HashMap::default();
-    let mut value_merger =
-        ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None, call_stack);
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, call_stack);
 
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
@@ -740,7 +738,7 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
+    use crate::{assert_ssa_snapshot, ssa::Ssa};
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
@@ -757,14 +755,13 @@ mod tests {
             "#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        let expected = r#"
-            brillig(inline) fn main func {
-              block():
-                separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-                result = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
-                return result
-            }
-            "#;
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+            v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
+            return v19
+        }
+        "#);
     }
 }

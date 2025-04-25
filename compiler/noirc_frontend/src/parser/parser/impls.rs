@@ -155,22 +155,21 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
+            let location = self.location_at_previous_token_end();
             return Some(TraitImplItemKind::Type {
                 name: Ident::default(),
-                alias: UnresolvedType {
-                    typ: UnresolvedTypeData::Error,
-                    location: Location::dummy(),
-                },
+                alias: UnresolvedType { typ: UnresolvedTypeData::Error, location },
             });
         };
 
         let alias = if self.eat_assign() {
             self.parse_type_or_error()
         } else {
-            UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Error, location }
         };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitImplItemKind::Type { name, alias })
     }
@@ -195,10 +194,11 @@ impl Parser<'_> {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitImplItemKind::Constant(name, typ, expr))
     }
@@ -570,5 +570,19 @@ mod tests {
 
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a trait impl item but found 'hello'");
+    }
+
+    #[test]
+    fn parse_trait_impl_with_constant_missing_semicolon() {
+        let src = "impl Foo for Bar { let x: Field = 1 }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_impl_with_type_missing_semicolon() {
+        let src = "impl Foo for Bar { type x = Field }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }

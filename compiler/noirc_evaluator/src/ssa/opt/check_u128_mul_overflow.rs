@@ -1,10 +1,9 @@
 use acvm::{AcirField, FieldElement};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
-        dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Instruction},
         types::NumericType,
@@ -12,6 +11,8 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+
+use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
     /// An SSA pass that checks that multiplying two u128 doesn't overflow because
@@ -34,30 +35,29 @@ impl Function {
             return;
         }
 
-        for block in self.reachable_blocks() {
-            let instructions = self.dfg[block].take_instructions();
+        self.simple_reachable_blocks_optimization(|context| {
+            context.insert_current_instruction();
 
-            for instruction in instructions {
-                self.dfg[block].insert_instruction(instruction);
+            let block_id = context.block_id;
+            let instruction_id = context.instruction_id;
+            let instruction = context.instruction();
+            let Instruction::Binary(Binary {
+                lhs,
+                rhs,
+                operator: BinaryOp::Mul { unchecked: false },
+            }) = instruction
+            else {
+                return;
+            };
 
-                let Instruction::Binary(Binary {
-                    lhs,
-                    rhs,
-                    operator: BinaryOp::Mul { unchecked: false },
-                }) = &self.dfg[instruction]
-                else {
-                    continue;
-                };
+            let binary_type = context.dfg.type_of_value(*lhs).unwrap_numeric();
+            let NumericType::Unsigned { bit_size: 128 } = binary_type else {
+                return;
+            };
 
-                let binary_type = self.dfg.type_of_value(*lhs).unwrap_numeric();
-                let NumericType::Unsigned { bit_size: 128 } = binary_type else {
-                    continue;
-                };
-
-                let call_stack = self.dfg.get_instruction_call_stack_id(instruction);
-                check_u128_mul_overflow(*lhs, *rhs, block, &mut self.dfg, call_stack);
-            }
-        }
+            let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
+            check_u128_mul_overflow(*lhs, *rhs, block_id, context, call_stack);
+        });
     }
 }
 
@@ -65,9 +65,10 @@ fn check_u128_mul_overflow(
     lhs: ValueId,
     rhs: ValueId,
     block: BasicBlockId,
-    dfg: &mut DataFlowGraph,
+    context: &mut SimpleOptimizationContext<'_, '_>,
     call_stack: CallStackId,
 ) {
+    let dfg = &mut context.dfg;
     let lhs_value = dfg.get_numeric_constant(lhs);
     let rhs_value = dfg.get_numeric_constant(rhs);
 
@@ -134,7 +135,10 @@ fn check_u128_mul_overflow(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn does_not_insert_check_if_lhs_is_less_than_two_pow_64() {
@@ -177,7 +181,8 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = r#"
+        let ssa = ssa.check_u128_mul_overflow();
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128):
             v2 = mul v0, u128 18446744073709551617
@@ -185,10 +190,7 @@ mod tests {
             constrain v4 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]
@@ -202,7 +204,8 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = r#"
+        let ssa = ssa.check_u128_mul_overflow();
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128):
             v2 = mul u128 18446744073709551617, v0
@@ -210,10 +213,7 @@ mod tests {
             constrain v4 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]
@@ -227,7 +227,8 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = r#"
+        let ssa = ssa.check_u128_mul_overflow();
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128, v1: u128):
             v2 = mul v0, v1
@@ -237,10 +238,7 @@ mod tests {
             constrain v6 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]
@@ -254,18 +252,16 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
+        let ssa = ssa.check_u128_mul_overflow();
         // The multiplication remains, but it will be later removed by DIE
-        let expected = r#"
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0():
             v2 = mul u128 18446744073709551617, u128 18446744073709551616
             constrain u128 1 == u128 0, "attempt to multiply with overflow"
             return
         }
-        "#;
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, expected);
+        "#);
     }
 
     #[test]

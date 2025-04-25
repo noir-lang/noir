@@ -1576,16 +1576,24 @@ impl NodeInterner {
 
             let mut check_trait_generics =
                 |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
-                    trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
-                        let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
-                        trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
-                    }) && trait_associated_types.iter().zip(impl_associated_types).all(
+                    let generics_unify = trait_generics.iter().zip(impl_generics).all(
                         |(trait_generic, impl_generic)| {
+                            let impl_generic =
+                                impl_generic.force_substitute(&instantiation_bindings);
+                            trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+                        },
+                    );
+
+                    let associated_types_unify = trait_associated_types
+                        .iter()
+                        .zip(impl_associated_types)
+                        .all(|(trait_generic, impl_generic)| {
                             let impl_generic2 =
                                 impl_generic.typ.force_substitute(&instantiation_bindings);
                             trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
-                        },
-                    )
+                        });
+
+                    generics_unify && associated_types_unify
                 };
 
             let trait_generics = match impl_kind {
@@ -2495,7 +2503,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _, _) => Some(Function),
-        Type::NamedGeneric(_, _) => Some(Generic),
+        Type::NamedGeneric(_) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::Reference(element, _) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),

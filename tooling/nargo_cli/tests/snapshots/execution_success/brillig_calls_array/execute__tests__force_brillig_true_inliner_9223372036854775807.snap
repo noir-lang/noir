@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYTW/UMBB1PpyNE6pWcEPiBtyQkibbbA9IHNqKAxcOHDiAZLIsEr8iP72b1rOdfTtxKzWuWkvROPHLzHtvPVa0kbod8faK3Dx1MWIxUfuD1r64WD1u1DPmqkJxjF4AxzgAx5uRwI8fq+lBov67aFyM2Xoyo2gDdefMv6razgj6ZuTfGPA0VP4kTP5q4fJcDHf5UYtikXD4TsIwlwxzOYG5YpgrwJDmQHuiDexpc6QO+4y0UO00TO02gnoKdCqoX6ig+7eOoB7xQX9ofkSY4Y5PBGvpcKiD1vSwr2Mc+fZ6y3C4t2KG+8DmH9088H7sAp8h1RuPZnq2GNRu7HqePSNfyeec42HNsLV02K9TuPuU1eG5iIcG/Ht3f+xixt6h90+E+hnU3+MtPENfjIA3Aj7bXu/cvHTXuId+M97oO54Joc547EHyHmvGTBOeUbx/NTz75OKodw36eI/7+v5ETe/RwP2xO6O0wFXicyz4o0G3lCsVchE+c/fZBJ7yacCfuTh6/w/8ysL4dUqcc+X3KwO/FmwtB/1SroXHLyP4JeXXgP/s8cuE8ashzqXy+2XAr4KtlaA/EnIVHr9Kwa8CMNwvwl8Ifvn08D7A3/iVwEELGjXgv3o4SH2GXvF5LnDgeOwzwn8TOIT8LtiOc+ScTvgWTXD+DjzLMDyr1yyvUv79yjVI56EG/A/QoJ9Qg36ABn7mZBMafoKGUN95kob4ARr4OWAmNPx6BhpKxi8d5q/frW6/lcZB37RaHf6BxutrwPfunntKMX0Ez01n601jN3Zp1+u2t+iTAp/mrm+7ZtWftn33Z9nY5uzJ67dL2/W2q+vztv7b1sv76l8Dv6114R0VAAA=",
+  "debug_symbols": "pdRdjoIwFAXgvfSZh97+160YYxDrhIQAQZhkYtj73NKL6CSYCbz4CfUcaJE+2DVchq9zWd+aOzscH+zSlVVVfp2rpsj7sqnx7IPx+KEsO8iMKZfwExqHFAIJkZAJxQ4a0QmTwBaDuISfMDyBLRYRCZnAFofohEnYBLZ4xE9YnoAEtgBHJalITWITAGpJR/qk4yTWAc7UCVKSiox9OFtnSEs6MvbhxD0ngYx9ehwzNi/1ue9CiCv9svb4RNq8C3XPDvVQVRn7zqth+tG9zevJPu9wFGcU6iuKhbeyCvHbmC1pvh4FpykM3j/j+j0P63npPeUVt2t58SHPJeXl3jzAljwsebsvLzZdXyx5uy8vYcPzU8/7V0Lty69f/1//P8HVhryAZ16urh98WECjFBUYLTcVGDsXWLOpwM/vr/nzCp7wKC/K7m1DHmNTV+aXKtDhbaiLl9H+p51H5g297ZoiXIcuxKZlV8fd7ChMJs0pY4Bnjl5l3scD3KeOgK8WcH0a4438Ag==",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls passing arrays around\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 9);\n        another_entry_point(x);\n    }\n}\n\nunconstrained fn inner(x: [u32; 3]) -> [u32; 3] {\n    [x[0] + 1, x[1] + 1, x[2] + 1]\n}\n\nunconstrained fn entry_point(x: [u32; 3]) -> u32 {\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn nested_fn_that_allocates(value: u32) -> u32 {\n    let x = [value, value, value];\n    let y = inner(x);\n    y[0] + y[1] + y[2]\n}\n\nunconstrained fn another_entry_point(x: [u32; 3]) {\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n    assert(nested_fn_that_allocates(1) == 6);\n    // x should be unchanged\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

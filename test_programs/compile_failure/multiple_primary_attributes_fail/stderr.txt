@@ -1,6 +1,9 @@
 error: Usage of the `#[oracle]` function attribute is only valid on unconstrained functions
-  ┌─ src/main.nr:4:4
+  ┌─ src/main.nr:2:1
   │
+2 │ #[oracle(oracleName)]
+  │ ---------------------
+3 │ #[builtin(builtinName)]
 4 │ fn main(x: Field) -> pub Field {
   │    ---- Oracle functions must have the `unconstrained` keyword applied
   │

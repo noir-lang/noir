@@ -1,0 +1,64 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VZPW/bMBClviwrsoeme7fudOzU6iagdYauXbuoMbR3a5fW6C+vjRyhl5ejkkJknBAISJlP9+7u3dGSk5i7kR7/ElnnMmfm4XCYVmY7bawC2rIx/UxeiZ9pJD/vFUMiBeMbLqi/Mlcyp7CfBQy6It6Q9hu72VZKfAH9X1diM49sv4hj35Zi5/NhsI+xON6McHxPApgdYHYezA1gbgizhDVzuT2s4R3tYb072/Pj3xszrC9lXRFXjPpDf0Pr91bx33HVEusvihX1DXc49n1mHtYqc8X1wdoKeMLbb6yz5/oGOTBu5p8r+HwEP5PrAj4rAePsaeeDCZfPVUH+vCNe9ClkXV9SPMh1To2TEc00jdMR/FM1Zg3em/NrwDFgfri3T2Op3O/uzRRbzJNRTlgLPFti18WFua8L+4XPTLzn7kX/asXeTLHHe1hbNaznHvuoy0zBF4RfyXza/yNrl+MFcbRybSeNIcdaL2FNLDwx4mfpCF7rPcwba+LwDeUB74nde3NPDL7ec/Evlb2x3uP+1XovVbh9tfzU3tA0fKm98UlmrTeWxNHKtZ00ht7Q8oT+M/9CwZcjeK03MIcL2nf4L5SHSO9Eam/kxF2buBq4mJED/ak9+cbPshF8TjnmuuRnIdwzJlyu2f9cyblWMw7/lfzEOGPXRE3ckd45rl9T3ycj+JI09PU9c6MP2vNdQfhvMp+zJrT8aTni71DtzMkIy7jkkZxdwNr3HY+ajL1TpIr9mYcL9UqVmLX8aPZLBV8QvpdZ+77kvLVybaeN5rk1To3/XESc1mf/q6nWZ1wzUzTVngdZ0x8ya5ry+1sr13bSGM5C5xNyZJ78+HRIRvApxezTlXPyk/KAHLHPNreuzVBD+SE8/7a5ey44jeww5EH7p1MO+4j/Ldd4Hrk5n+Bnv+1W/brru+tuv9/cdpyn08DfR0PzXzXNh49X34+//O5v+/1m/Rj/P8dGSr7FGwAA",
+  "debug_symbols": "pdXNjqpAFATgd+k1iz79377KxBhUnJAQNIzc5Mbw7nOa6uM4i9ngxq8Qq0yIyEOdu+P8eejHy/VL7T4e6jj1w9B/Hobrqb3315HffShdXiirHTXKaEBqZxgDLHDAgwAiSCCvWF6xDAEDLHDAgwB4xTEJ5BWnAQEDLHDAgwCw4rDieMU3ymtAwAALHPCAVwITQQJ5JWhAwAALHPAAK4FXIpNAXokaEDDAAl5JjAcBRMArmckrSQMCBvAKadZVfTVUYzVVM8y6SlWeI/4FZFt1VV8N1VhN1QxJawkkoUyaEqwEJ8FLCBKihCQh10BaAkmQZSrLtgQnwUsIEqKEJKEs22VplNwPh/vUdeV2eLlB+La5tVM33tVunIehUf/aYV4/9HVrx9V7O/FZvnrdeGZ58NIPXUlL89PWf1dzql2+EM+231AnvaFOxknf5C19Z6Xv/Jv9Td8fnv3g3+vHTdcveennbX25/kZv6Rt69g1t6dssfefe7OdNff9Hf89H7amffj2wlrI09e1x6OrhZR5PL2fv/29yRh54t+l66s7z1JWll6cev36QoYZM2Jd/hPUw8mHeL+XrvwE=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: i8, mut y: i8, z: i8) {\n    let mut s1: i8 = 5;\n    let mut s2: i8 = 8;\n    assert(-1 as i8 < 0);\n    assert(x < y);\n    assert(-x < y);\n    assert(-y < -x);\n    assert((z > x) == false);\n    assert(x <= s1);\n    assert(z < x - y - s2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
