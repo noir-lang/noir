@@ -3300,11 +3300,8 @@ impl PartialEq for Type {
                 NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: true, .. }),
                 NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: true, .. }),
             ) => {
-                if lhs_var.borrow().is_unbound() && rhs_var.borrow().is_unbound() {
-                    true
-                } else {
-                    lhs_var.id() == rhs_var.id()
-                }
+                lhs_var.borrow().is_unbound() && rhs_var.borrow().is_unbound()
+                    || lhs_var.id() == rhs_var.id()
             }
             // Special case: we consider unbound named generics and type variables to be equal to each
             // other if their type variable ids match. This is important for some corner cases in
