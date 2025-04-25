@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745611668402,
+  "lastUpdate": 1745614364528,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,48 +17966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3281d53737c62ffd8a5be383ce3bec8ac6f4a562",
-          "message": "chore(ssa): Test terminator value constant folding and resolve cache for data bus (#8132)",
-          "timestamp": "2025-04-21T16:57:29Z",
-          "tree_id": "b82840704558e2aff279d7d7d2cc161acc8ee116",
-          "url": "https://github.com/noir-lang/noir/commit/3281d53737c62ffd8a5be383ce3bec8ac6f4a562"
-        },
-        "date": 1745255624586,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266908,
-            "range": "± 724",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236059,
-            "range": "± 2749",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3577467,
-            "range": "± 10730",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20059,6 +20017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3231631,
             "range": "± 25697",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1ba0bfdb1e15cc21678247de4edab1d5a87a7a5d",
+          "message": "chore(docs): add fixed bugs to list (#8201)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-04-25T20:35:08Z",
+          "tree_id": "949d270f77184aa0cc8e853c095752172c556cc8",
+          "url": "https://github.com/noir-lang/noir/commit/1ba0bfdb1e15cc21678247de4edab1d5a87a7a5d"
+        },
+        "date": 1745614357029,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 270289,
+            "range": "± 1870",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 253596,
+            "range": "± 3343",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3594701,
+            "range": "± 12750",
             "unit": "ns/iter"
           }
         ]
