@@ -399,7 +399,11 @@
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 <span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
@@ -453,6 +457,10 @@
         BinaryFieldOp::Div =&gt; {
             <span class="kw">if </span>b.is_zero() {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(BrilligArithmeticError::DivisionByZero);
+            } <span class="kw">else if </span>b.is_one() {
+                MemoryValue::new_field(a)
+            } <span class="kw">else if </span>b == -F::one() {
+                MemoryValue::new_field(-a)
             } <span class="kw">else </span>{
                 MemoryValue::new_field(a / b)
             }
