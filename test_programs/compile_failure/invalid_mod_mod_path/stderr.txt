@@ -1,22 +1,15 @@
-error: Expected a 'fn' but found 'foo'
-  ┌─ src/mod.nr:1:5
-  │
-1 │ pub foo() -> bool {
-  │     ---
-  │
-
-error: Module '' is already part of the crate
-  ┌─ src/main.nr:1:15
-  │
-1 │ mod crate::mod;
-  │               -
-  │
-
-error: Note:  was originally declared here
+error: No module `(unknown)` at path `src/(unknown).nr` or `src/(unknown)/mod.nr`
   ┌─ src/main.nr:1:4
   │
 1 │ mod crate::mod;
   │    -
+  │
+
+error: No module `(unknown)` at path `src/(unknown).nr` or `src/(unknown)/mod.nr`
+  ┌─ src/main.nr:1:15
+  │
+1 │ mod crate::mod;
+  │               -
   │
 
 error: Expected an identifier but found 'crate'
@@ -54,4 +47,4 @@ error: Expected an item but found ';'
   │               -
   │
 
-Aborting due to 8 previous errors
+Aborting due to 7 previous errors

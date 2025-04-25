@@ -28,7 +28,7 @@ impl Parser<'_> {
         let Some(ident) = self.eat_ident() else {
             self.eat_semicolon();
             let location = self.location_at_previous_token_end();
-            let ident = self.empty_ident_at_previous_token_end();
+            let ident = self.unknown_ident_at_previous_token_end();
             return LetStatement {
                 pattern: ident_to_pattern(ident, mutable),
                 r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },

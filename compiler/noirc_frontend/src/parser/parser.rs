@@ -536,8 +536,8 @@ impl<'a> Parser<'a> {
         Location::new(span_at_previous_token_end, self.previous_token_location.file)
     }
 
-    fn empty_ident_at_previous_token_end(&self) -> Ident {
-        Ident::new(String::new(), self.location_at_previous_token_end())
+    fn unknown_ident_at_previous_token_end(&self) -> Ident {
+        Ident::new("(unknown)".to_string(), self.location_at_previous_token_end())
     }
 
     fn expected_identifier(&mut self) {

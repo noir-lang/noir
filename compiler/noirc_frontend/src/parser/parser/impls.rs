@@ -156,7 +156,7 @@ impl Parser<'_> {
             self.expected_identifier();
             self.eat_semicolons();
             let location = self.location_at_previous_token_end();
-            let name = self.empty_ident_at_previous_token_end();
+            let name = self.unknown_ident_at_previous_token_end();
             let alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
             return Some(TraitImplItemKind::Type { name, alias });
         };
@@ -183,7 +183,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.empty_ident_at_previous_token_end()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 

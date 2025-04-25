@@ -19,7 +19,7 @@ impl Parser<'_> {
             let location = self.location_at_previous_token_end();
             return NoirTypeAlias {
                 visibility,
-                name: self.empty_ident_at_previous_token_end(),
+                name: self.unknown_ident_at_previous_token_end(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,

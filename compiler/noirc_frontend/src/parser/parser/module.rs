@@ -23,7 +23,7 @@ impl Parser<'_> {
             self.expected_identifier();
             return ItemKind::ModuleDecl(ModuleDeclaration {
                 visibility,
-                ident: self.empty_ident_at_previous_token_end(),
+                ident: self.unknown_ident_at_previous_token_end(),
                 outer_attributes,
                 has_semicolon: false,
             });

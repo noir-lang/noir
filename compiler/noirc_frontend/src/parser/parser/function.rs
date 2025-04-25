@@ -94,7 +94,7 @@ impl Parser<'_> {
             // definition follows. This can happen if the user is currently renaming a function by first
             // erasing the name.
             self.expected_identifier();
-            self.empty_ident_at_previous_token_end()
+            self.unknown_ident_at_previous_token_end()
         } else {
             self.expected_identifier();
             return empty_function(self.location_at_previous_token_end());

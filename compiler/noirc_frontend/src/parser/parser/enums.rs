@@ -26,7 +26,7 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return self.empty_enum(
-                self.empty_ident_at_previous_token_end(),
+                self.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
