@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745577088614,
+  "lastUpdate": 1745583354187,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17995,48 +17995,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "af34226798f4f7362ceaefe4e9ca35867f252dfa",
-          "message": "fix(acir): Check whether opcodes were laid down for non-equality check before fetching payload locations (#8133)",
-          "timestamp": "2025-04-18T11:02:40Z",
-          "tree_id": "a6bde90cefcd0b308af617cafeef4f76ce7f6704",
-          "url": "https://github.com/noir-lang/noir/commit/af34226798f4f7362ceaefe4e9ca35867f252dfa"
-        },
-        "date": 1744975436844,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261997,
-            "range": "± 623",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232506,
-            "range": "± 4676",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3220025,
-            "range": "± 10818",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "4acfa1c0291182d9f18d5a71c75ac5c2676f4361",
           "message": "fix(ssa): Loop range with u1 (#8131)",
@@ -20079,6 +20037,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3260341,
             "range": "± 34797",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ef57db00a5b4622d95e011ea774cc5e30c09042e",
+          "message": "fix: don't take implicitly added named generics when checking where clauses (#8184)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-25T11:58:41Z",
+          "tree_id": "a67a69b154673ed1863d56caf5b81c25ee68f521",
+          "url": "https://github.com/noir-lang/noir/commit/ef57db00a5b4622d95e011ea774cc5e30c09042e"
+        },
+        "date": 1745583347541,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 275848,
+            "range": "± 922",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 245566,
+            "range": "± 9094",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3593883,
+            "range": "± 9494",
             "unit": "ns/iter"
           }
         ]
