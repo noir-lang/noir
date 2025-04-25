@@ -34,5 +34,5 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec()?;
 
-    compare_results(&inputs, &result, |inputs| [&inputs.program.0, &inputs.program.1])
+    compare_results(&inputs, &result)
 }

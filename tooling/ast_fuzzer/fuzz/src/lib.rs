@@ -1,7 +1,7 @@
 use acir::circuit::ExpressionWidth;
-use color_eyre::eyre;
+use color_eyre::eyre::{self, bail};
 use noir_ast_fuzzer::DisplayAstAsNoir;
-use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
+use noir_ast_fuzzer::compare::{CompareResult, CompareSsa, HasPrograms};
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::brillig::Brillig;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
@@ -76,21 +76,25 @@ where
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
-pub fn compare_results<'a, P, F, I>(
-    inputs: &'a CompareSsa<P>,
-    result: &CompareResult,
-    asts: F,
-) -> eyre::Result<()>
+pub fn compare_results<'a, P>(inputs: &'a CompareSsa<P>, result: &CompareResult) -> eyre::Result<()>
 where
-    F: Fn(&'a CompareSsa<P>) -> I,
-    I: IntoIterator<Item = &'a Program>,
+    CompareSsa<P>: HasPrograms,
 {
     let res = result.return_value_or_err();
 
-    if res.is_err() {
+    if let Err(report) = res {
+        eprintln!("---\nComparison failed:");
+        eprintln!("{report:#}");
+
         // Showing the AST as Noir so we can easily create integration tests.
-        for (i, ast) in asts(inputs).into_iter().enumerate() {
-            eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
+        let asts = inputs.programs();
+        let has_many = asts.len() > 1;
+        for (i, ast) in asts.into_iter().enumerate() {
+            if has_many {
+                eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(&ast));
+            } else {
+                eprintln!("---\nAST:\n{}", DisplayAstAsNoir(ast));
+            }
         }
         // Showing the inputs as TOML so we can easily create a Prover.toml file.
         eprintln!(
@@ -101,7 +105,8 @@ where
         );
         eprintln!("---\nProgram 1:\n{}", inputs.ssa1.program);
         eprintln!("---\nProgram 2:\n{}", inputs.ssa2.program);
-    }
 
-    res.map(|_| ())
+        bail!("Failed to reconcile the results.")
+    }
+    Ok(())
 }
