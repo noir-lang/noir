@@ -210,11 +210,7 @@
 <a href="#209" id="209">209</a>
 <a href="#210" id="210">210</a>
 <a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#212" id="212">212</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>fm::FileManager;
@@ -274,12 +270,8 @@
         }
     };
 
-    <span class="kw">let </span>test_function_has_arguments = !context
-        .def_interner
-        .function_meta(<span class="kw-2">&amp;</span>test_function.get_id())
-        .function_signature()
-        .<span class="number">0
-        </span>.is_empty();
+    <span class="kw">let </span>test_function_has_arguments =
+        !context.def_interner.function_meta(<span class="kw-2">&amp;</span>test_function.id).function_signature().<span class="number">0</span>.is_empty();
 
     <span class="kw">if </span>test_function_has_arguments {
         <span class="kw">return </span><span class="prelude-val">Err</span>(String::from(<span class="string">"Cannot debug tests with arguments"</span>));
@@ -294,7 +286,7 @@
     compile_options: CompileOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, noirc_driver::CompileError&gt; {
     <span class="kw">let </span>compiled_program =
-        compile_no_check(context, <span class="kw-2">&amp;</span>compile_options, test_def.function.get_id(), <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+        compile_no_check(context, <span class="kw-2">&amp;</span>compile_options, test_def.function.id, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
     <span class="kw">let </span>expression_width =
         get_target_width(package.expression_width, compile_options.expression_width);
     <span class="kw">let </span>compiled_program = transform_program(compiled_program, expression_width);

@@ -341,7 +341,7 @@
     <span class="kw">let </span>tests =
         context.get_all_test_functions_in_crate_matching(<span class="kw-2">&amp;</span>crate_id, <span class="kw-2">&amp;</span>FunctionNameMatch::Anything);
     <span class="kw">for </span>(func_name, test_function) <span class="kw">in </span>tests {
-        <span class="kw">let </span>location = context.function_meta(<span class="kw-2">&amp;</span>test_function.get_id()).name.location;
+        <span class="kw">let </span>location = context.function_meta(<span class="kw-2">&amp;</span>test_function.id).name.location;
         <span class="kw">let </span>file_id = location.file;
 
         <span class="comment">// Ignore diagnostics for any file that wasn't the file we saved

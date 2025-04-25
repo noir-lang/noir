@@ -1452,7 +1452,21 @@
 <a href="#1451" id="1451">1451</a>
 <a href="#1452" id="1452">1452</a>
 <a href="#1453" id="1453">1453</a>
-<a href="#1454" id="1454">1454</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::panic;
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::panic;
 <span class="kw">use </span>std::{
     cmp::max,
     path::{Path, PathBuf},
@@ -1725,6 +1739,8 @@
     </span><span class="kw">pub </span>num_threads: usize,
     <span class="doccomment">/// Maximum time in seconds to spend fuzzing (default: no timeout)
     </span><span class="kw">pub </span>timeout: u64,
+    <span class="doccomment">/// Whether to output progress to stdout or not.
+    </span><span class="kw">pub </span>show_progress: bool,
 }
 
 <span class="kw">pub enum </span>FuzzedExecutorFailureConfiguration {
@@ -1774,6 +1790,9 @@
 
     <span class="doccomment">/// Number of threads to use
     </span>num_threads: usize,
+
+    <span class="doccomment">/// Whether to output progress to stdout or not.
+    </span>show_progress: bool,
 
     <span class="doccomment">/// Determines what is considered a failure during execution
     </span>failure_configuration: FuzzedExecutorFailureConfiguration,
@@ -1845,6 +1864,7 @@
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
             num_threads: fuzz_execution_config.num_threads,
+            show_progress: fuzz_execution_config.show_progress,
             failure_configuration,
             corpus_dir: PathBuf::from(
                 folder_configuration.corpus_dir.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
@@ -1984,17 +2004,19 @@
             minimized_corpus_path =
                 minimized_corpus.as_ref().unwrap().get_corpus_storage_path().to_path_buf();
         }
-        <span class="kw">let _ </span>= display_starting_info(
-            <span class="self">self</span>.minimize_corpus,
-            seed,
-            starting_corpus_ids.len(),
-            <span class="self">self</span>.num_threads,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.package_name,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.function_name,
-            corpus.get_corpus_storage_path(),
-            <span class="kw-2">&amp;</span>minimized_corpus_path,
-            abi_change_detected,
-        );
+        <span class="kw">if </span><span class="self">self</span>.show_progress {
+            <span class="kw">let _ </span>= display_starting_info(
+                <span class="self">self</span>.minimize_corpus,
+                seed,
+                starting_corpus_ids.len(),
+                <span class="self">self</span>.num_threads,
+                <span class="kw-2">&amp;</span><span class="self">self</span>.package_name,
+                <span class="kw-2">&amp;</span><span class="self">self</span>.function_name,
+                corpus.get_corpus_storage_path(),
+                <span class="kw-2">&amp;</span>minimized_corpus_path,
+                abi_change_detected,
+            );
+        }
 
         <span class="comment">// Generate the default input (it is needed if the corpus is empty)
         </span><span class="kw">let </span>default_map = <span class="self">self</span>.mutator.generate_default_input_map();
@@ -2199,7 +2221,9 @@
                 all_fuzzing_results.iter().find(|fast_result| fast_result.failed())
             {
                 <span class="self">self</span>.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                <span class="kw">let _ </span>= display_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>.metrics);
+                <span class="kw">if </span><span class="self">self</span>.show_progress {
+                    <span class="kw">let _ </span>= display_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>.metrics);
+                }
                 <span class="kw">break </span>individual_failing_result.outcome().clone();
             }
 
@@ -2388,7 +2412,9 @@
             <span class="comment">// If we've found something, return
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(result) = failing_result {
                 <span class="self">self</span>.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                <span class="kw">let _ </span>= display_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>.metrics);
+                <span class="kw">if </span><span class="self">self</span>.show_progress {
+                    <span class="kw">let _ </span>= display_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>.metrics);
+                }
                 <span class="kw">break </span>result;
             }
             <span class="kw">if </span>time_tracker.elapsed() - last_metric_check
@@ -2397,7 +2423,9 @@
                 <span class="comment">// Update and display metrics
                 </span><span class="self">self</span>.metrics.set_active_corpus_size(corpus.get_testcase_count());
                 <span class="self">self</span>.metrics.set_last_round_update_time(updating_time);
-                <span class="kw">let _ </span>= display_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>.metrics);
+                <span class="kw">if </span><span class="self">self</span>.show_progress {
+                    <span class="kw">let _ </span>= display_metrics(<span class="kw-2">&amp;</span><span class="self">self</span>.metrics);
+                }
                 <span class="self">self</span>.metrics.refresh_round();
                 last_metric_check = time_tracker.elapsed();
                 <span class="comment">// Check if we've exceeded the timeout

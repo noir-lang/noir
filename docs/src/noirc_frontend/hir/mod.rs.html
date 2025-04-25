@@ -469,7 +469,7 @@
             .get_all_test_functions(interner)
             .filter_map(|test_function| {
                 <span class="kw">let </span>fully_qualified_name =
-                    <span class="self">self</span>.fully_qualified_function_name(crate_id, <span class="kw-2">&amp;</span>test_function.get_id());
+                    <span class="self">self</span>.fully_qualified_function_name(crate_id, <span class="kw-2">&amp;</span>test_function.id);
                 <span class="kw">match </span><span class="kw-2">&amp;</span>pattern {
                     FunctionNameMatch::Anything =&gt; <span class="prelude-val">Some</span>((fully_qualified_name, test_function)),
                     FunctionNameMatch::Exact(patterns) =&gt; patterns
@@ -500,7 +500,7 @@
             .get_all_fuzzing_harnesses(interner)
             .filter_map(|fuzzing_harness| {
                 <span class="kw">let </span>fully_qualified_name =
-                    <span class="self">self</span>.fully_qualified_function_name(crate_id, <span class="kw-2">&amp;</span>fuzzing_harness.get_id());
+                    <span class="self">self</span>.fully_qualified_function_name(crate_id, <span class="kw-2">&amp;</span>fuzzing_harness.id);
                 <span class="kw">match </span><span class="kw-2">&amp;</span>pattern {
                     FunctionNameMatch::Anything =&gt; <span class="prelude-val">Some</span>((fully_qualified_name, fuzzing_harness)),
                     FunctionNameMatch::Exact(patterns) =&gt; patterns

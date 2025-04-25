@@ -696,7 +696,7 @@
     <span class="kw">let </span>package_tests: Vec&lt;<span class="kw">_</span>&gt; = tests
         .into_iter()
         .map(|(func_name, test_function)| {
-            <span class="kw">let </span>location = context.function_meta(<span class="kw-2">&amp;</span>test_function.get_id()).name.location;
+            <span class="kw">let </span>location = context.function_meta(<span class="kw-2">&amp;</span>test_function.id).name.location;
             <span class="kw">let </span>file_id = location.file;
             <span class="kw">let </span>file_path = fm.path(file_id).expect(<span class="string">"file must exist to contain tests"</span>);
             <span class="kw">let </span>range =

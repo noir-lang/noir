@@ -334,55 +334,8 @@
 <a href="#333" id="333">333</a>
 <a href="#334" id="334">334</a>
 <a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io, path::PathBuf};
-
-<span class="kw">use </span>acvm::{
-    AcirField, BlackBoxFunctionSolver, FieldElement,
+<a href="#336" id="336">336</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+    BlackBoxFunctionSolver, FieldElement,
     acir::native_types::{WitnessMap, WitnessStack},
     brillig_vm::BranchToFeatureMap,
 };
@@ -395,12 +348,11 @@
 <span class="kw">use </span>noirc_driver::{CompileOptions, compile_no_check};
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <span class="kw">use </span>noirc_frontend::hir::{Context, def_map::FuzzingHarness};
-<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use </span><span class="kw">crate</span>::foreign_calls::ForeignCallExecutor;
 <span class="kw">use crate</span>::{
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{DefaultForeignCallBuilder, layers},
+    foreign_calls::layers,
     ops::{
         execute::execute_program_with_acir_fuzzing, execute::execute_program_with_brillig_fuzzing,
         test::TestForeignCallExecutor,
@@ -414,6 +366,8 @@
     </span><span class="kw">pub </span>num_threads: usize,
     <span class="doccomment">/// Maximum time in seconds to spend fuzzing (default: no timeout)
     </span><span class="kw">pub </span>timeout: u64,
+    <span class="doccomment">/// Whether to output progress to stdout or not.
+    </span><span class="kw">pub </span>show_progress: bool,
 }
 
 <span class="doccomment">/// Folder configuration for fuzzing
@@ -452,64 +406,24 @@
     }
 }
 
-<span class="doccomment">/// Builds a foreign call executor
-///
-/// This is a helper function to build a foreign call executor for the fuzzing harness.
-///
-</span><span class="attr">#[allow(unused)] </span><span class="comment">// Suppress warnings when the `rpc` feature is off.
-</span><span class="kw">fn </span>build_foreign_call_executor&lt;
-    <span class="lifetime">'a</span>,
-    F: AcirField + Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; + <span class="lifetime">'a </span>+ <span class="lifetime">'static</span>,
-&gt;(
-    show_output: bool,
-    foreign_call_resolver_url: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-    root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
-    package_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
-) -&gt; <span class="kw">impl </span>ForeignCallExecutor&lt;F&gt; {
-    <span class="attr">#[cfg(feature = <span class="string">"rpc"</span>)]
-    </span><span class="kw">let </span>build_foreign_call_executor = |output, base| {
-        DefaultForeignCallBuilder {
-            output,
-            enable_mocks: <span class="bool-val">true</span>,
-            resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
-            root_path: root_path.clone(),
-            package_name: package_name.clone(),
-        }
-        .build_with_base(base)
-    };
-    <span class="attr">#[cfg(not(feature = <span class="string">"rpc"</span>))]
-    </span><span class="kw">let </span>build_foreign_call_executor = |output, base| {
-        DefaultForeignCallBuilder { output, enable_mocks: <span class="bool-val">true </span>}.build_with_base(base)
-    };
-    <span class="comment">// Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-    </span><span class="kw">let </span>writer: Box&lt;<span class="kw">dyn </span>io::Write&gt; =
-        <span class="kw">if </span>show_output { Box::new(io::stdout()) } <span class="kw">else </span>{ Box::new(io::empty()) };
-    <span class="kw">let </span>inner_executor = build_foreign_call_executor(writer, layers::Unhandled);
-
-    TestForeignCallExecutor::new(inner_executor)
-}
-
 <span class="attr">#[allow(clippy::too_many_arguments)]
-</span><span class="kw">pub fn </span>run_fuzzing_harness&lt;B&gt;(
+</span><span class="kw">pub fn </span>run_fuzzing_harness&lt;<span class="lifetime">'a</span>, B, F, E&gt;(
     context: <span class="kw-2">&amp;mut </span>Context,
     fuzzing_harness: <span class="kw-2">&amp;</span>FuzzingHarness,
     show_output: bool,
-    foreign_call_resolver_url: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-    root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
-    package_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    package_name: String,
     compile_config: <span class="kw-2">&amp;</span>CompileOptions,
     fuzz_folder_config: <span class="kw-2">&amp;</span>FuzzFolderConfig,
     fuzz_execution_config: <span class="kw-2">&amp;</span>FuzzExecutionConfig,
+    build_foreign_call_executor: F,
 ) -&gt; FuzzingRunStatus
 <span class="kw">where
     </span>B: BlackBoxFunctionSolver&lt;FieldElement&gt; + Default,
+    F: Fn(Box&lt;<span class="kw">dyn </span>std::io::Write + <span class="lifetime">'a</span>&gt;, layers::Unhandled) -&gt; E + Sync,
+    E: ForeignCallExecutor&lt;FieldElement&gt;,
 {
-    <span class="kw">let </span>fuzzing_harness_has_no_arguments = context
-        .def_interner
-        .function_meta(<span class="kw-2">&amp;</span>fuzzing_harness.get_id())
-        .function_signature()
-        .<span class="number">0
-        </span>.is_empty();
+    <span class="kw">let </span>fuzzing_harness_has_no_arguments =
+        context.def_interner.function_meta(<span class="kw-2">&amp;</span>fuzzing_harness.id).function_signature().<span class="number">0</span>.is_empty();
 
     <span class="kw">if </span>fuzzing_harness_has_no_arguments {
         <span class="kw">return </span>FuzzingRunStatus::ExecutionFailure {
@@ -522,8 +436,7 @@
     </span><span class="kw">let </span>acir_config = CompileOptions { force_brillig: <span class="bool-val">false</span>, ..compile_config.clone() };
     <span class="kw">let </span>brillig_config = CompileOptions { force_brillig: <span class="bool-val">true</span>, ..compile_config.clone() };
 
-    <span class="kw">let </span>acir_program =
-        compile_no_check(context, <span class="kw-2">&amp;</span>acir_config, fuzzing_harness.get_id(), <span class="prelude-val">None</span>, <span class="bool-val">false</span>);
+    <span class="kw">let </span>acir_program = compile_no_check(context, <span class="kw-2">&amp;</span>acir_config, fuzzing_harness.id, <span class="prelude-val">None</span>, <span class="bool-val">false</span>);
 
     <span class="comment">// We need to clone the acir program because it will be moved into the fuzzer
     // and we need to keep the original program for the error message and callstack
@@ -533,7 +446,7 @@
         <span class="prelude-val">None
     </span>};
     <span class="kw">let </span>brillig_program =
-        compile_no_check(context, <span class="kw-2">&amp;</span>brillig_config, fuzzing_harness.get_id(), <span class="prelude-val">None</span>, <span class="bool-val">false</span>);
+        compile_no_check(context, <span class="kw-2">&amp;</span>brillig_config, fuzzing_harness.id, <span class="prelude-val">None</span>, <span class="bool-val">false</span>);
     <span class="kw">let </span>brillig_program_copy = <span class="kw">if let </span><span class="prelude-val">Ok</span>(brillig_program_internal) = <span class="kw-2">&amp;</span>brillig_program {
         <span class="prelude-val">Some</span>(brillig_program_internal.clone())
     } <span class="kw">else </span>{
@@ -550,12 +463,10 @@
                 |program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
                  initial_witness: WitnessMap&lt;FieldElement&gt;|
                  -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, ErrorAndWitness&gt; {
-                    <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = build_foreign_call_executor(
-                        show_output,
-                        foreign_call_resolver_url,
-                        root_path.clone(),
-                        package_name.clone(),
-                    );
+                    <span class="kw">let </span>foreign_call_executor =
+                        build_foreign_call_executor(output(show_output), layers::Unhandled);
+                    <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor =
+                        TestForeignCallExecutor::new(foreign_call_executor);
                     execute_program_with_acir_fuzzing(
                         program,
                         initial_witness,
@@ -579,13 +490,9 @@
                                     initial_witness: WitnessMap&lt;FieldElement&gt;,
                                     location_to_feature_map: <span class="kw-2">&amp;</span>BranchToFeatureMap|
              -&gt; <span class="prelude-ty">Result</span>&lt;WitnessAndCoverage, ErrorAndCoverage&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = build_foreign_call_executor(
-                    show_output,
-                    foreign_call_resolver_url,
-                    root_path.clone(),
-                    package_name.clone(),
-                );
-
+                <span class="kw">let </span>foreign_call_executor =
+                    build_foreign_call_executor(output(show_output), layers::Unhandled);
+                <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
                 execute_program_with_brillig_fuzzing(
                     program,
                     initial_witness,
@@ -631,11 +538,12 @@
                 acir_and_brillig_programs,
                 acir_executor,
                 brillig_executor,
-                <span class="kw-2">&amp;</span>package_name.clone().unwrap(),
-                context.def_interner.function_name(<span class="kw-2">&amp;</span>fuzzing_harness.get_id()),
+                <span class="kw-2">&amp;</span>package_name.clone(),
+                context.def_interner.function_name(<span class="kw-2">&amp;</span>fuzzing_harness.id),
                 FuzzedExecutorExecutionConfiguration {
                     num_threads: fuzz_execution_config.num_threads,
                     timeout: fuzz_execution_config.timeout,
+                    show_progress: fuzz_execution_config.show_progress,
                 },
                 failure_configuration,
                 FuzzedExecutorFolderConfiguration {
@@ -654,12 +562,10 @@
                         .abi
                         .encode(<span class="kw-2">&amp;</span>program_failure_result.counterexample.clone(), <span class="prelude-val">None</span>)
                         .unwrap();
-                    <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = build_foreign_call_executor(
-                        show_output,
-                        foreign_call_resolver_url,
-                        root_path.clone(),
-                        package_name.clone(),
-                    );
+                    <span class="kw">let </span>foreign_call_executor =
+                        build_foreign_call_executor(output(show_output), layers::Unhandled);
+                    <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor =
+                        TestForeignCallExecutor::new(foreign_call_executor);
                     <span class="comment">// Execute the program with the failing witness
                     // Execute the program with the failing witness
                     </span><span class="kw">let </span>execution_failure = execute_program(
@@ -759,5 +665,9 @@
             </span>FuzzingRunStatus::CompileError(err.into())
         }
     }
+}
+
+<span class="kw">fn </span>output(show_output: bool) -&gt; Box&lt;<span class="kw">dyn </span>std::io::Write&gt; {
+    <span class="kw">if </span>show_output { Box::new(std::io::stdout()) } <span class="kw">else </span>{ Box::new(std::io::empty()) }
 }
 </code></pre></div></section></main></body></html>
