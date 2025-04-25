@@ -4,7 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    ResolvedGeneric, Type, TypeBindings,
+    NamedGeneric, ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
         ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
@@ -330,7 +330,11 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+                implicit: false,
+            });
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
