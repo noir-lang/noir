@@ -187,7 +187,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         "Removing Unreachable Functions",
         vec![All, Debug],
     );
-    ssa_pass_builder.add_pass(Ssa::defunctionalize, "Defunctionalization", vec![All]);
+    ssa_pass_builder.add_pass(Ssa::defunctionalize, "Defunctionalization", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::inline_simple_functions, "Inlining simple functions", vec![All]);
     // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
     // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
