@@ -1,5 +1,5 @@
 use acir::circuit::ExpressionWidth;
-use color_eyre::eyre::{self, bail};
+use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{CompareResult, CompareSsa, HasPrograms};
 use noirc_abi::input_parser::Format;
@@ -108,7 +108,9 @@ where
         eprintln!("---\nProgram 1:\n{}", inputs.ssa1.program);
         eprintln!("---\nProgram 2:\n{}", inputs.ssa2.program);
 
-        bail!("Failed to reconcile the results.")
+        // Returning it as-is, so we can see the error message at the bottom as well.
+        Err(report)
+    } else {
+        Ok(())
     }
-    Ok(())
 }

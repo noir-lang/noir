@@ -203,10 +203,11 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
     }
 }
 
-/// Can the binary operation result in an over/underflow.
+/// Can the binary operation result in an over/underflow or division by zero.
+/// These are operations that commonly fail with random constants.
 pub(crate) fn can_binary_op_overflow(op: &BinaryOp) -> bool {
     use BinaryOpKind::*;
-    matches!(op, Add | Subtract | Multiply | ShiftLeft | ShiftRight)
+    matches!(op, Add | Subtract | Multiply | Divide | ShiftLeft | ShiftRight)
 }
 
 /// Check if a certain binary operation can take a type as input and produce the target output.
