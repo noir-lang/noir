@@ -1,4 +1,4 @@
-use lsp_types::CompletionItemKind;
+use async_lsp::lsp_types::CompletionItemKind;
 use noirc_frontend::{ast::AttributeTarget, token::Keyword};
 use strum::IntoEnumIterator;
 
@@ -149,6 +149,24 @@ impl NodeFinder<'_> {
                         "fuzz(only_fail_with = \"...\")",
                         CompletionItemKind::METHOD,
                         "fuzz(only_fail_with = \"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                if name_matches("fuzz", prefix) || name_matches("should_fail", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(should_fail)",
+                        CompletionItemKind::METHOD,
+                        "fuzz(should_fail)",
+                        None,
+                    ));
+                }
+
+                if name_matches("fuzz", prefix) || name_matches("should_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(should_fail_with = \"...\")",
+                        CompletionItemKind::METHOD,
+                        "fuzz(should_fail_with = \"${1:message}\")",
                         None,
                     ));
                 }

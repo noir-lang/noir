@@ -1060,7 +1060,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, dfg, predicate)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, predicate)?;
         }
 
         Ok(result)
@@ -1072,11 +1072,13 @@ impl<'a> Context<'a> {
         result: AcirVar,
         bit_size: u32,
         binary: &Binary,
-        dfg: &DataFlowGraph,
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
-        let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
-            return Ok(());
+        let msg = match binary.operator {
+            BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
+            BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
+            BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
+            _ => return Ok(()),
         };
 
         let with_pred = self.acir_context.mul_var(result, predicate)?;
@@ -2693,13 +2695,11 @@ mod test {
     }
 
     #[test]
-    fn multiply_with_bool_should_not_emit_range_check() {
+    fn unchecked_mul_should_not_have_range_check() {
         let src = "
             acir(inline) fn main f0 {
-            b0(v0: bool, v1: u32):
-                enable_side_effects v0
-                v2 = cast v0 as u32
-                v3 = mul v2, v1
+            b0(v0: u32, v1: u32):
+                v3 = unchecked_mul v0, v1
                 return v3
             }
         ";

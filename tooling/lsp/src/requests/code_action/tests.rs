@@ -5,7 +5,7 @@ use crate::{
     utils::get_cursor_line_and_column,
 };
 
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     DidOpenTextDocumentParams, PartialResultParams, Position, Range, TextDocumentIdentifier,
     TextDocumentItem, WorkDoneProgressParams,

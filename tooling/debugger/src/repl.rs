@@ -130,7 +130,6 @@ impl<'a> AsyncReplDebugger<'a> {
 
         println!("Debugger ready to receive messages..");
         loop {
-            self.send_status(DebuggerStatus::Idle);
             // recv blocks until it receives message
             if let Ok(received) = self.command_receiver.recv() {
                 self.send_status(DebuggerStatus::Busy);
@@ -202,6 +201,7 @@ impl<'a> AsyncReplDebugger<'a> {
                 println!("Upstream channel closed. Terminating debugger");
                 break;
             }
+            self.send_status(DebuggerStatus::Idle);
         }
     }
 
@@ -549,8 +549,12 @@ impl DebugController {
     }
 
     fn call_debugger(&self, command: DebugCommandAPI) {
-        self.command_sender.send(command).expect("Could not communicate with debugger");
+        self.call_debugger_no_wait_for_idle(command);
         self.wait_for_idle();
+    }
+
+    fn call_debugger_no_wait_for_idle(&self, command: DebugCommandAPI) {
+        self.command_sender.send(command).expect("Could not communicate with debugger");
     }
 
     fn get_final_result(&self) -> DebugExecutionResult {
@@ -629,7 +633,7 @@ impl DebugController {
         self.call_debugger(DebugCommandAPI::ShowCurrentVmStatus);
     }
     pub fn terminate(&self) {
-        self.call_debugger(DebugCommandAPI::Terminate);
+        self.call_debugger_no_wait_for_idle(DebugCommandAPI::Terminate);
     }
 }
 

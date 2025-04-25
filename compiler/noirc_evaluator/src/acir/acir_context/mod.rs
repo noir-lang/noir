@@ -23,6 +23,7 @@ use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
+use num_integer::Integer;
 use std::{borrow::Cow, cmp::Ordering};
 
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
@@ -774,12 +775,28 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
             (Some(lhs_const), Some(rhs_const), _) if !rhs_const.is_zero() => {
-                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
-                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+                if lhs_const.num_bits() <= 128 && rhs_const.num_bits() <= 128 {
+                    let lhs_const = lhs_const.to_u128();
+                    let rhs_const = rhs_const.to_u128();
+                    let quotient = lhs_const / rhs_const;
+                    let remainder = lhs_const - quotient * rhs_const;
 
-                let quotient_var = self.add_constant(quotient);
-                let remainder_var = self.add_constant(remainder);
-                return Ok((quotient_var, remainder_var));
+                    let quotient_var = self.add_constant(quotient);
+                    let remainder_var = self.add_constant(remainder);
+                    return Ok((quotient_var, remainder_var));
+                } else {
+                    // If we're truncating to 128 bits, the RHS will be 2**128, which is 1 followed by 128 zeros;
+                    // when converted to u128, it becomes all zero.
+                    let lhs_const = BigUint::from_bytes_be(&lhs_const.to_be_bytes());
+                    let rhs_const = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
+                    let (quotient, remainder) = lhs_const.div_rem(&rhs_const);
+                    let quotient = F::from_be_bytes_reduce(&quotient.to_bytes_be());
+                    let remainder = F::from_be_bytes_reduce(&remainder.to_bytes_be());
+
+                    let quotient_var = self.add_constant(quotient);
+                    let remainder_var = self.add_constant(remainder);
+                    return Ok((quotient_var, remainder_var));
+                };
             }
 
             // If `rhs` is one then the division is a noop.
@@ -813,12 +830,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let (max_q_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
             // when rhs is constant, we can better estimate the maximum bit sizes
             let max_rhs_bits = rhs_const.num_bits();
-            assert!(
-                max_rhs_bits <= bit_size,
-                "attempted to divide by constant larger than operand type"
-            );
 
-            let max_q_bits = bit_size - max_rhs_bits + 1;
+            // It is possible that we have an AcirVar which is a result of a multiplication of constants
+            // which resulted in an overflow, but that check will only happen at runtime, and here we
+            // can't assume that the RHS will never have more bits than the operand.
+            let max_q_bits = if max_rhs_bits > bit_size {
+                // Ignore what we know about the constant and let the runtime handle it.
+                bit_size
+            } else {
+                bit_size - max_rhs_bits + 1
+            };
             (max_q_bits, max_rhs_bits)
         } else {
             (bit_size, bit_size)

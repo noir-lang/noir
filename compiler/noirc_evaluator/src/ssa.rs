@@ -326,6 +326,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         "Dead Instruction Elimination",
         vec![All, Debug],
     );
+    ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);
 
     ssa_pass_builder.finish()
 }

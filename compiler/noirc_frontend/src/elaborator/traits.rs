@@ -276,7 +276,6 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
-    let modifiers = interner.function_modifiers(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
 
@@ -315,14 +314,6 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     // issue an error for it here.
     if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
         let trait_fn_meta = interner.function_meta(trait_fn_id);
-        let trait_fn_modifiers = interner.function_modifiers(trait_fn_id);
-
-        if modifiers.is_unconstrained != trait_fn_modifiers.is_unconstrained {
-            let expected = trait_fn_modifiers.is_unconstrained;
-            let location = meta.name.location;
-            let item = method_name.to_string();
-            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, location });
-        }
 
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
@@ -374,15 +365,21 @@ fn check_function_type_matches_expected_type(
     errors: &mut Vec<TypeCheckError>,
 ) {
     let mut bindings = TypeBindings::new();
-    // Shouldn't need to unify envs, they should always be equal since they're both free functions
     if let (
-        Type::Function(params_a, ret_a, _env_a, _unconstrained_a),
-        Type::Function(params_b, ret_b, _env_b, _unconstrained_b),
+        Type::Function(params_a, ret_a, env_a, unconstrained_a),
+        Type::Function(params_b, ret_b, env_b, unconstrained_b),
     ) = (expected, actual)
     {
-        // TODO: we don't yet allow marking a trait function or a trait impl function as unconstrained,
-        // so both values will always be false here. Once we support that, we should check that both
-        // match (adding a test for it).
+        // Shouldn't need to unify envs, they should always be equal since they're both free functions
+        debug_assert_eq!(env_a, env_b, "envs should match as they're both free functions");
+
+        if unconstrained_a != unconstrained_b {
+            errors.push(TypeCheckError::UnconstrainedMismatch {
+                item: method_name.to_string(),
+                expected: *unconstrained_a,
+                location,
+            });
+        }
 
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
