@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745596941265,
+  "lastUpdate": 1745596981966,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "58f17b11172d27cc7712834aa81f1c7569e22b99",
-          "message": "fix(ssa): Do not inline simple recursive functions (#8127)",
-          "timestamp": "2025-04-21T11:29:42Z",
-          "tree_id": "eab048468935d39998296c0bfe5667701159c42b",
-          "url": "https://github.com/noir-lang/noir/commit/58f17b11172d27cc7712834aa81f1c7569e22b99"
-        },
-        "date": 1745236570199,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.652,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.454,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.192,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.72,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.074,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.873,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 116,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.861,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.364,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.372,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac7a20f2226a36236f73e5c96a4e6f3c3164e9ef",
+          "message": "feat(fuzz): Add experimental comptime code generator (#8207)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-04-25T15:39:06Z",
+          "tree_id": "fc100675db26352ff288b98e86fe816a97a52a2f",
+          "url": "https://github.com/noir-lang/noir/commit/ac7a20f2226a36236f73e5c96a4e6f3c3164e9ef"
+        },
+        "date": 1745596975392,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.693,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.491,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.198,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.66,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.044,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.864,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 121,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 133,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.861,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.384,
             "unit": "s"
           }
         ]
