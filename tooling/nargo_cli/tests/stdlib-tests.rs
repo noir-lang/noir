@@ -3,14 +3,13 @@
 use clap::Parser;
 use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
-use nargo::ops::run_test;
 use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
 use noirc_frontend::hir::FunctionNameMatch;
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use nargo::{
-    ops::{TestStatus, report_errors},
+    ops::{TestStatus, report_errors, run_test},
     package::{Package, PackageType},
     parse_all, prepare_package,
 };
