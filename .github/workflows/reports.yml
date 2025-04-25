@@ -383,6 +383,7 @@ jobs:
           REPO_DIR: test-repo
           PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
+          NUM_RUNS: ${{ matrix.num_runs }}
 
       - name: Process report data
         run: |
