@@ -410,6 +410,25 @@ pub fn create_program(
     create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
 }
 
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
+///
+/// This is intended for testing purposes, and currently requires the program to be compiled for Brillig.
+/// It is not added to the `SsaEvaluatorOptions` to avoid ambiguity when calling `create_program_with_passes` directly.
+#[tracing::instrument(level = "trace", skip_all)]
+pub fn create_program_with_minimal_passes(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+) -> Result<SsaProgramArtifact, RuntimeError> {
+    for func in &program.functions {
+        assert!(
+            func.unconstrained,
+            "The minimum SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
+            func.name
+        );
+    }
+    create_program_with_passes(program, options, &minimal_passes(), |_| vec![])
+}
+
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
 /// `primary` and `secondary` SSA passes.
 #[tracing::instrument(level = "trace", skip_all)]

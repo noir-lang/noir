@@ -76,7 +76,7 @@ where
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
-pub fn compare_results<'a, P>(inputs: &'a CompareSsa<P>, result: &CompareResult) -> eyre::Result<()>
+pub fn compare_results<P>(inputs: &CompareSsa<P>, result: &CompareResult) -> eyre::Result<()>
 where
     CompareSsa<P>: HasPrograms,
 {
@@ -91,7 +91,7 @@ where
         let has_many = asts.len() > 1;
         for (i, ast) in asts.into_iter().enumerate() {
             if has_many {
-                eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(&ast));
+                eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
             } else {
                 eprintln!("---\nAST:\n{}", DisplayAstAsNoir(ast));
             }

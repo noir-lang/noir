@@ -23,6 +23,7 @@ fuzz_target!(|data: &[u8]| {
 
 fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let options = default_ssa_options();
+    let passes = minimal_passes();
 
     let inputs = ComparePasses::arb(
         u,
@@ -33,13 +34,7 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
             for f in program.functions.iter_mut() {
                 f.unconstrained = true;
             }
-            create_ssa_with_passes_or_die(
-                program,
-                &options,
-                &minimal_passes(),
-                |_| Vec::new(),
-                Some("init"),
-            )
+            create_ssa_with_passes_or_die(program, &options, &passes, |_| vec![], Some("init"))
         },
         |program| create_ssa_or_die(program, &options, Some("final")),
     )?;
