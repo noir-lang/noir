@@ -216,7 +216,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
-            unconstrained: if self.config.force_brillig { true } else { bool::arbitrary(u)? },
+            unconstrained: self.config.force_brillig || bool::arbitrary(u)?,
         };
 
         Ok(decl)
