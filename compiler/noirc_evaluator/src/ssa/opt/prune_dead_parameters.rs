@@ -2,7 +2,8 @@
 //!
 //! Blocks can accept parameters that are passed via terminator instructions (e.g., `jmp`).
 //! During the compilation pipeline, it's common for some of these parameters to become unused.
-//! This module eliminates those unused parameters to reduce code size.
+//! This module eliminates those unused parameters and correspondingly
+//! adjusts the terminators of predecessor blocks. This work is ultimately done to reduce code size.
 //!
 //! ## How this pass works:
 //! - Iterates through all blocks in post-order (to ensure predecessors are visited after successors).
