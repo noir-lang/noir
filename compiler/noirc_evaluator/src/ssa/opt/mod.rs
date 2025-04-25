@@ -24,6 +24,7 @@ mod make_constrain_not_equal;
 mod mem2reg;
 mod normalize_value_ids;
 mod preprocess_fns;
+mod prune_dead_parameters;
 pub(crate) mod pure;
 mod rc;
 mod remove_bit_shifts;
