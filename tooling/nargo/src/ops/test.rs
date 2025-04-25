@@ -51,19 +51,13 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
-    let test_function_has_no_arguments = context
-        .def_interner
-        .function_meta(&test_function.get_id())
-        .function_signature()
-        .0
-        .is_empty();
-
     match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
             // Do the same optimizations as `compile_cmd`.
             let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
             let compiled_program = crate::ops::transform_program(compiled_program, target_width);
 
+            let test_function_has_no_arguments = !test_function.has_arguments();
             if test_function_has_no_arguments {
                 let ignore_foreign_call_failures =
                     std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
