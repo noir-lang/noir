@@ -20,7 +20,7 @@ average_times() {
         seconds = match($1, /s$/);
         if (seconds != 0) {
           current_time = substr($1, 0, seconds)
-          return sum += current_time;
+          return current_time;
         }
         
         printf "Could not parse time: %" $1 > "/dev/stderr"
