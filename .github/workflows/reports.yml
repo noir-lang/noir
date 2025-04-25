@@ -373,6 +373,7 @@ jobs:
         env:
           REPO_SLUG: ${{ matrix.repo }}
           PROJECT_TAG: ${{ matrix.ref }}
+          PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
 
       - name: Process report data
