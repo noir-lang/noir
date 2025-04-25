@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745583650009,
+  "lastUpdate": 1745583724355,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,48 +17966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4acfa1c0291182d9f18d5a71c75ac5c2676f4361",
-          "message": "fix(ssa): Loop range with u1 (#8131)",
-          "timestamp": "2025-04-18T13:39:59Z",
-          "tree_id": "0524f4311d846576da34bd7f8ca1ff332216a282",
-          "url": "https://github.com/noir-lang/noir/commit/4acfa1c0291182d9f18d5a71c75ac5c2676f4361"
-        },
-        "date": 1744984613423,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 269592,
-            "range": "± 766",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 241433,
-            "range": "± 1532",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3578949,
-            "range": "± 5207",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20059,6 +20017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3593883,
             "range": "± 9494",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad56ce63fc11e1cfa667dcb5db1659f6cfc858dd",
+          "message": "chore: clippy (#8220)",
+          "timestamp": "2025-04-25T12:03:24Z",
+          "tree_id": "090fb9a1bf0450763e3fbbb8fe0d0db3acdceb6a",
+          "url": "https://github.com/noir-lang/noir/commit/ad56ce63fc11e1cfa667dcb5db1659f6cfc858dd"
+        },
+        "date": 1745583717822,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 276574,
+            "range": "± 1295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 249211,
+            "range": "± 3127",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3608866,
+            "range": "± 8853",
             "unit": "ns/iter"
           }
         ]
