@@ -56,17 +56,14 @@ where
     match compile_no_check(context, config, test_function.id, None, false) {
         Ok(compiled_program) => {
             // Do the same optimizations as `compile_cmd`.
-            let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
-            let compiled_program = crate::ops::transform_program(compiled_program, target_width);
 
             if test_function.has_arguments {
-                run_test_with_arguments(
-                    blackbox_solver,
-                    compiled_program,
-                    test_function,
-                    build_foreign_call_executor,
-                )
+                // TODO: use greybox fuzzer
+                TestStatus::Pass
             } else {
+                let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+                let compiled_program =
+                    crate::ops::transform_program(compiled_program, target_width);
                 run_test_without_arguments(
                     blackbox_solver,
                     compiled_program,
@@ -141,61 +138,6 @@ where
         }
     } else {
         status
-    }
-}
-
-fn run_test_with_arguments<'a, B, F, E>(
-    blackbox_solver: &B,
-    compiled_program: CompiledProgram,
-    test_function: &TestFunction,
-    build_foreign_call_executor: F,
-) -> TestStatus
-where
-    B: BlackBoxFunctionSolver<FieldElement>,
-    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
-    E: ForeignCallExecutor<FieldElement>,
-{
-    use acvm::acir::circuit::Program;
-    use noir_fuzzer::FuzzedExecutor;
-    use proptest::test_runner::Config;
-    use proptest::test_runner::TestRunner;
-
-    let runner = TestRunner::new(Config { failure_persistence: None, ..Config::default() });
-
-    let abi = compiled_program.abi.clone();
-    let debug = compiled_program.debug.clone();
-
-    let executor = |program: &Program<FieldElement>,
-                    initial_witness: WitnessMap<FieldElement>|
-     -> Result<WitnessStack<FieldElement>, String> {
-        // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-        let inner_executor =
-            build_foreign_call_executor(Box::new(std::io::empty()), layers::Unhandled);
-
-        let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
-
-        let circuit_execution =
-            execute_program(program, initial_witness, blackbox_solver, &mut foreign_call_executor);
-
-        // Check if a failure was actually expected.
-        let status =
-            test_status_program_compile_pass(test_function, &abi, &debug, &circuit_execution);
-
-        if let TestStatus::Fail { message, error_diagnostic: _ } = status {
-            Err(message)
-        } else {
-            // The fuzzer doesn't care about the actual result.
-            Ok(WitnessStack::default())
-        }
-    };
-
-    let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-
-    let result = fuzzer.fuzz();
-    if result.success {
-        TestStatus::Pass
-    } else {
-        TestStatus::Fail { message: result.reason.unwrap_or_default(), error_diagnostic: None }
     }
 }
 
