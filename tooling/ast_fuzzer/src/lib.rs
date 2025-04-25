@@ -42,8 +42,8 @@ pub struct Config {
     pub stmt_freqs_acir: Freqs,
     /// Frequency of statements in Brillig functions.
     pub stmt_freqs_brillig: Freqs,
-    /// Whether to generate Brillig functions.
-    pub include_brillig: bool,
+    /// Whether to force all functions to be unconstrained.
+    pub force_brillig: bool,
 }
 
 impl Default for Config {
@@ -93,7 +93,7 @@ impl Default for Config {
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,
-            include_brillig: true,
+            force_brillig: false,
         }
     }
 }

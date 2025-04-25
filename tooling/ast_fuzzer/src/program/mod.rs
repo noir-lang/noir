@@ -42,19 +42,21 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
 /// Noir, with a single comptime function called from main with literal arguments.
 pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
     let mut config = config.clone();
-    // Prevents using unconstrained/unsafe keywords
-    config.include_brillig = false;
-    // Generate exactly one non-main function
-    config.min_functions = 1;
-    config.max_functions = 1;
+    // Comptime should use Brillig feature set
+    config.force_brillig = true;
+    // Generate only main function
+    config.min_functions = 0;
+    config.max_functions = 0;
 
+    //
     let mut ctx = Context::new(config);
-    ctx.gen_function_decls(u)?;
-    ctx.gen_functions(u)?;
-    ctx.rewrite_functions(u)?;
 
-    let body = FunctionContext::new(&mut ctx, FuncId(0)).gen_body_with_lit_call(u, FuncId(1))?;
-    let decl_inner = ctx.function_decl(FuncId(1));
+    let decl_inner = ctx.gen_function_decl(u, 1)?;
+    ctx.set_function_decl(FuncId(1), decl_inner.clone());
+    ctx.gen_function(u, FuncId(1))?;
+
+    // Parameterless main declaration wrapping the inner "main"
+    // function call
     let decl_main = FunctionDeclaration {
         name: "main".into(),
         params: vec![],
@@ -64,19 +66,10 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
         inline_type: InlineType::default(),
         unconstrained: false,
     };
-    ctx.function_declarations.insert(FuncId(0), decl_main.clone());
 
-    let func_main = Function {
-        id: FuncId(0),
-        name: decl_main.name.clone(),
-        parameters: decl_main.params.clone(),
-        body,
-        return_type: decl_main.return_type.clone(),
-        unconstrained: decl_main.unconstrained,
-        inline_type: decl_main.inline_type,
-        func_sig: decl_main.signature(),
-    };
-    ctx.functions.insert(FuncId(0), func_main);
+    ctx.set_function_decl(FuncId(0), decl_main);
+    ctx.gen_function_with_body(u, FuncId(0), |u, fctx| fctx.gen_body_with_lit_call(u, FuncId(1)))?;
+    ctx.rewrite_functions(u)?;
 
     let program = ctx.finalize();
     Ok(program)
@@ -122,6 +115,11 @@ impl Context {
     /// Get a function declaration.
     fn function_decl(&self, id: FuncId) -> &FunctionDeclaration {
         self.function_declarations.get(&id).expect("function should exist")
+    }
+
+    /// Get a function declaration.
+    fn set_function_decl(&mut self, id: FuncId, decl: FunctionDeclaration) {
+        self.function_declarations.insert(id, decl);
     }
 
     /// Get the main function declaration.
@@ -218,7 +216,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
-            unconstrained: if self.config.include_brillig { bool::arbitrary(u)? } else { false },
+            unconstrained: if self.config.force_brillig { true } else { bool::arbitrary(u)? },
         };
 
         Ok(decl)
@@ -235,20 +233,37 @@ impl Context {
     fn gen_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         let ids = self.function_declarations.keys().cloned().collect::<Vec<_>>();
         for id in ids {
-            let body = FunctionContext::new(self, id).gen_body(u)?;
-            let decl = self.function_decl(id);
-            let func = Function {
-                id,
-                name: decl.name.clone(),
-                parameters: decl.params.clone(),
-                body,
-                return_type: decl.return_type.clone(),
-                unconstrained: decl.unconstrained,
-                inline_type: decl.inline_type,
-                func_sig: decl.signature(),
-            };
-            self.functions.insert(id, func);
+            self.gen_function(u, id)?;
         }
+        Ok(())
+    }
+
+    /// Generate random function body.
+    fn gen_function(&mut self, u: &mut Unstructured, id: FuncId) -> arbitrary::Result<()> {
+        self.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
+    }
+
+    /// Generate function with a specified body generator.
+    fn gen_function_with_body(
+        &mut self,
+        u: &mut Unstructured,
+        id: FuncId,
+        f: impl Fn(&mut Unstructured, &mut FunctionContext) -> arbitrary::Result<Expression>,
+    ) -> arbitrary::Result<()> {
+        let mut fctx = FunctionContext::new(self, id);
+        let body = f(u, &mut fctx)?;
+        let decl = self.function_decl(id);
+        let func = Function {
+            id,
+            name: decl.name.clone(),
+            parameters: decl.params.clone(),
+            body,
+            return_type: decl.return_type.clone(),
+            unconstrained: decl.unconstrained,
+            inline_type: decl.inline_type,
+            func_sig: decl.signature(),
+        };
+        self.functions.insert(id, func);
         Ok(())
     }
 
@@ -385,7 +400,8 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
 /// Wrapper around `Program` that prints its AST as close to
 /// Noir syntax as we can get, making it `comptime`. The AST must
 /// be specifically prepared to include a main function consisting
-/// of a `comptime` wrapped call to a `comptime` marked function.
+/// of a `comptime` wrapped call to a `comptime` (or `unconstrained`)
+/// marked function.
 pub struct DisplayAstAsNoirComptime<'a>(pub &'a Program);
 
 impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
@@ -396,9 +412,8 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
             let mut fpo = FunctionPrintOptions::default();
             if function.id == Program::main_id() {
                 fpo.comptime_wrap_body = true;
-            } else {
-                fpo.comptime = true;
-            }
+                fpo.return_visibility = Some(Visibility::Public);
+            } 
             printer.print_function(function, f, fpo)?;
         }
         Ok(())
