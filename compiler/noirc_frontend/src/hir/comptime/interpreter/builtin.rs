@@ -17,7 +17,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
@@ -446,7 +446,11 @@ fn type_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = Type::NamedGeneric(type_var.clone(), name.clone());
+    let typ = Type::NamedGeneric(NamedGeneric {
+        type_var: type_var.clone(),
+        name: name.clone(),
+        implicit: false,
+    });
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -464,9 +468,7 @@ fn type_def_as_type(
     let type_def_rc = interner.get_type(struct_id);
     let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&type_def.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
-    });
+    let generics = vecmap(&type_def.generics, |generic| generic.clone().as_named_generic());
 
     drop(type_def);
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
@@ -537,7 +539,7 @@ fn type_def_has_named_attribute(
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
@@ -863,7 +865,7 @@ fn quoted_as_trait_constraint(
         Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_trait_bound(&trait_bound)
+            elaborator.use_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
@@ -881,7 +883,7 @@ fn quoted_as_type(
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_type(typ)
+            elaborator.use_type(typ)
         });
     Ok(Value::Type(typ))
 }
@@ -1411,7 +1413,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat(element).take(length as usize).collect();
+                let array = std::iter::repeat_n(element, length as usize).collect();
                 Value::Array(array, Type::Array(length_type, elem))
             } else {
                 // Assume we can resolve the length later
@@ -1503,7 +1505,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         | Type::Quoted(_)
         | Type::Error
         | Type::TraitAsType(..)
-        | Type::NamedGeneric(_, _) => Value::Zeroed(return_type),
+        | Type::NamedGeneric(_) => Value::Zeroed(return_type),
     }
 }
 
@@ -2500,12 +2502,12 @@ fn function_def_has_named_attribute(
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = modifiers.attributes.function() {
-        if name == attribute.name() {
+        if name == attribute.kind.name() {
             return Ok(Value::Bool(true));
         }
     }
 
-    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary)))
+    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2878,7 +2880,11 @@ fn module_has_named_attribute(
 
     let name = get_str(interpreter.elaborator.interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, &module_data.attributes)))
+    Ok(Value::Bool(has_named_attribute(
+        &name,
+        &module_data.attributes,
+        interpreter.elaborator.interner,
+    )))
 }
 
 // fn is_contract(self) -> bool

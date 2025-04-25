@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1Y4Y7TMAxO2g0o6ADd6QSHhDgxiT/8SZZkTSWQhmAP0t3a/7zB3oZ34Tl4EFadrXpeOrituTFulqYkjWt//ubY2aS4lXT1eQJzCWsJ6+vVZ0D2uOCzKYxqP9E92lIygDMacElsGTWxtsrHlTa6VONi7p2ybj7x2mvn3WLsjam89XkxL3JVaGsqXbvCVPWtUJxJRIJ3xVmDsaRn/jDxEpJ4knBwLIkXE2cSA+cASD7mE57GBp6K3k74QortZVUE9lD/8teXq+8/f8x44CMYMxgTYiPtkYeMYevTvld2kolNDnrEbzKxXlVi8IM2I9hXj8HOt2Vrn8dC8wL1+DvN/hnMaZ6hTnMleC7a+QuYn8E4I7bw/ZjcrnLDReZWX4huPp8BD2/uIVYFHZH6F6LtkPTsUf+0rjzq0Ed7Q6Z/CWMT4zWzKQMY0jtiSJlOCMNVAEPDO9aEwXI9jik8V3tI7ttGki5bXBsNhfgfMv13sH5KYhQktumOOOu81LUp69KVi4W9Kc+Z/UYSwlPf/q0r85sy17qwurLa/cn/a5ifetBWMZHr2DgT6+fqPnoQjQX9/k0PQp0Z0ZkxnW19CvforwR8n/atZv4S5pkI18UprNUegvkTsTeoC9HdB7BPnZP1v14/X8H60PXzM8xP9WurnO7QYrc7NNafh3qHxrz8uozjG2vfW7HOK+0N/E7M8VC8XXdotDdk+vQOPSIxR+TbYv4NxKbg3jCAXQb0ec2muJuYPhC7XI/7pHyh/2PoRe9h/dDv8oc8Rx9h/F/PkSF2uR732XWODvn9eBLLiGGQAQzJHTHw/xNCGD4FMDS8/AZZDsvA1xoAAA==",
+  "debug_symbols": "pZXNroIwEEbfpWsWTP/LqxhiEHsNCQGCYHJjePc7ZSjqQnNTNxyxnE6nwMednf1pvhyb7qe/suJwZ6exadvmcmz7upqavsN/7ywPB9CsgIyBIViCW8FzArBCIDhBECRiQa6ToC3JlmRLsiXZimxFtiI7QBE0wawQqOuMyZwABE5A3SAkQRE0wRAswa1Q6FmEIEiCIoTWc6TZaDeG7vMFm4vbdZxG70OjT/uHuzpUo+8mVnRz22bsVrXzetF1qLqVUzXiKM7ouzMSJ/xpWh9+LdnDzt+r3MImc6t3Xf3fN2r3zTuff/BBR59DQn0LsXkLKsXP+e6n9G+E2XwjeYrP3e6LBF/bWF+7lPrauN1/W9998IWNftL6TVy+g6/slHsHPOogUvYO8oef0juo+OyCdt/5Rr74JZ5VdTO+pjHmHMCap4APvQjLxhQjYF4BRmnIK3yhQ1yFHb1VY1OdWh/0UGDu6jgbnk6/QxyJ6T+Mfe3P8+hD5adPAB4PXGcCSgxvXMdB8EzIsEzYx8FmXJR74K+KC1dFRWXClEvo7g8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 2);\n        swap_entry_point(x, x + 1);\n        assert(deep_entry_point(x) == 4);\n    }\n}\n\nfn inner(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    inner(x + 1)\n}\n\nfn swap(x: u32, y: u32) -> (u32, u32) {\n    (y, x)\n}\n\nunconstrained fn swap_entry_point(x: u32, y: u32) {\n    let swapped = swap(x, y);\n    assert(swapped.0 == y);\n    assert(swapped.1 == x);\n    let swapped_twice = swap(swapped.0, swapped.1);\n    assert(swapped_twice.0 == x);\n    assert(swapped_twice.1 == y);\n}\n\nfn level_3(x: u32) -> u32 {\n    x + 1\n}\n\nfn level_2(x: u32) -> u32 {\n    level_3(x + 1)\n}\n\nfn level_1(x: u32) -> u32 {\n    level_2(x + 1)\n}\n\nunconstrained fn deep_entry_point(x: u32) -> u32 {\n    level_1(x + 1)\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "entry_point",
+    "swap_entry_point",
+    "deep_entry_point"
+  ]
+}

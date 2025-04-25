@@ -19,7 +19,8 @@ bn254_blackbox_solver.workspace = true
 fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
-num-bigint = "0.4"
+num-bigint.workspace = true
+num-integer.workspace = true
 num-traits.workspace = true
 im.workspace = true
 serde.workspace = true
@@ -35,12 +36,12 @@ petgraph.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
-proptest-derive.workspace = true
 similar-asserts.workspace = true
 tracing-test = "0.2.5"
 num-traits.workspace = true
 test-case.workspace = true
 function_name = "0.3.0"
+insta.workspace = true
 noirc_frontend = { workspace = true, features = ["test_utils"] }
 
 [features]

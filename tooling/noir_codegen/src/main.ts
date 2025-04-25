@@ -19,9 +19,9 @@ function main() {
   const programs = files.map((file_path): [string, CompiledCircuit] => {
     const program_name = path.parse(file_path).name;
     const file_contents = fs.readFileSync(file_path).toString();
-    const { abi, bytecode } = JSON.parse(file_contents);
+    const { abi, bytecode, debug_symbols, file_map } = JSON.parse(file_contents);
 
-    return [program_name, { abi, bytecode }];
+    return [program_name, { abi, bytecode, debug_symbols, file_map }];
   });
 
   const result = codegen(programs, !cliConfig.externalArtifact, cliConfig.useFixedLengthArrays);

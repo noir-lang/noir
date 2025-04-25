@@ -122,6 +122,7 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     });
 
     brillig_context.deallocate_register(is_rc_one);
+
     brillig_context.deallocate_single_addr(target_size);
     brillig_context.deallocate_single_addr(source_rc);
     brillig_context.deallocate_single_addr(source_size);

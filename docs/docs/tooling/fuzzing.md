@@ -84,6 +84,34 @@ It is recommended to use `--skip-underconstrained-check` to increase compilation
 
 
 ## Fuzzing more complex programs
+### Using `should_fail` and `should_fail_with`
+
+The fuzzer can be used to fuzz programs that are expected to fail. To do this, you can use the `should_fail` and `should_fail_with` attributes.
+
+The following example will fuzz the program with the `should_fail` attribute, and will only consider a test case as a failure if the program passes:
+```rust
+#[fuzz(should_fail)]
+fn fuzz_should_fail(a: [bool; 32]) {
+    let mut or_sum= false;
+    for i in 0..32 {
+        or_sum=or_sum|(a[i]==((i&1)as bool));
+    }
+    assert(!or_sum);
+}
+```
+
+The `should_fail_with` expects that the program will fail with a specific error message. The following example will fuzz the program with the `should_fail_with` attribute, and will only consider a test case as a failure if the program passes or fails with the message different from "This is the message that will be checked for":
+```rust
+#[fuzz(should_fail_with = "This is the message that will be checked for")]
+fn fuzz_should_fail_with(a: [bool; 32]) {
+    let mut or_sum= false;
+    for i in 0..32 {
+        or_sum=or_sum|(a[i]==((i&1)as bool));
+    }
+    assert(or_sum);
+    assert(false, "This is the message that will be checked for");
+}
+```
 
 ### Using `only_fail_with`
 A lot of the time, the program will already have many expected assertions that would lead to a failing test case, for example:
@@ -94,7 +122,7 @@ fn fuzz_add(a: u64, b: u64) {
     assert((a+b-15)!=(a-b+30));
 }
 ```
-Using integer arithmetic will often automatically lead to overflows and underflows, which will lead to a failing test case. To avoid this we can specify and "only_fail_with" attribute to the fuzzing harness, which will only mark a testcase as failing if the assertion contains a specific message:
+Using integer arithmetic will often automatically lead to overflows and underflows, which will lead to a failing test case. If we want to check that a specific property is broken, rather than detect all failures, we can specify an "only_fail_with" attribute to the fuzzing harness, which will only mark a testcase as failing if the assertion contains a specific message:
 
 ```rust
 #[fuzz(only_fail_with = "This is the message that will be checked for")]

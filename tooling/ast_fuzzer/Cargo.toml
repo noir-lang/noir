@@ -22,6 +22,7 @@ proptest.workspace = true
 strum.workspace = true
 
 acir.workspace = true
+acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 nargo.workspace = true
 noirc_abi.workspace = true
@@ -30,4 +31,6 @@ noirc_frontend.workspace = true
 noir_fuzzer.workspace = true
 
 [dev-dependencies]
+arbtest.workspace = true
+insta.workspace = true
 rand.workspace = true

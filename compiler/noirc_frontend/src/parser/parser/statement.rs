@@ -365,13 +365,11 @@ impl Parser<'_> {
     }
 
     fn empty_for_loop(&mut self, identifier: Ident, start_location: Location) -> ForLoopStatement {
+        let location = self.location_at_previous_token_end();
         ForLoopStatement {
             identifier,
-            range: ForRange::Array(Expression {
-                kind: ExpressionKind::Error,
-                location: Location::dummy(),
-            }),
-            block: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
+            range: ForRange::Array(Expression { kind: ExpressionKind::Error, location }),
+            block: Expression { kind: ExpressionKind::Error, location },
             location: self.location_since(start_location),
         }
     }

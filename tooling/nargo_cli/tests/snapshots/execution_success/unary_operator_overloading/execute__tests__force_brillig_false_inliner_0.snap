@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81WS07DMBD1Jwm0CDZcoEuW/jb2DokF5yAiPQoH4CQciKsgQdUZ5NpWpDaTqk+Kni1bTy8zz044O6D7ex5g3AALVoIDPwNbtXVu7M2orX5TJg7BK+eHbdBB++DfTbB2DC70cYi9itrZUe98tDt1QKqlzoNWiVYOKm1RqYHAiQTmrCyaXLBgZ2oZ0NKc0JcgLPYpAVTzoCm0AnDF7iIBxEw1WBDJyiDieL9pk5mSNOb+TaZac0MpGV0oG8LmXjKUBIfp4qFsgTssCAawZWUo95s2mSnqUApGF8qW0YWyI24u9SdZJs0k7MdREJc8MDN77aZ8XsHvDsLi5Z76rCFduwN++fl+/fr8eMr33AKvgNfJuqTzblaZH2J9dcNKrCt1QOBF1rDp+qVzkfHUXj6he19ZQ81H4NQvvscvVa3sKbsLAAA=",
+  "debug_symbols": "pdNBjoMgFAbgu7B2ISiKXmUyMajYkBA0FJpMTO8+z1eYaRckjd38CM9PUHAnsxrDZdB2Wa+k/9rJ6LQx+jKYdZJerxZG93tBUnfwTikYIk91UJt0ynrS22BMQW7SBLzpukmLrZcOqmVBlJ2hhQcu2qjj6l786zJPRbJC/GH+tqaMR05Z1rO8r7sqel7WZ+avujR/zU6tv/7M8zb5psz5Ju+ZaKJn3an358nT9tV/Q09O2r2cN1KSHj44xWSYFWaNyTEbzBZTYHYPFfFDU+Cw9xT8sfE36bQcjYqnegl2ejrk/mdLlfQbbG6d1BycOhaINVjyLw==",
+  "file_map": {
+    "50": {
+      "source": "use std::ops::{Neg, Not};\n\n// x = 3\nfn main(x: u32) {\n    let wx = Wrapper::new(x as i32);\n    let ex: i32 = 3;\n\n    assert((-wx).inner == -ex);\n    assert((!wx).inner == !ex);\n\n    // Check that it works with type variables (x's type isn't immediately known)\n    let x = 3;\n    assert(-3 == -x);\n}\n\nstruct Wrapper {\n    inner: i32,\n}\n\nimpl Wrapper {\n    fn new(inner: i32) -> Self {\n        Wrapper { inner }\n    }\n}\n\nimpl Neg for Wrapper {\n    fn neg(self) -> Wrapper {\n        Wrapper::new(-self.inner)\n    }\n}\n\nimpl Not for Wrapper {\n    fn not(self) -> Wrapper {\n        Wrapper::new(!self.inner)\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

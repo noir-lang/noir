@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/81W227CMAx1etGWITRp+4LtZXsMtNA+IgEfEoH6Hf10FGGDa1KEwEFYqpLKyfE5jp3WwNEMPsEKHDO4NFqzwtE9ZjNFLJeSp0nE80SUzw2MJ77F0cLwkII/VxRsI5y08FtXL21EnyL/yjLMBPhzwi/S4Ls3xNn0Q3wQcacwbF6+h3y8kbfoe0c/zT9xbgVeinPnnLTz9h3hnzFtwdb92QeKsSeYy1+Ry0Q1WNP5Ui1wI1/JYl+7X3LxznkHTf8MV66DF9WbRThq6pX7ShivPQPxjyzfH4xqU2L94Ji6f74YrtQwgXMPFb1+/KZ1juLmLA/yrHj8Uqz/w/ePiI7iAZ5d42dd5Tu/8Pt9vfMyTyDyFLsHEp1ZNYXLOiKTPXPPPUC8gybHcOU6uFE/gO7P1LN6sBnR8+wePABi3zBBtQsAAA==",
+  "debug_symbols": "ndLNioMwEAfwd8k5h3xbfZVSJGosgRAl1YVFfPedOLprDwvFS37G+B+ZMAvpXDM/ax/74UWq+0Ka5EPwzzoMrZ38EOHtQlheuCEVp4QXyA0pNwRDOCJIJQCJKEQjBikQqCKBckMyhCNiQ8FOAQKRiEI0YhCooinRDOGIQCQCOb2ulBzt1VNyLnd36hduYbTJxYlUcQ6Bki8b5u2j12jj5mQTnDJKXOxAKNj74PLTSv/S7P+oMMUeFoX8jevP80V55G/6Sr687XnJ1IU852bPcyEu5OVxd9K8pR+ws61Pb/O35jrJ2ya4fdvPsT2dTt/jcXLM75iG1nVzcrnSaYhhvUtFZflY899+AA==",
+  "file_map": {
+    "50": {
+      "source": "fn bar(y: Field) {\n    assert(y != 0);\n}\n\nfn foo(x: Field) {\n    // Safety: test\n    let y = unsafe { baz(x) };\n    bar(y);\n}\n\nunconstrained fn baz(x: Field) -> Field {\n    x\n}\n\nfn main(x: Field, y: pub Field) {\n    // Safety: test\n    let x = unsafe { baz(x) };\n    foo(x);\n    foo(y);\n    assert(x != y);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

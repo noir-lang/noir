@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1WwU7DMAxN2QYMNCRAiAMXTpyTJmlTkNAEA3Hnjpau7Xf002mFrXqmZZPWCiRmKbLTOPazncQNxBcF1RgxOYD5bTXGZI0TfpsDl7uR6tGWDFpwDgY8ILa0jIzJ4zBXWnkZJqmz0tg0csop62wWOq1zZ1ycpEksE2V0rgqb6LyoaeWDDUnviiUHPgV+QNZHPcY6ZX77tO+kiact8fWIX0/B5pD5abtUPdmXR2DnpWzs81gE4ajH99TrM5DpOUOd42qciUY+B3kG/JXYwv1D5rY6G9HAuVWXojufeC6fy2F8o/3FMPbDU6ijFet1w/gmRH5uqe2E6V8DP6zGFcizlvwFRE93+KaNh55FjmNMbG2DFfVvgNfxP4CMZ2nCMMxhLnejCHNxKL4Trh0x3yhzGrE5xV3H9Ejscj3uk/YW6n+beizKdX3EQOvBdYRo6oH6dwT7f68H7aNd9UCfvH4Bk3k9uD6961RfEewpw9f2FtK73BYH7qnfHHzXxuW6nTl8lztQ7JofvVHZxMbrQ/1PmP49zE8IfuTjHXAWsVeF9oW3PsvMyl8w+4LlqW//oXNREqbVH1W2KjKjN/nvszcsgNfn5AnkTb1h2eF76N7wBnz/Fv2N3vBOsO97Q7P2W73hg2Dftjcsf4hjyDfPWB+vfKxUYlRulN305n0CvYanDAURAAA=",
+  "debug_symbols": "pdTLjoIwFAbgd+maRS/QC69ijEGshqQBUsFkYnj3Oe0vXhaTTHDDZy3/4ZQCd3byx/ly6PrzcGX17s6OsQuhuxzC0DZTN/T0753xdBCW1aJgUrFaEiWogAaG1YqwwGUUBwJIoABVKYkKaGAAVakIlyk5EEACBUpAVTShgQE2o1VuXtvcp3YZw4EA6MygM1OCCmiA9Rmsz7jcp+VAAAnQmUVntgIaGID1WazP8dynE0ACqqKXpWDrbhym6H3ajLftoU0bm+j7idX9HELBbk2Y80nXsemzUxNplhfM9yeSCp674NOvpXil+d9RWcpHWJb2Ga/+n3fPvDNb8vaV33J9JcQjr4Tekuev/Hf9b8sLvV5fGPVl3n3k9zRq2i5+vvD0FBp6gVmdbvatiV1zDD7NpOzct+uJNJx+xnVm/XaMcWj9aY4+FX37gNBxV6misvuCCZEGrtBiv6QufgE=",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The feature being tested is brillig recursion\nfn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(fibonacci(x) == 55);\n    }\n}\n\nunconstrained fn fibonacci(x: u32) -> u32 {\n    if x <= 1 {\n        x\n    } else {\n        fibonacci(x - 1) + fibonacci(x - 2)\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "fibonacci"
+  ]
+}

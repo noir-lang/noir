@@ -10,8 +10,8 @@ use super::SimplifyResult;
 
 /// Try to simplify this binary instruction, returning the new value if possible.
 pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> SimplifyResult {
-    let lhs = dfg.resolve(binary.lhs);
-    let rhs = dfg.resolve(binary.rhs);
+    let lhs = binary.lhs;
+    let rhs = binary.rhs;
 
     let lhs_value = dfg.get_numeric_constant(lhs);
     let rhs_value = dfg.get_numeric_constant(rhs);
@@ -25,7 +25,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
     }
 
     let operator = if lhs_type == NumericType::NativeField {
-        // Unchecked operations between fields or bools don't make sense, so we convert those to non-unchecked
+        // Unchecked operations between fields don't make sense, so we convert those to non-unchecked
         // to reduce noise and confusion in the generated SSA.
         match operator {
             BinaryOp::Add { unchecked: true } => BinaryOp::Add { unchecked: false },
@@ -34,9 +34,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             _ => operator,
         }
     } else if lhs_type == NumericType::bool() {
-        // Unchecked mul between bools doesn't make sense, so we convert that to non-unchecked
-        if let BinaryOp::Mul { unchecked: true } = operator {
-            BinaryOp::Mul { unchecked: false }
+        // When multiplying bools there can never be an overflow so using checked or unchecked
+        // should be the same. However, acir/brillig will check overflow for unsigned operations
+        // so here we turn checked bool multiplications to unchecked.
+        if let BinaryOp::Mul { unchecked: false } = operator {
+            BinaryOp::Mul { unchecked: true }
         } else {
             operator
         }
@@ -108,7 +110,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                         dfg[*instruction]
                     {
                         if matches!(operator, BinaryOp::Mul { .. })
-                            && (lhs == dfg.resolve(b_lhs) || lhs == dfg.resolve(b_rhs))
+                            && (lhs == b_lhs || lhs == b_rhs)
                         {
                             return SimplifyResult::SimplifiedTo(rhs);
                         }
@@ -122,7 +124,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                         dfg[*instruction]
                     {
                         if matches!(operator, BinaryOp::Mul { .. })
-                            && (rhs == dfg.resolve(b_lhs) || rhs == dfg.resolve(b_rhs))
+                            && (rhs == b_lhs || rhs == b_rhs)
                         {
                             return SimplifyResult::SimplifiedTo(lhs);
                         }
@@ -133,6 +135,16 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
         BinaryOp::Div => {
             if rhs_is_one {
                 return SimplifyResult::SimplifiedTo(lhs);
+            }
+            if let Some(rhs_value) = rhs_value {
+                if lhs_type == NumericType::NativeField && !rhs_value.is_zero() {
+                    let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Mul { unchecked: false },
+                    }));
+                }
             }
         }
         BinaryOp::Mod => {

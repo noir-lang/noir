@@ -1,14 +1,13 @@
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
-use acvm::acir::circuit::Circuit;
-use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::native_types::WitnessMap;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use nargo::PrintOutput;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use nargo::NargoError;
 
-use crate::context::DebugContext;
-use crate::context::{DebugCommandResult, DebugLocation};
+use crate::DebugProject;
+use crate::context::{DebugCommandResult, DebugLocation, RunParams};
+use crate::context::{DebugContext, DebugExecutionResult};
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 
 use dap::errors::ServerError;
@@ -28,18 +27,18 @@ use dap::types::{
 use noirc_artifacts::debug::DebugArtifact;
 
 use fm::FileId;
-use noirc_driver::CompiledProgram;
 
 type BreakpointId = i64;
 
 pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> {
-    server: Server<R, W>,
+    server: &'a mut Server<R, W>,
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
     running: bool,
     next_breakpoint_id: BreakpointId,
     instruction_breakpoints: Vec<(DebugLocation, BreakpointId)>,
     source_breakpoints: BTreeMap<FileId, Vec<(DebugLocation, BreakpointId)>>,
+    last_result: DebugCommandResult,
 }
 
 enum ScopeReferences {
@@ -60,23 +59,25 @@ impl From<i64> for ScopeReferences {
 
 impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<'a, R, W, B> {
     pub fn new(
-        server: Server<R, W>,
+        server: &'a mut Server<R, W>,
         solver: &'a B,
-        circuits: &'a [Circuit<FieldElement>],
+        project: &'a DebugProject,
         debug_artifact: &'a DebugArtifact,
-        initial_witness: WitnessMap<FieldElement>,
-        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+        foreign_call_resolver_url: Option<String>,
     ) -> Self {
         let context = DebugContext::new(
             solver,
-            circuits,
+            &project.compiled_program.program.functions,
             debug_artifact,
-            initial_witness,
+            project.initial_witness.clone(),
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-                PrintOutput::Stdout,
+                std::io::stdout(),
+                foreign_call_resolver_url,
                 debug_artifact,
+                Some(project.root_dir.clone()),
+                project.package_name.clone(),
             )),
-            unconstrained_functions,
+            &project.compiled_program.program.unconstrained_functions,
         );
         Self {
             server,
@@ -86,6 +87,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             next_breakpoint_id: 1,
             instruction_breakpoints: vec![],
             source_breakpoints: BTreeMap::new(),
+            last_result: DebugCommandResult::Ok,
         }
     }
 
@@ -125,7 +127,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             match req.command {
                 Command::Disconnect(_) => {
                     eprintln!("INFO: ending debugging session");
-                    self.server.respond(req.ack()?)?;
+                    self.running = false;
                     break;
                 }
                 Command::SetBreakpoints(_) => {
@@ -342,7 +344,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
     }
 
     fn handle_execution_result(&mut self, result: DebugCommandResult) -> Result<(), ServerError> {
-        match result {
+        self.last_result = result;
+        match &self.last_result {
             DebugCommandResult::Done => {
                 self.running = false;
             }
@@ -358,7 +361,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
                 }))?;
             }
             DebugCommandResult::BreakpointReached(location) => {
-                let breakpoint_ids = self.find_breakpoints_at_location(&location);
+                let breakpoint_ids = self.find_breakpoints_at_location(location);
                 self.server.send_event(Event::Stopped(StoppedEventBody {
                     reason: StoppedEventReason::Breakpoint,
                     description: Some(String::from("Paused at breakpoint")),
@@ -369,17 +372,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
                     hit_breakpoint_ids: Some(breakpoint_ids),
                 }))?;
             }
-            DebugCommandResult::Error(err) => {
-                self.server.send_event(Event::Stopped(StoppedEventBody {
-                    reason: StoppedEventReason::Exception,
-                    description: Some(format!("{err:?}")),
-                    thread_id: Some(0),
-                    preserve_focus_hint: Some(false),
-                    text: None,
-                    all_threads_stopped: Some(false),
-                    hit_breakpoint_ids: None,
-                }))?;
-            }
+            DebugCommandResult::Error(_) => self.server.send_event(Event::Terminated(None))?,
         }
         Ok(())
     }
@@ -604,23 +597,38 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             .respond(req.success(ResponseBody::Variables(VariablesResponse { variables })))?;
         Ok(())
     }
+
+    pub fn last_error(self) -> Option<NargoError<FieldElement>> {
+        match self.last_result {
+            DebugCommandResult::Error(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
-pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
-    server: Server<R, W>,
-    solver: &B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap<FieldElement>,
-) -> Result<(), ServerError> {
-    let debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
-    let mut session = DapSession::new(
-        server,
-        solver,
-        &program.program.functions,
-        &debug_artifact,
-        initial_witness,
-        &program.program.unconstrained_functions,
-    );
+pub fn run_session<R: Read, W: Write>(
+    server: &mut Server<R, W>,
+    project: DebugProject,
+    run_params: RunParams,
+) -> Result<DebugExecutionResult, ServerError> {
+    let debug_artifact = DebugArtifact {
+        debug_symbols: project.compiled_program.debug.clone(),
+        file_map: project.compiled_program.file_map.clone(),
+    };
 
-    session.run_loop()
+    let solver = Bn254BlackBoxSolver(run_params.pedantic_solving);
+    let mut session =
+        DapSession::new(server, &solver, &project, &debug_artifact, run_params.oracle_resolver_url);
+
+    session.run_loop()?;
+    if session.context.is_solved() {
+        let solved_witness_stack = session.context.finalize();
+        Ok(DebugExecutionResult::Solved(solved_witness_stack))
+    } else {
+        match session.last_error() {
+            // Expose the last known error
+            Some(error) => Ok(DebugExecutionResult::Error(error)),
+            None => Ok(DebugExecutionResult::Incomplete),
+        }
+    }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "array_to_slice"
+name = "comptime_as_slice"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.24.0"
