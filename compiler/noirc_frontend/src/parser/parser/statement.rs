@@ -264,7 +264,7 @@ impl Parser<'_> {
 
         let Some(identifier) = self.eat_ident() else {
             self.expected_identifier();
-            let identifier = Ident::default();
+            let identifier = self.empty_ident_at_previous_token_end();
             return Some(self.empty_for_loop(identifier, start_location));
         };
 

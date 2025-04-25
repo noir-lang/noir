@@ -2,7 +2,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        Documented, Expression, ExpressionKind, Ident, ItemVisibility, NoirFunction, NoirTraitImpl,
+        Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
         UnresolvedTypeData,
     },
@@ -156,10 +156,9 @@ impl Parser<'_> {
             self.expected_identifier();
             self.eat_semicolons();
             let location = self.location_at_previous_token_end();
-            return Some(TraitImplItemKind::Type {
-                name: Ident::default(),
-                alias: UnresolvedType { typ: UnresolvedTypeData::Error, location },
-            });
+            let name = self.empty_ident_at_previous_token_end();
+            let alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            return Some(TraitImplItemKind::Type { name, alias });
         };
 
         let alias = if self.eat_assign() {
@@ -184,7 +183,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.empty_ident_at_previous_token_end()
             }
         };
 

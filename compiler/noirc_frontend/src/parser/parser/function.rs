@@ -89,7 +89,7 @@ impl Parser<'_> {
     ) -> FunctionDefinitionWithOptionalBody {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            return empty_function(self.previous_token_location);
+            return empty_function(self.location_at_previous_token_end());
         };
 
         let generics = self.parse_generics_allowing_trait_bounds();
@@ -320,15 +320,14 @@ impl Parser<'_> {
 }
 
 fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
-    let span = Span::from(location.span.end()..location.span.end());
     FunctionDefinitionWithOptionalBody {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         parameters: Vec::new(),
         body: None,
-        location: Location::new(span, location.file),
+        location,
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Location::new(span, location.file)),
+        return_type: FunctionReturnType::Default(location),
         return_visibility: Visibility::Private,
     }
 }

@@ -111,7 +111,7 @@ impl Parser<'_> {
             }
             UseTree {
                 prefix,
-                kind: UseTreeKind::Path(Ident::default(), None),
+                kind: UseTreeKind::Path(self.empty_ident_at_previous_token_end(), None),
                 location: self.location_since(start_location),
             }
         } else {

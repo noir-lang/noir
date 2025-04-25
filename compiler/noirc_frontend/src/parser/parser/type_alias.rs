@@ -1,7 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{Ident, ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
+    ast::{ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
     token::Token,
 };
 
@@ -19,7 +19,7 @@ impl Parser<'_> {
             let location = self.location_at_previous_token_end();
             return NoirTypeAlias {
                 visibility,
-                name: Ident::default(),
+                name: self.empty_ident_at_previous_token_end(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,

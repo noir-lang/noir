@@ -1,7 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{Ident, ItemVisibility, ModuleDeclaration},
+    ast::{ItemVisibility, ModuleDeclaration},
     parser::{ItemKind, ParsedSubModule},
     token::{Attribute, Token},
 };
@@ -23,7 +23,7 @@ impl Parser<'_> {
             self.expected_identifier();
             return ItemKind::ModuleDecl(ModuleDeclaration {
                 visibility,
-                ident: Ident::default(),
+                ident: self.empty_ident_at_previous_token_end(),
                 outer_attributes,
                 has_semicolon: false,
             });
