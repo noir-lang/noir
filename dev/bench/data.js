@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745583600947,
+  "lastUpdate": 1745583604061,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "af34226798f4f7362ceaefe4e9ca35867f252dfa",
-          "message": "fix(acir): Check whether opcodes were laid down for non-equality check before fetching payload locations (#8133)",
-          "timestamp": "2025-04-18T11:02:40Z",
-          "tree_id": "a6bde90cefcd0b308af617cafeef4f76ce7f6704",
-          "url": "https://github.com/noir-lang/noir/commit/af34226798f4f7362ceaefe4e9ca35867f252dfa"
-        },
-        "date": 1744975743100,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.659,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.2,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.478,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.226,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.732,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.058,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.869,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 116,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.891,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.44,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.35,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ef57db00a5b4622d95e011ea774cc5e30c09042e",
+          "message": "fix: don't take implicitly added named generics when checking where clauses (#8184)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-25T11:58:41Z",
+          "tree_id": "a67a69b154673ed1863d56caf5b81c25ee68f521",
+          "url": "https://github.com/noir-lang/noir/commit/ef57db00a5b4622d95e011ea774cc5e30c09042e"
+        },
+        "date": 1745583594485,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.732,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.2,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.498,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.184,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.382,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.078,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.872,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 117,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.852,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.408,
             "unit": "s"
           }
         ]
