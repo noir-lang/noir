@@ -558,6 +558,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
+          jq --slurp '.' ./reports/*
           jq --slurp 'map(.compilation_time)' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
