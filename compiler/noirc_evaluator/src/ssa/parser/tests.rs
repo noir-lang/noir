@@ -661,3 +661,15 @@ fn test_parses_nop() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn test_parses_print() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call print()
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
