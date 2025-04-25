@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["AstPrinter"]};
+window.SIDEBAR_ITEMS = {"struct":["AstPrinter","FunctionPrintOptions"]};

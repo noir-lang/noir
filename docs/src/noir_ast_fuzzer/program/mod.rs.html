@@ -341,7 +341,87 @@
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
@@ -352,7 +432,7 @@
     ast::IntegerBitSize,
     monomorphization::{
         ast::{Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type},
-        printer::AstPrinter,
+        printer::{AstPrinter, FunctionPrintOptions},
     },
     shared::{Signedness, Visibility},
 };
@@ -377,6 +457,39 @@
     ctx.gen_function_decls(u)<span class="question-mark">?</span>;
     ctx.gen_functions(u)<span class="question-mark">?</span>;
     ctx.rewrite_functions(u)<span class="question-mark">?</span>;
+    <span class="kw">let </span>program = ctx.finalize();
+    <span class="prelude-val">Ok</span>(program)
+}
+
+<span class="doccomment">/// Generate an arbitrary monomorphized AST to be reversed into a valid comptime
+/// Noir, with a single comptime function called from main with literal arguments.
+</span><span class="kw">pub fn </span>arb_program_comptime(u: <span class="kw-2">&amp;mut </span>Unstructured, config: Config) -&gt; arbitrary::Result&lt;Program&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>config = config.clone();
+    <span class="comment">// Comptime should use Brillig feature set
+    </span>config.force_brillig = <span class="bool-val">true</span>;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::new(config);
+
+    <span class="kw">let </span>decl_inner = ctx.gen_function_decl(u, <span class="number">1</span>)<span class="question-mark">?</span>;
+    ctx.set_function_decl(FuncId(<span class="number">1</span>), decl_inner.clone());
+    ctx.gen_function(u, FuncId(<span class="number">1</span>))<span class="question-mark">?</span>;
+
+    <span class="comment">// Parameterless main declaration wrapping the inner "main"
+    // function call
+    </span><span class="kw">let </span>decl_main = FunctionDeclaration {
+        name: <span class="string">"main"</span>.into(),
+        params: <span class="macro">vec!</span>[],
+        return_type: decl_inner.return_type.clone(),
+        param_visibilities: <span class="macro">vec!</span>[],
+        return_visibility: Visibility::Public,
+        inline_type: InlineType::default(),
+        unconstrained: <span class="bool-val">false</span>,
+    };
+
+    ctx.set_function_decl(FuncId(<span class="number">0</span>), decl_main);
+    ctx.gen_function_with_body(u, FuncId(<span class="number">0</span>), |u, fctx| fctx.gen_body_with_lit_call(u, FuncId(<span class="number">1</span>)))<span class="question-mark">?</span>;
+    ctx.rewrite_functions(u)<span class="question-mark">?</span>;
+
     <span class="kw">let </span>program = ctx.finalize();
     <span class="prelude-val">Ok</span>(program)
 }
@@ -423,6 +536,11 @@
         <span class="self">self</span>.function_declarations.get(<span class="kw-2">&amp;</span>id).expect(<span class="string">"function should exist"</span>)
     }
 
+    <span class="doccomment">/// Get a function declaration.
+    </span><span class="kw">fn </span>set_function_decl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, decl: FunctionDeclaration) {
+        <span class="self">self</span>.function_declarations.insert(id, decl);
+    }
+
     <span class="doccomment">/// Get the main function declaration.
     </span><span class="kw">fn </span>main_decl(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FunctionDeclaration {
         <span class="self">self</span>.function_declarations.get(<span class="kw-2">&amp;</span>Program::main_id()).expect(<span class="string">"main should exist"</span>)
@@ -454,7 +572,9 @@
 
     <span class="doccomment">/// Generate random function names and signatures.
     </span><span class="kw">fn </span>gen_function_decls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;()&gt; {
-        <span class="kw">let </span>num_non_main_fns = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_functions)<span class="question-mark">?</span>;
+        <span class="kw">let </span>num_non_main_fns =
+            u.int_in_range(<span class="self">self</span>.config.min_functions..=<span class="self">self</span>.config.max_functions)<span class="question-mark">?</span>;
+
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..(<span class="number">1 </span>+ num_non_main_fns) {
             <span class="kw">let </span>d = <span class="self">self</span>.gen_function_decl(u, i)<span class="question-mark">?</span>;
             <span class="self">self</span>.function_declarations.insert(FuncId(i <span class="kw">as </span>u32), d);
@@ -515,7 +635,7 @@
             } <span class="kw">else </span>{
                 <span class="kw-2">*</span>u.choose(<span class="kw-2">&amp;</span>[InlineType::Inline, InlineType::InlineAlways])<span class="question-mark">?
             </span>},
-            unconstrained: bool::arbitrary(u)<span class="question-mark">?</span>,
+            unconstrained: <span class="self">self</span>.config.force_brillig || bool::arbitrary(u)<span class="question-mark">?</span>,
         };
 
         <span class="prelude-val">Ok</span>(decl)
@@ -532,20 +652,37 @@
     </span><span class="kw">fn </span>gen_functions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;()&gt; {
         <span class="kw">let </span>ids = <span class="self">self</span>.function_declarations.keys().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="kw">for </span>id <span class="kw">in </span>ids {
-            <span class="kw">let </span>body = FunctionContext::new(<span class="self">self</span>, id).gen_body(u)<span class="question-mark">?</span>;
-            <span class="kw">let </span>decl = <span class="self">self</span>.function_decl(id);
-            <span class="kw">let </span>func = Function {
-                id,
-                name: decl.name.clone(),
-                parameters: decl.params.clone(),
-                body,
-                return_type: decl.return_type.clone(),
-                unconstrained: decl.unconstrained,
-                inline_type: decl.inline_type,
-                func_sig: decl.signature(),
-            };
-            <span class="self">self</span>.functions.insert(id, func);
+            <span class="self">self</span>.gen_function(u, id)<span class="question-mark">?</span>;
         }
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="doccomment">/// Generate random function body.
+    </span><span class="kw">fn </span>gen_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, id: FuncId) -&gt; arbitrary::Result&lt;()&gt; {
+        <span class="self">self</span>.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
+    }
+
+    <span class="doccomment">/// Generate function with a specified body generator.
+    </span><span class="kw">fn </span>gen_function_with_body(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        id: FuncId,
+        f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, FunctionContext) -&gt; arbitrary::Result&lt;Expression&gt;,
+    ) -&gt; arbitrary::Result&lt;()&gt; {
+        <span class="kw">let </span>fctx = FunctionContext::new(<span class="self">self</span>, id);
+        <span class="kw">let </span>body = f(u, fctx)<span class="question-mark">?</span>;
+        <span class="kw">let </span>decl = <span class="self">self</span>.function_decl(id);
+        <span class="kw">let </span>func = Function {
+            id,
+            name: decl.name.clone(),
+            parameters: decl.params.clone(),
+            body,
+            return_type: decl.return_type.clone(),
+            unconstrained: decl.unconstrained,
+            inline_type: decl.inline_type,
+            func_sig: decl.signature(),
+        };
+        <span class="self">self</span>.functions.insert(id, func);
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -682,6 +819,29 @@
         <span class="kw">let </span><span class="kw-2">mut </span>printer = AstPrinter::default();
         printer.show_id = <span class="bool-val">false</span>;
         printer.print_program(<span class="self">self</span>.<span class="number">0</span>, f)
+    }
+}
+
+<span class="doccomment">/// Wrapper around `Program` that prints its AST as close to
+/// Noir syntax as we can get, making it `comptime`. The AST must
+/// be specifically prepared to include a main function consisting
+/// of a `comptime` wrapped call to a `comptime` (or `unconstrained`)
+/// marked function.
+</span><span class="kw">pub struct </span>DisplayAstAsNoirComptime&lt;<span class="lifetime">'a</span>&gt;(<span class="kw">pub </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>Program);
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>DisplayAstAsNoirComptime&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">let </span><span class="kw-2">mut </span>printer = AstPrinter::default();
+        printer.show_id = <span class="bool-val">false</span>;
+        <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.functions {
+            <span class="kw">let </span><span class="kw-2">mut </span>fpo = FunctionPrintOptions::default();
+            <span class="kw">if </span>function.id == Program::main_id() {
+                fpo.comptime_wrap_body = <span class="bool-val">true</span>;
+                fpo.return_visibility = <span class="prelude-val">Some</span>(Visibility::Public);
+            }
+            printer.print_function(function, f, fpo)<span class="question-mark">?</span>;
+        }
+        <span class="prelude-val">Ok</span>(())
     }
 }
 </code></pre></div></section></main></body></html>
