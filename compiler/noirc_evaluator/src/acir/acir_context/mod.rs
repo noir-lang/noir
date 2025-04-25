@@ -981,7 +981,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Optimization when rhs is const and fits within a u128
         let rhs_expr = self.var_to_expression(rhs)?;
-        // Do not attempt this optimization when the q_c is zero as otherwise 
+        // Do not attempt this optimization when the q_c is zero as otherwise
         // we will compute an rhs offset of zero and ultimately lay down a range constrain of zero bits
         // which will always fail.
         if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 && !rhs_expr.q_c.is_zero() {
