@@ -97,6 +97,14 @@ impl Function {
         let blocks = PostOrder::with_function(self);
         for block in blocks.as_slice() {
             context.remove_unused_instructions_in_block(self, *block);
+
+            let unused_params = self.dfg[*block]
+                .parameters()
+                .iter()
+                .filter(|value| !context.used_values.contains(value))
+                .copied()
+                .collect::<Vec<_>>();
+            self.dfg[*block].set_unused_parameters(unused_params);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
