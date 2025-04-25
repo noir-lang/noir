@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745596938576,
+  "lastUpdate": 1745596941265,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7d4f81935f8ae557cfe80b0a6cb8bdc83f2605ef",
-          "message": "fix: wrapping mul support for u128 (#7941)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-18T16:38:54Z",
-          "tree_id": "b470f1a83b4ee9b18fc646478d51695ef3aaeecd",
-          "url": "https://github.com/noir-lang/noir/commit/7d4f81935f8ae557cfe80b0a6cb8bdc83f2605ef"
-        },
-        "date": 1744995475083,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.161,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.332,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.215,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "abd805e7fe8f1e29c5c24515f725f2805e994d94",
+          "message": "fix: let SSA parser parse calls to print (#8232)",
+          "timestamp": "2025-04-25T15:36:17Z",
+          "tree_id": "0fc397205d38d56724abcd72b3cd7ec3325d3a10",
+          "url": "https://github.com/noir-lang/noir/commit/abd805e7fe8f1e29c5c24515f725f2805e994d94"
+        },
+        "date": 1745596932654,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.335,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.218,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.3,
             "unit": "s"
           },
           {
