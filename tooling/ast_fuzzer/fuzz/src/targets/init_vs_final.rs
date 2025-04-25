@@ -1,3 +1,6 @@
+//! Compare the execution of random ASTs between the initial SSA
+//! (or as close as we can stay to the initial state)
+//! and the fully optimized version.
 use crate::{
     compare_results, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
 };
