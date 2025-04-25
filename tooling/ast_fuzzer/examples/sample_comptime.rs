@@ -16,8 +16,7 @@ fn main() {
     };
     let mut u = Unstructured::new(&data);
 
-    let mut config = Config::default();
-    config.max_globals = 0;
+    let config = Config { max_globals: 0, ..Default::default() };
 
     let program = arb_program_comptime(&mut u, config).expect("arb_program");
     println!("{}", DisplayAstAsNoirComptime(&program));
