@@ -6,27 +6,33 @@ INPUT_DIR=$(realpath $1)
 
 average_times() {
   awk -v RS=" " '
-    {
+    function parse_time(value) {
       micro_seconds = match($1, /µs$/);
-      if (micro_seconds != 0) {
-        current_time = substr($1, 0, micro_seconds)
-        sum += current_time / 1000000;
-        n++;
-      }
-      milli_seconds = match($1, /ms$/);
-      if (milli_seconds != 0) {
-        current_time = substr($1, 0, milli_seconds)
-        sum += current_time / 1000;
-        n++;
-      }
-      seconds = match($1, /s$/);
-      if (seconds != 0) {
-        current_time = substr($1, 0, seconds)
-        sum += current_time;
-        n++;
-      } else {
+        if (micro_seconds != 0) {
+          current_time = substr($1, 0, micro_seconds)
+          return current_time / 1000000;
+        }
+        milli_seconds = match($1, /ms$/);
+        if (milli_seconds != 0) {
+          current_time = substr($1, 0, milli_seconds)
+          return current_time / 1000;
+        }
+        seconds = match($1, /s$/);
+        if (seconds != 0) {
+          current_time = substr($1, 0, seconds)
+          return sum += current_time;
+        }
+        
+        printf "Could not parse time: %" $1 > "/dev/stderr"
+        
         printf "ERROR"
-      }
+        exit 1
+    }
+
+    {
+      seconds = parse_time($1);
+      sum += seconds;
+      n++;
     }
     END {   
       if (n > 0)
