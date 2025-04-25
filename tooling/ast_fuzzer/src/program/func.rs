@@ -964,7 +964,7 @@ impl<'a> FunctionContext<'a> {
                 id: self.next_ident_id(),
             })),
             arguments: args,
-            return_type: callee.return_type.clone(),
+            return_type: callee.return_type,
             location: Location::dummy(),
         });
 
