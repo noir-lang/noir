@@ -44,11 +44,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     let mut config = config.clone();
     // Comptime should use Brillig feature set
     config.force_brillig = true;
-    // Generate only main function
-    config.min_functions = 0;
-    config.max_functions = 0;
-
-    //
+    
     let mut ctx = Context::new(config);
 
     let decl_inner = ctx.gen_function_decl(u, 1)?;
