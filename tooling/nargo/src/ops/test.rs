@@ -47,6 +47,7 @@ impl TestStatus {
     }
 }
 
+/// Runs a test function. This will either run the test or fuzz it, depending on whether the function has arguments.
 pub fn run_or_fuzz_test<'a, W, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
