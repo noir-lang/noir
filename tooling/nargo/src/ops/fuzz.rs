@@ -1,7 +1,5 @@
-use std::{io, path::PathBuf};
-
 use acvm::{
-    AcirField, BlackBoxFunctionSolver, FieldElement,
+    BlackBoxFunctionSolver, FieldElement,
     acir::native_types::{WitnessMap, WitnessStack},
     brillig_vm::BranchToFeatureMap,
 };
@@ -14,12 +12,11 @@ use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, compile_no_check};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, def_map::FuzzingHarness};
-use serde::{Deserialize, Serialize};
 
 use crate::foreign_calls::ForeignCallExecutor;
 use crate::{
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{DefaultForeignCallBuilder, layers},
+    foreign_calls::layers,
     ops::{
         execute::execute_program_with_acir_fuzzing, execute::execute_program_with_brillig_fuzzing,
         test::TestForeignCallExecutor,
@@ -71,57 +68,21 @@ impl FuzzingRunStatus {
     }
 }
 
-/// Builds a foreign call executor
-///
-/// This is a helper function to build a foreign call executor for the fuzzing harness.
-///
-#[allow(unused)] // Suppress warnings when the `rpc` feature is off.
-fn build_foreign_call_executor<
-    'a,
-    F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a + 'static,
->(
-    show_output: bool,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
-) -> impl ForeignCallExecutor<F> {
-    #[cfg(feature = "rpc")]
-    let build_foreign_call_executor = |output, base| {
-        DefaultForeignCallBuilder {
-            output,
-            enable_mocks: true,
-            resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
-            root_path: root_path.clone(),
-            package_name: package_name.clone(),
-        }
-        .build_with_base(base)
-    };
-    #[cfg(not(feature = "rpc"))]
-    let build_foreign_call_executor = |output, base| {
-        DefaultForeignCallBuilder { output, enable_mocks: true }.build_with_base(base)
-    };
-    // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-    let writer: Box<dyn io::Write> =
-        if show_output { Box::new(io::stdout()) } else { Box::new(io::empty()) };
-    let inner_executor = build_foreign_call_executor(writer, layers::Unhandled);
-
-    TestForeignCallExecutor::new(inner_executor)
-}
-
 #[allow(clippy::too_many_arguments)]
-pub fn run_fuzzing_harness<B>(
+pub fn run_fuzzing_harness<'a, B, F, E>(
     context: &mut Context,
     fuzzing_harness: &FuzzingHarness,
     show_output: bool,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
+    package_name: String,
     compile_config: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
     fuzz_execution_config: &FuzzExecutionConfig,
+    build_foreign_call_executor: F,
 ) -> FuzzingRunStatus
 where
     B: BlackBoxFunctionSolver<FieldElement> + Default,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
+    E: ForeignCallExecutor<FieldElement>,
 {
     let fuzzing_harness_has_no_arguments =
         context.def_interner.function_meta(&fuzzing_harness.id).function_signature().0.is_empty();
@@ -164,12 +125,10 @@ where
                 |program: &Program<FieldElement>,
                  initial_witness: WitnessMap<FieldElement>|
                  -> Result<WitnessStack<FieldElement>, ErrorAndWitness> {
-                    let mut foreign_call_executor = build_foreign_call_executor(
-                        show_output,
-                        foreign_call_resolver_url,
-                        root_path.clone(),
-                        package_name.clone(),
-                    );
+                    let foreign_call_executor =
+                        build_foreign_call_executor(output(show_output), layers::Unhandled);
+                    let mut foreign_call_executor =
+                        TestForeignCallExecutor::new(foreign_call_executor);
                     execute_program_with_acir_fuzzing(
                         program,
                         initial_witness,
@@ -193,13 +152,9 @@ where
                                     initial_witness: WitnessMap<FieldElement>,
                                     location_to_feature_map: &BranchToFeatureMap|
              -> Result<WitnessAndCoverage, ErrorAndCoverage> {
-                let mut foreign_call_executor = build_foreign_call_executor(
-                    show_output,
-                    foreign_call_resolver_url,
-                    root_path.clone(),
-                    package_name.clone(),
-                );
-
+                let foreign_call_executor =
+                    build_foreign_call_executor(output(show_output), layers::Unhandled);
+                let mut foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
                 execute_program_with_brillig_fuzzing(
                     program,
                     initial_witness,
@@ -245,7 +200,7 @@ where
                 acir_and_brillig_programs,
                 acir_executor,
                 brillig_executor,
-                &package_name.clone().unwrap(),
+                &package_name.clone(),
                 context.def_interner.function_name(&fuzzing_harness.id),
                 FuzzedExecutorExecutionConfiguration {
                     num_threads: fuzz_execution_config.num_threads,
@@ -268,12 +223,10 @@ where
                         .abi
                         .encode(&program_failure_result.counterexample.clone(), None)
                         .unwrap();
-                    let mut foreign_call_executor = build_foreign_call_executor(
-                        show_output,
-                        foreign_call_resolver_url,
-                        root_path.clone(),
-                        package_name.clone(),
-                    );
+                    let foreign_call_executor =
+                        build_foreign_call_executor(output(show_output), layers::Unhandled);
+                    let mut foreign_call_executor =
+                        TestForeignCallExecutor::new(foreign_call_executor);
                     // Execute the program with the failing witness
                     // Execute the program with the failing witness
                     let execution_failure = execute_program(
@@ -373,4 +326,8 @@ where
             FuzzingRunStatus::CompileError(err.into())
         }
     }
+}
+
+fn output(show_output: bool) -> Box<dyn std::io::Write> {
+    if show_output { Box::new(std::io::stdout()) } else { Box::new(std::io::empty()) }
 }
