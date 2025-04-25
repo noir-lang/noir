@@ -544,10 +544,12 @@
 <a href="#543" id="543">543</a>
 <a href="#544" id="544">544</a>
 <a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
+<span class="kw">use </span><span class="kw">crate</span>::NamedGeneric;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
@@ -984,7 +986,7 @@
                 <span class="kw">let </span>name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name) =&gt; {
+            Type::NamedGeneric(NamedGeneric { name, .. }) =&gt; {
                 <span class="kw">let </span>name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), <span class="bool-val">true</span>)
             }
@@ -1025,7 +1027,7 @@
 
         <span class="kw">match </span><span class="self">self</span>.follow_bindings() {
             Type::Constant(length, _kind) =&gt; UnresolvedTypeExpression::Constant(length, location),
-            Type::NamedGeneric(_var, name) =&gt; {
+            Type::NamedGeneric(NamedGeneric { name, .. }) =&gt; {
                 <span class="kw">let </span>path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
             }

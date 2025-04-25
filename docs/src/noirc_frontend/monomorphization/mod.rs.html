@@ -2587,7 +2587,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::shared::{Signedness, Visibility};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::FmtStrFragment;
-<span class="kw">use crate</span>::{DataType, Shared, TypeVariableId};
+<span class="kw">use crate</span>::{DataType, NamedGeneric, Shared, TypeVariableId};
 <span class="kw">use crate</span>::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -3787,15 +3787,15 @@
             HirType::TraitAsType(..) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"All TraitAsType should be replaced before calling convert_type"</span>);
             }
-            HirType::NamedGeneric(binding, <span class="kw">_</span>) =&gt; {
-                <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>binding.borrow() {
+            HirType::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
+                <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>type_var.borrow() {
                     <span class="kw">return </span><span class="self">Self</span>::convert_type_helper(binding, location, seen_types);
                 }
 
                 <span class="comment">// Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                </span>binding.bind(HirType::default_int_or_field_type());
+                </span>type_var.bind(HirType::default_int_or_field_type());
                 ast::Type::Field
             }
 
@@ -4039,8 +4039,8 @@
             HirType::FmtString(_size, fields) =&gt; <span class="self">Self</span>::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) =&gt; <span class="self">Self</span>::check_type(element.as_ref(), location),
             HirType::Slice(element) =&gt; <span class="self">Self</span>::check_type(element.as_ref(), location),
-            HirType::NamedGeneric(binding, <span class="kw">_</span>) =&gt; {
-                <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>binding.borrow() {
+            HirType::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
+                <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>type_var.borrow() {
                     <span class="kw">return </span><span class="self">Self</span>::check_type(binding, location);
                 }
 

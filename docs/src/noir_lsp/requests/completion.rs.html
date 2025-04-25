@@ -2020,7 +2020,11 @@
 <a href="#2019" id="2019">2019</a>
 <a href="#2020" id="2020">2020</a>
 <a href="#2021" id="2021">2021</a>
-<a href="#2022" id="2022">2022</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2022" id="2022">2022</a>
+<a href="#2023" id="2023">2023</a>
+<a href="#2024" id="2024">2024</a>
+<a href="#2025" id="2025">2025</a>
+<a href="#2026" id="2026">2026</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2039,7 +2043,7 @@
 <span class="kw">use </span>kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
-    DataType, ParsedModule, Type, TypeBinding,
+    DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
@@ -2630,7 +2634,7 @@
             Type::Tuple(types) =&gt; {
                 <span class="self">self</span>.complete_tuple_fields(types, self_prefix);
             }
-            Type::TypeVariable(var) | Type::NamedGeneric(var, <span class="kw">_</span>) =&gt; {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
                 <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>var.borrow() {
                     <span class="kw">return </span><span class="self">self</span>.complete_type_fields_and_methods(
                         typ,
@@ -3933,10 +3937,12 @@
             </span>}
         }
         Type::Alias(alias_type, generics) =&gt; <span class="prelude-val">Some</span>(alias_type.borrow().get_type(generics)),
-        Type::TypeVariable(var) | Type::NamedGeneric(var, <span class="kw">_</span>) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
-            TypeBinding::Bound(typ) =&gt; get_field_type(typ, name),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        },
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
+            <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
+                TypeBinding::Bound(typ) =&gt; get_field_type(typ, name),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            }
+        }
         <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
     }
 }
@@ -3948,10 +3954,12 @@
             <span class="kw">let </span>typ = alias_type.borrow().get_type(<span class="kw-2">&amp;</span>generics);
             get_array_element_type(typ)
         }
-        Type::TypeVariable(var) | Type::NamedGeneric(var, <span class="kw">_</span>) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
-            TypeBinding::Bound(typ) =&gt; get_array_element_type(typ.clone()),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        },
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
+            <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
+                TypeBinding::Bound(typ) =&gt; get_array_element_type(typ.clone()),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            }
+        }
         <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
     }
 }

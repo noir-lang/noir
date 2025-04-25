@@ -430,13 +430,17 @@
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, rc::Rc};
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, rc::Rc};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    ResolvedGeneric, Type, TypeBindings,
+    NamedGeneric, ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
         ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
@@ -762,7 +766,11 @@
         ) <span class="kw">in </span>trait_fn_meta.direct_generics.iter().zip(<span class="kw-2">&amp;</span>meta.direct_generics)
         {
             <span class="kw">let </span>trait_fn_kind = trait_fn_generic.kind();
-            <span class="kw">let </span>arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            <span class="kw">let </span>arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+                implicit: <span class="bool-val">false</span>,
+            });
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 

@@ -3279,7 +3279,44 @@
 <a href="#3278" id="3278">3278</a>
 <a href="#3279" id="3279">3279</a>
 <a href="#3280" id="3280">3280</a>
-<a href="#3281" id="3281">3281</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#3281" id="3281">3281</a>
+<a href="#3282" id="3282">3282</a>
+<a href="#3283" id="3283">3283</a>
+<a href="#3284" id="3284">3284</a>
+<a href="#3285" id="3285">3285</a>
+<a href="#3286" id="3286">3286</a>
+<a href="#3287" id="3287">3287</a>
+<a href="#3288" id="3288">3288</a>
+<a href="#3289" id="3289">3289</a>
+<a href="#3290" id="3290">3290</a>
+<a href="#3291" id="3291">3291</a>
+<a href="#3292" id="3292">3292</a>
+<a href="#3293" id="3293">3293</a>
+<a href="#3294" id="3294">3294</a>
+<a href="#3295" id="3295">3295</a>
+<a href="#3296" id="3296">3296</a>
+<a href="#3297" id="3297">3297</a>
+<a href="#3298" id="3298">3298</a>
+<a href="#3299" id="3299">3299</a>
+<a href="#3300" id="3300">3300</a>
+<a href="#3301" id="3301">3301</a>
+<a href="#3302" id="3302">3302</a>
+<a href="#3303" id="3303">3303</a>
+<a href="#3304" id="3304">3304</a>
+<a href="#3305" id="3305">3305</a>
+<a href="#3306" id="3306">3306</a>
+<a href="#3307" id="3307">3307</a>
+<a href="#3308" id="3308">3308</a>
+<a href="#3309" id="3309">3309</a>
+<a href="#3310" id="3310">3310</a>
+<a href="#3311" id="3311">3311</a>
+<a href="#3312" id="3312">3312</a>
+<a href="#3313" id="3313">3313</a>
+<a href="#3314" id="3314">3314</a>
+<a href="#3315" id="3315">3315</a>
+<a href="#3316" id="3316">3316</a>
+<a href="#3317" id="3317">3317</a>
+<a href="#3318" id="3318">3318</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
@@ -3294,6 +3331,7 @@
 <span class="kw">use crate</span>::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir_def::types,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
 };
@@ -3372,7 +3410,7 @@
 
     <span class="doccomment">/// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo&lt;T, U&gt;(...) {}`. Unlike TypeVariables, they cannot be bound over.
-    </span>NamedGeneric(TypeVariable, Rc&lt;String&gt;),
+    </span>NamedGeneric(NamedGeneric),
 
     <span class="doccomment">/// A cast (to, from) that's checked at monomorphization.
     ///
@@ -3422,6 +3460,14 @@
     /// an invalid type would otherwise issue a new error each time it is called
     /// if not for this variant.
     </span>Error,
+}
+
+<span class="attr">#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Debug)]
+</span><span class="kw">pub struct </span>NamedGeneric {
+    <span class="kw">pub </span>type_var: TypeVariable,
+    <span class="kw">pub </span>name: Rc&lt;String&gt;,
+    <span class="doccomment">/// Was this named generic implicitly added?
+    </span><span class="kw">pub </span>implicit: bool,
 }
 
 <span class="doccomment">/// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -3675,7 +3721,11 @@
 
 <span class="kw">impl </span>ResolvedGeneric {
     <span class="kw">pub fn </span>as_named_generic(<span class="self">self</span>) -&gt; Type {
-        Type::NamedGeneric(<span class="self">self</span>.type_var, <span class="self">self</span>.name)
+        Type::NamedGeneric(NamedGeneric {
+            type_var: <span class="self">self</span>.type_var,
+            name: <span class="self">self</span>.name,
+            implicit: <span class="bool-val">false</span>,
+        })
     }
 
     <span class="kw">pub fn </span>kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Kind {
@@ -3772,9 +3822,7 @@
 
     <span class="doccomment">/// Return the generics on this type as a vector of types
     </span><span class="kw">pub fn </span>generic_types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Type&gt; {
-        vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| {
-            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
-        })
+        vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().as_named_generic())
     }
 
     <span class="doccomment">/// Returns the field matching the given field name, as well as its visibility and field index.
@@ -4300,8 +4348,8 @@
             }
             Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
             Type::Error =&gt; <span class="macro">write!</span>(f, <span class="string">"error"</span>),
-            Type::NamedGeneric(binding, name) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
-                TypeBinding::Bound(binding) =&gt; binding.fmt(f),
+            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>type_var.borrow() {
+                TypeBinding::Bound(type_var) =&gt; type_var.fmt(f),
                 TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) <span class="kw">if </span>name.is_empty() =&gt; <span class="macro">write!</span>(f, <span class="string">"_"</span>),
                 TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),
             },
@@ -4547,7 +4595,7 @@
 
             Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::TypeVariable(<span class="kw">_</span>)
-            | Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::NamedGeneric(<span class="kw">_</span>)
             | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Reference(..)
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
@@ -4598,7 +4646,7 @@
             | Type::Unit
             | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::TypeVariable(<span class="kw">_</span>)
-            | Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::NamedGeneric(<span class="kw">_</span>)
             | Type::InfixExpr(..)
             | Type::Error =&gt; <span class="bool-val">true</span>,
 
@@ -4651,7 +4699,7 @@
             | Type::InfixExpr(..)
             | Type::Error =&gt; <span class="bool-val">true</span>,
 
-            Type::TypeVariable(type_var) | Type::NamedGeneric(type_var, <span class="kw">_</span>) =&gt; {
+            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
                 <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>type_var.borrow() {
                     typ.is_valid_for_unconstrained_boundary()
                 } <span class="kw">else </span>{
@@ -4696,7 +4744,8 @@
         <span class="kw">match </span><span class="self">self </span>{
             Type::Forall(generics, <span class="kw">_</span>) =&gt; generics.len(),
             Type::CheckedCast { to, .. } =&gt; to.generic_count(),
-            Type::TypeVariable(type_variable) | Type::NamedGeneric(type_variable, <span class="kw">_</span>) =&gt; {
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
                 <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
                     TypeBinding::Bound(binding) =&gt; binding.generic_count(),
                     TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="number">0</span>,
@@ -4736,7 +4785,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Kind {
         <span class="kw">match </span><span class="self">self </span>{
             Type::CheckedCast { to, .. } =&gt; to.kind(),
-            Type::NamedGeneric(var, <span class="kw">_</span>) =&gt; var.kind(),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; type_var.kind(),
             Type::Constant(<span class="kw">_</span>, kind) =&gt; kind.clone(),
             Type::TypeVariable(var) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
                 TypeBinding::Bound(typ) =&gt; typ.kind(),
@@ -4852,7 +4901,7 @@
             | Type::Unit
             | Type::TypeVariable(<span class="kw">_</span>)
             | Type::TraitAsType(..)
-            | Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::NamedGeneric(<span class="kw">_</span>)
             | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Reference(..)
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
@@ -5020,7 +5069,9 @@
     <span class="kw">fn </span>get_inner_type_variable(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Shared&lt;TypeBinding&gt;, Kind)&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             Type::TypeVariable(var) =&gt; <span class="prelude-val">Some</span>((var.<span class="number">1</span>.clone(), var.kind())),
-            Type::NamedGeneric(var, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>((var.<span class="number">1</span>.clone(), var.kind())),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
+                <span class="prelude-val">Some</span>((type_var.<span class="number">1</span>.clone(), type_var.kind()))
+            }
             Type::CheckedCast { to, .. } =&gt; to.get_inner_type_variable(),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
@@ -5150,17 +5201,21 @@
                 to.try_unify(other, bindings)
             }
 
-            (NamedGeneric(binding, <span class="kw">_</span>), other) | (other, NamedGeneric(binding, <span class="kw">_</span>))
-                <span class="kw">if </span>!binding.borrow().is_unbound() =&gt;
+            (NamedGeneric(types::NamedGeneric { type_var, .. }), other)
+            | (other, NamedGeneric(types::NamedGeneric { type_var, .. }))
+                <span class="kw">if </span>!type_var.borrow().is_unbound() =&gt;
             {
-                <span class="kw">if let </span>TypeBinding::Bound(link) = <span class="kw-2">&amp;*</span>binding.borrow() {
+                <span class="kw">if let </span>TypeBinding::Bound(link) = <span class="kw-2">&amp;*</span>type_var.borrow() {
                     link.try_unify(other, bindings)
                 } <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"If guard ensures binding is bound"</span>)
                 }
             }
 
-            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) =&gt; {
+            (
+                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
+            ) =&gt; {
                 <span class="comment">// Bound NamedGenerics are caught by the check above
                 </span><span class="macro">assert!</span>(binding_a.borrow().is_unbound());
                 <span class="macro">assert!</span>(binding_b.borrow().is_unbound());
@@ -5618,7 +5673,9 @@
 
     <span class="kw">fn </span>type_variable_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TypeVariableId&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::TypeVariable(variable) | Type::NamedGeneric(variable, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(variable.<span class="number">0</span>),
+            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
+                <span class="prelude-val">Some</span>(type_var.<span class="number">0</span>)
+            }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -5719,8 +5776,8 @@
                 <span class="kw">let </span>to = to.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            Type::NamedGeneric(binding, <span class="kw">_</span>) | Type::TypeVariable(binding) =&gt; {
-                substitute_binding(binding)
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) =&gt; {
+                substitute_binding(type_var)
             }
 
             <span class="comment">// Do not substitute_helper fields, it can lead to infinite recursion
@@ -5811,7 +5868,7 @@
             }
             Type::Tuple(fields) =&gt; fields.iter().any(|field| field.occurs(target_id)),
             Type::CheckedCast { from, to } =&gt; from.occurs(target_id) || to.occurs(target_id),
-            Type::NamedGeneric(type_var, <span class="kw">_</span>) | Type::TypeVariable(type_var) =&gt; {
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) =&gt; {
                 <span class="kw">match </span><span class="kw-2">&amp;*</span>type_var.borrow() {
                     TypeBinding::Bound(binding) =&gt; {
                         type_var.id() == target_id || binding.occurs(target_id)
@@ -5874,7 +5931,7 @@
                 <span class="kw">let </span>to = Box::new(to.follow_bindings());
                 CheckedCast { from, to }
             }
-            TypeVariable(var) | NamedGeneric(var, <span class="kw">_</span>) =&gt; {
+            TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) =&gt; {
                 <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>var.borrow() {
                     <span class="kw">return </span>typ.follow_bindings();
                 }
@@ -5916,7 +5973,7 @@
     /// fields or arguments of this type.
     </span><span class="kw">pub fn </span>follow_bindings_shallow(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Type&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::TypeVariable(var) | Type::NamedGeneric(var, <span class="kw">_</span>) =&gt; {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
                 <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>var.borrow() {
                     <span class="kw">return </span>Cow::Owned(typ.follow_bindings_shallow().into_owned());
                 }
@@ -5993,8 +6050,8 @@
                 from.replace_named_generics_with_type_variables();
                 to.replace_named_generics_with_type_variables();
             }
-            Type::NamedGeneric(var, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>type_binding = var.borrow();
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
+                <span class="kw">let </span>type_binding = type_var.borrow();
                 <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>type_binding {
                     <span class="kw">let </span><span class="kw-2">mut </span>binding = binding.clone();
                     drop(type_binding);
@@ -6002,7 +6059,7 @@
                     <span class="kw-2">*</span><span class="self">self </span>= binding;
                 } <span class="kw">else </span>{
                     drop(type_binding);
-                    <span class="kw-2">*</span><span class="self">self </span>= Type::TypeVariable(var.clone());
+                    <span class="kw-2">*</span><span class="self">self </span>= Type::TypeVariable(type_var.clone());
                 }
             }
             Type::Function(args, ret, env, _unconstrained) =&gt; {
@@ -6052,7 +6109,7 @@
             }
             Type::Alias(alias, args) =&gt; alias.borrow().get_type(args).integral_maximum_size(),
             Type::CheckedCast { to, .. } =&gt; to.integral_maximum_size(),
-            Type::NamedGeneric(binding, _name) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>type_var.borrow() {
                 TypeBinding::Bound(typ) =&gt; typ.integral_maximum_size(),
                 TypeBinding::Unbound(<span class="kw">_</span>, kind) =&gt; kind.integral_maximum_size(),
             },
@@ -6350,12 +6407,12 @@
             Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
             Type::Error =&gt; <span class="macro">write!</span>(f, <span class="string">"error"</span>),
             Type::CheckedCast { to, .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"{:?}"</span>, to),
-            Type::NamedGeneric(binding, name) =&gt; <span class="kw">match </span>binding.kind() {
+            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) =&gt; <span class="kw">match </span>type_var.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField =&gt; {
-                    <span class="macro">write!</span>(f, <span class="string">"{}{:?}"</span>, name, binding)
+                    <span class="macro">write!</span>(f, <span class="string">"{}{:?}"</span>, name, type_var)
                 }
                 Kind::Numeric(typ) =&gt; {
-                    <span class="macro">write!</span>(f, <span class="string">"({} : {}){:?}"</span>, name, typ, binding)
+                    <span class="macro">write!</span>(f, <span class="string">"({} : {}){:?}"</span>, name, typ, type_var)
                 }
             },
             Type::Constant(x, kind) =&gt; <span class="macro">write!</span>(f, <span class="string">"({}: {})"</span>, x, kind),
@@ -6451,7 +6508,16 @@
                 alias.hash(state);
                 args.hash(state);
             }
-            Type::TypeVariable(var) | Type::NamedGeneric(var, ..) =&gt; var.hash(state),
+            Type::NamedGeneric(NamedGeneric { type_var, implicit: <span class="bool-val">true</span>, .. }) =&gt; {
+                <span class="comment">// An implicitly added unbound named generic's hash must be the same as any other
+                // implicitly added unbound named generic's hash.
+                </span><span class="kw">if </span>!type_var.borrow().is_unbound() {
+                    type_var.hash(state);
+                }
+            }
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
+                var.hash(state);
+            }
             Type::TraitAsType(trait_id, <span class="kw">_</span>, args) =&gt; {
                 trait_id.hash(state);
                 args.hash(state);
@@ -6547,14 +6613,22 @@
             (InfixExpr(l_lhs, l_op, l_rhs, <span class="kw">_</span>), InfixExpr(r_lhs, r_op, r_rhs, <span class="kw">_</span>)) =&gt; {
                 l_lhs == r_lhs &amp;&amp; l_op == r_op &amp;&amp; l_rhs == r_rhs
             }
+            <span class="comment">// Two implicitly added unbound named generics are equal
+            </span>(
+                NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: <span class="bool-val">true</span>, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: <span class="bool-val">true</span>, .. }),
+            ) =&gt; {
+                lhs_var.borrow().is_unbound() &amp;&amp; rhs_var.borrow().is_unbound()
+                    || lhs_var.id() == rhs_var.id()
+            }
             <span class="comment">// Special case: we consider unbound named generics and type variables to be equal to each
             // other if their type variable ids match. This is important for some corner cases in
             // monomorphization where we call `replace_named_generics_with_type_variables` but
             // still want them to be equal for canonicalization checks in arithmetic generics.
             // Without this we'd fail the `serialize` test.
             </span>(
-                NamedGeneric(lhs_var, <span class="kw">_</span>) | TypeVariable(lhs_var),
-                NamedGeneric(rhs_var, <span class="kw">_</span>) | TypeVariable(rhs_var),
+                NamedGeneric(types::NamedGeneric { type_var: lhs_var, .. }) | TypeVariable(lhs_var),
+                NamedGeneric(types::NamedGeneric { type_var: rhs_var, .. }) | TypeVariable(rhs_var),
             ) =&gt; lhs_var.id() == rhs_var.id(),
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }

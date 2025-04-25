@@ -674,7 +674,11 @@
 <a href="#673" id="673">673</a>
 <a href="#674" id="674">674</a>
 <a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::Location;
@@ -1056,17 +1060,21 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acvm::{AcirField, FieldElement};
 
-    <span class="kw">use </span><span class="kw">crate</span>::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
+    <span class="kw">use crate</span>::{
+        NamedGeneric,
+        hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+    };
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>solves_n_minus_one_plus_one_through_checked_casts() {
         <span class="comment">// We want to test that the inclusion of a `CheckedCast` won't prevent us from canonicalizing
         // the expression `(N - 1) + 1` to `N` if there exists a `CheckedCast` on the `N - 1` term.
 
-        </span><span class="kw">let </span>n = Type::NamedGeneric(
-            TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), Kind::u32()),
-            std::rc::Rc::new(<span class="string">"N"</span>.to_owned()),
-        );
+        </span><span class="kw">let </span>n = Type::NamedGeneric(NamedGeneric {
+            type_var: TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), Kind::u32()),
+            name: std::rc::Rc::new(<span class="string">"N"</span>.to_owned()),
+            implicit: <span class="bool-val">false</span>,
+        });
         <span class="kw">let </span>n_minus_one = Type::infix_expr(
             Box::new(n.clone()),
             BinaryTypeOperator::Subtraction,

@@ -254,8 +254,15 @@
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
-    ResolvedGeneric,
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+    NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -417,7 +424,11 @@
         ) <span class="kw">in </span>method.direct_generics.iter().zip(<span class="kw-2">&amp;</span>override_meta.direct_generics)
         {
             <span class="kw">let </span>trait_fn_kind = trait_fn_generic.kind();
-            <span class="kw">let </span>arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            <span class="kw">let </span>arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+                implicit: <span class="bool-val">false</span>,
+            });
             bindings.insert(
                 trait_fn_generic.id(),
                 (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
@@ -449,10 +460,13 @@
                 <span class="kw">continue</span>;
             }
 
+            <span class="kw">let </span>override_trait_generics =
+                override_trait_constraint.trait_bound.trait_generics.clone();
+
             <span class="kw">if </span>!substituted_method_ids.contains(<span class="kw-2">&amp;</span>(
                 override_trait_constraint.typ.clone(),
                 override_trait_constraint.trait_bound.trait_id,
-                override_trait_constraint.trait_bound.trait_generics.clone(),
+                override_trait_generics,
             )) {
                 <span class="kw">let </span>the_trait =
                     <span class="self">self</span>.interner.get_trait(override_trait_constraint.trait_bound.trait_id);

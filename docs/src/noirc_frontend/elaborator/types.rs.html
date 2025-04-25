@@ -2231,7 +2231,8 @@
 <a href="#2230" id="2230">2230</a>
 <a href="#2231" id="2231">2231</a>
 <a href="#2232" id="2232">2232</a>
-<a href="#2233" id="2233">2233</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2233" id="2233">2233</a>
+<a href="#2234" id="2234">2234</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2239,7 +2240,8 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
+    UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind, UnaryOp,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
@@ -2388,7 +2390,7 @@
                 <span class="kw">let </span>env = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>env, kind, mode));
 
                 <span class="kw">match </span><span class="kw-2">*</span>env {
-                    Type::Unit | Type::Tuple(<span class="kw">_</span>) | Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                    Type::Unit | Type::Tuple(<span class="kw">_</span>) | Type::NamedGeneric(<span class="kw">_</span>) =&gt; {
                         Type::Function(args, ret, env, unconstrained)
                     }
                     <span class="kw">_ </span>=&gt; {
@@ -2731,7 +2733,7 @@
             <span class="kw">let </span>name = path.last_name();
             <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.find_generic(name) {
                 <span class="kw">let </span>generic = generic.clone();
-                <span class="kw">return </span><span class="prelude-val">Some</span>(Type::NamedGeneric(generic.type_var, generic.name));
+                <span class="kw">return </span><span class="prelude-val">Some</span>(generic.as_named_generic());
             }
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_associated_type_on_self(path) {
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
@@ -2977,7 +2979,7 @@
         }
 
         <span class="kw">for </span>constraint <span class="kw">in </span><span class="self">self</span>.trait_bounds.clone() {
-            <span class="kw">if let </span>Type::NamedGeneric(<span class="kw">_</span>, name) = <span class="kw-2">&amp;</span>constraint.typ {
+            <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric { name, .. }) = <span class="kw-2">&amp;</span>constraint.typ {
                 <span class="comment">// if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
                 </span><span class="kw">if </span>path.segments[<span class="number">0</span>].ident.as_str() != name.as_str() {
                     <span class="kw">continue</span>;
@@ -3748,7 +3750,7 @@
                 });
                 <span class="prelude-val">None
             </span>}
-            Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="self">self</span>.lookup_method_in_trait_constraints(
+            Type::NamedGeneric(<span class="kw">_</span>) =&gt; <span class="self">self</span>.lookup_method_in_trait_constraints(
                 object_type,
                 method_name,
                 location,

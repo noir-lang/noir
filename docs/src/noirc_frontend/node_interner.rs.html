@@ -5023,7 +5023,7 @@
         Type::Unit =&gt; <span class="prelude-val">Some</span>(Unit),
         Type::Tuple(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(Tuple),
         Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(Function),
-        Type::NamedGeneric(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(Generic),
+        Type::NamedGeneric(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(Generic),
         Type::Quoted(quoted) =&gt; <span class="prelude-val">Some</span>(Quoted(<span class="kw-2">*</span>quoted)),
         Type::Reference(element, <span class="kw">_</span>) =&gt; get_type_method_key(element),
         Type::Alias(alias, <span class="kw">_</span>) =&gt; get_type_method_key(<span class="kw-2">&amp;</span>alias.borrow().typ),

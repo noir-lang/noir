@@ -459,7 +459,7 @@
 <a href="#458" id="458">458</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_frontend::{
-    Kind, ResolvedGeneric, Type,
+    Kind, NamedGeneric, ResolvedGeneric, Type,
     ast::{NoirTraitImpl, UnresolvedTypeData},
     graph::CrateId,
     hir::{
@@ -782,8 +782,8 @@
 
                 <span class="self">self</span>.string.push_str(<span class="string">"error"</span>);
             }
-            Type::NamedGeneric(typevar, _name) =&gt; {
-                <span class="self">self</span>.append_type(<span class="kw-2">&amp;</span>Type::TypeVariable(typevar.clone()));
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
+                <span class="self">self</span>.append_type(<span class="kw-2">&amp;</span>Type::TypeVariable(type_var.clone()));
             }
             Type::Function(args, ret, env, unconstrained) =&gt; {
                 <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
