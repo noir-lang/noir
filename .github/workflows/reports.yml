@@ -369,7 +369,7 @@ jobs:
         id: compilation_report
         run: |
           PACKAGE_NAME=$(basename ${{ matrix.path }})
-          REPORT_NAME=$PACKAGE_NAME.json
+          REPORT_NAME=external_report_$PACKAGE_NAME.json
           REPORT_PATH=$(pwd)/$REPORT_NAME
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
@@ -550,16 +550,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download initial compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: ./reports
+      # - name: Download initial compilation report
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: in_progress_compilation_report
+      #     path: ./reports
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
         with:
-          pattern: compilation_report_*
+          pattern: external_report_*
           path: ./reports
           merge-multiple: true
 
