@@ -3,7 +3,7 @@
 set -ue
 
 NARGO=${NARGO:-nargo}
-OUTPUT_DIR=${OUTPUT_DIR:-$(realpath "$(dirname "$0")/output")}
+OUTPUT_DIR=$(realpath ${OUTPUT_DIR:-"$(dirname "$0")/output")})
 mkdir -p $OUTPUT_DIR
 
 echo "PROJECT_TAG: ${PROJECT_TAG}"
@@ -19,7 +19,7 @@ setup_repo() {
     # Sadly we cannot use depth=1 clones here as we need to be able to checkout
     # commit hashes as well as branches/releases
     git clone $repo_url $temp_dir
-    git -C $TMP_DIR -c advice.detachedHead=false checkout $TAG
+    git -C $temp_dir -c advice.detachedHead=false checkout $repo_tag
 }
 
 compile_project() {
@@ -44,7 +44,7 @@ save_artifact() {
 
 if [ -z "${CI:-}" ]; then
     TMP_DIR=$(mktemp -d)
-    trap "rm -rf $TMP_DIR" EXIT
+    # trap "rm -rf $TMP_DIR" EXIT
     
     setup_repo $REPO_SLUG $PROJECT_TAG $TMP_DIR
 fi
