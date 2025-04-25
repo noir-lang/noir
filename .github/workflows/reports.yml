@@ -349,7 +349,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: scripts
           sparse-checkout: |
             .github/actions/download-nargo/action.yml
             scripts/gather_benchmark_data.sh
@@ -357,7 +356,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download nargo binary
-        uses: ./scripts/.github/actions/download-nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Generate compilation report
         id: compilation_report
