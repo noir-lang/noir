@@ -248,10 +248,10 @@ impl Context {
         &mut self,
         u: &mut Unstructured,
         id: FuncId,
-        f: impl Fn(&mut Unstructured, &mut FunctionContext) -> arbitrary::Result<Expression>,
+        f: impl Fn(&mut Unstructured, FunctionContext) -> arbitrary::Result<Expression>,
     ) -> arbitrary::Result<()> {
-        let mut fctx = FunctionContext::new(self, id);
-        let body = f(u, &mut fctx)?;
+        let fctx = FunctionContext::new(self, id);
+        let body = f(u, fctx)?;
         let decl = self.function_decl(id);
         let func = Function {
             id,

@@ -184,7 +184,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate the function body.
-    pub fn gen_body(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+    pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // If we don't limit the budget according to the available data,
         // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
         self.budget = self.budget.min(u.len());
@@ -199,7 +199,7 @@ impl<'a> FunctionContext<'a> {
     /// Generate the function body, wrapping a function call with literal arguments.
     /// This is used to test comptime functions, which can only take those.
     pub fn gen_body_with_lit_call(
-        &mut self,
+        mut self,
         u: &mut Unstructured,
         callee_id: FuncId,
     ) -> arbitrary::Result<Expression> {
