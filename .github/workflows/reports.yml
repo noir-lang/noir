@@ -355,6 +355,13 @@ jobs:
             scripts/process_benchmark_data.sh
           sparse-checkout-cone-mode: false
 
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repo }}
+          path: test-repo
+          ref: ${{ matrix.ref }}
+
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
@@ -373,6 +380,7 @@ jobs:
         env:
           REPO_SLUG: ${{ matrix.repo }}
           PROJECT_TAG: ${{ matrix.ref }}
+          REPO_DIR: test-repo
           PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
 

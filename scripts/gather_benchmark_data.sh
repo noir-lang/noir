@@ -9,16 +9,17 @@ mkdir -p $OUTPUT_DIR
 echo "PROJECT_TAG: ${PROJECT_TAG}"
 echo "PROJECT_DIR: ${PROJECT_DIR}"
 
-TMP_DIR=$(mktemp -d)
-trap "rm -rf $TMP_DIR" EXIT
-
 setup_repo() {
     local repo_slug=$1
     local repo_tag=$2
     local temp_dir=$3
 
     local repo_url="https://github.com/$repo_slug"
-    git clone $repo_url -c advice.detachedHead=false --depth 1 --branch $repo_tag $temp_dir
+    
+    # Sadly we cannot use depth=1 clones here as we need to be able to checkout
+    # commit hashes as well as branches/releases
+    git clone $repo_url $temp_dir
+    git -C $TMP_DIR -c advice.detachedHead=false checkout $TAG
 }
 
 compile_project() {
@@ -41,9 +42,15 @@ save_artifact() {
     mv ./target/*.json $OUTPUT_DIR/artifact.json
 }
 
-setup_repo $REPO_SLUG $PROJECT_TAG $TMP_DIR
+if [ -z "${CI:-}" ]; then
+    TMP_DIR=$(mktemp -d)
+    trap "rm -rf $TMP_DIR" EXIT
+    
+    setup_repo $REPO_SLUG $PROJECT_TAG $TMP_DIR
+if
 
-cd "$TMP_DIR/$PROJECT_DIR"
+REPO_DIR=${REPO_DIR:-$TMP_DIR}
+cd "$REPO_DIR/$PROJECT_DIR"
 
 # We run `nargo check` to pre-fetch any dependencies so we don't measure the time to download these
 # when benchmarking.
