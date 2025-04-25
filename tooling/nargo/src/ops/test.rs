@@ -59,19 +59,19 @@ where
             let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
             let compiled_program = crate::ops::transform_program(compiled_program, target_width);
 
-            if !test_function.has_arguments {
+            if test_function.has_arguments {
+                run_test_with_arguments(
+                    blackbox_solver,
+                    compiled_program,
+                    test_function,
+                    build_foreign_call_executor,
+                )
+            } else {
                 run_test_without_arguments(
                     blackbox_solver,
                     compiled_program,
                     test_function,
                     output,
-                    build_foreign_call_executor,
-                )
-            } else {
-                run_test_with_arguments(
-                    blackbox_solver,
-                    compiled_program,
-                    test_function,
                     build_foreign_call_executor,
                 )
             }
