@@ -8,9 +8,15 @@ use noir_ast_fuzzer::compare::CompareMutants;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let options = default_ssa_options();
+    let config = Config {
+        // We created enough bug tickets due to overflows.
+        avoid_overflow: true,
+        ..Default::default()
+    };
+
     let inputs = CompareMutants::arb(
         u,
-        Config::default(),
+        config,
         |_u, mut program| {
             // Change every function to be unconstrained.
             for f in program.functions.iter_mut() {

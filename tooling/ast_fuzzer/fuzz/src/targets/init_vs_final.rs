@@ -13,10 +13,11 @@ use noirc_evaluator::ssa::minimal_passes;
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let options = default_ssa_options();
     let passes = minimal_passes();
-    let mut config = Config::default();
-
-    // Try to avoid using overflowing operations; see below for the reason.
-    config.avoid_overflow = true;
+    let config = Config {
+        // Try to avoid using overflowing operations; see below for the reason.
+        avoid_overflow: true,
+        ..Default::default()
+    };
 
     let inputs = ComparePasses::arb(
         u,
