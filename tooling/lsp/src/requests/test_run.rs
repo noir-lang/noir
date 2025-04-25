@@ -4,7 +4,7 @@ use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
     foreign_calls::DefaultForeignCallBuilder,
-    ops::{TestStatus, run_or_fuzz_test},
+    ops::{TestStatus, run_test},
 };
 use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING, check_crate};
@@ -82,12 +82,11 @@ fn on_test_run_request_inner(
                 )
             })?;
 
-            let test_result = run_or_fuzz_test(
+            let test_result = run_test(
                 &state.solver,
                 &mut context,
                 &test_function,
                 std::io::stdout(),
-                package.name.to_string(),
                 &CompileOptions::default(),
                 |output, base| {
                     DefaultForeignCallBuilder {
