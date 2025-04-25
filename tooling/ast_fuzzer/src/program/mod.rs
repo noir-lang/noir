@@ -9,7 +9,7 @@ use noirc_frontend::{
     ast::IntegerBitSize,
     monomorphization::{
         ast::{Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type},
-        printer::AstPrinter,
+        printer::{AstPrinter, FunctionPrintOptions},
     },
     shared::{Signedness, Visibility},
 };
@@ -392,15 +392,13 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         let mut printer = AstPrinter::default();
         printer.show_id = false;
         for function in &self.0.functions {
+            let mut fpo = FunctionPrintOptions::default();
             if function.id == Program::main_id() {
-                printer.print_function_as_comptime_wrapper(
-                    function,
-                    Some(self.0.return_visibility),
-                    f,
-                )?;
+                fpo.comptime_wrap_body = true;
             } else {
-                printer.print_function_as_comptime(function, None, f)?;
+                fpo.comptime = true;
             }
+            printer.print_function(function, f, fpo)?;
         }
         Ok(())
     }
