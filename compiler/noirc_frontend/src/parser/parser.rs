@@ -530,11 +530,10 @@ impl<'a> Parser<'a> {
     }
 
     fn location_at_previous_token_end(&self) -> Location {
-        Location::new(self.span_at_previous_token_end(), self.previous_token_location.file)
-    }
-
-    fn span_at_previous_token_end(&self) -> Span {
-        Span::from(self.previous_token_location.span.end()..self.previous_token_location.span.end())
+        let span_at_previous_token_end = Span::from(
+            self.previous_token_location.span.end()..self.previous_token_location.span.end(),
+        );
+        Location::new(span_at_previous_token_end, self.previous_token_location.file)
     }
 
     fn expected_identifier(&mut self) {
